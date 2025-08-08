@@ -1,0 +1,159 @@
+import SwiftUI
+import FirebaseAuth
+
+struct BlockedUsersView: View {
+    @StateObject private var viewModel = BlockedUsersViewModel()
+    @State private var hasFetchedBlockedUsers = false
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                if viewModel.isLoading {
+                    ProgressView("Cargando usuarios bloqueados...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .font(.custom("Poppins-Regular", size: 16))
+                        .foregroundColor(.gray)
+                } else if viewModel.blockedUsers.isEmpty {
+                    VStack {
+                        Image(systemName: "hand.raised.slash")
+                            .resizable()
+                            .frame(width: 50, height: 50)
+                            .foregroundColor(.gray)
+                        Text("No tienes usuarios bloqueados")
+                            .font(.custom("Poppins-Regular", size: 16))
+                            .foregroundColor(.gray)
+                        Spacer()
+                    }
+                    .padding()
+                } else {
+                    List(viewModel.blockedUsers, id: \.id) { user in
+                        HStack {
+                            Text(user.username)
+                                .font(.custom("Poppins-Regular", size: 14))
+                                .foregroundColor(.black)
+                            Spacer()
+                            Button(action: {
+                                viewModel.unblockUser(userId: user.id)
+                            }) {
+                                Text("Desbloquear")
+                                    .font(.custom("Poppins-Regular", size: 12))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.blue)
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.vertical, 5)
+                    }
+                }
+            }
+            .navigationTitle("Usuarios bloqueados")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                if !hasFetchedBlockedUsers {
+                    viewModel.fetchBlockedUsers()
+                    hasFetchedBlockedUsers = true
+                }
+            }
+            .alert(isPresented: $viewModel.showError) {
+                Alert(
+                    title: Text("Error"),
+                    message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+        }
+    }
+}
+
+class BlockedUsersViewModel: ObservableObject {
+    @Published var blockedUsers: [AppUser] = []
+    @Published var isLoading: Bool = false
+    @Published var showError: Bool = false
+    @Published var errorMessage: String?
+
+    private let firestoreService = FirestoreService()
+
+    func fetchBlockedUsers() {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            showError(message: "Usuario no autenticado")
+            return
+        }
+
+        isLoading = true
+        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let user):
+                let blockedUserIds = user.blockedUsers
+                print("Usuarios bloqueados obtenidos: \(blockedUserIds)")
+                if blockedUserIds.isEmpty {
+                    self.blockedUsers = []
+                    self.isLoading = false
+                    return
+                }
+                self.firestoreService.fetchUsers(userIds: blockedUserIds) { result in
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        switch result {
+                        case .success(let users):
+                            self.blockedUsers = users
+                        case .failure(let error):
+                            self.showError(message: "Error al obtener usuarios bloqueados: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.showError(message: "Error al obtener perfil: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    func unblockUser(userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            showError(message: "Usuario no autenticado")
+            return
+        }
+
+        isLoading = true
+        firestoreService.unblockUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if let error = error {
+                    self.showError(message: "Error al desbloquear usuario: \(error.localizedDescription)")
+                } else {
+                    // Actualizar la lista de usuarios bloqueados localmente
+                    if let index = self.blockedUsers.firstIndex(where: { $0.id == userId }) {
+                        self.blockedUsers.remove(at: index)
+                    }
+                    print("Usuario desbloqueado: \(userId)")
+                }
+            }
+        }
+    }
+
+    private func showError(message: String) {
+        self.errorMessage = message
+        self.showError = true
+    }
+}
+
+struct BlockedUsersView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            BlockedUsersView()
+        }
+    }
+}

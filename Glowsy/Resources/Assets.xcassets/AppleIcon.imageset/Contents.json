@@ -1,0 +1,21 @@
+{
+  "images" : [
+    {
+      "filename" : "[CITYPNG.COM]Apple Brand Logo - 1500x1500.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

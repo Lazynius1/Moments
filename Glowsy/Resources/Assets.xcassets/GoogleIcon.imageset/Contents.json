@@ -1,0 +1,21 @@
+{
+  "images" : [
+    {
+      "filename" : "[CITYPNG.COM]Google Logo Icon Gsuite HD - 3000x3000.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
