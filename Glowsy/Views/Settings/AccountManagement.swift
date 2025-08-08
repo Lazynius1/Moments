@@ -447,12 +447,78 @@ class AccountManagementService {
         let userId = user.uid
         print("🗑️ Iniciando eliminación de datos para userId: \(userId)")
         
-        // Estrategia simplificada: Solo eliminar el documento del usuario principal
-        // Las reglas de seguridad de Firestore pueden manejar la limpieza en cascada
+        // Primero obtener los datos del usuario para eliminar también el username
         let userRef = db.collection("users").document(userId)
         
-        print("📝 Eliminando documento principal del usuario...")
-        userRef.delete { [weak self] error in
+        userRef.getDocument { [weak self] document, error in
+            if let error = error {
+                print("❌ Error obteniendo datos del usuario: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let document = document, document.exists,
+                  let userData = document.data(),
+                  let username = userData["username"] as? String else {
+                print("⚠️ No se pudo obtener el username del usuario, continuando con eliminación básica")
+                self?.deleteUserDocumentAndAuth(user: user, completion: completion)
+                return
+            }
+            
+            print("📝 Username encontrado: \(username)")
+            
+            // Crear batch para eliminar tanto el usuario como el username
+            let batch = self?.db.batch()
+            
+            // Eliminar documento del usuario
+            batch?.deleteDocument(userRef)
+            print("   - Añadido al batch: eliminar documento de usuario")
+            
+            // Eliminar documento del username
+            let usernameRef = self?.db.collection("usernames").document(username.lowercased())
+            if let usernameRef = usernameRef {
+                batch?.deleteDocument(usernameRef)
+                print("   - Añadido al batch: eliminar documento de username")
+            }
+            
+            // Ejecutar batch
+            batch?.commit { error in
+                if let error = error {
+                    print("❌ Error ejecutando batch de eliminación: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                print("✅ Batch de eliminación ejecutado exitosamente")
+                print("✅ Documento del usuario eliminado")
+                print("✅ Documento del username eliminado")
+                
+                // Limpiar datos relacionados en background
+                self?.cleanupUserData(userId: userId, username: username) {
+                    print("🔥 Procediendo a eliminar cuenta de Firebase Auth...")
+                    
+                    // Ahora eliminar la cuenta de Firebase Auth
+                    user.delete { error in
+                        if let error = error {
+                            print("❌ Error eliminando cuenta de Auth: \(error.localizedDescription)")
+                            completion(.failure(error))
+                        } else {
+                            print("✅ Cuenta de Auth eliminada exitosamente")
+                            print("🎉 Eliminación de cuenta completada completamente")
+                            completion(.success(()))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func deleteUserDocumentAndAuth(user: User, completion: @escaping (Result<Void, Error>) -> Void) {
+        let userId = user.uid
+        let userRef = db.collection("users").document(userId)
+        
+        print("📝 Eliminando solo documento del usuario (username no encontrado)...")
+        userRef.delete { error in
             if let error = error {
                 print("❌ Error eliminando documento del usuario: \(error.localizedDescription)")
                 completion(.failure(error))
@@ -526,5 +592,203 @@ class AccountManagementService {
                 completion(.success(()))
             }
         }
+    }
+    
+    // MARK: - Limpieza Completa de Datos del Usuario
+    private func cleanupUserData(userId: String, username: String, completion: @escaping () -> Void) {
+        print("🧹 Iniciando limpieza completa de datos para usuario: \(userId)")
+        
+        // Ejecutar limpieza en background para no bloquear la UI
+        DispatchQueue.global(qos: .background).async {
+            let group = DispatchGroup()
+            
+            // 1. Limpiar conversaciones
+            group.enter()
+            self.cleanupConversations(userId: userId) {
+                group.leave()
+            }
+            
+            // 2. Limpiar seguimientos
+            group.enter()
+            self.cleanupFollows(userId: userId) {
+                group.leave()
+            }
+            
+            // 3. Limpiar contenido (momentos, historias)
+            group.enter()
+            self.cleanupContent(userId: userId) {
+                group.leave()
+            }
+            
+            // 4. Limpiar notificaciones
+            group.enter()
+            self.cleanupNotifications(userId: userId) {
+                group.leave()
+            }
+            
+            // 5. Limpiar menciones en otros documentos
+            group.enter()
+            self.cleanupMentions(userId: userId, username: username) {
+                group.leave()
+            }
+            
+            group.notify(queue: .main) {
+                print("✅ Limpieza completa finalizada")
+                completion()
+            }
+        }
+    }
+    
+    private func cleanupConversations(userId: String, completion: @escaping () -> Void) {
+        print("💬 Limpiando conversaciones...")
+        
+        // Obtener conversaciones donde participa el usuario
+        db.collection("conversations")
+            .whereField("participants", arrayContains: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ Error obteniendo conversaciones: \(error.localizedDescription)")
+                    completion()
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    print("✅ No hay conversaciones para limpiar")
+                    completion()
+                    return
+                }
+                
+                let batch = self.db.batch()
+                var conversationCount = 0
+                
+                for document in documents {
+                    batch.deleteDocument(document.reference)
+                    conversationCount += 1
+                }
+                
+                batch.commit { error in
+                    if let error = error {
+                        print("❌ Error eliminando conversaciones: \(error.localizedDescription)")
+                    } else {
+                        print("✅ \(conversationCount) conversaciones eliminadas")
+                    }
+                    completion()
+                }
+            }
+    }
+    
+    private func cleanupFollows(userId: String, completion: @escaping () -> Void) {
+        print("👥 Limpiando seguimientos...")
+        
+        let group = DispatchGroup()
+        var totalCleaned = 0
+        
+        // Limpiar following del usuario eliminado
+        group.enter()
+        db.collection("users").document(userId).collection("following").getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                let batch = self.db.batch()
+                for document in documents {
+                    batch.deleteDocument(document.reference)
+                    totalCleaned += 1
+                }
+                batch.commit { _ in }
+            }
+            group.leave()
+        }
+        
+        // Limpiar followers de otros usuarios que seguían al eliminado
+        group.enter()
+        db.collection("users").getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                let batch = self.db.batch()
+                for userDoc in documents {
+                    let followerRef = userDoc.reference.collection("followers").document(userId)
+                    batch.deleteDocument(followerRef)
+                    totalCleaned += 1
+                }
+                batch.commit { _ in }
+            }
+            group.leave()
+        }
+        
+        group.notify(queue: .main) {
+            print("✅ \(totalCleaned) seguimientos eliminados")
+            completion()
+        }
+    }
+    
+    private func cleanupContent(userId: String, completion: @escaping () -> Void) {
+        print("📸 Limpiando contenido...")
+        
+        let group = DispatchGroup()
+        var totalCleaned = 0
+        
+        // Limpiar momentos
+        group.enter()
+        db.collection("users").document(userId).collection("moments").getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                let batch = self.db.batch()
+                for document in documents {
+                    batch.deleteDocument(document.reference)
+                    totalCleaned += 1
+                }
+                batch.commit { _ in }
+            }
+            group.leave()
+        }
+        
+        // Limpiar historias
+        group.enter()
+        db.collection("users").document(userId).collection("stories").getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                let batch = self.db.batch()
+                for document in documents {
+                    batch.deleteDocument(document.reference)
+                    totalCleaned += 1
+                }
+                batch.commit { _ in }
+            }
+            group.leave()
+        }
+        
+        group.notify(queue: .main) {
+            print("✅ \(totalCleaned) elementos de contenido eliminados")
+            completion()
+        }
+    }
+    
+    private func cleanupNotifications(userId: String, completion: @escaping () -> Void) {
+        print("🔔 Limpiando notificaciones...")
+        
+        // Limpiar notificaciones del usuario
+        db.collection("users").document(userId).collection("notifications").getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                let batch = self.db.batch()
+                for document in documents {
+                    batch.deleteDocument(document.reference)
+                }
+                batch.commit { _ in }
+            }
+            completion()
+        }
+    }
+    
+    private func cleanupMentions(userId: String, username: String, completion: @escaping () -> Void) {
+        print("📝 Limpiando menciones...")
+        
+        // Buscar comentarios que mencionen al usuario eliminado
+        db.collectionGroup("comments")
+            .whereField("authorId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
     }
 }
