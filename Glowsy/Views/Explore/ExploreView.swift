@@ -105,11 +105,10 @@ struct ExploreView: View {
                                 endPoint: .trailing
                             )
                         )
-                    
-                    Text("Descubre momentos únicos")
-                        .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(.secondary)
                 }
+                .padding(.leading, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
                 
                 Spacer()
                 
@@ -153,7 +152,7 @@ struct ExploreView: View {
                     .rotationEffect(.degrees(viewModel.isLoadingTrending ? 360 : 0))
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: viewModel.isLoadingTrending)
                 }
-                .padding(.horizontal, 10)
+                .padding(.trailing, 20)
                 .padding(.top, 8)
                 .padding(.bottom, 8)
             }
@@ -531,25 +530,9 @@ struct SuggestedUserCard: View {
     @State private var isPressed = false
     
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 24)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.4), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: .black.opacity(0.08), radius: 20, x: 0, y: 10)
-            
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle()
+        VStack(spacing: 12) {
+            ZStack {
+                                    Circle()
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -560,47 +543,46 @@ struct SuggestedUserCard: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 100, height: 100)
+                        .frame(width: 80, height: 80)
                     
-                    ProfileImageeView(imagePath: user.profileImagePath, size: 88)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.6), Color.clear],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 3
-                                )
-                        )
-                }
-                
-                VStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        Text("\(user.username)")
-                            .font(.custom("Poppins-SemiBold", size: 18))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                        
-                        // ✅ INSIGNIA DE VERIFICADO
-                        VerifiedBadgeView(userId: user.id, size: 14)
-                    }
-                    
-                    Text("\(commonInterests) intereses en común")
-                        .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(Color(hex: "667eea"))
-                        .multilineTextAlignment(.center)
-                }
-                
-                FollowButton(
-                    user: user,
-                    buttonState: buttonState,
-                    onTap: onFollow
-                )
+                    ProfileImageeView(imagePath: user.profileImagePath, size: 72)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.6), Color.clear],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 3
+                            )
+                    )
             }
+            
+            VStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Text("\(user.username)")
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    
+                    // ✅ INSIGNIA DE VERIFICADO
+                    VerifiedBadgeView(userId: user.id, size: 12)
+                }
+                
+                Text("\(commonInterests) intereses en común")
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(Color(hex: "667eea"))
+                    .multilineTextAlignment(.center)
+            }
+            
+            FollowButton(
+                user: user,
+                buttonState: buttonState,
+                onTap: onFollow
+            )
         }
-        .frame(width: 180)
+        .frame(width: 140)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isPressed)
         .onTapGesture { onTap() }

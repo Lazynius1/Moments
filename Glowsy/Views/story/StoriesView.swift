@@ -23,6 +23,7 @@ struct StoriesView: View {
     @State private var adStoryIndex: Int = 0
     @State private var totalStoriesViewed: Int = 0
 
+
     @Binding var startWithUserId: String?
     let shouldIncludeConnections: Bool
 
@@ -58,27 +59,54 @@ struct StoriesView: View {
                     message: "No hay historias disponibles"
                 )
             } else if showAd {
-                StoryNativeAdView(
-                    onNext: {
-                        showAd = false
-                        moveToNextStoryOrUser()
-                    },
-                    onPrevious: {
-                        showAd = false
-                        if currentStoryIndex > 0 {
-                            currentStoryIndex -= 1
-                        } else {
-                            moveToPreviousUser()
+                // ✅ NUEVO: Usar anuncio integrado
+                if let nativeAd = AdMobConfiguration.shared.getPreloadedNativeAd() {
+                    IntegratedStoryAdView(
+                        nativeAd: nativeAd,
+                        storyCount: adStoryCount,
+                        storyIndex: adStoryIndex,
+                        progress: 0.0,
+                        screenSize: UIScreen.main.bounds.size,
+                        onNext: {
+                            showAd = false
+                            moveToNextStoryOrUser()
+                        },
+                        onPrevious: {
+                            showAd = false
+                            if currentStoryIndex > 0 {
+                                currentStoryIndex -= 1
+                            } else {
+                                moveToPreviousUser()
+                            }
+                        },
+                        onClose: {
+                            dismiss()
                         }
-                    },
-                    onClose: {
-                        dismiss()
-                    },
-                    storyCount: adStoryCount,
-                    storyIndex: adStoryIndex,
-                    screenSize: UIScreen.main.bounds.size
-                )
-                .environmentObject(authService)
+                    )
+                } else {
+                    // Fallback al anuncio original si no hay preloaded
+                    StoryNativeAdView(
+                        onNext: {
+                            showAd = false
+                            moveToNextStoryOrUser()
+                        },
+                        onPrevious: {
+                            showAd = false
+                            if currentStoryIndex > 0 {
+                                currentStoryIndex -= 1
+                            } else {
+                                moveToPreviousUser()
+                            }
+                        },
+                        onClose: {
+                            dismiss()
+                        },
+                        storyCount: adStoryCount,
+                        storyIndex: adStoryIndex,
+                        screenSize: UIScreen.main.bounds.size
+                    )
+                    .environmentObject(authService)
+                }
                 
             } else if currentUserIndex < userIds.count,
                       let userId = userIds[safe: currentUserIndex],

@@ -978,7 +978,7 @@ class FirestoreService: ObservableObject {
             switch result {
             case .success(let user):
                 let expirationDate = Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
-                let duration = mediaItem.type == .video ? 15.0 : 5.0
+                let duration = mediaItem.type == .video ? 60.0 : 10.0
                 let storyId = UUID().uuidString
 
                 let story = Story(
@@ -3375,7 +3375,7 @@ extension FirestoreService {
             switch result {
             case .success(let user):
                 let expirationDate = Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
-                let duration = mediaItem.type == .video ? 15.0 : 5.0
+                let duration = mediaItem.type == .video ? 60.0 : 10.0
                 let storyId = UUID().uuidString // 🔥 GENERAR ID ÚNICO
 
                 let story = Story(
@@ -3732,7 +3732,7 @@ extension FirestoreService {
             switch result {
             case .success(let user):
                 let expirationDate = Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
-                let duration = mediaItem.type == .video ? 15.0 : 5.0
+                let duration = mediaItem.type == .video ? 60.0 : 10.0
                 let storyId = UUID().uuidString // 🔥 GENERAR ID ÚNICO
 
                 let story = Story(
