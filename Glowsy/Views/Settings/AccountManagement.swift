@@ -632,6 +632,60 @@ class AccountManagementService {
                 group.leave()
             }
             
+            // 6. Limpiar customaudience
+            group.enter()
+            self.cleanupCustomAudience(userId: userId) {
+                group.leave()
+            }
+            
+            // 7. Limpiar dailystats
+            group.enter()
+            self.cleanupDailyStats(userId: userId) {
+                group.leave()
+            }
+            
+            // 8. Limpiar events
+            group.enter()
+            self.cleanupEvents(userId: userId) {
+                group.leave()
+            }
+            
+            // 9. Limpiar featureusage
+            group.enter()
+            self.cleanupFeatureUsage(userId: userId) {
+                group.leave()
+            }
+            
+            // 10. Limpiar loginactivity
+            group.enter()
+            self.cleanupLoginActivity(userId: userId) {
+                group.leave()
+            }
+            
+            // 11. Limpiar novamemory
+            group.enter()
+            self.cleanupNovaMemory(userId: userId) {
+                group.leave()
+            }
+            
+            // 12. Limpiar sessions
+            group.enter()
+            self.cleanupSessions(userId: userId) {
+                group.leave()
+            }
+            
+            // 13. Limpiar visitorsummaries
+            group.enter()
+            self.cleanupVisitorSummaries(userId: userId) {
+                group.leave()
+            }
+            
+            // 14. Limpiar visits
+            group.enter()
+            self.cleanupVisits(userId: userId) {
+                group.leave()
+            }
+            
             group.notify(queue: .main) {
                 print("✅ Limpieza completa finalizada")
                 completion()
@@ -780,6 +834,161 @@ class AccountManagementService {
         // Buscar comentarios que mencionen al usuario eliminado
         db.collectionGroup("comments")
             .whereField("authorId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    // MARK: - Limpieza de Colecciones Adicionales
+    
+    private func cleanupCustomAudience(userId: String, completion: @escaping () -> Void) {
+        print("🎯 Limpiando customaudience...")
+        
+        db.collection("customaudience")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupDailyStats(userId: String, completion: @escaping () -> Void) {
+        print("📊 Limpiando dailystats...")
+        
+        db.collection("dailystats")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupEvents(userId: String, completion: @escaping () -> Void) {
+        print("📈 Limpiando events...")
+        
+        db.collection("events")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupFeatureUsage(userId: String, completion: @escaping () -> Void) {
+        print("🔧 Limpiando featureusage...")
+        
+        db.collection("featureusage")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupLoginActivity(userId: String, completion: @escaping () -> Void) {
+        print("🔐 Limpiando loginactivity...")
+        
+        db.collection("loginactivity")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupNovaMemory(userId: String, completion: @escaping () -> Void) {
+        print("🧠 Limpiando novamemory...")
+        
+        db.collection("novamemory")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupSessions(userId: String, completion: @escaping () -> Void) {
+        print("💻 Limpiando sessions...")
+        
+        db.collection("sessions")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupVisitorSummaries(userId: String, completion: @escaping () -> Void) {
+        print("👥 Limpiando visitorsummaries...")
+        
+        db.collection("visitorsummaries")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let documents = snapshot?.documents {
+                    let batch = self.db.batch()
+                    for document in documents {
+                        batch.deleteDocument(document.reference)
+                    }
+                    batch.commit { _ in }
+                }
+                completion()
+            }
+    }
+    
+    private func cleanupVisits(userId: String, completion: @escaping () -> Void) {
+        print("👁️ Limpiando visits...")
+        
+        db.collection("visits")
+            .whereField("userId", isEqualTo: userId)
             .getDocuments { snapshot, error in
                 if let documents = snapshot?.documents {
                     let batch = self.db.batch()
