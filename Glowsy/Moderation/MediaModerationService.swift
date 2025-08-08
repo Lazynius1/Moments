@@ -1234,21 +1234,21 @@ class MediaModerationService {
 
     private func determineActionFromScoresWithConfig(adult: Double, violence: Double, racy: Double, completion: @escaping (MediaModerationAction) -> Void) {
         loadModerationSettings { [weak self] config in
-            // ✅ UMBRALES MÁS ALTOS para ser menos agresivo
+            // ✅ UMBRALES SIMILARES A INSTAGRAM (balanceados)
             let deleteThresholds = config?["deleteThresholds"] as? [String: Double] ?? [
-                "adult": 0.95,     // Aumentado de 0.9
-                "violence": 0.9,   // Aumentado de 0.8
-                "racy": 0.98,      // Aumentado de 0.95
-                "medical": 0.95,   // Aumentado de 0.9
-                "spoofed": 0.9     // Aumentado de 0.8
+                "adult": 0.75,     // Similar a Instagram - Desnudez parcial/explícita
+                "violence": 0.65,  // Similar a Instagram - Contenido violento
+                "racy": 0.8,       // Similar a Instagram - Contenido sugerente
+                "medical": 0.85,   // Similar a Instagram - Contenido médico
+                "spoofed": 0.7     // Similar a Instagram - Contenido manipulado
             ]
 
             let warningThresholds = config?["warningThresholds"] as? [String: Double] ?? [
-                "adult": 0.8,      // Aumentado de 0.7
-                "violence": 0.7,   // Aumentado de 0.5
-                "racy": 0.9,       // Aumentado de 0.8
-                "medical": 0.9,    // Aumentado de 0.8
-                "spoofed": 0.7     // Aumentado de 0.5
+                "adult": 0.6,      // Similar a Instagram - Advertencia para contenido adulto
+                "violence": 0.5,   // Similar a Instagram - Advertencia para violencia
+                "racy": 0.65,      // Similar a Instagram - Advertencia para contenido sugerente
+                "medical": 0.7,    // Similar a Instagram - Advertencia para contenido médico
+                "spoofed": 0.5     // Similar a Instagram - Advertencia para manipulaciones
             ]
 
             if adult >= deleteThresholds["adult"]! {
