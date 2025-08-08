@@ -1,0 +1,39 @@
+/* Global */
+"global.seeMore" = "see more";
+"global.seeLess" = "see less";
+
+/* ProfileView */
+"profile.defaultUsername" = "User";
+"profile.bio.placeholder" = "Add a bio to tell people about yourself.";
+"profile.editButton" = "Edit Profile";
+"profile.userList.visits" = "Visits";
+"profile.userList.admirers" = "Admirers";
+"profile.userList.connections" = "Connections";
+"profile.userList.mutuals" = "Mutuals";
+"profile.stats.visits" = "Visits";
+"profile.stats.admirers" = "Admirers";
+"profile.stats.connections" = "Connections";
+"profile.stats.mutuals" = "Mutuals";
+"profile.interests.title" = "Interests";
+"profile.moments.title" = "Moments";
+"profile.moments.empty.title" = "No Moments Yet";
+"profile.moments.empty.subtitle" = "Share your first moment and it will appear here.";
+"profile.loading" = "Loading profile...";
+"profile.error.title" = "Oops, something went wrong";
+"profile.error.retryButton" = "Retry";
+
+/* SettingsView */
+"settings.title" = "Settings";
+"settings.loading" = "Loading settings...";
+"settings.account.title" = "Your Account";
+"settings.account.personalInfo.title" = "Personal Information";
+"settings.account.personalInfo.subtitle" = "Name, phone, email";
+"settings.privacy.title" = "Privacy";
+"settings.privacy.privateAccount.title" = "Private Account";
+"settings.privacy.privateAccount.subtitle" = "Only your followers can see your content";
+"settings.privacy.blockedAccounts.title" = "Blocked Accounts";
+"settings.logout.button" = "Log Out";
+"settings.logout.alert.title" = "Log Out?";
+"settings.logout.alert.message" = "Are you sure you want to log out?";
+"settings.logout.alert.cancel" = "Cancel";
+"settings.logout.alert.confirm" = "Log Out";

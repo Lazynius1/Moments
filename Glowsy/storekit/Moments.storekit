@@ -1,0 +1,176 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "CAD6C14B",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "6.99",
+      "familyShareable" : false,
+      "internalID" : "6749283054",
+      "localizations" : [
+        {
+          "description" : "Badge para los campeones de la comunidad",
+          "displayName" : "Badge Champion",
+          "locale" : "es_ES"
+        }
+      ],
+      "productID" : "com.moments.badge.champion",
+      "referenceName" : "Champion Badge",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "6749283078",
+      "localizations" : [
+        {
+          "description" : "Badge para los primeros usuarios de Moments",
+          "displayName" : "Badge Early Adopter",
+          "locale" : "es_ES"
+        }
+      ],
+      "productID" : "com.moments.badge.early_adopter",
+      "referenceName" : "Early Adopter Badge",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "6749283009",
+      "localizations" : [
+        {
+          "description" : "Muestra tu apoyo a Moments",
+          "displayName" : "Badge Supporter",
+          "locale" : "es_ES"
+        }
+      ],
+      "productID" : "com.moments.badge.supporter",
+      "referenceName" : "Supporter Badge",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "8.99",
+      "familyShareable" : false,
+      "internalID" : "6749283314",
+      "localizations" : [
+        {
+          "description" : "El badge más exclusivo de Moments",
+          "displayName" : "Badge VIP",
+          "locale" : "es_ES"
+        }
+      ],
+      "productID" : "com.moments.badge.vip",
+      "referenceName" : "VIP Badge",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6749241395",
+    "_developerTeamID" : "6T7NTUGU3C",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 775535474.99548495,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21743751",
+      "localizations" : [
+
+      ],
+      "name" : "Moments Plus",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6749282973",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Experiencia sin anuncios + badge exclusivo",
+              "displayName" : "Moments Plus",
+              "locale" : "es_ES"
+            }
+          ],
+          "productID" : "com.moments.plus.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Moments Plus Monthly",
+          "subscriptionGroupID" : "21743751",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
