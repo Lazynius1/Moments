@@ -39,11 +39,11 @@ struct SmartNativeAdView: View {
                 // Mostrar anuncio para usuarios no Plus
                 VStack(spacing: 0) {
                     if nativeAdManager.isLoading {
-                        // ✅ SIN frame fijo - que se adapte al contenido
-                        ModernAdLoadingView()
+                        // ✅ Vista de carga integrada al feed
+                        IntegratedAdLoadingView()
                     } else if let nativeAd = nativeAdManager.nativeAd {
-                        // ✅ SIN frame fijo - que se adapte al contenido
-                        ModernNativeAdCardViewWithMediaView(nativeAd: nativeAd)
+                        // ✅ Anuncio integrado al feed
+                        IntegratedNativeAdView(nativeAd: nativeAd)
                     } else if nativeAdManager.hasError {
                         EmptyView()
                     }
@@ -211,7 +211,7 @@ struct ModernNativeAdCardViewWithMediaView: View {
 
             // ✅ NUEVO: Contenido del anuncio usando MediaView
             FeedNativeAdMediaViewRepresentable(nativeAd: nativeAd)
-                .frame(height: 400)
+                .frame(height: 500) // ⭐ AUMENTADO de 400 a 500 para cumplir requisitos de Google
                 .padding(.horizontal, 15)
                 .padding(.bottom, 20)
         }
@@ -317,8 +317,8 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
             stackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
             stackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8),
             
-            // ⭐ MediaView MÁS GRANDE (era 160, ahora 240)
-            mediaView.heightAnchor.constraint(equalToConstant: 240),
+            // ⭐ MediaView MÁS GRANDE (era 240, ahora 300)
+            mediaView.heightAnchor.constraint(equalToConstant: 300),
             
             // Título
             headlineLabel.topAnchor.constraint(equalTo: textContainer.topAnchor),
@@ -338,8 +338,8 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
             callToActionButton.bottomAnchor.constraint(equalTo: textContainer.bottomAnchor)
         ])
         
-        print("   - ✅ MediaView: 240px altura")
-        print("   - ✅ Contenedor total: ~400px altura")
+        print("   - ✅ MediaView: 300px altura")
+        print("   - ✅ Contenedor total: ~500px altura")
         print("   - ✅ Botón CTA: 150x44px")
         
         return containerView
@@ -438,5 +438,233 @@ struct ATTPreAlertView: View {
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         )
         .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - ✅ NUEVO: Vista de carga integrada al feed
+struct IntegratedAdLoadingView: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header con avatar y info
+            HStack(spacing: 12) {
+                // Avatar placeholder
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 40, height: 40)
+                    .shimmer(isAnimating: isAnimating)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    // Nombre placeholder
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 120, height: 14)
+                        .shimmer(isAnimating: isAnimating)
+                    
+                    // Subtítulo placeholder
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 80, height: 12)
+                        .shimmer(isAnimating: isAnimating)
+                }
+                
+                Spacer()
+                
+                // Badge "Anuncio"
+                Text("Anuncio")
+                    .font(.custom("Poppins-Medium", size: 10))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                    )
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            // Media placeholder (imagen/video)
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .frame(height: 400)
+                .shimmer(isAnimating: isAnimating)
+            
+            // Footer con botón
+            HStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 140, height: 36)
+                    .shimmer(isAnimating: isAnimating)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .padding(.horizontal, 16)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                isAnimating = true
+            }
+        }
+    }
+}
+
+// MARK: - ✅ NUEVO: Anuncio nativo integrado al feed
+struct IntegratedNativeAdView: View {
+    let nativeAd: NativeAd
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header con avatar y info
+            HStack(spacing: 12) {
+                // Avatar del anunciante
+                if let icon = nativeAd.icon {
+                    AsyncImage(url: URL(string: icon.imageURL?.absoluteString ?? "")) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                    }
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 40, height: 40)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    // Nombre del anunciante
+                    Text(nativeAd.advertiser ?? "Anunciante")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(.primary)
+                    
+                    // Subtítulo
+                    Text("Anuncio patrocinado")
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                // Badge "Anuncio"
+                Text("Anuncio")
+                    .font(.custom("Poppins-Medium", size: 10))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                    )
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            // Media del anuncio
+            IntegratedAdMediaView(nativeAd: nativeAd)
+                .frame(height: 400)
+            
+            // Footer con botón de acción
+            HStack {
+                Button(action: {
+                    // Acción del botón
+                }) {
+                    Text(nativeAd.callToAction ?? "Más información")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(8)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - ✅ NUEVO: MediaView integrado
+struct IntegratedAdMediaView: UIViewRepresentable {
+    let nativeAd: NativeAd
+    
+    func makeUIView(context: Context) -> UIView {
+        let containerView = UIView()
+        containerView.backgroundColor = .clear
+        
+        let mediaView = MediaView()
+        mediaView.contentMode = .scaleAspectFill
+        mediaView.backgroundColor = UIColor.systemGray6
+        mediaView.layer.cornerRadius = 8
+        mediaView.clipsToBounds = true
+        mediaView.mediaContent = nativeAd.mediaContent
+        
+        // Configurar video si existe
+        if nativeAd.mediaContent.hasVideoContent {
+            let videoController = nativeAd.mediaContent.videoController
+            videoController.delegate = context.coordinator
+            videoController.isMuted = true
+        }
+        
+        containerView.addSubview(mediaView)
+        mediaView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            mediaView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            mediaView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            mediaView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            mediaView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+        ])
+        
+        return containerView
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Actualizar si es necesario
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator: NSObject, VideoControllerDelegate {
+        func videoControllerDidPlayVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio integrado empezó")
+        }
+        
+        func videoControllerDidPauseVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio integrado pausado")
+        }
+        
+        func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {
+            print("🎯 Video del anuncio integrado terminó")
+        }
+        
+        func videoControllerDidMuteVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio integrado silenciado")
+        }
+        
+        func videoControllerDidUnmuteVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio integrado con sonido")
+        }
     }
 }

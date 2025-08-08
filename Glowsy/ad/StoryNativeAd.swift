@@ -701,3 +701,238 @@ extension StoryNativeAdManager: NativeAdLoaderDelegate {
         }
     }
 }
+
+// MARK: - ✅ NUEVO: Anuncio integrado para historias
+struct IntegratedStoryAdView: View {
+    let nativeAd: NativeAd
+    let storyCount: Int
+    let storyIndex: Int
+    let progress: Double
+    let screenSize: CGSize
+    let onNext: () -> Void
+    let onPrevious: () -> Void
+    let onClose: () -> Void
+    
+    @State private var adTimer: Timer?
+    @State private var timeRemaining: Double = 10.0
+    
+    // Duración dinámica basada en el tipo de contenido (consistente con historias normales)
+    private var adDuration: Double {
+        if nativeAd.mediaContent.hasVideoContent {
+            return 30.0 // 30 segundos para videos (más razonable para anuncios)
+        } else {
+            return 10.0 // 10 segundos para fotos (como las historias normales)
+        }
+    }
+    
+    var body: some View {
+        ZStack {
+            // Fondo negro como las historias
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header con progreso y controles
+                VStack(spacing: 12) {
+                    // Barra de progreso
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(.white.opacity(0.3))
+                                .frame(height: 3)
+                            
+                            Rectangle()
+                                .fill(.white)
+                                .frame(width: geometry.size.width * (1 - timeRemaining / adDuration), height: 3)
+                                .animation(.linear(duration: 1), value: timeRemaining)
+                        }
+                    }
+                    .frame(height: 3)
+                    .padding(.horizontal, 20)
+                    
+                    HStack {
+                        // Botón cerrar
+                        Button(action: onClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                        }
+                        
+                        Spacer()
+                        
+                        // Badge "Anuncio" con tiempo
+                        HStack(spacing: 6) {
+                            Text("Anuncio")
+                                .font(.custom("Poppins-Medium", size: 12))
+                                .foregroundColor(.white.opacity(0.8))
+                            
+                            Text("\(Int(timeRemaining))s")
+                                .font(.custom("Poppins-Medium", size: 10))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                        )
+                        
+                        Spacer()
+                        
+                        // Botón siguiente
+                        Button(action: onNext) {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .padding(.top, 50)
+                
+                // Media del anuncio (centrado)
+                IntegratedStoryMediaView(nativeAd: nativeAd)
+                    .frame(width: screenSize.width * 0.9, height: screenSize.height * 0.6)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.vertical, 20)
+                
+                // Contenido del anuncio
+                VStack(spacing: 16) {
+                    // Título
+                    Text(nativeAd.headline ?? "Anuncio")
+                        .font(.custom("Poppins-Bold", size: 20))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                    
+                    // Descripción
+                    if let body = nativeAd.body {
+                        Text(body)
+                            .font(.custom("Poppins-Regular", size: 16))
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+                    }
+                    
+                    // Botón de acción
+                    Button(action: {
+                        // Acción del botón
+                    }) {
+                        Text(nativeAd.callToAction ?? "Más información")
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 12)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(12)
+                    }
+                }
+                
+                Spacer()
+            }
+        }
+        .onAppear {
+            timeRemaining = adDuration
+            startAdTimer()
+        }
+        .onDisappear {
+            stopAdTimer()
+        }
+    }
+    
+    private func startAdTimer() {
+        timeRemaining = adDuration
+        
+        adTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            if timeRemaining > 0 {
+                timeRemaining -= 1
+            } else {
+                stopAdTimer()
+                onNext()
+            }
+        }
+    }
+    
+    private func stopAdTimer() {
+        adTimer?.invalidate()
+        adTimer = nil
+    }
+}
+
+// MARK: - ✅ NUEVO: MediaView integrado para historias
+struct IntegratedStoryMediaView: UIViewRepresentable {
+    let nativeAd: NativeAd
+    
+    func makeUIView(context: Context) -> UIView {
+        let containerView = UIView()
+        containerView.backgroundColor = .clear
+        
+        let mediaView = MediaView()
+        mediaView.contentMode = .scaleAspectFill
+        mediaView.backgroundColor = UIColor.systemGray6
+        mediaView.layer.cornerRadius = 16
+        mediaView.clipsToBounds = true
+        mediaView.mediaContent = nativeAd.mediaContent
+        
+        // Configurar video si existe
+        if nativeAd.mediaContent.hasVideoContent {
+            let videoController = nativeAd.mediaContent.videoController
+            videoController.delegate = context.coordinator
+            videoController.isMuted = true
+            videoController.play()
+        }
+        
+        containerView.addSubview(mediaView)
+        mediaView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            mediaView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            mediaView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            mediaView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            mediaView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+        ])
+        
+        return containerView
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Actualizar si es necesario
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator: NSObject, VideoControllerDelegate {
+        func videoControllerDidPlayVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio de historia empezó")
+        }
+        
+        func videoControllerDidPauseVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio de historia pausado")
+        }
+        
+        func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {
+            print("🎯 Video del anuncio de historia terminó")
+        }
+        
+        func videoControllerDidMuteVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio de historia silenciado")
+        }
+        
+        func videoControllerDidUnmuteVideo(_ videoController: VideoController) {
+            print("🎯 Video del anuncio de historia con sonido")
+        }
+    }
+}

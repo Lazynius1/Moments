@@ -811,7 +811,7 @@ struct GlassmorphicStoryViewer: View {
     @State private var zoomScale: CGFloat = 1.0
     @State private var lastZoomScale: CGFloat = 1.0
 
-    private let defaultStoryDuration: Double = 7.0
+    private let defaultStoryDuration: Double = 10.0
     private let reactions: [String] = ["❤️", "😂", "😮", "😢", "😡", "👏"]
 
     private let firestoreService = FirestoreService()
