@@ -1,7 +1,7 @@
 const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { setGlobalOptions } = require('firebase-functions/v2');
-setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80 });
+setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
 const admin = require('firebase-admin');
 admin.initializeApp();
 
@@ -289,6 +289,17 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
     const cleanImageUrl = commenterData.profileImagePath
       ? commenterData.profileImagePath.replace(':443', '')
       : null;
+
+    // ✅ Idempotencia por comentario
+    const commentRef = admin.firestore().doc(`users/${userId}/moments/${momentId}/comments/${commentId}`);
+    const processed = await admin.firestore().runTransaction(async (tx) => {
+      const cSnap = await tx.get(commentRef);
+      if (!cSnap.exists) return true; // nada que hacer
+      if (cSnap.get('processed') === true) return true;
+      tx.update(commentRef, { processed: true });
+      return false; // no estaba procesado, ahora marcado
+    });
+    if (processed) return null;
     
     const message = {
       token: fcmToken,
@@ -378,6 +389,17 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     const cleanImageUrl = followerData.profileImagePath
       ? followerData.profileImagePath.replace(':443', '')
       : null;
+
+    // ✅ Idempotencia por follow
+    const followRef = admin.firestore().doc(`users/${userId}/followers/${followerId}`);
+    const already = await admin.firestore().runTransaction(async (tx) => {
+      const fSnap = await tx.get(followRef);
+      if (!fSnap.exists) return true;
+      if (fSnap.get('processed') === true) return true;
+      tx.update(followRef, { processed: true });
+      return false;
+    });
+    if (already) return null;
     
     const message = {
       token: fcmToken,
@@ -456,6 +478,17 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
     }
     
     if (!senderData.isActive) return null;
+
+    // ✅ Idempotencia por mensaje
+    const messageRef = admin.firestore().doc(`conversations/${conversationId}/messages/${messageId}`);
+    const handled = await admin.firestore().runTransaction(async (tx) => {
+      const mSnap = await tx.get(messageRef);
+      if (!mSnap.exists) return true;
+      if (mSnap.get('processed') === true) return true;
+      tx.update(messageRef, { processed: true });
+      return false;
+    });
+    if (handled) return null;
 
     // ✅ Batch fetch de receptores para reducir lecturas
     const receiverRefs = receivers.map((receiverId) => admin.firestore().doc(`users/${receiverId}`));
@@ -776,6 +809,17 @@ exports.onMentionNotification = onDocumentCreated('users/{userId}/notifications/
     const cleanImageUrl = senderData.profileImagePath
       ? senderData.profileImagePath.replace(':443', '')
       : null;
+    
+    // ✅ Idempotencia por notificación de mención
+    const mentionRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
+    const done = await admin.firestore().runTransaction(async (tx) => {
+      const mSnap = await tx.get(mentionRef);
+      if (!mSnap.exists) return true;
+      if (mSnap.get('processed') === true) return true;
+      tx.update(mentionRef, { processed: true });
+      return false;
+    });
+    if (done) return null;
     
     // ✅ DETERMINAR TIPO DE CONTENIDO Y NAVEGACIÓN
     let contentType = 'contenido';
