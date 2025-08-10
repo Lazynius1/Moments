@@ -99,7 +99,11 @@ struct FeedView: View {
     @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
- // ✅ NUEVO: Mapa global
+    // ✅ NUEVO: Cache básico para optimización
+    @State private var cachedStories: [String: Bool] = [:]
+    @State private var cachedStoriesTimestamp: Date = Date()
+    @State private var hasLoadedInitialData = false
+    // ✅ NUEVO: Mapa global
     @State private var hasUnreadMessages: Bool = false
     @State private var showSpecificUserStories = false
     @State private var selectedStoryUserId: String = ""
@@ -701,6 +705,8 @@ struct FeedView: View {
                 }
                 .refreshable {
                     if let userId = Auth.auth().currentUser?.uid {
+                        // ✅ OPTIMIZADO: Usar forceRefresh en lugar de refreshFeed
+                        forceRefresh()
                         await refreshFeed(userId: userId)
                     }
                 }
@@ -1165,6 +1171,15 @@ struct FeedView: View {
     private func loadInitialData() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
+        // ✅ NUEVO: Evitar recargas innecesarias
+        if hasLoadedInitialData {
+            print("🔄 Feed ya cargado, saltando recarga")
+            return
+        }
+        
+        // ✅ NUEVO: Limpiar cache si es necesario
+        clearCacheIfNeeded()
+        
         // ✅ NUEVO: Recuperar preferencia del usuario al cargar
         selectedFeedType = UserDefaults.standard.selectedFeedType
         print("📱 Preferencia de feed cargada: \(selectedFeedType.displayName)")
@@ -1186,10 +1201,32 @@ struct FeedView: View {
                 }
             }
             prefetchImages()
+            
+            // ✅ NUEVO: Marcar como cargado
+            hasLoadedInitialData = true
         }
     }
     
-    // : loadStoryUsers - cambiar fetchConnections por fetchFollowing
+    // ✅ NUEVO: Función para limpiar cache
+    private func clearCacheIfNeeded() {
+        let cacheAge = Date().timeIntervalSince(cachedStoriesTimestamp)
+        if cacheAge > 600 { // 10 minutos
+            print("🧹 Limpiando cache de stories (edad: \(Int(cacheAge))s)")
+            cachedStories.removeAll()
+            cachedStoriesTimestamp = Date()
+        }
+    }
+    
+    // ✅ NUEVO: Función para forzar refresh
+    private func forceRefresh() {
+        print("🔄 Forzando refresh del feed")
+        hasLoadedInitialData = false
+        cachedStories.removeAll()
+        cachedStoriesTimestamp = Date()
+        loadInitialData()
+    }
+    
+    // ✅ OPTIMIZADO: loadStoryUsers con cache básico
     private func loadStoryUsers(userId: String) async {
         await withCheckedContinuation { continuation in
             isLoadingStories = true
@@ -1201,7 +1238,28 @@ struct FeedView: View {
                     var allUserIds = [userId] // Empezar contigo
                     allUserIds.append(contentsOf: followingIds)
                     
-
+                    // ✅ NUEVO: Verificar cache primero
+                    let cacheAge = Date().timeIntervalSince(self.cachedStoriesTimestamp)
+                    if cacheAge < 300 && !self.cachedStories.isEmpty { // 5 minutos
+                        print("🔄 Usando cache de stories (edad: \(Int(cacheAge))s)")
+                        var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool)] = []
+                        
+                        // Agregar tu historia
+                        let currentUserHasStory = self.cachedStories[userId] ?? false
+                        finalUsers.append((userId: userId, hasStory: currentUserHasStory, hasUnseenStory: false))
+                        
+                        // Agregar historias de otros desde cache
+                        for followingId in followingIds {
+                            if let hasStory = self.cachedStories[followingId], hasStory {
+                                finalUsers.append((userId: followingId, hasStory: true, hasUnseenStory: true))
+                            }
+                        }
+                        
+                        self.storyUsers = finalUsers
+                        self.isLoadingStories = false
+                        continuation.resume()
+                        return
+                    }
                     
                     let group = DispatchGroup()
                     var usersWithStories: [(userId: String, hasStory: Bool, hasUnseenStory: Bool)] = []
@@ -1212,12 +1270,12 @@ struct FeedView: View {
                         group.enter()
                         self.checkUserStories(userId: userIdToCheck, currentUserId: userId) { hasStory, hasUnseen in
                             syncQueue.async {
-
+                                // ✅ NUEVO: Guardar en cache
+                                self.cachedStories[userIdToCheck] = hasStory
                                 
                                 if userIdToCheck == userId {
                                     // ✅ NUEVO: Tu historia va por separado
                                     currentUserHasStory = hasStory
-
                                 } else if hasStory {
                                     // ✅ CORREGIDO: Solo historias de OTROS usuarios
                                     usersWithStories.append((
@@ -1225,7 +1283,6 @@ struct FeedView: View {
                                         hasStory: hasStory,
                                         hasUnseenStory: hasUnseen
                                     ))
-
                                 }
                                 group.leave()
                             }
@@ -1249,6 +1306,8 @@ struct FeedView: View {
                         
 
                         
+                        // ✅ NUEVO: Actualizar timestamp del cache
+                        self.cachedStoriesTimestamp = Date()
                         self.storyUsers = finalUsers
                         self.isLoadingStories = false
                         continuation.resume()
@@ -1397,13 +1456,14 @@ struct FeedView: View {
         prefetchImages()
     }
     
+    // ✅ OPTIMIZADO: Prefetching mejorado
     private func prefetchImages() {
         let momentUrls = viewModel.moments
-            .prefix(3)
+            .prefix(10) // ✅ AUMENTADO: De 3 a 10 imágenes
             .compactMap { $0.imagePath }
             .compactMap { URL(string: $0) }
         let prefetcher = ImagePrefetcher(urls: momentUrls) { skipped, failed, completed in
-            print("Prefetched \(completed.count) images")
+            print("🖼️ Prefetched \(completed.count) images, \(failed.count) failed, \(skipped.count) skipped")
         }
         prefetcher.start()
     }
