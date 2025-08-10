@@ -1,7 +1,7 @@
 const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { setGlobalOptions } = require('firebase-functions/v2');
-setGlobalOptions({ region: 'us-central1', memory: '256MiB', concurrency: 80 });
+setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80 });
 const admin = require('firebase-admin');
 admin.initializeApp();
 
