@@ -71,8 +71,7 @@ struct LoginView: View {
                 // Track screen view
                 AnalyticsService.shared.trackScreenView("LoginView")
                 
-                // Request location permission for security tracking
-                RealLoginActivityService.shared.requestLocationPermission()
+                // Solicitud de ubicación pospuesta hasta que el usuario use funciones que la requieran
             }
             .alert(isPresented: $showAlert) {
                 Alert(
@@ -139,7 +138,7 @@ struct LoginView: View {
         case 17012: // FIRAuthErrorCodeEmailAlreadyInUse
             return "Email already in use"
         default:
-            return "Unknown error"
+            return "Other"
         }
     }
 }

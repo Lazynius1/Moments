@@ -18,22 +18,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // ✅ NUEVO: Configurar badge service
         NotificationBadgeService.shared.setupListeners()
         
-        // ✅ SOLICITAR PERMISOS Y REGISTRAR para notificaciones remotas
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            print("🔐 AppDelegate - Permisos concedidos: \(granted)")
-            if let error = error {
-                print("❌ AppDelegate - Error en permisos: \(error)")
-            }
-            if granted {
-                DispatchQueue.main.async {
-                    print("📱 AppDelegate - Solicitando registro de notificaciones...")
-                    application.registerForRemoteNotifications()
-                    print("📱 AppDelegate - registerForRemoteNotifications() llamado")
-                }
-            } else {
-                print("❌ AppDelegate - Permisos denegados")
-            }
-        }
+        // Solicitud de permisos de notificaciones pospuesta hasta interacción del usuario
         
         return true
     }

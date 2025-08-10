@@ -12,7 +12,7 @@ class NotificationService: ObservableObject {
     @Published var notifications: [Notification] = []
     
     private init() {
-        requestNotificationPermission()
+        // Solicitud de permisos de notificaciones pospuesta hasta interacción del usuario
         observeNotifications()
     }
     

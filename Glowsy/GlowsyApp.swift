@@ -44,8 +44,7 @@ struct GlowsyApp: App {
                 if showSplash {
                     SplashScreenView()
                         .onAppear {
-                            LocationUtilities.shared.requestLocationPermission()
-                            RealLoginActivityService.shared.requestLocationPermission()
+                            // Permisos de ubicación pospuestos hasta uso real
                             print("🚀 Servicios inicializados durante SplashScreen")
                             
                             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
