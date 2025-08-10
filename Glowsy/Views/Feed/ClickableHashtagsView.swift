@@ -7,9 +7,9 @@ struct ClickableHashtagsView: View {
     let onHashtagTap: (String) -> Void
     
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             ForEach(groupWordsInLines(), id: \.id) { line in
-                HStack(spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     ForEach(line.words, id: \.id) { word in
                         if word.content.hasPrefix("#") && word.content.count > 1 {
                             Button(action: {
@@ -19,6 +19,12 @@ struct ClickableHashtagsView: View {
                                 Text(word.content)
                                     .font(.custom("Poppins-SemiBold", size: 14))
                                     .foregroundColor(Color(hex: "667eea"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color(hex: "667eea").opacity(0.1))
+                                    )
                             }
                             .buttonStyle(PlainButtonStyle())
                         } else {

@@ -439,18 +439,9 @@ struct FeedView: View {
     private var modernBackgroundView: some View {
         ZStack {
             if colorScheme == .dark {
-                // Fondo oscuro (como antes)
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Negro más intenso y elegante
+                Color(hex: "0A0A0A")
+                    .ignoresSafeArea()
             } else {
                 // ✅ NUEVO: Fondo claro elegante
                 LinearGradient(
@@ -465,12 +456,6 @@ struct FeedView: View {
                 )
                 .ignoresSafeArea()
             }
-            
-            // Overlay sutil
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.05 : 0.02)
-                .ignoresSafeArea()
         }
     }
     
@@ -623,18 +608,25 @@ struct FeedView: View {
                 .padding(.trailing, 20)
             }
             .padding(.vertical, 16)
-            .background(.ultraThinMaterial)
-            .overlay(
-                Rectangle()
-                    .fill(
+            .background(
+                Group {
+                    if colorScheme == .dark {
+                        // Negro más intenso y elegante
+                        Color(hex: "0A0A0A")
+                    } else {
+                        // Mismo fondo que el Feed en modo claro
                         LinearGradient(
-                            colors: adaptiveColors.overlayStroke,
-                            startPoint: .top,
-                            endPoint: .bottom
+                            gradient: Gradient(colors: [
+                                Color.white,
+                                Color(hex: "f8f9fa"),
+                                Color(hex: "e9ecef"),
+                                Color.white
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                    )
-                    .frame(height: 0.5),
-                alignment: .bottom
+                    }
+                }
             )
             .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)
         }
@@ -1649,17 +1641,7 @@ struct ModernLoadingMoreView: View {
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(
-                    LinearGradient(
-                        colors: adaptiveColors.overlayStroke,  // ✅ CAMBIAR
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
+
         .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)  // ✅ CAMBIAR
         .onAppear {
             withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
@@ -2931,8 +2913,8 @@ struct ExpandableContentView: View {
     @State private var isExpanded: Bool = false
     @State private var needsExpansion: Bool = false
     
-    private let maxLines = 3
-    private let maxCharacters = 120
+    private let maxLines = 2
+    private let maxCharacters = 15
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -2981,17 +2963,6 @@ struct ExpandableContentView: View {
                     .background(
                         Capsule()
                             .fill(.ultraThinMaterial)
-                            .overlay(
-                                Capsule()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: adaptiveColors.overlayStroke,
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
                     )
                     .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
                 }
@@ -3004,17 +2975,6 @@ struct ExpandableContentView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            LinearGradient(
-                                colors: adaptiveColors.overlayStroke,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
         )
         .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)
         .onAppear {

@@ -2305,6 +2305,7 @@ struct StoryCameraView: View {
     @State private var zoomLevel: CGFloat = 1.0
     @State private var lastZoomLevel: CGFloat = 1.0
     @State private var capturePhotoTrigger = false
+    @State private var lastGalleryImage: UIImage?
     
     var body: some View {
         ZStack {
@@ -2390,17 +2391,29 @@ struct StoryCameraView: View {
                 
                 // Bottom controls
                 HStack(alignment: .center, spacing: 50) {
-                    // Gallery button
+                    // Gallery button with last image preview
                     Button(action: {
                         showingGallery = true
                     }) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white)
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .foregroundColor(.black)
-                            )
+                        if let lastImage = lastGalleryImage {
+                            Image(uiImage: lastImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 40, height: 40)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white, lineWidth: 2)
+                                )
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.white)
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .foregroundColor(.black)
+                                )
+                        }
                     }
                     
                     // Capture button
@@ -2436,6 +2449,7 @@ struct StoryCameraView: View {
         }
         .onAppear {
             setupAudioSession()
+            loadLastGalleryImage()
         }
         .onDisappear {
             stopRecording()
@@ -2547,6 +2561,39 @@ struct StoryCameraView: View {
                 }
             } catch {
                 print("Error generating video thumbnail: \(error)")
+            }
+        }
+    }
+    
+    private func loadLastGalleryImage() {
+        // ✅ Cargar la última imagen de la galería en background
+        Task {
+            do {
+                let fetchOptions = PHFetchOptions()
+                fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+                fetchOptions.fetchLimit = 1
+                
+                let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+                
+                if let lastAsset = fetchResult.firstObject {
+                    let manager = PHImageManager.default()
+                    let options = PHImageRequestOptions()
+                    options.deliveryMode = .fastFormat
+                    options.isSynchronous = false
+                    
+                    manager.requestImage(
+                        for: lastAsset,
+                        targetSize: CGSize(width: 120, height: 120),
+                        contentMode: .aspectFill,
+                        options: options
+                    ) { image, _ in
+                        DispatchQueue.main.async {
+                            self.lastGalleryImage = image
+                        }
+                    }
+                }
+            } catch {
+                print("Error loading last gallery image: \(error)")
             }
         }
     }
@@ -3620,52 +3667,20 @@ struct StoryGalleryPicker: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var selectedImage: UIImage?
-    @State private var photoPickerItem: PhotosPickerItem?
+    @State private var showingImagePicker = false
     
     var body: some View {
-        NavigationView {
-            VStack {
-                // Recent photos grid
-                PhotosPicker(
-                    selection: $photoPickerItem,
-                    matching: .any(of: [.images, .videos])
-                ) {
-                    VStack(spacing: 20) {
-                        Image(systemName: "photo.on.rectangle")
-                            .font(.system(size: 60))
-                            .foregroundColor(.white)
-                        
-                        Text("Seleccionar de la galería")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        Text("Elige una foto o video para tu historia")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // ✅ Vista invisible que abre directamente la galería
+        Color.clear
+            .onAppear {
+                // ✅ Abrir automáticamente la galería al aparecer
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    showingImagePicker = true
                 }
             }
-            .background(Color.black)
-            .navigationTitle("Galería")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                }
-            }
-            .toolbarBackground(Color.black, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-        }
-        .onChange(of: photoPickerItem) { _, newItem in
-            Task {
-                if let newItem = newItem {
-                    if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
+            .sheet(isPresented: $showingImagePicker) {
+                StoryImagePicker(selectedImage: $selectedImage, onSelect: { image in
+                    if let image = image {
                         let media = ProcessedMedia(
                             id: UUID().uuidString,
                             image: image,
@@ -3676,8 +3691,49 @@ struct StoryGalleryPicker: View {
                         onSelect(media)
                         dismiss()
                     }
-                }
+                })
             }
+    }
+}
+
+// ✅ StoryImagePicker que abre directamente la galería
+struct StoryImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    let onSelect: (UIImage?) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        picker.allowsEditing = false
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: StoryImagePicker
+        
+        init(_ parent: StoryImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.selectedImage = image
+                parent.onSelect(image)
+            }
+            parent.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.onSelect(nil)
+            parent.dismiss()
         }
     }
 }

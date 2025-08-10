@@ -22,6 +22,8 @@
     <string>Esta app necesita acceso al micrófono para enviar mensajes de voz y grabar tus historias</string>
     <key>NSCameraUsageDescription</key>
     <string>Esta app necesita acceso a la cámara para enviar fotos, subir momentos e historias.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Esta app necesita acceso a tu galería para seleccionar fotos y videos para tus historias y momentos.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Moments necesita acceso a tu ubicación para registrar actividad de seguridad y prevenir accesos no autorizados a tu cuenta.</string>
     <key>NSUserTrackingUsageDescription</key>

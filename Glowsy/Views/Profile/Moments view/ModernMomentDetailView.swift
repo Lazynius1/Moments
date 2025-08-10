@@ -910,20 +910,28 @@ struct DetailExpandableContentView: View {
 // MARK: - ✅ Resto de componentes (mantener igual)
 struct ModernDetailBackground: View {
     let scrollOffset: CGFloat
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color(hex: "1a1a2e").opacity(0.95),
-                    Color(hex: "16213e").opacity(0.85),
-                    Color.black
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            if colorScheme == .dark {
+                // Mismo fondo que el Feed - negro suave y elegante
+                Color(hex: "0A0A0A")
+                    .ignoresSafeArea()
+            } else {
+                // Fondo claro elegante
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.white,
+                        Color(hex: "f8f9fa"),
+                        Color(hex: "e9ecef"),
+                        Color.white
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            }
             
             Rectangle()
                 .fill(.ultraThinMaterial)
