@@ -168,8 +168,9 @@ struct ProfileView: View {
                     case .visits:
                         VisitsView()
                             .presentationDetents([.medium, .large])
-                            .presentationDragIndicator(.visible)
+                            .presentationDragIndicator(.hidden)
                             .interactiveDismissDisabled(false)
+                            .presentationBackground(.clear)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     
                     case .admirers, .connections, .mutualConnections:
@@ -181,8 +182,9 @@ struct ProfileView: View {
                             onDismiss: { showingUserList = nil }
                         )
                         .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
+                        .presentationDragIndicator(.hidden)
                         .interactiveDismissDisabled(false)
+                        .presentationBackground(.clear)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }

@@ -1236,19 +1236,19 @@ class MediaModerationService {
         loadModerationSettings { [weak self] config in
             // ✅ UMBRALES SIMILARES A INSTAGRAM (balanceados)
             let deleteThresholds = config?["deleteThresholds"] as? [String: Double] ?? [
-                "adult": 0.75,     // Similar a Instagram - Desnudez parcial/explícita
-                "violence": 0.65,  // Similar a Instagram - Contenido violento
-                "racy": 0.8,       // Similar a Instagram - Contenido sugerente
-                "medical": 0.85,   // Similar a Instagram - Contenido médico
-                "spoofed": 0.7     // Similar a Instagram - Contenido manipulado
+                "adult": 0.85,     // Más permisivo - Solo desnudez explícita
+                "violence": 0.75,  // Más permisivo - Solo violencia gráfica
+                "racy": 0.98,      // Casi imposible de eliminar - Solo contenido extremadamente explícito
+                "medical": 0.9,    // Más permisivo - Solo contenido médico muy explícito
+                "spoofed": 0.8     // Más permisivo - Solo manipulaciones obvias
             ]
 
             let warningThresholds = config?["warningThresholds"] as? [String: Double] ?? [
-                "adult": 0.6,      // Similar a Instagram - Advertencia para contenido adulto
-                "violence": 0.5,   // Similar a Instagram - Advertencia para violencia
-                "racy": 0.65,      // Similar a Instagram - Advertencia para contenido sugerente
-                "medical": 0.7,    // Similar a Instagram - Advertencia para contenido médico
-                "spoofed": 0.5     // Similar a Instagram - Advertencia para manipulaciones
+                "adult": 0.75,     // Más permisivo - Advertencia solo para contenido muy adulto
+                "violence": 0.65,  // Más permisivo - Advertencia solo para violencia moderada
+                "racy": 0.95,      // Casi imposible de advertir - Solo contenido extremadamente explícito
+                "medical": 0.8,    // Más permisivo - Advertencia solo para contenido médico moderado
+                "spoofed": 0.7     // Más permisivo - Advertencia solo para manipulaciones moderadas
             ]
 
             if adult >= deleteThresholds["adult"]! {
@@ -1259,10 +1259,11 @@ class MediaModerationService {
                 completion(.deleted(reason: "Contenido violento detectado", category: ModerationCategory.violence.rawValue))
                 return
             }
-            if racy >= deleteThresholds["racy"]! {
-                completion(.deleted(reason: "Contenido explícito detectado", category: ModerationCategory.racy.rawValue))
-                return
-            }
+            // ✅ DESHABILITADO: Moderación de racy (demasiado conservadora)
+            // if racy >= deleteThresholds["racy"]! {
+            //     completion(.deleted(reason: "Contenido explícito detectado", category: ModerationCategory.racy.rawValue))
+            //     return
+            // }
 
             if adult >= warningThresholds["adult"]! {
                 completion(.warning(reason: "Contenido potencialmente adulto", category: ModerationCategory.adult.rawValue))
@@ -1272,10 +1273,11 @@ class MediaModerationService {
                 completion(.warning(reason: "Contenido potencialmente violento", category: ModerationCategory.violence.rawValue))
                 return
             }
-            if racy >= warningThresholds["racy"]! {
-                completion(.warning(reason: "Contenido potencialmente sugerente", category: ModerationCategory.racy.rawValue))
-                return
-            }
+            // ✅ DESHABILITADO: Advertencias de racy (demasiado conservadora)
+            // if racy >= warningThresholds["racy"]! {
+            //     completion(.warning(reason: "Contenido potencialmente sugerente", category: ModerationCategory.racy.rawValue))
+            //     return
+            // }
 
             completion(.approved)
         }

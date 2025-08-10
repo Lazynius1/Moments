@@ -165,100 +165,74 @@ struct VisitorAnalysis {
     }
 }
 
-// ✅ VISTA PRINCIPAL: VisitsView con agrupación
+// ✅ VISTA PRINCIPAL: VisitsView SIN overlay grisáceo
 struct VisitsView: View {
     @StateObject private var viewModel = VisitsViewModel()
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Fondo adaptativo
-                LinearGradient(
-                    gradient: Gradient(colors: colorScheme == .dark ? [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ] : [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+        VStack {
+            Spacer()
+            
+            // ✅ Contenedor principal con el mismo estilo que ContextMenu
+            VStack(spacing: 0) {
+                // ✅ Handle superior igual que ContextMenu
+                handleView
                 
-                if viewModel.isLoading {
-                    VisitModernLoadingView(colorScheme: colorScheme)
-                } else if viewModel.groupedVisits.isEmpty {
-                    ModernEmptyVisitsView(colorScheme: colorScheme)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            // Sección de stalkers si existen
-                            if !viewModel.stalkerAnalysis.isEmpty {
-                                stalkerSection
-                            }
-                            
-                            // Header de visitas con contador
-                            visitsHeader
-                            
-                            // ✅ NUEVA: Lista de visitas agrupadas
-                            ForEach(viewModel.groupedVisits) { groupedVisit in
-                                GroupedVisitRow(
-                                    groupedVisit: groupedVisit,
-                                    colorScheme: colorScheme
-                                )
-                                .padding(.horizontal, 20)
-                            }
-                        }
-                        .padding(.top, 20)
-                        .padding(.bottom, 40)
-                    }
-                }
+                // ✅ Header con título
+                headerView
                 
-                // Overlay de alerta de stalker
+                // ✅ Contenido principal
+                contentView
+                
+                // ✅ Botón cerrar en la parte inferior
+                cancelButton
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.3),
+                                        Color(hex: "00A896").opacity(0.4)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        }
+        .overlay(
+            Group {
                 if viewModel.showStalkerAlert, let stalker = viewModel.detectedStalker {
                     Color.black.opacity(0.8)
                         .ignoresSafeArea()
                         .onTapGesture {
                             viewModel.showStalkerAlert = false
                         }
-                    
-                    StalkerAlertView(stalker: stalker, isPresented: $viewModel.showStalkerAlert, colorScheme: colorScheme)
-                }
-            }
-            .navigationTitle("Visitas")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 32, height: 32)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        colorScheme == .dark ?
-                                        Color.white.opacity(0.3) :
-                                        Color.black.opacity(0.3),
-                                        lineWidth: 1
-                                    )
+                        .overlay(
+                            StalkerAlertView(
+                                stalker: stalker,
+                                isPresented: $viewModel.showStalkerAlert,
+                                colorScheme: colorScheme
                             )
-                    }
+                        )
                 }
             }
-            .onAppear {
-                viewModel.fetchVisits()
-            }
+        )
+        .onAppear {
+            viewModel.fetchVisits()
         }
     }
     
@@ -305,7 +279,7 @@ struct VisitsView: View {
             
             Text("\(viewModel.groupedVisits.count)")
                 .font(.custom("Poppins-Medium", size: 12))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Color(hex: "00A896").opacity(0.6))
@@ -989,5 +963,92 @@ struct ModernEmptyVisitsView: View {
 struct VisitsView_Previews: PreviewProvider {
     static var previews: some View {
         VisitsView()
+    }
+}
+
+// ✅ COMPONENTES PARA VISITSVIEW CON EL MISMO ESTILO QUE USERLISTVIEW
+extension VisitsView {
+    // ✅ Handle superior idéntico al ContextMenu
+    private var handleView: some View {
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(Color.white.opacity(0.4))
+            .frame(width: 40, height: 5)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
+    }
+    
+    // ✅ Header simplificado como el ContextMenu
+    private var headerView: some View {
+        VStack(alignment: .center, spacing: 2) {
+            Text("Visitas")
+                .font(.custom("Poppins-Bold", size: 22))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+            
+            Text("\(viewModel.groupedVisits.count) \(viewModel.groupedVisits.count == 1 ? "visitante" : "visitantes")")
+                .font(.custom("Poppins-Regular", size: 13))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+    }
+    
+    private var contentView: some View {
+        Group {
+            if viewModel.isLoading {
+                VisitModernLoadingView(colorScheme: colorScheme)
+            } else if viewModel.groupedVisits.isEmpty {
+                ModernEmptyVisitsView(colorScheme: colorScheme)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        // Sección de stalkers si existen
+                        if !viewModel.stalkerAnalysis.isEmpty {
+                            stalkerSection
+                        }
+                        
+                        // Header de visitas con contador
+                        visitsHeader
+                        
+                        // ✅ NUEVA: Lista de visitas agrupadas
+                        ForEach(viewModel.groupedVisits) { groupedVisit in
+                            GroupedVisitRow(
+                                groupedVisit: groupedVisit,
+                                colorScheme: colorScheme
+                            )
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+    
+    // ✅ Botón cancelar en la parte inferior
+    private var cancelButton: some View {
+        Button(action: {
+            withAnimation(.easeOut(duration: 0.3)) {
+                dismiss()
+            }
+        }) {
+            Text("Cerrar")
+                .font(.custom("Poppins-SemiBold", size: 16))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                        )
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
     }
 }
