@@ -1,5 +1,7 @@
 const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { setGlobalOptions } = require('firebase-functions/v2');
+setGlobalOptions({ region: 'us-central1', memory: '256MiB', concurrency: 80 });
 const admin = require('firebase-admin');
 admin.initializeApp();
 
@@ -79,25 +81,24 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
       ? reacterData.profileImagePath.replace(':443', '')
       : null;
     
-    // ✅ OBTENER CONTEO DE REACCIONES para título dinámico
-    const reactionsSnapshot = await admin.firestore()
-      .collection(`users/${userId}/moments/${momentId}/reactions`)
-      .get();
-    
-    const reactionCount = reactionsSnapshot.size;
+    // ✅ Incrementar contador de reacciones sin escanear la colección
+    const momentRef = admin.firestore().doc(`users/${userId}/moments/${momentId}`);
+    // Calcular el nuevo total localmente para personalizar el mensaje
+    const newReactionCount = (momentData.reactionCount || 0) + 1;
+    await momentRef.update({ reactionCount: admin.firestore.FieldValue.increment(1) });
     
     // ✅ TÍTULO DINÁMICO basado en número de reacciones
     let notificationTitle;
     let notificationBody;
     
-    if (reactionCount === 1) {
+    if (newReactionCount === 1) {
       // Primera reacción: mostrar usuario específico
       notificationTitle = `${reacterData.username} reaccionó ${emoji} a tu momento`;
       notificationBody = 'Toca para ver tu momento';
     } else {
       // Múltiples reacciones: mostrar conteo
-      notificationTitle = `${reacterData.username} y ${reactionCount - 1} más reaccionaron a tu momento`;
-      notificationBody = `${reactionCount} reacciones en total`;
+      notificationTitle = `${reacterData.username} y ${newReactionCount - 1} más reaccionaron a tu momento`;
+      notificationBody = `${newReactionCount} reacciones en total`;
     }
     
     const message = {
@@ -117,7 +118,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
         targetId: momentId,
         senderUsername: reacterData.username,
         senderProfileImage: reacterData.profileImagePath || '',
-        reactionCount: reactionCount.toString()
+        reactionCount: String(newReactionCount)
       },
       apns: {
         payload: {
@@ -129,7 +130,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
             'thread-id': `moment_reactions_${momentId}`,
             // ✅ NUEVO: Summary args para agrupación inteligente
             'summary-arg': reacterData.username,
-            'summary-arg-count': reactionCount
+            'summary-arg-count': newReactionCount
           }
         }
       }
@@ -137,7 +138,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     
     try {
       await admin.messaging().send(message);
-      console.log(`✅ Notificación enviada: ${reacterData.username} -> ${momentOwnerData.username} (${reaction.reactionType}) - Total: ${reactionCount}`);
+      console.log(`✅ Notificación enviada: ${reacterData.username} -> ${momentOwnerData.username} (${reaction.reactionType}) - Total: ${newReactionCount}`);
     } catch (error) {
       if (error.code === 'messaging/registration-token-not-registered') {
         await removeInvalidToken(userId, fcmToken);
@@ -153,7 +154,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
       senderProfileImage: reacterData.profileImagePath || '',
       momentId: momentId,
       reactionType: reaction.reactionType,
-      reactionCount: reactionCount,
+      reactionCount: newReactionCount,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       isPending: true
     });
@@ -443,12 +444,15 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
     }
     
     if (!senderData.isActive) return null;
+
+    // ✅ Batch fetch de receptores para reducir lecturas
+    const receiverRefs = receivers.map((receiverId) => admin.firestore().doc(`users/${receiverId}`));
+    const receiverDocs = await admin.firestore().getAll(...receiverRefs);
     
-    const notifications = receivers.map(async (receiverId) => {
-      const receiverDoc = await admin.firestore().doc(`users/${receiverId}`).get();
+    const notifications = receiverDocs.map(async (receiverDoc) => {
       if (!receiverDoc.exists) return null;
-      
       const receiverData = receiverDoc.data();
+      const receiverId = receiverDoc.id;
       
       if (!validateUserData(receiverData)) {
         console.warn('⚠️ Datos de receiver incompletos para mensaje');
@@ -826,6 +830,10 @@ exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{mom
   const reaction = snap.data();
   
   try {
+    // ✅ Decrementar el contador de reacciones
+    const momentRef = admin.firestore().doc(`users/${userId}/moments/${momentId}`);
+    await momentRef.update({ reactionCount: admin.firestore.FieldValue.increment(-1) });
+
     // ✅ ELIMINAR TODAS LAS NOTIFICACIONES EXISTENTES de este momento
     const notificationsSnapshot = await admin.firestore()
       .collection(`users/${userId}/notifications`)

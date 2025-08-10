@@ -13,6 +13,7 @@ struct GlowsyApp: App {
 
     // Agregar una propiedad para almacenar el listener de autenticación
     @State private var authListenerHandle: AuthStateDidChangeListenerHandle?
+    @State private var didPostLaunchInit = false
 
     init() {
         FirebaseApp.configure()
@@ -23,19 +24,7 @@ struct GlowsyApp: App {
         Firestore.firestore().settings = settings
         print("Firestore configurado con cacheSettings: \(settings.cacheSettings)")
 
-        AdMobConfiguration.shared.initialize()
-
-        let memoryCapacity = 100 * 1024 * 1024
-        let diskCapacity = 500 * 1024 * 1024
-        let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
-        URLCache.shared = cache
-        print("URLCache configurado: \(memoryCapacity / 1024 / 1024) MB en memoria, \(diskCapacity / 1024 / 1024) MB en disco")
-
-        let kingfisherCache = KingfisherManager.shared.cache
-        kingfisherCache.memoryStorage.config.totalCostLimit = 100 * 1024 * 1024
-        kingfisherCache.diskStorage.config.sizeLimit = 500 * 1024 * 1024
-        kingfisherCache.diskStorage.config.expiration = StorageExpiration.date(Date().addingTimeInterval(7 * 24 * 60 * 60))
-        print("Kingfisher configurado: 100 MB en memoria, 500 MB en disco, caducidad de 7 días")
+        // AdMob y caches se inicializan después del primer frame
     }
 
     var body: some Scene {
@@ -47,8 +36,8 @@ struct GlowsyApp: App {
                             // Permisos de ubicación pospuestos hasta uso real
                             print("🚀 Servicios inicializados durante SplashScreen")
                             
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                                withAnimation(.easeOut(duration: 0.5)) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                withAnimation(.easeOut(duration: 0.3)) {
                                     showSplash = false
                                 }
                             }
@@ -59,7 +48,28 @@ struct GlowsyApp: App {
                         .environmentObject(MessageRequestService())
                         .onAppear {
                             print("🚀 Sistema de limpieza de mensajes efímeros iniciado")
-                            print("📍 Servicios de ubicación configurados")
+                            
+                            // Post-launch initializations (una sola vez)
+                            if !didPostLaunchInit {
+                                didPostLaunchInit = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    // Inicializar AdMob tras primer frame
+                                    AdMobConfiguration.shared.initialize()
+                                    
+                                    // Configurar caches con tamaños más moderados
+                                    let memoryCapacity = 20 * 1024 * 1024
+                                    let diskCapacity = 200 * 1024 * 1024
+                                    let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
+                                    URLCache.shared = cache
+                                    print("URLCache configurado: \(memoryCapacity / 1024 / 1024) MB en memoria, \(diskCapacity / 1024 / 1024) MB en disco")
+                                    
+                                    let kingfisherCache = KingfisherManager.shared.cache
+                                    kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
+                                    kingfisherCache.diskStorage.config.sizeLimit = 200 * 1024 * 1024
+                                    kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(7)
+                                    print("Kingfisher configurado: 20 MB en memoria, 200 MB en disco, caducidad de 7 días")
+                                }
+                            }
                             
                             // ✅ Configurar listener de autenticación
                             authListenerHandle = Auth.auth().addStateDidChangeListener { auth, user in
