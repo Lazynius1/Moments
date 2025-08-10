@@ -73,6 +73,14 @@ class ChatService: ObservableObject {
                 for doc in documents {
                     let data = doc.data()
                     
+                    // ✅ Filtrar mensajes eliminados para el usuario actual (estilo Instagram)
+                    if let deletedFor = data["deletedFor"] as? [String], 
+                       let currentUserId = Auth.auth().currentUser?.uid,
+                       deletedFor.contains(currentUserId) {
+                        print("🚫 Mensaje \(doc.documentID) eliminado para \(currentUserId), saltando...")
+                        continue
+                    }
+                    
                     // Manual decoding with decryption
                     let id = data["id"] as? String ?? doc.documentID
                     let senderId = data["senderId"] as? String ?? ""
@@ -381,7 +389,7 @@ class ChatService: ObservableObject {
     }
     
     // MARK: - Core Send Message Method
-    private func sendMessage(_ message: EnhancedMessage, useServerTimestamp: Bool, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendMessage(_ message: EnhancedMessage, useServerTimestamp: Bool, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         do {
             let messageRef = db.collection("conversations")
                 .document(message.conversationId)
@@ -467,6 +475,12 @@ class ChatService: ObservableObject {
                 }
                 
                 print("✅ Encrypted message \(message.id) written to Firestore successfully")
+                
+                // ✅ Llamar completion handler inmediatamente después de escribir a Firestore
+                var updatedMessage = message
+                updatedMessage.status = .sent
+                print("✅ Encrypted message \(message.id) sent successfully")
+                completion(.success(updatedMessage))
             
                 // ✅ Update conversation with last message (decrypt for preview)
                 let lastMessagePreview: String = {
@@ -513,14 +527,11 @@ class ChatService: ObservableObject {
                     ) { statusError in
                         if let statusError = statusError {
                             print("❌ Error updating message status: \(statusError.localizedDescription)")
-                            completion(.failure(statusError))
+                            // No llamar completion aquí porque ya se llamó arriba
                             return
                         }
                         
-                        var updatedMessage = message
-                        updatedMessage.status = .sent
-                        print("✅ Encrypted message \(message.id) sent successfully")
-                        completion(.success(updatedMessage))
+                        print("✅ Message status updated to sent in Firestore")
                     }
                 }
             }
@@ -756,7 +767,7 @@ class ChatService: ObservableObject {
     }
 
     func deleteConversationsBetweenUsers(user1Id: String, user2Id: String, completion: @escaping (Error?) -> Void) {
-        print("🗑️ Eliminando conversaciones entre \(user1Id) y \(user2Id)")
+        print("🗑️ Marcando conversaciones como eliminadas para \(user1Id) (estilo Instagram)")
         self.db.collection("conversations")
             .whereField("participants", arrayContains: user1Id)
             .getDocuments { snapshot, error in
@@ -772,7 +783,7 @@ class ChatService: ObservableObject {
                     return
                 }
 
-                let conversationsToDelete = documents.filter { doc in
+                let conversationsToMarkAsDeleted = documents.filter { doc in
                     if let participants = doc.data()["participants"] as? [String] {
                         return participants.contains(user2Id)
                     }
@@ -780,18 +791,160 @@ class ChatService: ObservableObject {
                 }
 
                 let batch = self.db.batch()
-                for doc in conversationsToDelete {
-                    batch.deleteDocument(doc.reference)
+                for doc in conversationsToMarkAsDeleted {
+                    // En lugar de eliminar, marcar como eliminada para este usuario
+                    batch.updateData([
+                        "deletedFor": FieldValue.arrayUnion([user1Id]),
+                        "deletedAt": FieldValue.serverTimestamp()
+                    ], forDocument: doc.reference)
+                    
+                    // ✅ Marcar TODOS los mensajes como eliminados para este usuario (estilo Instagram)
+                    self.markAllMessagesAsDeletedForUser(conversationId: doc.documentID, userId: user1Id)
                 }
 
                 batch.commit { error in
                     if let error = error {
-                        print("❌ Error al eliminar conversaciones: \(error.localizedDescription)")
+                        print("❌ Error al marcar conversaciones como eliminadas: \(error.localizedDescription)")
                         completion(error)
                     } else {
-                        print("✅ Conversaciones eliminadas con éxito")
+                        print("✅ Conversaciones marcadas como eliminadas para \(user1Id)")
                         completion(nil)
                     }
+                }
+            }
+    }
+    
+    // ✅ NUEVA FUNCIÓN: Restaurar conversación eliminada (estilo Instagram)
+    func restoreConversation(conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
+        print("🔄 Restaurando conversación \(conversationId) para \(userId)")
+        
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "deletedFor": FieldValue.arrayRemove([userId])
+            ]) { error in
+                if let error = error {
+                    print("❌ Error restaurando conversación: \(error.localizedDescription)")
+                    completion(error)
+                } else {
+                    print("✅ Conversación restaurada exitosamente para \(userId)")
+                    completion(nil)
+                }
+            }
+    }
+    
+    // ✅ NUEVA FUNCIÓN: Marcar todos los mensajes como eliminados para un usuario
+    private func markAllMessagesAsDeletedForUser(conversationId: String, userId: String) {
+        print("🗑️ Marcando todos los mensajes como eliminados para \(userId) en conversación \(conversationId)")
+        
+        db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ Error obteniendo mensajes para marcar como eliminados: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    print("✅ No hay mensajes para marcar como eliminados")
+                    return
+                }
+                
+                let batch = self.db.batch()
+                for doc in documents {
+                    batch.updateData([
+                        "deletedFor": FieldValue.arrayUnion([userId])
+                    ], forDocument: doc.reference)
+                }
+                
+                batch.commit { error in
+                    if let error = error {
+                        print("❌ Error marcando mensajes como eliminados: \(error.localizedDescription)")
+                    } else {
+                        print("✅ \(documents.count) mensajes marcados como eliminados para \(userId)")
+                    }
+                }
+            }
+    }
+    
+    // ✅ NUEVAS FUNCIONES: Pin y Mute conversaciones
+    func pinConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
+        print("📌 Pinnando conversación \(conversationId) para usuario \(userId)")
+        
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "isPinned": true,
+                "pinnedAt": FieldValue.serverTimestamp(),
+                "pinnedBy": userId
+            ]) { error in
+                if let error = error {
+                    print("❌ Error pinnando conversación: \(error.localizedDescription)")
+                    completion(error)
+                } else {
+                    print("✅ Conversación pinnada exitosamente")
+                    completion(nil)
+                }
+            }
+    }
+    
+    func unpinConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
+        print("📌 Despinnando conversación \(conversationId) para usuario \(userId)")
+        
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "isPinned": false,
+                "pinnedAt": FieldValue.delete(),
+                "pinnedBy": FieldValue.delete()
+            ]) { error in
+                if let error = error {
+                    print("❌ Error despinnando conversación: \(error.localizedDescription)")
+                    completion(error)
+                } else {
+                    print("✅ Conversación despinnada exitosamente")
+                    completion(nil)
+                }
+            }
+    }
+    
+    func muteConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
+        print("🔇 Silenciando conversación \(conversationId) para usuario \(userId)")
+        
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "isMuted": true,
+                "mutedAt": FieldValue.serverTimestamp(),
+                "mutedBy": userId
+            ]) { error in
+                if let error = error {
+                    print("❌ Error silenciando conversación: \(error.localizedDescription)")
+                    completion(error)
+                } else {
+                    print("✅ Conversación silenciada exitosamente")
+                    completion(nil)
+                }
+            }
+    }
+    
+    func unmuteConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
+        print("🔊 Desilenciando conversación \(conversationId) para usuario \(userId)")
+        
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "isMuted": false,
+                "mutedAt": FieldValue.delete(),
+                "mutedBy": FieldValue.delete()
+            ]) { error in
+                if let error = error {
+                    print("❌ Error desilenciando conversación: \(error.localizedDescription)")
+                    completion(error)
+                } else {
+                    print("✅ Conversación desilenciada exitosamente")
+                    completion(nil)
                 }
             }
     }
@@ -822,6 +975,12 @@ class ChatService: ObservableObject {
                 
                 for doc in documents {
                     let data = doc.data()
+                    
+                    // ✅ Filtrar conversaciones eliminadas para este usuario (estilo Instagram)
+                    if let deletedFor = data["deletedFor"] as? [String], deletedFor.contains(userId) {
+                        print("🚫 Conversación \(doc.documentID) eliminada para \(userId), saltando...")
+                        continue
+                    }
                     
                     guard
                         let participants = data["participants"] as? [String],
@@ -859,6 +1018,10 @@ class ChatService: ObservableObject {
                         }
                     }
                     
+                    // ✅ Extraer campos de pin y mute
+                    let isPinned = data["isPinned"] as? Bool ?? false
+                    let isMuted = data["isMuted"] as? Bool ?? false
+                    
                     let conversation = Conversation(
                         id: doc.documentID,
                         participants: participants,
@@ -867,7 +1030,9 @@ class ChatService: ObservableObject {
                         readStatus: readStatus,
                         otherParticipantId: otherParticipantId,
                         otherParticipantUsername: otherParticipantUsername,
-                        otherParticipantProfileImagePath: otherParticipantProfileImagePath
+                        otherParticipantProfileImagePath: otherParticipantProfileImagePath,
+                        isPinned: isPinned,
+                        isMuted: isMuted
                     )
                     
                     conversations.append(conversation)
@@ -1130,15 +1295,9 @@ class ChatService: ObservableObject {
                 } else {
                     print("✅ Conversación bidireccional con encriptación creada exitosamente: \(conversationId)")
                     
-                    // ✅ PRECARGAR LA CLAVE EN AMBOS DISPOSITIVOS
-                    EncryptionService.shared.fetchConversationKeyAsync(for: conversationId) { result in
-                        switch result {
-                        case .success(_):
-                            print("✅ Encryption key preloaded for new conversation")
-                        case .failure(let keyError):
-                            print("⚠️ Warning: Could not preload encryption key: \(keyError)")
-                        }
-                    }
+                    // ✅ PRECARGAR LA CLAVE LOCALMENTE (ya la tenemos)
+                    EncryptionService.shared.setConversationKey(sharedEncryptionKey, for: conversationId)
+                    print("✅ Encryption key preloaded for new conversation: \(conversationId)")
                     
                     completion(.success(conversationId))
                 }
@@ -1256,15 +1415,31 @@ class ChatService: ObservableObject {
                 readStatus[participant] = (participant == senderId)
             }
             
-            self?.db.collection("conversations").document(conversationId).updateData([
+            // ✅ Verificar si la conversación está eliminada para algún participante y restaurarla
+            let deletedFor = doc.data()?["deletedFor"] as? [String] ?? []
+            let participantsToRestore = deletedFor.filter { $0 != senderId } // Restaurar para todos excepto el remitente
+            
+            var updateData: [String: Any] = [
                 "lastMessage": lastMessage, // ✅ Preview descifrado para mostrar en la lista
                 "timestamp": FieldValue.serverTimestamp(),
                 "readStatus": readStatus
-            ]) { error in
+            ]
+            
+            // ✅ Restaurar conversación para participantes que la habían eliminado (estilo Instagram)
+            if !participantsToRestore.isEmpty {
+                updateData["deletedFor"] = FieldValue.arrayRemove(participantsToRestore)
+                print("🔄 Restaurando conversación \(conversationId) para usuarios que la habían eliminado: \(participantsToRestore)")
+            }
+            
+            self?.db.collection("conversations").document(conversationId).updateData(updateData) { error in
                 if let error = error {
                     print("❌ Error updating conversation: \(error.localizedDescription)")
                 } else {
-                    print("✅ Conversation updated with decrypted preview")
+                    if !participantsToRestore.isEmpty {
+                        print("✅ Conversation updated and restored for \(participantsToRestore.count) users")
+                    } else {
+                        print("✅ Conversation updated with decrypted preview")
+                    }
                 }
                 completion(error)
             }
@@ -1561,10 +1736,39 @@ extension ChatService {
                     print("✅ Conversación existente encontrada: \(conversationId)")
                     completion(.success(conversationId))
                 } else {
-                    print("🆕 Creando nueva conversación")
-                    self?.createBidirectionalConversation(user1Id: user1Id, user2Id: user2Id, completion: completion)
+                    print("🆕 Verificando si los usuarios se siguen mutuamente")
+                    self?.checkMutualFollowAndCreateConversation(user1Id: user1Id, user2Id: user2Id, completion: completion)
                 }
             }
+    }
+    
+    // ✅ NUEVA: Función para verificar seguimiento mutuo antes de crear conversación
+    private func checkMutualFollowAndCreateConversation(user1Id: String, user2Id: String, completion: @escaping (Result<String, Error>) -> Void) {
+        let firestoreService = FirestoreService()
+        
+        // Verificar si user1 sigue a user2
+        firestoreService.isFollowing(currentUserId: user1Id, targetUserId: user2Id) { [weak self] user1FollowsUser2 in
+            // Verificar si user2 sigue a user1
+            firestoreService.isFollowing(currentUserId: user2Id, targetUserId: user1Id) { user2FollowsUser1 in
+                let mutualFollow = user1FollowsUser2 && user2FollowsUser1
+                
+                if mutualFollow {
+                    print("✅ Usuarios se siguen mutuamente, creando conversación")
+                    self?.createBidirectionalConversation(user1Id: user1Id, user2Id: user2Id, completion: completion)
+                } else {
+                    print("❌ Usuarios no se siguen mutuamente, no se puede crear conversación directa")
+                    // Retornar error específico para indicar que se necesita solicitud
+                    let error = NSError(
+                        domain: "ChatService",
+                        code: 403,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: "Los usuarios no se siguen mutuamente. Se requiere una solicitud de mensaje."
+                        ]
+                    )
+                    completion(.failure(error))
+                }
+            }
+        }
     }
     
     func sendSharedMomentMessage(

@@ -457,6 +457,12 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
       
       if (!receiverData.isActive || !receiverData.fcmToken) return null;
       
+      // ✅ VERIFICAR SI LA CONVERSACIÓN ESTÁ SILENCIADA PARA ESTE USUARIO
+      if (conversationData.isMuted === true) {
+        console.log(`🔇 Conversación ${conversationId} silenciada para ${receiverId}, saltando notificación`);
+        return null;
+      }
+      
       let notificationTitle = senderData.username || 'Nuevo mensaje';
       let notificationBody = '';
       
@@ -528,6 +534,7 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
       try {
         await admin.messaging().send(notificationMessage);
         console.log(`✅ Notificación de mensaje enviada: ${senderData.username} -> ${receiverData.username} (${message.type})`);
+        console.log(`🔔 Conversación ${conversationId} NO silenciada, notificación enviada`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {
           await removeInvalidToken(receiverId, receiverData.fcmToken);

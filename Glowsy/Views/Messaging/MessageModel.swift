@@ -12,6 +12,8 @@ struct Conversation: Identifiable, Codable, Hashable {
     let otherParticipantId: String
     let otherParticipantUsername: String?
     let otherParticipantProfileImagePath: String?
+    let isPinned: Bool?
+    let isMuted: Bool?
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -30,9 +32,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         case otherParticipantId
         case otherParticipantUsername
         case otherParticipantProfileImagePath
+        case isPinned
+        case isMuted
     }
 
-    init(id: String?, participants: [String], lastMessage: String?, timestamp: Date, readStatus: [String: Bool], otherParticipantId: String, otherParticipantUsername: String?, otherParticipantProfileImagePath: String?) {
+    init(id: String?, participants: [String], lastMessage: String?, timestamp: Date, readStatus: [String: Bool], otherParticipantId: String, otherParticipantUsername: String?, otherParticipantProfileImagePath: String?, isPinned: Bool? = false, isMuted: Bool? = false) {
         self.id = id
         self.participants = participants
         self.lastMessage = lastMessage
@@ -41,6 +45,8 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.otherParticipantId = otherParticipantId
         self.otherParticipantUsername = otherParticipantUsername
         self.otherParticipantProfileImagePath = otherParticipantProfileImagePath
+        self.isPinned = isPinned
+        self.isMuted = isMuted
     }
 
     init(from decoder: Decoder) throws {
@@ -54,6 +60,8 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.otherParticipantId = try container.decode(String.self, forKey: .otherParticipantId)
         self.otherParticipantUsername = try container.decodeIfPresent(String.self, forKey: .otherParticipantUsername)
         self.otherParticipantProfileImagePath = try container.decodeIfPresent(String.self, forKey: .otherParticipantProfileImagePath)
+        self.isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        self.isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -66,6 +74,8 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encode(otherParticipantId, forKey: .otherParticipantId)
         try container.encodeIfPresent(otherParticipantUsername, forKey: .otherParticipantUsername)
         try container.encodeIfPresent(otherParticipantProfileImagePath, forKey: .otherParticipantProfileImagePath)
+        try container.encodeIfPresent(isPinned, forKey: .isPinned)
+        try container.encodeIfPresent(isMuted, forKey: .isMuted)
     }
     
     // Propiedad calculada para obtener el número de mensajes no leídos
@@ -965,5 +975,157 @@ enum ViewOnceError: Error, LocalizedError {
         case .networkError:
             return "Error de conexión"
         }
+    }
+}
+
+// MARK: - Message Request Model
+struct MessageRequest: Identifiable, Codable, Hashable {
+    @DocumentID var id: String?
+    let senderId: String
+    let senderUsername: String?
+    let senderProfileImagePath: String?
+    let receiverId: String
+    let message: String
+    let timestamp: Date
+    let status: RequestStatus
+    let messageType: MessageType
+    let mediaUrl: String?
+    let thumbnailUrl: String?
+    
+    enum RequestStatus: String, Codable, CaseIterable {
+        case pending = "pending"
+        case accepted = "accepted"
+        case rejected = "rejected"
+        case blocked = "blocked"
+        
+        var displayName: String {
+            switch self {
+            case .pending: return "Pendiente"
+            case .accepted: return "Aceptada"
+            case .rejected: return "Rechazada"
+            case .blocked: return "Bloqueada"
+            }
+        }
+        
+        var color: String {
+            switch self {
+            case .pending: return "FF9500" // Naranja
+            case .accepted: return "34C759" // Verde
+            case .rejected: return "FF3B30" // Rojo
+            case .blocked: return "8E8E93" // Gris
+            }
+        }
+    }
+    
+    init(id: String?, senderId: String, senderUsername: String?, senderProfileImagePath: String?, receiverId: String, message: String, timestamp: Date, status: RequestStatus, messageType: MessageType, mediaUrl: String?, thumbnailUrl: String?) {
+        self.id = id
+        self.senderId = senderId
+        self.senderUsername = senderUsername
+        self.senderProfileImagePath = senderProfileImagePath
+        self.receiverId = receiverId
+        self.message = message
+        self.timestamp = timestamp
+        self.status = status
+        self.messageType = messageType
+        self.mediaUrl = mediaUrl
+        self.thumbnailUrl = thumbnailUrl
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(String.self, forKey: .id)
+        self.senderId = try container.decode(String.self, forKey: .senderId)
+        self.senderUsername = try container.decodeIfPresent(String.self, forKey: .senderUsername)
+        self.senderProfileImagePath = try container.decodeIfPresent(String.self, forKey: .senderProfileImagePath)
+        self.receiverId = try container.decode(String.self, forKey: .receiverId)
+        self.message = try container.decode(String.self, forKey: .message)
+        
+        // Manejar timestamp de Firestore
+        do {
+            let timestamp = try container.decode(Timestamp.self, forKey: .timestamp)
+            self.timestamp = timestamp.dateValue()
+        } catch {
+            // Si falla la decodificación de Timestamp, usar fecha actual como fallback
+            print("⚠️ Error decodificando timestamp de Firestore, usando fecha actual como fallback")
+            print("🔍 Error details: \(error)")
+            self.timestamp = Date()
+        }
+        
+        self.status = try container.decode(RequestStatus.self, forKey: .status)
+        self.messageType = try container.decode(MessageType.self, forKey: .messageType)
+        self.mediaUrl = try container.decodeIfPresent(String.self, forKey: .mediaUrl)
+        self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encode(senderId, forKey: .senderId)
+        try container.encodeIfPresent(senderUsername, forKey: .senderUsername)
+        try container.encodeIfPresent(senderProfileImagePath, forKey: .senderProfileImagePath)
+        try container.encode(receiverId, forKey: .receiverId)
+        try container.encode(message, forKey: .message)
+        try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
+        try container.encode(status, forKey: .status)
+        try container.encode(messageType, forKey: .messageType)
+        try container.encodeIfPresent(mediaUrl, forKey: .mediaUrl)
+        try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case senderId
+        case senderUsername
+        case senderProfileImagePath
+        case receiverId
+        case message
+        case timestamp
+        case status
+        case messageType
+        case mediaUrl
+        case thumbnailUrl
+    }
+    
+    // Propiedad calculada para mostrar preview del mensaje
+    var messagePreview: String {
+        switch messageType {
+        case .text:
+            if message.count > 50 {
+                return String(message.prefix(47)) + "..."
+            }
+            return message
+        case .image:
+            return "📷 Imagen"
+        case .video:
+            return "🎥 Video"
+        case .audio:
+            return "🎵 Audio"
+        case .gif:
+            return "🎞️ GIF"
+        case .file:
+            return "📎 Archivo"
+        case .location:
+            return "📍 Ubicación"
+        case .sticker:
+            return "😊 Sticker"
+        case .ephemeral:
+            return "📸 Momento efímero"
+        case .sharedMoment:
+            return "📷 Momento compartido"
+        case .viewOnceImage:
+            return "📷 Foto (ver una vez)"
+        case .viewOnceVideo:
+            return "🎥 Video (ver una vez)"
+        }
+    }
+    
+    // Verificar si la solicitud está pendiente
+    var isPending: Bool {
+        return status == .pending
+    }
+    
+    // Verificar si el usuario puede enviar más solicitudes
+    var canSendMoreRequests: Bool {
+        return status != .blocked
     }
 }

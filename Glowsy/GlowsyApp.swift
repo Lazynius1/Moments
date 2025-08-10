@@ -57,6 +57,7 @@ struct GlowsyApp: App {
                 } else {
                     TabBarView()
                         .environmentObject(ephemeralCleanupManager)
+                        .environmentObject(MessageRequestService())
                         .onAppear {
                             print("🚀 Sistema de limpieza de mensajes efímeros iniciado")
                             print("📍 Servicios de ubicación configurados")
