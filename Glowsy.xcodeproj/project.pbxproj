@@ -52,22 +52,20 @@
 		0D4FD1B62DB27BFE00CA6DB1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
-			files = (
-				36B4BAB42DEE4A6200209B49 /* ExyteChat in Frameworks */,
-				368B7D842DE79DC6001D7971 /* FirebaseMessaging in Frameworks */,
-				36748B2A2DE104600094D43D /* FirebaseAI in Frameworks */,
-				36267A602E06374300A99130 /* CropViewController in Frameworks */,
-				369D7AC82DE9EACD005F30AB /* Kingfisher in Frameworks */,
-				36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */,
-				0D4FD1FD2DB2818900CA6DB1 /* FirebaseAuth in Frameworks */,
-				0DFC6C872DB6E1BE0067BA36 /* FirebaseStorage in Frameworks */,
-				36748B7F2DE112DD0094D43D /* FirebaseVertexAI in Frameworks */,
-				0DFC6C852DB6E1BE0067BA36 /* FirebaseCore in Frameworks */,
-				36267A622E06374300A99130 /* TOCropViewController in Frameworks */,
-				0D4FD1FF2DB2818900CA6DB1 /* FirebaseFirestore in Frameworks */,
-				36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
+							files = (
+					368B7D842DE79DC6001D7971 /* FirebaseMessaging in Frameworks */,
+					36267A602E06374300A99130 /* CropViewController in Frameworks */,
+					369D7AC82DE9EACD005F30AB /* Kingfisher in Frameworks */,
+					36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */,
+					0D4FD1FD2DB2818900CA6DB1 /* FirebaseAuth in Frameworks */,
+					0DFC6C872DB6E1BE0067BA36 /* FirebaseStorage in Frameworks */,
+					36748B7F2DE112DD0094D43D /* FirebaseVertexAI in Frameworks */,
+					0DFC6C852DB6E1BE0067BA36 /* FirebaseCore in Frameworks */,
+					36267A622E06374300A99130 /* TOCropViewController in Frameworks */,
+					0D4FD1FF2DB2818900CA6DB1 /* FirebaseFirestore in Frameworks */,
+					36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */,
+				);
+runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -108,21 +106,19 @@
 				0D4FD1BB2DB27BFE00CA6DB1 /* Glowsy */,
 			);
 			name = "Moments Social";
-			packageProductDependencies = (
-				0D4FD1FC2DB2818900CA6DB1 /* FirebaseAuth */,
-				0D4FD1FE2DB2818900CA6DB1 /* FirebaseFirestore */,
-				0DFC6C842DB6E1BE0067BA36 /* FirebaseCore */,
-				0DFC6C862DB6E1BE0067BA36 /* FirebaseStorage */,
-				36748B292DE104600094D43D /* FirebaseAI */,
-				36748B7E2DE112DD0094D43D /* FirebaseVertexAI */,
-				368B7D832DE79DC6001D7971 /* FirebaseMessaging */,
-				369D7AC72DE9EACD005F30AB /* Kingfisher */,
-				36B4BAB32DEE4A6200209B49 /* ExyteChat */,
-				36267A5F2E06374300A99130 /* CropViewController */,
-				36267A612E06374300A99130 /* TOCropViewController */,
-				36CE4D372E0A18F400901FD0 /* ZIPFoundation */,
-				36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */,
-			);
+							packageProductDependencies = (
+					0D4FD1FC2DB2818900CA6DB1 /* FirebaseAuth */,
+					0D4FD1FE2DB2818900CA6DB1 /* FirebaseFirestore */,
+					0DFC6C842DB6E1BE0067BA36 /* FirebaseCore */,
+					0DFC6C862DB6E1BE0067BA36 /* FirebaseStorage */,
+					36748B7E2DE112DD0094D43D /* FirebaseVertexAI */,
+					368B7D832DE79DC6001D7971 /* FirebaseMessaging */,
+					369D7AC72DE9EACD005F30AB /* Kingfisher */,
+					36267A5F2E06374300A99130 /* CropViewController */,
+					36267A612E06374300A99130 /* TOCropViewController */,
+					36CE4D372E0A18F400901FD0 /* ZIPFoundation */,
+					36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */,
+				);
 			productName = Glowsy;
 			productReference = 0D4FD1B92DB27BFE00CA6DB1 /* Moments Social.app */;
 			productType = "com.apple.product-type.application";
@@ -159,7 +155,6 @@
 			packageReferences = (
 				0D4FD1FB2DB2818900CA6DB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				369D7AC62DE9EACD005F30AB /* XCRemoteSwiftPackageReference "Kingfisher" */,
-				36B4BAB22DEE4A6200209B49 /* XCRemoteSwiftPackageReference "chat" */,
 				36267A5E2E06374300A99130 /* XCRemoteSwiftPackageReference "TOCropViewController" */,
 				36CE4D362E0A18F400901FD0 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				36CE4D4C2E0DEE4400901FD0 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
@@ -293,9 +288,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
+				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -308,11 +304,14 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LLVM_LTO = thin;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRIP_DEBUG_SYMBOLS = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-Osize";
 				SWIFT_VERSION = 6.0;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -460,14 +459,7 @@
 				minimumVersion = 8.3.2;
 			};
 		};
-		36B4BAB22DEE4A6200209B49 /* XCRemoteSwiftPackageReference "chat" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/exyte/chat";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.6.3;
-			};
-		};
+
 		36CE4D362E0A18F400901FD0 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
@@ -517,11 +509,7 @@
 			package = 36267A5E2E06374300A99130 /* XCRemoteSwiftPackageReference "TOCropViewController" */;
 			productName = TOCropViewController;
 		};
-		36748B292DE104600094D43D /* FirebaseAI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0D4FD1FB2DB2818900CA6DB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAI;
-		};
+
 		36748B7E2DE112DD0094D43D /* FirebaseVertexAI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0D4FD1FB2DB2818900CA6DB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
@@ -537,11 +525,7 @@
 			package = 369D7AC62DE9EACD005F30AB /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
 		};
-		36B4BAB32DEE4A6200209B49 /* ExyteChat */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 36B4BAB22DEE4A6200209B49 /* XCRemoteSwiftPackageReference "chat" */;
-			productName = ExyteChat;
-		};
+
 		36CE4D372E0A18F400901FD0 /* ZIPFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 36CE4D362E0A18F400901FD0 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;

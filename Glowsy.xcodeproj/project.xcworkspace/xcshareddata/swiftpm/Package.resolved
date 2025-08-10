@@ -1,5 +1,5 @@
 {
-  "originHash" : "6a93d39de581cbfb6a3d604ac148798fc42582961c7fea17001fd5c8b0ae1c82",
+  "originHash" : "afd0de0f9de9a0714253f036d240cc25924dd1c72eda72da144d98e3e8d63c51",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -8,24 +8,6 @@
       "state" : {
         "revision" : "bbe8b69694d7873315fd3a4ad41efe043e1c07c5",
         "version" : "1.2024072200.0"
-      }
-    },
-    {
-      "identity" : "activityindicatorview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/exyte/ActivityIndicatorView",
-      "state" : {
-        "revision" : "36140867802ae4a1d2b11490bcbbefe058001d14",
-        "version" : "1.2.1"
-      }
-    },
-    {
-      "identity" : "anchoredpopup",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/exyte/AnchoredPopup.git",
-      "state" : {
-        "revision" : "787f27027d3ef38c01469d228ce062ab4d5645f5",
-        "version" : "1.0.6"
       }
     },
     {
@@ -38,30 +20,12 @@
       }
     },
     {
-      "identity" : "chat",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/exyte/chat",
-      "state" : {
-        "revision" : "2a7c727b736550ffca8051062169db36550502b8",
-        "version" : "2.6.3"
-      }
-    },
-    {
       "identity" : "firebase-ios-sdk",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/firebase/firebase-ios-sdk",
       "state" : {
         "revision" : "45d327fcbe7793747295346c2209ad419bdead74",
         "version" : "11.14.0"
-      }
-    },
-    {
-      "identity" : "giphy-ios-sdk",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Giphy/giphy-ios-sdk",
-      "state" : {
-        "revision" : "cdefbedc9f99d40cc64667a2bfaae67a1cf36fbb",
-        "version" : "2.2.12"
       }
     },
     {
@@ -143,24 +107,6 @@
       "state" : {
         "revision" : "a0bc79961d7be727d258d33d5a6b2f1023270ba1",
         "version" : "1.22.5"
-      }
-    },
-    {
-      "identity" : "libwebp-xcode",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SDWebImage/libwebp-Xcode",
-      "state" : {
-        "revision" : "0d60654eeefd5d7d2bef3835804892c40225e8b2",
-        "version" : "1.5.0"
-      }
-    },
-    {
-      "identity" : "mediapicker",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/exyte/MediaPicker.git",
-      "state" : {
-        "revision" : "c287ee410e5d9e9d642ed9c715042830f174a1d6",
-        "version" : "3.1.4"
       }
     },
     {
