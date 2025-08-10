@@ -68,6 +68,7 @@ import AVKit
 import AVFoundation
 import UIKit
 import MapKit
+import UserNotifications
 
 struct FeedView: View {
     @EnvironmentObject var authService: AuthService
@@ -208,6 +209,9 @@ struct FeedView: View {
             startTimeUpdate()
             
             setupServiceConnections()
+            
+            // ✅ Solicitar permiso de notificaciones al cargar el feed (solo si no se ha decidido aún)
+            requestNotificationPermissionIfNeeded()
             
             // ✅ SETUP DE LISTENERS
             badgeService.setupListeners()
@@ -374,6 +378,20 @@ struct FeedView: View {
         // Conectar UploadService con FeedViewModel
         uploadService.setFeedViewModel(viewModel)
         print("🔗 Servicios conectados: UploadService ↔ FeedViewModel")
+    }
+    
+    // ✅ Nuevo: Solicitud de permisos de notificaciones desde el Feed en primera carga
+    private func requestNotificationPermissionIfNeeded() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+                if granted {
+                    DispatchQueue.main.async {
+                        UIApplication.shared.registerForRemoteNotifications()
+                    }
+                }
+            }
+        }
     }
     
     // Mantener funciones existentes como updateMoment y deleteMoment sin cambios
