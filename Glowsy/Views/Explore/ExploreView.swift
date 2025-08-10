@@ -7,6 +7,7 @@ import AVFoundation
 // MARK: - Vista Principal de Explorar
 struct ExploreView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = ExploreViewModel()
     @State private var searchText: String = ""
     @State private var showPrivateProfileAlert: Bool = false
@@ -74,17 +75,26 @@ struct ExploreView: View {
     // MARK: - Componentes de la Vista
     
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color(hex: "667eea").opacity(0.12),
-                Color(hex: "764ba2").opacity(0.08),
-                Color(hex: "f093fb").opacity(0.04),
-                Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        ZStack {
+            if colorScheme == .dark {
+                // Mismo fondo que el Feed - negro suave y elegante
+                Color(hex: "0A0A0A")
+                    .ignoresSafeArea()
+            } else {
+                // Fondo claro elegante
+                LinearGradient(
+                    colors: [
+                        Color.white,
+                        Color(hex: "f8f9fa"),
+                        Color(hex: "e9ecef"),
+                        Color.white
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            }
+        }
     }
     
     private var headerSection: some View {

@@ -11,32 +11,40 @@ struct GlassmorphicBackground: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Floating blobs for depth
-            GeometryReader { geometry in
-                Circle()
-                    .fill(Color(hex: "00A896").opacity(adaptiveColors.colorScheme == .dark ? 0.3 : 0.4))
-                    .frame(width: 300, height: 300)
-                    .blur(radius: 100)
-                    .offset(x: -100, y: -100)
+            // ✅ FONDO ADAPTATIVO: Instagram-style en modo oscuro
+            if adaptiveColors.colorScheme == .dark {
+                // Negro elegante tipo Instagram - más suave
+                Color(hex: "1A1A1A") // Negro más suave, menos agresivo
+                    .ignoresSafeArea()
+            } else {
+                // Modo claro: mantener el diseño original
+                LinearGradient(
+                    gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
-                Circle()
-                    .fill(Color(hex: "02C39A").opacity(adaptiveColors.colorScheme == .dark ? 0.3 : 0.35))
-                    .frame(width: 250, height: 250)
-                    .blur(radius: 80)
-                    .offset(x: geometry.size.width - 150, y: 200)
-                
-                Circle()
-                    .fill(Color(hex: "F0F3BD").opacity(adaptiveColors.colorScheme == .dark ? 0.3 : 0.4))
-                    .frame(width: 200, height: 200)
-                    .blur(radius: 60)
-                    .offset(x: 50, y: geometry.size.height - 200)
+                // Floating blobs for depth
+                GeometryReader { geometry in
+                    Circle()
+                        .fill(Color(hex: "00A896").opacity(0.4))
+                        .frame(width: 300, height: 300)
+                        .blur(radius: 100)
+                        .offset(x: -100, y: -100)
+                    
+                    Circle()
+                        .fill(Color(hex: "02C39A").opacity(0.35))
+                        .frame(width: 250, height: 250)
+                        .blur(radius: 80)
+                        .offset(x: geometry.size.width - 150, y: 200)
+                    
+                    Circle()
+                        .fill(Color(hex: "F0F3BD").opacity(0.4))
+                        .frame(width: 200, height: 200)
+                        .blur(radius: 60)
+                        .offset(x: 50, y: geometry.size.height - 200)
+                }
             }
         }
     }
@@ -300,20 +308,28 @@ struct MessagingView: View {
     
     private var glassmorphicTopBar: some View {
         HStack {
+            // New conversation button (izquierda)
+            Button(action: {
+                isShowingNewConversation = true
+            }) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 22))
+                    .foregroundColor(adaptiveColors.primary)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
+            }
+            
             Spacer()
             
-            // Title with glass background
+            // Title centered (sin borde gris)
             Text("Mensajes")
                 .font(.custom("Poppins-Bold", size: 26))
                 .foregroundColor(adaptiveColors.primary)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .glassmorphic()
-                .clipShape(Capsule())
             
             Spacer()
             
-            // Message requests button
+            // Message requests button (derecha)
             Button(action: {
                 showingMessageRequests = true
             }) {
@@ -322,7 +338,7 @@ struct MessagingView: View {
                         .font(.system(size: 22))
                         .foregroundColor(adaptiveColors.primary)
                         .frame(width: 44, height: 44)
-                        .glassmorphic()
+                        .background(.ultraThinMaterial)
                         .clipShape(Circle())
                     
                     // Badge for pending requests
@@ -339,18 +355,6 @@ struct MessagingView: View {
                             .offset(x: 12, y: -12)
                     }
                 }
-            }
-            
-            // New conversation button
-            Button(action: {
-                isShowingNewConversation = true
-            }) {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 22))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 44, height: 44)
-                    .glassmorphic()
-                    .clipShape(Circle())
             }
         }
         .padding(.horizontal, 16)

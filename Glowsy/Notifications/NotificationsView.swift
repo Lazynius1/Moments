@@ -36,7 +36,26 @@ struct NotificationsView: View {
                 tabBarView
                 contentView
             }
-            .background(colorScheme == .dark ? Color.black : Color.white)
+            .background(
+                Group {
+                    if colorScheme == .dark {
+                        // Mismo fondo que el Feed - negro suave y elegante
+                        Color(hex: "0A0A0A")
+                    } else {
+                        // Fondo claro elegante
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white,
+                                Color(hex: "f8f9fa"),
+                                Color(hex: "e9ecef"),
+                                Color.white
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                }
+            )
             .navigationBarHidden(true)
             .onAppear {
                 print("🔔 NotificationsView apareció - iniciando limpieza automática")
@@ -360,7 +379,26 @@ struct NotificationsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(colorScheme == .dark ? Color.black : Color.white)
+            .background(
+                Group {
+                    if colorScheme == .dark {
+                        // Mismo fondo que el Feed - negro suave y elegante
+                        Color(hex: "0A0A0A")
+                    } else {
+                        // Fondo claro elegante
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white,
+                                Color(hex: "f8f9fa"),
+                                Color(hex: "e9ecef"),
+                                Color.white
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                }
+            )
         }
     }
 
@@ -474,44 +512,9 @@ struct EnhancedNotificationRow: View {
 
     var body: some View {
         ZStack {
-            // ✅ FONDO GLASSMORPHIC ADAPTATIVO
+            // ✅ FONDO - mismo que mensajes
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(
-                            LinearGradient(
-                                colors: colorScheme == .dark ? [
-                                    Color.white.opacity(0.05),
-                                    Color(hex: "00A896").opacity(0.1),
-                                    Color.clear
-                                ] : [
-                                    Color.black.opacity(0.02),
-                                    Color(hex: "00A896").opacity(0.08),
-                                    Color.clear
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            LinearGradient(
-                                colors: colorScheme == .dark ? [
-                                    Color.white.opacity(0.2),
-                                    Color(hex: "00A896").opacity(0.3)
-                                ] : [
-                                    Color.black.opacity(0.1),
-                                    Color(hex: "00A896").opacity(0.4)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.5
-                        )
-                )
                 .shadow(
                     color: colorScheme == .dark ?
                     .black.opacity(0.1) :
@@ -528,23 +531,7 @@ struct EnhancedNotificationRow: View {
                 )
                 .frame(width: 52, height: 52)
                 .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: colorScheme == .dark ? [
-                                    Color.white.opacity(0.3),
-                                    Color(hex: "00A896").opacity(0.6)
-                                ] : [
-                                    Color.black.opacity(0.2),
-                                    Color(hex: "00A896").opacity(0.7)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 2
-                        )
-                )
+
                 .shadow(
                     color: colorScheme == .dark ?
                     .black.opacity(0.2) :
