@@ -81,11 +81,23 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
       ? reacterData.profileImagePath.replace(':443', '')
       : null;
     
-    // ✅ Incrementar contador de reacciones sin escanear la colección
+    // ✅ Incrementar contador de reacciones con transacción idempotente
     const momentRef = admin.firestore().doc(`users/${userId}/moments/${momentId}`);
-    // Calcular el nuevo total localmente para personalizar el mensaje
-    const newReactionCount = (momentData.reactionCount || 0) + 1;
-    await momentRef.update({ reactionCount: admin.firestore.FieldValue.increment(1) });
+    const reactionRef = admin.firestore().doc(`users/${userId}/moments/${momentId}/reactions/${reactionId}`);
+    const newReactionCount = await admin.firestore().runTransaction(async (tx) => {
+      const [momentSnap, reactionSnap] = await Promise.all([tx.get(momentRef), tx.get(reactionRef)]);
+      const alreadyProcessed = reactionSnap.exists && reactionSnap.get('processed') === true;
+      if (!momentSnap.exists) {
+        throw new Error('Moment doc missing');
+      }
+      const currentCount = momentSnap.get('reactionCount') || 0;
+      if (alreadyProcessed) {
+        return currentCount;
+      }
+      tx.update(momentRef, { reactionCount: admin.firestore.FieldValue.increment(1) });
+      tx.update(reactionRef, { processed: true });
+      return currentCount + 1;
+    });
     
     // ✅ TÍTULO DINÁMICO basado en número de reacciones
     let notificationTitle;
