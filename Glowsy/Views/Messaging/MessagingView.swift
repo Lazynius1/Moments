@@ -12,7 +12,7 @@ struct GlassmorphicBackground: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                gradient: Gradient(colors: adaptiveColors.messagingBackground), // ✅ SIMPLIFICADO
+                gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -93,6 +93,7 @@ extension View {
 struct MessagingView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var viewModel: MessagingViewModel
+    @EnvironmentObject var messageRequestService: MessageRequestService
     @Environment(\.colorScheme) var colorScheme
     @State private var isShowingNewConversation = false
     @State private var selectedConversation: Conversation? // ✅ Solo para navigationDestination
@@ -105,6 +106,9 @@ struct MessagingView: View {
     @StateObject private var navigationService = NotificationNavigationService.shared
     // ✅ HISTORIAS: Estados para anillos de historias
     @State private var userStories: [String: (hasStory: Bool, hasUnseenStory: Bool)] = [:]
+    // ✅ SOLICITUDES: Estado para mostrar solicitudes
+    @State private var showingMessageRequests = false
+    @State private var pendingRequestCount = 0
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -133,6 +137,9 @@ struct MessagingView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingMessageRequests) {
+                MessageRequestsView()
+            }
             // ✅ CAMBIO 2: navigationDestination en lugar de NavigationLink con isActive
             .navigationDestination(item: $selectedConversation) { conversation in
                 GlassmorphicChatView(conversation: conversation)
@@ -155,6 +162,9 @@ struct MessagingView: View {
             .onAppear {
                 if let userId = Auth.auth().currentUser?.uid {
                     viewModel.fetchConversations(for: userId)
+                    // ✅ SOLICITUDES: Escuchar solicitudes pendientes
+                    messageRequestService.listenToPendingRequests(for: userId)
+                    updatePendingRequestCount(for: userId)
                 } else {
                     viewModel.errorMessage = "Usuario no autenticado"
                 }
@@ -279,20 +289,17 @@ struct MessagingView: View {
             }
     }
     
+    // ✅ SOLICITUDES: Función para actualizar el conteo de solicitudes pendientes
+    private func updatePendingRequestCount(for userId: String) {
+        messageRequestService.getPendingRequestCount(for: userId) { count in
+            DispatchQueue.main.async {
+                self.pendingRequestCount = count
+            }
+        }
+    }
+    
     private var glassmorphicTopBar: some View {
         HStack {
-            // Camera button with glass effect
-            Button(action: {
-                print("Opening camera")
-            }) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 44, height: 44)
-                    .glassmorphic()
-                    .clipShape(Circle())
-            }
-            
             Spacer()
             
             // Title with glass background
@@ -305,6 +312,34 @@ struct MessagingView: View {
                 .clipShape(Capsule())
             
             Spacer()
+            
+            // Message requests button
+            Button(action: {
+                showingMessageRequests = true
+            }) {
+                ZStack {
+                    Image(systemName: "message.circle")
+                        .font(.system(size: 22))
+                        .foregroundColor(adaptiveColors.primary)
+                        .frame(width: 44, height: 44)
+                        .glassmorphic()
+                        .clipShape(Circle())
+                    
+                    // Badge for pending requests
+                    if pendingRequestCount > 0 {
+                        Text("\(pendingRequestCount)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(width: 18, height: 18)
+                            .background(
+                                Circle()
+                                    .fill(Color(hex: "FF3B30"))
+                            )
+                            .offset(x: 12, y: -12)
+                    }
+                }
+            }
             
             // New conversation button
             Button(action: {
@@ -327,9 +362,9 @@ struct MessagingView: View {
     private var searchBar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(adaptiveColors.mediaIconColor)
-                    .font(.system(size: 16))
+                                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(adaptiveColors.secondary)
+                            .font(.system(size: 16))
                 
                 TextField("Buscar conversaciones...", text: $searchText)
                     .font(.custom("Poppins-Regular", size: 15))
@@ -353,7 +388,7 @@ struct MessagingView: View {
                         viewModel.clearSearch()
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(adaptiveColors.mediaIconColor)
+                            .foregroundColor(adaptiveColors.secondary)
                             .font(.system(size: 16))
                     }
                 }
@@ -364,7 +399,7 @@ struct MessagingView: View {
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .stroke(adaptiveColors.searchBarStroke, lineWidth: 1)
+                    .stroke(adaptiveColors.secondary.opacity(0.3), lineWidth: 1)
             )
             
             if isSearchFocused {
@@ -461,15 +496,15 @@ struct MessagingView: View {
              }
          } else {
              ScrollView(showsIndicators: false) {
-                 VStack(spacing: 12) {
+                 VStack(spacing: 0) { // ✅ Sin spacing entre conversaciones (estilo Instagram)
                      if isSearching {
                          searchResultsSection
                      } else {
                          conversationsSection
                      }
                  }
-                 .padding(.horizontal, 16)
-                 .padding(.vertical, 10)
+                 .padding(.horizontal, 0) // ✅ Sin padding horizontal (estilo Instagram)
+                 .padding(.vertical, 0) // ✅ Sin padding vertical (estilo Instagram)
              }
          }
      }
@@ -542,27 +577,211 @@ struct MessagingView: View {
         }
     }
     
-    // ✅ NUEVO: Sección de conversaciones normales
+    // ✅ NUEVAS FUNCIONES: Acciones de swipe
+    private func deleteConversation(_ conversation: Conversation) {
+        guard let conversationId = conversation.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        print("🗑️ Eliminando conversación: \(conversationId)")
+        
+        let chatService = ChatService()
+        chatService.deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: conversation.otherParticipantId ?? "") { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Error eliminando conversación: \(error.localizedDescription)")
+                } else {
+                    print("✅ Conversación eliminada exitosamente")
+                }
+            }
+        }
+    }
+    
+    private func pinConversation(_ conversation: Conversation) {
+        guard let conversationId = conversation.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        print("📌 Pinnando conversación: \(conversationId)")
+        
+        let chatService = ChatService()
+        if conversation.isPinned == true {
+            // Si ya está pinnada, despinnarla
+            chatService.unpinConversation(conversationId, for: currentUserId) { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("❌ Error despinnando conversación: \(error.localizedDescription)")
+                    } else {
+                        print("✅ Conversación despinnada exitosamente")
+                    }
+                }
+            }
+        } else {
+            // Si no está pinnada, pinnarla
+            chatService.pinConversation(conversationId, for: currentUserId) { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("❌ Error pinnando conversación: \(error.localizedDescription)")
+                    } else {
+                        print("✅ Conversación pinnada exitosamente")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func muteConversation(_ conversation: Conversation) {
+        guard let conversationId = conversation.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        print("🔇 Silenciando conversación: \(conversationId)")
+        
+        let chatService = ChatService()
+        if conversation.isMuted == true {
+            // Si ya está silenciada, desilenciarla
+            chatService.unmuteConversation(conversationId, for: currentUserId) { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("❌ Error desilenciando conversación: \(error.localizedDescription)")
+                    } else {
+                        print("✅ Conversación desilenciada exitosamente")
+                    }
+                }
+            }
+        } else {
+            // Si no está silenciada, silenciarla
+            chatService.muteConversation(conversationId, for: currentUserId) { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("❌ Error silenciando conversación: \(error.localizedDescription)")
+                    } else {
+                        print("✅ Conversación silenciada exitosamente")
+                    }
+                }
+            }
+        }
+    }
+    
+    // ✅ NUEVO: Sección de conversaciones normales con swipe actions
     @ViewBuilder
     private var conversationsSection: some View {
         ForEach(viewModel.conversations) { conversation in
             if let conversationId = conversation.id, !conversationId.isEmpty {
-                Button(action: {
-                    print("🔍 Conversation tapped: \(conversationId)")
-                    // ✅ Animación de feedback visual
-                    offsetValues[conversationId] = -20
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        offsetValues[conversationId] = 0
-                        selectedConversation = conversation // ✅ Navegar aquí
+                SwipeableConversationRow(
+                    conversation: conversation,
+                    onTap: {
+                        print("🔍 Conversation tapped: \(conversationId)")
+                        // ✅ Animación de feedback visual
+                        offsetValues[conversationId] = -20
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            offsetValues[conversationId] = 0
+                            selectedConversation = conversation // ✅ Navegar aquí
+                        }
+                    },
+                    onDelete: {
+                        deleteConversation(conversation)
+                    },
+                    onPin: {
+                        pinConversation(conversation)
+                    },
+                    onMute: {
+                        muteConversation(conversation)
                     }
-                }) {
-                    GlassmorphicConversationRow(conversation: conversation)
-                        .offset(x: offsetValues[conversationId] ?? 0)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: offsetValues[conversationId])
-                }
-                .buttonStyle(PlainButtonStyle())
+                )
+                .offset(x: offsetValues[conversationId] ?? 0)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: offsetValues[conversationId])
             }
         }
+    }
+}
+
+// ✅ NUEVO COMPONENTE: Conversación con swipe actions (estilo Instagram)
+struct SwipeableConversationRow: View {
+    let conversation: Conversation
+    let onTap: () -> Void
+    let onDelete: () -> Void
+    let onPin: () -> Void
+    let onMute: () -> Void
+    
+    @State private var offset: CGFloat = 0
+    @State private var showingActions = false
+    
+    var body: some View {
+        ZStack {
+            // ✅ Acciones de fondo (aparecen al deslizar)
+            HStack(spacing: 0) {
+                Spacer()
+                
+                // Botón de silenciar (naranja)
+                Button(action: onMute) {
+                    Image(systemName: conversation.isMuted == true ? "bell.fill" : "bell.slash.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 80)
+                        .background(conversation.isMuted == true ? Color.green : Color.orange)
+                }
+                
+                // Botón de pin (azul)
+                Button(action: onPin) {
+                    Image(systemName: conversation.isPinned == true ? "pin.slash.fill" : "pin.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 80)
+                        .background(conversation.isPinned == true ? Color.gray : Color.blue)
+                }
+                
+                // Botón de eliminar (rojo)
+                Button(action: onDelete) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white)
+                        .frame(width: 80, height: 80)
+                        .background(Color.red)
+                }
+            }
+            .cornerRadius(20)
+            
+            // ✅ Fila de conversación principal (estilo Instagram)
+            VStack(spacing: 0) {
+                GlassmorphicConversationRow(conversation: conversation)
+                    .background(Color.clear) // ✅ Sin fondo sólido, mantener transparencia
+                    .offset(x: offset)
+                
+                // ✅ Separador sutil como Instagram
+                Rectangle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(height: 0.5)
+                    .padding(.leading, 80) // Alineado con el texto
+            }
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            if value.translation.width < 0 {
+                                offset = max(value.translation.width, -200)
+                            }
+                        }
+                        .onEnded { value in
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                if value.translation.width < -100 {
+                                    offset = -200
+                                    showingActions = true
+                                } else {
+                                    offset = 0
+                                    showingActions = false
+                                }
+                            }
+                        }
+                )
+                .onTapGesture {
+                    if offset == 0 {
+                        onTap()
+                    } else {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            offset = 0
+                            showingActions = false
+                        }
+                    }
+                }
+        }
+        .clipped()
     }
 }
 
@@ -690,6 +909,20 @@ struct GlassmorphicConversationRow: View {
                     
                     // ✅ INSIGNIA DE VERIFICADO
                     VerifiedBadgeView(userId: conversation.otherParticipantId ?? "", size: 14)
+                    
+                    // ✅ INDICADOR DE PIN
+                    if conversation.isPinned == true {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.blue)
+                    }
+                    
+                    // ✅ INDICADOR DE MUTE
+                    if conversation.isMuted == true {
+                        Image(systemName: "bell.slash.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.orange)
+                    }
                 }
                 
                 Text(conversation.lastMessage ?? "Inicia un chat")
@@ -719,7 +952,7 @@ struct GlassmorphicConversationRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .glassmorphic()
+        .glassmorphic() // ✅ Mantener el efecto glassmorphic único
         .onAppear {
             checkUserStories()
         }
@@ -827,9 +1060,12 @@ struct GlassmorphicConversationRow: View {
 struct GlassmorphicNewConversationView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: MessagingViewModel
+    @EnvironmentObject var messageRequestService: MessageRequestService
     @Environment(\.colorScheme) var colorScheme
     @State private var searchText: String = ""
     @State private var selectedUser: AppUser?
+    @State private var showingMessageComposer = false
+    @State private var messageText = ""
     let onConversationCreated: (Conversation?) -> Void
     
     private var adaptiveColors: AdaptiveColors {
@@ -884,34 +1120,7 @@ struct GlassmorphicNewConversationView: View {
                     
                     if let selectedUser = selectedUser {
                         Button(action: {
-                            if let userId = Auth.auth().currentUser?.uid {
-                                // ✅ USAR startConversation Y NAVEGAR
-                                viewModel.startConversation(with: selectedUser, from: userId) {
-                                    DispatchQueue.main.async {
-                                        // ✅ BUSCAR LA CONVERSACIÓN CREADA
-                                        if let createdConversation = viewModel.conversations.first(where: { $0.otherParticipantId == selectedUser.id }) {
-                                            // ✅ CERRAR MODAL Y NAVEGAR
-                                            dismiss()
-                                            onConversationCreated(createdConversation)
-                                        } else if viewModel.errorMessage == nil {
-                                            // ✅ FALLBACK: Crear conversación manual
-                                            let conversation = Conversation(
-                                                id: UUID().uuidString,
-                                                participants: [userId, selectedUser.id],
-                                                lastMessage: "",
-                                                timestamp: Date(),
-                                                readStatus: [userId: true, selectedUser.id: false],
-                                                otherParticipantId: selectedUser.id,
-                                                otherParticipantUsername: selectedUser.username,
-                                                otherParticipantProfileImagePath: selectedUser.profileImagePath
-                                            )
-                                            
-                                            dismiss()
-                                            onConversationCreated(conversation)
-                                        }
-                                    }
-                                }
-                            }
+                            showingMessageComposer = true
                         }) {
                             HStack {
                                 Image(systemName: "bubble.left.fill")
@@ -939,6 +1148,75 @@ struct GlassmorphicNewConversationView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showingMessageComposer) {
+            MessageComposerView(
+                selectedUser: selectedUser,
+                messageText: $messageText,
+                onSend: sendMessageOrRequest
+            )
+        }
+    }
+    
+    // ✅ NUEVA: Función para enviar mensaje o solicitud
+    private func sendMessageOrRequest() {
+        guard let selectedUser = selectedUser,
+              let userId = Auth.auth().currentUser?.uid,
+              !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+        
+        // Intentar crear conversación directa primero
+        viewModel.startConversation(with: selectedUser, from: userId) {
+            DispatchQueue.main.async {
+                // Verificar si se creó la conversación exitosamente
+                if let createdConversation = viewModel.conversations.first(where: { $0.otherParticipantId == selectedUser.id }) {
+                    // Conversación creada exitosamente, enviar mensaje
+                    dismiss()
+                    onConversationCreated(createdConversation)
+                } else {
+                    // Verificar el tipo de error
+                    let errorMessage = viewModel.errorMessage ?? ""
+                    print("🔍 Error detectado: \(errorMessage)")
+                    
+                    if errorMessage.contains("no siguen mutuamente") || errorMessage.contains("Se requiere una solicitud") {
+                        // No se pudo crear conversación directa, enviar solicitud
+                        print("📤 Enviando solicitud de mensaje...")
+                        sendMessageRequest()
+                    } else {
+                        // Otro tipo de error
+                        print("❌ Error al crear conversación: \(errorMessage)")
+                    }
+                }
+            }
+        }
+    }
+    
+    // ✅ NUEVA: Función para enviar solicitud de mensaje
+    private func sendMessageRequest() {
+        guard let selectedUser = selectedUser,
+              let userId = Auth.auth().currentUser?.uid else {
+            return
+        }
+        
+        print("📤 Iniciando envío de solicitud de mensaje a \(selectedUser.username)...")
+        
+        messageRequestService.sendMessageRequest(
+            to: selectedUser.id,
+            message: messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ Solicitud de mensaje enviada exitosamente")
+                    dismiss()
+                    // Mostrar mensaje de éxito
+                    viewModel.errorMessage = "Solicitud de mensaje enviada. El usuario recibirá una notificación."
+                case .failure(let error):
+                    print("❌ Error enviando solicitud: \(error)")
+                    viewModel.errorMessage = "Error al enviar solicitud: \(error.localizedDescription)"
+                }
+            }
+        }
     }
 }
 
@@ -999,6 +1277,105 @@ struct GlassmorphicUserRow: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Message Composer View
+struct MessageComposerView: View {
+    let selectedUser: AppUser?
+    @Binding var messageText: String
+    let onSend: () -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                LinearGradient(
+                    gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    // User Info
+                    if let user = selectedUser {
+                        VStack(spacing: 12) {
+                            AsyncProfileImageView(userId: user.id)
+                                .frame(width: 60, height: 60)
+                                .clipShape(Circle())
+                            
+                            Text(user.username)
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(adaptiveColors.primary)
+                            
+                            Text("Escribe un mensaje para iniciar la conversación")
+                                .font(.body)
+                                .foregroundColor(adaptiveColors.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.top, 20)
+                    }
+                    
+                    Spacer()
+                    
+                    // Message Input
+                    VStack(spacing: 16) {
+                        TextField("Escribe tu mensaje...", text: $messageText, axis: .vertical)
+                            .font(.body)
+                            .foregroundColor(adaptiveColors.primary)
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(adaptiveColors.cardBackground)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(adaptiveColors.secondary.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                            .lineLimit(3...6)
+                        
+                        Button(action: {
+                            onSend()
+                        }) {
+                            HStack {
+                                Image(systemName: "paperplane.fill")
+                                Text("Enviar mensaje")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
+                                          adaptiveColors.secondary : Color(hex: "00A896"))
+                            )
+                        }
+                        .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+                }
+            }
+            .navigationTitle("Nuevo mensaje")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancelar") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1288,8 +1665,8 @@ class MessagingViewModel: ObservableObject {
                     return
                 }
                 
-                // ✅ Crear conversación bidireccional
-                self.chatService.createBidirectionalConversation(user1Id: userId, user2Id: user.id) { result in
+                // ✅ Crear conversación con verificación de seguimiento mutuo
+                self.chatService.getOrCreateConversation(between: userId, and: user.id) { result in
                     switch result {
                     case .success(let conversationId):
                         print("✅ Conversación bidireccional creada: \(conversationId)")
@@ -1303,7 +1680,12 @@ class MessagingViewModel: ObservableObject {
                     case .failure(let error):
                         print("Error creating bidirectional conversation: \(error.localizedDescription)")
                         DispatchQueue.main.async {
-                            self.errorMessage = "Error al crear la conversación: \(error.localizedDescription)"
+                            if error.localizedDescription.contains("no siguen mutuamente") {
+                                self.errorMessage = "Los usuarios no se siguen mutuamente. Se requiere una solicitud de mensaje."
+                                print("🔄 Error de seguimiento mutuo detectado, completando...")
+                            } else {
+                                self.errorMessage = "Error al crear la conversación: \(error.localizedDescription)"
+                            }
                             completion()
                         }
                     }

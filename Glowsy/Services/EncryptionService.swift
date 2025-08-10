@@ -156,6 +156,14 @@ class EncryptionService: ObservableObject {
         }
     }
     
+    // ✅ NUEVA FUNCIÓN: Establecer clave de conversación directamente
+    func setConversationKey(_ key: SymmetricKey, for conversationId: String) {
+        conversationKeys[conversationId] = key
+        let keyTag = conversationKeysPrefix + conversationId
+        try? storeKeyInKeychain(key: key, tag: keyTag)
+        print("✅ Directly set conversation key for: \(conversationId)")
+    }
+    
     // MARK: - 🔄 SHARED KEY MANAGEMENT (Legacy - para compatibilidad)
     private func fetchSharedConversationKey(conversationId: String) throws -> SymmetricKey? {
         let semaphore = DispatchSemaphore(value: 0)
