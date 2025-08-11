@@ -4,6 +4,85 @@ import AVFoundation
 import AVKit
 import FirebaseAuth
 
+// MARK: - Editable Image View
+struct EditableImageView: View {
+    let image: UIImage
+    @Binding var scale: CGFloat
+    @Binding var offset: CGSize
+    @Binding var rotation: Angle
+    @State private var lastScale: CGFloat = 1.0
+    @State private var lastOffset: CGSize = .zero
+    @State private var lastRotation: Angle = .zero
+    
+    init(image: UIImage, scale: Binding<CGFloat>, offset: Binding<CGSize>, rotation: Binding<Angle>) {
+        self.image = image
+        self._scale = scale
+        self._offset = offset
+        self._rotation = rotation
+    }
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // ✅ Fondo con imagen original blur (usando blur nativo de SwiftUI)
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .blur(radius: 20)
+                    .scaleEffect(1.1) // Ligeramente más grande para evitar bordes
+                
+                // ✅ Imagen editable en primer plano
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .scaleEffect(scale)
+                    .offset(offset)
+                    .rotationEffect(rotation)
+                    .gesture(
+                        SimultaneousGesture(
+                            SimultaneousGesture(
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        let delta = value / lastScale
+                                        lastScale = value
+                                        scale = min(max(scale * delta, 0.5), 3.0)
+                                    }
+                                    .onEnded { _ in
+                                        lastScale = 1.0
+                                    },
+                                DragGesture()
+                                    .onChanged { value in
+                                        let delta = CGSize(
+                                            width: value.translation.width - lastOffset.width,
+                                            height: value.translation.height - lastOffset.height
+                                        )
+                                        lastOffset = value.translation
+                                        offset = CGSize(
+                                            width: offset.width + delta.width,
+                                            height: offset.height + delta.height
+                                        )
+                                    }
+                                    .onEnded { _ in
+                                        lastOffset = .zero
+                                    }
+                            ),
+                            RotationGesture()
+                                .onChanged { angle in
+                                    let delta = angle - lastRotation
+                                    lastRotation = angle
+                                    rotation += delta
+                                }
+                                .onEnded { _ in
+                                    lastRotation = .zero
+                                }
+                        )
+                    )
+            }
+        }
+    }
+}
+
 // MARK: - Story Editing View with Video Preview
 struct StoryEditingView: View {
     @Binding var selectedMediaItems: [ProcessedMedia]
@@ -24,6 +103,12 @@ struct StoryEditingView: View {
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
     @State private var drawingImage: UIImage?
+    @State private var editableImageViewRef: EditableImageView?
+    
+    // ✅ Variables para transformaciones de imagen
+    @State private var imageScale: CGFloat = 1.0
+    @State private var imageOffset: CGSize = .zero
+    @State private var imageRotation: Angle = .zero
     
     // ✅ NUEVAS VARIABLES para listas personalizadas
     @State private var selectedListId: String?
@@ -72,17 +157,33 @@ struct StoryEditingView: View {
                 // Background media
                 if let firstMedia = selectedMediaItems.first {
                     if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
-                        StoryVideoPlayerView(videoURL: videoURL)
-                            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                            .clipped()
-                            .ignoresSafeArea()
+                        // ✅ Video estático con fondo blur y dimensiones respetadas
+                        ZStack {
+                            // Fondo blur del video
+                            StoryVideoPlayerView(videoURL: videoURL)
+                                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                                .blur(radius: 20)
+                                .scaleEffect(1.1)
+                                .clipped()
+                                .ignoresSafeArea()
+                            
+                            // Video principal estático con dimensiones respetadas
+                            StoryVideoPlayerView(videoURL: videoURL)
+                                .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: UIScreen.main.bounds.height)
+                                .clipped()
+                                .ignoresSafeArea()
+                        }
                     } else {
-                        Image(uiImage: firstMedia.image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                            .clipped()
-                            .ignoresSafeArea()
+                        // ✅ Editable Image View para imágenes
+                        EditableImageView(
+                            image: firstMedia.image,
+                            scale: $imageScale,
+                            offset: $imageOffset,
+                            rotation: $imageRotation
+                        )
+                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                        .clipped()
+                        .ignoresSafeArea()
                     }
                 }
                 
@@ -446,21 +547,79 @@ struct StoryEditingView: View {
     }
     
     private func renderStoryWithOverlays() -> UIImage {
-        guard let baseImage = selectedMediaItems.first?.image else {
+        guard let firstMedia = selectedMediaItems.first else {
             return UIImage()
         }
         
-        let originalSize = baseImage.size
+        let baseImage: UIImage
+        let originalSize: CGSize
         let screenSize = UIScreen.main.bounds.size
-        let scaleFactorX = originalSize.width / screenSize.width
-        let scaleFactorY = originalSize.height / screenSize.height
+        let scaleFactorX: CGFloat
+        let scaleFactorY: CGFloat
+        
+        // ✅ Determinar si es imagen o video
+        if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
+            // ✅ Para videos, usar el thumbnail como base
+            baseImage = firstMedia.image
+            originalSize = baseImage.size
+            scaleFactorX = originalSize.width / screenSize.width
+            scaleFactorY = originalSize.height / screenSize.height
+        } else {
+            // ✅ Para imágenes, usar la imagen directamente
+            baseImage = firstMedia.image
+            originalSize = baseImage.size
+            scaleFactorX = originalSize.width / screenSize.width
+            scaleFactorY = originalSize.height / screenSize.height
+        }
         
         let renderer = UIGraphicsImageRenderer(size: originalSize)
         
         return renderer.image { context in
             let rect = CGRect(origin: .zero, size: originalSize)
             
-            baseImage.draw(in: rect)
+            // ✅ Crear fondo blur usando Core Image
+            let blurRadius: CGFloat = 20
+            let ciContext = CIContext(options: nil)
+            if let ciImage = CIImage(image: baseImage),
+               let blurFilter = CIFilter(name: "CIGaussianBlur") {
+                blurFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                blurFilter.setValue(blurRadius, forKey: kCIInputRadiusKey)
+                
+                if let outputImage = blurFilter.outputImage,
+                   let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) {
+                    let blurImage = UIImage(cgImage: cgImage)
+                    blurImage.draw(in: rect)
+                }
+            }
+            
+            // ✅ Aplicar transformaciones (diferentes para imagen y video)
+            context.cgContext.saveGState()
+            
+            // Centrar las transformaciones
+            context.cgContext.translateBy(x: originalSize.width / 2, y: originalSize.height / 2)
+            
+            if firstMedia.type == .video {
+                // ✅ Videos sin transformaciones (estáticos)
+            } else {
+                // ✅ Aplicar transformaciones completas para imágenes
+                context.cgContext.rotate(by: imageRotation.radians)
+                context.cgContext.scaleBy(x: imageScale, y: imageScale)
+                
+                let offsetX = imageOffset.width * scaleFactorX
+                let offsetY = imageOffset.height * scaleFactorY
+                context.cgContext.translateBy(x: offsetX, y: offsetY)
+            }
+            
+            // Dibujar la imagen transformada
+            let imageRect = CGRect(
+                x: -originalSize.width / 2,
+                y: -originalSize.height / 2,
+                width: originalSize.width,
+                height: originalSize.height
+            )
+            baseImage.draw(in: imageRect)
+            
+            context.cgContext.restoreGState()
             
             if let drawing = drawingImage {
                 drawing.draw(in: rect, blendMode: .normal, alpha: 1.0)
@@ -787,7 +946,7 @@ class PlayerUIView: UIView {
         player = AVPlayer(url: url)
         
         playerLayer = AVPlayerLayer(player: player)
-        playerLayer?.videoGravity = .resizeAspectFill
+        playerLayer?.videoGravity = .resizeAspect
         playerLayer?.frame = bounds
         
         if let playerLayer = playerLayer {
@@ -812,6 +971,8 @@ class PlayerUIView: UIView {
         super.layoutSubviews()
         playerLayer?.frame = bounds
     }
+    
+
     
     deinit {
         NotificationCenter.default.removeObserver(self)

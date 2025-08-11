@@ -105,7 +105,6 @@ struct ReelVideoView: View {
     let onClose: () -> Void
     
     @StateObject private var playerManager = ReelVideoPlayerManager()
-    @State private var showControls = false
     @State private var showUserActions = false
     @State private var showComments = false
     @State private var commentCount: Int = 0
@@ -117,26 +116,30 @@ struct ReelVideoView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Video Player completamente fullscreen
+                // Video Player completamente fullscreen sin controles nativos
                 if let player = playerManager.player {
-                    VideoPlayer(player: player)
-                        .aspectRatio(contentMode: videoContentMode)  // ✅ Dinámico según orientación
-                        .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
-                        .background(Color.black)
-                        .clipped()
-                        .ignoresSafeArea(.all)
-                        .onTapGesture {
-                            let haptic = UIImpactFeedbackGenerator(style: .light)
-                            haptic.impactOccurred()
-                            
-                            // Solo toggle play/pause y mostrar ícono brevemente
-                            playerManager.togglePlayback()
-                            toggleControls()
-                        }
-                        .onTapGesture(count: 2) {
-                            // Double tap para like
-                            handleDoubleTap()
-                        }
+                    VideoPlayerRepresentable(
+                        player: player,
+                        showControls: .constant(false), // Siempre oculto
+                        progress: $playerManager.progress,
+                        isBuffering: $playerManager.isBuffering
+                    )
+                    .aspectRatio(contentMode: videoContentMode)  // ✅ Dinámico según orientación
+                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                    .background(Color.black)
+                    .clipped()
+                    .ignoresSafeArea(.all)
+                    .onTapGesture {
+                        let haptic = UIImpactFeedbackGenerator(style: .light)
+                        haptic.impactOccurred()
+                        
+                        // Solo toggle play/pause silencioso como TikTok
+                        playerManager.togglePlayback()
+                    }
+                    .onTapGesture(count: 2) {
+                        // Double tap para like
+                        handleDoubleTap()
+                    }
                 } else {
                     // Loading state mejorado y más rápido
                     ZStack {
@@ -212,32 +215,7 @@ struct ReelVideoView: View {
                         .animation(.spring(response: 0.6, dampingFraction: 0.6), value: isDoubleTapAnimating)
                 }
                 
-                // Solo mostrar ícono de pausa/play brevemente cuando se hace tap
-                if showControls {
-                    VStack {
-                        Spacer()
-                        
-                        Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 50, weight: .ultraLight))
-                            .foregroundColor(.white.opacity(0.8))
-                            .background(
-                                Circle()
-                                    .fill(.black.opacity(0.3))
-                                    .frame(width: 80, height: 80)
-                            )
-                            .transition(.scale.combined(with: .opacity))
-                        
-                        Spacer()
-                    }
-                    .onAppear {
-                        // Auto-hide después de 0.5 segundos
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                showControls = false
-                            }
-                        }
-                    }
-                }
+                // Sin controles visuales - solo play/pause silencioso como TikTok
                 
                 // Información del usuario en la parte superior (a la altura del botón cerrar)
                 VStack {
@@ -262,10 +240,21 @@ struct ReelVideoView: View {
                                     .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(video.moment.username)
-                                        .font(.custom("Poppins-SemiBold", size: 15))
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                                    HStack(spacing: 6) {
+                                        Text(video.moment.username)
+                                            .font(.custom("Poppins-SemiBold", size: 15))
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                                        
+                                        // ✅ INSIGNIA DE VERIFICADO - Igual que en FeedView
+                                        if video.moment.authorId == Auth.auth().currentUser?.uid {
+                                            // Para el usuario actual, verificar si está verificado
+                                            CurrentUserVerifiedBadge(size: 14)
+                                        } else {
+                                            // Para otros usuarios, verificar si están verificados
+                                            VerifiedBadgeView(userId: video.moment.authorId, size: 14)
+                                        }
+                                    }
                                     
                                     HStack(spacing: 8) {
                                         // Timestamp
@@ -546,12 +535,7 @@ struct ReelVideoView: View {
         }
     }
     
-    // Toggle de controles solo para mostrar el ícono brevemente
-    private func toggleControls() {
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-            showControls = true
-        }
-    }
+    // Sin controles visuales - comportamiento como TikTok
     
     // Funciones auxiliares para formateo
     private func formatTime(_ seconds: Double) -> String {
