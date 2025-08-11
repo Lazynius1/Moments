@@ -375,7 +375,9 @@ class DrawingViewController: UIViewController {
 }
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 import AVFoundation
+import AVKit
 import FirebaseStorage
 import FirebaseFirestore
 import FirebaseAuth
@@ -2503,7 +2505,7 @@ struct StoryCameraView: View {
     private func startRecordingTimer() {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             recordingDuration += 0.1
-            if recordingDuration >= 30 { // Max 30 seconds
+            if recordingDuration >= 60 { // Max 60 seconds
                 stopRecording()
             }
         }
@@ -3667,7 +3669,8 @@ struct StoryGalleryPicker: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var selectedImage: UIImage?
-    @State private var showingImagePicker = false
+    @State private var selectedVideoURL: URL?
+    @State private var showingMediaPicker = false
     
     var body: some View {
         // ✅ Vista invisible que abre directamente la galería
@@ -3675,68 +3678,173 @@ struct StoryGalleryPicker: View {
             .onAppear {
                 // ✅ Abrir automáticamente la galería al aparecer
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    showingImagePicker = true
+                    showingMediaPicker = true
                 }
             }
-            .sheet(isPresented: $showingImagePicker) {
-                StoryImagePicker(selectedImage: $selectedImage, onSelect: { image in
-                    if let image = image {
-                        let media = ProcessedMedia(
-                            id: UUID().uuidString,
-                            image: image,
-                            videoURL: nil,
-                            type: .image,
-                            aspectRatio: .nineBySixteen
-                        )
-                        onSelect(media)
-                        dismiss()
+            .sheet(isPresented: $showingMediaPicker) {
+                StoryMediaPicker(
+                    selectedImage: $selectedImage,
+                    selectedVideoURL: $selectedVideoURL,
+                    onSelect: { image, videoURL in
+                        if let image = image {
+                            // ✅ Imagen seleccionada - ir directamente a edición
+                            let media = ProcessedMedia(
+                                id: UUID().uuidString,
+                                image: image,
+                                videoURL: nil,
+                                type: .image,
+                                aspectRatio: .nineBySixteen
+                            )
+                            onSelect(media)
+                            dismiss()
+                        } else if let videoURL = videoURL {
+                            // ✅ Video seleccionado - verificar duración
+                            let asset = AVAsset(url: videoURL)
+                            asset.loadValuesAsynchronously(forKeys: ["duration"]) {
+                                DispatchQueue.main.async {
+                                    let duration = CMTimeGetSeconds(asset.duration)
+                                    print("🎬 Duración del video: \(duration) segundos")
+                                    
+                                    if duration <= 30.0 {
+                                        // ✅ Video corto - ir directamente a edición
+                                        print("✅ Video corto (≤30s), yendo directamente a edición")
+                                        let imageGenerator = AVAssetImageGenerator(asset: asset)
+                                        imageGenerator.appliesPreferredTrackTransform = true
+                                        imageGenerator.maximumSize = CGSize(width: 300, height: 300)
+                                        
+                                        let time = CMTime(seconds: 0.1, preferredTimescale: 600)
+                                        imageGenerator.generateCGImagesAsynchronously(forTimes: [NSValue(time: time)]) { requestedTime, cgImage, actualTime, result, error in
+                                            DispatchQueue.main.async {
+                                                let thumbnail: UIImage
+                                                if let cgImage = cgImage {
+                                                    thumbnail = UIImage(cgImage: cgImage)
+                                                } else {
+                                                    thumbnail = UIImage(systemName: "video.fill") ?? UIImage()
+                                                }
+                                                
+                                                let media = ProcessedMedia(
+                                                    id: UUID().uuidString,
+                                                    image: thumbnail,
+                                                    videoURL: videoURL,
+                                                    type: .video,
+                                                    aspectRatio: .nineBySixteen
+                                                )
+                                                onSelect(media)
+                                                dismiss()
+                                            }
+                                        }
+                                    } else {
+                                        // ✅ Video muy largo - mostrar mensaje y cancelar
+                                        print("❌ Video muy largo (>30s), cancelando")
+                                        // Por ahora, simplemente cancelamos
+                                        dismiss()
+                                    }
+                                }
+                            }
+                        }
                     }
-                })
+                )
             }
+
     }
 }
 
-// ✅ StoryImagePicker que abre directamente la galería
-struct StoryImagePicker: UIViewControllerRepresentable {
+// ✅ StoryMediaPicker que abre directamente la galería (imágenes y videos) - Sin editor nativo
+struct StoryMediaPicker: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
-    let onSelect: (UIImage?) -> Void
+    @Binding var selectedVideoURL: URL?
+    let onSelect: (UIImage?, URL?) -> Void
     @Environment(\.dismiss) private var dismiss
     
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var configuration = PHPickerConfiguration()
+        configuration.filter = .any(of: [.images, .videos])
+        configuration.selectionLimit = 1
+        configuration.preferredAssetRepresentationMode = .current
+        
+        let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = context.coordinator
-        picker.sourceType = .photoLibrary
-        picker.allowsEditing = false
+        
         return picker
     }
     
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
     
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: StoryImagePicker
+    class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: StoryMediaPicker
         
-        init(_ parent: StoryImagePicker) {
+        init(_ parent: StoryMediaPicker) {
             self.parent = parent
         }
         
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                parent.selectedImage = image
-                parent.onSelect(image)
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            guard let result = results.first else {
+                parent.onSelect(nil, nil)
+                parent.dismiss()
+                return
             }
-            parent.dismiss()
-        }
-        
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.onSelect(nil)
-            parent.dismiss()
+            
+            print("📱 Media seleccionado - Tipo: \(result.itemProvider.registeredTypeIdentifiers)")
+            
+            if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                // ✅ Procesar imagen
+                result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
+                    DispatchQueue.main.async {
+                        if let image = object as? UIImage {
+                            print("📸 Imagen seleccionada")
+                            self.parent.selectedImage = image
+                            self.parent.onSelect(image, nil)
+                        } else {
+                            print("❌ Error cargando imagen: \(error?.localizedDescription ?? "")")
+                            self.parent.onSelect(nil, nil)
+                        }
+                        self.parent.dismiss()
+                    }
+                }
+            } else if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                // ✅ Procesar video - cargar en memoria y guardar
+                result.itemProvider.loadDataRepresentation(forTypeIdentifier: UTType.movie.identifier) { data, error in
+                    DispatchQueue.main.async {
+                        if let videoData = data {
+                            print("🎥 Video cargado en memoria: \(videoData.count) bytes")
+                            
+                            // ✅ Guardar datos en archivo temporal
+                            let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                            let tempFileName = "temp_video_\(UUID().uuidString).mp4"
+                            let tempURL = documentsPath.appendingPathComponent(tempFileName)
+                            
+                            do {
+                                // ✅ Escribir datos al archivo
+                                try videoData.write(to: tempURL)
+                                
+                                print("✅ Video guardado en: \(tempURL)")
+                                self.parent.selectedVideoURL = tempURL
+                                self.parent.onSelect(nil, tempURL)
+                            } catch {
+                                print("❌ Error guardando video: \(error.localizedDescription)")
+                                self.parent.onSelect(nil, nil)
+                            }
+                        } else {
+                            print("❌ Error cargando video: \(error?.localizedDescription ?? "")")
+                            self.parent.onSelect(nil, nil)
+                        }
+                        self.parent.dismiss()
+                    }
+                }
+            } else {
+                print("❌ Tipo de media no soportado")
+                parent.onSelect(nil, nil)
+                parent.dismiss()
+            }
         }
     }
 }
+
+
 
 // MARK: - Story Text Editor Implementation
 
