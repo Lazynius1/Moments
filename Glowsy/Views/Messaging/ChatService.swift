@@ -1139,7 +1139,8 @@ class ChatService: ObservableObject {
             
             batch.updateData([
                 "isRead": true,
-                "status": MessageStatus.read.rawValue
+                "status": MessageStatus.read.rawValue,
+                "statusUpdatedAt": FieldValue.serverTimestamp()
             ], forDocument: messageRef)
         }
         
@@ -1203,7 +1204,7 @@ class ChatService: ObservableObject {
             .document(messageId)
             .updateData([
                 "status": status.rawValue,
-                "timestamp": FieldValue.serverTimestamp() // Forzar actualización del listener
+                "statusUpdatedAt": FieldValue.serverTimestamp()
             ]) { error in
                 if let error = error {
                     print("❌ Error updating message status: \(error.localizedDescription)")
