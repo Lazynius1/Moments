@@ -145,26 +145,24 @@ class ConversationService: ObservableObject {
     private func encryptMessages(_ messages: [ChatMessage], for userId: String) async -> [SavedChatMessage] {
         let savedMessages = messages.toSavedMessages()
         
-        return await withTaskGroup(of: SavedChatMessage?.self, returning: [SavedChatMessage].self) { group in
+        return await withTaskGroup(of: (Int, SavedChatMessage?).self, returning: [SavedChatMessage].self) { group in
             for (index, message) in savedMessages.enumerated() {
                 group.addTask {
                     let encryptedText = await self.encryptionService.encryptGeminiData(message.text, for: userId) ?? message.text
-                    
-                    return SavedChatMessage(
+                    let saved = SavedChatMessage(
                         id: message.id,
                         text: encryptedText,
                         isUser: message.isUser
                     )
+                    return (index, saved)
                 }
             }
             
             var results: [(Int, SavedChatMessage)] = []
-            var index = 0
-            for await encryptedMessage in group {
-                if let message = encryptedMessage {
-                    results.append((index, message))
+            for await result in group {
+                if let message = result.1 {
+                    results.append((result.0, message))
                 }
-                index += 1
             }
             
             // Maintain original order

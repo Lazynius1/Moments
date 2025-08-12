@@ -91,99 +91,102 @@ class ChatService: ObservableObject {
         
         print("🔄 Listener triggered - Found \(documents.count) encrypted message documents")
         
-        var messages: [EnhancedMessage] = []
-        
-        for doc in documents {
-            let data = doc.data()
-            
-            // ✅ Filtrar mensajes eliminados para el usuario actual (estilo Instagram)
-            if let deletedFor = data["deletedFor"] as? [String],
-               let currentUserId = Auth.auth().currentUser?.uid,
-               deletedFor.contains(currentUserId) {
-                print("🚫 Mensaje \(doc.documentID) eliminado para \(currentUserId), saltando...")
-                continue
+        let messages: [EnhancedMessage] = await withTaskGroup(of: (Int, EnhancedMessage?).self, returning: [EnhancedMessage].self) { group in
+            for (index, doc) in documents.enumerated() {
+                group.addTask { [conversationId] in
+                    let data = doc.data()
+                    
+                    // Filter out messages deleted for current user
+                    if let deletedFor = data["deletedFor"] as? [String],
+                       let currentUserId = Auth.auth().currentUser?.uid,
+                       deletedFor.contains(currentUserId) {
+                        print("🚫 Mensaje \(doc.documentID) eliminado para \(currentUserId), saltando...")
+                        return (index, nil)
+                    }
+                    
+                    let id = data["id"] as? String ?? doc.documentID
+                    let senderId = data["senderId"] as? String ?? ""
+                    let typeString = data["type"] as? String ?? MessageType.text.rawValue
+                    let type = MessageType(rawValue: typeString) ?? .text
+                    
+                    // Decrypt content (only for text)
+                    let rawContent = data["content"] as? String
+                    let content: String?
+                    if let rawContent = rawContent, type == .text {
+                        let decrypted = await self.decryptMessageContent(rawContent, for: conversationId)
+                        content = decrypted
+                    } else {
+                        content = rawContent
+                    }
+                    
+                    let mediaUrl = data["mediaUrl"] as? String
+                    let thumbnailUrl = data["thumbnailUrl"] as? String
+                    let duration = data["duration"] as? Double
+                    let fileName = data["fileName"] as? String
+                    let fileSize = data["fileSize"] as? Int64
+                    let latitude = data["latitude"] as? Double
+                    let longitude = data["longitude"] as? Double
+                    let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
+                    let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
+                    let status = MessageStatus(rawValue: statusString) ?? .sent
+                    let isRead = data["isRead"] as? Bool ?? false
+                    let isDeleted = data["isDeleted"] as? Bool ?? false
+                    let deletedAt = (data["deletedAt"] as? Timestamp)?.dateValue()
+                    let editedAt = (data["editedAt"] as? Timestamp)?.dateValue()
+                    let reactions = data["reactions"] as? [String: [String]]
+                    let replyTo = data["replyTo"] as? String
+                    let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue()
+                    let isViewed = data["isViewed"] as? Bool ?? false
+                    let storyReplyData = data["storyReplyData"] as? [String: String]
+                    let sharedMomentData = data["sharedMomentData"] as? [String: String]
+                    
+                    let message = EnhancedMessage(
+                        id: id,
+                        conversationId: conversationId,
+                        senderId: senderId,
+                        type: type,
+                        content: content,
+                        mediaUrl: mediaUrl,
+                        thumbnailUrl: thumbnailUrl,
+                        duration: duration,
+                        fileName: fileName,
+                        fileSize: fileSize,
+                        latitude: latitude,
+                        longitude: longitude,
+                        timestamp: timestamp,
+                        status: status,
+                        isRead: isRead,
+                        isDeleted: isDeleted,
+                        deletedAt: deletedAt,
+                        editedAt: editedAt,
+                        reactions: reactions,
+                        replyTo: replyTo,
+                        expirationDate: expirationDate,
+                        isViewed: isViewed,
+                        storyReplyData: storyReplyData,
+                        sharedMomentData: sharedMomentData
+                    )
+                    
+                    return (index, message)
+                }
             }
             
-            // Manual decoding with decryption
-            let id = data["id"] as? String ?? doc.documentID
-            let senderId = data["senderId"] as? String ?? ""
-            let typeString = data["type"] as? String ?? MessageType.text.rawValue
-            let type = MessageType(rawValue: typeString) ?? .text
-            
-            // 🔐 Decrypt content if it's text - AHORA FUNCIONA CON AWAIT
-            let rawContent = data["content"] as? String
-            let content: String?
-            if let rawContent = rawContent, type == .text {
-                // ✅ Ahora podemos usar await directamente
-                content = await self.decryptMessageContent(rawContent, for: conversationId)
-            } else {
-                content = rawContent
+            var ordered: [(Int, EnhancedMessage)] = []
+            for await result in group {
+                if let message = result.1 {
+                    ordered.append((result.0, message))
+                }
             }
             
-            let mediaUrl = data["mediaUrl"] as? String
-            let thumbnailUrl = data["thumbnailUrl"] as? String
-            let duration = data["duration"] as? Double
-            let fileName = data["fileName"] as? String
-            let fileSize = data["fileSize"] as? Int64
-            let latitude = data["latitude"] as? Double
-            let longitude = data["longitude"] as? Double
-            let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
-            let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
-            let status = MessageStatus(rawValue: statusString) ?? .sent
-            let isRead = data["isRead"] as? Bool ?? false
-            let isDeleted = data["isDeleted"] as? Bool ?? false
-            let deletedAt = (data["deletedAt"] as? Timestamp)?.dateValue()
-            let editedAt = (data["editedAt"] as? Timestamp)?.dateValue()
-            let reactions = data["reactions"] as? [String: [String]]
-            let replyTo = data["replyTo"] as? String
-            let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue()
-            let isViewed = data["isViewed"] as? Bool ?? false
-            let storyReplyData = data["storyReplyData"] as? [String: String]
-            let sharedMomentData = data["sharedMomentData"] as? [String: String]
-            
-            // ✅ DEBUG: Log status updates
-            if status == .sending || status == .sent {
-                print("📊 Message \(id) status: \(status.rawValue)")
-            }
-            
-            let message = EnhancedMessage(
-                id: id,
-                conversationId: conversationId,
-                senderId: senderId,
-                type: type,
-                content: content, // ✅ Ahora está correctamente desencriptado
-                mediaUrl: mediaUrl,
-                thumbnailUrl: thumbnailUrl,
-                duration: duration,
-                fileName: fileName,
-                fileSize: fileSize,
-                latitude: latitude,
-                longitude: longitude,
-                timestamp: timestamp,
-                status: status,
-                isRead: isRead,
-                isDeleted: isDeleted,
-                deletedAt: deletedAt,
-                editedAt: editedAt,
-                reactions: reactions,
-                replyTo: replyTo,
-                expirationDate: expirationDate,
-                isViewed: isViewed,
-                storyReplyData: storyReplyData,
-                sharedMomentData: sharedMomentData
-            )
-            
-            messages.append(message)
+            return ordered.sorted { $0.0 < $1.0 }.map { $0.1 }
         }
         
         print("✅ Listener completed - Returning \(messages.count) messages")
         
-        // ✅ Marcar mensajes como entregados automáticamente
         if let currentUserId = Auth.auth().currentUser?.uid {
             markMessagesAsDelivered(messages: messages, conversationId: conversationId, currentUserId: currentUserId)
         }
         
-        // ✅ Llamar completion en el Main Actor para actualizaciones de UI
         await MainActor.run {
             completion(.success(messages))
         }
@@ -1578,7 +1581,6 @@ class ChatService: ObservableObject {
     func searchMessages(conversationId: String, query: String, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
         print("🔍 Searching encrypted messages in conversation \(conversationId) with query: \(query)")
         
-        // Note: Searching encrypted content requires decrypting all messages
         db.collection("conversations")
             .document(conversationId)
             .collection("messages")
@@ -1594,19 +1596,23 @@ class ChatService: ObservableObject {
                     return
                 }
                 
-                var matchingMessages: [EnhancedMessage] = []
-                
-                for doc in documents {
-                    let data = doc.data()
-                    
-                    // Decrypt content for searching
-                    if let encryptedContent = data["content"] as? String {
-                        // Use Task to handle async decryption in search
-                        Task {
-                            let decryptedContent = await self?.decryptMessageContent(encryptedContent, for: conversationId) ?? encryptedContent
-                            
-                            if decryptedContent.lowercased().contains(query.lowercased()) {
-                                // Create message with decrypted content
+                Task { [weak self] in
+                    guard let self = self else { return }
+                    let matches: [EnhancedMessage] = await withTaskGroup(of: (Int, EnhancedMessage?).self, returning: [EnhancedMessage].self) { group in
+                        for (index, doc) in documents.enumerated() {
+                            group.addTask { [conversationId, query] in
+                                let data = doc.data()
+                                
+                                guard let encryptedContent = data["content"] as? String else {
+                                    return (index, nil)
+                                }
+                                
+                                let decrypted = await self.decryptMessageContent(encryptedContent, for: conversationId)
+                                let decryptedLower = decrypted.lowercased()
+                                if !decryptedLower.contains(query.lowercased()) {
+                                    return (index, nil)
+                                }
+                                
                                 let id = data["id"] as? String ?? doc.documentID
                                 let senderId = data["senderId"] as? String ?? ""
                                 let typeString = data["type"] as? String ?? MessageType.text.rawValue
@@ -1620,7 +1626,7 @@ class ChatService: ObservableObject {
                                     conversationId: conversationId,
                                     senderId: senderId,
                                     type: type,
-                                    content: decryptedContent, // Use decrypted content
+                                    content: decrypted, // decrypted content
                                     mediaUrl: data["mediaUrl"] as? String,
                                     thumbnailUrl: data["thumbnailUrl"] as? String,
                                     duration: data["duration"] as? Double,
@@ -1641,15 +1647,24 @@ class ChatService: ObservableObject {
                                     storyReplyData: data["storyReplyData"] as? [String: String]
                                 )
                                 
-                                matchingMessages.append(message)
+                                return (index, message)
                             }
                         }
-                        continue
+                        
+                        var ordered: [(Int, EnhancedMessage)] = []
+                        for await result in group {
+                            if let msg = result.1 {
+                                ordered.append((result.0, msg))
+                            }
+                        }
+                        return ordered.sorted { $0.0 < $1.0 }.map { $0.1 }
+                    }
+                    
+                    print("🔍 Search returned \(matches.count) decrypted messages")
+                    await MainActor.run {
+                        completion(.success(matches))
                     }
                 }
-                
-                print("🔍 Search returned \(matchingMessages.count) decrypted messages")
-                completion(.success(matchingMessages))
             }
     }
     
