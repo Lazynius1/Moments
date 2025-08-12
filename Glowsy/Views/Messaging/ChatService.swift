@@ -44,7 +44,9 @@ class ChatService: ObservableObject {
     func listenToMessages(conversationId: String, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
         print("🔐 Setting up encrypted listener for messages in conversation: \(conversationId)")
         
-        encryptionService.preloadConversationKey(for: conversationId)
+        Task {
+            await preloadConversationKey(for: conversationId)
+        }
         
         activeListeners[conversationId]?.remove()
         print("✅ Setting up listener for conversation: \(conversationId)")
@@ -54,225 +56,255 @@ class ChatService: ObservableObject {
             .collection("messages")
             .order(by: "timestamp", descending: false)
             .addSnapshotListener { [weak self] snapshot, error in
-                if let error = error {
-                    print("Error listening to messages: \(error.localizedDescription)")
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let documents = snapshot?.documents else {
-                    print("No messages found for conversation: \(conversationId)")
-                    completion(.success([]))
-                    return
-                }
-                
-                print("🔄 Listener triggered - Found \(documents.count) encrypted message documents")
-                
-                var messages: [EnhancedMessage] = []
-                
-                for doc in documents {
-                    let data = doc.data()
-                    
-                    // ✅ Filtrar mensajes eliminados para el usuario actual (estilo Instagram)
-                    if let deletedFor = data["deletedFor"] as? [String], 
-                       let currentUserId = Auth.auth().currentUser?.uid,
-                       deletedFor.contains(currentUserId) {
-                        print("🚫 Mensaje \(doc.documentID) eliminado para \(currentUserId), saltando...")
-                        continue
-                    }
-                    
-                    // Manual decoding with decryption
-                    let id = data["id"] as? String ?? doc.documentID
-                    let senderId = data["senderId"] as? String ?? ""
-                    let typeString = data["type"] as? String ?? MessageType.text.rawValue
-                    let type = MessageType(rawValue: typeString) ?? .text
-                    
-                    // 🔐 Decrypt content if it's text
-                    let rawContent = data["content"] as? String
-                    let content: String? = {
-                        guard let rawContent = rawContent, type == .text else { return rawContent }
-                        return self?.encryptionService.decryptChatMessage(rawContent, for: conversationId) ?? rawContent
-                    }()
-                    
-                    let mediaUrl = data["mediaUrl"] as? String
-                    let thumbnailUrl = data["thumbnailUrl"] as? String
-                    let duration = data["duration"] as? Double
-                    let fileName = data["fileName"] as? String
-                    let fileSize = data["fileSize"] as? Int64
-                    let latitude = data["latitude"] as? Double
-                    let longitude = data["longitude"] as? Double
-                    let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
-                    let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
-                    let status = MessageStatus(rawValue: statusString) ?? .sent
-                    let isRead = data["isRead"] as? Bool ?? false
-                    let isDeleted = data["isDeleted"] as? Bool ?? false
-                    let deletedAt = (data["deletedAt"] as? Timestamp)?.dateValue()
-                    let editedAt = (data["editedAt"] as? Timestamp)?.dateValue()
-                    let reactions = data["reactions"] as? [String: [String]]
-                    let replyTo = data["replyTo"] as? String
-                    let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue()
-                    let isViewed = data["isViewed"] as? Bool ?? false
-                    let storyReplyData = data["storyReplyData"] as? [String: String]
-                    let sharedMomentData = data["sharedMomentData"] as? [String: String]
-                    
-                    // ✅ DEBUG: Log status updates
-                    if status == .sending || status == .sent {
-                        print("📊 Message \(id) status: \(status.rawValue)")
-                    }
-                    
-                    let message = EnhancedMessage(
-                        id: id,
+                // ✅ Envolver todo en Task para poder usar await
+                Task {
+                    await self?.handleMessagesSnapshot(
+                        snapshot: snapshot,
+                        error: error,
                         conversationId: conversationId,
-                        senderId: senderId,
-                        type: type,
-                        content: content, // Decrypted content
-                        mediaUrl: mediaUrl,
-                        thumbnailUrl: thumbnailUrl,
-                        duration: duration,
-                        fileName: fileName,
-                        fileSize: fileSize,
-                        latitude: latitude,
-                        longitude: longitude,
-                        timestamp: timestamp,
-                        status: status,
-                        isRead: isRead,
-                        isDeleted: isDeleted,
-                        deletedAt: deletedAt,
-                        editedAt: editedAt,
-                        reactions: reactions,
-                        replyTo: replyTo,
-                        expirationDate: expirationDate,
-                        isViewed: isViewed,
-                        storyReplyData: storyReplyData,
-                        sharedMomentData: sharedMomentData
+                        completion: completion
                     )
-                    
-                    messages.append(message)
                 }
-                
-                print("✅ Listener completed - Returning \(messages.count) messages")
-                
-                // ✅ Marcar mensajes como entregados automáticamente
-                if let currentUserId = Auth.auth().currentUser?.uid {
-                    self?.markMessagesAsDelivered(messages: messages, conversationId: conversationId, currentUserId: currentUserId)
-                }
-                
-                completion(.success(messages))
             }
         
         activeListeners[conversationId] = listener
+    }
+
+    // ✅ Nueva función helper para manejar el snapshot de manera async
+    private func handleMessagesSnapshot(
+        snapshot: QuerySnapshot?,
+        error: Error?,
+        conversationId: String,
+        completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
+    ) async {
+        if let error = error {
+            print("Error listening to messages: \(error.localizedDescription)")
+            completion(.failure(error))
+            return
+        }
+        
+        guard let documents = snapshot?.documents else {
+            print("No messages found for conversation: \(conversationId)")
+            completion(.success([]))
+            return
+        }
+        
+        print("🔄 Listener triggered - Found \(documents.count) encrypted message documents")
+        
+        var messages: [EnhancedMessage] = []
+        
+        for doc in documents {
+            let data = doc.data()
+            
+            // ✅ Filtrar mensajes eliminados para el usuario actual (estilo Instagram)
+            if let deletedFor = data["deletedFor"] as? [String],
+               let currentUserId = Auth.auth().currentUser?.uid,
+               deletedFor.contains(currentUserId) {
+                print("🚫 Mensaje \(doc.documentID) eliminado para \(currentUserId), saltando...")
+                continue
+            }
+            
+            // Manual decoding with decryption
+            let id = data["id"] as? String ?? doc.documentID
+            let senderId = data["senderId"] as? String ?? ""
+            let typeString = data["type"] as? String ?? MessageType.text.rawValue
+            let type = MessageType(rawValue: typeString) ?? .text
+            
+            // 🔐 Decrypt content if it's text - AHORA FUNCIONA CON AWAIT
+            let rawContent = data["content"] as? String
+            let content: String?
+            if let rawContent = rawContent, type == .text {
+                // ✅ Ahora podemos usar await directamente
+                content = await self.decryptMessageContent(rawContent, for: conversationId)
+            } else {
+                content = rawContent
+            }
+            
+            let mediaUrl = data["mediaUrl"] as? String
+            let thumbnailUrl = data["thumbnailUrl"] as? String
+            let duration = data["duration"] as? Double
+            let fileName = data["fileName"] as? String
+            let fileSize = data["fileSize"] as? Int64
+            let latitude = data["latitude"] as? Double
+            let longitude = data["longitude"] as? Double
+            let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
+            let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
+            let status = MessageStatus(rawValue: statusString) ?? .sent
+            let isRead = data["isRead"] as? Bool ?? false
+            let isDeleted = data["isDeleted"] as? Bool ?? false
+            let deletedAt = (data["deletedAt"] as? Timestamp)?.dateValue()
+            let editedAt = (data["editedAt"] as? Timestamp)?.dateValue()
+            let reactions = data["reactions"] as? [String: [String]]
+            let replyTo = data["replyTo"] as? String
+            let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue()
+            let isViewed = data["isViewed"] as? Bool ?? false
+            let storyReplyData = data["storyReplyData"] as? [String: String]
+            let sharedMomentData = data["sharedMomentData"] as? [String: String]
+            
+            // ✅ DEBUG: Log status updates
+            if status == .sending || status == .sent {
+                print("📊 Message \(id) status: \(status.rawValue)")
+            }
+            
+            let message = EnhancedMessage(
+                id: id,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: type,
+                content: content, // ✅ Ahora está correctamente desencriptado
+                mediaUrl: mediaUrl,
+                thumbnailUrl: thumbnailUrl,
+                duration: duration,
+                fileName: fileName,
+                fileSize: fileSize,
+                latitude: latitude,
+                longitude: longitude,
+                timestamp: timestamp,
+                status: status,
+                isRead: isRead,
+                isDeleted: isDeleted,
+                deletedAt: deletedAt,
+                editedAt: editedAt,
+                reactions: reactions,
+                replyTo: replyTo,
+                expirationDate: expirationDate,
+                isViewed: isViewed,
+                storyReplyData: storyReplyData,
+                sharedMomentData: sharedMomentData
+            )
+            
+            messages.append(message)
+        }
+        
+        print("✅ Listener completed - Returning \(messages.count) messages")
+        
+        // ✅ Marcar mensajes como entregados automáticamente
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            markMessagesAsDelivered(messages: messages, conversationId: conversationId, currentUserId: currentUserId)
+        }
+        
+        // ✅ Llamar completion en el Main Actor para actualizaciones de UI
+        await MainActor.run {
+            completion(.success(messages))
+        }
     }
     
     // MARK: - Send Messages with Encryption
     func sendStoryReplyMessage(conversationId: String, senderId: String, content: String, storyReplyData: [String: String], completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let messageId = UUID().uuidString
         
-        // 🔐 Encrypt content before sending
-        let encryptedContent = encryptionService.encryptChatMessage(content, for: conversationId) ?? content
-        
-        let message = EnhancedMessage(
-            id: messageId,
-            conversationId: conversationId,
-            senderId: senderId,
-            type: .text,
-            content: encryptedContent, // Store encrypted content
-            mediaUrl: nil,
-            thumbnailUrl: nil,
-            duration: nil,
-            fileName: nil,
-            fileSize: nil,
-            latitude: nil,
-            longitude: nil,
-            timestamp: Date(),
-            status: .sending,
-            isRead: false,
-            isDeleted: false,
-            deletedAt: nil,
-            editedAt: nil,
-            reactions: nil,
-            replyTo: nil,
-            expirationDate: nil,
-            isViewed: false,
-            storyReplyData: storyReplyData
-        )
-        
-        print("🔐 Sending encrypted story reply text message: \(messageId)")
-        sendMessage(message, useServerTimestamp: true, completion: completion)
+        // 🔐 Encrypt content before sending (Async)
+        Task {
+            let encryptedContent = await encryptMessageContent(content, for: conversationId)
+            
+            let message = EnhancedMessage(
+                id: messageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .text,
+                content: encryptedContent, // Store encrypted content
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                duration: nil,
+                fileName: nil,
+                fileSize: nil,
+                latitude: nil,
+                longitude: nil,
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                deletedAt: nil,
+                editedAt: nil,
+                reactions: nil,
+                replyTo: nil,
+                expirationDate: nil,
+                isViewed: false,
+                storyReplyData: storyReplyData
+            )
+            
+            print("🔐 Sending encrypted story reply text message: \(messageId)")
+            sendMessage(message, useServerTimestamp: true, completion: completion)
+        }
     }
     
     func sendTextMessage(conversationId: String, senderId: String, content: String, replyTo: String? = nil, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
         
-        // 🔐 Encrypt content before sending
-        let encryptedContent = encryptionService.encryptChatMessage(content, for: conversationId) ?? content
-        
-        let message = EnhancedMessage(
-            id: finalMessageId,
-            conversationId: conversationId,
-            senderId: senderId,
-            type: .text,
-            content: encryptedContent, // Store encrypted content
-            mediaUrl: nil,
-            thumbnailUrl: nil,
-            duration: nil,
-            fileName: nil,
-            fileSize: nil,
-            latitude: nil,
-            longitude: nil,
-            timestamp: Date(),
-            status: .sending,
-            isRead: false,
-            isDeleted: false,
-            deletedAt: nil,
-            editedAt: nil,
-            reactions: nil,
-            replyTo: replyTo,
-            expirationDate: nil,
-            isViewed: false
-        )
-        
-        print("🔐 Sending encrypted text message: \(finalMessageId)")
-        sendMessage(message, useServerTimestamp: true, completion: completion)
+        // 🔐 Encrypt content before sending (Async)
+        Task {
+            let encryptedContent = await encryptMessageContent(content, for: conversationId)
+            
+            let message = EnhancedMessage(
+                id: finalMessageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .text,
+                content: encryptedContent, // Store encrypted content
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                duration: nil,
+                fileName: nil,
+                fileSize: nil,
+                latitude: nil,
+                longitude: nil,
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                deletedAt: nil,
+                editedAt: nil,
+                reactions: nil,
+                replyTo: replyTo,
+                expirationDate: nil,
+                isViewed: false
+            )
+            
+            print("🔐 Sending encrypted text message: \(finalMessageId)")
+            sendMessage(message, useServerTimestamp: true, completion: completion)
+        }
     }
     
     func sendEphemeralMessage(conversationId: String, senderId: String, content: String? = nil, mediaUrl: String? = nil, expirationHours: Int = 24, storyReplyData: [String: String]? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let messageId = UUID().uuidString
         let expirationDate = Calendar.current.date(byAdding: .hour, value: expirationHours, to: Date())
         
-        // 🔐 Encrypt content if it's text
-        let encryptedContent: String? = {
-            guard let content = content else { return nil }
-            return encryptionService.encryptChatMessage(content, for: conversationId) ?? content
-        }()
-        
-        let message = EnhancedMessage(
-            id: messageId,
-            conversationId: conversationId,
-            senderId: senderId,
-            type: .ephemeral,
-            content: encryptedContent, // Store encrypted content
-            mediaUrl: mediaUrl,
-            thumbnailUrl: nil,
-            duration: nil,
-            fileName: nil,
-            fileSize: nil,
-            latitude: nil,
-            longitude: nil,
-            timestamp: Date(),
-            status: .sending,
-            isRead: false,
-            isDeleted: false,
-            deletedAt: nil,
-            editedAt: nil,
-            reactions: nil,
-            replyTo: nil,
-            expirationDate: expirationDate,
-            isViewed: false,
-            storyReplyData: storyReplyData
-        )
-        
-        print("🔐 Sending encrypted ephemeral message: \(messageId)")
-        sendMessage(message, useServerTimestamp: true, completion: completion)
+        // 🔐 Encrypt content if it's text (Async)
+        Task {
+            let encryptedContent: String? = await {
+                guard let content = content else { return nil }
+                return await encryptMessageContent(content, for: conversationId)
+            }()
+            
+            let message = EnhancedMessage(
+                id: messageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .ephemeral,
+                content: encryptedContent, // Store encrypted content
+                mediaUrl: mediaUrl,
+                thumbnailUrl: nil,
+                duration: nil,
+                fileName: nil,
+                fileSize: nil,
+                latitude: nil,
+                longitude: nil,
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                deletedAt: nil,
+                editedAt: nil,
+                reactions: nil,
+                replyTo: nil,
+                expirationDate: expirationDate,
+                isViewed: false,
+                storyReplyData: storyReplyData
+            )
+            
+            print("🔐 Sending encrypted ephemeral message: \(messageId)")
+            sendMessage(message, useServerTimestamp: true, completion: completion)
+        }
     }
     
     func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
@@ -483,31 +515,33 @@ class ChatService: ObservableObject {
                 completion(.success(updatedMessage))
             
                 // ✅ Update conversation with last message (decrypt for preview)
-                let lastMessagePreview: String = {
-                    if let content = message.content, message.type == .text {
-                        // For UI preview, decrypt the content
-                        return self?.encryptionService.decryptChatMessage(content, for: message.conversationId) ?? "🔐 Mensaje encriptado"
-                    } else if message.type == .image {
-                        return "📷 Foto"
-                    } else if message.type == .video {
-                        return "🎥 Video"
-                    } else if message.type == .audio {
-                        return "🎵 Audio"
-                    } else if message.type == .location {
-                        return "📍 Ubicación"
-                    } else if message.type == .ephemeral {
-                        return "📸 Momento efímero"
-                    }
-                    return "📎 Archivo adjunto"
-                }()
-                
-                self?.updateConversation(
-                    conversationId: message.conversationId,
-                    lastMessage: lastMessagePreview, // ✅ Usar preview descifrado
-                    senderId: message.senderId
-                ) { updateError in
-                    if let updateError = updateError {
-                        print("⚠️ Error updating conversation: \(updateError.localizedDescription)")
+                Task {
+                    let lastMessagePreview: String = await {
+                        if let content = message.content, message.type == .text {
+                            // For UI preview, decrypt the content
+                            return await self?.decryptMessageContent(content, for: message.conversationId) ?? "🔐 Mensaje encriptado"
+                        } else if message.type == .image {
+                            return "📷 Foto"
+                        } else if message.type == .video {
+                            return "🎥 Video"
+                        } else if message.type == .audio {
+                            return "🎵 Audio"
+                        } else if message.type == .location {
+                            return "📍 Ubicación"
+                        } else if message.type == .ephemeral {
+                            return "📸 Momento efímero"
+                        }
+                        return "📎 Archivo adjunto"
+                    }()
+                    
+                    self?.updateConversation(
+                        conversationId: message.conversationId,
+                        lastMessage: lastMessagePreview, // ✅ Usar preview descifrado
+                        senderId: message.senderId
+                    ) { updateError in
+                        if let updateError = updateError {
+                            print("⚠️ Error updating conversation: \(updateError.localizedDescription)")
+                        }
                     }
                 }
                 
@@ -545,22 +579,24 @@ class ChatService: ObservableObject {
     func editMessage(conversationId: String, messageId: String, newContent: String, completion: @escaping (Error?) -> Void) {
         print("✏️ Editing encrypted message \(messageId) in conversation \(conversationId)")
         
-        // 🔐 Encrypt new content before updating
-        let encryptedContent = encryptionService.encryptChatMessage(newContent, for: conversationId) ?? newContent
-        
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
-            .document(messageId)
-            .updateData([
-                "content": encryptedContent, // Store encrypted content
-                "editedAt": FieldValue.serverTimestamp()
-            ]) { error in
-                if let error = error {
-                    print("❌ Error editing message: \(error.localizedDescription)")
+        // 🔐 Encrypt new content before updating (Async)
+        Task {
+            let encryptedContent = await encryptMessageContent(newContent, for: conversationId)
+            
+            db.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .document(messageId)
+                .updateData([
+                    "content": encryptedContent, // Store encrypted content
+                    "editedAt": FieldValue.serverTimestamp()
+                ]) { error in
+                    if let error = error {
+                        print("❌ Error editing message: \(error.localizedDescription)")
+                    }
+                    completion(error)
                 }
-                completion(error)
-            }
+        }
     }
     
     func deleteMessage(conversationId: String, messageId: String, completion: @escaping (Error?) -> Void) {
@@ -1196,8 +1232,9 @@ class ChatService: ObservableObject {
     
     // ✅ Función para crear conversación con datos bidireccionales
     // ✅ Función ACTUALIZADA para crear conversación con clave compartida
-    func createBidirectionalConversation(user1Id: String, user2Id: String, completion: @escaping (Result<String, Error>) -> Void) {
+    func createBidirectionalConversation(user1Id: String, user2Id: String, initialMessage: String? = nil, completion: @escaping (Result<String, Error>) -> Void) {
         print("🔄 Creando conversación bidireccional con clave compartida entre \(user1Id) y \(user2Id)")
+        print("🔍 Debug - initialMessage en createBidirectionalConversation: '\(initialMessage ?? "nil")'")
         
         let participants = [user1Id, user2Id].sorted()
         let conversationRef = db.collection("conversations").document()
@@ -1296,12 +1333,94 @@ class ChatService: ObservableObject {
                     print("✅ Conversación bidireccional con encriptación creada exitosamente: \(conversationId)")
                     
                     // ✅ PRECARGAR LA CLAVE LOCALMENTE (ya la tenemos)
-                    EncryptionService.shared.setConversationKey(sharedEncryptionKey, for: conversationId)
-                    print("✅ Encryption key preloaded for new conversation: \(conversationId)")
+                    Task {
+                        await self.preloadConversationKey(for: conversationId)
+                        print("✅ Encryption key preloaded for new conversation: \(conversationId)")
+                    }
                     
-                    completion(.success(conversationId))
+                    // ✅ ENVIAR MENSAJE INICIAL (personalizado o automático)
+                    print("🔍 Debug - initialMessage recibido: '\(initialMessage ?? "nil")'")
+                    if let customMessage = initialMessage, !customMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        print("✅ Enviando mensaje personalizado del usuario: '\(customMessage)'")
+                        // Enviar mensaje personalizado del usuario
+                        self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id, message: customMessage) { result in
+                            switch result {
+                            case .success(_):
+                                print("✅ Mensaje personalizado enviado exitosamente")
+                            case .failure(let error):
+                                print("⚠️ Error enviando mensaje personalizado: \(error.localizedDescription)")
+                            }
+                            completion(.success(conversationId))
+                        }
+                    } else {
+                        // Enviar mensaje automático por defecto
+                        self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id) { result in
+                            switch result {
+                            case .success(_):
+                                print("✅ Mensaje inicial automático enviado exitosamente")
+                            case .failure(let error):
+                                print("⚠️ Error enviando mensaje inicial: \(error.localizedDescription)")
+                            }
+                            completion(.success(conversationId))
+                        }
+                    }
                 }
             }
+        }
+    }
+    
+    // ✅ NUEVA: Función para enviar mensaje inicial automático
+    private func sendInitialMessage(to conversationId: String, from senderId: String, to receiverId: String, message: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
+        print("💬 Enviando mensaje inicial a conversación: \(conversationId)")
+        
+        // 🔐 Encrypt initial message content
+        Task {
+            let initialMessage = message ?? "👋 ¡Hola! Iniciemos una conversación"
+            let encryptedContent = await encryptMessageContent(initialMessage, for: conversationId)
+            
+            let messageId = UUID().uuidString
+            let timestamp = Date()
+            
+            let messageData: [String: Any] = [
+                "id": messageId,
+                "conversationId": conversationId,
+                "senderId": senderId,
+                "receiverId": receiverId,
+                "content": encryptedContent,
+                "type": "text",
+                "timestamp": timestamp,
+                "isRead": false,
+                "isDeleted": false
+            ]
+            
+            // Enviar mensaje
+            db.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .document(messageId)
+                .setData(messageData) { error in
+                    if let error = error {
+                        print("❌ Error enviando mensaje inicial: \(error.localizedDescription)")
+                        completion(.failure(error))
+                    } else {
+                        print("✅ Mensaje inicial enviado: \(messageId)")
+                        
+                        // Actualizar lastMessage en la conversación
+                        self.db.collection("conversations")
+                            .document(conversationId)
+                            .updateData([
+                                "lastMessage": initialMessage,
+                                "timestamp": timestamp
+                            ]) { updateError in
+                                if let updateError = updateError {
+                                    print("⚠️ Error actualizando lastMessage: \(updateError.localizedDescription)")
+                                } else {
+                                    print("✅ LastMessage actualizado en conversación")
+                                }
+                                completion(.success(()))
+                            }
+                    }
+                }
         }
     }
 
@@ -1476,46 +1595,51 @@ class ChatService: ObservableObject {
                     let data = doc.data()
                     
                     // Decrypt content for searching
-                    if let encryptedContent = data["content"] as? String,
-                       let decryptedContent = self?.encryptionService.decryptChatMessage(encryptedContent, for: conversationId),
-                       decryptedContent.lowercased().contains(query.lowercased()) {
-                        
-                        // Create message with decrypted content
-                        let id = data["id"] as? String ?? doc.documentID
-                        let senderId = data["senderId"] as? String ?? ""
-                        let typeString = data["type"] as? String ?? MessageType.text.rawValue
-                        let type = MessageType(rawValue: typeString) ?? .text
-                        let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
-                        let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
-                        let status = MessageStatus(rawValue: statusString) ?? .sent
-                        
-                        let message = EnhancedMessage(
-                            id: id,
-                            conversationId: conversationId,
-                            senderId: senderId,
-                            type: type,
-                            content: decryptedContent, // Use decrypted content
-                            mediaUrl: data["mediaUrl"] as? String,
-                            thumbnailUrl: data["thumbnailUrl"] as? String,
-                            duration: data["duration"] as? Double,
-                            fileName: data["fileName"] as? String,
-                            fileSize: data["fileSize"] as? Int64,
-                            latitude: data["latitude"] as? Double,
-                            longitude: data["longitude"] as? Double,
-                            timestamp: timestamp,
-                            status: status,
-                            isRead: data["isRead"] as? Bool ?? false,
-                            isDeleted: data["isDeleted"] as? Bool ?? false,
-                            deletedAt: (data["deletedAt"] as? Timestamp)?.dateValue(),
-                            editedAt: (data["editedAt"] as? Timestamp)?.dateValue(),
-                            reactions: data["reactions"] as? [String: [String]],
-                            replyTo: data["replyTo"] as? String,
-                            expirationDate: (data["expirationDate"] as? Timestamp)?.dateValue(),
-                            isViewed: data["isViewed"] as? Bool ?? false,
-                            storyReplyData: data["storyReplyData"] as? [String: String]
-                        )
-                        
-                        matchingMessages.append(message)
+                    if let encryptedContent = data["content"] as? String {
+                        // Use Task to handle async decryption in search
+                        Task {
+                            let decryptedContent = await self?.decryptMessageContent(encryptedContent, for: conversationId) ?? encryptedContent
+                            
+                            if decryptedContent.lowercased().contains(query.lowercased()) {
+                                // Create message with decrypted content
+                                let id = data["id"] as? String ?? doc.documentID
+                                let senderId = data["senderId"] as? String ?? ""
+                                let typeString = data["type"] as? String ?? MessageType.text.rawValue
+                                let type = MessageType(rawValue: typeString) ?? .text
+                                let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
+                                let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
+                                let status = MessageStatus(rawValue: statusString) ?? .sent
+                                
+                                let message = EnhancedMessage(
+                                    id: id,
+                                    conversationId: conversationId,
+                                    senderId: senderId,
+                                    type: type,
+                                    content: decryptedContent, // Use decrypted content
+                                    mediaUrl: data["mediaUrl"] as? String,
+                                    thumbnailUrl: data["thumbnailUrl"] as? String,
+                                    duration: data["duration"] as? Double,
+                                    fileName: data["fileName"] as? String,
+                                    fileSize: data["fileSize"] as? Int64,
+                                    latitude: data["latitude"] as? Double,
+                                    longitude: data["longitude"] as? Double,
+                                    timestamp: timestamp,
+                                    status: status,
+                                    isRead: data["isRead"] as? Bool ?? false,
+                                    isDeleted: data["isDeleted"] as? Bool ?? false,
+                                    deletedAt: (data["deletedAt"] as? Timestamp)?.dateValue(),
+                                    editedAt: (data["editedAt"] as? Timestamp)?.dateValue(),
+                                    reactions: data["reactions"] as? [String: [String]],
+                                    replyTo: data["replyTo"] as? String,
+                                    expirationDate: (data["expirationDate"] as? Timestamp)?.dateValue(),
+                                    isViewed: data["isViewed"] as? Bool ?? false,
+                                    storyReplyData: data["storyReplyData"] as? [String: String]
+                                )
+                                
+                                matchingMessages.append(message)
+                            }
+                        }
+                        continue
                     }
                 }
                 
@@ -1607,37 +1731,39 @@ class ChatService: ObservableObject {
             .collection("messages")
             .document(messageId)
         
-        // Encrypt the expired message content
-        let expiredText = "📸 Momento efímero expirado"
-        let encryptedExpiredText = encryptionService.encryptChatMessage(expiredText, for: conversationId) ?? expiredText
+        // Encrypt the expired message content (Async)
+        Task {
+            let expiredText = "📸 Momento efímero expirado"
+            let encryptedExpiredText = await encryptMessageContent(expiredText, for: conversationId)
         
-        batch.updateData([
-            "mediaUrl": FieldValue.delete(),
-            "content": encryptedExpiredText, // Store encrypted expired message
-            "isDeleted": true,
-            "deletedAt": FieldValue.serverTimestamp()
-        ], forDocument: messageRef)
-        
-        batch.commit { [weak self] error in
-            if let error = error {
-                print("❌ Error actualizando mensaje efímero encriptado \(messageId): \(error.localizedDescription)")
-                completion(false)
-                return
-            }
+                    batch.updateData([
+                "mediaUrl": FieldValue.delete(),
+                "content": encryptedExpiredText, // Store encrypted expired message
+                "isDeleted": true,
+                "deletedAt": FieldValue.serverTimestamp()
+            ], forDocument: messageRef)
             
-            print("✅ Mensaje efímero encriptado \(messageId) marcado como expirado")
-            
-            if let mediaUrl = mediaUrl, !mediaUrl.isEmpty {
-                self?.deleteImageFromStorage(mediaUrl: mediaUrl) { deleteSuccess in
-                    if deleteSuccess {
-                        print("🗑️ Imagen borrada de Storage: \(mediaUrl)")
-                    } else {
-                        print("⚠️ No se pudo borrar imagen de Storage: \(mediaUrl)")
+            batch.commit { [weak self] error in
+                if let error = error {
+                    print("❌ Error actualizando mensaje efímero encriptado \(messageId): \(error.localizedDescription)")
+                    completion(false)
+                    return
+                }
+                
+                print("✅ Mensaje efímero encriptado \(messageId) marcado como expirado")
+                
+                if let mediaUrl = mediaUrl, !mediaUrl.isEmpty {
+                    self?.deleteImageFromStorage(mediaUrl: mediaUrl) { deleteSuccess in
+                        if deleteSuccess {
+                            print("🗑️ Imagen borrada de Storage: \(mediaUrl)")
+                        } else {
+                            print("⚠️ No se pudo borrar imagen de Storage: \(mediaUrl)")
+                        }
+                        completion(true)
                     }
+                } else {
                     completion(true)
                 }
-            } else {
-                completion(true)
             }
         }
     }
@@ -1712,7 +1838,7 @@ class EphemeralCleanupManager: ObservableObject {
 extension ChatService {
     
     // ✅ Función para obtener o crear conversación
-    func getOrCreateConversation(between user1Id: String, and user2Id: String, completion: @escaping (Result<String, Error>) -> Void) {
+    func getOrCreateConversation(between user1Id: String, and user2Id: String, initialMessage: String? = nil, completion: @escaping (Result<String, Error>) -> Void) {
         print("🔍 Buscando conversación entre \(user1Id) y \(user2Id)")
         
         // Buscar conversación existente
@@ -1737,13 +1863,13 @@ extension ChatService {
                     completion(.success(conversationId))
                 } else {
                     print("🆕 Verificando si los usuarios se siguen mutuamente")
-                    self?.checkMutualFollowAndCreateConversation(user1Id: user1Id, user2Id: user2Id, completion: completion)
+                    self?.checkMutualFollowAndCreateConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
                 }
             }
     }
     
     // ✅ NUEVA: Función para verificar seguimiento mutuo antes de crear conversación
-    private func checkMutualFollowAndCreateConversation(user1Id: String, user2Id: String, completion: @escaping (Result<String, Error>) -> Void) {
+    private func checkMutualFollowAndCreateConversation(user1Id: String, user2Id: String, initialMessage: String? = nil, completion: @escaping (Result<String, Error>) -> Void) {
         let firestoreService = FirestoreService()
         
         // Verificar si user1 sigue a user2
@@ -1754,7 +1880,7 @@ extension ChatService {
                 
                 if mutualFollow {
                     print("✅ Usuarios se siguen mutuamente, creando conversación")
-                    self?.createBidirectionalConversation(user1Id: user1Id, user2Id: user2Id, completion: completion)
+                    self?.createBidirectionalConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
                 } else {
                     print("❌ Usuarios no se siguen mutuamente, no se puede crear conversación directa")
                     // Retornar error específico para indicar que se necesita solicitud
@@ -1779,70 +1905,72 @@ extension ChatService {
         momentUrl: String,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
-        // 🔐 Encrypt content before sending
-        let encryptedContent = encryptionService.encryptChatMessage(shareText, for: conversationId) ?? shareText
-        
-        // ✅ Create shared moment data as [String: String] (compatible con tu EnhancedMessage)
-        let sharedMomentData: [String: String] = [
-            "momentId": moment.id ?? "",
-            "momentAuthor": moment.username,
-            "momentAuthorId": moment.authorId,  // ✅ Agregar el ID del autor
-            "momentContent": moment.content,
-            "momentImageUrl": moment.thumbnailUrl ?? moment.imagePath ?? "", // ✅ MEJORADO: Usar thumbnailUrl si existe
-            "momentVideoUrl": moment.videoUrl ?? "", // ✅ NUEVO: Agregar URL del video
-            "momentTimestamp": String(moment.timestamp.timeIntervalSince1970), // ✅ Convert to String
-            "shareUrl": momentUrl
-        ]
-        
-        let messageId = UUID().uuidString
-        
-        // ✅ Usar tu init personalizado de EnhancedMessage
-        let message = EnhancedMessage(
-            id: messageId,
-            conversationId: conversationId,
-            senderId: senderId,
-            type: .sharedMoment,
-            content: encryptedContent,
-            mediaUrl: nil,
-            thumbnailUrl: nil,
-            duration: nil,
-            fileName: nil,
-            fileSize: nil,
-            latitude: nil,
-            longitude: nil,
-            timestamp: Date(),
-            status: .sending,
-            isRead: false,
-            isDeleted: false,
-            deletedAt: nil,
-            editedAt: nil,
-            reactions: nil,
-            replyTo: nil,
-            expirationDate: nil,
-            isViewed: false,
-            storyReplyData: nil,
-            sharedMomentData: sharedMomentData  // ✅ Ahora es [String: String]
-        )
-        
-        print("🔗 Sending shared moment message: \(messageId)")
-        
-        // ✅ Usar la función existente sendMessage
-        sendMessage(message, useServerTimestamp: true) { result in
-            switch result {
-            case .success(let sentMessage):
-                // ✅ Usar la función existente updateConversation
-                self.updateConversation(
-                    conversationId: conversationId,
-                    lastMessage: "📷 Momento compartido", // Preview descifrado
-                    senderId: senderId
-                ) { updateError in
-                    if let updateError = updateError {
-                        print("⚠️ Error updating conversation: \(updateError.localizedDescription)")
+        // 🔐 Encrypt content before sending (Async)
+        Task {
+            let encryptedContent = await encryptMessageContent(shareText, for: conversationId)
+            
+            // ✅ Create shared moment data as [String: String] (compatible con tu EnhancedMessage)
+            let sharedMomentData: [String: String] = [
+                "momentId": moment.id ?? "",
+                "momentAuthor": moment.username,
+                "momentAuthorId": moment.authorId,  // ✅ Agregar el ID del autor
+                "momentContent": moment.content,
+                "momentImageUrl": moment.thumbnailUrl ?? moment.imagePath ?? "", // ✅ MEJORADO: Usar thumbnailUrl si existe
+                "momentVideoUrl": moment.videoUrl ?? "", // ✅ NUEVO: Agregar URL del video
+                "momentTimestamp": String(moment.timestamp.timeIntervalSince1970), // ✅ Convert to String
+                "shareUrl": momentUrl
+            ]
+            
+            let messageId = UUID().uuidString
+            
+            // ✅ Usar tu init personalizado de EnhancedMessage
+            let message = EnhancedMessage(
+                id: messageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .sharedMoment,
+                content: encryptedContent,
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                duration: nil,
+                fileName: nil,
+                fileSize: nil,
+                latitude: nil,
+                longitude: nil,
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                deletedAt: nil,
+                editedAt: nil,
+                reactions: nil,
+                replyTo: nil,
+                expirationDate: nil,
+                isViewed: false,
+                storyReplyData: nil,
+                sharedMomentData: sharedMomentData  // ✅ Ahora es [String: String]
+            )
+            
+            print("🔗 Sending shared moment message: \(messageId)")
+            
+            // ✅ Usar la función existente sendMessage
+            sendMessage(message, useServerTimestamp: true) { result in
+                switch result {
+                case .success(let sentMessage):
+                    // ✅ Usar la función existente updateConversation
+                    self.updateConversation(
+                        conversationId: conversationId,
+                        lastMessage: "📷 Momento compartido", // Preview descifrado
+                        senderId: senderId
+                    ) { updateError in
+                        if let updateError = updateError {
+                            print("⚠️ Error updating conversation: \(updateError.localizedDescription)")
+                        }
+                        completion(.success(sentMessage))
                     }
-                    completion(.success(sentMessage))
+                case .failure(let error):
+                    completion(.failure(error))
                 }
-            case .failure(let error):
-                completion(.failure(error))
             }
         }
     }
@@ -2001,6 +2129,18 @@ extension ChatService {
         }
         
         return data
+    }
+    
+    func preloadConversationKey(for conversationId: String) async {
+        await encryptionService.preloadConversationKeys(for: [conversationId])
+    }
+    
+    func decryptMessageContent(_ content: String, for conversationId: String) async -> String {
+        return await encryptionService.decryptChatMessage(content, for: conversationId) ?? content
+    }
+    
+    func encryptMessageContent(_ content: String, for conversationId: String) async -> String {
+        return await encryptionService.encryptChatMessage(content, for: conversationId) ?? content
     }
     
     // ✅ Función auxiliar para guardar mensaje view-once

@@ -911,12 +911,16 @@ struct ConversationHistoryOverlay: View {
                                         conversation: conversation,
                                         viewModel: viewModel,
                                         onSelect: {
-                                            viewModel.loadConversation(conversation.id)
-                                            showConversationHistory = false
-                                            showSuggestedOptions = false
+                                            Task {
+                                                await viewModel.loadConversation(conversation.id)
+                                                showConversationHistory = false
+                                                showSuggestedOptions = false
+                                            }
                                         },
                                         onDelete: {
-                                            viewModel.deleteConversation(conversation.id)
+                                            Task {
+                                                await viewModel.deleteConversation(conversation.id)
+                                            }
                                         }
                                     )
                                     .padding(.horizontal, 20)
@@ -955,8 +959,10 @@ struct ConversationHistoryItem: View {
             print("📊 ID: \(conversation.id)")
             print("📊 Mensajes: \(conversation.messageCount)")
             
-            viewModel.loadConversation(conversation.id)
-            onSelect()
+            Task {
+                await viewModel.loadConversation(conversation.id)
+                onSelect()
+            }
         }) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -1900,7 +1906,7 @@ class GeminiViewModel: ObservableObject {
     private(set) var suggestedUsers: [AppUser] = []
     
     private var currentConversationId: String?
-    private let conversationService = ConversationService()
+    private var conversationService: ConversationService?
     private let firestoreService = FirestoreService()
     private let vertexAI: VertexAI
     private let model: GenerativeModel
@@ -1942,7 +1948,12 @@ class GeminiViewModel: ObservableObject {
             safetySettings: safetySettings
         )
         
-        loadConversationTitles()
+        Task {
+            await MainActor.run {
+                self.conversationService = ConversationService()
+            }
+            await self.loadConversationTitles()
+        }
     }
 
     // MARK: - Funciones originales sin cambios
@@ -2061,13 +2072,13 @@ class GeminiViewModel: ObservableObject {
     }
     
     // MARK: - Gestión de conversaciones (sin cambios)
-    func loadConversationTitles() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    func loadConversationTitles() async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let conversationService = conversationService else { return }
         
-        conversationService.loadConversationTitles(for: userId) { [weak self] titles in
-            DispatchQueue.main.async {
-                self?.conversationTitles = titles
-            }
+        let titles = await conversationService.loadConversationTitles(for: userId)
+        await MainActor.run {
+            self.conversationTitles = titles
         }
     }
     
@@ -2087,67 +2098,70 @@ class GeminiViewModel: ObservableObject {
         }
     }
     
-    func loadConversation(_ conversationId: String) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    func loadConversation(_ conversationId: String) async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let conversationService = conversationService else { return }
         
         LogConfig.log("🔄 Cargando conversación: \(conversationId)", category: "Conversation")
-        isLoading = true
+        await MainActor.run {
+            isLoading = true
+        }
         
-        conversationService.loadConversation(conversationId, for: userId) { [weak self] messages in
-            DispatchQueue.main.async {
-                self?.conversationHistory = messages
-                self?.currentConversationId = conversationId
-                self?.isLoading = false
-                self?.objectWillChange.send()
-                
-                // Recargar contexto silenciosamente
-                if let userId = Auth.auth().currentUser?.uid {
-                    self?.loadMemoryContextSilently(userId: userId)
-                }
+        let messages = await conversationService.loadConversation(conversationId, for: userId)
+        await MainActor.run {
+            self.conversationHistory = messages
+            self.currentConversationId = conversationId
+            self.isLoading = false
+            self.objectWillChange.send()
+            
+            // Recargar contexto silenciosamente
+            if let userId = Auth.auth().currentUser?.uid {
+                self.loadMemoryContextSilently(userId: userId)
             }
         }
     }
     
-    func deleteConversation(_ conversationId: String) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        
-        conversationService.deleteConversation(conversationId, for: userId) { [weak self] success in
-            if success {
-                DispatchQueue.main.async {
-                    self?.conversationTitles.removeAll { $0.id == conversationId }
-                    if self?.currentConversationId == conversationId {
-                        self?.startNewConversation()
-                    }
-                }
-            }
-        }
-    }
-    
-    private func saveCurrentConversation() {
+    func deleteConversation(_ conversationId: String) async {
         guard let userId = Auth.auth().currentUser?.uid,
-              !conversationHistory.isEmpty else { return }
+              let conversationService = conversationService else { return }
+        
+        let success = await conversationService.deleteConversation(conversationId, for: userId)
+        if success {
+            await MainActor.run {
+                self.conversationTitles.removeAll { $0.id == conversationId }
+                if self.currentConversationId == conversationId {
+                    self.startNewConversation()
+                }
+            }
+        }
+    }
+    
+    private func saveCurrentConversation() async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              !conversationHistory.isEmpty,
+              let conversationService = conversationService else { return }
         
         if let conversationId = currentConversationId {
             // Actualizar conversación existente
-            conversationService.updateConversation(
+            let success = await conversationService.updateConversation(
                 conversationId,
                 for: userId,
                 messages: conversationHistory
-            ) { [weak self] success in
-                if success {
-                    self?.loadConversationTitles()
-                }
+            )
+            if success {
+                await loadConversationTitles()
             }
         } else {
             // Crear nueva conversación
-            conversationService.saveConversation(
+            let conversationId = await conversationService.saveConversation(
                 for: userId,
                 messages: conversationHistory
-            ) { [weak self] conversationId in
-                if let id = conversationId {
-                    self?.currentConversationId = id
-                    self?.loadConversationTitles()
+            )
+            if let id = conversationId {
+                await MainActor.run {
+                    self.currentConversationId = id
                 }
+                await loadConversationTitles()
             }
         }
     }
@@ -2244,7 +2258,9 @@ class GeminiViewModel: ObservableObject {
                 self.conversationHistory.append(ChatMessage(text: validatedResponse, isUser: false))
                 
                 // ✅ GUARDAR CONVERSACIÓN
-                self.saveCurrentConversation()
+                Task {
+                    await self.saveCurrentConversation()
+                }
                 
                 // ✅ PROCESAR MEMORIA CON DEBOUNCE MEJORADO
                 self.scheduleMemoryProcessing(userId: userId)
@@ -2324,7 +2340,9 @@ class GeminiViewModel: ObservableObject {
         self.isLoading = false
         self.responseText = userFriendlyMessage
         self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
-        self.saveCurrentConversation()
+        Task {
+            await self.saveCurrentConversation()
+        }
     }
     
     // ✅ NUEVA FUNCIÓN: PROGRAMAR PROCESAMIENTO DE MEMORIA CON DEBOUNCE
@@ -2445,7 +2463,9 @@ class GeminiViewModel: ObservableObject {
                 }
                 
                 self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
-                self.saveCurrentConversation()
+                Task {
+                    await self.saveCurrentConversation()
+                }
                 self.isLoading = false
             }
         }
@@ -2470,7 +2490,9 @@ class GeminiViewModel: ObservableObject {
         """
         
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
-        saveCurrentConversation()
+        Task {
+            await saveCurrentConversation()
+        }
         inputText = ""
     }
     
@@ -2536,7 +2558,9 @@ class GeminiViewModel: ObservableObject {
                                 }
                                 
                                 self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
-                                self.saveCurrentConversation()
+                                Task {
+                                    await self.saveCurrentConversation()
+                                }
                                 self.isLoading = false
                             }
                         }
@@ -2558,7 +2582,9 @@ class GeminiViewModel: ObservableObject {
                     ¿Quieres intentar de nuevo o prefieres que te dé más consejos específicos?
                     """
                     self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
-                    self.saveCurrentConversation()
+                    Task {
+                        await self.saveCurrentConversation()
+                    }
                     self.isLoading = false
                 }
             }
@@ -2588,7 +2614,9 @@ class GeminiViewModel: ObservableObject {
         """
         
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
-        saveCurrentConversation()
+        Task {
+            await saveCurrentConversation()
+        }
         inputText = ""
     }
     
@@ -2614,7 +2642,9 @@ class GeminiViewModel: ObservableObject {
         """
         
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
-        saveCurrentConversation()
+        Task {
+            await saveCurrentConversation()
+        }
         inputText = ""
     }
     
@@ -2962,6 +2992,8 @@ extension GeminiViewModel {
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
         
         inputText = ""
-        saveCurrentConversation()
+        Task {
+            await saveCurrentConversation()
+        }
     }
 }

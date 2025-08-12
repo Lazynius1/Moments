@@ -1,357 +1,1860 @@
+// MARK: - 📊 ENHANCED SUPPORTING TYPES
+struct EncryptionMetrics {
+    var successfulEncryptions: Int = 0
+    var successfulDecryptions: Int = 0
+    var encryptionErrors: Int = 0
+    var decryptionErrors: Int = 0
+    var cacheHits: Int = 0
+    var keychainHits: Int = 0
+    var firestoreHits: Int = 0
+    var firestoreErrors: Int = 0
+    var newKeysCreated: Int = 0
+    var keyRotations: Int = 0
+    var batchPreloadRequests: Int = 0
+    var averagePreloadTime: Double = 0.0
+    var initializationErrors: Int = 0
+    var toggleEvents: Int = 0
+    var fullResets: Int = 0
+    var cacheLoadTime: Double = 0.0
+    var totalKeysLoaded: Int = 0
+    var lastError: String?
+    
+    var totalOperations: Int {
+        successfulEncryptions + successfulDecryptions + encryptionErrors + decryptionErrors
+    }
+    
+    var successRate: Double {
+        guard totalOperations > 0 else { return 1.0 }
+        return Double(successfulEncryptions + successfulDecryptions) / Double(totalOperations)
+    }
+    
+    var cacheEfficiency: Double {
+        let totalHits = cacheHits + keychainHits + firestoreHits
+        guard totalHits > 0 else { return 0.0 }
+        return Double(cacheHits) / Double(totalHits)
+    }
+}
+
+struct KeychainStatistics {
+    let userKeysInKeychain: Int
+    let conversationKeysInKeychain: Int
+    let otherKeysInKeychain: Int
+    let totalSizeBytes: Int
+    let userKeysInCache: Int
+    let conversationKeysInCache: Int
+    
+    init(userKeysInKeychain: Int = 0, conversationKeysInKeychain: Int = 0, otherKeysInKeychain: Int = 0, totalSizeBytes: Int = 0, userKeysInCache: Int = 0, conversationKeysInCache: Int = 0) {
+        self.userKeysInKeychain = userKeysInKeychain
+        self.conversationKeysInKeychain = conversationKeysInKeychain
+        self.otherKeysInKeychain = otherKeysInKeychain
+        self.totalSizeBytes = totalSizeBytes
+        self.userKeysInCache = userKeysInCache
+        self.conversationKeysInCache = conversationKeysInCache
+    }
+    
+    var totalKeysInKeychain: Int {
+        userKeysInKeychain + conversationKeysInKeychain + otherKeysInKeychain
+    }
+    
+    var totalKeysInCache: Int {
+        userKeysInCache + conversationKeysInCache
+    }
+    
+    var cacheToKeychainRatio: Double {
+        guard totalKeysInKeychain > 0 else { return 0.0 }
+        return Double(totalKeysInCache) / Double(totalKeysInKeychain)
+    }
+    
+    var formattedSize: String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB]
+        return formatter.string(fromByteCount: Int64(totalSizeBytes))
+    }
+    
+    var healthStatus: String {
+        if cacheToKeychainRatio > 0.9 {
+            return "✅ Excelente sincronización"
+        } else if cacheToKeychainRatio > 0.7 {
+            return "⚠️ Buena sincronización"
+        } else {
+            return "❌ Baja sincronización"
+        }
+    }
+}
+
+struct CacheStatistics {
+    let userKeysCached: Int
+    let conversationKeysCached: Int
+    let expiredKeys: Int
+    let activePreloadTasks: Int
+}
+
+struct DetailedEncryptionInfo {
+    let isEnabled: Bool
+    let status: EncryptionStatus
+    let userKeysCount: Int
+    let conversationKeysCount: Int
+    let hasValidMasterKey: Bool
+    let metrics: EncryptionMetrics
+    let cacheStatistics: CacheStatistics
+    let keyVersions: [String: Int]
+    
+    var statusDescription: String {
+        if !isEnabled {
+            return "🔒 Encriptación deshabilitada"
+        }
+        
+        switch status {
+        case .ready:
+            return "✅ Activa y funcionando (\(String(format: "%.1f", metrics.successRate * 100))% éxito)"
+        case .initializing:
+            return "⏳ Inicializando sistema de encriptación..."
+        case .degraded(let issue):
+            return "⚠️ Funcionando con problemas: \(issue) (\(String(format: "%.1f", metrics.successRate * 100))% éxito)"
+        case .error(let message):
+            return "❌ Error: \(message)"
+        }
+    }
+    
+    var performanceReport: String {
+        return """
+        📊 Reporte de Rendimiento:
+        • Operaciones totales: \(metrics.totalOperations)
+        • Tasa de éxito: \(String(format: "%.1f", metrics.successRate * 100))%
+        • Eficiencia de caché: \(String(format: "%.1f", metrics.cacheEfficiency * 100))%
+        • Claves en caché: \(cacheStatistics.userKeysCached + cacheStatistics.conversationKeysCached)
+        • Tiempo promedio de precarga: \(String(format: "%.2f", metrics.averagePreloadTime))s
+        • Rotaciones de claves: \(metrics.keyRotations)
+        """
+    }
+}
+
+// MARK: - 🔄 ENHANCED STATUS ENUM
+enum EncryptionStatus: Equatable {
+    case ready
+    case initializing
+    case degraded(String) // Funcionando pero con problemas
+    case error(String)
+    
+    var description: String {
+        switch self {
+        case .ready:
+            return "Listo"
+        case .initializing:
+            return "Inicializando..."
+        case .degraded(let issue):
+            return "Funcionando (⚠️ \(issue))"
+        case .error(let message):
+            return "Error: \(message)"
+        }
+    }
+    
+    var isOperational: Bool {
+        switch self {
+        case .ready, .degraded:
+            return true
+        case .initializing, .error:
+            return false
+        }
+    }
+}
+
+// MARK: - 🚨 ENHANCED ERROR HANDLING
+enum EncryptionError: LocalizedError, Equatable {
+    case invalidInput
+    case encryptionFailed
+    case decryptionFailed
+    case keychainError(String)
+    case keyNotFound
+    case timeout
+    case networkError(String)
+    case keyCorrupted
+    case versionMismatch(String)
+    case concurrencyError
+    case quotaExceeded
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidInput:
+            return "Datos de entrada inválidos para encriptación"
+        case .encryptionFailed:
+            return "Error en el proceso de encriptación"
+        case .decryptionFailed:
+            return "Error en el proceso de desencriptación"
+        case .keychainError(let message):
+            return "Error en Keychain: \(message)"
+        case .keyNotFound:
+            return "Clave de encriptación no encontrada"
+        case .timeout:
+            return "Timeout al obtener clave de encriptación"
+        case .networkError(let message):
+            return "Error de red: \(message)"
+        case .keyCorrupted:
+            return "Clave de encriptación corrompida"
+        case .versionMismatch(let version):
+            return "Versión de clave incompatible: \(version)"
+        case .concurrencyError:
+            return "Error de concurrencia en acceso a claves"
+        case .quotaExceeded:
+            return "Cuota de operaciones excedida"
+        }
+    }
+    
+    var recoverySuggestion: String? {
+        switch self {
+        case .keyCorrupted, .versionMismatch:
+            return "Intenta rotar la clave de la conversación"
+        case .timeout, .networkError:
+            return "Verifica tu conexión a internet"
+        case .keychainError:
+            return "Reinicia la app e intenta de nuevo"
+        case .quotaExceeded:
+            return "Espera unos minutos antes de intentar de nuevo"
+        default:
+            return "Contacta soporte si el problema persiste"
+        }
+    }
+    
+    var severity: ErrorSeverity {
+        switch self {
+        case .keyCorrupted, .versionMismatch:
+            return .high
+        case .keychainError, .concurrencyError:
+            return .medium
+        case .timeout, .networkError:
+            return .low
+        default:
+            return .medium
+        }
+    }
+}
+
+enum ErrorSeverity {
+    case low, medium, high
+    
+    var emoji: String {
+        switch self {
+        case .low: return "⚠️"
+        case .medium: return "🚨"
+        case .high: return "🔥"
+        }
+    }
+}
+
+// MARK: - 🎯 EXTENSION para Better UX
+extension EncryptionService {
+    
+    /// 🚀 Encrypt multiple messages in batch for better performance
+    func encryptChatMessagesBatch(_ messages: [(text: String, conversationId: String)]) async -> [String?] {
+        await withTaskGroup(of: (Int, String?).self, returning: [String?].self) { group in
+            
+            for (index, message) in messages.enumerated() {
+                group.addTask {
+                    let encrypted = await self.encryptChatMessage(message.text, for: message.conversationId)
+                    return (index, encrypted)
+                }
+            }
+            
+            var results: [String?] = Array(repeating: nil, count: messages.count)
+            for await (index, encrypted) in group {
+                results[index] = encrypted
+            }
+            
+            await updateMetrics { $0.successfulEncryptions += results.compactMap { $0 }.count }
+            return results
+        }
+    }
+    
+    /// 🔍 Health check for encryption system
+    func performHealthCheck() async -> EncryptionHealthReport {
+        var report = EncryptionHealthReport()
+        
+        // Test master key
+        report.masterKeyStatus = masterKey != nil ? .healthy : .unhealthy("Master key missing")
+        
+        // Test cache performance
+        let cacheTestStart = Date()
+        let testConversationId = "health_check_test"
+        
+        do {
+            _ = try await getConversationKey(for: testConversationId)
+            report.cachePerformance = Date().timeIntervalSince(cacheTestStart)
+            await deleteConversationKeys(for: testConversationId)
+        } catch {
+            report.cachePerformance = -1
+            report.lastError = error.localizedDescription
+        }
+        
+        // Test encryption/decryption
+        let testMessage = "health_check_\(Date().timeIntervalSince1970)"
+        if let testKey = try? SymmetricKey(size: .bits256) {
+            do {
+                let encrypted = try encrypt(text: testMessage, with: testKey)
+                let decrypted = try decrypt(encryptedText: encrypted, with: testKey)
+                report.encryptionStatus = decrypted == testMessage ? .healthy : .unhealthy("Encryption test failed")
+            } catch {
+                report.encryptionStatus = .unhealthy("Encryption error: \(error.localizedDescription)")
+            }
+        }
+        
+        // Check keychain accessibility
+        do {
+            let testKey = SymmetricKey(size: .bits256)
+            try storeKeyInKeychain(key: testKey, tag: "health_check_keychain")
+            _ = try retrieveKeyFromKeychain(tag: "health_check_keychain")
+            report.keychainStatus = .healthy
+            
+            // Cleanup
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: keyChainService,
+                kSecAttrAccount as String: "health_check_keychain"
+            ]
+            SecItemDelete(query as CFDictionary)
+        } catch {
+            report.keychainStatus = .unhealthy("Keychain error: \(error.localizedDescription)")
+        }
+        
+        // Memory usage analysis
+        report.memoryUsage = calculateMemoryUsage()
+        
+        // Overall health
+        report.overallHealth = determineOverallHealth(report)
+        
+        return report
+    }
+    
+    private func calculateMemoryUsage() -> MemoryUsage {
+        let userKeysMemory = userKeys.count * 32 // Approximate 32 bytes per key
+        let conversationKeysMemory = conversationKeys.count * 32
+        let totalMemory = userKeysMemory + conversationKeysMemory
+        
+        return MemoryUsage(
+            userKeys: userKeysMemory,
+            conversationKeys: conversationKeysMemory,
+            total: totalMemory,
+            isHealthy: totalMemory < 1024 * 1024 // Less than 1MB is healthy
+        )
+    }
+    
+    private func determineOverallHealth(_ report: EncryptionHealthReport) -> HealthStatus {
+        let criticalComponents = [
+            report.masterKeyStatus,
+            report.encryptionStatus,
+            report.keychainStatus
+        ]
+        
+        if criticalComponents.allSatisfy({ $0.isHealthy }) {
+            return report.cachePerformance < 1.0 ? .healthy : .degraded("Cache performance slow")
+        } else {
+            return .unhealthy("Critical components failing")
+        }
+    }
+    
+    /// 🎨 Generate encryption metrics for UI dashboard
+    func getMetricsForDashboard() async -> DashboardMetrics {
+        let info = await getDetailedEncryptionInfo()
+        
+        return DashboardMetrics(
+            encryptionInfo: info,
+            recentErrors: getRecentErrors(),
+            performanceTrends: getPerformanceTrends(),
+            securityScore: calculateSecurityScore(info)
+        )
+    }
+    
+    private func getRecentErrors() -> [ErrorEvent] {
+        // In a real implementation, you'd maintain a circular buffer of recent errors
+        return []
+    }
+    
+    private func getPerformanceTrends() -> PerformanceTrends {
+        return PerformanceTrends(
+            encryptionLatency: [], // Would track recent latencies
+            cacheHitRate: [], // Would track cache performance over time
+            errorRate: [] // Would track error rates
+        )
+    }
+    
+    private func calculateSecurityScore(_ info: DetailedEncryptionInfo) -> SecurityScore {
+        var score = 100
+        
+        // Deduct points for errors
+        if info.metrics.encryptionErrors > 0 {
+            score -= min(20, info.metrics.encryptionErrors * 2)
+        }
+        
+        // Deduct points for old keys
+        if info.cacheStatistics.expiredKeys > 0 {
+            score -= min(10, info.cacheStatistics.expiredKeys)
+        }
+        
+        // Bonus for recent key rotations
+        if info.metrics.keyRotations > 0 {
+            score = min(100, score + 5)
+        }
+        
+        return SecurityScore(
+            value: max(0, score),
+            grade: gradeFromScore(score),
+            recommendations: generateSecurityRecommendations(info)
+        )
+    }
+    
+    private func gradeFromScore(_ score: Int) -> String {
+        switch score {
+        case 90...100: return "A+"
+        case 80...89: return "A"
+        case 70...79: return "B"
+        case 60...69: return "C"
+        default: return "D"
+        }
+    }
+    
+    private func generateSecurityRecommendations(_ info: DetailedEncryptionInfo) -> [String] {
+        var recommendations: [String] = []
+        
+        if info.metrics.keyRotations == 0 {
+            recommendations.append("Considera rotar claves periódicamente")
+        }
+        
+        if info.cacheStatistics.expiredKeys > 0 {
+            recommendations.append("Limpia claves expiradas regularmente")
+        }
+        
+        if info.metrics.encryptionErrors > info.metrics.successfulEncryptions / 10 {
+            recommendations.append("Investiga errores de encriptación frecuentes")
+        }
+        
+        return recommendations
+    }
+}
+
+// MARK: - 📊 SUPPORTING TYPES for Enhanced Features
+struct EncryptionHealthReport {
+    var masterKeyStatus: HealthStatus = .unknown
+    var encryptionStatus: HealthStatus = .unknown
+    var keychainStatus: HealthStatus = .unknown
+    var cachePerformance: TimeInterval = 0
+    var memoryUsage: MemoryUsage = MemoryUsage(userKeys: 0, conversationKeys: 0, total: 0, isHealthy: true)
+    var overallHealth: HealthStatus = .unknown
+    var lastError: String?
+    var timestamp: Date = Date()
+}
+
+enum HealthStatus {
+    case healthy
+    case degraded(String)
+    case unhealthy(String)
+    case unknown
+    
+    var isHealthy: Bool {
+        switch self {
+        case .healthy: return true
+        default: return false
+        }
+    }
+    
+    var emoji: String {
+        switch self {
+        case .healthy: return "✅"
+        case .degraded: return "⚠️"
+        case .unhealthy: return "❌"
+        case .unknown: return "❓"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .healthy: return "Sistema saludable"
+        case .degraded(let message): return "Degradado: \(message)"
+        case .unhealthy(let message): return "No saludable: \(message)"
+        case .unknown: return "Estado desconocido"
+        }
+    }
+}
+
+struct MemoryUsage {
+    let userKeys: Int
+    let conversationKeys: Int
+    let total: Int
+    let isHealthy: Bool
+    
+    var formattedSize: String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB]
+        return formatter.string(fromByteCount: Int64(total))
+    }
+}
+
+struct DashboardMetrics {
+    let encryptionInfo: DetailedEncryptionInfo
+    let recentErrors: [ErrorEvent]
+    let performanceTrends: PerformanceTrends
+    let securityScore: SecurityScore
+}
+
+struct ErrorEvent {
+    let timestamp: Date
+    let error: EncryptionError
+    let context: String
+}
+
+struct PerformanceTrends {
+    let encryptionLatency: [TimeInterval]
+    let cacheHitRate: [Double]
+    let errorRate: [Double]
+}
+
+struct SecurityScore {
+    let value: Int
+    let grade: String
+    let recommendations: [String]
+    
+    var color: String {
+        switch value {
+        case 90...100: return "green"
+        case 70...89: return "yellow"
+        case 50...69: return "orange"
+        default: return "red"
+        }
+    }
+}
 import Foundation
 import CryptoKit
 import Security
 import FirebaseAuth
 import FirebaseFirestore
 
-// MARK: - EncryptionService con Claves Compartidas ULTRA RÁPIDO
+// MARK: - EncryptionService ULTRA OPTIMIZADO para Moments 🚀
+@MainActor
 class EncryptionService: ObservableObject {
     static let shared = EncryptionService()
     
     // MARK: - Constants
-    private let keyChainService = "com.Momentsapp.encryption"
-    private let masterKeyTag = "master_encryption_key"
-    private let userKeysPrefix = "user_key_"
-    private let conversationKeysPrefix = "conversation_key_"
+    private let keyChainService = "com.Momentsapp.encryption.v2"
+    private let masterKeyTag = "master_encryption_key_v2"
+    private let userKeysPrefix = "user_key_v2_"
+    private let conversationKeysPrefix = "conversation_key_v2_"
+    private let keyMetadataPrefix = "key_metadata_"
     private let db = Firestore.firestore()
     
     // MARK: - Published Properties
     @Published var isEncryptionEnabled: Bool = true
     @Published var encryptionStatus: EncryptionStatus = .ready
+    @Published var encryptionMetrics: EncryptionMetrics = EncryptionMetrics()
+    @Published var enhancedEncryptionMetrics: EnhancedEncryptionMetrics = EnhancedEncryptionMetrics()
     
     // MARK: - Private Properties
     private var masterKey: SymmetricKey?
-    private var userKeys: [String: SymmetricKey] = [:] // userId: key
-    private var conversationKeys: [String: SymmetricKey] = [:] // conversationId: key
+    private var userKeys: [String: CachedKey] = [:]
+    private var conversationKeys: [String: CachedKey] = [:]
+    private let keyAccessQueue = DispatchQueue(label: "encryption.keys", qos: .userInitiated)
+    private var preloadTasks: [String: Task<SymmetricKey, Error>] = [:]
+    
+    // MARK: - 🔑 Enhanced Key Structure (FIXED)
+    private struct CachedKey {
+        let key: SymmetricKey
+        let createdAt: Date
+        var lastUsed: Date
+        let version: String
+        var usageCount: Int
+        
+        init(key: SymmetricKey, version: String = "2.0") {
+            self.key = key
+            self.version = version
+            let now = Date()
+            self.createdAt = now
+            self.lastUsed = now
+            self.usageCount = 0
+        }
+        
+        mutating func markUsed() {
+            usageCount += 1
+            lastUsed = Date()
+        }
+        
+        var isExpired: Bool {
+            // Claves expiran después de 30 días sin uso
+            Date().timeIntervalSince(lastUsed) > 30 * 24 * 60 * 60
+        }
+    }
+    
+    // MARK: - 📊 MÉTRICAS MEJORADAS PARA ROBUSTEZ (FIXED - Moved outside CachedKey)
+    struct EnhancedEncryptionMetrics {
+        // Métricas existentes básicas
+        var successfulEncryptions: Int = 0
+        var successfulDecryptions: Int = 0
+        var encryptionErrors: Int = 0
+        var decryptionErrors: Int = 0
+        var cacheHits: Int = 0
+        var keychainHits: Int = 0
+        var firestoreHits: Int = 0
+        var firestoreErrors: Int = 0
+        var newKeysCreated: Int = 0
+        var keyRotations: Int = 0
+        
+        // Nuevas métricas de robustez
+        var deviceRecoveries: Int = 0
+        var firstInstalls: Int = 0
+        var recoveryErrors: Int = 0
+        var keyRecoveryFailures: Int = 0
+        var validatedKeys: Int = 0
+        var corruptedKeys: Int = 0
+        var emergencyRotations: Int = 0
+        var backupLocationHits: Int = 0
+        var legacyLocationHits: Int = 0
+        var initializationErrors: Int = 0
+        var lastRecoveryDate: Date?
+        var lastError: String?
+        
+        var recoverySuccessRate: Double {
+            let totalRecoveries = deviceRecoveries + recoveryErrors
+            guard totalRecoveries > 0 else { return 1.0 }
+            return Double(deviceRecoveries) / Double(totalRecoveries)
+        }
+        
+        var keyIntegrityRate: Double {
+            let totalValidated = validatedKeys + corruptedKeys
+            guard totalValidated > 0 else { return 1.0 }
+            return Double(validatedKeys) / Double(totalValidated)
+        }
+        
+        var robustnessScore: Int {
+            var score = 100
+            
+            // Deduct for recovery failures
+            if recoveryErrors > 0 {
+                score -= min(30, recoveryErrors * 10)
+            }
+            
+            // Deduct for corrupted keys
+            if corruptedKeys > 0 {
+                score -= min(20, corruptedKeys * 5)
+            }
+            
+            // Bonus for successful recoveries
+            if deviceRecoveries > 0 {
+                score = min(100, score + 10)
+            }
+            
+            return max(0, score)
+        }
+    }
+    
+    // MARK: - Key Metadata
+    private struct KeyMetadata: Codable {
+        let keyId: String
+        let createdAt: Date
+        let version: String
+        let deviceId: String
+        let lastRotation: Date?
+        
+        init(keyId: String, version: String = "2.0") {
+            self.keyId = keyId
+            self.version = version
+            self.createdAt = Date()
+            self.deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+            self.lastRotation = nil
+        }
+    }
     
     // MARK: - Initialization
     private init() {
-        setupEncryption()
+        Task {
+            await setupEncryptionRobust()
+            await cleanupExpiredKeys()
+            
+            // Iniciar schedule de métricas
+            startMetricsUploadSchedule()
+        }
     }
     
-    // MARK: - Setup
-    private func setupEncryption() {
+    // MARK: - 🛡️ SISTEMA 100% ROBUSTO - Como WhatsApp
+    private func setupEncryptionRobust() async {
         encryptionStatus = .initializing
         
         do {
-            masterKey = try getOrCreateMasterKey()
-            print("🔐 EncryptionService: Master key configured")
+            // 1. Setup básico
+            masterKey = try await getOrCreateMasterKey()
+            
+            // 2. Sistema de recuperación
+            await setupRecoverySystem()
+            
+            // 3. Cargar claves
+            await loadCachedKeys()
+            
+            // 4. Limpieza
+            await scanAndCleanupKeychain()
+            
+            print("🔐 EncryptionService v2: Sistema robusto configurado exitosamente")
             encryptionStatus = .ready
+            
         } catch {
-            print("❌ EncryptionService: Error setting up encryption: \(error)")
+            print("❌ EncryptionService: Error crítico en setup: \(error)")
             encryptionStatus = .error(error.localizedDescription)
             isEncryptionEnabled = false
-        }
-    }
-    
-    // MARK: - Master Key Management
-    private func getOrCreateMasterKey() throws -> SymmetricKey {
-        // Try to retrieve existing key
-        if let existingKey = try? retrieveKeyFromKeychain(tag: masterKeyTag) {
-            return existingKey
-        }
-        
-        // Create new master key
-        let newKey = SymmetricKey(size: .bits256)
-        try storeKeyInKeychain(key: newKey, tag: masterKeyTag)
-        
-        print("🔐 New master key created and stored in Keychain")
-        return newKey
-    }
-    
-    // MARK: - User-Specific Keys
-    private func getUserKey(for userId: String) throws -> SymmetricKey {
-        if let existingKey = userKeys[userId] {
-            return existingKey
-        }
-        
-        let keyTag = userKeysPrefix + userId
-        
-        // Try to retrieve from keychain
-        if let storedKey = try? retrieveKeyFromKeychain(tag: keyTag) {
-            userKeys[userId] = storedKey
-            return storedKey
-        }
-        
-        // Create new user key
-        let newKey = SymmetricKey(size: .bits256)
-        try storeKeyInKeychain(key: newKey, tag: keyTag)
-        userKeys[userId] = newKey
-        
-        print("🔐 New user key created for: \(userId)")
-        return newKey
-    }
-    
-    // MARK: - 🚀 CONVERSACIÓN KEYS INSTANTÁNEAS (Como WhatsApp)
-    private func getConversationKey(for conversationId: String) throws -> SymmetricKey {
-        // ✅ SOLO CACHÉ - NUNCA BLOQUEAR
-        if let existingKey = conversationKeys[conversationId] {
-            return existingKey
-        }
-        
-        // ✅ KEYCHAIN RÁPIDO
-        let keyTag = conversationKeysPrefix + conversationId
-        if let storedKey = try? retrieveKeyFromKeychain(tag: keyTag) {
-            conversationKeys[conversationId] = storedKey
-            return storedKey
-        }
-        
-        // ✅ ÚLTIMO RECURSO: Crear clave temporal y subir en background
-        print("⚡ Creating temporary key for instant messaging")
-        let tempKey = SymmetricKey(size: .bits256)
-        conversationKeys[conversationId] = tempKey
-        try? storeKeyInKeychain(key: tempKey, tag: keyTag)
-        
-        // ✅ SUBIR EN BACKGROUND (no bloquear)
-        uploadKeyInBackground(conversationId: conversationId, key: tempKey)
-        
-        return tempKey
-    }
-    
-    // ✅ NUEVA FUNCIÓN: Subir clave en background
-    private func uploadKeyInBackground(conversationId: String, key: SymmetricKey) {
-        DispatchQueue.global(qos: .background).async {
-            let keyData = key.withUnsafeBytes { Data($0) }
-            let keyDataString = keyData.base64EncodedString()
             
-            self.db.collection("conversations")
-                .document(conversationId)
-                .updateData([
-                    "encryptionKey": keyDataString,
-                    "encryptionKeyCreatedAt": FieldValue.serverTimestamp(),
-                    "encryptionVersion": "1.0"
-                ]) { error in
-                    if let error = error {
-                        print("❌ Background key upload failed: \(error)")
-                    } else {
-                        print("✅ Background key uploaded for: \(conversationId)")
+            await updateEnhancedMetrics { metrics in
+                metrics.initializationErrors += 1
+                metrics.lastError = error.localizedDescription
+            }
+        }
+    }
+    
+    // MARK: - 🚀 RECOVERY SYSTEM ULTRA ROBUSTO
+    private func setupRecoverySystem() async {
+        await detectAndRecoverFromDeviceChange()
+        await validateExistingKeys()
+        await syncWithFirestore()
+    }
+    
+    // MARK: - ✅ VALIDAR CLAVES EXISTENTES
+    private func validateExistingKeys() async {
+        print("🔍 Validando claves existentes en el sistema...")
+        
+        var validKeys = 0
+        var invalidKeys = 0
+        
+        // Validar user keys
+        for (userId, cachedKey) in userKeys {
+            if await isKeyValid(cachedKey.key) {
+                validKeys += 1
+                print("✅ User key válida: \(userId)")
+            } else {
+                invalidKeys += 1
+                print("❌ User key inválida: \(userId)")
+                // Eliminar clave inválida
+                userKeys.removeValue(forKey: userId)
+                await cleanupKeychainKey(tag: userKeysPrefix + userId)
+            }
+        }
+        
+        // Validar conversation keys
+        for (conversationId, cachedKey) in conversationKeys {
+            if await isKeyValid(cachedKey.key) {
+                validKeys += 1
+                print("✅ Conversation key válida: \(conversationId)")
+            } else {
+                invalidKeys += 1
+                print("❌ Conversation key inválida: \(conversationId)")
+                await handleCorruptedKey(conversationId: conversationId)
+            }
+        }
+        
+        print("🔍 Validación completada: \(validKeys) válidas, \(invalidKeys) inválidas")
+        
+        await updateEnhancedMetrics { metrics in
+            metrics.validatedKeys = validKeys
+            metrics.corruptedKeys = invalidKeys
+        }
+    }
+    
+    // MARK: - 🔑 HELPER: Verificar si una clave es válida
+    private func isKeyValid(_ key: SymmetricKey) async -> Bool {
+        do {
+            let testMessage = "validation_test_\(Date().timeIntervalSince1970)"
+            let encrypted = try encrypt(text: testMessage, with: key)
+            let decrypted = try decrypt(encryptedText: encrypted, with: key)
+            return decrypted == testMessage
+        } catch {
+            return false
+        }
+    }
+    
+    // MARK: - 📱 DETECCIÓN DE CAMBIO DE DISPOSITIVO
+    private func detectAndRecoverFromDeviceChange() async {
+        let currentDeviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        let storedDeviceId = UserDefaults.standard.string(forKey: "encryption_device_id")
+        let isFirstInstall = storedDeviceId == nil
+        
+        if isFirstInstall {
+            print("🆕 Primera instalación detectada")
+            UserDefaults.standard.set(currentDeviceId, forKey: "encryption_device_id")
+            UserDefaults.standard.set(Date(), forKey: "encryption_first_install")
+            await updateEnhancedMetrics { $0.firstInstalls += 1 }
+        } else if storedDeviceId != currentDeviceId {
+            print("📱 Cambio de dispositivo detectado: \(storedDeviceId ?? "nil") → \(currentDeviceId)")
+            await performDeviceRecovery(oldDeviceId: storedDeviceId ?? "unknown", newDeviceId: currentDeviceId)
+            UserDefaults.standard.set(currentDeviceId, forKey: "encryption_device_id")
+        } else {
+            print("✅ Mismo dispositivo, continuando normalmente")
+        }
+    }
+    
+    // MARK: - 🔄 RECUPERACIÓN TOTAL DE DISPOSITIVO
+    private func performDeviceRecovery(oldDeviceId: String, newDeviceId: String) async {
+        print("🔄 Iniciando recuperación completa de claves...")
+        
+        encryptionStatus = .degraded("Recuperando claves del dispositivo anterior")
+        
+        await updateEnhancedMetrics {
+            $0.deviceRecoveries += 1
+            $0.lastRecoveryDate = Date()
+        }
+        
+        // 1. Recuperar todas las conversaciones del usuario
+        await recoverAllUserConversations()
+        
+        // 2. Validar integridad de claves recuperadas
+        await validateRecoveredKeys()
+        
+        print("✅ Recuperación de dispositivo completada")
+        encryptionStatus = .ready
+    }
+    
+    // MARK: - 🔍 RECUPERAR TODAS LAS CONVERSACIONES
+    private func recoverAllUserConversations() async {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("❌ No hay usuario autenticado para recuperación")
+            return
+        }
+        
+        print("🔍 Recuperando conversaciones para usuario: \(currentUserId)")
+        
+        do {
+            // Obtener todas las conversaciones del usuario
+            let conversationsSnapshot = try await db.collection("conversations")
+                .whereField("participants", arrayContains: currentUserId)
+                .getDocuments()
+            
+            print("📋 Encontradas \(conversationsSnapshot.documents.count) conversaciones para recuperar")
+            
+            // Recuperar claves en paralelo
+            await withTaskGroup(of: Void.self) { group in
+                for document in conversationsSnapshot.documents {
+                    group.addTask {
+                        await self.recoverConversationKey(
+                            conversationId: document.documentID,
+                            conversationData: document.data()
+                        )
                     }
                 }
+            }
+            
+            print("✅ Recuperación de conversaciones completada")
+            
+        } catch {
+            print("❌ Error recuperando conversaciones: \(error)")
+            await updateEnhancedMetrics {
+                $0.recoveryErrors += 1
+                $0.lastError = error.localizedDescription
+            }
         }
     }
     
-    // ✅ NUEVA FUNCIÓN: Precargar claves al abrir el chat
-    func preloadConversationKey(for conversationId: String) {
-        guard conversationKeys[conversationId] == nil else { return }
+    // MARK: - 🔑 RECUPERAR CLAVE INDIVIDUAL CON MÁXIMA ROBUSTEZ
+    private func recoverConversationKey(conversationId: String, conversationData: [String: Any]) async {
+        print("🔑 Recuperando clave para conversación: \(conversationId)")
         
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.db.collection("conversations")
+        // Verificar si ya tenemos la clave localmente
+        if conversationKeys[conversationId] != nil {
+            print("✅ Clave ya disponible localmente: \(conversationId)")
+            return
+        }
+        
+        // Buscar clave en Firestore con múltiples intentos
+        if let recoveredKey = await recoverKeyFromFirestoreWithRetry(
+            conversationId: conversationId,
+            conversationData: conversationData
+        ) {
+            await cacheConversationKey(conversationId: conversationId, key: recoveredKey)
+            print("✅ Clave recuperada exitosamente: \(conversationId)")
+        } else {
+            print("❌ No se pudo recuperar clave para: \(conversationId)")
+            await updateEnhancedMetrics { $0.keyRecoveryFailures += 1 }
+        }
+    }
+    
+    // MARK: - 🔄 RECUPERACIÓN CON REINTENTOS COMO WHATSAPP
+    private func recoverKeyFromFirestoreWithRetry(
+        conversationId: String,
+        conversationData: [String: Any],
+        maxRetries: Int = 5
+    ) async -> SymmetricKey? {
+        
+        for attempt in 1...maxRetries {
+            print("🔄 Intento \(attempt)/\(maxRetries) para recuperar clave: \(conversationId)")
+            
+            do {
+                // Buscar en múltiples ubicaciones
+                if let key = await tryRecoverFromPrimaryLocation(conversationData: conversationData) {
+                    print("✅ Clave encontrada en ubicación primaria")
+                    await updateEnhancedMetrics { $0.firestoreHits += 1 }
+                    return key
+                }
+                
+                if let key = await tryRecoverFromBackupLocation(conversationId: conversationId) {
+                    print("✅ Clave encontrada en ubicación de respaldo")
+                    await updateEnhancedMetrics { $0.backupLocationHits += 1 }
+                    return key
+                }
+                
+                if let key = await tryRecoverFromLegacyLocation(conversationId: conversationId) {
+                    print("✅ Clave encontrada en ubicación legacy")
+                    await updateEnhancedMetrics { $0.legacyLocationHits += 1 }
+                    return key
+                }
+                
+                // Si no encontramos la clave, esperar antes del siguiente intento
+                if attempt < maxRetries {
+                    let delay = Double(attempt) * 0.5 // Backoff exponencial
+                    print("⏳ Esperando \(delay)s antes del siguiente intento...")
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
+                
+            } catch {
+                print("❌ Error en intento \(attempt): \(error)")
+                if attempt < maxRetries {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                }
+            }
+        }
+        
+        print("❌ No se pudo recuperar clave después de \(maxRetries) intentos: \(conversationId)")
+        return nil
+    }
+    
+    // MARK: - 📍 MÚLTIPLES UBICACIONES DE RECUPERACIÓN
+    private func tryRecoverFromPrimaryLocation(conversationData: [String: Any]) async -> SymmetricKey? {
+        // Ubicación primaria: campo sharedEncryptionKey
+        guard let keyDataString = conversationData["sharedEncryptionKey"] as? String,
+              let keyData = Data(base64Encoded: keyDataString) else {
+            return nil
+        }
+        
+        return SymmetricKey(data: keyData)
+    }
+    
+    private func tryRecoverFromBackupLocation(conversationId: String) async -> SymmetricKey? {
+        // Ubicación de respaldo: subcollection dedicada
+        do {
+            let keyDoc = try await db.collection("conversations")
                 .document(conversationId)
-                .getDocument { snapshot, error in
-                    guard let data = snapshot?.data(),
-                          let keyDataString = data["encryptionKey"] as? String,
-                          let keyData = Data(base64Encoded: keyDataString) else {
+                .collection("encryption")
+                .document("shared_key")
+                .getDocument()
+            
+            guard let data = keyDoc.data(),
+                  let keyDataString = data["encryptionKey"] as? String,
+                  let keyData = Data(base64Encoded: keyDataString) else {
+                return nil
+            }
+            
+            return SymmetricKey(data: keyData)
+        } catch {
+            return nil
+        }
+    }
+    
+    private func tryRecoverFromLegacyLocation(conversationId: String) async -> SymmetricKey? {
+        // Ubicación legacy: campo encryptionKey (versión anterior)
+        do {
+            let doc = try await db.collection("conversations")
+                .document(conversationId)
+                .getDocument()
+            
+            guard let data = doc.data(),
+                  let keyDataString = data["encryptionKey"] as? String,
+                  let keyData = Data(base64Encoded: keyDataString) else {
+                return nil
+            }
+            
+            return SymmetricKey(data: keyData)
+        } catch {
+            return nil
+        }
+    }
+    
+    // MARK: - ✅ VALIDACIÓN DE CLAVES RECUPERADAS
+    private func validateRecoveredKeys() async {
+        print("🔍 Validando integridad de claves recuperadas...")
+        
+        var validKeys = 0
+        var corruptedKeys = 0
+        
+        for (conversationId, _) in conversationKeys {
+            let status = await verifyKeyIntegrity(for: conversationId)
+            
+            switch status {
+            case .valid:
+                validKeys += 1
+            case .corrupted, .notFound:
+                corruptedKeys += 1
+                print("⚠️ Clave corrompida detectada: \(conversationId)")
+                await handleCorruptedKey(conversationId: conversationId)
+            }
+        }
+        
+        print("✅ Validación completada: \(validKeys) válidas, \(corruptedKeys) corrompidas")
+        
+        await updateEnhancedMetrics { metrics in
+            metrics.validatedKeys = validKeys
+            metrics.corruptedKeys = corruptedKeys
+        }
+    }
+    
+    // MARK: - 🚨 MANEJO DE CLAVES CORROMPIDAS
+    private func handleCorruptedKey(conversationId: String) async {
+        print("🚨 Manejando clave corrompida: \(conversationId)")
+        
+        // 1. Eliminar clave corrompida
+        conversationKeys.removeValue(forKey: conversationId)
+        await cleanupKeychainKey(tag: conversationKeysPrefix + conversationId)
+        
+        // 2. Intentar recuperación desde múltiples fuentes
+        await recoverConversationKey(conversationId: conversationId, conversationData: [:])
+        
+        // 3. Si todo falla, crear nueva clave y notificar
+        if conversationKeys[conversationId] == nil {
+            print("⚠️ Creando nueva clave para conversación con clave corrompida: \(conversationId)")
+            
+            do {
+                let newKey = try await createNewSharedConversationKey(conversationId: conversationId)
+                await cacheConversationKey(conversationId: conversationId, key: newKey)
+                
+                // Marcar que hubo rotación por corrupción
+                await updateEnhancedMetrics { $0.emergencyRotations += 1 }
+                
+            } catch {
+                print("❌ Error crítico: No se pudo crear nueva clave: \(error)")
+                encryptionStatus = .error("No se pudo recuperar clave para \(conversationId)")
+            }
+        }
+    }
+    
+    // MARK: - 🔄 SINCRONIZACIÓN CON FIRESTORE
+    private func syncWithFirestore() async {
+        print("🔄 Sincronizando estado con Firestore...")
+        
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        // Actualizar estado del dispositivo en Firestore
+        let deviceInfo: [String: Any] = [
+            "deviceId": UIDevice.current.identifierForVendor?.uuidString ?? "unknown",
+            "lastSyncDate": FieldValue.serverTimestamp(),
+            "encryptionVersion": "2.0",
+            "keysRecovered": conversationKeys.count,
+            "appVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        ]
+        
+        do {
+            try await db.collection("users")
+                .document(currentUserId)
+                .collection("devices")
+                .document("current")
+                .setData(deviceInfo, merge: true)
+            
+            print("✅ Estado sincronizado con Firestore")
+        } catch {
+            print("❌ Error sincronizando con Firestore: \(error)")
+        }
+    }
+    
+    // MARK: - Master Key Management Async
+    private func getOrCreateMasterKey() async throws -> SymmetricKey {
+        return try await withCheckedThrowingContinuation { continuation in
+            keyAccessQueue.async {
+                do {
+                    // Try to retrieve existing key
+                    if let existingKey = try? self.retrieveKeyFromKeychain(tag: self.masterKeyTag) {
+                        continuation.resume(returning: existingKey)
                         return
                     }
                     
-                    let sharedKey = SymmetricKey(data: keyData)
+                    // Create new master key
+                    let newKey = SymmetricKey(size: .bits256)
+                    try self.storeKeyInKeychain(key: newKey, tag: self.masterKeyTag)
                     
-                    DispatchQueue.main.async {
-                        self.conversationKeys[conversationId] = sharedKey
-                        let keyTag = self.conversationKeysPrefix + conversationId
-                        try? self.storeKeyInKeychain(key: sharedKey, tag: keyTag)
-                        print("✅ Preloaded key for: \(conversationId)")
-                    }
+                    print("🔐 New master key created and stored in Keychain")
+                    continuation.resume(returning: newKey)
+                } catch {
+                    continuation.resume(throwing: error)
                 }
+            }
         }
     }
     
-    // ✅ NUEVA FUNCIÓN: Establecer clave de conversación directamente
-    func setConversationKey(_ key: SymmetricKey, for conversationId: String) {
-        conversationKeys[conversationId] = key
-        let keyTag = conversationKeysPrefix + conversationId
-        try? storeKeyInKeychain(key: key, tag: keyTag)
-        print("✅ Directly set conversation key for: \(conversationId)")
+    // MARK: - 🚀 OPTIMIZED User Keys con Cache Inteligente
+    private func getUserKey(for userId: String) async throws -> SymmetricKey {
+        // Input validation
+        guard !userId.isEmpty else {
+            throw EncryptionError.invalidInput
+        }
+        
+        // 1. Check hot cache first
+        if var cachedKey = userKeys[userId] {
+            if !cachedKey.isExpired {
+                cachedKey.markUsed()
+                userKeys[userId] = cachedKey
+                await updateMetrics { $0.cacheHits += 1 }
+                return cachedKey.key
+            } else {
+                // Clean expired key
+                userKeys.removeValue(forKey: userId)
+                await cleanupKeychainKey(tag: userKeysPrefix + userId)
+            }
+        }
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            keyAccessQueue.async {
+                do {
+                    let keyTag = self.userKeysPrefix + userId
+                    
+                    // Try keychain
+                    if let storedKey = try? self.retrieveKeyFromKeychain(tag: keyTag) {
+                        let cachedKey = CachedKey(key: storedKey)
+                        Task { @MainActor in
+                            self.userKeys[userId] = cachedKey
+                            Task {
+                                await self.updateMetrics { $0.keychainHits += 1 }
+                            }
+                        }
+                        continuation.resume(returning: storedKey)
+                        return
+                    }
+                    
+                    // Create new user key
+                    let newKey = SymmetricKey(size: .bits256)
+                    try self.storeKeyInKeychain(key: newKey, tag: keyTag)
+                    
+                    let cachedKey = CachedKey(key: newKey)
+                    Task { @MainActor in
+                        self.userKeys[userId] = cachedKey
+                        Task {
+                            await self.updateMetrics { $0.newKeysCreated += 1 }
+                        }
+                    }
+                    
+                    print("🔐 New user key created for: \(userId)")
+                    continuation.resume(returning: newKey)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
     
-    // MARK: - 🔄 SHARED KEY MANAGEMENT (Legacy - para compatibilidad)
-    private func fetchSharedConversationKey(conversationId: String) throws -> SymmetricKey? {
-        let semaphore = DispatchSemaphore(value: 0)
-        var fetchedKey: SymmetricKey?
-        var fetchError: Error?
+    // MARK: - 🚀 CONVERSATION KEYS ULTRA RÁPIDAS con Concurrent Loading
+    private func getConversationKey(for conversationId: String) async throws -> SymmetricKey {
+        // Input validation
+        guard !conversationId.isEmpty else {
+            throw EncryptionError.invalidInput
+        }
         
-        db.collection("conversations")
-            .document(conversationId)
-            .getDocument { snapshot, error in
-                defer { semaphore.signal() }
-                
-                if let error = error {
-                    fetchError = error
-                    return
-                }
-                
-                guard let data = snapshot?.data(),
-                      let keyDataString = data["encryptionKey"] as? String,
-                      let keyData = Data(base64Encoded: keyDataString) else {
-                    print("🔍 No shared encryption key found in Firestore")
-                    return
-                }
-                
-                fetchedKey = SymmetricKey(data: keyData)
-                print("✅ Successfully fetched shared encryption key from Firestore")
+        // 1. Check if there's already a task loading this key
+        if let existingTask = preloadTasks[conversationId] {
+            print("🔄 Using existing preload task for: \(conversationId)")
+            do {
+                let result = try await existingTask.value
+                await updateMetrics { $0.cacheHits += 1 }
+                return result
+            } catch {
+                // Remove failed task and continue
+                preloadTasks.removeValue(forKey: conversationId)
+                throw error
             }
+        }
         
-        _ = semaphore.wait(timeout: .now() + 2.0) // Reduced timeout
+        // 2. Check hot cache
+        if var cachedKey = conversationKeys[conversationId] {
+            if !cachedKey.isExpired {
+                cachedKey.markUsed()
+                conversationKeys[conversationId] = cachedKey
+                await updateMetrics { $0.cacheHits += 1 }
+                return cachedKey.key
+            } else {
+                conversationKeys.removeValue(forKey: conversationId)
+                await cleanupKeychainKey(tag: conversationKeysPrefix + conversationId)
+            }
+        }
         
-        if let error = fetchError {
+        // 3. Create loading task
+        let loadingTask = Task<SymmetricKey, Error> {
+            defer {
+                Task { @MainActor in
+                    self.preloadTasks.removeValue(forKey: conversationId)
+                }
+            }
+            return try await loadConversationKeyFromStorage(conversationId: conversationId)
+        }
+        
+        preloadTasks[conversationId] = loadingTask
+        return try await loadingTask.value
+    }
+    
+    private func loadConversationKeyFromStorage(conversationId: String) async throws -> SymmetricKey {
+        let keyTag = conversationKeysPrefix + conversationId
+        
+        // Try keychain first
+        if let storedKey = try? retrieveKeyFromKeychain(tag: keyTag) {
+            let cachedKey = CachedKey(key: storedKey)
+            conversationKeys[conversationId] = cachedKey
+            await updateMetrics { $0.keychainHits += 1 }
+            return storedKey
+        }
+        
+        // Fetch from Firestore with timeout
+        return try await withTimeout(seconds: 5) {
+            try await self.getSharedConversationKeyFromFirestore(conversationId: conversationId)
+        }
+    }
+    
+    // MARK: - 🚀 FIRESTORE OPERATIONS Optimizadas
+    private func getSharedConversationKeyFromFirestore(conversationId: String) async throws -> SymmetricKey {
+        print("📡 Fetching shared key from Firestore: \(conversationId)")
+        
+        do {
+            let snapshot = try await db.collection("conversations")
+                .document(conversationId)
+                .getDocument()
+            
+            if let data = snapshot.data(),
+               let keyDataString = data["sharedEncryptionKey"] as? String,
+               let keyData = Data(base64Encoded: keyDataString) {
+                
+                // Use existing shared key
+                let sharedKey = SymmetricKey(data: keyData)
+                await cacheConversationKey(conversationId: conversationId, key: sharedKey)
+                await updateMetrics { $0.firestoreHits += 1 }
+                print("✅ Shared key found in Firestore")
+                return sharedKey
+                
+            } else {
+                // Create new shared key with atomic write
+                let newKey = try await createNewSharedConversationKey(conversationId: conversationId)
+                await updateMetrics { $0.newKeysCreated += 1 }
+                return newKey
+            }
+            
+        } catch {
+            await updateMetrics {
+                $0.firestoreErrors += 1
+                $0.lastError = error.localizedDescription
+            }
             throw error
         }
-        
-        return fetchedKey
     }
     
-    private func uploadSharedConversationKey(conversationId: String, key: SymmetricKey) {
-        let keyData = key.withUnsafeBytes { Data($0) }
-        let keyDataString = keyData.base64EncodedString()
+    // MARK: - 🛡️ ATOMIC Key Creation (evita race conditions)
+    private func createNewSharedConversationKey(conversationId: String) async throws -> SymmetricKey {
+        print("⚡ Creating new shared key atomically for: \(conversationId)")
         
-        db.collection("conversations")
+        let newKey = SymmetricKey(size: .bits256)
+        let keyData = newKey.withUnsafeBytes { Data($0) }
+        let keyDataString = keyData.base64EncodedString()
+        let metadata = KeyMetadata(keyId: UUID().uuidString)
+        
+        let uploadData: [String: Any] = [
+            "sharedEncryptionKey": keyDataString,
+            "encryptionKeyCreatedAt": FieldValue.serverTimestamp(),
+            "encryptionVersion": "2.0",
+            "keyMetadata": try JSONEncoder().encode(metadata).base64EncodedString(),
+            "lastKeyUpdate": FieldValue.serverTimestamp(),
+            "createdByDevice": UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        ]
+        
+        // Atomic write with merge
+        try await db.collection("conversations")
             .document(conversationId)
-            .updateData([
-                "encryptionKey": keyDataString,
-                "encryptionKeyCreatedAt": FieldValue.serverTimestamp()
-            ]) { error in
-                if let error = error {
-                    print("❌ Error uploading shared encryption key: \(error.localizedDescription)")
-                } else {
-                    print("✅ Shared encryption key uploaded to Firestore: \(conversationId)")
+            .setData(uploadData, merge: true)
+        
+        await cacheConversationKey(conversationId: conversationId, key: newKey)
+        print("✅ New shared key created and uploaded atomically")
+        
+        return newKey
+    }
+    
+    // MARK: - 🗂️ CACHE Management
+    private func cacheConversationKey(conversationId: String, key: SymmetricKey) async {
+        let cachedKey = CachedKey(key: key)
+        conversationKeys[conversationId] = cachedKey
+        
+        // Store in keychain asynchronously
+        let keyTag = conversationKeysPrefix + conversationId
+        Task {
+            await withCheckedContinuation { continuation in
+                keyAccessQueue.async {
+                    do {
+                        try self.storeKeyInKeychain(key: key, tag: keyTag)
+                    } catch {
+                        print("❌ Failed to store key in keychain: \(error)")
+                    }
+                    continuation.resume()
                 }
             }
+        }
     }
     
-    // MARK: - ⚡ ASYNC KEY FETCHING (RECOMENDADO)
-    func fetchConversationKeyAsync(for conversationId: String, completion: @escaping (Result<SymmetricKey, Error>) -> Void) {
-        // ✅ Para llamadas asíncronas que no bloqueen la UI
+    private func loadCachedKeys() async {
+        print("📚 Loading cached keys from keychain...")
+        let startTime = Date()
         
-        // 1. Verificar caché
-        if let existingKey = conversationKeys[conversationId] {
-            completion(.success(existingKey))
-            return
+        await withTaskGroup(of: Void.self) { group in
+            // Load user keys
+            group.addTask {
+                await self.loadUserKeysFromKeychain()
+            }
+            
+            // Load conversation keys
+            group.addTask {
+                await self.loadConversationKeysFromKeychain()
+            }
         }
         
-        // 2. Verificar Keychain
-        let keyTag = conversationKeysPrefix + conversationId
-        if let storedKey = try? retrieveKeyFromKeychain(tag: keyTag) {
-            conversationKeys[conversationId] = storedKey
-            completion(.success(storedKey))
-            return
-        }
+        let loadTime = Date().timeIntervalSince(startTime)
+        print("📚 Cache loading completed in \(String(format: "%.3f", loadTime))s")
+        print("📊 Loaded \(userKeys.count) user keys and \(conversationKeys.count) conversation keys")
         
-        // 3. Fetch desde Firestore
-        db.collection("conversations")
-            .document(conversationId)
-            .getDocument { [weak self] snapshot, error in
-                guard let self = self else { return }
+        await updateMetrics { metrics in
+            metrics.cacheLoadTime = loadTime
+            metrics.totalKeysLoaded = userKeys.count + conversationKeys.count
+        }
+    }
+    
+    // MARK: - 🔍 KEYCHAIN SCANNING IMPLEMENTATION
+    private func loadUserKeysFromKeychain() async {
+        await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                var loadedCount = 0
                 
-                if let error = error {
-                    completion(.failure(error))
+                // Query para obtener todos los user keys
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: self.keyChainService,
+                    kSecMatchLimit as String: kSecMatchLimitAll,
+                    kSecReturnAttributes as String: true,
+                    kSecReturnData as String: true
+                ]
+                
+                var result: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &result)
+                
+                guard status == errSecSuccess,
+                      let items = result as? [[String: Any]] else {
+                    print("📚 No cached user keys found or keychain error: \(status)")
+                    continuation.resume()
                     return
                 }
                 
-                // Obtener clave compartida o crear nueva
-                if let data = snapshot?.data(),
-                   let keyDataString = data["encryptionKey"] as? String,
-                   let keyData = Data(base64Encoded: keyDataString) {
+                for item in items {
+                    guard let account = item[kSecAttrAccount as String] as? String,
+                          account.hasPrefix(self.userKeysPrefix),
+                          let keyData = item[kSecValueData as String] as? Data else {
+                        continue
+                    }
                     
-                    // Usar clave existente
-                    let sharedKey = SymmetricKey(data: keyData)
-                    self.conversationKeys[conversationId] = sharedKey
-                    try? self.storeKeyInKeychain(key: sharedKey, tag: keyTag)
-                    completion(.success(sharedKey))
+                    // Extraer userId del tag
+                    let userId = String(account.dropFirst(self.userKeysPrefix.count))
                     
-                } else {
-                    // Crear nueva clave compartida
-                    let newKey = SymmetricKey(size: .bits256)
-                    self.conversationKeys[conversationId] = newKey
-                    try? self.storeKeyInKeychain(key: newKey, tag: keyTag)
+                    do {
+                        let symmetricKey = SymmetricKey(data: keyData)
+                        let cachedKey = CachedKey(key: symmetricKey)
+                        
+                        Task { @MainActor in
+                            self.userKeys[userId] = cachedKey
+                        }
+                        
+                        loadedCount += 1
+                    } catch {
+                        print("❌ Failed to load user key for \(userId): \(error)")
+                    }
+                }
+                
+                print("📚 Loaded \(loadedCount) user keys from keychain")
+                continuation.resume()
+            }
+        }
+    }
+    
+    private func loadConversationKeysFromKeychain() async {
+        await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                var loadedCount = 0
+                
+                // Query para obtener todos los conversation keys
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: self.keyChainService,
+                    kSecMatchLimit as String: kSecMatchLimitAll,
+                    kSecReturnAttributes as String: true,
+                    kSecReturnData as String: true
+                ]
+                
+                var result: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &result)
+                
+                guard status == errSecSuccess,
+                      let items = result as? [[String: Any]] else {
+                    print("📚 No cached conversation keys found or keychain error: \(status)")
+                    continuation.resume()
+                    return
+                }
+                
+                for item in items {
+                    guard let account = item[kSecAttrAccount as String] as? String,
+                          account.hasPrefix(self.conversationKeysPrefix),
+                          let keyData = item[kSecValueData as String] as? Data else {
+                        continue
+                    }
                     
-                    // Subir a Firestore
-                    self.uploadSharedConversationKey(conversationId: conversationId, key: newKey)
-                    completion(.success(newKey))
+                    // Extraer conversationId del tag
+                    let conversationId = String(account.dropFirst(self.conversationKeysPrefix.count))
+                    
+                    do {
+                        let symmetricKey = SymmetricKey(data: keyData)
+                        let cachedKey = CachedKey(key: symmetricKey)
+                        
+                        Task { @MainActor in
+                            self.conversationKeys[conversationId] = cachedKey
+                        }
+                        
+                        loadedCount += 1
+                    } catch {
+                        print("❌ Failed to load conversation key for \(conversationId): \(error)")
+                    }
+                }
+                
+                print("📚 Loaded \(loadedCount) conversation keys from keychain")
+                continuation.resume()
+            }
+        }
+    }
+    
+    // MARK: - 🧹 ENHANCED CLEANUP con Keychain Scanning
+    private func scanAndCleanupKeychain() async {
+        print("🧹 Scanning keychain for cleanup...")
+        
+        await withTaskGroup(of: Void.self) { group in
+            // Cleanup expired user keys
+            group.addTask {
+                await self.cleanupExpiredKeysFromKeychain(prefix: self.userKeysPrefix, type: "user")
+            }
+            
+            // Cleanup expired conversation keys
+            group.addTask {
+                await self.cleanupExpiredKeysFromKeychain(prefix: self.conversationKeysPrefix, type: "conversation")
+            }
+            
+            // Cleanup orphaned keys (keys without cache entries)
+            group.addTask {
+                await self.cleanupOrphanedKeys()
+            }
+        }
+    }
+    
+    private func cleanupExpiredKeysFromKeychain(prefix: String, type: String) async {
+        await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: self.keyChainService,
+                    kSecMatchLimit as String: kSecMatchLimitAll,
+                    kSecReturnAttributes as String: true
+                ]
+                
+                var result: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &result)
+                
+                guard status == errSecSuccess,
+                      let items = result as? [[String: Any]] else {
+                    continuation.resume()
+                    return
+                }
+                
+                var deletedCount = 0
+                
+                for item in items {
+                    guard let account = item[kSecAttrAccount as String] as? String,
+                          account.hasPrefix(prefix) else {
+                        continue
+                    }
+                    
+                    // Check if this key should be deleted
+                    let id = String(account.dropFirst(prefix.count))
+                    let shouldDelete = type == "user" ?
+                        (self.userKeys[id]?.isExpired ?? false) :
+                        (self.conversationKeys[id]?.isExpired ?? false)
+                    
+                    if shouldDelete {
+                        let deleteQuery: [String: Any] = [
+                            kSecClass as String: kSecClassGenericPassword,
+                            kSecAttrService as String: self.keyChainService,
+                            kSecAttrAccount as String: account
+                        ]
+                        
+                        let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
+                        if deleteStatus == errSecSuccess {
+                            deletedCount += 1
+                        }
+                    }
+                }
+                
+                print("🧹 Deleted \(deletedCount) expired \(type) keys from keychain")
+                continuation.resume()
+            }
+        }
+    }
+    
+    private func cleanupOrphanedKeys() async {
+        await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: self.keyChainService,
+                    kSecMatchLimit as String: kSecMatchLimitAll,
+                    kSecReturnAttributes as String: true
+                ]
+                
+                var result: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &result)
+                
+                guard status == errSecSuccess,
+                      let items = result as? [[String: Any]] else {
+                    continuation.resume()
+                    return
+                }
+                
+                var orphanedCount = 0
+                
+                for item in items {
+                    guard let account = item[kSecAttrAccount as String] as? String else {
+                        continue
+                    }
+                    
+                    // Skip master key
+                    if account == self.masterKeyTag {
+                        continue
+                    }
+                    
+                    var isOrphaned = false
+                    
+                    if account.hasPrefix(self.userKeysPrefix) {
+                        let userId = String(account.dropFirst(self.userKeysPrefix.count))
+                        isOrphaned = self.userKeys[userId] == nil
+                    } else if account.hasPrefix(self.conversationKeysPrefix) {
+                        let conversationId = String(account.dropFirst(self.conversationKeysPrefix.count))
+                        isOrphaned = self.conversationKeys[conversationId] == nil
+                    }
+                    
+                    if isOrphaned {
+                        let deleteQuery: [String: Any] = [
+                            kSecClass as String: kSecClassGenericPassword,
+                            kSecAttrService as String: self.keyChainService,
+                            kSecAttrAccount as String: account
+                        ]
+                        
+                        let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
+                        if deleteStatus == errSecSuccess {
+                            orphanedCount += 1
+                        }
+                    }
+                }
+                
+                print("🧹 Deleted \(orphanedCount) orphaned keys from keychain")
+                continuation.resume()
+            }
+        }
+    }
+    
+    // MARK: - 📊 KEYCHAIN STATISTICS
+    func getKeychainStatistics() async -> KeychainStatistics {
+        return await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: self.keyChainService,
+                    kSecMatchLimit as String: kSecMatchLimitAll,
+                    kSecReturnAttributes as String: true
+                ]
+                
+                var result: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &result)
+                
+                guard status == errSecSuccess,
+                      let items = result as? [[String: Any]] else {
+                    continuation.resume(returning: KeychainStatistics())
+                    return
+                }
+                
+                var userKeysInKeychain = 0
+                var conversationKeysInKeychain = 0
+                var otherKeysInKeychain = 0
+                var totalSizeBytes = 0
+                
+                for item in items {
+                    guard let account = item[kSecAttrAccount as String] as? String else {
+                        continue
+                    }
+                    
+                    if let data = item[kSecValueData as String] as? Data {
+                        totalSizeBytes += data.count
+                    }
+                    
+                    if account.hasPrefix(self.userKeysPrefix) {
+                        userKeysInKeychain += 1
+                    } else if account.hasPrefix(self.conversationKeysPrefix) {
+                        conversationKeysInKeychain += 1
+                    } else {
+                        otherKeysInKeychain += 1
+                    }
+                }
+                
+                let stats = KeychainStatistics(
+                    userKeysInKeychain: userKeysInKeychain,
+                    conversationKeysInKeychain: conversationKeysInKeychain,
+                    otherKeysInKeychain: otherKeysInKeychain,
+                    totalSizeBytes: totalSizeBytes,
+                    userKeysInCache: self.userKeys.count,
+                    conversationKeysInCache: self.conversationKeys.count
+                )
+                
+                continuation.resume(returning: stats)
+            }
+        }
+    }
+    
+    // MARK: - 🧹 CLEANUP Operations
+    private func cleanupExpiredKeys() async {
+        let expiredUsers = userKeys.compactMap { key, value in
+            value.isExpired ? key : nil
+        }
+        
+        let expiredConversations = conversationKeys.compactMap { key, value in
+            value.isExpired ? key : nil
+        }
+        
+        print("🧹 Cleaning up \(expiredUsers.count) user keys and \(expiredConversations.count) conversation keys")
+        
+        for userId in expiredUsers {
+            userKeys.removeValue(forKey: userId)
+            await cleanupKeychainKey(tag: userKeysPrefix + userId)
+        }
+        
+        for conversationId in expiredConversations {
+            conversationKeys.removeValue(forKey: conversationId)
+            await cleanupKeychainKey(tag: conversationKeysPrefix + conversationId)
+        }
+    }
+    
+    private func cleanupKeychainKey(tag: String) async {
+        await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: self.keyChainService,
+                    kSecAttrAccount as String: tag
+                ]
+                SecItemDelete(query as CFDictionary)
+                continuation.resume()
+            }
+        }
+    }
+    
+    // MARK: - 🔄 KEY ROTATION (Nueva funcionalidad)
+    func rotateConversationKey(for conversationId: String, reason: KeyRotationReason = .manual) async throws -> Bool {
+        print("🔄 Rotating conversation key for: \(conversationId) (reason: \(reason))")
+        
+        // Generate new key
+        let newKey = SymmetricKey(size: .bits256)
+        let keyData = newKey.withUnsafeBytes { Data($0) }
+        let keyDataString = keyData.base64EncodedString()
+        
+        // Update Firestore with new key
+        let rotationData: [String: Any] = [
+            "sharedEncryptionKey": keyDataString,
+            "lastKeyRotation": FieldValue.serverTimestamp(),
+            "rotationReason": reason.rawValue,
+            "encryptionVersion": "2.0",
+            "rotatedByDevice": UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        ]
+        
+        try await db.collection("conversations")
+            .document(conversationId)
+            .updateData(rotationData)
+        
+        // Update local cache
+        await cacheConversationKey(conversationId: conversationId, key: newKey)
+        
+        await updateMetrics { $0.keyRotations += 1 }
+        print("✅ Key rotation completed successfully")
+        
+        return true
+    }
+    
+    enum KeyRotationReason: String, CaseIterable {
+        case manual = "manual"
+        case userLeft = "user_left"
+        case securityBreach = "security_breach"
+        case scheduled = "scheduled"
+        case corruption = "corruption"
+    }
+    
+    // MARK: - 🔍 KEY VERIFICATION
+    func verifyKeyIntegrity(for conversationId: String) async -> KeyIntegrityStatus {
+        guard let cachedKey = conversationKeys[conversationId] else {
+            return .notFound
+        }
+        
+        do {
+            // Test encryption/decryption
+            let testMessage = "integrity_test_\(Date().timeIntervalSince1970)"
+            let encrypted = try encrypt(text: testMessage, with: cachedKey.key)
+            let decrypted = try decrypt(encryptedText: encrypted, with: cachedKey.key)
+            
+            if decrypted == testMessage {
+                return .valid
+            } else {
+                return .corrupted
+            }
+        } catch {
+            return .corrupted
+        }
+    }
+    
+    enum KeyIntegrityStatus {
+        case valid
+        case corrupted
+        case notFound
+    }
+    
+    // MARK: - 🚀 BATCH PRELOADING Optimizado
+    func preloadConversationKeys(for conversationIds: [String]) async {
+        print("🔄 Batch preloading \(conversationIds.count) conversation keys")
+        
+        await updateMetrics { $0.batchPreloadRequests += 1 }
+        let startTime = Date()
+        
+        await withTaskGroup(of: Void.self) { group in
+            for conversationId in conversationIds {
+                group.addTask {
+                    do {
+                        _ = try await self.getConversationKey(for: conversationId)
+                    } catch {
+                        print("❌ Failed to preload key for: \(conversationId)")
+                    }
                 }
             }
+        }
+        
+        let duration = Date().timeIntervalSince(startTime)
+        await updateMetrics {
+            $0.averagePreloadTime = (($0.averagePreloadTime * Double($0.batchPreloadRequests - 1)) + duration) / Double($0.batchPreloadRequests)
+        }
+        
+        print("✅ Batch preload completed in \(String(format: "%.2f", duration))s")
     }
     
-    // MARK: - Public Encryption Methods (UNCHANGED)
-    
-    /// Encrypt Gemini conversation data (user-specific)
-    func encryptGeminiData(_ text: String, for userId: String) -> String? {
+    // MARK: - PUBLIC ENCRYPTION METHODS (Optimizadas con métricas)
+    func encryptGeminiData(_ text: String, for userId: String) async -> String? {
         guard isEncryptionEnabled else { return text }
         
         do {
-            let key = try getUserKey(for: userId)
-            return try encrypt(text: text, with: key)
+            let key = try await getUserKey(for: userId)
+            let result = try encrypt(text: text, with: key)
+            await updateMetrics { $0.successfulEncryptions += 1 }
+            return result
         } catch {
+            await updateMetrics {
+                $0.encryptionErrors += 1
+                $0.lastError = error.localizedDescription
+            }
             print("❌ Error encrypting Gemini data: \(error)")
-            return text // Fallback to plain text
+            return text
         }
     }
     
-    /// Decrypt Gemini conversation data (user-specific)
-    func decryptGeminiData(_ encryptedText: String, for userId: String) -> String? {
+    func decryptGeminiData(_ encryptedText: String, for userId: String) async -> String? {
         guard isEncryptionEnabled else { return encryptedText }
         
         do {
-            let key = try getUserKey(for: userId)
-            return try decrypt(encryptedText: encryptedText, with: key)
+            let key = try await getUserKey(for: userId)
+            let result = try decrypt(encryptedText: encryptedText, with: key)
+            await updateMetrics { $0.successfulDecryptions += 1 }
+            return result
         } catch {
+            await updateMetrics {
+                $0.decryptionErrors += 1
+                $0.lastError = error.localizedDescription
+            }
             print("❌ Error decrypting Gemini data: \(error)")
-            return encryptedText // Fallback to encrypted text
+            return encryptedText
         }
     }
     
-    /// Encrypt chat message data (conversation-specific)
-    func encryptChatMessage(_ text: String, for conversationId: String) -> String? {
+    func encryptChatMessage(_ text: String, for conversationId: String) async -> String? {
         guard isEncryptionEnabled else { return text }
         
         do {
-            let key = try getConversationKey(for: conversationId) // ✅ USA CLAVE COMPARTIDA
-            return try encrypt(text: text, with: key)
+            let key = try await getConversationKey(for: conversationId)
+            let result = try encrypt(text: text, with: key)
+            await updateMetrics { $0.successfulEncryptions += 1 }
+            return result
         } catch {
+            await updateMetrics {
+                $0.encryptionErrors += 1
+                $0.lastError = error.localizedDescription
+            }
             print("❌ Error encrypting chat message: \(error)")
-            return text // Fallback to plain text
+            return text
         }
     }
     
-    /// Decrypt chat message data (conversation-specific)
-    func decryptChatMessage(_ encryptedText: String, for conversationId: String) -> String? {
+    func decryptChatMessage(_ encryptedText: String, for conversationId: String) async -> String? {
         guard isEncryptionEnabled else { return encryptedText }
         
         do {
-            let key = try getConversationKey(for: conversationId) // ✅ USA CLAVE COMPARTIDA
-            return try decrypt(encryptedText: encryptedText, with: key)
+            let key = try await getConversationKey(for: conversationId)
+            let result = try decrypt(encryptedText: encryptedText, with: key)
+            await updateMetrics { $0.successfulDecryptions += 1 }
+            return result
         } catch {
+            await updateMetrics {
+                $0.decryptionErrors += 1
+                $0.lastError = error.localizedDescription
+            }
             print("❌ Error decrypting chat message: \(error)")
-            return encryptedText // Fallback to encrypted text
+            return encryptedText
         }
     }
     
-    /// Encrypt user profile data (user-specific)
-    func encryptUserData(_ text: String, for userId: String) -> String? {
+    func encryptUserData(_ text: String, for userId: String) async -> String? {
         guard isEncryptionEnabled else { return text }
         
         do {
-            let key = try getUserKey(for: userId)
-            return try encrypt(text: text, with: key)
+            let key = try await getUserKey(for: userId)
+            let result = try encrypt(text: text, with: key)
+            await updateMetrics { $0.successfulEncryptions += 1 }
+            return result
         } catch {
+            await updateMetrics {
+                $0.encryptionErrors += 1
+                $0.lastError = error.localizedDescription
+            }
             print("❌ Error encrypting user data: \(error)")
-            return text // Fallback to plain text
+            return text
         }
     }
     
-    /// Decrypt user profile data (user-specific)
-    func decryptUserData(_ encryptedText: String, for userId: String) -> String? {
+    func decryptUserData(_ encryptedText: String, for userId: String) async -> String? {
         guard isEncryptionEnabled else { return encryptedText }
         
         do {
-            let key = try getUserKey(for: userId)
-            return try decrypt(encryptedText: encryptedText, with: key)
+            let key = try await getUserKey(for: userId)
+            let result = try decrypt(encryptedText: encryptedText, with: key)
+            await updateMetrics { $0.successfulDecryptions += 1 }
+            return result
         } catch {
+            await updateMetrics {
+                $0.decryptionErrors += 1
+                $0.lastError = error.localizedDescription
+            }
             print("❌ Error decrypting user data: \(error)")
-            return encryptedText // Fallback to encrypted text
+            return encryptedText
         }
     }
     
-    // MARK: - Core Encryption/Decryption (UNCHANGED)
+    // MARK: - CORE ENCRYPTION (Sin cambios, probado y funcional)
     private func encrypt(text: String, with key: SymmetricKey) throws -> String {
         guard let data = text.data(using: .utf8) else {
             throw EncryptionError.invalidInput
@@ -376,7 +1879,7 @@ class EncryptionService: ObservableObject {
         return decryptedString
     }
     
-    // MARK: - Keychain Operations (UNCHANGED)
+    // MARK: - KEYCHAIN OPERATIONS (Mejoradas con mejor error handling)
     private func storeKeyInKeychain(key: SymmetricKey, tag: String) throws {
         let keyData = key.withUnsafeBytes { Data($0) }
         
@@ -385,7 +1888,8 @@ class EncryptionService: ObservableObject {
             kSecAttrService as String: keyChainService,
             kSecAttrAccount as String: tag,
             kSecValueData as String: keyData,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable as String: false // No iCloud sync for security
         ]
         
         // Delete existing item first
@@ -394,7 +1898,7 @@ class EncryptionService: ObservableObject {
         let status = SecItemAdd(query as CFDictionary, nil)
         
         guard status == errSecSuccess else {
-            throw EncryptionError.keychainError("Failed to store key: \(status)")
+            throw EncryptionError.keychainError("Failed to store key (\(tag)): \(status)")
         }
     }
     
@@ -403,152 +1907,266 @@ class EncryptionService: ObservableObject {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keyChainService,
             kSecAttrAccount as String: tag,
-            kSecReturnData as String: true
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
         ]
         
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         
         guard status == errSecSuccess else {
-            throw EncryptionError.keychainError("Failed to retrieve key: \(status)")
+            throw EncryptionError.keychainError("Failed to retrieve key (\(tag)): \(status)")
         }
         
         guard let keyData = result as? Data else {
-            throw EncryptionError.keychainError("Invalid key data")
+            throw EncryptionError.keychainError("Invalid key data for: \(tag)")
         }
         
         return SymmetricKey(data: keyData)
     }
     
-    // MARK: - Key Management (UPDATED)
-    func deleteUserKeys(for userId: String) {
-        userKeys.removeValue(forKey: userId)
-        
-        let keyTag = userKeysPrefix + userId
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keyChainService,
-            kSecAttrAccount as String: keyTag
-        ]
-        
-        SecItemDelete(query as CFDictionary)
-        print("🗑️ User keys deleted for: \(userId)")
+    // MARK: - 📊 METRICS & MONITORING
+    private func updateMetrics(_ update: (inout EncryptionMetrics) -> Void) async {
+        var metrics = encryptionMetrics
+        update(&metrics)
+        encryptionMetrics = metrics
     }
     
-    func deleteConversationKeys(for conversationId: String) {
-        conversationKeys.removeValue(forKey: conversationId)
-        
-        let keyTag = conversationKeysPrefix + conversationId
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keyChainService,
-            kSecAttrAccount as String: keyTag
-        ]
-        
-        SecItemDelete(query as CFDictionary)
-        print("🗑️ Conversation keys deleted for: \(conversationId)")
+    // ✅ NUEVA: Para métricas mejoradas
+    private func updateEnhancedMetrics(_ update: (inout EnhancedEncryptionMetrics) -> Void) async {
+        var metrics = enhancedEncryptionMetrics
+        update(&metrics)
+        enhancedEncryptionMetrics = metrics
     }
     
-    func deleteAllKeys() {
-        userKeys.removeAll()
-        conversationKeys.removeAll()
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keyChainService
-        ]
-        
-        SecItemDelete(query as CFDictionary)
-        print("🗑️ All encryption keys deleted")
-    }
-    
-    // MARK: - Settings (UNCHANGED)
-    func toggleEncryption(_ enabled: Bool) {
-        isEncryptionEnabled = enabled
-        print("🔐 Encryption \(enabled ? "enabled" : "disabled")")
-    }
-    
-    // MARK: - Utility Methods (UPDATED)
-    func getEncryptionInfo() -> EncryptionInfo {
-        return EncryptionInfo(
+    func getDetailedEncryptionInfo() async -> DetailedEncryptionInfo {
+        return DetailedEncryptionInfo(
             isEnabled: isEncryptionEnabled,
             status: encryptionStatus,
             userKeysCount: userKeys.count,
             conversationKeysCount: conversationKeys.count,
-            hasValidMasterKey: masterKey != nil
+            hasValidMasterKey: masterKey != nil,
+            metrics: encryptionMetrics,
+            cacheStatistics: CacheStatistics(
+                userKeysCached: userKeys.count,
+                conversationKeysCached: conversationKeys.count,
+                expiredKeys: userKeys.values.filter { $0.isExpired }.count + conversationKeys.values.filter { $0.isExpired }.count,
+                activePreloadTasks: preloadTasks.count
+            ),
+            keyVersions: getKeyVersionDistribution()
         )
     }
     
-    // ✅ NUEVA FUNCIÓN: Precargar claves de conversaciones activas
-    func preloadConversationKeys(for conversationIds: [String]) {
-        print("🔄 Preloading conversation keys for \(conversationIds.count) conversations")
+    private func getKeyVersionDistribution() -> [String: Int] {
+        var distribution: [String: Int] = [:]
         
-        for conversationId in conversationIds {
-            preloadConversationKey(for: conversationId)
-        }
-    }
-}
-
-// MARK: - Supporting Types (UNCHANGED)
-enum EncryptionStatus: Equatable {
-    case ready
-    case initializing
-    case error(String)
-    
-    var description: String {
-        switch self {
-        case .ready:
-            return "Listo"
-        case .initializing:
-            return "Inicializando..."
-        case .error(let message):
-            return "Error: \(message)"
-        }
-    }
-}
-
-enum EncryptionError: LocalizedError {
-    case invalidInput
-    case encryptionFailed
-    case decryptionFailed
-    case keychainError(String)
-    case keyNotFound
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidInput:
-            return "Datos de entrada inválidos"
-        case .encryptionFailed:
-            return "Error en la encriptación"
-        case .decryptionFailed:
-            return "Error en la desencriptación"
-        case .keychainError(let message):
-            return "Error en Keychain: \(message)"
-        case .keyNotFound:
-            return "Clave no encontrada"
-        }
-    }
-}
-
-struct EncryptionInfo {
-    let isEnabled: Bool
-    let status: EncryptionStatus
-    let userKeysCount: Int
-    let conversationKeysCount: Int
-    let hasValidMasterKey: Bool
-    
-    var statusDescription: String {
-        if !isEnabled {
-            return "Encriptación deshabilitada"
+        for key in userKeys.values {
+            distribution[key.version, default: 0] += 1
         }
         
-        switch status {
-        case .ready:
-            return "✅ Activa y funcionando"
-        case .initializing:
-            return "⏳ Inicializando..."
-        case .error(let message):
-            return "❌ Error: \(message)"
+        for key in conversationKeys.values {
+            distribution[key.version, default: 0] += 1
+        }
+        
+        return distribution
+    }
+    
+    // MARK: - 🛠️ UTILITY FUNCTIONS
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw EncryptionError.timeout
+            }
+            
+            guard let result = try await group.next() else {
+                throw EncryptionError.timeout
+            }
+            
+            group.cancelAll()
+            return result
+        }
+    }
+    
+    // MARK: - LEGACY SUPPORT & CLEANUP
+    func deleteUserKeys(for userId: String) async {
+        userKeys.removeValue(forKey: userId)
+        await cleanupKeychainKey(tag: userKeysPrefix + userId)
+        print("🗑️ User keys deleted for: \(userId)")
+    }
+    
+    func deleteConversationKeys(for conversationId: String) async {
+        conversationKeys.removeValue(forKey: conversationId)
+        preloadTasks.removeValue(forKey: conversationId)?.cancel()
+        await cleanupKeychainKey(tag: conversationKeysPrefix + conversationId)
+        print("🗑️ Conversation keys deleted for: \(conversationId)")
+    }
+    
+    func deleteAllKeys() async {
+        userKeys.removeAll()
+        conversationKeys.removeAll()
+        
+        // Cancel all preload tasks
+        for task in preloadTasks.values {
+            task.cancel()
+        }
+        preloadTasks.removeAll()
+        
+        await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: self.keyChainService
+                ]
+                SecItemDelete(query as CFDictionary)
+                continuation.resume()
+            }
+        }
+        
+        print("🗑️ All encryption keys and tasks deleted")
+        await updateMetrics { $0.fullResets += 1 }
+    }
+    
+    func toggleEncryption(_ enabled: Bool) async {
+        isEncryptionEnabled = enabled
+        await updateMetrics { $0.toggleEvents += 1 }
+        print("🔐 Encryption \(enabled ? "enabled" : "disabled")")
+    }
+    
+    // MARK: - 📊 FIRESTORE METRICS UPLOAD
+    func uploadMetricsToFirestore() async {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("❌ No hay usuario autenticado para subir métricas del sistema")
+            return
+        }
+        
+        do {
+            let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+            let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+            
+            // 1. Upload encryption metrics (SISTEMA) - ✅ FIX: Usar FieldValue.serverTimestamp()
+            let metricsData: [String: Any] = [
+                "successfulEncryptions": enhancedEncryptionMetrics.successfulEncryptions,
+                "successfulDecryptions": enhancedEncryptionMetrics.successfulDecryptions,
+                "encryptionErrors": enhancedEncryptionMetrics.encryptionErrors,
+                "decryptionErrors": enhancedEncryptionMetrics.decryptionErrors,
+                "cacheHits": enhancedEncryptionMetrics.cacheHits,
+                "keychainHits": enhancedEncryptionMetrics.keychainHits,
+                "firestoreHits": enhancedEncryptionMetrics.firestoreHits,
+                "firestoreErrors": enhancedEncryptionMetrics.firestoreErrors,
+                "newKeysCreated": enhancedEncryptionMetrics.newKeysCreated,
+                "keyRotations": enhancedEncryptionMetrics.keyRotations,
+                "deviceRecoveries": enhancedEncryptionMetrics.deviceRecoveries,
+                "firstInstalls": enhancedEncryptionMetrics.firstInstalls,
+                "recoveryErrors": enhancedEncryptionMetrics.recoveryErrors,
+                "keyRecoveryFailures": enhancedEncryptionMetrics.keyRecoveryFailures,
+                "validatedKeys": enhancedEncryptionMetrics.validatedKeys,
+                "corruptedKeys": enhancedEncryptionMetrics.corruptedKeys,
+                "emergencyRotations": enhancedEncryptionMetrics.emergencyRotations,
+                "backupLocationHits": enhancedEncryptionMetrics.backupLocationHits,
+                "legacyLocationHits": enhancedEncryptionMetrics.legacyLocationHits,
+                "initializationErrors": enhancedEncryptionMetrics.initializationErrors,
+                "recoverySuccessRate": enhancedEncryptionMetrics.recoverySuccessRate,
+                "keyIntegrityRate": enhancedEncryptionMetrics.keyIntegrityRate,
+                "robustnessScore": enhancedEncryptionMetrics.robustnessScore,
+                "lastRecoveryDate": enhancedEncryptionMetrics.lastRecoveryDate ?? NSNull(),
+                "lastError": enhancedEncryptionMetrics.lastError ?? NSNull(),
+                // ✅ FIX: Usar FieldValue.serverTimestamp() en lugar de Date()
+                "timestamp": FieldValue.serverTimestamp(),
+                "deviceId": deviceId,
+                "appVersion": appVersion,
+                "reportedByUserId": currentUserId,
+                "systemMetric": true
+            ]
+            
+            try await db.collection("encryption_metrics").addDocument(data: metricsData)
+            print("✅ Métricas de encriptación subidas")
+            
+            // 2. Upload keychain statistics (SISTEMA) - ✅ FIX: Usar FieldValue.serverTimestamp()
+            let keychainStats = await getKeychainStatistics()
+            let keychainData: [String: Any] = [
+                "userKeysInKeychain": keychainStats.userKeysInKeychain,
+                "conversationKeysInKeychain": keychainStats.conversationKeysInKeychain,
+                "otherKeysInKeychain": keychainStats.otherKeysInKeychain,
+                "totalSizeBytes": keychainStats.totalSizeBytes,
+                "userKeysInCache": keychainStats.userKeysInCache,
+                "conversationKeysInCache": keychainStats.conversationKeysInCache,
+                "totalKeysInKeychain": keychainStats.totalKeysInKeychain,
+                "totalKeysInCache": keychainStats.totalKeysInCache,
+                "cacheToKeychainRatio": keychainStats.cacheToKeychainRatio,
+                "formattedSize": keychainStats.formattedSize,
+                "healthStatus": keychainStats.healthStatus,
+                // ✅ FIX: Usar FieldValue.serverTimestamp()
+                "timestamp": FieldValue.serverTimestamp(),
+                "deviceId": deviceId,
+                "appVersion": appVersion,
+                "reportedByUserId": currentUserId,
+                "systemMetric": true
+            ]
+            
+            try await db.collection("keychain_statistics").addDocument(data: keychainData)
+            print("✅ Estadísticas de keychain subidas")
+            
+            // 3. Upload health report (SISTEMA) - ✅ FIX: Usar FieldValue.serverTimestamp()
+            let healthReport = await performHealthCheck()
+            let healthData: [String: Any] = [
+                "masterKeyStatus": healthReport.masterKeyStatus.emoji + " " + healthReport.masterKeyStatus.description,
+                "encryptionStatus": healthReport.encryptionStatus.emoji + " " + healthReport.encryptionStatus.description,
+                "keychainStatus": healthReport.keychainStatus.emoji + " " + healthReport.keychainStatus.description,
+                "cachePerformance": healthReport.cachePerformance,
+                "memoryUsage": [
+                    "userKeys": healthReport.memoryUsage.userKeys,
+                    "conversationKeys": healthReport.memoryUsage.conversationKeys,
+                    "total": healthReport.memoryUsage.total,
+                    "isHealthy": healthReport.memoryUsage.isHealthy,
+                    "formattedSize": healthReport.memoryUsage.formattedSize
+                ],
+                "overallHealth": healthReport.overallHealth.emoji + " " + healthReport.overallHealth.description,
+                "lastError": healthReport.lastError ?? NSNull(),
+                // ✅ FIX: Usar FieldValue.serverTimestamp()
+                "timestamp": FieldValue.serverTimestamp(),
+                "deviceId": deviceId,
+                "appVersion": appVersion,
+                "reportedByUserId": currentUserId,
+                "systemMetric": true
+            ]
+            
+            try await db.collection("encryption_health").addDocument(data: healthData)
+            print("✅ Reporte de salud subido")
+            
+            print("🎉 Todas las métricas del sistema subidas exitosamente a Firestore")
+            
+        } catch {
+            print("❌ Error subiendo métricas del sistema: \(error)")
+            
+            // Log más detallado del error
+            if let firestoreError = error as NSError? {
+                print("📋 Código de error: \(firestoreError.code)")
+                print("📋 Descripción: \(firestoreError.localizedDescription)")
+                print("📋 Domain: \(firestoreError.domain)")
+                if let userInfo = firestoreError.userInfo["NSUnderlyingError"] as? NSError {
+                    print("📋 Error subyacente: \(userInfo.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - 🔄 SCHEDULED METRICS UPLOAD
+    func startMetricsUploadSchedule() {
+        // Subir métricas cada 6 horas (21600 segundos)
+        Timer.scheduledTimer(withTimeInterval: 21600, repeats: true) { _ in
+            Task {
+                await self.uploadMetricsToFirestore()
+            }
+        }
+        
+        // También subir métricas al iniciar la app
+        Task {
+            await self.uploadMetricsToFirestore()
         }
     }
 }

@@ -1169,8 +1169,11 @@ struct GlassmorphicNewConversationView: View {
             return
         }
         
+        let userMessage = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("🔍 Debug - Mensaje del usuario: '\(userMessage)'")
+        
         // Intentar crear conversación directa primero
-        viewModel.startConversation(with: selectedUser, from: userId) {
+        viewModel.startConversation(with: selectedUser, from: userId, initialMessage: userMessage) {
             DispatchQueue.main.async {
                 // Verificar si se creó la conversación exitosamente
                 if let createdConversation = viewModel.conversations.first(where: { $0.otherParticipantId == selectedUser.id }) {
@@ -1642,8 +1645,9 @@ class MessagingViewModel: ObservableObject {
         }
     }
     
-    func startConversation(with user: AppUser, from userId: String, completion: @escaping () -> Void) {
+    func startConversation(with user: AppUser, from userId: String, initialMessage: String? = nil, completion: @escaping () -> Void) {
         print("Starting conversation with user: \(user.id)")
+        print("🔍 Debug - initialMessage en startConversation: '\(initialMessage ?? "nil")'")
         
         // Check if conversation already exists
         if let existingConversation = conversations.first(where: { $0.otherParticipantId == user.id && $0.id != nil }) {
@@ -1670,7 +1674,7 @@ class MessagingViewModel: ObservableObject {
                 }
                 
                 // ✅ Crear conversación con verificación de seguimiento mutuo
-                self.chatService.getOrCreateConversation(between: userId, and: user.id) { result in
+                self.chatService.getOrCreateConversation(between: userId, and: user.id, initialMessage: initialMessage) { result in
                     switch result {
                     case .success(let conversationId):
                         print("✅ Conversación bidireccional creada: \(conversationId)")
