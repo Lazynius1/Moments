@@ -475,6 +475,11 @@ class FirestoreService: ObservableObject {
             userData["createdAt"] = FieldValue.serverTimestamp()
             userData["updatedAt"] = FieldValue.serverTimestamp()
             
+            // ✅ AGREGAR CLAVE PÚBLICA E2E DEL USUARIO
+            if let pubKey = try? EncryptionService.shared.getUserPublicKeyBase64() {
+                userData["encryptionPublicKeyBase64"] = pubKey
+            }
+            
             // ✅ ASEGURAR CAMPOS DE ESTADO CORRECTOS
             userData["isActive"] = true
             userData["isSuspended"] = false
