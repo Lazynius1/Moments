@@ -484,6 +484,8 @@ class ChatService: ObservableObject {
             } else {
                 messageData["timestamp"] = Timestamp(date: message.timestamp)
             }
+            // Status change audit
+            messageData["statusUpdatedAt"] = FieldValue.serverTimestamp()
             
             print("🔐 Sending encrypted message with data keys: \(messageData.keys)")
             
@@ -1389,7 +1391,9 @@ class ChatService: ObservableObject {
                 "receiverId": receiverId,
                 "content": encryptedContent,
                 "type": "text",
-                "timestamp": timestamp,
+                "timestamp": FieldValue.serverTimestamp(),
+                "status": MessageStatus.sent.rawValue,
+                "statusUpdatedAt": FieldValue.serverTimestamp(),
                 "isRead": false,
                 "isDeleted": false
             ]
@@ -2114,6 +2118,7 @@ extension ChatService {
             "type": message.type.rawValue,
             "timestamp": FieldValue.serverTimestamp(),
             "status": message.status.rawValue,
+            "statusUpdatedAt": FieldValue.serverTimestamp(),
             "isRead": message.isRead,
             "isDeleted": message.isDeleted,
             "isViewed": message.isViewed
