@@ -1246,127 +1246,86 @@ class ChatService: ObservableObject {
         let conversationRef = db.collection("conversations").document()
         let conversationId = conversationRef.documentID
         
-        // ✅ CREAR CLAVE COMPARTIDA DE ENCRIPTACIÓN
-        let sharedEncryptionKey = SymmetricKey(size: .bits256)
-        let keyData = sharedEncryptionKey.withUnsafeBytes { Data($0) }
-        let keyDataString = keyData.base64EncodedString()
-        
-        print("🔐 Generated shared encryption key for conversation: \(conversationId)")
-        
-        // ✅ Usar referencia fuerte para evitar liberación
+        // ✅ Obtener llaves públicas de los participantes para E2E (se asume almacenadas en perfiles)
         let userCache = UserCacheService.shared
         let group = DispatchGroup()
         var user1Data: AppUser?
         var user2Data: AppUser?
         var fetchError: Error?
         
-        // Obtener usuario 1
         group.enter()
         userCache.getUser(userId: user1Id) { user in
-            if let user = user {
-                user1Data = user
-                print("✅ Datos de usuario 1 obtenidos: \(user.username)")
-            } else {
+            if let user = user { user1Data = user } else {
                 fetchError = NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener datos del usuario 1: \(user1Id)"])
-                print("❌ Error obteniendo usuario 1: \(user1Id)")
             }
             group.leave()
         }
         
-        // Obtener usuario 2
         group.enter()
         userCache.getUser(userId: user2Id) { user in
-            if let user = user {
-                user2Data = user
-                print("✅ Datos de usuario 2 obtenidos: \(user.username)")
-            } else {
+            if let user = user { user2Data = user } else {
                 fetchError = NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener datos del usuario 2: \(user2Id)"])
-                print("❌ Error obteniendo usuario 2: \(user2Id)")
             }
             group.leave()
         }
         
         group.notify(queue: .main) {
-            if let error = fetchError {
-                print("❌ Error en createBidirectionalConversation: \(error.localizedDescription)")
-                completion(.failure(error))
-                return
-            }
-            
+            if let error = fetchError { completion(.failure(error)); return }
             guard let user1 = user1Data, let user2 = user2Data else {
-                let error = NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Datos de usuarios incompletos"])
-                print("❌ Datos de usuarios incompletos")
-                completion(.failure(error))
-                return
+                completion(.failure(NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Datos de usuarios incompletos"]))); return
             }
             
-            // ✅ Crear datos bidireccionales CON CLAVE COMPARTIDA
-            let participantData: [String: [String: Any]] = [
-                user1Id: [
-                    "userId": user1.id,
-                    "username": user1.username,
-                    "profileImagePath": user1.profileImagePath ?? "",
-                    "lastUpdated": FieldValue.serverTimestamp()
-                ],
-                user2Id: [
-                    "userId": user2.id,
-                    "username": user2.username,
-                    "profileImagePath": user2.profileImagePath ?? "",
-                    "lastUpdated": FieldValue.serverTimestamp()
+            // 🔐 E2E: construir mapa de llaves públicas base64
+            let pubKey1 = user1.encryptionPublicKeyBase64 ?? ""
+            let pubKey2 = user2.encryptionPublicKeyBase64 ?? ""
+            let participantPublicKeys: [String: String] = [user1Id: pubKey1, user2Id: pubKey2]
+            
+            Task {
+                // Generar o recuperar clave compartida envuelta para todos
+                _ = try? await self.encryptionService.createOrFetchE2EConversationKey(conversationId: conversationId, participantPublicKeys: participantPublicKeys)
+                
+                // Datos bidireccionales
+                let participantData: [String: [String: Any]] = [
+                    user1Id: [
+                        "userId": user1.id,
+                        "username": user1.username,
+                        "profileImagePath": user1.profileImagePath ?? "",
+                        "lastUpdated": FieldValue.serverTimestamp(),
+                        "encryptionPublicKeyBase64": pubKey1
+                    ],
+                    user2Id: [
+                        "userId": user2.id,
+                        "username": user2.username,
+                        "profileImagePath": user2.profileImagePath ?? "",
+                        "lastUpdated": FieldValue.serverTimestamp(),
+                        "encryptionPublicKeyBase64": pubKey2
+                    ]
                 ]
-            ]
-            
-            let readStatus: [String: Bool] = [user1Id: true, user2Id: false]
-            
-            let conversationData: [String: Any] = [
-                "participants": participants,
-                "lastMessage": "",
-                "timestamp": FieldValue.serverTimestamp(),
-                "readStatus": readStatus,
-                "participantData": participantData,
-                // 🔐 CLAVE COMPARTIDA PARA ENCRIPTACIÓN
-                "encryptionKey": keyDataString,
-                "encryptionKeyCreatedAt": FieldValue.serverTimestamp(),
-                "encryptionVersion": "1.0"
-            ]
-            
-            print("💾 Guardando conversación bidireccional con encriptación en Firestore...")
-            conversationRef.setData(conversationData) { error in
-                if let error = error {
-                    print("❌ Error guardando conversación: \(error.localizedDescription)")
-                    completion(.failure(error))
-                } else {
-                    print("✅ Conversación bidireccional con encriptación creada exitosamente: \(conversationId)")
-                    
-                    // ✅ PRECARGAR LA CLAVE LOCALMENTE (ya la tenemos)
-                    Task {
-                        await self.preloadConversationKey(for: conversationId)
-                        print("✅ Encryption key preloaded for new conversation: \(conversationId)")
-                    }
-                    
-                    // ✅ ENVIAR MENSAJE INICIAL (personalizado o automático)
-                    print("🔍 Debug - initialMessage recibido: '\(initialMessage ?? "nil")'")
-                    if let customMessage = initialMessage, !customMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        print("✅ Enviando mensaje personalizado del usuario: '\(customMessage)'")
-                        // Enviar mensaje personalizado del usuario
-                        self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id, message: customMessage) { result in
-                            switch result {
-                            case .success(_):
-                                print("✅ Mensaje personalizado enviado exitosamente")
-                            case .failure(let error):
-                                print("⚠️ Error enviando mensaje personalizado: \(error.localizedDescription)")
-                            }
-                            completion(.success(conversationId))
-                        }
+                
+                let readStatus: [String: Bool] = [user1Id: true, user2Id: false]
+                
+                let conversationData: [String: Any] = [
+                    "participants": participants,
+                    "lastMessage": "",
+                    "timestamp": FieldValue.serverTimestamp(),
+                    "readStatus": readStatus,
+                    "participantData": participantData,
+                    // E2E indicator only; no plaintext shared key
+                    "encryptionVersion": "e2e_v1"
+                ]
+                
+                print("💾 Guardando conversación bidireccional E2E en Firestore...")
+                conversationRef.setData(conversationData, merge: true) { error in
+                    if let error = error {
+                        print("❌ Error guardando conversación: \(error.localizedDescription)")
+                        completion(.failure(error))
                     } else {
-                        // Enviar mensaje automático por defecto
-                        self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id) { result in
-                            switch result {
-                            case .success(_):
-                                print("✅ Mensaje inicial automático enviado exitosamente")
-                            case .failure(let error):
-                                print("⚠️ Error enviando mensaje inicial: \(error.localizedDescription)")
-                            }
+                        print("✅ Conversación E2E creada exitosamente: \(conversationId)")
+                        // Precarga clave local
+                        Task { await self.preloadConversationKey(for: conversationId) }
+                        
+                        // Enviar mensaje inicial
+                        self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id, message: initialMessage) { _ in
                             completion(.success(conversationId))
                         }
                     }

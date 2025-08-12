@@ -540,6 +540,8 @@ class EncryptionService: ObservableObject {
     private let conversationKeysPrefix = "conversation_key_v2_"
     private let keyMetadataPrefix = "key_metadata_"
     private let db = Firestore.firestore()
+    // E2E: user private key tag for key agreement
+    private let userPrivateKeyTag = "user_private_key_v1"
     
     // MARK: - Published Properties
     @Published var isEncryptionEnabled: Bool = true
@@ -1211,23 +1213,40 @@ class EncryptionService: ObservableObject {
                 .document(conversationId)
                 .getDocument()
             
-            if let data = snapshot.data(),
-               let keyDataString = data["sharedEncryptionKey"] as? String,
-               let keyData = Data(base64Encoded: keyDataString) {
+            if let data = snapshot.data() {
+                // Prefer E2E wrapped keys
+                if let wrapped = data["wrappedKeys"] as? [String: Any],
+                   let currentUserId = Auth.auth().currentUser?.uid,
+                   let myWrapped = wrapped[currentUserId] as? [String: Any],
+                   let wrappedKeyBase64 = myWrapped["key"] as? String,
+                   let senderPubBase64 = myWrapped["senderPublicKey"] as? String,
+                   let senderPub = Data(base64Encoded: senderPubBase64) {
+                    do {
+                        let unwrapped = try unwrapSharedKeyFromSender(wrappedBase64: wrappedKeyBase64, senderPublicKeyData: senderPub, conversationId: conversationId)
+                        await cacheConversationKey(conversationId: conversationId, key: unwrapped)
+                        await updateMetrics { $0.firestoreHits += 1 }
+                        print("✅ Unwrapped E2E key from Firestore wrappedKeys")
+                        return unwrapped
+                    } catch {
+                        print("⚠️ Failed to unwrap E2E key, falling back to legacy: \(error)")
+                    }
+                }
                 
-                // Use existing shared key
-                let sharedKey = SymmetricKey(data: keyData)
-                await cacheConversationKey(conversationId: conversationId, key: sharedKey)
-                await updateMetrics { $0.firestoreHits += 1 }
-                print("✅ Shared key found in Firestore")
-                return sharedKey
-                
-            } else {
-                // Create new shared key with atomic write
-                let newKey = try await createNewSharedConversationKey(conversationId: conversationId)
-                await updateMetrics { $0.newKeysCreated += 1 }
-                return newKey
+                // Legacy plaintext shared key
+                if let keyDataString = data["sharedEncryptionKey"] as? String,
+                   let keyData = Data(base64Encoded: keyDataString) {
+                    let sharedKey = SymmetricKey(data: keyData)
+                    await cacheConversationKey(conversationId: conversationId, key: sharedKey)
+                    await updateMetrics { $0.firestoreHits += 1 }
+                    print("✅ Shared key found in Firestore (legacy)")
+                    return sharedKey
+                }
             }
+            
+            // Create new shared key with atomic write (legacy path)
+            let newKey = try await createNewSharedConversationKey(conversationId: conversationId)
+            await updateMetrics { $0.newKeysCreated += 1 }
+            return newKey
             
         } catch {
             await updateMetrics {
@@ -2170,5 +2189,143 @@ class EncryptionService: ObservableObject {
         Task {
             await self.uploadMetricsToFirestore()
         }
+    }
+    
+    private func retrieveRawDataFromKeychain(tag: String) throws -> Data {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keyChainService,
+            kSecAttrAccount as String: tag,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let data = result as? Data else {
+            throw EncryptionError.keychainError("Failed to retrieve raw data (\(tag)): \(status)")
+        }
+        return data
+    }
+    
+    // MARK: - E2E Key Agreement (User Keypair)
+    private func getOrCreateUserKeyPair() throws -> (privateKey: Curve25519.KeyAgreement.PrivateKey, publicKey: Data) {
+        // Try to load from keychain
+        if let existingRaw = try? retrieveRawDataFromKeychain(tag: userPrivateKeyTag) {
+            if let privateKey = try? Curve25519.KeyAgreement.PrivateKey(rawRepresentation: existingRaw) {
+                return (privateKey, privateKey.publicKey.rawRepresentation)
+            }
+        }
+        // Generate new keypair
+        let privateKey = Curve25519.KeyAgreement.PrivateKey()
+        let raw = privateKey.rawRepresentation
+        try storeRawDataInKeychain(raw, tag: userPrivateKeyTag)
+        return (privateKey, privateKey.publicKey.rawRepresentation)
+    }
+    
+    private func storeRawDataInKeychain(_ data: Data, tag: String) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keyChainService,
+            kSecAttrAccount as String: tag,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable as String: false
+        ]
+        SecItemDelete(query as CFDictionary)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw EncryptionError.keychainError("Failed to store raw data (\(tag)): \(status)")
+        }
+    }
+    
+    // Public key exposure for upload
+    func getUserPublicKeyBase64() throws -> String {
+        let pair = try getOrCreateUserKeyPair()
+        return Data(pair.publicKey).base64EncodedString()
+    }
+    
+    // MARK: - E2E Wrap/Unwrap Shared Conversation Keys
+    private func deriveWrappingKey(sharedSecret: SharedSecret, salt: Data, info: Data) -> SymmetricKey {
+        let keyMaterial = sharedSecret.hkdfDerivedSymmetricKey(
+            using: SHA256.self,
+            salt: salt,
+            sharedInfo: info,
+            outputByteCount: 32
+        )
+        return keyMaterial
+    }
+    
+    private func wrapSharedKeyForRecipient(sharedKey: SymmetricKey, recipientPublicKeyData: Data, conversationId: String) throws -> String {
+        let recipientPublicKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: recipientPublicKeyData)
+        let (senderPrivate, _) = try getOrCreateUserKeyPair()
+        let secret = try senderPrivate.sharedSecretFromKeyAgreement(with: recipientPublicKey)
+        let salt = Data(conversationId.utf8)
+        let info = Data("moments_wrapped_key_v1".utf8)
+        let wrappingKey = deriveWrappingKey(sharedSecret: secret, salt: salt, info: info)
+        
+        // Encrypt sharedKey bytes
+        let sharedKeyData = sharedKey.withUnsafeBytes { Data($0) }
+        let sealed = try AES.GCM.seal(sharedKeyData, using: wrappingKey)
+        guard let combined = sealed.combined else { throw EncryptionError.encryptionFailed }
+        return combined.base64EncodedString()
+    }
+    
+    private func unwrapSharedKeyFromSender(wrappedBase64: String, senderPublicKeyData: Data, conversationId: String) throws -> SymmetricKey {
+        guard let combined = Data(base64Encoded: wrappedBase64) else { throw EncryptionError.invalidInput }
+        let senderPublicKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: senderPublicKeyData)
+        let (recipientPrivate, _) = try getOrCreateUserKeyPair()
+        let secret = try recipientPrivate.sharedSecretFromKeyAgreement(with: senderPublicKey)
+        let salt = Data(conversationId.utf8)
+        let info = Data("moments_wrapped_key_v1".utf8)
+        let wrappingKey = deriveWrappingKey(sharedSecret: secret, salt: salt, info: info)
+        let sealed = try AES.GCM.SealedBox(combined: combined)
+        let unwrappedData = try AES.GCM.open(sealed, using: wrappingKey)
+        return SymmetricKey(data: unwrappedData)
+    }
+    
+    // MARK: - E2E API: Create/Fetch conversation shared key with per-user wrapping
+    func createOrFetchE2EConversationKey(conversationId: String, participantPublicKeys: [String: String]) async throws -> SymmetricKey {
+        // 1) Try local cache/keychain first
+        if let cached = try? await loadConversationKeyFromStorage(conversationId: conversationId) {
+            return cached
+        }
+        
+        // 2) Try Firestore wrappedKeys path
+        let doc = try await db.collection("conversations").document(conversationId).getDocument()
+        if let data = doc.data(), let wrapped = data["wrappedKeys"] as? [String: Any],
+           let currentUserId = Auth.auth().currentUser?.uid,
+           let myWrapped = wrapped[currentUserId] as? [String: Any],
+           let wrappedKeyBase64 = myWrapped["key"] as? String,
+           let senderPubBase64 = myWrapped["senderPublicKey"] as? String,
+           let senderPub = Data(base64Encoded: senderPubBase64) {
+            let unwrapped = try unwrapSharedKeyFromSender(wrappedBase64: wrappedKeyBase64, senderPublicKeyData: senderPub, conversationId: conversationId)
+            await cacheConversationKey(conversationId: conversationId, key: unwrapped)
+            return unwrapped
+        }
+        
+        // 3) Create new shared key and wrap for all participants
+        let newShared = SymmetricKey(size: .bits256)
+        
+        var wrappedForAll: [String: Any] = [:]
+        let (_, senderPubRaw) = try getOrCreateUserKeyPair()
+        let senderPubBase64 = Data(senderPubRaw).base64EncodedString()
+        
+        for (userId, pubKeyBase64) in participantPublicKeys {
+            guard let pubData = Data(base64Encoded: pubKeyBase64) else { continue }
+            let wrappedBase64 = try wrapSharedKeyForRecipient(sharedKey: newShared, recipientPublicKeyData: pubData, conversationId: conversationId)
+            wrappedForAll[userId] = [
+                "key": wrappedBase64,
+                "senderPublicKey": senderPubBase64
+            ]
+        }
+        
+        try await db.collection("conversations").document(conversationId).setData([
+            "wrappedKeys": wrappedForAll,
+            "encryptionVersion": "e2e_v1",
+            "lastKeyUpdate": FieldValue.serverTimestamp()
+        ], merge: true)
+        
+        await cacheConversationKey(conversationId: conversationId, key: newShared)
+        return newShared
     }
 }

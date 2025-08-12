@@ -82,6 +82,9 @@ struct AppUser: Identifiable, Codable {
     let onlineStatus: OnlineStatus
     let lastSeen: Date?
     let isOnline: Bool
+    
+    // ✅ NUEVO: Clave pública para E2E (base64)
+    let encryptionPublicKeyBase64: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -112,6 +115,7 @@ struct AppUser: Identifiable, Codable {
         case onlineStatus
         case lastSeen
         case isOnline
+        case encryptionPublicKeyBase64
     }
 
     init(from decoder: Decoder) throws {
@@ -170,6 +174,9 @@ struct AppUser: Identifiable, Codable {
         }
         
         self.isOnline = (try container.decodeIfPresent(Bool.self, forKey: .isOnline)) ?? false
+        
+        // ✅ NUEVO: Decodificación de clave pública E2E
+        self.encryptionPublicKeyBase64 = try container.decodeIfPresent(String.self, forKey: .encryptionPublicKeyBase64)
     }
 
     init(
@@ -200,7 +207,8 @@ struct AppUser: Identifiable, Codable {
         isVerified: Bool = false,
         onlineStatus: OnlineStatus = .offline,
         lastSeen: Date? = nil,
-        isOnline: Bool = false
+        isOnline: Bool = false,
+        encryptionPublicKeyBase64: String? = nil
     ) {
         self.id = id
         self.username = username
@@ -230,6 +238,7 @@ struct AppUser: Identifiable, Codable {
         self.onlineStatus = onlineStatus
         self.lastSeen = lastSeen
         self.isOnline = isOnline
+        self.encryptionPublicKeyBase64 = encryptionPublicKeyBase64
     }
 }
 
