@@ -520,11 +520,13 @@ struct SecurityScore {
         }
     }
 }
+
 import Foundation
 import CryptoKit
 import Security
 import FirebaseAuth
 import FirebaseFirestore
+import UIKit
 
 // MARK: - EncryptionService ULTRA OPTIMIZADO para Moments 🚀
 @MainActor
