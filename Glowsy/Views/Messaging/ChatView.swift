@@ -218,7 +218,9 @@ struct GlassmorphicChatView: View {
         )
         .onAppear {
             if let conversationId = viewModel.conversation.id {
-                EncryptionService.shared.preloadConversationKey(for: conversationId)
+                Task {
+                    await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
+                }
             }
             AnalyticsService.shared.trackScreenView("ChatView")
             AnalyticsService.shared.trackFeatureUsage("chat")

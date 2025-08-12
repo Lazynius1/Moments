@@ -3,11 +3,17 @@ import FirebaseFirestore
 import FirebaseVertexAI
 import FirebaseAuth
 
-class ConversationService {
+// MARK: - ConversationService ACTUALIZADO para Async Encryption 🚀
+@MainActor
+class ConversationService: ObservableObject {
     private let db = Firestore.firestore()
     private let vertexAI = VertexAI.vertexAI()
     private lazy var model = vertexAI.generativeModel(modelName: "gemini-2.5-flash-lite")
     private let encryptionService = EncryptionService.shared
+    
+    // MARK: - Published Properties for SwiftUI
+    @Published var isLoading: Bool = false
+    @Published var lastError: String?
     
     // MARK: - Colecciones de Firestore
     private var conversationTitlesCollection: CollectionReference {
@@ -18,167 +24,199 @@ class ConversationService {
         return db.collection("geminiConversations")
     }
     
-    // MARK: - Cargar títulos de conversaciones
-    func loadConversationTitles(for userId: String, completion: @escaping ([ConversationTitle]) -> Void) {
-        conversationTitlesCollection
-            .whereField("userId", isEqualTo: userId)
-            .order(by: "lastUpdated", descending: true)
-            .limit(to: 20) // Limitar a las últimas 20 conversaciones
-            .addSnapshotListener { [weak self] snapshot, error in
-                if let error = error {
-                    print("Error loading Gemini conversation titles: \(error.localizedDescription)")
-                    completion([])
-                    return
-                }
-                
-                guard let documents = snapshot?.documents else {
-                    completion([])
-                    return
-                }
-                
-                let titles = documents.compactMap { document -> ConversationTitle? in
-                    guard var title = ConversationTitle(dictionary: document.data()) else {
-                        return nil
+    // MARK: - 🚀 ASYNC: Cargar títulos de conversaciones
+    func loadConversationTitles(for userId: String) async -> [ConversationTitle] {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let snapshot = try await conversationTitlesCollection
+                .whereField("userId", isEqualTo: userId)
+                .order(by: "lastUpdated", descending: true)
+                .limit(to: 20)
+                .getDocuments()
+            
+            let titles = await withTaskGroup(of: ConversationTitle?.self, returning: [ConversationTitle].self) { group in
+                for document in snapshot.documents {
+                    group.addTask {
+                        await self.decryptConversationTitle(from: document, userId: userId)
                     }
-                    
-                    // 🔐 Decrypt title if encryption is enabled
-                    if let encryptedTitle = title.title as String?,
-                       let decryptedTitle = self?.encryptionService.decryptGeminiData(encryptedTitle, for: userId) {
-                        // Create new title with decrypted content
-                        return ConversationTitle(
-                            id: title.id,
-                            title: decryptedTitle,
-                            lastUpdated: title.lastUpdated,
-                            messageCount: title.messageCount,
-                            userId: title.userId
-                        )
-                    }
-                    
-                    return title
                 }
                 
-                completion(titles)
+                var results: [ConversationTitle] = []
+                for await title in group {
+                    if let title = title {
+                        results.append(title)
+                    }
+                }
+                
+                // Mantener orden cronológico
+                return results.sorted { $0.lastUpdated > $1.lastUpdated }
             }
+            
+            print("✅ Loaded and decrypted \(titles.count) conversation titles")
+            return titles
+            
+        } catch {
+            lastError = "Error loading conversations: \(error.localizedDescription)"
+            print("❌ Error loading conversation titles: \(error)")
+            return []
+        }
     }
     
-    // MARK: - Guardar nueva conversación
-    func saveConversation(for userId: String, messages: [ChatMessage], completion: @escaping (String?) -> Void) {
-        guard !messages.isEmpty else {
-            completion(nil)
-            return
+    // MARK: - 🔓 Helper: Decrypt Conversation Title
+    private func decryptConversationTitle(from document: QueryDocumentSnapshot, userId: String) async -> ConversationTitle? {
+        guard var title = ConversationTitle(dictionary: document.data()) else {
+            return nil
         }
         
-        let conversationId = UUID().uuidString
-        let savedMessages = messages.toSavedMessages()
-        
-        // 🔐 Encrypt messages before storing
-        let encryptedMessages = savedMessages.compactMap { message -> SavedChatMessage? in
-            let encryptedText = self.encryptionService.encryptGeminiData(message.text, for: userId) ?? message.text
+        // 🔐 Decrypt title if encryption is enabled
+        if let encryptedTitle = title.title as String? {
+            let decryptedTitle = await encryptionService.decryptGeminiData(encryptedTitle, for: userId) ?? encryptedTitle
             
-            return SavedChatMessage(
-                id: message.id,
-                text: encryptedText, // Store encrypted text
-                isUser: message.isUser,
+            return ConversationTitle(
+                id: title.id,
+                title: decryptedTitle,
+                lastUpdated: title.lastUpdated,
+                messageCount: title.messageCount,
+                userId: title.userId
             )
         }
         
-        // Generar título automáticamente
-        generateConversationTitle(from: messages) { [weak self] title in
-            guard let self = self else { return }
+        return title
+    }
+    
+    // MARK: - 💾 ASYNC: Guardar nueva conversación
+    func saveConversation(for userId: String, messages: [ChatMessage]) async -> String? {
+        guard !messages.isEmpty else { return nil }
+        
+        isLoading = true
+        defer { isLoading = false }
+        
+        let conversationId = UUID().uuidString
+        
+        do {
+            // 1. Generate title asynchronously
+            let title = await generateConversationTitle(from: messages)
             
-            // 🔐 Encrypt title before storing
-            let encryptedTitle = self.encryptionService.encryptGeminiData(title, for: userId) ?? title
+            // 2. Encrypt title and messages in parallel
+            async let encryptedTitle = encryptionService.encryptGeminiData(title, for: userId)
+            async let encryptedMessages = encryptMessages(messages, for: userId)
             
+            let finalEncryptedTitle = await encryptedTitle ?? title
+            let finalEncryptedMessages = await encryptedMessages
+            
+            // 3. Create conversation objects
             let conversationTitle = ConversationTitle(
                 id: conversationId,
-                title: encryptedTitle, // Store encrypted title
+                title: finalEncryptedTitle,
                 lastUpdated: Date(),
                 messageCount: messages.count,
                 userId: userId
             )
             
-            // 🔐 Encrypt messages before storing
-            let encryptedMessages = messages.compactMap { message -> SavedChatMessage? in
-                let savedMessage = SavedChatMessage(from: message)
-                
-                // Create new saved message with encrypted content
-                let encryptedText = self.encryptionService.encryptGeminiData(savedMessage.text, for: userId) ?? savedMessage.text
-                
-                return SavedChatMessage(
-                    id: savedMessage.id,
-                    text: encryptedText, // Store encrypted text
-                    isUser: savedMessage.isUser,
-                )
-            }
-            
             let savedConversation = SavedConversation(
                 id: conversationId,
-                title: encryptedTitle, // Store encrypted title
-                messages: encryptedMessages, // Store encrypted messages
+                title: finalEncryptedTitle,
+                messages: finalEncryptedMessages,
                 createdAt: Date(),
                 lastUpdated: Date(),
                 userId: userId
             )
             
-            // Guardar en batch para consistencia
-            let batch = self.db.batch()
+            // 4. Save to Firestore in batch
+            try await saveConversationBatch(
+                conversationId: conversationId,
+                title: conversationTitle,
+                conversation: savedConversation
+            )
             
-            // Guardar título
-            let titleRef = self.conversationTitlesCollection.document(conversationId)
-            batch.setData(conversationTitle.dictionary, forDocument: titleRef)
+            print("✅ Conversation saved successfully with ID: \(conversationId)")
+            return conversationId
             
-            // Guardar conversación completa
-            let conversationRef = self.conversationsCollection.document(conversationId)
-            batch.setData(savedConversation.dictionary, forDocument: conversationRef)
-            
-            batch.commit { error in
-                if let error = error {
-                    print("Error saving conversation: \(error.localizedDescription)")
-                    completion(nil)
-                } else {
-                    print("Conversación de Gemini guardada exitosamente con ID: \(conversationId)")
-                    completion(conversationId)
-                }
-            }
+        } catch {
+            lastError = "Error saving conversation: \(error.localizedDescription)"
+            print("❌ Error saving conversation: \(error)")
+            return nil
         }
     }
     
-    // MARK: - Actualizar conversación existente
-    func updateConversation(_ conversationId: String, for userId: String, messages: [ChatMessage], completion: @escaping (Bool) -> Void) {
-        guard !messages.isEmpty else {
-            completion(false)
-            return
-        }
-        
+    // MARK: - 🔐 Helper: Encrypt Messages
+    private func encryptMessages(_ messages: [ChatMessage], for userId: String) async -> [SavedChatMessage] {
         let savedMessages = messages.toSavedMessages()
         
-        // 🔐 Encrypt messages before storing
-        let encryptedMessages = savedMessages.compactMap { message -> SavedChatMessage? in
-            let encryptedText = self.encryptionService.encryptGeminiData(message.text, for: userId) ?? message.text
-            
-            return SavedChatMessage(
-                id: message.id,
-                text: encryptedText, // Store encrypted text
-                isUser: message.isUser
-            )
-        }
-        
-        // Obtener la conversación actual para mantener el título y fechas
-        conversationsCollection.document(conversationId).getDocument { [weak self] document, error in
-            guard let self = self,
-                  let document = document,
-                  document.exists,
-                  let data = document.data(),
-                  let savedConversation = SavedConversation(dictionary: data) else {
-                print("Error obteniendo conversación de Gemini existente: \(error?.localizedDescription ?? "Documento no encontrado")")
-                completion(false)
-                return
+        return await withTaskGroup(of: SavedChatMessage?.self, returning: [SavedChatMessage].self) { group in
+            for (index, message) in savedMessages.enumerated() {
+                group.addTask {
+                    let encryptedText = await self.encryptionService.encryptGeminiData(message.text, for: userId) ?? message.text
+                    
+                    return SavedChatMessage(
+                        id: message.id,
+                        text: encryptedText,
+                        isUser: message.isUser
+                    )
+                }
             }
             
+            var results: [(Int, SavedChatMessage)] = []
+            var index = 0
+            for await encryptedMessage in group {
+                if let message = encryptedMessage {
+                    results.append((index, message))
+                }
+                index += 1
+            }
+            
+            // Maintain original order
+            return results.sorted { $0.0 < $1.0 }.map { $0.1 }
+        }
+    }
+    
+    // MARK: - 🔄 Helper: Save Conversation Batch
+    private func saveConversationBatch(
+        conversationId: String,
+        title: ConversationTitle,
+        conversation: SavedConversation
+    ) async throws {
+        let batch = db.batch()
+        
+        // Save title
+        let titleRef = conversationTitlesCollection.document(conversationId)
+        batch.setData(title.dictionary, forDocument: titleRef)
+        
+        // Save full conversation
+        let conversationRef = conversationsCollection.document(conversationId)
+        batch.setData(conversation.dictionary, forDocument: conversationRef)
+        
+        try await batch.commit()
+    }
+    
+    // MARK: - 🔄 ASYNC: Actualizar conversación existente
+    func updateConversation(_ conversationId: String, for userId: String, messages: [ChatMessage]) async -> Bool {
+        guard !messages.isEmpty else { return false }
+        
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            // 1. Get existing conversation
+            let document = try await conversationsCollection.document(conversationId).getDocument()
+            
+            guard document.exists,
+                  let data = document.data(),
+                  let savedConversation = SavedConversation(dictionary: data) else {
+                print("❌ Existing conversation not found: \(conversationId)")
+                return false
+            }
+            
+            // 2. Encrypt new messages
+            let encryptedMessages = await encryptMessages(messages, for: userId)
+            
+            // 3. Create updated objects
             let updatedConversation = SavedConversation(
                 id: conversationId,
                 title: savedConversation.title, // Keep existing encrypted title
-                messages: encryptedMessages, // Store newly encrypted messages
+                messages: encryptedMessages,
                 createdAt: savedConversation.createdAt,
                 lastUpdated: Date(),
                 userId: userId
@@ -192,126 +230,152 @@ class ConversationService {
                 userId: userId
             )
             
-            // Actualizar en batch
-            let batch = self.db.batch()
+            // 4. Update in batch
+            try await updateConversationBatch(
+                conversationId: conversationId,
+                title: updatedTitle,
+                conversation: updatedConversation
+            )
             
-            // Actualizar título
-            let titleRef = self.conversationTitlesCollection.document(conversationId)
-            batch.updateData(updatedTitle.dictionary, forDocument: titleRef)
+            print("✅ Conversation updated successfully")
+            return true
             
-            // Actualizar conversación
-            let conversationRef = self.conversationsCollection.document(conversationId)
-            batch.updateData(updatedConversation.dictionary, forDocument: conversationRef)
-            
-            batch.commit { error in
-                if let error = error {
-                    print("Error updating Gemini conversation: \(error.localizedDescription)")
-                    completion(false)
-                } else {
-                    print("Conversación de Gemini actualizada exitosamente")
-                    completion(true)
-                }
-            }
-        }
-    }
-    // MARK: - Cargar conversación completa
-    func loadConversation(_ conversationId: String, for userId: String, completion: @escaping ([ChatMessage]) -> Void) {
-        print("🔍 Buscando conversación en Firestore: \(conversationId)")
-        
-        conversationsCollection.document(conversationId).getDocument { [weak self] document, error in
-            if let error = error {
-                print("❌ Error loading Gemini conversation: \(error.localizedDescription)")
-                completion([])
-                return
-            }
-            
-            guard let document = document, document.exists else {
-                print("❌ Documento de conversación no existe: \(conversationId)")
-                completion([])
-                return
-            }
-            
-            guard let data = document.data() else {
-                print("❌ No se pudieron obtener datos del documento")
-                completion([])
-                return
-            }
-            
-            print("✅ Documento encontrado, parseando datos...")
-            
-            guard let savedConversation = SavedConversation(dictionary: data) else {
-                print("❌ Error al parsear SavedConversation")
-                completion([])
-                return
-            }
-            
-            // Verificar que el userId coincida
-            guard savedConversation.userId == userId else {
-                print("❌ Conversación no pertenece al usuario actual")
-                completion([])
-                return
-            }
-            
-            print("📄 Conversación parseada: \(savedConversation.messages.count) mensajes")
-            
-            // 🔐 Decrypt messages before returning
-            let decryptedMessages = savedConversation.messages.compactMap { savedMessage -> ChatMessage? in
-                print("🔓 Desencriptando mensaje: \(savedMessage.id)")
-                
-                let decryptedText = self?.encryptionService.decryptGeminiData(savedMessage.text, for: userId) ?? savedMessage.text
-                
-                print("📝 Texto desencriptado: \(decryptedText.prefix(50))...")
-                
-                // ✅ CAMBIO AQUÍ: Añadir isHistorical: true
-                return ChatMessage(text: decryptedText, isUser: savedMessage.isUser, isHistorical: true)
-            }
-            
-            print("✅ \(decryptedMessages.count) mensajes desencriptados correctamente")
-            completion(decryptedMessages)
+        } catch {
+            lastError = "Error updating conversation: \(error.localizedDescription)"
+            print("❌ Error updating conversation: \(error)")
+            return false
         }
     }
     
-    // MARK: - Eliminar conversación
-    func deleteConversation(_ conversationId: String, for userId: String, completion: @escaping (Bool) -> Void) {
-        // Verificar que la conversación pertenece al usuario
-        conversationTitlesCollection.document(conversationId).getDocument { [weak self] document, error in
-            guard let self = self,
-                  let document = document,
-                  document.exists,
+    // MARK: - 🔄 Helper: Update Conversation Batch
+    private func updateConversationBatch(
+        conversationId: String,
+        title: ConversationTitle,
+        conversation: SavedConversation
+    ) async throws {
+        let batch = db.batch()
+        
+        // Update title
+        let titleRef = conversationTitlesCollection.document(conversationId)
+        batch.updateData(title.dictionary, forDocument: titleRef)
+        
+        // Update conversation
+        let conversationRef = conversationsCollection.document(conversationId)
+        batch.updateData(conversation.dictionary, forDocument: conversationRef)
+        
+        try await batch.commit()
+    }
+    
+    // MARK: - 📖 ASYNC: Cargar conversación completa
+    func loadConversation(_ conversationId: String, for userId: String) async -> [ChatMessage] {
+        print("🔍 Loading conversation from Firestore: \(conversationId)")
+        
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let document = try await conversationsCollection.document(conversationId).getDocument()
+            
+            guard document.exists,
+                  let data = document.data(),
+                  let savedConversation = SavedConversation(dictionary: data) else {
+                print("❌ Conversation document not found: \(conversationId)")
+                return []
+            }
+            
+            // Verify user ownership
+            guard savedConversation.userId == userId else {
+                print("❌ Conversation doesn't belong to current user")
+                return []
+            }
+            
+            print("📄 Conversation found: \(savedConversation.messages.count) messages")
+            
+            // 🔐 Decrypt messages in parallel
+            let decryptedMessages = await withTaskGroup(of: (Int, ChatMessage?).self, returning: [ChatMessage].self) { group in
+                
+                for (index, savedMessage) in savedConversation.messages.enumerated() {
+                    group.addTask {
+                        print("🔓 Decrypting message: \(savedMessage.id)")
+                        
+                        let decryptedText = await self.encryptionService.decryptGeminiData(savedMessage.text, for: userId) ?? savedMessage.text
+                        
+                        print("📝 Decrypted text: \(decryptedText.prefix(50))...")
+                        
+                        let message = ChatMessage(
+                            text: decryptedText,
+                            isUser: savedMessage.isUser,
+                            isHistorical: true // Mark as historical
+                        )
+                        
+                        return (index, message)
+                    }
+                }
+                
+                var results: [(Int, ChatMessage)] = []
+                for await (index, message) in group {
+                    if let message = message {
+                        results.append((index, message))
+                    }
+                }
+                
+                // Maintain original order
+                return results.sorted { $0.0 < $1.0 }.map { $0.1 }
+            }
+            
+            print("✅ \(decryptedMessages.count) messages decrypted successfully")
+            return decryptedMessages
+            
+        } catch {
+            lastError = "Error loading conversation: \(error.localizedDescription)"
+            print("❌ Error loading conversation: \(error)")
+            return []
+        }
+    }
+    
+    // MARK: - 🗑️ ASYNC: Eliminar conversación
+    func deleteConversation(_ conversationId: String, for userId: String) async -> Bool {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            // Verify ownership first
+            let document = try await conversationTitlesCollection.document(conversationId).getDocument()
+            
+            guard document.exists,
                   let data = document.data(),
                   let title = ConversationTitle(dictionary: data),
                   title.userId == userId else {
-                print("Error: Conversación de Gemini no encontrada o acceso denegado")
-                completion(false)
-                return
+                print("❌ Conversation not found or access denied")
+                return false
             }
             
-            // Eliminar en batch
-            let batch = self.db.batch()
+            // Delete in batch
+            let batch = db.batch()
             
-            // Eliminar título
-            let titleRef = self.conversationTitlesCollection.document(conversationId)
+            // Delete title
+            let titleRef = conversationTitlesCollection.document(conversationId)
             batch.deleteDocument(titleRef)
             
-            // Eliminar conversación
-            let conversationRef = self.conversationsCollection.document(conversationId)
+            // Delete conversation
+            let conversationRef = conversationsCollection.document(conversationId)
             batch.deleteDocument(conversationRef)
             
-            batch.commit { error in
-                if let error = error {
-                    print("Error deleting Gemini conversation: \(error.localizedDescription)")
-                    completion(false)
-                } else {
-                    print("Conversación de Gemini eliminada exitosamente")
-                    completion(true)
-                }
-            }
+            try await batch.commit()
+            
+            print("✅ Conversation deleted successfully")
+            return true
+            
+        } catch {
+            lastError = "Error deleting conversation: \(error.localizedDescription)"
+            print("❌ Error deleting conversation: \(error)")
+            return false
         }
     }
     
-    // MARK: - Generar título de conversación
-    private func generateConversationTitle(from messages: [ChatMessage], completion: @escaping (String) -> Void) {
-        // Tomar los primeros mensajes para generar el título
+    // MARK: - 🎯 ASYNC: Generar título de conversación
+    private func generateConversationTitle(from messages: [ChatMessage]) async -> String {
+        // Take first messages for analysis
         let messagesToAnalyze = Array(messages.prefix(4))
         let conversationText = messagesToAnalyze.map { message in
             "\(message.isUser ? "Usuario" : "Asistente"): \(message.text)"
@@ -332,68 +396,202 @@ class ConversationService {
         Responde SOLO con el título, sin comillas ni explicaciones adicionales.
         """
         
-        Task {
-            do {
-                let response = try await model.generateContent(prompt)
-                let title = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Conversación \(DateFormatter.shortTime.string(from: Date()))"
-                
-                // Asegurar que el título no sea demasiado largo
-                let finalTitle = title.count > 50 ? String(title.prefix(47)) + "..." : title
-                
-                DispatchQueue.main.async {
-                    completion(finalTitle)
-                }
-            } catch {
-                print("Error generando título: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    completion("Conversación \(DateFormatter.shortTime.string(from: Date()))")
-                }
-            }
+        do {
+            let response = try await model.generateContent(prompt)
+            let title = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Conversación \(DateFormatter.shortTime.string(from: Date()))"
+            
+            // Ensure title isn't too long
+            let finalTitle = title.count > 50 ? String(title.prefix(47)) + "..." : title
+            
+            print("🎯 Generated title: \(finalTitle)")
+            return finalTitle
+            
+        } catch {
+            print("❌ Error generating title: \(error.localizedDescription)")
+            return "Conversación \(DateFormatter.shortTime.string(from: Date()))"
         }
     }
     
-    // MARK: - Limpiar conversaciones antiguas (opcional)
-    func cleanupOldConversations(for userId: String, keepLast: Int = 50) {
-        conversationTitlesCollection
-            .whereField("userId", isEqualTo: userId)
-            .order(by: "lastUpdated", descending: true)
-            .limit(to: 100) // Obtener más de las que queremos mantener
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self,
-                      let documents = snapshot?.documents,
-                      documents.count > keepLast else {
-                    return
-                }
-                
-                // Eliminar las conversaciones más antiguas
-                let documentsToDelete = Array(documents.dropFirst(keepLast))
-                let batch = self.db.batch()
-                
-                for document in documentsToDelete {
-                    // Eliminar título
-                    batch.deleteDocument(document.reference)
-                    
-                    // Eliminar conversación completa
-                    let conversationRef = self.conversationsCollection.document(document.documentID)
-                    batch.deleteDocument(conversationRef)
-                }
-                
-                batch.commit { error in
-                    if let error = error {
-                        print("Error cleaning up old Gemini conversations: \(error.localizedDescription)")
-                    } else {
-                        print("Limpieza de conversaciones de Gemini completada")
-                    }
-                }
+    // MARK: - 🧹 ASYNC: Limpiar conversaciones antiguas
+    func cleanupOldConversations(for userId: String, keepLast: Int = 50) async -> Bool {
+        do {
+            let snapshot = try await conversationTitlesCollection
+                .whereField("userId", isEqualTo: userId)
+                .order(by: "lastUpdated", descending: true)
+                .limit(to: 100)
+                .getDocuments()
+            
+            let documents = snapshot.documents
+            guard documents.count > keepLast else {
+                print("📊 No cleanup needed. Current conversations: \(documents.count)")
+                return true
             }
+            
+            // Delete oldest conversations
+            let documentsToDelete = Array(documents.dropFirst(keepLast))
+            let batch = db.batch()
+            
+            for document in documentsToDelete {
+                // Delete title
+                batch.deleteDocument(document.reference)
+                
+                // Delete full conversation
+                let conversationRef = conversationsCollection.document(document.documentID)
+                batch.deleteDocument(conversationRef)
+            }
+            
+            try await batch.commit()
+            
+            print("✅ Cleanup completed. Deleted \(documentsToDelete.count) old conversations")
+            return true
+            
+        } catch {
+            lastError = "Error during cleanup: \(error.localizedDescription)"
+            print("❌ Error cleaning up conversations: \(error)")
+            return false
+        }
+    }
+    
+    // MARK: - 📊 UTILITY: Get Conversation Statistics
+    func getConversationStatistics(for userId: String) async -> ConversationStatistics {
+        do {
+            let snapshot = try await conversationTitlesCollection
+                .whereField("userId", isEqualTo: userId)
+                .getDocuments()
+            
+            let totalConversations = snapshot.documents.count
+            let totalMessages = snapshot.documents.compactMap { doc -> Int? in
+                ConversationTitle(dictionary: doc.data())?.messageCount
+            }.reduce(0, +)
+            
+            let oldestConversation = snapshot.documents.compactMap { doc -> Date? in
+                ConversationTitle(dictionary: doc.data())?.lastUpdated
+            }.min()
+            
+            return ConversationStatistics(
+                totalConversations: totalConversations,
+                totalMessages: totalMessages,
+                oldestConversation: oldestConversation,
+                userId: userId
+            )
+            
+        } catch {
+            print("❌ Error getting statistics: \(error)")
+            return ConversationStatistics(
+                totalConversations: 0,
+                totalMessages: 0,
+                oldestConversation: nil,
+                userId: userId
+            )
+        }
+    }
+    
+    // MARK: - 🔄 PRELOAD: Optimize Performance
+    func preloadRecentConversations(for userId: String) async {
+        print("🚀 Preloading recent conversations for better performance...")
+        
+        do {
+            let snapshot = try await conversationTitlesCollection
+                .whereField("userId", isEqualTo: userId)
+                .order(by: "lastUpdated", descending: true)
+                .limit(to: 5) // Preload 5 most recent
+                .getDocuments()
+            
+            let conversationIds = snapshot.documents.map { $0.documentID }
+            
+            // Preload encryption keys for these conversations
+            await encryptionService.preloadConversationKeys(for: conversationIds)
+            
+            print("✅ Preloaded keys for \(conversationIds.count) recent conversations")
+            
+        } catch {
+            print("❌ Error preloading conversations: \(error)")
+        }
     }
 }
 
-// MARK: - Extensions
+// MARK: - 📊 SUPPORTING TYPES
+struct ConversationStatistics {
+    let totalConversations: Int
+    let totalMessages: Int
+    let oldestConversation: Date?
+    let userId: String
+    
+    var averageMessagesPerConversation: Double {
+        guard totalConversations > 0 else { return 0.0 }
+        return Double(totalMessages) / Double(totalConversations)
+    }
+    
+    var formattedSummary: String {
+        return """
+        📊 Estadísticas de Conversaciones:
+        • Total conversaciones: \(totalConversations)
+        • Total mensajes: \(totalMessages)
+        • Promedio por conversación: \(String(format: "%.1f", averageMessagesPerConversation))
+        • Conversación más antigua: \(oldestConversation?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")
+        """
+    }
+}
+
+// MARK: - 🔄 EXTENSIONS
 extension DateFormatter {
     static let shortTime: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
+}
+
+// MARK: - 🚀 COMPATIBILITY BRIDGE (for gradual migration)
+extension ConversationService {
+    
+    /// Legacy completion-based method for gradual migration
+    func loadConversationTitles(for userId: String, completion: @escaping ([ConversationTitle]) -> Void) {
+        Task {
+            let titles = await loadConversationTitles(for: userId)
+            await MainActor.run {
+                completion(titles)
+            }
+        }
+    }
+    
+    /// Legacy completion-based method for gradual migration
+    func saveConversation(for userId: String, messages: [ChatMessage], completion: @escaping (String?) -> Void) {
+        Task {
+            let conversationId = await saveConversation(for: userId, messages: messages)
+            await MainActor.run {
+                completion(conversationId)
+            }
+        }
+    }
+    
+    /// Legacy completion-based method for gradual migration
+    func updateConversation(_ conversationId: String, for userId: String, messages: [ChatMessage], completion: @escaping (Bool) -> Void) {
+        Task {
+            let success = await updateConversation(conversationId, for: userId, messages: messages)
+            await MainActor.run {
+                completion(success)
+            }
+        }
+    }
+    
+    /// Legacy completion-based method for gradual migration
+    func loadConversation(_ conversationId: String, for userId: String, completion: @escaping ([ChatMessage]) -> Void) {
+        Task {
+            let messages = await loadConversation(conversationId, for: userId)
+            await MainActor.run {
+                completion(messages)
+            }
+        }
+    }
+    
+    /// Legacy completion-based method for gradual migration
+    func deleteConversation(_ conversationId: String, for userId: String, completion: @escaping (Bool) -> Void) {
+        Task {
+            let success = await deleteConversation(conversationId, for: userId)
+            await MainActor.run {
+                completion(success)
+            }
+        }
+    }
 }
