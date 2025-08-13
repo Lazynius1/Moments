@@ -51,12 +51,16 @@ struct StoriesView: View {
             } else if let error = errorMessage {
                 GlassmorphicEmptyState(
                     icon: "exclamationmark.triangle",
-                    message: error
+                    message: error,
+                    showCloseButton: true,
+                    onClose: { dismiss() }
                 )
             } else if userIds.isEmpty || storyViewModel.stories.isEmpty {
                 GlassmorphicEmptyState(
                     icon: "photo.on.rectangle",
-                    message: "No hay historias disponibles"
+                    message: "No hay historias disponibles",
+                    showCloseButton: true,
+                    onClose: { dismiss() }
                 )
             } else if showAd {
                 // ✅ NUEVO: Usar anuncio integrado
@@ -152,7 +156,9 @@ struct StoriesView: View {
             } else {
                 GlassmorphicEmptyState(
                     icon: "exclamationmark.triangle",
-                    message: "Error al cargar la historia"
+                    message: "Error al cargar la historia",
+                    showCloseButton: true,
+                    onClose: { dismiss() }
                 )
             }
         }

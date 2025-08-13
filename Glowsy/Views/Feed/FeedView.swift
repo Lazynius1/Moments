@@ -123,6 +123,8 @@ struct FeedView: View {
     @State private var showMomentDetail = false
     @State private var targetMomentUserId: String? = nil
     
+
+    
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
@@ -262,7 +264,9 @@ struct FeedView: View {
             StoriesView()
                 .environmentObject(firestoreService)
         }
-        .sheet(isPresented: $showingComments) {
+        .sheet(isPresented: $showingComments, onDismiss: {
+            selectedMoment = nil
+        }) {
             if let moment = selectedMoment {
                 ModernCommentsView(moment: moment)
                     .environmentObject(firestoreService)
@@ -355,6 +359,11 @@ struct FeedView: View {
                 Task {
                     await loadStoryUsers(userId: userId)
                 }
+            }
+        }
+        .onChange(of: showingComments) { newValue in
+            if !newValue {
+                selectedMoment = nil
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfileInFeed"))) { notification in
@@ -660,6 +669,7 @@ struct FeedView: View {
                                         }
                                     },
                                     onHashtagTap: { hashtag in
+                                        print("🔍 DEBUG: Callback llamado con hashtag: \(hashtag)")
                                         selectedHashtag = "#\(hashtag)"
                                         showExploreWithHashtag = true
                                     },
@@ -2521,11 +2531,9 @@ struct ModernActionButtons: View {
             Spacer()
             
             VStack(spacing: 12) {
-                // ✅ REACCIONES: Solo mostrar si NO están ocultos los likes
-                if !moment.hideLikeCounts {
-                    EpicReactionButton(moment: moment)
-                        .environmentObject(firestoreService)
-                }
+                // ✅ REACCIONES: Siempre mostrar el botón, pero controlar el contador
+                EpicReactionButton(moment: moment, showCount: !moment.hideLikeCounts)
+                    .environmentObject(firestoreService)
                 
                 // ✅ COMENTARIOS: Solo mostrar si están habilitados
                 if !moment.disableComments {
@@ -2570,6 +2578,7 @@ struct ModernActionButtons: View {
                             }
                         }
                     }
+
                     .scaleEffect(commentCount > 0 ? 1.05 : 1.0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: commentCount)
                 }
@@ -2905,11 +2914,11 @@ struct StoryProgressCircle: View {
     }
 }
 
-// ✅ NUEVO: Vista expandible para contenido con fondo blur
+// ✅ SOLUCIONADO: Vista expandible con detección precisa de hashtags
 struct ExpandableContentView: View {
     let content: String
     let colorScheme: ColorScheme
-    let onHashtagTap: (String) -> Void  // ✅ NUEVO: Callback para hashtags
+    let onHashtagTap: (String) -> Void
     @State private var isExpanded: Bool = false
     @State private var needsExpansion: Bool = false
     
@@ -2922,27 +2931,21 @@ struct ExpandableContentView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // ✅ CAMBIO PRINCIPAL: Usar ClickableHashtagsView
+            // ✅ MEJORADO: Usar AttributedText personalizado con tap gestures específicos
             if isExpanded {
-                ClickableHashtagsView(
+                HashtagText(
                     content: content,
                     colorScheme: colorScheme,
                     onHashtagTap: onHashtagTap
                 )
-                .multilineTextAlignment(.leading)
-                .shadow(color: colorScheme == .dark ? .black.opacity(0.8) : .white.opacity(0.8), radius: 3, x: 0, y: 1)
             } else {
-                ClickableHashtagsView(
+                HashtagText(
                     content: String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
                     colorScheme: colorScheme,
                     onHashtagTap: onHashtagTap
                 )
-                .lineLimit(maxLines)
-                .multilineTextAlignment(.leading)
-                .shadow(color: colorScheme == .dark ? .black.opacity(0.8) : .white.opacity(0.8), radius: 3, x: 0, y: 1)
             }
             
-            // Resto del código igual...
             if needsExpansion {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -2980,6 +2983,74 @@ struct ExpandableContentView: View {
         .onAppear {
             needsExpansion = content.count > maxCharacters
         }
+    }
+}
+
+struct HashtagText: View {
+    let content: String
+    let colorScheme: ColorScheme
+    let onHashtagTap: (String) -> Void
+    
+    var body: some View {
+        // ✅ SOLUCIÓN FINAL: Usar Text con enlaces tappables
+        Text(buildAttributedString())
+            .font(.custom("Poppins-Regular", size: 14))
+            .multilineTextAlignment(.leading)
+            .lineLimit(nil)
+            .shadow(color: colorScheme == .dark ? .black.opacity(0.8) : .white.opacity(0.8), radius: 3, x: 0, y: 1)
+            .environment(\.openURL, OpenURLAction { url in
+                // ✅ Manejar taps en hashtags a través de URLs personalizadas
+                if url.scheme == "hashtag", let hashtag = url.host {
+                    print("🔍 DEBUG: Hashtag específico tocado: \(hashtag)")
+                    onHashtagTap(hashtag)
+                    return .handled
+                }
+                return .systemAction
+            })
+    }
+    
+    // ✅ CLAVE: Construir AttributedString con enlaces en hashtags
+    private func buildAttributedString() -> AttributedString {
+        var attributed = AttributedString(content)
+        
+        // Color base para todo el texto
+        attributed.foregroundColor = colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9)
+        
+        // Buscar y procesar hashtags
+        let pattern = "#(\\w+)"
+        if let regex = try? NSRegularExpression(pattern: pattern) {
+            let nsString = NSString(string: content)
+            let range = NSRange(location: 0, length: nsString.length)
+            let matches = regex.matches(in: content, range: range).reversed() // Reversed para no alterar índices
+            
+            for match in matches {
+                // Obtener el hashtag completo y el término sin #
+                let fullHashtag = nsString.substring(with: match.range) // #barcelona
+                let hashtagTerm = nsString.substring(with: match.range(at: 1)) // barcelona
+                
+                // Convertir a rangos de Swift
+                if let swiftRange = Range(match.range, in: content),
+                   let attributedRange = swiftRange.toAttributedStringRange(in: attributed) {
+                    
+                    // Aplicar estilo al hashtag
+                    attributed[attributedRange].foregroundColor = Color(hex: "667eea")
+                    attributed[attributedRange].font = .custom("Poppins-SemiBold", size: 14)
+                    attributed[attributedRange].link = URL(string: "hashtag://\(hashtagTerm)")
+                }
+            }
+        }
+        
+        return attributed
+    }
+}
+
+extension Range where Bound == String.Index {
+    func toAttributedStringRange(in attributedString: AttributedString) -> Range<AttributedString.Index>? {
+        guard let lowerBound = AttributedString.Index(self.lowerBound, within: attributedString),
+              let upperBound = AttributedString.Index(self.upperBound, within: attributedString) else {
+            return nil
+        }
+        return lowerBound..<upperBound
     }
 }
 // MARK: - FeedViewModel CORREGIDO - Versión que funciona

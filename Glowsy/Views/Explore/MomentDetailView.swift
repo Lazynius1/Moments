@@ -27,6 +27,10 @@ struct MomentDetailView: View {
     @State private var backgroundOpacity: Double = 1.0
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var aspectRatioType: AspectRatioType = .square
+    
+    // ✅ NUEVOS: Estados para expansión de contenido
+    @State private var isContentExpanded: Bool = false
+    @State private var needsContentExpansion: Bool = false
 
     init(moment: Moment) {
         self.moment = moment
@@ -439,11 +443,33 @@ struct MomentDetailView: View {
     
     private var momentContentText: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(moment.content)
-                .font(.custom("Poppins-Regular", size: 16))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(moment.content)
+                    .font(.custom("Poppins-Regular", size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(isContentExpanded ? nil : 1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .animation(.easeInOut(duration: 0.3), value: isContentExpanded)
+                    .onAppear {
+                        // Detectar si el contenido necesita expansión
+                        needsContentExpansion = moment.content.count > 50 || moment.content.contains("\n")
+                    }
+                
+                // Botón "ver más" solo si el contenido es largo
+                if needsContentExpansion {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isContentExpanded.toggle()
+                        }
+                    }) {
+                        Text(isContentExpanded ? "ver menos" : "ver más")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)

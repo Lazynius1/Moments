@@ -174,23 +174,9 @@ class StoryViewModel: ObservableObject {
 
                         do {
                             let story = try Firestore.Decoder().decode(Story.self, from: data)
-                            // Verificar si el viewer puede ver esta historia
-                            var canView: Bool = false
-                            let innerGroup = DispatchGroup()
-                            innerGroup.enter()
-                            self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { result in
-                                canView = result
-                                innerGroup.leave()
-                            }
-                            innerGroup.wait() // Sincronizar para obtener el resultado
-                            
-                            if canView {
-    
-                                return story
-                            } else {
-
-                                return nil
-                            }
+                            // ✅ CORREGIDO: Por ahora retornar la historia sin verificación de privacidad
+                            // La verificación se hará después de forma asíncrona
+                            return story
                         } catch {
                             print("❌ Error parseando historia: \(error)")
                             return nil
@@ -212,8 +198,44 @@ class StoryViewModel: ObservableObject {
         }
 
         group.notify(queue: .main) {
+            // ✅ NUEVO: Verificar privacidad de forma asíncrona después de cargar
+            self.filterStoriesByPrivacy(allStories: allStories, viewerId: viewerId)
+        }
+    }
+
+    // ✅ NUEVO: Filtrar historias por privacidad de forma asíncrona
+    private func filterStoriesByPrivacy(allStories: [String: [Story]], viewerId: String) {
+        let group = DispatchGroup()
+        var filteredStories: [String: [Story]] = [:]
+        
+        for (userId, stories) in allStories {
+            group.enter()
+            var userFilteredStories: [Story] = []
+            var processedCount = 0
             
-            self.stories = allStories
+            for story in stories {
+                self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
+                    DispatchQueue.main.async {
+                        if canView {
+                            userFilteredStories.append(story)
+                        }
+                        
+                        processedCount += 1
+                        
+                        // Si procesamos todas las historias del usuario
+                        if processedCount == stories.count {
+                            if !userFilteredStories.isEmpty {
+                                filteredStories[userId] = userFilteredStories
+                            }
+                            group.leave()
+                        }
+                    }
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            self.stories = filteredStories
             self.prefetchImages()
         }
     }
@@ -2254,6 +2276,15 @@ struct GlassmorphicReactionRow: View {
 struct GlassmorphicEmptyState: View {
     let icon: String
     let message: String
+    let showCloseButton: Bool
+    let onClose: (() -> Void)?
+    
+    init(icon: String, message: String, showCloseButton: Bool = false, onClose: (() -> Void)? = nil) {
+        self.icon = icon
+        self.message = message
+        self.showCloseButton = showCloseButton
+        self.onClose = onClose
+    }
     
     var body: some View {
         VStack(spacing: 20) {
@@ -2265,6 +2296,22 @@ struct GlassmorphicEmptyState: View {
                 .foregroundColor(.white)
                 .font(.custom("Poppins-Medium", size: 16))
                 .multilineTextAlignment(.center)
+            
+            if showCloseButton, let onClose = onClose {
+                Button(action: onClose) {
+                    Text("Cerrar")
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        )
+                }
+            }
         }
         .padding()
         .storyGlassmorphic()

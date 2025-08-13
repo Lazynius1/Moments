@@ -7,6 +7,12 @@ import FirebaseAuth
 // MARK: - Epic Reaction Button - VERSIÓN FINAL CORREGIDA
 struct EpicReactionButton: View {
     let moment: Moment
+    let showCount: Bool
+    
+    init(moment: Moment, showCount: Bool = true) {
+        self.moment = moment
+        self.showCount = showCount
+    }
     @State private var showReactionPicker = false
     @State private var currentReaction: ReactionType?
     @State private var reactionCount: Int = 0
@@ -108,7 +114,7 @@ struct EpicReactionButton: View {
             }, perform: {})
             
             // ✨ Contador animado
-            if reactionCount > 0 {
+            if showCount && reactionCount > 0 {
                 Text("\(reactionCount)")
                     .font(.custom("Poppins-Bold", size: 12))
                     .foregroundColor(.white)

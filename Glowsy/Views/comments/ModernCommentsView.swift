@@ -20,6 +20,12 @@ struct ModernCommentsView: View {
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.dismiss) private var dismiss
     
+    // ✅ NUEVO: Init personalizado para asegurar estado inicial correcto
+    init(moment: Moment) {
+        self.moment = moment
+        // El estado se inicializa automáticamente por SwiftUI
+    }
+    
     // Computed properties para mejor organización
     private var rootComments: [Comment] {
         comments.filter { $0.parentCommentId == nil }
@@ -84,11 +90,55 @@ struct ModernCommentsView: View {
         }
         .onAppear {
             print("🔍 ModernCommentsView apareció - configurando listener")
-            setupCommentsListener()
+            
+            // ✅ NUEVO: Resetear estado antes de configurar listener
+            DispatchQueue.main.async {
+                self.isLoading = true
+                self.comments = []
+                self.commentsListener?.remove() // Remover listener anterior si existe
+            }
+            
+            // ✅ NUEVO: Pequeño delay para asegurar que el estado se resetee
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.setupCommentsListener()
+            }
+        }
+        .task {
+            // ✅ NUEVO: Task adicional para asegurar inicialización
+            print("🔍 Task iniciado - asegurando inicialización")
+            await initializeCommentsView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // ✅ NUEVO: Re-inicializar cuando la app vuelve a estar activa
+            print("🔍 App activa - re-inicializando comentarios")
+            Task {
+                await initializeCommentsView()
+            }
+        }
+        .onChange(of: moment.id) { newMomentId in
+            print("🔄 Cambio de momento detectado: \(newMomentId ?? "nil")")
+            
+            // ✅ NUEVO: Resetear estado cuando cambia el momento
+            DispatchQueue.main.async {
+                self.isLoading = true
+                self.comments = []
+                self.commentsListener?.remove()
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.setupCommentsListener()
+            }
         }
         .onDisappear {
             print("🔍 ModernCommentsView desapareció - removiendo listener")
             commentsListener?.remove()
+            
+            // ✅ NUEVO: Limpiar estado al desaparecer
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.comments = []
+                self.commentsListener = nil
+            }
         }
         .alert("Eliminar comentario", isPresented: $showDeleteAlert) {
             Button("Cancelar", role: .cancel) { }
@@ -175,7 +225,12 @@ struct ModernCommentsView: View {
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.white)
                     
-                    if !comments.isEmpty {
+                    // ✅ NUEVO: Indicador de carga en el header
+                    if isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
+                            .scaleEffect(0.8)
+                    } else if !comments.isEmpty {
                         Text("(\(totalCommentsCount))")
                             .font(.custom("Poppins-Medium", size: 14))
                             .foregroundColor(Color(hex: "00A896"))
@@ -237,41 +292,56 @@ struct ModernCommentsView: View {
     private var enhancedCommentsListView: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                ForEach(rootComments) { comment in
-                    EnhancedModernCommentRow(
-                        comment: comment,
-                        moment: moment,
-                        onEdit: { comment in
-                            editingCommentId = comment.id
-                            editingCommentContent = comment.content
-                        },
-                        onDelete: { comment in
-                            commentToDelete = comment
-                            showDeleteAlert = true
-                        },
-                        onLike: { comment in
-                            toggleLike(comment)
-                        },
-                        onReply: { comment in
-                            replyToComment = comment
-                        },
-                        nestedComments: getNestedComments(for: comment.id ?? ""),
-                        isExpanded: expandedComments.contains(comment.id ?? ""),
-                        onToggleExpand: { commentId in
-                            if expandedComments.contains(commentId) {
-                                expandedComments.remove(commentId)
-                            } else {
-                                expandedComments.insert(commentId)
-                            }
-                        },
-                        nestingLevel: 0 // ✅ Comenzar en nivel 0
-                    )
-                    .environmentObject(firestoreService)
-                }
-                
-                if comments.isEmpty {
-                    ModernEmptyCommentsView()
-                        .padding(.vertical, 60)
+                // ✅ NUEVO: Indicador de carga cuando isLoading es true
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
+                            .scaleEffect(1.2)
+                        
+                        Text("Cargando comentarios...")
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 60)
+                } else {
+                    ForEach(rootComments) { comment in
+                        EnhancedModernCommentRow(
+                            comment: comment,
+                            moment: moment,
+                            onEdit: { comment in
+                                editingCommentId = comment.id
+                                editingCommentContent = comment.content
+                            },
+                            onDelete: { comment in
+                                commentToDelete = comment
+                                showDeleteAlert = true
+                            },
+                            onLike: { comment in
+                                toggleLike(comment)
+                            },
+                            onReply: { comment in
+                                replyToComment = comment
+                            },
+                            nestedComments: getNestedComments(for: comment.id ?? ""),
+                            isExpanded: expandedComments.contains(comment.id ?? ""),
+                            onToggleExpand: { commentId in
+                                if expandedComments.contains(commentId) {
+                                    expandedComments.remove(commentId)
+                                } else {
+                                    expandedComments.insert(commentId)
+                                }
+                            },
+                            nestingLevel: 0 // ✅ Comenzar en nivel 0
+                        )
+                        .environmentObject(firestoreService)
+                    }
+                    
+                    if comments.isEmpty {
+                        ModernEmptyCommentsView()
+                            .padding(.vertical, 60)
+                    }
                 }
             }
             .padding(.vertical, 20)
@@ -350,6 +420,7 @@ struct ModernCommentsView: View {
                                 .font(.custom("Poppins-Regular", size: 15))
                                 .foregroundColor(.white)
                                 .lineLimit(1...4)
+                                .disabled(isLoading) // ✅ NUEVO: Deshabilitar mientras carga
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
@@ -375,22 +446,37 @@ struct ModernCommentsView: View {
                                     editingCommentContent = ""
                                 }
                             }) {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 36, height: 36)
-                                    .background(
-                                        LinearGradient(
-                                            colors: editingCommentContent.isEmpty ?
-                                            [Color.gray.opacity(0.5)] :
-                                            [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
+                                if isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                        .frame(width: 36, height: 36)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [Color.gray.opacity(0.5)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
                                         )
-                                    )
-                                    .clipShape(Circle())
+                                        .clipShape(Circle())
+                                } else {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 36, height: 36)
+                                        .background(
+                                            LinearGradient(
+                                                colors: editingCommentContent.isEmpty ?
+                                                [Color.gray.opacity(0.5)] :
+                                                [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .clipShape(Circle())
+                                }
                             }
-                            .disabled(editingCommentContent.isEmpty)
+                            .disabled(editingCommentContent.isEmpty || isLoading) // ✅ NUEVO: Deshabilitar mientras carga
                             
                             Button(action: {
                                 editingCommentId = nil
@@ -403,6 +489,7 @@ struct ModernCommentsView: View {
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
                             }
+                            .disabled(isLoading) // ✅ NUEVO: Deshabilitar mientras carga
                         }
                     }
                 } else {
@@ -427,6 +514,7 @@ struct ModernCommentsView: View {
                                         lineWidth: 1
                                     )
                             )
+                            .disabled(isLoading) // ✅ NUEVO: Deshabilitar mientras carga
                         
                         Button(action: {
                             if !newComment.isEmpty {
@@ -439,7 +527,7 @@ struct ModernCommentsView: View {
                                 Circle()
                                     .fill(
                                         LinearGradient(
-                                            colors: newComment.isEmpty ?
+                                            colors: newComment.isEmpty || isLoading ?
                                             [Color.gray.opacity(0.5)] :
                                             [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
                                             startPoint: .topLeading,
@@ -448,14 +536,20 @@ struct ModernCommentsView: View {
                                     )
                                     .frame(width: 44, height: 44)
                                 
-                                Image(systemName: "paperplane.fill")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .rotationEffect(.degrees(newComment.isEmpty ? 0 : 45))
+                                if isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "paperplane.fill")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .rotationEffect(.degrees(newComment.isEmpty ? 0 : 45))
+                                }
                             }
                         }
-                        .disabled(newComment.isEmpty)
-                        .scaleEffect(newComment.isEmpty ? 0.9 : 1.0)
+                        .disabled(newComment.isEmpty || isLoading) // ✅ NUEVO: Deshabilitar mientras carga
+                        .scaleEffect(newComment.isEmpty || isLoading ? 0.9 : 1.0)
                         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: newComment.isEmpty)
                     }
                 }
@@ -476,11 +570,31 @@ struct ModernCommentsView: View {
     private func setupCommentsListener() {
         guard let momentId = moment.id else {
             print("❌ No hay momentId para configurar listener")
-            isLoading = false
+            DispatchQueue.main.async {
+                self.isLoading = false
+            }
             return
         }
         
         print("🔍 Configurando listener para momento: \(momentId)")
+        
+        // ✅ NUEVO: Asegurar que isLoading esté en true
+        DispatchQueue.main.async {
+            self.isLoading = true
+        }
+        
+        // ✅ NUEVO: Timeout más corto para mejor UX
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            if self.isLoading {
+                print("⚠️ Timeout en carga de comentarios - estableciendo como cargado")
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                }
+            }
+        }
+        
+        // ✅ NUEVO: Remover listener anterior si existe
+        commentsListener?.remove()
         
         commentsListener = firestoreService.db
             .collection("users").document(moment.authorId)
@@ -498,6 +612,7 @@ struct ModernCommentsView: View {
                 }
                 
                 guard let documents = snapshot?.documents else {
+                    print("📄 No hay documentos en snapshot")
                     DispatchQueue.main.async {
                         self.comments = []
                         self.isLoading = false
@@ -529,6 +644,25 @@ struct ModernCommentsView: View {
     // ✅ FUNCIONES DE COMENTARIOS (manteniendo los nombres originales)
     private func fetchComments() {
         setupCommentsListener()
+    }
+    
+    // ✅ NUEVO: Método de inicialización robusto
+    private func initializeCommentsView() async {
+        print("🔍 Inicializando vista de comentarios para momento: \(moment.id ?? "nil")")
+        
+        // Asegurar que el estado esté correcto
+        await MainActor.run {
+            self.isLoading = true
+            self.comments = []
+            self.commentsListener?.remove()
+        }
+        
+        // Pequeño delay para asegurar que la vista esté lista
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 segundos
+        
+        await MainActor.run {
+            self.setupCommentsListener()
+        }
     }
     
     // MARK: - Tu función addComment corregida

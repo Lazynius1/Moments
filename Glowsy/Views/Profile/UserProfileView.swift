@@ -4,6 +4,7 @@ import FirebaseStorage
 import Kingfisher
 import CoreMotion
 import FirebaseFirestore
+import AVKit
 
 struct UserProfileColors {
     static var background: Color {
@@ -71,6 +72,10 @@ struct UserProfileView: View {
     @State private var showingReportSheet = false
     @State private var showingBlockConfirmation = false
     @State private var currentStory: Story?
+    
+    // ✅ NUEVOS: Estados para navegación al explorer
+    @State private var selectedHashtag: String = ""
+    @State private var showExploreWithHashtag: Bool = false
 
     init(userId: String) {
         self.userId = userId
@@ -157,6 +162,9 @@ struct UserProfileView: View {
             .presentationDragIndicator(.visible)
             .interactiveDismissDisabled(false)
             .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        .sheet(isPresented: $showExploreWithHashtag) {
+            ExploreView(initialSearchQuery: selectedHashtag)
         }
         .background(
             NavigationLink(
@@ -1314,11 +1322,26 @@ struct UserModernMomentThumbnail: View {
     let onTap: () -> Void
     @State private var isPressed = false
     @Environment(\.colorScheme) var colorScheme
+    
+    // ✅ NUEVOS: Estados para thumbnails de video
+    @State private var videoThumbnail: UIImage?
+    @State private var isLoadingVideoThumbnail = false
 
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .bottomTrailing) {
-                if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
+                // ✅ NUEVO: Lógica actualizada para manejar videos y imágenes
+                if let mediaItem = moment.mediaItems?.first, !mediaItem.url.isEmpty {
+                    // Es un momento nuevo con mediaItems
+                    if mediaItem.type == .video {
+                        // ✅ NUEVO: Mostrar thumbnail de video
+                        videoThumbnailView(videoURL: mediaItem.url)
+                    } else {
+                        // ✅ NUEVO: Mostrar imagen desde mediaItems
+                        imageView(imageURL: mediaItem.url)
+                    }
+                } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
+                    // ✅ MANTENER: Fallback para momentos legacy con imagePath
                     KFImage(url)
                         .placeholder {
                             RoundedRectangle(cornerRadius: 12)
@@ -1336,45 +1359,30 @@ struct UserModernMomentThumbnail: View {
                         .frame(width: size, height: size)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .contentShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            UserProfileColors.borderColor,
-                                            UserProfileColors.accent.opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
+                        .overlay(borderOverlay())
                         .clipped()
                 } else {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(UserProfileColors.cardBackground)
-                        .frame(width: size, height: size)
-                        .overlay(
-                            VStack(spacing: 6) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(UserProfileColors.textTertiary)
-                                
-                                Text(moment.content.isEmpty ? "Sin contenido" : String(moment.content.prefix(15)))
-                                    .font(.custom("Poppins-Regular", size: 9))
-                                    .foregroundColor(UserProfileColors.textPrimary)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                                    .padding(.horizontal, 4)
-                            }
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(UserProfileColors.borderColor, lineWidth: 1)
-                        )
+                    // ✅ MANTENER: Placeholder para sin contenido
+                    emptyContentView()
                 }
                 
+                // ✅ NUEVO: Indicador de video
+                if let mediaItem = moment.mediaItems?.first, mediaItem.type == .video {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                                .background(Color.black.opacity(0.6))
+                                .clipShape(Circle())
+                                .padding(6)
+                        }
+                        Spacer()
+                    }
+                }
+                
+                // ✅ MANTENER: Contador de likes
                 if let likeCount = moment.reactions["heart"]?.count, likeCount > 0 {
                     HStack(spacing: 3) {
                         Image(systemName: "heart.fill")
@@ -1396,6 +1404,158 @@ struct UserModernMomentThumbnail: View {
             .shadow(color: UserProfileColors.shadowColor, radius: 4, x: 0, y: 2)
         }
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
+    }
+    
+    // ✅ NUEVA: Vista para thumbnails de video
+    @ViewBuilder
+    private func videoThumbnailView(videoURL: String) -> some View {
+        ZStack {
+            if let thumbnail = videoThumbnail {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(borderOverlay())
+                    .clipped()
+            } else {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(UserProfileColors.cardBackground)
+                    .frame(width: size, height: size)
+                    .overlay(
+                        Group {
+                            if isLoadingVideoThumbnail {
+                                VStack(spacing: 6) {
+                                    ProgressView()
+                                        .tint(UserProfileColors.accent)
+                                        .scaleEffect(0.8)
+                                    Text("Video...")
+                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .foregroundColor(UserProfileColors.textSecondary)
+                                }
+                            } else {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "video")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(UserProfileColors.textTertiary)
+                                    Text("Video")
+                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .foregroundColor(UserProfileColors.textSecondary)
+                                }
+                            }
+                        }
+                    )
+                    .overlay(borderOverlay())
+            }
+        }
+        .onAppear {
+            loadVideoThumbnail(from: videoURL)
+        }
+    }
+    
+    // ✅ NUEVA: Vista para imágenes desde mediaItems
+    @ViewBuilder
+    private func imageView(imageURL: String) -> some View {
+        if let url = getImageURL(from: imageURL) {
+            KFImage(url)
+                .placeholder {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(UserProfileColors.cardBackground)
+                        .overlay(
+                            VStack(spacing: 6) {
+                                ProgressView()
+                                    .tint(UserProfileColors.accent)
+                                    .scaleEffect(0.8)
+                                Text("Imagen...")
+                                    .font(.custom("Poppins-Regular", size: 8))
+                                    .foregroundColor(UserProfileColors.textSecondary)
+                            }
+                        )
+                }
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .contentShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(borderOverlay())
+                .clipped()
+        } else {
+            emptyContentView()
+        }
+    }
+    
+    // ✅ NUEVA: Vista para contenido vacío
+    @ViewBuilder
+    private func emptyContentView() -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(UserProfileColors.cardBackground)
+            .frame(width: size, height: size)
+            .overlay(
+                VStack(spacing: 6) {
+                    Image(systemName: "text.bubble")
+                        .font(.system(size: 16))
+                        .foregroundColor(UserProfileColors.textTertiary)
+                    
+                    Text(moment.content.isEmpty ? "Sin contenido" : String(moment.content.prefix(12)))
+                        .font(.custom("Poppins-Regular", size: 8))
+                        .foregroundColor(UserProfileColors.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal, 3)
+                }
+            )
+            .overlay(borderOverlay())
+    }
+    
+    // ✅ NUEVA: Overlay de borde reutilizable
+    @ViewBuilder
+    private func borderOverlay() -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .stroke(
+                LinearGradient(
+                    colors: [
+                        UserProfileColors.borderColor,
+                        UserProfileColors.accent.opacity(0.4)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 1
+            )
+    }
+    
+    // ✅ NUEVA: Función para cargar thumbnail de video
+    private func loadVideoThumbnail(from urlString: String) {
+        guard let url = URL(string: urlString) else {
+            print("❌ URL de video inválida: \(urlString)")
+            return
+        }
+        
+        isLoadingVideoThumbnail = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let asset = AVAsset(url: url)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2) // Retina
+            
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
+                let uiImage = UIImage(cgImage: cgImage)
+                
+                DispatchQueue.main.async {
+                    self.videoThumbnail = uiImage
+                    self.isLoadingVideoThumbnail = false
+                    print("✅ Thumbnail de video cargado para: \(urlString)")
+                }
+            } catch {
+                print("❌ Error generando thumbnail: \(error)")
+                DispatchQueue.main.async {
+                    self.isLoadingVideoThumbnail = false
+                }
+            }
+        }
     }
     
     private func getImageURL(from path: String) -> URL? {
@@ -1879,12 +2039,14 @@ struct UserMomentPreviewView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(Image(systemName: "exclamationmark.triangle").foregroundColor(.gray))
             }
-            Text(moment.content)
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.white)
-                .padding(.top, 8)
-                .padding(.horizontal, 16)
-                .multilineTextAlignment(.center)
+            UserExpandableContentView(
+                content: moment.content,
+                colorScheme: .dark,
+                onHashtagTap: { hashtag in
+                    print("🔍 Hashtag tocado en UserProfile: #\(hashtag)")
+                    // Aquí se manejaría la navegación si se usara esta vista
+                }
+            )
         }
         .padding(.vertical, 16)
         .background(.ultraThinMaterial)
@@ -2594,6 +2756,127 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 struct UserProfileView_Previews: PreviewProvider {
     static var previews: some View {
         UserProfileView(userId: "123")
+    }
+}
+
+// MARK: - ✅ UserExpandableContentView para UserProfileView
+struct UserExpandableContentView: View {
+    let content: String
+    let colorScheme: ColorScheme
+    let onHashtagTap: (String) -> Void
+    @State private var isExpanded: Bool = false
+    @State private var needsExpansion: Bool = false
+    
+    private let maxLines = 2
+    private let maxCharacters = 15
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // ✅ MEJORADO: Usar HashtagText personalizado con tap gestures específicos
+            if isExpanded {
+                UserHashtagText(
+                    content: content,
+                    colorScheme: colorScheme,
+                    onHashtagTap: onHashtagTap
+                )
+            } else {
+                UserHashtagText(
+                    content: String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
+                    colorScheme: colorScheme,
+                    onHashtagTap: onHashtagTap
+                )
+            }
+            
+            if needsExpansion {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isExpanded.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Text(isExpanded ? "ver menos" : "ver más")
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .foregroundColor(.white)
+                        
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                    )
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                }
+                .scaleEffect(isExpanded ? 1.0 : 0.95)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .onAppear {
+            needsExpansion = content.count > maxCharacters
+        }
+    }
+}
+
+struct UserHashtagText: View {
+    let content: String
+    let colorScheme: ColorScheme
+    let onHashtagTap: (String) -> Void
+    
+    var body: some View {
+        // ✅ SOLUCIÓN FINAL: Usar Text con enlaces tappables
+        Text(buildAttributedString())
+            .font(.custom("Poppins-Regular", size: 14))
+            .multilineTextAlignment(.center)
+            .lineLimit(nil)
+            .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+            .environment(\.openURL, OpenURLAction { url in
+                // ✅ Manejar taps en hashtags a través de URLs personalizadas
+                if url.scheme == "hashtag", let hashtag = url.host {
+                    print("🔍 DEBUG: Hashtag específico tocado en UserProfile: \(hashtag)")
+                    onHashtagTap(hashtag)
+                    return .handled
+                }
+                return .systemAction
+            })
+    }
+    
+    // ✅ CLAVE: Construir AttributedString con enlaces en hashtags
+    private func buildAttributedString() -> AttributedString {
+        var attributed = AttributedString(content)
+        
+        // Color base para todo el texto
+        attributed.foregroundColor = .white.opacity(0.95)
+        
+        // Buscar y procesar hashtags
+        let pattern = "#(\\w+)"
+        if let regex = try? NSRegularExpression(pattern: pattern) {
+            let nsString = NSString(string: content)
+            let range = NSRange(location: 0, length: nsString.length)
+            let matches = regex.matches(in: content, range: range).reversed() // Reversed para no alterar índices
+            
+            for match in matches {
+                // Obtener el hashtag completo y el término sin #
+                let fullHashtag = nsString.substring(with: match.range) // #barcelona
+                let hashtagTerm = nsString.substring(with: match.range(at: 1)) // barcelona
+                
+                // Convertir a rangos de Swift
+                if let swiftRange = Range(match.range, in: content),
+                   let attributedRange = swiftRange.toAttributedStringRange(in: attributed) {
+                    
+                    // Aplicar estilo al hashtag
+                    attributed[attributedRange].foregroundColor = Color(hex: "667eea")
+                    attributed[attributedRange].font = .custom("Poppins-SemiBold", size: 14)
+                    attributed[attributedRange].link = URL(string: "hashtag://\(hashtagTerm)")
+                }
+            }
+        }
+        
+        return attributed
     }
 }
 
