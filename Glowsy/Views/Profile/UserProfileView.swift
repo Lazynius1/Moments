@@ -2017,6 +2017,7 @@ struct UserModernBackgroundView: View {
 // MARK: - UserMomentPreviewView (sin cambios - ya estaba bien)
 struct UserMomentPreviewView: View {
     let moment: Moment
+    let onHashtagTap: (String) -> Void
 
     var body: some View {
         VStack {
@@ -2042,10 +2043,7 @@ struct UserMomentPreviewView: View {
             UserExpandableContentView(
                 content: moment.content,
                 colorScheme: .dark,
-                onHashtagTap: { hashtag in
-                    print("🔍 Hashtag tocado en UserProfile: #\(hashtag)")
-                    // Aquí se manejaría la navegación si se usara esta vista
-                }
+                onHashtagTap: onHashtagTap
             )
         }
         .padding(.vertical, 16)
