@@ -662,8 +662,8 @@ struct MediaSelectionView: View {
     private let imageManager = PHImageManager.default()
     private let thumbnailSize = CGSize(width: 300, height: 300)
     
-    // Grid layout
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 3)
+    // Grid layout mejorado con columnas fijas para mejor control
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
     
     var body: some View {
         VStack(spacing: 0) {
@@ -865,7 +865,7 @@ struct MediaSelectionView: View {
                 loadingView
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 1) {
+                    LazyVGrid(columns: columns, spacing: 2, pinnedViews: []) {
                         ForEach(mediaAssets, id: \.localIdentifier) { asset in
                             MediaGridCell(
                                 asset: asset,
@@ -874,8 +874,10 @@ struct MediaSelectionView: View {
                                 selectionNumber: selectedAssetIDs.firstIndex(of: asset.localIdentifier).map { $0 + 1 },
                                 onTap: { toggleAssetSelection(asset) }
                             )
+                            .frame(minHeight: 100) // ✅ NUEVO: Altura mínima para consistencia
                         }
                     }
+                    .padding(.horizontal, 2)
                     .padding(.bottom, 20)
                 }
             }
@@ -1623,16 +1625,31 @@ struct MediaGridCell: View {
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .aspectRatio(1, contentMode: .fit)
-                
+                // ✅ NUEVO: Usar el aspect ratio real de la imagen
                 if let thumbnail = thumbnail {
                     Image(uiImage: thumbnail)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.gray.opacity(0.3))
                         .clipped()
+                        .contentShape(Rectangle())
+                        .overlay(
+                            // Overlay sutil para mejorar contraste
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.clear, Color.black.opacity(0.1)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        )
                 } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .aspectRatio(1, contentMode: .fit)
+                    
                     ProgressView()
                         .tint(Color(hex: "00A896"))
                 }
@@ -1664,6 +1681,7 @@ struct MediaGridCell: View {
                             )
                         )
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
                 
                 // Número de selección
@@ -1692,6 +1710,7 @@ struct MediaGridCell: View {
                     }
                     Spacer()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
         .buttonStyle(PlainButtonStyle())
@@ -3612,53 +3631,80 @@ struct LocationRow: View {
 // MARK: - Advanced Settings Implementation
 
 struct AdvancedSettingsView: View {
-    // ❌ QUITAR: hideLocationFromFollowers (sin sentido como dices)
     @AppStorage("disableComments") private var disableComments = false
     @AppStorage("hideLikeCounts") private var hideLikeCounts = false
     @AppStorage("allowSharing") private var allowSharing = true
-    // ❌ QUITAR: saveOriginalPhotos (complejidad innecesaria)
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
     
     var body: some View {
-        List {
-            Section(header: Text("Interacciones").foregroundColor(.gray)) {
-                Toggle(isOn: $disableComments) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Desactivar comentarios")
-                            .foregroundColor(.white)
-                        Text("Nadie podrá comentar en este momento")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+        ZStack {
+            // ✅ Fondo adaptativo
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    colorScheme == .dark ? Color.black : Color.white,
+                    colorScheme == .dark ? Color(hex: "1a1a2e").opacity(0.9) : Color.gray.opacity(0.1),
+                    colorScheme == .dark ? Color(hex: "16213e").opacity(0.8) : Color.gray.opacity(0.05)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            List {
+                Section(header: Text("Interacciones")
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(adaptiveColors.secondary)) {
+                    Toggle(isOn: $disableComments) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Desactivar comentarios")
+                                .font(.custom("Poppins-Medium", size: 16))
+                                .foregroundColor(adaptiveColors.primary)
+                            Text("Nadie podrá comentar en este momento")
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(adaptiveColors.tertiary)
+                        }
                     }
+                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
+                    
+                    Toggle(isOn: $allowSharing) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Permitir compartir")
+                                .font(.custom("Poppins-Medium", size: 16))
+                                .foregroundColor(adaptiveColors.primary)
+                            Text("Otros pueden compartir tu momento")
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(adaptiveColors.tertiary)
+                        }
+                    }
+                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
                 }
                 
-                Toggle(isOn: $allowSharing) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Permitir compartir")
-                            .foregroundColor(.white)
-                        Text("Otros pueden compartir tu momento")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                Section(header: Text("Visualización")
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(adaptiveColors.secondary)) {
+                    Toggle(isOn: $hideLikeCounts) {
+                        VStack(alignment: .leading, spacing: 4) {
+                                                    Text("Ocultar contador de reacciones")
+                            .font(.custom("Poppins-Medium", size: 16))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text("El botón de reacciones seguirá visible, pero sin mostrar el número")
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
+                        }
                     }
+                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
                 }
             }
-            
-            Section(header: Text("Visualización").foregroundColor(.gray)) {
-                Toggle(isOn: $hideLikeCounts) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Ocultar número de me gusta")
-                            .foregroundColor(.white)
-                        Text("Solo tú podrás ver el total de me gusta")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
+            .listStyle(InsetGroupedListStyle())
+            .scrollContentBackground(.hidden)
         }
-        .listStyle(InsetGroupedListStyle())
-        .background(Color.black)
-        .scrollContentBackground(.hidden)
         .navigationTitle("Configuración avanzada")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(colorScheme, for: .navigationBar)
     }
 }
 

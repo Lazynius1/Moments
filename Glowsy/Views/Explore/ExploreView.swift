@@ -542,7 +542,7 @@ struct SuggestedUserCard: View {
     var body: some View {
         VStack(spacing: 12) {
             ZStack {
-                                    Circle()
+                    Circle()
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -1299,7 +1299,7 @@ class ExploreViewModel: ObservableObject {
         
         let group = DispatchGroup()
         var visibleMoments: [Moment] = []
-        let syncQueue = DispatchQueue(label: "explore.moments.filter")
+        let syncQueue = DispatchQueue(label: "explore.moments.filter", attributes: .concurrent)
         
         print("🔍 [Explore] Filtrando \(moments.count) momentos para viewer: \(currentUserId)")
         
@@ -1319,7 +1319,7 @@ class ExploreViewModel: ObservableObject {
             // ✅ USAR LA NUEVA FUNCIÓN ESPECÍFICA PARA EXPLORE
             privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
                 if canView {
-                    syncQueue.async {
+                    syncQueue.sync {
                         visibleMoments.append(moment)
                     }
                     print("✅ [Explore] Momento de \(moment.authorId) visible - Audiencia: \(moment.audience ?? "everyone")")
@@ -1331,9 +1331,14 @@ class ExploreViewModel: ObservableObject {
         }
         
         group.notify(queue: .main) {
+            // ✅ SEGURO: Obtener la lista final de manera thread-safe
+            let finalVisibleMoments = syncQueue.sync {
+                visibleMoments
+            }
+            
             // Mantener el orden original por timestamp
             let orderedVisibleMoments = moments.filter { moment in
-                visibleMoments.contains { $0.id == moment.id }
+                finalVisibleMoments.contains { $0.id == moment.id }
             }
             
             print("📊 [Explore] Filtrado completado: \(orderedVisibleMoments.count)/\(moments.count) momentos visibles")

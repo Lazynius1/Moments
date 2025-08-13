@@ -705,8 +705,8 @@ struct GlassmorphicMessageRow: View {
                 }
                 
                 GlassmorphicMessageBubble(
-                    message: message, 
-                    isCurrentUser: isCurrentUser, 
+                    message: message,
+                    isCurrentUser: isCurrentUser,
                     onMessageViewed: onMessageViewed,
                     onMomentNavigation: onMomentNavigation
                 )

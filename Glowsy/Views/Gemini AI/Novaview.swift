@@ -3,6 +3,7 @@ import Firebase
 import FirebaseVertexAI
 import FirebaseFirestore
 import FirebaseAuth
+import UIKit
 
 // MARK: - Colores modernos
 struct ModernGeminiColors {

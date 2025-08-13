@@ -31,6 +31,10 @@ struct ModernMomentDetailView: View {
     @State private var isDragging: Bool = false
     @State private var backgroundOpacity: Double = 1.0
     
+    // ✅ NUEVOS: Estados para navegación al explorer
+    @State private var selectedHashtag: String = ""
+    @State private var showExploreWithHashtag: Bool = false
+    
     private let privacyService = PrivacyService()
     private let firestoreService2 = FirestoreService()
     
@@ -140,6 +144,9 @@ struct ModernMomentDetailView: View {
                 ReportBottomSheet(moment: moment)
             }
         }
+        .sheet(isPresented: $showExploreWithHashtag) {
+            ExploreView(initialSearchQuery: selectedHashtag)
+        }
         .onAppear {
             currentIndex = initialIndex
         }
@@ -204,6 +211,11 @@ struct ModernMomentDetailView: View {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                     showContextMenu = true
                                 }
+                            },
+                            onHashtagTap: { hashtag in
+                                print("🔍 Hashtag tocado en detalle: #\(hashtag)")
+                                selectedHashtag = "#\(hashtag)"
+                                showExploreWithHashtag = true
                             }
                         )
                         .id(index)
@@ -293,7 +305,7 @@ struct ModernDetailHeader: View {
                         HStack(spacing: 4) {
                             Text(moment.username)
                                 .font(.custom("Poppins-SemiBold", size: 20))
-                                .foregroundColor(.white)
+                                .foregroundColor(.primary)
                             
                             // ✅ INSIGNIA DE VERIFICADO
                             VerifiedBadgeView(userId: moment.authorId, size: 16)
@@ -325,6 +337,7 @@ struct ModernDetailMomentCard: View {
     let availableHeight: CGFloat
     let onComment: () -> Void
     let onContextMenu: () -> Void
+    let onHashtagTap: (String) -> Void
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @State private var currentImageIndex = 0
@@ -464,7 +477,11 @@ struct ModernDetailMomentCard: View {
                             VStack {
                                 Spacer()
                                 HStack {
-                                    DetailExpandableContentView(content: moment.content)
+                                    DetailExpandableContentView(
+                                        content: moment.content,
+                                        colorScheme: .dark,
+                                        onHashtagTap: onHashtagTap
+                                    )
                                     Spacer()
                                 }
                                 .padding(.horizontal, 20)
@@ -811,36 +828,30 @@ struct ModernDetailActionButtons: View {
 // MARK: - ✅ Vista expandible mejorada para detalle
 struct DetailExpandableContentView: View {
     let content: String
+    let colorScheme: ColorScheme
+    let onHashtagTap: (String) -> Void
     @State private var isExpanded: Bool = false
     @State private var needsExpansion: Bool = false
     
-    private let maxLines = 4
-    private let maxCharacters = 150
+    private let maxLines = 2
+    private let maxCharacters = 15
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(content)
-                .font(.custom("Poppins-Regular", size: 15))
-                .foregroundColor(.white.opacity(0.95))
-                .lineLimit(isExpanded ? nil : maxLines)
-                .multilineTextAlignment(.leading)
-                .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 2)
-                .animation(.easeInOut(duration: 0.4), value: isExpanded)
-                .background(
-                    Text(content)
-                        .font(.custom("Poppins-Regular", size: 15))
-                        .lineLimit(maxLines)
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.onAppear {
-                                    DispatchQueue.main.async {
-                                        needsExpansion = content.count > maxCharacters
-                                    }
-                                }
-                            }
-                        )
-                        .hidden()
+            // ✅ MEJORADO: Usar HashtagText personalizado con tap gestures específicos
+            if isExpanded {
+                DetailHashtagText(
+                    content: content,
+                    colorScheme: colorScheme,
+                    onHashtagTap: onHashtagTap
                 )
+            } else {
+                DetailHashtagText(
+                    content: String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
+                    colorScheme: colorScheme,
+                    onHashtagTap: onHashtagTap
+                )
+            }
             
             if needsExpansion {
                 Button(action: {
@@ -904,6 +915,67 @@ struct DetailExpandableContentView: View {
                 )
         )
         .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 5)
+        .onAppear {
+            needsExpansion = content.count > maxCharacters
+        }
+    }
+}
+
+struct DetailHashtagText: View {
+    let content: String
+    let colorScheme: ColorScheme
+    let onHashtagTap: (String) -> Void
+    
+    var body: some View {
+        // ✅ SOLUCIÓN FINAL: Usar Text con enlaces tappables
+        Text(buildAttributedString())
+            .font(.custom("Poppins-Regular", size: 15))
+            .multilineTextAlignment(.leading)
+            .lineLimit(nil)
+            .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 2)
+            .environment(\.openURL, OpenURLAction { url in
+                // ✅ Manejar taps en hashtags a través de URLs personalizadas
+                if url.scheme == "hashtag", let hashtag = url.host {
+                    print("🔍 DEBUG: Hashtag específico tocado en detalle: \(hashtag)")
+                    onHashtagTap(hashtag)
+                    return .handled
+                }
+                return .systemAction
+            })
+    }
+    
+    // ✅ CLAVE: Construir AttributedString con enlaces en hashtags
+    private func buildAttributedString() -> AttributedString {
+        var attributed = AttributedString(content)
+        
+        // Color base para todo el texto
+        attributed.foregroundColor = .white.opacity(0.95)
+        
+        // Buscar y procesar hashtags
+        let pattern = "#(\\w+)"
+        if let regex = try? NSRegularExpression(pattern: pattern) {
+            let nsString = NSString(string: content)
+            let range = NSRange(location: 0, length: nsString.length)
+            let matches = regex.matches(in: content, range: range).reversed() // Reversed para no alterar índices
+            
+            for match in matches {
+                // Obtener el hashtag completo y el término sin #
+                let fullHashtag = nsString.substring(with: match.range) // #barcelona
+                let hashtagTerm = nsString.substring(with: match.range(at: 1)) // barcelona
+                
+                // Convertir a rangos de Swift
+                if let swiftRange = Range(match.range, in: content),
+                   let attributedRange = swiftRange.toAttributedStringRange(in: attributed) {
+                    
+                    // Aplicar estilo al hashtag
+                    attributed[attributedRange].foregroundColor = Color(hex: "667eea")
+                    attributed[attributedRange].font = .custom("Poppins-SemiBold", size: 15)
+                    attributed[attributedRange].link = URL(string: "hashtag://\(hashtagTerm)")
+                }
+            }
+        }
+        
+        return attributed
     }
 }
 

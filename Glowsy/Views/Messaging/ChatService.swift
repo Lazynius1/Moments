@@ -1156,10 +1156,10 @@ class ChatService: ObservableObject {
     
     // ✅ NUEVA: Función para marcar mensajes como entregados automáticamente
     func markMessagesAsDelivered(messages: [EnhancedMessage], conversationId: String, currentUserId: String) {
-        let unreadMessages = messages.filter { 
-            $0.senderId != currentUserId && 
-            $0.status == .sent && 
-            !$0.isRead 
+        let unreadMessages = messages.filter {
+            $0.senderId != currentUserId &&
+            $0.status == .sent &&
+            !$0.isRead
         }
         
         for message in unreadMessages {
