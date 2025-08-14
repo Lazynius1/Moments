@@ -3079,10 +3079,13 @@ class FeedViewModel: ObservableObject {
     private var pendingUpdates: [String: DispatchWorkItem] = [:]
     private let updateDebounceTime: TimeInterval = 0.3
     private var lastUpdateHashes: [String: Int] = [:]
+    
+    // ✅ NUEVO: Queue para sincronización segura de arrays
+    private let momentsQueue = DispatchQueue(label: "moments.sync", attributes: .concurrent)
+    private let listenersQueue = DispatchQueue(label: "listeners.sync", attributes: .concurrent)
 
     deinit {
-        userListener?.remove()
-        clearListeners() // Esto ahora incluye cleanup de debounce
+        performCleanup() // Usar la nueva función de cleanup
         print("🗑️ FeedViewModel destruido")
     }
 
@@ -3307,7 +3310,7 @@ class FeedViewModel: ObservableObject {
                 if case .success(let moments) = result {
                     let limitedMoments = Array(moments.prefix(limitPerUser))
                     
-                    syncQueue.async {
+                    self.momentsQueue.async(flags: .barrier) {
                         allMoments.append(contentsOf: limitedMoments)
                     }
                     
@@ -3367,7 +3370,7 @@ class FeedViewModel: ObservableObject {
                     
                     let limitedMoments = Array(filteredMoments.prefix(limitPerUser))
                     
-                    syncQueue.async {
+                    self.momentsQueue.async(flags: .barrier) {
                         newMoments.append(contentsOf: limitedMoments)
                     }
                     
@@ -3513,7 +3516,7 @@ class FeedViewModel: ObservableObject {
                             hasCompleted = true
                             
                             if canView {
-                                syncQueue.async {
+                                self.momentsQueue.async(flags: .barrier) {
                                     batchResults.append(moment)
                                 }
                             }
@@ -3523,8 +3526,8 @@ class FeedViewModel: ObservableObject {
                     }
                 }
                 
-                // Timeout de seguridad
-                DispatchQueue.global().asyncAfter(deadline: .now() + 8) {
+                // ✅ MEJORADO: Timeout de seguridad con DispatchWorkItem
+                let timeoutWorkItem = DispatchWorkItem {
                     completionQueue.async {
                         if !hasCompleted {
                             hasCompleted = true
@@ -3532,6 +3535,7 @@ class FeedViewModel: ObservableObject {
                         }
                     }
                 }
+                DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: timeoutWorkItem)
             }
             
             group.notify(queue: .main) {
@@ -3552,32 +3556,41 @@ class FeedViewModel: ObservableObject {
     
     // MARK: - Listeners
     private func clearListeners() {
-        // Cancelar todos los updates pendientes
-        pendingUpdates.values.forEach { $0.cancel() }
-        pendingUpdates.removeAll()
-        lastUpdateHashes.removeAll()
-        
-        // Remover listeners como antes
-        momentListeners.values.forEach { $0.remove() }
-        momentListeners.removeAll()
-        commentListeners.values.forEach { $0.remove() }
-        commentListeners.removeAll()
+        // ✅ MEJORADO: Limpieza thread-safe
+        listenersQueue.async(flags: .barrier) {
+            // Cancelar todos los updates pendientes
+            self.pendingUpdates.values.forEach { $0.cancel() }
+            self.pendingUpdates.removeAll()
+            self.lastUpdateHashes.removeAll()
+            
+            // Remover listeners de forma segura
+            self.momentListeners.values.forEach { $0.remove() }
+            self.momentListeners.removeAll()
+            self.commentListeners.values.forEach { $0.remove() }
+            self.commentListeners.removeAll()
+        }
         
         print("🧹 Listeners y updates pendientes limpiados")
     }
     
     private func setupListenersForMoments(_ moments: [Moment]) {
-        for moment in moments {
-            if let momentId = moment.id {
-                listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
+        // ✅ MEJORADO: Setup de listeners de forma segura
+        DispatchQueue.global(qos: .userInitiated).async {
+            for moment in moments {
+                if let momentId = moment.id {
+                    self.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
+                }
             }
         }
     }
     
     func listenForCommentUpdates(momentId: String, authorId: String) {
-        // Evitar duplicar listeners
-        if commentListeners[momentId] != nil {
-            return
+        // ✅ MEJORADO: Protección contra listeners duplicados
+        listenersQueue.async(flags: .barrier) {
+            if self.commentListeners[momentId] != nil || self.momentListeners[momentId] != nil {
+                print("🔄 Listener ya existe para momento: \(momentId)")
+                return
+            }
         }
         
         print("🔗 Configurando listener para momento: \(momentId)")
@@ -3597,11 +3610,14 @@ class FeedViewModel: ObservableObject {
                 }
             }
         
-        commentListeners[momentId] = commentListener
+        listenersQueue.async(flags: .barrier) {
+            self.commentListeners[momentId] = commentListener
+        }
         
         // 🔥 LISTENER ARREGLADO: Con debounce y comparación inteligente
-        if momentListeners[momentId] == nil {
-            let momentListener = firestoreService.db.collection("users").document(authorId)
+        listenersQueue.async(flags: .barrier) {
+            if self.momentListeners[momentId] == nil {
+                let momentListener = self.firestoreService.db.collection("users").document(authorId)
                 .collection("moments").document(momentId)
                 .addSnapshotListener { [weak self] document, error in
                     guard let self = self,
@@ -3619,8 +3635,15 @@ class FeedViewModel: ObservableObject {
                     }
                     
                     do {
+                        // ✅ MEJORADO: Verificación segura de documentID
+                        let documentID = document.documentID
+                        guard !documentID.isEmpty else {
+                            print("❌ Document ID está vacío para momento")
+                            return
+                        }
+                        
                         var updatedMoment = try document.data(as: Moment.self)
-                        updatedMoment.id = document.documentID
+                        updatedMoment.id = documentID
                         
                         // ✅ NUEVO: Solo actualizar si hay cambios significativos
                         guard self.shouldUpdateMoment(momentId: momentId, newMoment: updatedMoment) else {
@@ -3636,7 +3659,8 @@ class FeedViewModel: ObservableObject {
                     }
                 }
             
-            momentListeners[momentId] = momentListener
+            self.momentListeners[momentId] = momentListener
+        }
         }
     }
     
@@ -3691,34 +3715,38 @@ class FeedViewModel: ObservableObject {
         return hasher.finalize()
     }
     
-    // ✅ NUEVA FUNCIÓN: Update con debounce para evitar spam
+    // ✅ MEJORADO: Update con debounce thread-safe
     private func debouncedUpdateMoment(momentId: String, updatedMoment: Moment) {
-        // Cancelar update pendiente si existe
-        pendingUpdates[momentId]?.cancel()
-        
-        // Crear nuevo update con delay
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self else { return }
+        listenersQueue.async(flags: .barrier) {
+            // Cancelar update pendiente si existe
+            self.pendingUpdates[momentId]?.cancel()
             
-            print("🔄 Aplicando update para momento: \(momentId)")
-            
-            DispatchQueue.main.async {
-                if let index = self.moments.firstIndex(where: { $0.id == momentId }) {
-                    self.moments[index] = updatedMoment
-                    
-                    // Actualizar caché correspondiente sin trigger adicional
-                    self.updateMomentInCache(momentId: momentId, updatedMoment: updatedMoment)
-                }
+            // Crear nuevo update con delay
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
                 
-                // Limpiar trabajo completado
-                self.pendingUpdates.removeValue(forKey: momentId)
+                print("🔄 Aplicando update para momento: \(momentId)")
+                
+                DispatchQueue.main.async {
+                    if let index = self.moments.firstIndex(where: { $0.id == momentId }) {
+                        self.moments[index] = updatedMoment
+                        
+                        // Actualizar caché correspondiente sin trigger adicional
+                        self.updateMomentInCache(momentId: momentId, updatedMoment: updatedMoment)
+                    }
+                    
+                    // Limpiar trabajo completado de forma segura
+                    self.listenersQueue.async(flags: .barrier) {
+                        self.pendingUpdates.removeValue(forKey: momentId)
+                    }
+                }
             }
+            
+            self.pendingUpdates[momentId] = workItem
+            
+            // Ejecutar después del debounce time
+            DispatchQueue.main.asyncAfter(deadline: .now() + self.updateDebounceTime, execute: workItem)
         }
-        
-        pendingUpdates[momentId] = workItem
-        
-        // Ejecutar después del debounce time
-        DispatchQueue.main.asyncAfter(deadline: .now() + updateDebounceTime, execute: workItem)
     }
     
     // ✅ NUEVA FUNCIÓN: Actualizar caché sin trigger re-renders adicionales
@@ -3734,7 +3762,7 @@ class FeedViewModel: ObservableObject {
         }
     }
     
-    // ✅ NUEVA FUNCIÓN: Pausar listeners durante uploads
+    // ✅ MEJORADO: Pausar listeners durante uploads
     func pauseListenersForUpload() {
         print("⏸️ Pausando listeners durante upload")
         isPausedForUploads = true
@@ -3745,10 +3773,30 @@ class FeedViewModel: ObservableObject {
         }
     }
     
-    // ✅ NUEVA FUNCIÓN: Reanudar listeners después de upload
+    // ✅ MEJORADO: Reanudar listeners después de upload
     func resumeListenersAfterUpload() {
         print("▶️ Reanudando listeners después de upload")
         isPausedForUploads = false
+    }
+    
+    // ✅ NUEVO: Función de cleanup mejorada para deinit
+    private func performCleanup() {
+        listenersQueue.async(flags: .barrier) {
+            // Cancelar todos los updates pendientes
+            self.pendingUpdates.values.forEach { $0.cancel() }
+            self.pendingUpdates.removeAll()
+            self.lastUpdateHashes.removeAll()
+            
+            // Remover listeners
+            self.momentListeners.values.forEach { $0.remove() }
+            self.momentListeners.removeAll()
+            self.commentListeners.values.forEach { $0.remove() }
+            self.commentListeners.removeAll()
+            
+            // Remover user listener
+            self.userListener?.remove()
+            self.userListener = nil
+        }
     }
     
     // MARK: - User Data

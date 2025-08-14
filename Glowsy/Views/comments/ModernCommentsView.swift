@@ -19,6 +19,7 @@ struct ModernCommentsView: View {
     @State private var commentsListener: ListenerRegistration?
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     
     // ✅ NUEVO: Init personalizado para asegurar estado inicial correcto
     init(moment: Moment) {
@@ -65,7 +66,7 @@ struct ModernCommentsView: View {
                         
                         Text("Comentarios deshabilitados")
                             .font(.custom("Poppins-SemiBold", size: 18))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text("El autor ha deshabilitado los comentarios en este momento")
                             .font(.custom("Poppins-Regular", size: 14))
@@ -152,38 +153,51 @@ struct ModernCommentsView: View {
         }
     }
     
-    // ✅ Fondo moderno mejorado
+    // ✅ Fondo moderno unificado con el resto de la app
     private var modernBackgroundView: some View {
         ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color(hex: "1a1a2e").opacity(0.9),
-                    Color(hex: "16213e").opacity(0.8),
-                    Color.black
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Efectos sutiles de fondo
-            Circle()
-                .fill(Color(hex: "00A896").opacity(0.08))
-                .frame(width: 200, height: 200)
-                .blur(radius: 60)
-                .offset(x: -100, y: -200)
-            
-            Circle()
-                .fill(Color.blue.opacity(0.05))
-                .frame(width: 150, height: 150)
-                .blur(radius: 40)
-                .offset(x: 150, y: 300)
-            
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.05)
+            if colorScheme == .dark {
+                // Negro más intenso y elegante - igual que FeedView
+                Color(hex: "0A0A0A")
+                    .ignoresSafeArea()
+                
+                // Overlay sutil para profundidad
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black.opacity(0.1),
+                        Color.clear,
+                        Color.black.opacity(0.05)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
                 .ignoresSafeArea()
+            } else {
+                // Fondo claro elegante - igual que FeedView
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.white,
+                        Color(hex: "f8f9fa"),
+                        Color(hex: "e9ecef"),
+                        Color.white
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                // Overlay sutil para profundidad
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.white.opacity(0.3),
+                        Color.clear,
+                        Color(hex: "f8f9fa").opacity(0.2)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            }
         }
     }
     
@@ -199,7 +213,10 @@ struct ModernCommentsView: View {
                             Circle()
                                 .stroke(
                                     LinearGradient(
-                                        colors: [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.3)],
+                                        colors: [
+                                            colorScheme == .dark ? Color.white.opacity(0.3) : Color.black.opacity(0.1),
+                                            Color(hex: "00A896").opacity(0.3)
+                                        ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -211,7 +228,10 @@ struct ModernCommentsView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [Color.white, Color(hex: "00A896").opacity(0.8)],
+                                colors: [
+                                    colorScheme == .dark ? Color.white : Color.black,
+                                    Color(hex: "00A896").opacity(0.8)
+                                ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -223,7 +243,7 @@ struct ModernCommentsView: View {
                 HStack(spacing: 8) {
                     Text("Comentarios")
                         .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     // ✅ NUEVO: Indicador de carga en el header
                     if isLoading {
@@ -244,7 +264,7 @@ struct ModernCommentsView: View {
                 HStack(spacing: 3) {
                     Text("Post de \(moment.username)")
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray.opacity(0.8))
+                        .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
                     
                     // ✅ INSIGNIA DE VERIFICADO
                     VerifiedBadgeView(userId: moment.authorId, size: 10)
@@ -265,14 +285,38 @@ struct ModernCommentsView: View {
                     Label("Más populares", systemImage: "heart.fill")
                 }
             } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 16))
-                    .foregroundColor(.gray.opacity(0.7))
-                    .frame(width: 32, height: 32)
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 32, height: 32)
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1),
+                                            Color(hex: "00A896").opacity(0.2)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                    
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? .gray.opacity(0.7) : .gray.opacity(0.6))
+                }
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(colorScheme == .dark ? 0.1 : 0.05)
+        )
         .background(.ultraThinMaterial)
         .overlay(
             Rectangle()
@@ -418,7 +462,7 @@ struct ModernCommentsView: View {
                             
                             TextField("Editar comentario...", text: $editingCommentContent, axis: .vertical)
                                 .font(.custom("Poppins-Regular", size: 15))
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1...4)
                                 .disabled(isLoading) // ✅ NUEVO: Deshabilitar mientras carga
                         }
@@ -462,7 +506,7 @@ struct ModernCommentsView: View {
                                 } else {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white)
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .frame(width: 36, height: 36)
                                         .background(
                                             LinearGradient(
@@ -497,7 +541,7 @@ struct ModernCommentsView: View {
                     HStack(spacing: 12) {
                         TextField(replyToComment != nil ? "Responder..." : "Añade un comentario...", text: $newComment, axis: .vertical)
                             .font(.custom("Poppins-Regular", size: 15))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .lineLimit(1...4)
@@ -543,7 +587,7 @@ struct ModernCommentsView: View {
                                 } else {
                                     Image(systemName: "paperplane.fill")
                                         .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(.white)
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .rotationEffect(.degrees(newComment.isEmpty ? 0 : 45))
                                 }
                             }
@@ -894,6 +938,7 @@ struct EnhancedModernCommentRow: View {
     let onToggleExpand: (String) -> Void
     let nestingLevel: Int // ✅ NUEVO: Nivel de anidación
     @EnvironmentObject private var firestoreService: FirestoreService
+    @Environment(\.colorScheme) var colorScheme
     @State private var showFullContent = false
     
     private var isLongComment: Bool {
@@ -1092,7 +1137,7 @@ struct EnhancedModernCommentRow: View {
                 HStack(spacing: 3) {
                     Text(comment.username)
                         .font(.custom("Poppins-SemiBold", size: nestingLevel == 0 ? 14 : 13))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     // ✅ INSIGNIA DE VERIFICADO
                     VerifiedBadgeView(userId: comment.authorId, size: nestingLevel == 0 ? 12 : 10)
@@ -1130,7 +1175,7 @@ struct EnhancedModernCommentRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(displayContent)
                 .font(.custom("Poppins-Regular", size: nestingLevel == 0 ? 14 : 13))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                 .multilineTextAlignment(.leading)
                 .overlay(
                     // ✅ Destacar @menciones
@@ -1268,6 +1313,8 @@ struct EnhancedModernCommentRow: View {
 
 // ✅ ESTADO VACÍO DE COMENTARIOS MEJORADO
 struct ModernEmptyCommentsView: View {
+    @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
         VStack(spacing: 20) {
             ZStack {
@@ -1306,7 +1353,7 @@ struct ModernEmptyCommentsView: View {
             VStack(spacing: 8) {
                 Text("No hay comentarios aún")
                     .font(.custom("Poppins-SemiBold", size: 18))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text("Sé el primero en comentar este momento")
                     .font(.custom("Poppins-Regular", size: 14))
@@ -1337,6 +1384,7 @@ struct CommentActionButton: View {
     let isActive: Bool
     let activeColor: Color
     let action: () -> Void
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         Button(action: action) {

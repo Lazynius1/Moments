@@ -36,6 +36,10 @@ struct SocialVideoEditorView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     
+    // Estados para thumbnails del timeline
+    @State private var timelineThumbnails: [UIImage] = []
+    @State private var isGeneratingThumbnails = false
+    
     enum PlaybackSpeed: String, CaseIterable {
         case slow = "0.3x"
         case normal = "1x"
@@ -400,30 +404,74 @@ struct SocialVideoEditorView: View {
     
     private var timelineView: some View {
         GeometryReader { geometry in
-            let frameWidth: CGFloat = 50
-            let totalFrames = Int(geometry.size.width / frameWidth)
+            let frameWidth: CGFloat = 60
+            let totalFrames = min(timelineThumbnails.count, Int(geometry.size.width / frameWidth))
             
             ZStack {
-                // Fondo del timeline
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(height: 60)
+                // Fondo del timeline con gradiente moderno
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.black.opacity(0.9),
+                                Color.gray.opacity(0.3),
+                                Color.black.opacity(0.9)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(height: 90)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.2), Color.white.opacity(0.05)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                    )
                 
-                // Frames del video (simulados con rectángulos)
-                HStack(spacing: 2) {
-                    ForEach(0..<totalFrames, id: \.self) { _ in
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.6))
-                            .frame(width: frameWidth - 2, height: 56)
-                            .overlay(
-                                // Simular thumbnail del video
-                                Rectangle()
-                                    .fill(LinearGradient(
-                                        colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                // Thumbnails del video
+                if !timelineThumbnails.isEmpty {
+                    HStack(spacing: 1) {
+                        ForEach(0..<totalFrames, id: \.self) { index in
+                            Image(uiImage: timelineThumbnails[index])
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: frameWidth - 1, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                )
+                                .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 1)
+                        }
+                    }
+                } else {
+                    // Placeholder mientras se generan thumbnails
+                    HStack(spacing: 1) {
+                        ForEach(0..<totalFrames, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.blue.opacity(0.3),
+                                            Color.purple.opacity(0.2)
+                                        ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
-                                    ))
-                            )
+                                    )
+                                )
+                                .frame(width: frameWidth - 1, height: 80)
+                                .overlay(
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(.white)
+                                )
+                        }
                     }
                 }
                 
@@ -435,68 +483,148 @@ struct SocialVideoEditorView: View {
                 // Área oscurecida (antes del inicio)
                 if startX > 0 {
                     Rectangle()
-                        .fill(Color.black.opacity(0.6))
-                        .frame(width: startX, height: 60)
-                        .position(x: startX / 2, y: 30)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.8),
+                                    Color.black.opacity(0.3)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: startX, height: 90)
+                        .position(x: startX / 2, y: 45)
                 }
                 
                 // Área oscurecida (después del final)
                 if endX < geometry.size.width {
                     let remainingWidth = geometry.size.width - endX
                     Rectangle()
-                        .fill(Color.black.opacity(0.6))
-                        .frame(width: remainingWidth, height: 60)
-                        .position(x: endX + remainingWidth / 2, y: 30)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.3),
+                                    Color.black.opacity(0.8)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: remainingWidth, height: 90)
+                        .position(x: endX + remainingWidth / 2, y: 45)
                 }
                 
-                // Bordes de selección
-                Rectangle()
-                    .stroke(Color.yellow, lineWidth: 3)
-                    .frame(width: selectedWidth, height: 60)
-                    .position(x: startX + selectedWidth / 2, y: 30)
+                // Bordes de selección con glow
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.blue.opacity(0.8),
+                                Color.purple.opacity(0.6),
+                                Color.blue.opacity(0.8)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        lineWidth: 3
+                    )
+                    .frame(width: selectedWidth, height: 90)
+                    .position(x: startX + selectedWidth / 2, y: 45)
+                    .shadow(color: Color.blue.opacity(0.5), radius: 4, x: 0, y: 0)
                 
                 // Handle izquierdo
                 trimHandle(isStart: true)
-                    .position(x: startX, y: 30)
+                    .position(x: startX, y: 45)
                 
                 // Handle derecho
                 trimHandle(isStart: false)
-                    .position(x: endX, y: 30)
+                    .position(x: endX, y: 45)
                 
                 // Indicador de tiempo actual
                 let playheadX = CGFloat(currentTime / duration) * geometry.size.width
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: 2, height: 80)
-                    .position(x: playheadX, y: 30)
+                ZStack {
+                    // Línea principal
+                    Rectangle()
+                        .fill(Color.white)
+                        .frame(width: 3, height: 100)
+                        .shadow(color: Color.white.opacity(0.5), radius: 2, x: 0, y: 0)
+                    
+                    // Círculo superior
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 12, height: 12)
+                        .offset(y: -50)
+                        .shadow(color: Color.white.opacity(0.3), radius: 2, x: 0, y: 0)
+                }
+                .position(x: playheadX, y: 45)
             }
         }
-        .frame(height: 60)
+        .frame(height: 90)
         .padding(.horizontal, 20)
         .clipped()
         .allowsHitTesting(!isProcessing)
     }
     
     private func trimHandle(isStart: Bool) -> some View {
-        Rectangle()
-            .fill(Color.yellow)
-            .frame(width: 20, height: 60)
-            .overlay(
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: 3, height: 20)
-            )
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if !isProcessing {
-                            handleTrimDrag(value: value, isStart: isStart)
-                        }
+        ZStack {
+            // Fondo principal del handle
+            RoundedRectangle(cornerRadius: 8)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.blue.opacity(0.9),
+                            Color.purple.opacity(0.8)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 24, height: 90)
+                .shadow(color: Color.blue.opacity(0.5), radius: 4, x: 0, y: 2)
+            
+            // Borde brillante
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.8),
+                            Color.white.opacity(0.3)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 2
+                )
+                .frame(width: 24, height: 90)
+            
+            // Indicador central
+            VStack(spacing: 4) {
+                // Puntos de agarre
+                ForEach(0..<3, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(Color.white.opacity(0.8))
+                        .frame(width: 8, height: 2)
+                }
+            }
+            
+            // Icono de flecha
+            Image(systemName: isStart ? "arrow.left" : "arrow.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.white)
+                .offset(y: 35)
+        }
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if !isProcessing {
+                        handleTrimDrag(value: value, isStart: isStart)
                     }
-                    .onEnded { _ in
-                        isDraggingTrimHandle = false
-                    }
-            )
+                }
+                .onEnded { _ in
+                    isDraggingTrimHandle = false
+                }
+        )
     }
     
     // MARK: - Controles Inferiores
@@ -760,6 +888,9 @@ struct SocialVideoEditorView: View {
         
         player = AVPlayer(url: videoURL)
         
+        // Generar thumbnails para el timeline
+        generateTimelineThumbnails()
+        
         // Obtener duración del video
         let asset = AVAsset(url: videoURL)
         Task {
@@ -795,6 +926,103 @@ struct SocialVideoEditorView: View {
         }
         player?.pause()
         player = nil
+    }
+    
+    // MARK: - Generación de Thumbnails del Timeline
+    private func generateTimelineThumbnails() {
+        guard let video = currentVideo, let videoURL = video.videoURL else { return }
+        
+        isGeneratingThumbnails = true
+        timelineThumbnails.removeAll()
+        
+        let asset = AVAsset(url: videoURL)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+        imageGenerator.maximumSize = CGSize(width: 120, height: 80) // Tamaño para timeline
+        
+        // Generar thumbnails cada 2 segundos
+        let thumbnailCount = 20 // Número de thumbnails en el timeline
+        let timeInterval = duration / Double(thumbnailCount)
+        
+        Task {
+            do {
+                for i in 0..<thumbnailCount {
+                    let time = CMTime(seconds: Double(i) * timeInterval, preferredTimescale: 600)
+                    
+                    do {
+                        let cgImage = try await imageGenerator.image(at: time).image
+                        let uiImage = UIImage(cgImage: cgImage)
+                        
+                        await MainActor.run {
+                            timelineThumbnails.append(uiImage)
+                        }
+                    } catch {
+                        // Si falla un thumbnail, usar uno por defecto
+                        await MainActor.run {
+                            timelineThumbnails.append(createDefaultThumbnail())
+                        }
+                    }
+                }
+                
+                await MainActor.run {
+                    isGeneratingThumbnails = false
+                }
+            } catch {
+                await MainActor.run {
+                    isGeneratingThumbnails = false
+                    // Generar thumbnails por defecto si falla
+                    for _ in 0..<thumbnailCount {
+                        timelineThumbnails.append(createDefaultThumbnail())
+                    }
+                }
+            }
+        }
+    }
+    
+    private func createDefaultThumbnail() -> UIImage {
+        let size = CGSize(width: 120, height: 80)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        return renderer.image { context in
+            // Fondo con gradiente
+            let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: [
+                    UIColor.systemBlue.cgColor,
+                    UIColor.systemPurple.cgColor
+                ] as CFArray,
+                locations: [0, 1]
+            )!
+            
+            context.cgContext.drawLinearGradient(
+                gradient,
+                start: CGPoint(x: 0, y: 0),
+                end: CGPoint(x: size.width, y: size.height),
+                options: []
+            )
+            
+            // Icono de video
+            let iconSize: CGFloat = 30
+            let iconRect = CGRect(
+                x: (size.width - iconSize) / 2,
+                y: (size.height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            
+            UIColor.white.setFill()
+            context.cgContext.fillEllipse(in: iconRect)
+            
+            // Triángulo de play
+            let trianglePath = UIBezierPath()
+            trianglePath.move(to: CGPoint(x: iconRect.midX + 5, y: iconRect.midY - 8))
+            trianglePath.addLine(to: CGPoint(x: iconRect.midX + 5, y: iconRect.midY + 8))
+            trianglePath.addLine(to: CGPoint(x: iconRect.midX + 13, y: iconRect.midY))
+            trianglePath.close()
+            
+            UIColor.systemBlue.setFill()
+            trianglePath.fill()
+        }
     }
     
     private func togglePlayback() {

@@ -778,7 +778,7 @@ class FirestoreService: ObservableObject {
 
 
     func fetchMutualConnections(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
-        print("Obteniendo conexiones mutuas para usuario: \(userId)")
+        print("🔍 FirestoreService: Obteniendo conexiones mutuas para usuario: \(userId)")
         
         let group = DispatchGroup()
         var followingIds: Set<String> = []

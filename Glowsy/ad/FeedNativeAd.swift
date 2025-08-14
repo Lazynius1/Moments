@@ -488,7 +488,7 @@ struct IntegratedAdLoadingView: View {
             // Media placeholder (imagen/video)
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .frame(height: 400)
+                .frame(height: 400) // ✅ Tamaño fijo más grande para Google
                 .shimmer(isAnimating: isAnimating)
             
             // Footer con botón
@@ -570,7 +570,7 @@ struct IntegratedNativeAdView: View {
             
             // Media del anuncio
             IntegratedAdMediaView(nativeAd: nativeAd)
-                .frame(height: 400)
+                .frame(height: 400) // ✅ Tamaño fijo más grande para Google
             
             // Footer con botón de acción
             HStack {
@@ -611,6 +611,8 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         let containerView = UIView()
         containerView.backgroundColor = .clear
         
+        print("🎯 Creando IntegratedAdMediaView con tamaño optimizado para Google")
+        
         let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
         mediaView.backgroundColor = UIColor.systemGray6
@@ -618,11 +620,18 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         mediaView.clipsToBounds = true
         mediaView.mediaContent = nativeAd.mediaContent
         
+        // ✅ CRÍTICO: Registrar el MediaView con el NativeAd para que Google lo detecte
+        nativeAd.register(mediaView, clickableAssetViews: [:], nonclickableAssetViews: [:])
+        
+        print("   - ✅ MediaContent asignado: \(nativeAd.mediaContent.hasVideoContent ? "Video" : "Imagen")")
+        print("   - ✅ MediaView registrado con NativeAd")
+        
         // Configurar video si existe
         if nativeAd.mediaContent.hasVideoContent {
             let videoController = nativeAd.mediaContent.videoController
             videoController.delegate = context.coordinator
             videoController.isMuted = true
+            print("   - ✅ Video configurado CON mute para feed integrado")
         }
         
         containerView.addSubview(mediaView)
@@ -632,8 +641,17 @@ struct IntegratedAdMediaView: UIViewRepresentable {
             mediaView.topAnchor.constraint(equalTo: containerView.topAnchor),
             mediaView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             mediaView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            mediaView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+            mediaView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            
+            // ✅ CRÍTICO: GARANTIZAR TAMAÑO MÍNIMO requerido por Google
+            mediaView.heightAnchor.constraint(equalToConstant: 400), // Tamaño fijo más grande para Google
+            mediaView.widthAnchor.constraint(greaterThanOrEqualToConstant: 150)   // Mínimo 150px, pero flexible
         ])
+        
+        print("   - ✅ MediaView: mínimo 300x150px (requerido por Google)")
+        print("   - ✅ Aspect ratio: flexible pero respeta mínimos")
+        print("   - ✅ Container size: \(containerView.frame.size)")
+        print("   - ✅ MediaView size: \(mediaView.frame.size)")
         
         return containerView
     }

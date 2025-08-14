@@ -31,6 +31,9 @@ struct MomentDetailView: View {
     // ✅ NUEVOS: Estados para expansión de contenido
     @State private var isContentExpanded: Bool = false
     @State private var needsContentExpansion: Bool = false
+    
+    // ✅ NUEVO: Estado para navegación al perfil
+    @State private var navigateToProfile: Bool = false
 
     init(moment: Moment) {
         self.moment = moment
@@ -182,6 +185,9 @@ struct MomentDetailView: View {
                     }
                 }
         )
+        .sheet(isPresented: $navigateToProfile) {
+            UserProfileView(userId: moment.authorId)
+        }
     }
     
     // MARK: - Componentes Modernos
@@ -223,26 +229,41 @@ struct MomentDetailView: View {
             Spacer()
             
             HStack(spacing: 12) {
-                AsyncProfileImageView(userId: moment.authorId)
-                    .frame(width: 45, height: 45)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.5)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
+                Button(action: {
+                    if !moment.authorId.isEmpty {
+                        navigateToProfile = true
+                    }
+                }) {
+                    AsyncProfileImageView(userId: moment.authorId)
+                        .frame(width: 45, height: 45)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.5)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
                 
                 VStack(spacing: 2) {
                     HStack(spacing: 4) {
-                        Text(moment.username)
-                            .font(.custom("Poppins-SemiBold", size: 20))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                        Button(action: {
+                            if !moment.authorId.isEmpty {
+                                print("🔍 Navegando al perfil del usuario: \(moment.authorId)")
+                                navigateToProfile = true
+                            }
+                        }) {
+                            Text(moment.username)
+                                .font(.custom("Poppins-SemiBold", size: 20))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                         
                         // ✅ INSIGNIA DE VERIFICADO
                         VerifiedBadgeView(userId: moment.authorId, size: 16)
