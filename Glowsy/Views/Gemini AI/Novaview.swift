@@ -1402,15 +1402,15 @@ struct ModernWelcomeSection: View {
 
                             HStack(spacing: 12) {
                                 ModernStatCard(
-                                    title: "Conexiones",
+                                    title: "Tus mutuals",
                                     value: "\(viewModel.mutualConnections.count)",
                                     icon: "person.2.fill"
                                 )
 
                                 ModernStatCard(
-                                    title: "Afinidades",
-                                    value: "\(viewModel.usersWithSharedInterests.count)",
-                                    icon: "star.fill"
+                                    title: "Visitas a tu perfil",
+                                    value: "\(viewModel.profileVisits.count)",
+                                    icon: "eye.fill"
                                 )
                             }
                         }
@@ -1905,6 +1905,7 @@ class GeminiViewModel: ObservableObject {
     private(set) var mutualConnections: [AppUser] = []
     private(set) var usersWithSharedInterests: [AppUser] = []
     private(set) var suggestedUsers: [AppUser] = []
+    private(set) var profileVisits: [AppUser] = []
     
     private var currentConversationId: String?
     private var conversationService: ConversationService?
@@ -1974,6 +1975,7 @@ class GeminiViewModel: ObservableObject {
                     self?.fetchRecentMoments(userId: userId)
                     self?.fetchMutualConnections(userId: userId)
                     self?.fetchUsersWithSharedInterests(userId: userId)
+                    self?.fetchProfileVisits(userId: userId)
                     self?.fetchSuggestedUsers()
                     // Cargar memoria silenciosamente
                     self?.loadMemoryContextSilently(userId: userId)
@@ -2019,17 +2021,75 @@ class GeminiViewModel: ObservableObject {
     }
 
     func fetchMutualConnections(userId: String) {
-        firestoreService.fetchMutualConnections(userId: userId) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let connections):
-                    self?.mutualConnections = connections
-                    LogConfig.log("Conexiones mutuas obtenidas: \(connections.count)", category: "Data")
-                case .failure(let error):
-                    LogConfig.log("Error al obtener conexiones mutuas: \(error.localizedDescription)", category: "Error")
+        print("🔍 NovaView: Iniciando fetchMutualConnections para userId: \(userId)")
+        
+        // Obtener following directamente de Firestore
+        firestoreService.db.collection("users").document(userId).collection("following")
+            .getDocuments { [weak self] followingSnapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    print("🔍 NovaView: Error fetching following: \(error.localizedDescription)")
+                    return
                 }
+                
+                let followingIds = followingSnapshot?.documents.compactMap { doc in
+                    doc.data()["userId"] as? String
+                } ?? []
+                
+                print("🔍 NovaView: Following IDs: \(followingIds)")
+                
+                // Obtener followers
+                self.firestoreService.db.collection("users").document(userId).collection("followers")
+                    .getDocuments { [weak self] followersSnapshot, error in
+                        guard let self = self else { return }
+                        
+                        if let error = error {
+                            print("🔍 NovaView: Error fetching followers: \(error.localizedDescription)")
+                            return
+                        }
+                        
+                        let followerIds = followersSnapshot?.documents.compactMap { doc in
+                            doc.data()["userId"] as? String
+                        } ?? []
+                        
+                        print("🔍 NovaView: Follower IDs: \(followerIds)")
+                        
+                        // Calcular conexiones mutuas
+                        let followingSet = Set(followingIds)
+                        let followersSet = Set(followerIds)
+                        let mutualIds = Array(followingSet.intersection(followersSet))
+                        
+                        print("🔍 NovaView: Mutual IDs: \(mutualIds)")
+                        
+                        if mutualIds.isEmpty {
+                            DispatchQueue.main.async {
+                                self.mutualConnections = []
+                                self.objectWillChange.send() // ✅ Forzar actualización de UI
+                                print("🔍 NovaView: No hay conexiones mutuas")
+                            }
+                            return
+                        }
+                        
+                        // Obtener usuarios mutuos
+                        self.firestoreService.fetchUsers(userIds: mutualIds) { result in
+                            DispatchQueue.main.async {
+                                switch result {
+                                case .success(let users):
+                                    print("🔍 NovaView: Conexiones mutuas obtenidas: \(users.count)")
+                                    print("🔍 NovaView: IDs de conexiones mutuas: \(users.map { $0.id ?? "nil" })")
+                                    self.mutualConnections = users
+                                    self.objectWillChange.send() // ✅ Forzar actualización de UI
+                                    print("🔍 NovaView: UI actualizada - mutualConnections.count ahora es: \(self.mutualConnections.count)")
+                                    LogConfig.log("Conexiones mutuas obtenidas: \(users.count)", category: "Data")
+                                case .failure(let error):
+                                    print("🔍 NovaView: Error al obtener usuarios mutuos: \(error.localizedDescription)")
+                                    LogConfig.log("Error al obtener usuarios mutuos: \(error.localizedDescription)", category: "Error")
+                                }
+                            }
+                        }
+                    }
             }
-        }
     }
 
     func fetchUsersWithSharedInterests(userId: String) {
@@ -2058,6 +2118,71 @@ class GeminiViewModel: ObservableObject {
         }
     }
 
+    func fetchProfileVisits(userId: String) {
+        print("🔍 NovaView: Iniciando fetchProfileVisits para userId: \(userId)")
+        firestoreService.fetchVisits(userId: userId) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let visits):
+                    let visitorIds = visits.map { $0.visitorId }
+                    print("🔍 NovaView: Visitor IDs obtenidos: \(visitorIds)")
+                    
+                    if visitorIds.isEmpty {
+                        self?.profileVisits = []
+                        self?.objectWillChange.send()
+                        print("🔍 NovaView: No hay visitas al perfil")
+                        return
+                    }
+                    
+                    // Obtener usuarios visitantes usando fetchUsersInBatches como ProfileView
+                    self?.fetchUsersInBatches(userIds: visitorIds) { users in
+                        DispatchQueue.main.async {
+                            print("🔍 NovaView: Visitas al perfil obtenidas: \(users.count)")
+                            self?.profileVisits = users
+                            self?.objectWillChange.send()
+                            LogConfig.log("Visitas al perfil obtenidas: \(users.count)", category: "Data")
+                        }
+                    }
+                case .failure(let error):
+                    print("🔍 NovaView: Error al obtener visitas: \(error.localizedDescription)")
+                    LogConfig.log("Error al obtener visitas: \(error.localizedDescription)", category: "Error")
+                }
+            }
+        }
+    }
+    
+    private func fetchUsersInBatches(userIds: [String], completion: @escaping ([AppUser]) -> Void) {
+        if userIds.isEmpty {
+            completion([])
+            return
+        }
+
+        let batchSize = 10
+        var allUsers: [AppUser] = []
+        let batches = stride(from: 0, to: userIds.count, by: batchSize).map {
+            Array(userIds[$0..<min($0 + batchSize, userIds.count)])
+        }
+
+        let batchGroup = DispatchGroup()
+
+        for batch in batches {
+            batchGroup.enter()
+            firestoreService.fetchUsers(userIds: batch) { result in
+                defer { batchGroup.leave() }
+                switch result {
+                case .success(let users):
+                    allUsers.append(contentsOf: users)
+                case .failure(let error):
+                    print("Error al obtener usuarios en lote: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        batchGroup.notify(queue: .main) {
+            completion(allUsers)
+        }
+    }
+    
     func fetchSuggestedUsers() {
         firestoreService.fetchSuggestedUsers { [weak self] result in
             DispatchQueue.main.async {
@@ -2371,7 +2496,6 @@ class GeminiViewModel: ObservableObject {
         }
     }
     
-    // AÑADIR esta función nueva al ViewModel:
     private func buildSimpleContext() -> String {
         guard let userData = userData else { return "Usuario sin datos específicos" }
         
@@ -2382,6 +2506,13 @@ class GeminiViewModel: ObservableObject {
         - Intereses: \(userData.interests.joined(separator: ", "))
         - Bio: \(userData.bio ?? "No especificada")
         - Conexiones: \(mutualConnections.count)
+        - Visitas al perfil: \(profileVisits.count)
+        
+        CONEXIONES MUTUAS:
+        \(mutualConnections.isEmpty ? "No hay conexiones mutuas" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+        
+        VISITANTES DEL PERFIL:
+        \(profileVisits.isEmpty ? "No hay visitas registradas" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
         
         ACTIVIDAD:
         - Momentos publicados: \(recentMoments.count)
@@ -2676,7 +2807,13 @@ class GeminiViewModel: ObservableObject {
         - Intereses del usuario: \(userData.interests.joined(separator: ", "))
         - Bio del usuario: \(userData.bio ?? "No especificada")
         - Conexiones del usuario: \(mutualConnections.count)
-        - Usuarios con intereses similares: \(usersWithSharedInterests.count)
+        - Visitas al perfil: \(profileVisits.count)
+        
+        CONEXIONES MUTUAS:
+        \(mutualConnections.isEmpty ? "No hay conexiones mutuas" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+        
+        VISITANTES DEL PERFIL:
+        \(profileVisits.isEmpty ? "No hay visitas registradas" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
         
         ACTIVIDAD DEL USUARIO:
         - Momentos publicados: \(recentMoments.count)

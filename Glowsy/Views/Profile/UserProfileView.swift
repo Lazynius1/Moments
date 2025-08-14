@@ -374,7 +374,8 @@ struct UserModernPublicProfileView: View {
                         navigateToChat: $navigateToChat,
                         targetConversation: $targetConversation,
                         showingUserList: $showingUserList,
-                        onFollowAction: onFollowAction
+                        onFollowAction: onFollowAction,
+                        onDismiss: onDismiss
                     )
                     .padding(.top, 10)
                     .padding(.bottom, 32)
@@ -502,10 +503,33 @@ struct UserModernProfileHeader: View {
     @Binding var targetConversation: Conversation?
     @Binding var showingUserList: UserProfileView.UserListType?
     let onFollowAction: () -> Void
+    let onDismiss: () -> Void // ✅ NUEVO: Para el botón de atrás
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 28) {
+            // ✅ NUEVO: Botón de atrás en la esquina superior izquierda
+            HStack {
+                Button(action: onDismiss) {
+                    ZStack {
+                        Circle()
+                            .fill(UserProfileColors.cardBackground.opacity(0.9))
+                            .frame(width: 44, height: 44)
+                            .shadow(color: UserProfileColors.shadowColor, radius: 8, x: 0, y: 4)
+                        
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(UserProfileColors.textPrimary)
+                    }
+                }
+                .scaleEffect(0.9)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: true)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            
             // Avatar hero con badges
             ZStack {
                 // Círculo de fondo con gradiente adaptativo

@@ -1859,14 +1859,6 @@ struct MediaEditingView: View {
                 EditingToolButton(icon: "slider.horizontal.3", title: "Filtros") {
                     showingFilterView = true
                 }
-                
-                EditingToolButton(icon: "textformat", title: "Texto") {
-                    // Show text overlay editor
-                }
-                
-                EditingToolButton(icon: "face.smiling", title: "Stickers") {
-                    // Show sticker picker
-                }
             }
             .padding()
             .background(Color.black)

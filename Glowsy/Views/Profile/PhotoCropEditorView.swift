@@ -19,13 +19,12 @@ struct PhotoCropEditorView: View {
     // ✅ ESTADOS PARA GESTOS MEJORADOS
     @State private var isDragging = false
     @State private var isZooming = false
+    @State private var photoAssets: [PHAsset] = []
+    @State private var isLoadingRecentPhotos = false
     
     private let imageManager = PHImageManager.default()
     private let cropSize: CGFloat = 360 // Área cuadrada de trabajo
     private let outputSize: CGSize = CGSize(width: 400, height: 400) // ✅ COINCIDIR CON STORAGESERVICE
-    
-    // ✅ TAMAÑO FINAL EN EL PERFIL
-    private let profileDisplaySize: CGFloat = 110
     
     var body: some View {
         ZStack {
@@ -37,7 +36,7 @@ struct PhotoCropEditorView: View {
                 VStack(spacing: 0) {
                     headerView
                     cropAreaView(with: image)
-                    previewSection(with: image)
+                    photoGridSection()
                     Spacer()
                 }
             }
@@ -48,6 +47,7 @@ struct PhotoCropEditorView: View {
         }
         .onAppear {
             loadFullResolutionImage()
+            loadRecentPhotos()
         }
     }
     
@@ -67,14 +67,27 @@ struct PhotoCropEditorView: View {
     // MARK: - Header
     private var headerView: some View {
         HStack {
-            Button("Cancelar") {
+            Button(action: {
                 if !isProcessing {
                     dismiss()
                 }
+            }) {
+                Text("Cancelar")
+                    .font(.custom("Poppins-Regular", size: 17))
+                    .foregroundColor(.white.opacity(isProcessing ? 0.4 : 0.8))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white.opacity(isProcessing ? 0.1 : 0.15))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.white.opacity(isProcessing ? 0.2 : 0.3), lineWidth: 1)
+                    )
             }
-            .font(.custom("Poppins-Regular", size: 17))
-            .foregroundColor(.white)
             .disabled(isProcessing)
+            .buttonStyle(PlainButtonStyle())
             
             Spacer()
             
@@ -84,12 +97,29 @@ struct PhotoCropEditorView: View {
             
             Spacer()
             
-            Button("Listo") {
+            Button(action: {
+                print("🔵 Botón 'Listo' presionado")
+                // Feedback háptico para confirmar la pulsación
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
                 cropAndSaveImage()
+            }) {
+                Text("Listo")
+                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .foregroundColor(isProcessing ? .gray : Color(hex: "00A896"))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(isProcessing ? Color.gray.opacity(0.3) : Color(hex: "00A896").opacity(0.2))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isProcessing ? Color.gray.opacity(0.5) : Color(hex: "00A896").opacity(0.5), lineWidth: 1)
+                    )
             }
-            .font(.custom("Poppins-SemiBold", size: 17))
-            .foregroundColor(isProcessing ? .gray : Color(hex: "00A896"))
             .disabled(isProcessing)
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -194,20 +224,7 @@ struct PhotoCropEditorView: View {
                     .frame(width: cropSize, height: cropSize)
                     .allowsHitTesting(false)
                 
-                // ✅ Indicador de área de crop
-                VStack(spacing: 2) {
-                    Image(systemName: "crop")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white)
-                    Text("Área de crop")
-                        .font(.custom("Poppins-Bold", size: 8))
-                        .foregroundColor(.white)
-                }
-                .background(Color.black.opacity(0.7))
-                .clipShape(Capsule())
-                .padding(4)
-                .offset(x: cropSize * 0.3, y: -cropSize * 0.3)
-                .allowsHitTesting(false)
+
                 
                 // ✅ Indicador de estado de gestos (sutil)
                 if isDragging || isZooming {
@@ -252,82 +269,52 @@ struct PhotoCropEditorView: View {
         }
     }
     
-    // MARK: - Sección de preview circular
-    private func previewSection(with image: UIImage) -> some View {
+    // MARK: - Grid de fotos completo (como ProfileEditor)
+    private func photoGridSection() -> some View {
         VStack(spacing: 16) {
-            Text("Vista previa")
+            Text("Otras fotos")
                 .font(.custom("Poppins-SemiBold", size: 16))
                 .foregroundColor(.white.opacity(0.9))
                 .padding(.top, 30)
             
-            HStack(spacing: 30) {
-                // Preview pequeño
-                VStack(spacing: 8) {
-                    createCircularPreview(image: image, size: 40)
-                    Text("Pequeño")
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.gray)
+            // Grid de fotos recientes
+            if isLoadingRecentPhotos {
+                HStack(spacing: 8) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 70, height: 70)
+                            .overlay(
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                    .tint(.white)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
                 }
-                
-                // Preview mediano
-                VStack(spacing: 8) {
-                    createCircularPreview(image: image, size: 60)
-                    Text("Mediano")
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.gray)
-                }
-                
-                // Preview grande - TAMAÑO REAL DEL PERFIL
-                VStack(spacing: 8) {
-                    ZStack {
-                        createCircularPreview(image: image, size: profileDisplaySize)
-                        
-                        // ✅ Indicador de que este es el resultado final
-                        if profileDisplaySize >= 80 {
-                            VStack(spacing: 2) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.green)
-                                Text("Final")
-                                    .font(.custom("Poppins-Bold", size: 8))
-                                    .foregroundColor(.green)
+            } else {
+                ScrollView {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
+                        spacing: 2
+                    ) {
+                        ForEach(photoAssets.indices, id: \.self) { index in
+                            let asset = photoAssets[index]
+                            
+                            PhotoGridItem(
+                                asset: asset,
+                                isSelected: false, // No hay selección en el editor
+                                imageManager: imageManager
+                            ) {
+                                selectNewPhotoFromGrid(asset)
                             }
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(Capsule())
-                            .padding(4)
                         }
                     }
-                    Text("Perfil (110x110)")
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.gray)
+                    .padding(.top, 8)
                 }
             }
         }
-    }
-    
-    // ✅ PREVIEW SIMPLIFICADO: Muestra exactamente el área del círculo
-    private func createCircularPreview(image: UIImage, size: CGFloat) -> some View {
-        ZStack {
-            // ✅ MOSTRAR EXACTAMENTE el área del círculo de 360x360
-            // Factor de escala del preview respecto al área de crop
-            let previewScale = size / cropSize
-            
-            // Aplicar las mismas transformaciones que en el área principal
-            let finalWidth = cropSize * scale * previewScale
-            let finalHeight = (cropSize * scale) / (image.size.width / image.size.height) * previewScale
-            let finalOffsetX = (offset.width + gestureTranslation.width) * previewScale
-            let finalOffsetY = (offset.height + gestureTranslation.height) * previewScale
-            
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: finalWidth, height: finalHeight)
-                .offset(CGSize(width: -finalOffsetX, height: -finalOffsetY))
-                .clipped()
-        }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
+        .padding(.horizontal, 20)
     }
     
     // MARK: - Configuración inicial
@@ -438,21 +425,31 @@ struct PhotoCropEditorView: View {
     
     // MARK: - Función de crop final
     private func cropAndSaveImage() {
-        guard let image = fullResolutionImage else { return }
+        print("🔵 cropAndSaveImage() iniciado")
+        guard let image = fullResolutionImage else { 
+            print("❌ No hay imagen para procesar")
+            return 
+        }
         
+        print("🔵 Imagen encontrada, iniciando procesamiento...")
         isProcessing = true
         
         DispatchQueue.global(qos: .userInitiated).async {
+            print("🔵 Procesando imagen en background...")
             guard let croppedImage = self.cropSquareImage(from: image) else {
+                print("❌ Error al recortar imagen")
                 DispatchQueue.main.async {
                     self.isProcessing = false
                 }
                 return
             }
             
+            print("🔵 Imagen recortada exitosamente")
             DispatchQueue.main.async {
+                print("🔵 Llamando onSave con imagen recortada")
                 self.isProcessing = false
                 self.onSave(croppedImage)
+                print("🔵 Cerrando PhotoCropEditorView")
                 self.dismiss()
             }
         }
@@ -498,5 +495,145 @@ struct PhotoCropEditorView: View {
         // ✅ IMPORTANTE: NO aplicar clip circular aquí
         // ProfileView se encargará de mostrar la imagen a 110x110 con clip circular
         return UIGraphicsGetImageFromCurrentImageContext()
+    }
+    
+    // MARK: - Funciones para el grid de fotos
+    private func loadRecentPhotos() {
+        isLoadingRecentPhotos = true
+        
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 50 // Más fotos para el grid
+        
+        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        var assets: [PHAsset] = []
+        
+        fetchResult.enumerateObjects { asset, _, _ in
+            assets.append(asset)
+        }
+        
+        DispatchQueue.main.async {
+            self.photoAssets = assets
+            self.isLoadingRecentPhotos = false
+        }
+    }
+    
+    private func selectNewPhotoFromGrid(_ asset: PHAsset) {
+        // Feedback háptico
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // Actualizar la imagen principal
+        fullResolutionImage = nil
+        isLoadingImage = true
+        
+        // Cargar la nueva imagen en alta resolución
+        let options = PHImageRequestOptions()
+        options.version = .current
+        options.deliveryMode = .highQualityFormat
+        options.isNetworkAccessAllowed = true
+        options.isSynchronous = false
+        
+        imageManager.requestImage(
+            for: asset,
+            targetSize: PHImageManagerMaximumSize,
+            contentMode: .aspectFit,
+            options: options
+        ) { image, _ in
+            DispatchQueue.main.async {
+                self.fullResolutionImage = image
+                self.isLoadingImage = false
+                
+                // Resetear transformaciones para la nueva imagen
+                if let image = image {
+                    self.setupInitialTransform(for: image.size)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Photo Grid Item (copiado de ProfileEditor)
+private struct PhotoGridItem: View {
+    let asset: PHAsset
+    let isSelected: Bool
+    let imageManager: PHImageManager
+    let onTap: () -> Void
+    
+    @State private var image: UIImage?
+    @State private var isLoading = true
+    
+    var body: some View {
+        Button(action: onTap) {
+            ZStack {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .overlay(
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(.white)
+                        )
+                }
+                
+                // Overlay de selección (no usado en el editor, pero mantenemos la estructura)
+                if isSelected {
+                    Rectangle()
+                        .fill(.clear)
+                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .overlay(
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(Color(hex: "00A896"))
+                                        .background(Circle().fill(.white))
+                                        .padding(8)
+                                }
+                                Spacer()
+                            }
+                        )
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color(hex: "00A896"), lineWidth: 3)
+                        )
+                }
+            }
+        }
+        .onAppear {
+            loadImage()
+        }
+    }
+    
+    private func loadImage() {
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = true
+        options.isSynchronous = false
+        
+        let targetSize = CGSize(
+            width: UIScreen.main.bounds.width / 3 * UIScreen.main.scale,
+            height: UIScreen.main.bounds.width / 3 * UIScreen.main.scale
+        )
+        
+        imageManager.requestImage(
+            for: asset,
+            targetSize: targetSize,
+            contentMode: .aspectFill,
+            options: options
+        ) { result, _ in
+            DispatchQueue.main.async {
+                self.image = result
+                self.isLoading = false
+            }
+        }
     }
 }
