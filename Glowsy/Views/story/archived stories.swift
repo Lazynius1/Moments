@@ -577,14 +577,24 @@ struct SingleStoryViewer: View {
             // Story content
             if let url = URL(string: story.mediaItem.url) {
                 if story.mediaItem.type == .video {
-                    GlassmorphicStoryVideoPlayer(url: url, isPlaying: .constant(true))
-                        .scaledToFill()
-                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                        .opacity(showContent ? 1.0 : 0.0)
-                        .animation(.easeInOut(duration: 0.4), value: showContent)
-                        .onAppear {
-                            startLoadingSequence(isVideo: true)
+                    GlassmorphicStoryVideoPlayer(
+                        url: url, 
+                        isPlaying: .constant(true),
+                        isHorizontalVideo: GlassmorphicStoryViewer.isHorizontalAspectRatio(story.aspectRatio),
+                        onProgressUpdate: { _ in
+                            // ✅ NO NECESITAMOS PROGRESO EN ARCHIVED STORIES
+                        },
+                        onVideoComplete: {
+                            // ✅ NO NECESITAMOS COMPLETACIÓN EN ARCHIVED STORIES
                         }
+                    )
+                    .scaledToFill()
+                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                    .opacity(showContent ? 1.0 : 0.0)
+                    .animation(.easeInOut(duration: 0.4), value: showContent)
+                    .onAppear {
+                        startLoadingSequence(isVideo: true)
+                    }
                 } else {
                     KFImage(url)
                         .placeholder {

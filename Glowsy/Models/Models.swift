@@ -424,6 +424,8 @@ struct Story: Identifiable, Codable {
     let textStyle: String?
     let stickers: [StickerData]?
     let drawingData: Data?
+    let aspectRatio: String? // ✅ AÑADIDO: Aspect ratio del video/imagen
+    let backgroundFrameURL: String? // ✅ AÑADIDO: URL del frame de fondo para videos horizontales
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -441,6 +443,8 @@ struct Story: Identifiable, Codable {
         case textStyle
         case stickers
         case drawingData
+        case aspectRatio // ✅ AÑADIDO: Clave de codificación
+        case backgroundFrameURL // ✅ AÑADIDO: Clave de codificación
         
         // Claves antiguas para compatibilidad al leer
         case imagePath
@@ -461,7 +465,9 @@ struct Story: Identifiable, Codable {
          textPosition: CGPoint? = nil,
          textStyle: String? = nil,
          stickers: [StickerData]? = nil,
-         drawingData: Data? = nil) {
+         drawingData: Data? = nil,
+         aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio
+         backgroundFrameURL: String? = nil) { // ✅ AÑADIDO: URL del frame de fondo
         self.id = id
         self.authorId = authorId
         self.username = username
@@ -477,6 +483,8 @@ struct Story: Identifiable, Codable {
         self.textStyle = textStyle
         self.stickers = stickers
         self.drawingData = drawingData
+        self.aspectRatio = aspectRatio // ✅ AÑADIDO: Asignar aspect ratio
+        self.backgroundFrameURL = backgroundFrameURL // ✅ AÑADIDO: Asignar URL del frame de fondo
     }
 
     init(from decoder: Decoder) throws {
@@ -503,6 +511,8 @@ struct Story: Identifiable, Codable {
         self.textStyle = try container.decodeIfPresent(String.self, forKey: .textStyle)
         self.stickers = try container.decodeIfPresent([StickerData].self, forKey: .stickers)
         self.drawingData = try container.decodeIfPresent(Data.self, forKey: .drawingData)
+        self.aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio) // ✅ AÑADIDO: Decodificar aspect ratio
+        self.backgroundFrameURL = try container.decodeIfPresent(String.self, forKey: .backgroundFrameURL) // ✅ AÑADIDO: Decodificar URL del frame de fondo
         
         if let mediaItem = try? container.decodeIfPresent(MediaItem.self, forKey: .mediaItem) {
             self.mediaItem = mediaItem
@@ -537,6 +547,8 @@ struct Story: Identifiable, Codable {
         try container.encodeIfPresent(textStyle, forKey: .textStyle)
         try container.encodeIfPresent(stickers, forKey: .stickers)
         try container.encodeIfPresent(drawingData, forKey: .drawingData)
+        try container.encodeIfPresent(aspectRatio, forKey: .aspectRatio) // ✅ AÑADIDO: Codificar aspect ratio
+        try container.encodeIfPresent(backgroundFrameURL, forKey: .backgroundFrameURL) // ✅ AÑADIDO: Codificar URL del frame de fondo
         
         // Mantener compatibilidad
         try container.encodeIfPresent(mediaItem.type == .image ? mediaItem.url : nil, forKey: .imagePath)

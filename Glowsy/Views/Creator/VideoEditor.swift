@@ -28,6 +28,8 @@ struct SocialVideoEditorView: View {
     @State private var isDraggingTrimHandle = false
     @State private var trimHandleType: TrimHandleType = .start
     @State private var showingVolumeSlider = false
+    @State private var draggingHandle: TrimHandleType? = nil
+    @State private var lastDragLocation: CGPoint = .zero
     
     // Estados para compresión y procesamiento
     @State private var isProcessing = false
@@ -520,18 +522,19 @@ struct SocialVideoEditorView: View {
                     .stroke(
                         LinearGradient(
                             colors: [
-                                Color.blue.opacity(0.8),
-                                Color.purple.opacity(0.6),
-                                Color.blue.opacity(0.8)
+                                Color.blue.opacity(isDraggingTrimHandle ? 1.0 : 0.8),
+                                Color.purple.opacity(isDraggingTrimHandle ? 0.8 : 0.6),
+                                Color.blue.opacity(isDraggingTrimHandle ? 1.0 : 0.8)
                             ],
                             startPoint: .leading,
                             endPoint: .trailing
                         ),
-                        lineWidth: 3
+                        lineWidth: isDraggingTrimHandle ? 4 : 3
                     )
                     .frame(width: selectedWidth, height: 90)
                     .position(x: startX + selectedWidth / 2, y: 45)
-                    .shadow(color: Color.blue.opacity(0.5), radius: 4, x: 0, y: 0)
+                    .shadow(color: Color.blue.opacity(isDraggingTrimHandle ? 0.8 : 0.5), radius: isDraggingTrimHandle ? 6 : 4, x: 0, y: 0)
+                    .animation(.easeInOut(duration: 0.2), value: isDraggingTrimHandle)
                 
                 // Handle izquierdo
                 trimHandle(isStart: true)
@@ -540,6 +543,14 @@ struct SocialVideoEditorView: View {
                 // Handle derecho
                 trimHandle(isStart: false)
                     .position(x: endX, y: 45)
+                
+                // Overlay invisible para capturar toques en el área del timeline
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: selectedWidth, height: 90)
+                    .position(x: startX + selectedWidth / 2, y: 45)
+                    .contentShape(Rectangle())
+                    .allowsHitTesting(false) // No interferir con los handles
                 
                 // Indicador de tiempo actual
                 let playheadX = CGFloat(currentTime / duration) * geometry.size.width
@@ -567,12 +578,17 @@ struct SocialVideoEditorView: View {
     }
     
     private func trimHandle(isStart: Bool) -> some View {
-        ZStack {
+        let isDragging = draggingHandle == (isStart ? .start : .end)
+        
+        return ZStack {
             // Fondo principal del handle
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .fill(
                     LinearGradient(
-                        colors: [
+                        colors: isDragging ? [
+                            Color.blue.opacity(1.0),
+                            Color.purple.opacity(0.9)
+                        ] : [
                             Color.blue.opacity(0.9),
                             Color.purple.opacity(0.8)
                         ],
@@ -580,51 +596,73 @@ struct SocialVideoEditorView: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(width: 24, height: 90)
-                .shadow(color: Color.blue.opacity(0.5), radius: 4, x: 0, y: 2)
+                .frame(width: isDragging ? 16 : 12, height: 90)
+                .shadow(color: Color.blue.opacity(isDragging ? 0.8 : 0.5), radius: isDragging ? 6 : 4, x: 0, y: 2)
+                .scaleEffect(isDragging ? 1.05 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: isDragging)
             
             // Borde brillante
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.8),
-                            Color.white.opacity(0.3)
+                            Color.white.opacity(isDragging ? 1.0 : 0.8),
+                            Color.white.opacity(isDragging ? 0.6 : 0.3)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
-                    lineWidth: 2
+                    lineWidth: isDragging ? 2 : 1
                 )
-                .frame(width: 24, height: 90)
+                .frame(width: isDragging ? 16 : 12, height: 90)
+                .animation(.easeInOut(duration: 0.2), value: isDragging)
             
-            // Indicador central
-            VStack(spacing: 4) {
-                // Puntos de agarre
-                ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(Color.white.opacity(0.8))
-                        .frame(width: 8, height: 2)
-                }
-            }
-            
-            // Icono de flecha
-            Image(systemName: isStart ? "arrow.left" : "arrow.right")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white)
-                .offset(y: 35)
+            // Handle completamente limpio sin elementos decorativos
         }
+        .contentShape(Rectangle().inset(by: -20)) // Área táctil más grande
+        .scaleEffect(isDragging ? 1.1 : 1.0) // Escalar todo el handle cuando se arrastra
         .gesture(
-            DragGesture()
+            DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { value in
                     if !isProcessing {
                         handleTrimDrag(value: value, isStart: isStart)
                     }
                 }
                 .onEnded { _ in
-                    isDraggingTrimHandle = false
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isDraggingTrimHandle = false
+                        draggingHandle = nil
+                    }
                 }
         )
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    // Haptic feedback para confirmar el toque
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                    
+                    // Marcar inmediatamente que se está arrastrando para feedback visual
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        draggingHandle = isStart ? .start : .end
+                    }
+                }
+        )
+        .onTapGesture {
+            // Feedback visual inmediato al tocar
+            withAnimation(.easeInOut(duration: 0.1)) {
+                draggingHandle = isStart ? .start : .end
+            }
+            
+            // Reset después de un breve momento
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                if draggingHandle == (isStart ? .start : .end) {
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        draggingHandle = nil
+                    }
+                }
+            }
+        }
     }
     
     // MARK: - Controles Inferiores
@@ -1043,24 +1081,50 @@ struct SocialVideoEditorView: View {
     
     private func seekTo(time: Double) {
         let cmTime = CMTime(seconds: time, preferredTimescale: 600)
-        player?.seek(to: cmTime)
+        // Usar tolerancia más alta para seek más rápido
+        let tolerance = CMTime(seconds: 0.1, preferredTimescale: 600)
+        player?.seek(to: cmTime, toleranceBefore: tolerance, toleranceAfter: tolerance)
     }
     
     private func handleTrimDrag(value: DragGesture.Value, isStart: Bool) {
-        // Calcular nueva posición basada en el drag
-        let screenWidth = UIScreen.main.bounds.width - 40 // Padding
-        let newTimePercent = max(0, min(1, value.location.x / screenWidth))
+        // Marcar qué handle se está arrastrando
+        draggingHandle = isStart ? .start : .end
+        
+        // Actualizar posición del drag
+        lastDragLocation = value.location
+        
+        // Usar coordenadas globales para mejor precisión
+        let screenWidth = UIScreen.main.bounds.width
+        let padding: CGFloat = 40
+        let availableWidth = screenWidth - padding
+        
+        // Calcular nueva posición basada en el drag con mejor precisión
+        let dragLocation = value.location.x
+        let newTimePercent = max(0, min(1, (dragLocation - padding/2) / availableWidth))
         let newTime = newTimePercent * duration
         
+        // Aplicar restricciones inmediatas para mejor respuesta
         if isStart {
-            trimStartTime = max(0, min(newTime, trimEndTime - 1))
+            let minTime = 0.0
+            let maxTime = trimEndTime - 1.0
+            trimStartTime = max(minTime, min(newTime, maxTime))
         } else {
-            trimEndTime = min(duration, max(newTime, trimStartTime + 1))
+            let minTime = trimStartTime + 1.0
+            let maxTime = duration
+            trimEndTime = max(minTime, min(newTime, maxTime))
         }
         
-        // Seek al nuevo tiempo para preview
+        // Seek inmediato para mejor respuesta
         seekTo(time: isStart ? trimStartTime : trimEndTime)
+        
         isDraggingTrimHandle = true
+        
+        // Haptic feedback solo cada cierto número de cambios para no saturar
+        if abs(value.location.x - lastDragLocation.x) > 10 {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.prepare()
+            impactFeedback.impactOccurred()
+        }
     }
     
     private func switchToClip(index: Int) {

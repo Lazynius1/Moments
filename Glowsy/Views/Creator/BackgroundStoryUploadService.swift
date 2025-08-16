@@ -3,6 +3,8 @@ import Foundation
 import FirebaseAuth
 import FirebaseFirestore
 import SwiftUI
+import AVFoundation
+import FirebaseStorage
 
 // ✅ Importar para usar StickerPickerView.sendMentionNotificationsForStory
 
@@ -234,13 +236,183 @@ class BackgroundStoryUploadService: ObservableObject {
     }
     
     // MARK: - 📁 PREPARAR MEDIA ITEM
+    // ✅ COMPRESIÓN SIMPLE - PRESERVAR DIMENSIONES ORIGINALES
+    private func compressVideoForStory(_ videoURL: URL) async throws -> URL {
+        print("🎬 Comprimiendo video preservando dimensiones originales...")
+        
+        let asset = AVAsset(url: videoURL)
+        
+        // ✅ CONFIGURACIÓN SIMPLE Y EFECTIVA
+        let exportSession = AVAssetExportSession(
+            asset: asset,
+            presetName: AVAssetExportPresetHighestQuality
+        )
+        
+        guard let exportSession = exportSession else {
+            throw NSError(domain: "VideoCompression", code: 1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear export session"])
+        }
+        
+        let compressedURL = createTemporaryVideoURL()
+        exportSession.outputURL = compressedURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        
+        // 🎯 CONFIGURAR BITRATE Y FPS SIN CAMBIAR DIMENSIONES
+        if let videoTrack = try? await asset.loadTracks(withMediaType: .video).first {
+            let naturalSize = try await videoTrack.load(.naturalSize)
+            let preferredTransform = try await videoTrack.load(.preferredTransform)
+            
+            // ✅ CREAR COMPOSITION CON DIMENSIONES CORRECTAS
+            let videoComposition = AVMutableVideoComposition()
+            
+            // ✅ CALCULAR DIMENSIONES REALES DESPUÉS DE TRANSFORM
+            let transformedSize = naturalSize.applying(preferredTransform)
+            let finalSize = CGSize(width: abs(transformedSize.width), height: abs(transformedSize.height))
+            videoComposition.renderSize = finalSize // 🎯 USAR DIMENSIONES CORRECTAS
+            videoComposition.frameDuration = CMTime(value: 1, timescale: 30) // 30fps estándar
+            
+            let instruction = AVMutableVideoCompositionInstruction()
+            instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+            
+            let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+            layerInstruction.setTransform(preferredTransform, at: .zero) // 🎯 MANTENER TRANSFORM ORIGINAL
+            
+            instruction.layerInstructions = [layerInstruction]
+            videoComposition.instructions = [instruction]
+            
+            exportSession.videoComposition = videoComposition
+            
+
+        }
+        
+        // ✅ LÍMITE DE TAMAÑO RAZONABLE
+        exportSession.fileLengthLimit = 50 * 1024 * 1024 // 50MB
+        
+        print("🚀 Iniciando compresión simple...")
+        
+        // ✅ EJECUTAR COMPRESIÓN
+        await exportSession.export()
+        
+        switch exportSession.status {
+        case .completed:
+            let originalSize = getFileSize(videoURL)
+            let compressedSize = getFileSize(compressedURL)
+            print("✅ Video comprimido exitosamente:")
+            print("  - Original: \(originalSize)")
+            print("  - Comprimido: \(compressedSize)")
+            print("  - Dimensiones: Preservadas")
+            return compressedURL
+            
+        case .failed:
+            throw exportSession.error ?? NSError(domain: "VideoCompression", code: 2, userInfo: [NSLocalizedDescriptionKey: "Error en compresión"])
+        case .cancelled:
+            throw NSError(domain: "VideoCompression", code: 3, userInfo: [NSLocalizedDescriptionKey: "Compresión cancelada"])
+        default:
+            throw NSError(domain: "VideoCompression", code: 4, userInfo: [NSLocalizedDescriptionKey: "Estado desconocido"])
+        }
+    }
+
+            // ✅ EXTRACCION DE FRAME DE FONDO
+        private func extractBackgroundFrame(from videoURL: URL) async -> String? {
+            let asset = AVAsset(url: videoURL)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            imageGenerator.maximumSize = CGSize(width: 400, height: 400) // ✅ TAMAÑO OPTIMIZADO
+            
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
+                let uiImage = UIImage(cgImage: cgImage)
+                
+                // ✅ COMPRIMIR IMAGEN PARA REDUCIR TAMAÑO
+                guard let imageData = uiImage.jpegData(compressionQuality: 0.7) else { return nil }
+                
+                // ✅ SUBIR A STORAGE
+                let frameFileName = "background_frames/\(UUID().uuidString).jpg"
+                let storageRef = Storage.storage().reference().child(frameFileName)
+                
+                let metadata = StorageMetadata()
+                metadata.contentType = "image/jpeg"
+                
+                _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
+                let downloadURL = try await storageRef.downloadURL()
+                
+                return downloadURL.absoluteString
+                
+            } catch {
+                return nil
+            }
+        }
+        
+        // ✅ DETECTAR SI NECESITA COMPRESIÓN (SOLO POR TAMAÑO/BITRATE)
+        private func needsCompressionBySize(_ videoURL: URL) async -> Bool {
+        let asset = AVAsset(url: videoURL)
+        let fileSize = getFileSizeInBytes(videoURL)
+        
+        // ✅ SOLO COMPRIMIR SI ES MUY PESADO O TIENE BITRATE ALTO
+        if fileSize > 100 * 1024 * 1024 { // Más de 100MB
+            print("🔄 Video muy pesado (\(fileSize / 1024 / 1024)MB) - necesita compresión")
+            return true
+        }
+        
+        if let videoTrack = try? await asset.loadTracks(withMediaType: .video).first {
+            let bitrate = try? await videoTrack.load(.estimatedDataRate)
+            
+            if let rate = bitrate, rate > 15_000_000 { // Más de 15 Mbps
+                print("🔄 Bitrate muy alto (\(Int(rate / 1_000_000))Mbps) - necesita compresión")
+                return true
+            }
+        }
+        
+        print("✅ Video ya optimizado - no necesita compresión")
+        return false
+    }
+
+    // ✅ FUNCIÓN PRINCIPAL SIMPLIFICADA
     private func prepareMediaItem(_ uploadingStory: UploadingStory) async throws -> UploadMediaItem {
         if uploadingStory.mediaItem.type == .video,
            let videoURL = uploadingStory.mediaItem.videoURL {
-            return UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
+            
+            // ✅ SOLO COMPRIMIR SI REALMENTE ES NECESARIO
+            let needsCompression = await needsCompressionBySize(videoURL)
+            
+            if needsCompression {
+                print("🎬 Comprimiendo video por tamaño/bitrate...")
+                let compressedVideoURL = try await compressVideoForStory(videoURL)
+                return UploadMediaItem(type: .video, image: nil, videoURL: compressedVideoURL)
+            } else {
+                print("✅ Usando video original - ya optimizado")
+                return UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
+            }
         } else {
-            // Para imágenes, usar la imagen (ya renderizada si tenía overlays)
+            // Para imágenes
             return UploadMediaItem(type: .image, image: uploadingStory.mediaItem.image, videoURL: nil)
+        }
+    }
+
+    // ✅ FUNCIONES AUXILIARES
+    private func createTemporaryVideoURL() -> URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let fileName = "compressed_\(UUID().uuidString).mp4"
+        return documentsPath.appendingPathComponent(fileName)
+    }
+
+    private func getFileSizeInBytes(_ url: URL) -> Int64 {
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            return attributes[.size] as? Int64 ?? 0
+        } catch {
+            return 0
+        }
+    }
+
+    private func getFileSize(_ url: URL) -> String {
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            let size = attributes[.size] as? Int64 ?? 0
+            let sizeInMB = Double(size) / 1024.0 / 1024.0
+            return String(format: "%.2f MB", sizeInMB)
+        } catch {
+            return "Unknown"
         }
     }
     
@@ -269,6 +441,21 @@ class BackgroundStoryUploadService: ObservableObject {
     private func createStoryInFirestore(_ uploadingStory: UploadingStory, mediaUrl: String) async throws -> String {
         let firestoreService = FirestoreService()
         
+        // ✅ DETECTAR ASPECT RATIO Y EXTRAER FRAME DE FONDO
+        var aspectRatio: String? = nil
+        var backgroundFrameURL: String? = nil
+        
+        if uploadingStory.mediaItem.type == .video,
+           let videoURL = uploadingStory.mediaItem.videoURL {
+            aspectRatio = await GlassmorphicStoryViewer.detectVideoAspectRatio(from: videoURL)
+            
+            // ✅ EXTRAER FRAME DE FONDO PARA VIDEOS HORIZONTALES
+            if let aspectRatio = aspectRatio,
+               GlassmorphicStoryViewer.isHorizontalAspectRatio(aspectRatio) {
+                backgroundFrameURL = await extractBackgroundFrame(from: videoURL)
+            }
+        }
+        
         // 🔥 CREAR MediaItem como en tu función original
         let mediaItem = MediaItem(
             type: uploadingStory.mediaItem.type == .video ? .video : .image,
@@ -286,7 +473,9 @@ class BackgroundStoryUploadService: ObservableObject {
                     textPosition: uploadingStory.textPosition,
                     textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
                     stickers: uploadingStory.stickerData?.compactMap { StickerData.from($0) },
-                    drawingData: uploadingStory.drawingData
+                    drawingData: uploadingStory.drawingData,
+                    aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
+                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: Pasar URL del frame de fondo
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -307,7 +496,9 @@ class BackgroundStoryUploadService: ObservableObject {
                     textPosition: uploadingStory.textPosition,
                     textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
                     stickers: uploadingStory.stickerData?.compactMap { StickerData.from($0) },
-                    drawingData: uploadingStory.drawingData
+                    drawingData: uploadingStory.drawingData,
+                    aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
+                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: Pasar URL del frame de fondo
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)

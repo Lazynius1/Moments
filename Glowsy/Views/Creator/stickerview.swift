@@ -1319,10 +1319,7 @@ struct StickerPickerView: View {
         let temperature = Int(round(weather.temperature))
         let weatherText = "\(temperature)°C"
         
-        print("🌤️ [DEBUG] Creando weather sticker con datos reales:")
-        print("🌤️ [DEBUG] - Temperatura: \(weatherText)")
-        print("🌤️ [DEBUG] - Símbolo: \(weather.symbol)")
-        print("🌤️ [DEBUG] - Condición: \(weather.condition)")
+        
         
         // ✅ CREAR STICKER ANIMADO
         let sticker = StickerItem(
@@ -1344,12 +1341,10 @@ struct StickerPickerView: View {
             )
         )
         
-        print("🌤️ [DEBUG] Weather sticker creado con ID: \(sticker.id)")
-        print("🌤️ [DEBUG] Weather sticker type: \(sticker.type)")
-        print("🌤️ [DEBUG] Weather sticker interactionData: \(String(describing: sticker.interactionData))")
+        
         
         selectedStickers.append(sticker)
-        print("🌤️ [DEBUG] Weather sticker agregado a selectedStickers. Total: \(selectedStickers.count)")
+        
         dismiss()
     }
     
@@ -1394,7 +1389,7 @@ struct StickerPickerView: View {
     private func createWeatherStickerWithPlaceholder() {
         let weatherText = "🌤️"
         
-        print("🌤️ [DEBUG] Creando weather sticker con placeholder")
+        
         
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 140, height: 50))
         let image = renderer.image { context in

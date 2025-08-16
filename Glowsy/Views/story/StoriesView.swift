@@ -202,8 +202,14 @@ struct StoriesView: View {
 
     // Manejar navegación de historias
     private func handleStoryNext(currentUserId: String?, viewedUserId: String) {
+        print("🔄 [STORIESVIEW] handleStoryNext llamado")
+        
         guard let currentUserId = currentUserId else {
-            moveToNextStoryOrUser()
+            print("🔄 [STORIESVIEW] Sin currentUserId, moviendo a siguiente")
+            // ✅ AGREGAR DELAY PARA ASEGURAR CLEANUP DEL VIDEO ANTERIOR
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.moveToNextStoryOrUser()
+            }
             return
         }
         
@@ -215,12 +221,17 @@ struct StoriesView: View {
             
             // Verificar si debe mostrar anuncio
             if shouldShowStoryAd() {
+                print("🔄 [STORIESVIEW] Mostrando anuncio")
                 activateAdWithLoading()
                 return
             }
         }
         
-        moveToNextStoryOrUser()
+        print("🔄 [STORIESVIEW] Moviendo a siguiente historia/usuario")
+        // ✅ AGREGAR DELAY PARA ASEGURAR CLEANUP DEL VIDEO ANTERIOR
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.moveToNextStoryOrUser()
+        }
     }
     
     // Activar anuncio con loading inmediato
@@ -308,15 +319,23 @@ struct StoriesView: View {
 
     // Mover a siguiente historia o usuario
     private func moveToNextStoryOrUser() {
-        if let userId = userIds[safe: currentUserIndex],
-           let stories = storyViewModel.stories[userId] {
-            if currentStoryIndex < stories.count - 1 {
-                currentStoryIndex += 1
+        print("🔄 [STORIESVIEW] moveToNextStoryOrUser llamado")
+        
+        // ✅ AGREGAR DELAY PARA TRANSICIÓN SUAVE
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            if let userId = self.userIds[safe: self.currentUserIndex],
+               let stories = self.storyViewModel.stories[userId] {
+                if self.currentStoryIndex < stories.count - 1 {
+                    print("🔄 [STORIESVIEW] Cambiando a siguiente historia: \(self.currentStoryIndex + 1)")
+                    self.currentStoryIndex += 1
+                } else {
+                    print("🔄 [STORIESVIEW] Cambiando a siguiente usuario")
+                    self.moveToNextUser()
+                }
             } else {
-                moveToNextUser()
+                print("🔄 [STORIESVIEW] Cerrando stories")
+                self.dismiss()
             }
-        } else {
-            dismiss()
         }
     }
 

@@ -7,6 +7,7 @@ import FirebaseStorage
 import Kingfisher
 import Photos
 import MapKit
+import AVFoundation
 
 // MARK: - StoryViewModel
 class StoryViewModel: ObservableObject {
@@ -14,10 +15,18 @@ class StoryViewModel: ObservableObject {
     @Published var hasActiveStory: Bool = false
     @Published var storyReactions: [String: [StoryReaction]] = [:] // storyId: reactions
     @Published var storyViewers: [String: [StoryViewer]] = [:] // storyId: viewers
+    
+    // ✅ PRELOADING: Cache para historias precargadas
+    @Published var preloadedStories: [String: Story] = [:] // storyId: Story
+    @Published var preloadedImages: [String: UIImage] = [:] // storyId: UIImage
+    @Published var preloadedVideos: [String: AVPlayer] = [:] // storyId: AVPlayer
 
     private let firestoreService = FirestoreService()
     private let chatService = ChatService()
     private let privacyService = PrivacyService()
+    
+    // ✅ PRELOADING: Configuración
+    private let maxPreloadedStories = 3 // Máximo 3 historias precargadas
     
     // MARK: - Obtener historias para un usuario específico
     func fetchStoriesForSpecificUser(userId: String, viewerId: String) {
@@ -543,17 +552,80 @@ class StoryViewModel: ObservableObject {
             return
         }
         
+        // ✅ PRIMERO: Obtener la historia para extraer la URL del media
         firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
-            .delete { error in
+            .getDocument { [weak self] document, error in
+                guard let self = self else { return }
+                
                 if let error = error {
-                    print("Error deleting story: \(error.localizedDescription)")
                     completion(error)
-                } else {
-                    print("Story deleted successfully: \(storyId)")
-                    self.checkActiveStories(userId: userId)
-                    completion(nil)
+                    return
+                }
+                
+                guard let data = document?.data(),
+                      let mediaItemData = data["mediaItem"] as? [String: Any],
+                      let mediaUrl = mediaItemData["url"] as? String else {
+                    completion(error)
+                    return
+                }
+                
+                // ✅ SEGUNDO: Eliminar el media de Firebase Storage
+                self.deleteMediaFromStorage(mediaUrl: mediaUrl) { storageError in
+                    if let storageError = storageError {
+                        // Continuar aunque falle el borrado del media
+                    }
+                    
+                    // ✅ TERCERO: Eliminar la historia de Firestore
+                    self.firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
+                        .delete { firestoreError in
+                            if let firestoreError = firestoreError {
+                                completion(firestoreError)
+                            } else {
+                                self.checkActiveStories(userId: userId)
+                                completion(nil)
+                            }
+                        }
                 }
             }
+    }
+    
+    // ✅ FUNCIÓN: Eliminar media de Firebase Storage
+    private func deleteMediaFromStorage(mediaUrl: String, completion: @escaping (Error?) -> Void) {
+        guard let url = URL(string: mediaUrl) else {
+            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL de media inválida"]))
+            return
+        }
+        
+        // ✅ Extraer la ruta del storage desde la URL
+        let storagePath = extractStoragePath(from: url)
+        
+        // ✅ Eliminar de Firebase Storage
+        let storageRef = Storage.storage().reference().child(storagePath)
+        storageRef.delete { error in
+            if let error = error {
+                completion(error)
+            } else {
+                completion(nil)
+            }
+        }
+    }
+    
+    // ✅ FUNCIÓN: Extraer ruta de storage desde URL
+    private func extractStoragePath(from url: URL) -> String {
+        // ✅ Ejemplo: https://firebasestorage.googleapis.com/v0/b/glowsy-6a40e.appspot.com/o/videos%2Ffilename.mp4?alt=media&token=...
+        // ✅ Extraer: videos/filename.mp4
+        
+        let path = url.path
+        if path.contains("/o/") {
+            let components = path.components(separatedBy: "/o/")
+            if components.count > 1 {
+                let encodedPath = components[1]
+                return encodedPath.removingPercentEncoding ?? encodedPath
+            }
+        }
+        
+        // ✅ Fallback: usar el último componente de la URL
+        return url.lastPathComponent
     }
 
     func shareStory(_ story: Story, completion: @escaping (Bool) -> Void) {
@@ -752,23 +824,70 @@ struct StoryViewer: Identifiable {
 struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     let url: URL
     @Binding var isPlaying: Bool
+    let isHorizontalVideo: Bool
+    let onProgressUpdate: (Double) -> Void
+    let onVideoComplete: () -> Void
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         let player = AVPlayer(url: url)
         controller.player = player
         controller.showsPlaybackControls = false
-        controller.videoGravity = .resizeAspectFill
+        controller.videoGravity = .resizeAspect // Inicial por defecto
         controller.view.backgroundColor = .clear
         context.coordinator.player = player
+        context.coordinator.onProgressUpdate = onProgressUpdate
+        context.coordinator.onVideoComplete = onVideoComplete
+        
+        // ✅ CONFIGURAR OBSERVERS PARA PROGRESO
+        context.coordinator.setupObservers()
+        
+        // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN
+        context.coordinator.configureVideoGravity(for: controller)
+        
         return controller
     }
 
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
-        if isPlaying {
-            uiViewController.player?.play()
-        } else {
+        // ✅ MEJORADO: Manejar cambios de URL
+        if let currentURL = uiViewController.player?.currentItem?.asset as? AVURLAsset,
+           currentURL.url != url {
+            // URL cambió, recrear player
+            print("🎬 [VIDEO] URL cambió, recreando player")
+            
+            // ✅ CLEANUP AUDIO DEL PLAYER ANTERIOR
             uiViewController.player?.pause()
+            uiViewController.player?.isMuted = true
+            
+            let newPlayer = AVPlayer(url: url)
+            uiViewController.player = newPlayer
+            context.coordinator.player = newPlayer
+            context.coordinator.setupObservers()
+            
+            // 🎯 RECONFIGURAR GRAVITY PARA NUEVO VIDEO
+            context.coordinator.configureVideoGravity(for: uiViewController)
+        }
+        
+        // ✅ EVITAR LOOP: Verificar estado actual del player
+        let playerIsPlaying = uiViewController.player?.rate != 0.0
+        
+        if isPlaying && !playerIsPlaying {
+            // ✅ Solo reproducir si no está reproduciéndose
+            if let player = uiViewController.player, player.currentItem != nil {
+                print("🎬 [VIDEO] Reproduciendo")
+                player.play()
+            }
+        } else if !isPlaying && playerIsPlaying {
+            // ✅ Solo pausar si está reproduciéndose
+            print("🎬 [VIDEO] Pausando")
+            uiViewController.player?.pause()
+            uiViewController.player?.isMuted = true
+        }
+        
+        // ✅ RESET PROGRESO CUANDO CAMBIA URL
+        if let currentURL = uiViewController.player?.currentItem?.asset as? AVURLAsset,
+           currentURL.url != url {
+            context.coordinator.onProgressUpdate?(0.0)
         }
     }
 
@@ -779,9 +898,84 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     class Coordinator: NSObject {
         var parent: GlassmorphicStoryVideoPlayer
         var player: AVPlayer?
+        var timeObserver: Any?
+        var onProgressUpdate: ((Double) -> Void)?
+        var onVideoComplete: (() -> Void)?
 
         init(_ parent: GlassmorphicStoryVideoPlayer) {
             self.parent = parent
+        }
+        
+        // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN DEL VIDEO
+        func configureVideoGravity(for controller: AVPlayerViewController) {
+            // ✅ USAR EL PARÁMETRO isHorizontalVideo QUE YA TENEMOS
+            if parent.isHorizontalVideo {
+                // 📱 HORIZONTAL: Mostrar completo con barras
+                controller.videoGravity = .resizeAspect
+                print("🎬 [VIDEO] Gravity: .resizeAspect (horizontal - mostrar completo)")
+            } else {
+                // 📱 VERTICAL: Llenar pantalla (fullscreen)
+                controller.videoGravity = .resizeAspectFill
+                print("🎬 [VIDEO] Gravity: .resizeAspectFill (vertical - fullscreen)")
+            }
+        }
+        
+        func setupObservers() {
+            // ✅ LIMPIAR OBSERVERS ANTERIORES
+            if let observer = timeObserver {
+                player?.removeTimeObserver(observer)
+                timeObserver = nil
+            }
+            
+            // ✅ RESET PROGRESO AL CONFIGURAR OBSERVERS
+            onProgressUpdate?(0.0)
+            
+            // ✅ OBSERVER DE PROGRESO
+            timeObserver = player?.addPeriodicTimeObserver(
+                forInterval: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
+                queue: .main
+            ) { time in
+                guard let currentItem = self.player?.currentItem else { return }
+                
+                let duration = currentItem.duration
+                if CMTIME_IS_VALID(duration) && !CMTIME_IS_INDEFINITE(duration) {
+                    let durationSeconds = CMTimeGetSeconds(duration)
+                    if durationSeconds > 0 {
+                        let currentSeconds = CMTimeGetSeconds(time)
+                        let progress = min(max(currentSeconds / durationSeconds, 0.0), 1.0)
+                        self.onProgressUpdate?(progress)
+                    }
+                }
+            }
+            
+            // ✅ OBSERVER DE COMPLETACIÓN
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: player?.currentItem,
+                queue: .main
+            ) { _ in
+                self.onVideoComplete?()
+            }
+        }
+        
+        deinit {
+            // ✅ CLEANUP COMPLETO
+            print("🎬 [VIDEO] GlassmorphicStoryVideoPlayer deinit - limpiando")
+            if let observer = timeObserver {
+                player?.removeTimeObserver(observer)
+            }
+            NotificationCenter.default.removeObserver(self)
+            player?.pause()
+            player?.isMuted = true
+            player?.replaceCurrentItem(with: nil)
+            player = nil
+            
+            // ✅ CLEANUP DE AUDIO SESSION
+            do {
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            } catch {
+                print("⚠️ [AUDIO] Error limpiando sesión en deinit: \(error)")
+            }
         }
     }
 }
@@ -805,8 +999,6 @@ struct GlassmorphicStoryViewer: View {
     @State private var progress: Double = 0.0
     @State private var imageTimer: Timer? = nil
     @State private var isPaused: Bool = false
-    @State private var player: AVPlayer? = nil
-    @State private var playerObserver: Any?
     @State private var currentStoryId: String? = nil
     @State private var messageText: String = ""
     @State private var showReactions: Bool = false
@@ -837,6 +1029,47 @@ struct GlassmorphicStoryViewer: View {
     private let reactions: [String] = ["❤️", "😂", "😮", "😢", "😡", "👏"]
 
     private let firestoreService = FirestoreService()
+    
+    // ✅ FUNCIÓN HELPER: Detectar aspect ratio de un video (CORREGIDA)
+    static func detectVideoAspectRatio(from url: URL) async -> String? {
+        let asset = AVAsset(url: url)
+        let tracks = try? await asset.loadTracks(withMediaType: .video)
+        
+        if let videoTrack = tracks?.first {
+            let naturalSize = try? await videoTrack.load(.naturalSize)
+            let preferredTransform = try? await videoTrack.load(.preferredTransform)
+            
+            if let size = naturalSize, let transform = preferredTransform {
+                // ✅ CALCULAR DIMENSIONES REALES DESPUÉS DE TRANSFORM
+                let transformedSize = size.applying(transform)
+                let width = Int(abs(transformedSize.width))
+                let height = Int(abs(transformedSize.height))
+                let aspectRatio = "\(width):\(height)"
+                
+
+                return aspectRatio
+            }
+        }
+        
+        return nil
+    }
+    
+    // ✅ FUNCIÓN HELPER: Determinar si un aspect ratio es horizontal
+    static func isHorizontalAspectRatio(_ aspectRatio: String?) -> Bool {
+        guard let aspectRatio = aspectRatio else { 
+            return false 
+        }
+        
+        let components = aspectRatio.split(separator: ":")
+        if components.count == 2,
+           let width = Int(components[0]),
+           let height = Int(components[1]) {
+            let isHorizontal = width > height
+            return isHorizontal
+        }
+        
+        return false
+    }
 
     var body: some View {
         ZStack {
@@ -902,13 +1135,22 @@ struct GlassmorphicStoryViewer: View {
             if storyStickers.isEmpty {
                 storyStickers = story.convertStickersToStickerItems()
             }
+            
+            // ✅ PRELOAD: Precargar siguiente historia
+            preloadNextStory()
         }
         .onDisappear {
             stopAndCleanupStory()
             removeKeyboardNotifications() // Cleanup observers
+            // ✅ CLEANUP DE AUDIO AL CERRAR
+            cleanupAudioSession()
         }
         .onChange(of: story.id) { oldStoryId, newStoryId in
+            print("🔄 [STORY] story.id cambió: \(oldStoryId ?? "nil") → \(newStoryId ?? "nil")")
             if oldStoryId != newStoryId {
+                print("🔄 [STORY] Ejecutando handleStoryChange")
+                // ✅ RESET PROGRESO INMEDIATAMENTE
+                progress = 0.0
                 handleStoryChange()
                 // ✅ CARGAR STICKERS DE LA NUEVA HISTORIA
                 storyStickers = story.convertStickersToStickerItems()
@@ -1431,17 +1673,60 @@ struct GlassmorphicStoryViewer: View {
         .padding(.bottom, isKeyboardVisible ? 10 : 25)
     }
     
-        private var contentView: some View {
+    private var contentView: some View {
         ZStack {
             // ✅ CONTENIDO PRINCIPAL (imagen/video)
             Group {
                 if story.mediaItem.type == .video, let url = URL(string: story.mediaItem.url) {
-                    GlassmorphicStoryVideoPlayer(url: url, isPlaying: Binding(
-                        get: { !isPaused },
-                        set: { isPaused = !$0 }
-                    ))
-                    .scaledToFill() // Fill entire screen
+                    GlassmorphicStoryVideoPlayer(
+                        url: url,
+                        isPlaying: Binding(
+                            get: { !isPaused },
+                            set: { isPaused = !$0 }
+                        ),
+                        isHorizontalVideo: GlassmorphicStoryViewer.isHorizontalAspectRatio(story.aspectRatio),
+                        onProgressUpdate: { newProgress in
+                            // ✅ ACTUALIZAR PROGRESO DE LA HISTORIA (con verificación)
+                            guard currentStoryId == story.id else { return }
+                            progress = newProgress
+                        },
+                        onVideoComplete: {
+                            // ✅ VIDEO TERMINÓ, IR A SIGUIENTE
+                            onNext()
+                        }
+                    )
+                    .aspectRatio(contentMode: {
+                        let isHorizontal = GlassmorphicStoryViewer.isHorizontalAspectRatio(story.aspectRatio)
+                        return isHorizontal ? .fit : .fill
+                    }())
                     .frame(width: screenSize.width, height: screenSize.height)
+                    .background(
+                        // ✅ FONDO CON IMAGEN PRECARGADA para videos horizontales
+                        Group {
+                            if let backgroundFrameURL = story.backgroundFrameURL,
+                               let url = URL(string: backgroundFrameURL) {
+                                KFImage(url)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .blur(radius: 15) // ✅ BLUR SUTIL
+                                    .scaleEffect(1.2) // ✅ ESCALADO PARA EVITAR BORDES
+                                    .clipped()
+                            } else {
+                                // ✅ FALLBACK: Degradado elegante
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color.black.opacity(0.85),
+                                        Color.black.opacity(0.6),
+                                        Color.black.opacity(0.4)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            }
+                        }
+                    )
+                    .id(story.id) // ✅ FORZAR RECREACIÓN CUANDO CAMBIA LA HISTORIA
                 } else if story.mediaItem.type == .image, let url = URL(string: story.mediaItem.url) {
                     KFImage(url)
                         .placeholder {
@@ -1453,7 +1738,7 @@ struct GlassmorphicStoryViewer: View {
                             }
                         }
                         .resizable()
-                        .scaledToFill() // Fill entire screen
+                        .scaledToFill() // Para imágenes SÍ mantener scaledToFill
                         .frame(width: screenSize.width, height: screenSize.height)
                 } else {
                     ZStack {
@@ -1475,7 +1760,7 @@ struct GlassmorphicStoryViewer: View {
             if !storyStickers.isEmpty {
                 ForEach(storyStickers, id: \.id) { sticker in
                     StoryStickerView(
-                        sticker: sticker, 
+                        sticker: sticker,
                         screenSize: screenSize,
                         storyId: story.id ?? "",
                         userId: story.authorId,
@@ -1514,6 +1799,19 @@ struct GlassmorphicStoryViewer: View {
             }
             .frame(height: geometry.size.height * 0.85) // Limit height to avoid bottom area
         }
+    }
+    
+    // MARK: - ✅ PRELOADING
+    private func preloadNextStory() {
+        // ✅ Obtener todas las historias del usuario actual
+        let userId = story.authorId
+        guard let allStories = storyViewModel.stories[userId],
+              let currentStoryId = story.id else {
+            return
+        }
+        
+        // ✅ Precargar la siguiente historia
+        storyViewModel.preloadNextStory(currentStoryId: currentStoryId, allStories: allStories)
     }
     
     // MARK: - Keyboard Handling
@@ -1682,7 +1980,8 @@ struct GlassmorphicStoryViewer: View {
         
         storyViewModel.deleteStory(userId: story.authorId, storyId: storyId) { error in
             if error == nil {
-                onClose()
+                // ✅ PASAR A LA SIGUIENTE HISTORIA en lugar de cerrar
+                onNext()
             }
         }
         showQuickActions = false
@@ -1740,9 +2039,9 @@ struct GlassmorphicStoryViewer: View {
     // MARK: - Story Playback
     
     private func prepareAndStartStory() {
-
+        print("🎬 [STORY] Preparando historia: \(story.id ?? "unknown")")
         
-        // Reset estado completamente
+        // ✅ SIMPLIFICADO: Solo reset de estado
         progress = 0.0
         isPaused = false
         currentStoryId = story.id
@@ -1754,100 +2053,35 @@ struct GlassmorphicStoryViewer: View {
             storyViewModel.markStoryAsViewed(userId: story.authorId, storyId: storyId)
         }
         
-        // Delay pequeño para asegurar que UI se resetee
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            if story.mediaItem.type == .video, let url = URL(string: story.mediaItem.url) {
-                setupVideoPlayer(url: url)
-            } else {
-                startImageTimer()
-            }
+        // ✅ SIMPLIFICADO: Solo timer para imágenes
+        if story.mediaItem.type == .image {
+            startImageTimer()
         }
     }
     
     private func stopAndCleanupStory() {
-
+        print("🛑 [STORY] Limpiando historia anterior")
         
+        // ✅ SIMPLIFICADO: Solo pausar y limpiar timer
         isPaused = true
-        progress = 0.0  // Reset progress al detener
-        
-        if story.mediaItem.type == .video {
-            cleanupVideoPlayer()
-        } else {
-            imageTimer?.invalidate()
-            imageTimer = nil
-        }
-    }
-    
-    private func setupVideoPlayer(url: URL) {
-
-        
-        // Limpiar player anterior completamente
-        cleanupVideoPlayer()
-        
-        // Reset progress explícitamente
         progress = 0.0
+        imageTimer?.invalidate()
+        imageTimer = nil
         
-        let playerItem = AVPlayerItem(url: url)
-        player = AVPlayer(playerItem: playerItem)
-        
-        // ✅ MEJORADO: Observer con mejor manejo de progreso
-        playerObserver = player?.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
-            queue: .main
-        ) { time in
-            guard let currentItem = self.player?.currentItem,
-                  !self.isPaused else { return }
-            
-            let duration = currentItem.duration
-            if CMTIME_IS_VALID(duration) && !CMTIME_IS_INDEFINITE(duration) {
-                let durationSeconds = CMTimeGetSeconds(duration)
-                if durationSeconds != Double.infinity && durationSeconds > 0 {
-                    let currentSeconds = CMTimeGetSeconds(time)
-                    let newProgress = min(max(currentSeconds / durationSeconds, 0.0), 1.0)
-                    
-                    if !newProgress.isNaN && newProgress.isFinite {
-                        self.progress = newProgress
-                    }
-                }
-            }
-        }
-        
-        // Video completion handler
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: playerItem,
-            queue: .main
-        ) { _ in
-            self.progress = 1.0  // Asegurar que llegue a 100%
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.onNext()
-            }
-        }
-        
-        // Start playing if not paused
-        if !isPaused {
-            player?.play()
-        }
+        // ✅ CLEANUP DE AUDIO
+        cleanupAudioSession()
     }
     
-    private func cleanupVideoPlayer() {
-        player?.pause()
-        
-        if let observer = playerObserver {
-            player?.removeTimeObserver(observer)
-            playerObserver = nil
+    // ✅ NUEVA FUNCIÓN: Limpiar sesión de audio
+    private func cleanupAudioSession() {
+        print("🔇 [AUDIO] Limpiando sesión de audio")
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            print("⚠️ [AUDIO] Error limpiando sesión: \(error)")
         }
-        
-        if let currentItem = player?.currentItem {
-            NotificationCenter.default.removeObserver(
-                self,
-                name: .AVPlayerItemDidPlayToEndTime,
-                object: currentItem
-            )
-        }
-        
-        player = nil
     }
+
     
     private func startImageTimer() {
 
@@ -1873,51 +2107,44 @@ struct GlassmorphicStoryViewer: View {
         }
     }
     
+    // ✅ SIMPLIFICADO: Solo cambiar estado
     private func pauseStory() {
-
+        print("⏸️ [STORY] Pausando historia")
         isPaused = true
-        
-        if story.mediaItem.type == .video {
-            player?.pause()
-        }
         imageTimer?.invalidate()
     }
 
     private func resumeStory() {
         guard !showQuickActions && !isKeyboardVisible && !isDragging else {
-    
+            print("⏸️ [STORY] No reanudando - overlay activo")
             return
         }
         
-
+        print("▶️ [STORY] Reanudando historia")
         isPaused = false
         
-        if story.mediaItem.type == .video {
-            player?.play()
-        } else {
-            // Solo reiniciar timer si no había uno activo
-            if imageTimer == nil {
-                startImageTimer()
-            }
+        // ✅ SOLO REINICIAR TIMER PARA IMÁGENES
+        if story.mediaItem.type == .image && imageTimer == nil {
+            startImageTimer()
         }
     }
     
     // MARK: - Helpers
     
     private func handleStoryChange() {
-
+        print("🔄 [STORY] Cambiando de historia")
         
-        // Detener historia actual
+        // ✅ SIMPLIFICADO: Cleanup inmediato
         stopAndCleanupStory()
         
-        // Reset progress inmediatamente
+        // ✅ RESET PROGRESO INMEDIATAMENTE
         progress = 0.0
         currentStoryId = story.id
         
-        // Pequeño delay para asegurar que UI se actualice
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            prepareAndStartStory()
-        }
+        print("🔄 [STORY] Progress reset a 0.0 para historia: \(story.id ?? "unknown")")
+        
+        // ✅ SIMPLIFICADO: Sin delay, transición inmediata
+        prepareAndStartStory()
     }
     
     private func getProgressForSegment(index: Int) -> Double {
@@ -3658,10 +3885,7 @@ struct StoryStickerView: View {
                 y: sticker.position.y * screenSize.height / 812
             )
             .onAppear {
-                print("🌤️ [DEBUG] Renderizando AnimatedWeatherSticker:")
-                print("🌤️ [DEBUG] - weatherSymbol: \(weatherSymbol)")
-                print("🌤️ [DEBUG] - temperature: \(sticker.interactionData?.questionText ?? "nil")")
-                print("🌤️ [DEBUG] - position: \(sticker.position)")
+
             }
         } else {
             // Solo imagen estática
@@ -4472,5 +4696,113 @@ struct Star: View {
     
     private var opacityValue: Double {
         0.4 + 0.6 * sin(phase + Double(index) * 0.6)
+    }
+}
+
+// MARK: - ✅ PRELOADING FUNCTIONS
+extension StoryViewModel {
+    
+    /// ✅ PRELOAD: Precargar la siguiente historia
+    func preloadNextStory(currentStoryId: String, allStories: [Story]) {
+        guard let currentIndex = allStories.firstIndex(where: { $0.id == currentStoryId }),
+              currentIndex + 1 < allStories.count else {
+            return
+        }
+        
+        let nextStory = allStories[currentIndex + 1]
+        preloadStory(nextStory)
+    }
+    
+    /// ✅ PRELOAD: Precargar historia específica
+    func preloadStory(_ story: Story) {
+        guard let storyId = story.id else { return }
+        
+        // ✅ Evitar precargar si ya está en cache
+        if preloadedStories[storyId] != nil {
+            return
+        }
+        
+        // ✅ Limpiar cache si está lleno
+        if preloadedStories.count >= maxPreloadedStories {
+            clearOldestPreloadedStory()
+        }
+        
+        // ✅ Agregar a cache
+        preloadedStories[storyId] = story
+        
+        // ✅ Precargar media según el tipo
+        switch story.mediaItem.type {
+        case .image:
+            preloadImage(for: story)
+        case .video:
+            preloadVideo(for: story)
+        }
+    }
+    
+    /// ✅ PRELOAD: Precargar imagen
+    private func preloadImage(for story: Story) {
+        guard let storyId = story.id,
+              let url = URL(string: story.mediaItem.url) else { return }
+        
+        // ✅ Usar Kingfisher para precargar
+        KingfisherManager.shared.retrieveImage(with: url) { result in
+            switch result {
+            case .success(let imageResult):
+                DispatchQueue.main.async {
+                    self.preloadedImages[storyId] = imageResult.image
+                }
+            case .failure(_):
+                break
+            }
+        }
+    }
+    
+    /// ✅ PRELOAD: Precargar video
+    private func preloadVideo(for story: Story) {
+        guard let storyId = story.id,
+              let url = URL(string: story.mediaItem.url) else { return }
+        
+        // ✅ Crear player y precargar
+        let player = AVPlayer(url: url)
+        player.isMuted = true // Silenciar para preload
+        
+        // ✅ Precargar buffer
+        let playerItem = player.currentItem
+        playerItem?.preferredForwardBufferDuration = 5.0 // 5 segundos de buffer
+        
+        DispatchQueue.main.async {
+            self.preloadedVideos[storyId] = player
+        }
+    }
+    
+    /// ✅ PRELOAD: Limpiar historia más antigua del cache
+    private func clearOldestPreloadedStory() {
+        guard let oldestStoryId = preloadedStories.keys.first else { return }
+        
+        preloadedStories.removeValue(forKey: oldestStoryId)
+        preloadedImages.removeValue(forKey: oldestStoryId)
+        preloadedVideos.removeValue(forKey: oldestStoryId)
+    }
+    
+    /// ✅ PRELOAD: Limpiar cache completo
+    func clearPreloadCache() {
+        preloadedStories.removeAll()
+        preloadedImages.removeAll()
+        preloadedVideos.removeAll()
+    }
+    
+    /// ✅ PRELOAD: Obtener historia precargada
+    func getPreloadedStory(_ storyId: String) -> Story? {
+        return preloadedStories[storyId]
+    }
+    
+    /// ✅ PRELOAD: Obtener imagen precargada
+    func getPreloadedImage(_ storyId: String) -> UIImage? {
+        return preloadedImages[storyId]
+    }
+    
+    /// ✅ PRELOAD: Obtener video precargado
+    func getPreloadedVideo(_ storyId: String) -> AVPlayer? {
+        return preloadedVideos[storyId]
     }
 }
