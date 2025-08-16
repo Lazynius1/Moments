@@ -206,7 +206,7 @@ struct GlassmorphicChatView: View {
         .alert("Error", isPresented: $showingMomentError) {
             Button("OK") { }
         } message: {
-            Text("No se pudo cargar el momento")
+                            Text("chat.moment.loadError")
         }
         // ✅ NUEVO: Navegación al perfil del usuario
         .background(
@@ -297,7 +297,7 @@ struct GlassmorphicChatView: View {
                         }
                         
                         if !viewModel.typingUsers.isEmpty {
-                            Text("escribiendo...")
+                            Text("chat.typing")
                                 .font(.custom("Poppins-Regular", size: 12))
                                 .foregroundColor(adaptiveColors.secondary)
                         } else if otherUserStatus != .invisible {
@@ -917,11 +917,11 @@ struct GlassmorphicMessageBubble: View {
                                                     .font(.system(size: 40))
                                                     .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7)) // ✅ CAMBIO AQUÍ
                                                 
-                                                Text("Toca para ver")
+                                                Text("chat.tapToView")
                                                     .font(.custom("Poppins-Medium", size: 14))
                                                     .foregroundColor(adaptiveColors.messageTextColor) // ✅ CAMBIO AQUÍ
                                                 
-                                                Text("📸 Momento efímero")
+                                                Text("chat.ephemeral.title")
                                                     .font(.custom("Poppins-Regular", size: 12))
                                                     .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7)) // ✅ CAMBIO AQUÍ
                                             }
@@ -953,7 +953,7 @@ struct GlassmorphicMessageBubble: View {
                                             )
                                     )
                             } else {
-                                Text("Mensaje expirado")
+                                Text("chat.message.expired")
                                     .font(.custom("Poppins-Regular", size: 15))
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 10)
@@ -982,7 +982,7 @@ struct GlassmorphicMessageBubble: View {
                         }
                         
                     default:
-                        Text("Mensaje no soportado")
+                        Text("chat.message.unsupported")
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6)) // ✅ CAMBIO AQUÍ
@@ -1146,7 +1146,7 @@ struct NormalVideoPlayerView: View {
                         .font(.system(size: 60))
                         .foregroundColor(.white.opacity(0.7))
                     
-                    Text("Video no disponible")
+                    Text("chat.video.unavailable")
                         .font(.custom("Poppins-Regular", size: 18))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -1159,7 +1159,7 @@ struct NormalVideoPlayerView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 16, weight: .medium))
-                            Text("Cerrar")
+                            Text("chat.close")
                                 .font(.custom("Poppins-Medium", size: 16))
                         }
                         .foregroundColor(.white)
@@ -1445,7 +1445,7 @@ struct GlassmorphicReplyBar: View {
                 .frame(width: 3)
             
             VStack(alignment: .leading, spacing: 2) {
-                Text("Respondiendo")
+                Text("chat.replying")
                     .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(adaptiveColors.replyBarSecondaryText) // ✅ CAMBIO AQUÍ
                 Text(message.content ?? "Mensaje")
@@ -1483,7 +1483,7 @@ struct GlassmorphicReplyPreview: View {
                 .fill(adaptiveColors.primary.opacity(0.5))
                 .frame(width: 2)
             
-            Text("Respondiendo a un mensaje")
+                            Text("chat.replyingToMessage")
                 .font(.custom("Poppins-Regular", size: 12))
                 .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
                 .lineLimit(1)
@@ -1545,7 +1545,7 @@ struct MessageTimestamp: View {
                 .foregroundColor(adaptiveColors.timestampColor) // ✅ CAMBIO AQUÍ
             
             if message.editedAt != nil {
-                Text("editado")
+                Text("chat.edited")
                     .font(.custom("Poppins-Regular", size: 11))
                     .foregroundColor(adaptiveColors.timestampColor) // ✅ CAMBIO AQUÍ
             }
@@ -1579,7 +1579,7 @@ struct MessageStatusIcon: View {
                     .scaleEffect(0.5)
                     .tint(adaptiveColors.timestampColor)
                 
-                Text("Enviando")
+                Text("chat.sending")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(adaptiveColors.timestampColor.opacity(0.8))
             }
@@ -1607,7 +1607,7 @@ struct MessageStatusIcon: View {
                     .font(.system(size: 8, weight: .medium))
                     .foregroundColor(.red)
                 
-                Text("Error")
+                Text("chat.error")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.red)
             }
@@ -1726,7 +1726,7 @@ struct GlassmorphicMessageOptionsSheet: View {
                             Image(systemName: "info.circle")
                                 .font(.system(size: 18))
                                 .frame(width: 24)
-                            Text("Este mensaje fue eliminado")
+                            Text("chat.message.deleted")
                                 .font(.custom("Poppins-Regular", size: 16))
                             Spacer()
                         }
@@ -2042,7 +2042,7 @@ struct VoiceRecordingBar: View {
                         value: recordingTime
                     )
                 
-                Text("Grabando...")
+                Text("chat.recording")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(adaptiveColors.recordingIndicator)
                 

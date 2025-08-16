@@ -315,7 +315,7 @@ struct FeedView: View {
                 }
             }
         } message: {
-            Text("¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.")
+                            Text("feed.delete.confirm")
         }
         .sheet(isPresented: $showReportSheet) {
             if let moment = selectedMomentForMenu {
@@ -923,7 +923,7 @@ struct FeedView: View {
                     // Si hay más de 3, mostrar contador
                     if uploadService.uploadingMoments.count > 3 {
                         HStack {
-                            Text("+ \(uploadService.uploadingMoments.count - 3) más subiendo...")
+                            Text("+ \(uploadService.uploadingMoments.count - 3) \(NSLocalizedString("feed.uploading.more", comment: "More uploading"))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Spacer()
@@ -1013,7 +1013,7 @@ struct FeedView: View {
                         .scaleEffect(0.7)
                         .tint(.blue)
                     
-                    Text("\(Int(uploadingMoment.uploadProgress * 100))%")
+                    Text(String(format: NSLocalizedString("feed.uploading.progress", comment: "Upload progress"), Int(uploadingMoment.uploadProgress * 100)))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.blue)
                     
@@ -1029,7 +1029,7 @@ struct FeedView: View {
                             }
                         }
                     
-                    Text("Procesando")
+                    Text("feed.uploading.processing")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.orange)
                     
@@ -1050,7 +1050,7 @@ struct FeedView: View {
                             }
                         }
                     
-                    Text("¡Publicado!")
+                    Text("feed.uploading.published")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.green)
                     
@@ -1071,7 +1071,7 @@ struct FeedView: View {
                             }
                         }
                     
-                    Text("¡Publicado!") // 🤫 Usuario no sabe que fue moderado
+                    Text("feed.uploading.published") // 🤫 Usuario no sabe que fue moderado
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.green)
                     
@@ -1084,7 +1084,7 @@ struct FeedView: View {
                                 .font(.system(size: 12))
                                 .symbolEffect(.pulse, value: uploadingMoment.status)
                             
-                            Text("Reintentar")
+                            Text("feed.uploading.retry")
                                 .font(.system(size: 11, weight: .medium))
                         }
                         .foregroundColor(.red)
@@ -1130,7 +1130,7 @@ struct FeedView: View {
                     Spacer()
                     
                     if uploadingMoment.mediaCount > 1 {
-                        Text("\(uploadingMoment.mediaCount) archivos")
+                        Text(String(format: NSLocalizedString("feed.uploading.files", comment: "Files count"), uploadingMoment.mediaCount))
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
                     }
@@ -1643,7 +1643,7 @@ struct ModernLoadingMoreView: View {
                     .rotationEffect(.degrees(rotationAngle))
             }
             
-            Text("Cargando más momentos...")
+                            Text("feed.loadingMore")
                 .font(.custom("Poppins-Medium", size: 14))
                 .foregroundColor(adaptiveColors.secondary)  // ✅ CAMBIAR esta línea
         }
@@ -1717,18 +1717,18 @@ struct ModernEmptyFeedView: View {
     private var emptyTitle: String {
         switch feedType {
         case .following:
-            return "Tu feed está vacío"
+            return NSLocalizedString("feed.empty.following.title", comment: "Empty following feed title")
         case .forYou:
-            return "Descubre nuevo contenido"
+            return NSLocalizedString("feed.empty.foryou.title", comment: "Empty for you feed title")
         }
     }
     
     private var emptyDescription: String {
         switch feedType {
         case .following:
-            return "Sigue a más usuarios para ver sus momentos aquí"
+            return NSLocalizedString("feed.empty.following.description", comment: "Empty following feed description")
         case .forYou:
-            return "Te mostraremos contenido basado en tus intereses cuando esté disponible"
+            return NSLocalizedString("feed.empty.foryou.description", comment: "Empty for you feed description")
         }
     }
 }
@@ -2637,7 +2637,7 @@ struct ModernActionButtons: View {
                             .font(.system(size: 20))
                             .foregroundColor(.gray.opacity(0.6))
                         
-                        Text("Sin interacciones")
+                        Text("feed.noInteractions")
                             .font(.custom("Poppins-Regular", size: 10))
                             .foregroundColor(.gray.opacity(0.6))
                             .multilineTextAlignment(.center)
@@ -2680,7 +2680,7 @@ struct ModernFollowButton: View {
                         .font(.system(size: 14, weight: .semibold))
                 }
                 
-                Text(isFollowing ? "Siguiendo" : "Seguir")
+                Text(isFollowing ? "feed.following" : "feed.follow")
                     .font(.custom("Poppins-SemiBold", size: 13))
             }
             .foregroundColor(.white)  // El texto del botón siempre blanco porque el fondo es de color
@@ -2953,7 +2953,7 @@ struct ExpandableContentView: View {
                     }
                 }) {
                     HStack(spacing: 4) {
-                        Text(isExpanded ? "ver menos" : "ver más")
+                        Text(isExpanded ? "feed.seeLess" : "feed.seeMore")
                             .font(.custom("Poppins-SemiBold", size: 12))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
@@ -3915,7 +3915,7 @@ struct LoadingMomentView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
                     .scaleEffect(1.5)
                 
-                Text("Cargando momento...")
+                Text("feed.loadingMoment")
                     .font(.custom("Poppins-Medium", size: 16))
                     .foregroundColor(.white)
             }

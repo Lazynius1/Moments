@@ -124,13 +124,13 @@ struct MomentDetailView: View {
                 }
             )
         }
-        .alert("Eliminar momento", isPresented: $showDeleteAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Eliminar", role: .destructive) {
+       .alert(NSLocalizedString("momentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
+            Button(NSLocalizedString("momentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
+            Button(NSLocalizedString("momentDetail.delete.confirm", comment: "Delete"), role: .destructive) {
                 deleteMoment()
             }
         } message: {
-            Text("¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.")
+           Text("momentDetail.delete.message")
         }
         .sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: moment)
@@ -518,7 +518,7 @@ struct MomentDetailView: View {
                     .font(.system(size: 18))
                     .foregroundColor(Color(hex: "00A896"))
                 
-                Text("Comentarios")
+                Text("momentDetail.comments")
                     .font(.custom("Poppins-SemiBold", size: 20))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
@@ -541,7 +541,7 @@ struct MomentDetailView: View {
                 
                 Spacer()
                 
-                Button("Ver todos") {
+                Button(NSLocalizedString("momentDetail.viewAll", comment: "View all")) {
                     showingCommentsSheet = true
                 }
                 .font(.custom("Poppins-SemiBold", size: 14))
@@ -571,17 +571,17 @@ struct MomentDetailView: View {
                     }
                     
                     VStack(spacing: 8) {
-                        Text("No hay comentarios aún")
+                        Text("momentDetail.noComments.title")
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                         
-                        Text("Sé el primero en compartir tu opinión")
+                        Text("momentDetail.noComments.description")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray.opacity(0.8))
                             .multilineTextAlignment(.center)
                     }
                     
-                    Button("Comentar") {
+                    Button(NSLocalizedString("momentDetail.comment", comment: "Comment")) {
                         showingCommentsSheet = true
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))
@@ -627,7 +627,7 @@ struct MomentDetailView: View {
                     if viewModel.comments.count > 3 {
                         Button(action: { showingCommentsSheet = true }) {
                             HStack(spacing: 8) {
-                                Text("Ver los \(viewModel.comments.count - 3) comentarios restantes")
+                                Text(String(format: NSLocalizedString("momentDetail.viewRemainingComments", comment: "View remaining comments"), viewModel.comments.count - 3))
                                     .font(.custom("Poppins-SemiBold", size: 14))
                                     .foregroundColor(Color(hex: "00A896"))
                                 
@@ -1208,11 +1208,11 @@ struct MomentLoadingStateView: View {
             }
             
             VStack(spacing: 6) {
-                Text("Cargando momento...")
+                Text("momentDetail.loading")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white)
                 
-                Text("Un segundo por favor")
+                Text("momentDetail.loadingTime")
                     .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(.gray.opacity(0.8))
             }
@@ -1243,7 +1243,7 @@ struct MomentErrorStateView: View {
             }
             
             VStack(spacing: 8) {
-                Text("Error al cargar")
+                Text("momentDetail.error.title")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white)
                 
@@ -1256,7 +1256,7 @@ struct MomentErrorStateView: View {
                 Button(action: onClose) {
                     HStack(spacing: 6) {
                         Image(systemName: "xmark")
-                        Text("Cerrar")
+                        Text("momentDetail.close")
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(.white)

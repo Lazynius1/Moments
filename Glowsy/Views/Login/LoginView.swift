@@ -75,9 +75,9 @@ struct LoginView: View {
             }
             .alert(isPresented: $showAlert) {
                 Alert(
-                    title: Text("Error"),
+                    title: Text("login.error.title"),
                     message: Text(errorMessage ?? "Ocurrió un error desconocido"),
-                    dismissButton: .default(Text("OK"))
+                    dismissButton: .default(Text("login.ok"))
                 )
             }
             .sheet(isPresented: $showResetPassword) {
@@ -267,7 +267,7 @@ struct EnhancedFormView: View {
                     AnalyticsService.shared.trackInteraction("forgot_password_tapped")
                     showResetPassword = true
                 }) {
-                    Text("¿Olvidaste tu contraseña?")
+                    Text("login.forgotPassword")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -279,11 +279,11 @@ struct EnhancedFormView: View {
             
             NavigationLink(destination: RegisterView()) {
                 HStack {
-                    Text("¿No tienes cuenta?")
+                    Text("login.noAccount")
                         .font(.system(size: 16, weight: .regular))
                         .foregroundColor(.white.opacity(0.8))
                     
-                    Text("Regístrate")
+                    Text("login.register")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.white)
                 }
@@ -348,7 +348,7 @@ struct EnhancedIdentifierField: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
                 
-                Text("Usuario o correo")
+                Text("login.usernameOrEmail")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
             }
@@ -403,7 +403,7 @@ struct EnhancedPasswordField: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
                 
-                Text("Contraseña")
+                Text("login.password")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
             }
@@ -473,7 +473,7 @@ struct EnhancedLoginButton: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
                 } else {
-                    Text("Iniciar sesión")
+                    Text("login.signIn")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                 }
@@ -520,7 +520,7 @@ struct EnhancedDividerView: View {
                 )
                 .frame(height: 1)
             
-            Text("o")
+                            Text("login.or")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
                 .padding(.horizontal, 8)
@@ -673,12 +673,12 @@ struct EnhancedAccountVerificationView: View {
                     }
                     
                     VStack(spacing: 12) {
-                        Text("Verificando cuenta...")
+                        Text("login.verifyingAccount")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
                         
-                        Text("Comprobando estado de la cuenta")
+                        Text("login.checkingAccountStatus")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white.opacity(0.8))
                     }
@@ -794,12 +794,12 @@ struct EnhancedResetPasswordView: View {
                         }
                         
                         VStack(spacing: 12) {
-                            Text("Recuperar contraseña")
+                            Text("login.resetPassword.title")
                                 .font(.system(size: 32, weight: .bold))
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
                             
-                            Text("Te enviaremos un enlace a tu correo")
+                            Text("login.resetPassword.description")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(.white.opacity(0.8))
                                 .multilineTextAlignment(.center)
@@ -832,7 +832,7 @@ struct EnhancedResetPasswordView: View {
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(0.8)
                                 } else {
-                                    Text("Enviar enlace")
+                                    Text("login.resetPassword.sendLink")
                                         .font(.system(size: 18, weight: .semibold))
                                         .foregroundColor(.white)
                                 }
@@ -924,7 +924,7 @@ struct EnhancedResetPasswordView: View {
         }
         .alert(isPresented: $showAlert) {
             Alert(
-                title: Text("Información"),
+                title: Text("login.info.title"),
                 message: Text(alertMessage),
                 dismissButton: .default(Text("OK")) {
                     if alertMessage.contains("enviado") {

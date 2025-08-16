@@ -568,7 +568,7 @@ struct ContentTypeSelectionView: View {
                 
                 Spacer()
                 
-                Text("Crear")
+                Text("creator.title")
                     .font(.headline)
                     .foregroundColor(.white)
                 
@@ -600,12 +600,12 @@ struct ContentTypeSelectionView: View {
                         }
                         
                         VStack(spacing: 8) {
-                            Text("Momento")
+                            Text("creator.moment.title")
                                 .font(.title2)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.white)
                             
-                            Text("Comparte fotos y videos")
+                            Text("creator.moment.subtitle")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
@@ -636,12 +636,12 @@ struct ContentTypeSelectionView: View {
                         }
                         
                         VStack(spacing: 8) {
-                            Text("Historia")
+                            Text("creator.story.title")
                                 .font(.title2)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.white)
                             
-                            Text("Comparte momentos que desaparecen")
+                            Text("creator.story.subtitle")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
@@ -709,7 +709,7 @@ struct MediaSelectionView: View {
             Button("Configuración", action: openSettings)
             Button("Cancelar", role: .cancel) { }
         } message: {
-            Text("Necesitamos acceso a tu galería para seleccionar fotos y videos")
+                            Text("creator.gallery.permission")
         }
     }
     
@@ -726,7 +726,7 @@ struct MediaSelectionView: View {
             
             Spacer()
             
-            Text("Nuevo momento")
+                            Text("creator.newMoment")
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(.white)
             
@@ -737,7 +737,7 @@ struct MediaSelectionView: View {
                     processSelectedAssets()
                 }
             }) {
-                Text("Siguiente")
+                Text("creator.next")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(selectedAssetIDs.isEmpty ? .gray : Color(hex: "00A896"))
             }
@@ -798,14 +798,14 @@ struct MediaSelectionView: View {
             
             // Contador de selección
             HStack {
-                Text("\(selectedAssetIDs.count) archivo\(selectedAssetIDs.count == 1 ? "" : "s") seleccionado\(selectedAssetIDs.count == 1 ? "" : "s")")
+                Text("\(selectedAssetIDs.count) \(String(format: NSLocalizedString("creator.files.selected", comment: "Files selected")))")
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(.gray)
                 
                 Spacer()
                 
                 if selectedAssetIDs.count > 1 {
-                    Text("Múltiple")
+                    Text("creator.multiple")
                         .font(.custom("Poppins-SemiBold", size: 12))
                         .foregroundColor(Color(hex: "00A896"))
                         .padding(.horizontal, 8)
@@ -863,7 +863,7 @@ struct MediaSelectionView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 14))
-                        Text("Cámara")
+                        Text("creator.camera")
                             .font(.custom("Poppins-Medium", size: 14))
                     }
                     .foregroundColor(.white)
@@ -919,7 +919,7 @@ struct MediaSelectionView: View {
                 .scaleEffect(1.2)
                 .tint(Color(hex: "00A896"))
             
-            Text("Cargando galería...")
+                            Text("creator.gallery.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(.gray)
         }
@@ -1499,7 +1499,7 @@ struct AlbumPickerView: View {
                     
                     Spacer()
                     
-                    Text("Seleccionar álbum")
+                    Text("creator.album.select")
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.white)
                     
@@ -1604,7 +1604,7 @@ struct AlbumRowView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    Text("\(album.assetCount) elemento\(album.assetCount == 1 ? "" : "s")")
+                    Text(String(format: NSLocalizedString("creator.album.elements", comment: "Album elements"), album.assetCount))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1765,7 +1765,7 @@ struct MediaEditingView: View {
                 
                 Spacer()
                 
-                Text("Editar")
+                Text("creator.edit")
                     .font(.headline)
                     .foregroundColor(.white)
                 
@@ -1774,7 +1774,7 @@ struct MediaEditingView: View {
                 Button(action: {
                     currentFlow = .captionAndDetails
                 }) {
-                    Text("Siguiente")
+                    Text("creator.next")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.blue)
                 }
@@ -1835,7 +1835,7 @@ struct MediaEditingView: View {
             
             // Aspect ratio selector
             HStack(spacing: 20) {
-                Text("Formato:")
+                Text("creator.format")
                     .font(.caption)
                     .foregroundColor(.gray)
                 
@@ -1987,7 +1987,7 @@ struct CaptionAndDetailsView: View {
                         
                         Spacer()
                         
-                        Text("Nuevo momento")
+                        Text("creator.newMoment")
                             .font(.headline)
                             .foregroundColor(.white)
                         
@@ -2001,7 +2001,7 @@ struct CaptionAndDetailsView: View {
                                     .scaleEffect(0.8)
                                     .tint(.white)
                             } else {
-                                Text("Compartir")
+                                Text("creator.share")
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(.blue)
                             }
@@ -2036,7 +2036,7 @@ struct CaptionAndDetailsView: View {
                                             .focused($isCaptionFocused)
                                         
                                         if captionText.isEmpty {
-                                            Text("Escribe un pie de foto...")
+                                            Text("creator.caption.placeholder")
                                                 .font(.system(size: 16))
                                                 .foregroundColor(.gray)
                                                 .padding(.top, 8)
@@ -2046,7 +2046,7 @@ struct CaptionAndDetailsView: View {
                                     }
                                     
                                     if selectedMediaItems.count > 1 {
-                                        Text("\(selectedMediaItems.count) archivos seleccionados")
+                                        Text(String(format: NSLocalizedString("creator.files.selected.count", comment: "Files selected count"), selectedMediaItems.count))
                                             .font(.caption)
                                             .foregroundColor(.gray)
                                     }
@@ -2094,7 +2094,7 @@ struct CaptionAndDetailsView: View {
                                             .foregroundColor(.white)
                                             .frame(width: 30)
                                         
-                                        Text("Configuración avanzada")
+                                        Text("creator.advancedSettings")
                                             .foregroundColor(.white)
                                         
                                         Spacer()
@@ -2120,7 +2120,7 @@ struct CaptionAndDetailsView: View {
                             .scaleEffect(1.5)
                             .tint(.white)
                         
-                        Text("Publicando momento...")
+                        Text("creator.publishing")
                             .foregroundColor(.white)
                     }
                 }
@@ -3043,7 +3043,7 @@ struct FilterSelectionView: View {
                 // Intensity slider
                 if selectedFilter != .original {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Intensidad")
+                        Text("creator.intensity")
                             .font(.caption)
                             .foregroundColor(.gray)
                         
@@ -3254,7 +3254,7 @@ struct UserSearchView: View {
                     HStack {
                         ProgressView()
                             .tint(.white)
-                        Text("Buscando...")
+                        Text("creator.searching")
                             .foregroundColor(.gray)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -3475,7 +3475,7 @@ struct LocationPickerView: View {
                     }) {
                         HStack {
                             Image(systemName: "location.fill")
-                            Text("Usar ubicación actual")
+                            Text("creator.location.useCurrent")
                         }
                         .foregroundColor(.blue)
                         .padding(.vertical, 8)
@@ -3491,7 +3491,7 @@ struct LocationPickerView: View {
                     Spacer()
                     ProgressView()
                         .tint(.white)
-                    Text("Buscando...")
+                    Text("creator.searching")
                         .foregroundColor(.gray)
                         .padding(.top, 8)
                     Spacer()
@@ -3499,7 +3499,7 @@ struct LocationPickerView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             if showingNearbyPlaces {
-                                Text("Lugares cercanos")
+                                Text("creator.location.nearby")
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .padding(.horizontal)
@@ -3665,15 +3665,15 @@ struct AdvancedSettingsView: View {
             .ignoresSafeArea()
             
             List {
-                Section(header: Text("Interacciones")
+                Section(header: Text("creator.interactions.title")
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(adaptiveColors.secondary)) {
                     Toggle(isOn: $disableComments) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Desactivar comentarios")
+                            Text("creator.interactions.disableComments")
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(adaptiveColors.primary)
-                            Text("Nadie podrá comentar en este momento")
+                            Text("creator.interactions.disableComments.description")
                                 .font(.custom("Poppins-Regular", size: 12))
                                 .foregroundColor(adaptiveColors.tertiary)
                         }
@@ -3682,10 +3682,10 @@ struct AdvancedSettingsView: View {
                     
                     Toggle(isOn: $allowSharing) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Permitir compartir")
+                            Text("creator.interactions.allowSharing")
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(adaptiveColors.primary)
-                            Text("Otros pueden compartir tu momento")
+                            Text("creator.interactions.allowSharing.description")
                                 .font(.custom("Poppins-Regular", size: 12))
                                 .foregroundColor(adaptiveColors.tertiary)
                         }
@@ -3693,15 +3693,15 @@ struct AdvancedSettingsView: View {
                     .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
                 }
                 
-                Section(header: Text("Visualización")
+                Section(header: Text("creator.visualization.title")
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(adaptiveColors.secondary)) {
                     Toggle(isOn: $hideLikeCounts) {
                         VStack(alignment: .leading, spacing: 4) {
-                                                    Text("Ocultar contador de reacciones")
+                                                    Text("creator.visualization.hideReactions")
                             .font(.custom("Poppins-Medium", size: 16))
                             .foregroundColor(adaptiveColors.primary)
-                        Text("El botón de reacciones seguirá visible, pero sin mostrar el número")
+                        Text("creator.visualization.hideReactions.description")
                             .font(.custom("Poppins-Regular", size: 12))
                             .foregroundColor(adaptiveColors.tertiary)
                         }
@@ -3810,7 +3810,7 @@ struct StoryGalleryPicker: View {
                     showingVideoLengthAlert = false
                 }
             } message: {
-                Text("Los videos para historias deben tener máximo 60 segundos. Tu video tiene \(String(format: "%.0f", videoDuration)) segundos.\n\nPara usar este video, puedes:\n• Recortarlo en la app de Fotos\n• Usar una app de edición de video\n• Seleccionar un video más corto")
+                Text(String(format: NSLocalizedString("creator.video.length.warning", comment: "Video length warning"), String(format: "%.0f", videoDuration)))
             }
     }
 }
@@ -3934,7 +3934,7 @@ struct StoryTextEditor: View {
                 
                 // Text input area
                 VStack(spacing: 20) {
-                    TextField("", text: $text, prompt: Text("Añadir texto").foregroundColor(.gray))
+                    TextField("", text: $text, prompt: Text("creator.addText").foregroundColor(.gray))
                         .font(selectedStyle.font)
                         .foregroundColor(textColor)
                         .multilineTextAlignment(textAlignment)
@@ -4003,7 +4003,7 @@ struct StoryTextEditor: View {
                 Button(action: {
                     dismiss()
                 }) {
-                    Text("Hecho")
+                    Text("creator.done")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)

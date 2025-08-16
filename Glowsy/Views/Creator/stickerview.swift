@@ -216,7 +216,7 @@ struct StickerPickerView: View {
             
             // Título con efecto glassmórfico
             VStack(spacing: 4) {
-                Text("Stickers")
+                Text("stickerview.stickers")
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
@@ -383,7 +383,7 @@ struct StickerPickerView: View {
             // Header de sección si es trending
             if selectedCategory == .trending {
                 HStack {
-                    Text("Tus stickers")
+                    Text("stickerview.yourStickers")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
@@ -752,7 +752,7 @@ struct StickerPickerView: View {
             )
             
             VStack(spacing: 8) {
-                Text("Cargando stickers...")
+                                    Text("stickerview.loadingStickers")
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
@@ -762,7 +762,7 @@ struct StickerPickerView: View {
                         )
                     )
                 
-                Text("Esto puede tomar unos segundos")
+                                    Text("stickerview.loadingTime")
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundColor(isDarkMode ? .white.opacity(0.6) : .gray)
             }
@@ -2125,7 +2125,7 @@ struct SmartLocationInputView: View {
                             )
                         )
                     
-                    Text("Añadir ubicación")
+                    Text("stickerview.addLocation")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     
@@ -2351,11 +2351,11 @@ struct SmartLocationInputView: View {
                     .foregroundColor(.white.opacity(0.6))
                 
                 VStack(spacing: 6) {
-                    Text("No se pueden obtener lugares cercanos")
+                                            Text("stickerview.nearbyPlacesError")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                     
-                    Text("Verifica que tengas la ubicación activada")
+                                            Text("stickerview.locationPermissionError")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
@@ -2376,11 +2376,11 @@ struct SmartLocationInputView: View {
                     .foregroundColor(.white.opacity(0.6))
                 
                 VStack(spacing: 6) {
-                    Text("No se encontraron lugares")
+                                            Text("stickerview.noPlacesFound")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                     
-                    Text("Intenta buscar \"\(searchQuery)\" de otra forma")
+                                            Text(String(format: NSLocalizedString("stickerview.tryDifferentSearch", comment: "Try different search"), searchQuery))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
@@ -2596,7 +2596,7 @@ struct ModernMentionInputView: View {
                         .font(.system(size: 28))
                         .foregroundColor(.green)
                     
-                    Text("Etiquetar gente")
+                    Text("stickerview.tagPeople")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     
@@ -2910,7 +2910,7 @@ struct StickerUserRowView: View {
                                 .font(.system(size: 10))
                                 .foregroundColor(.gray)
                             
-                            Text("Cuenta privada")
+                            Text("stickerview.privateAccount")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.gray)
                         }
@@ -2995,11 +2995,11 @@ struct StickerEmptySearchView: View {
                 .foregroundColor(.white.opacity(0.6))
             
             VStack(spacing: 6) {
-                Text("No se encontraron usuarios")
+                                        Text("stickerview.noUsersFound")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white.opacity(0.8))
                 
-                Text("Intenta con \"\(searchQuery.lowercased())\" o busca otro nombre")
+                                        Text(String(format: NSLocalizedString("stickerview.tryDifferentUsername", comment: "Try different username"), searchQuery.lowercased()))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.6))
                     .multilineTextAlignment(.center)
@@ -3053,11 +3053,11 @@ struct ModernHashtagInputView: View {
                     .font(.system(size: 40))
                     .foregroundColor(.pink)
                 
-                Text("Añadir hashtag")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                                    Text("stickerview.addHashtag")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
                 
-                Text("Usa hashtags para que más gente vea tu historia")
+                Text("stickerview.hashtagDescription")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -3141,11 +3141,11 @@ struct ModernPollInputView: View {
                     .font(.system(size: 40))
                     .foregroundColor(.indigo)
                 
-                Text("Crear encuesta")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                                    Text("stickerview.createPoll")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
                 
-                Text("Haz una pregunta y deja que la gente vote")
+                Text("stickerview.pollDescription")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -3156,7 +3156,7 @@ struct ModernPollInputView: View {
             VStack(spacing: 20) {
                 // Pregunta
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("PREGUNTA")
+                    Text("stickerview.question")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white.opacity(0.7))
                         .kerning(1)
@@ -3179,7 +3179,7 @@ struct ModernPollInputView: View {
                 
                 // Opción 1
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("OPCIÓN 1")
+                    Text("stickerview.option1")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white.opacity(0.7))
                         .kerning(1)
@@ -3208,7 +3208,7 @@ struct ModernPollInputView: View {
                 
                 // Opción 2
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("OPCIÓN 2")
+                    Text("stickerview.option2")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white.opacity(0.7))
                         .kerning(1)
@@ -3284,11 +3284,11 @@ struct ModernQuestionInputView: View {
                     .font(.system(size: 40))
                     .foregroundColor(.teal)
                 
-                Text("Añadir pregunta")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                                    Text("stickerview.addQuestion")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
                 
-                Text("Invita a tus seguidores a hacerte preguntas")
+                Text("stickerview.questionDescription")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -3643,12 +3643,12 @@ struct SelfieCameraView: View {
             VStack {
                 Spacer()
                 
-                Text("🤳 Selfie")
+                Text("stickerview.selfie")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                 
-                Text("Toca para abrir la cámara frontal")
+                Text("stickerview.tapForFrontCamera")
                     .font(.body)
                     .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
@@ -3688,7 +3688,7 @@ struct SelfieCameraView: View {
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("stickerview.cancel", comment: "Cancel")) {
                         dismiss()
                     }
                     .foregroundColor(.white)

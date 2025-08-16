@@ -106,7 +106,7 @@ struct ExploreView: View {
             
             HStack {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Explorar")
+                    Text("explore.title")
                         .font(.custom("Poppins-Bold", size: 28))
                         .foregroundStyle(
                             LinearGradient(
@@ -407,11 +407,11 @@ struct LoadingStateView: View {
             }
             
             VStack(spacing: 8) {
-                Text("Cargando contenido...")
+                Text("explore.loading")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
-                Text("Encontrando momentos únicos para ti")
+                Text("explore.loading.subtitle")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.secondary)
             }
@@ -442,7 +442,7 @@ struct ErrorStateView: View {
             }
             
             VStack(spacing: 12) {
-                Text("Oops, algo salió mal")
+                Text("explore.error.title")
                     .font(.custom("Poppins-SemiBold", size: 20))
                     .foregroundColor(.primary)
                 
@@ -455,7 +455,7 @@ struct ErrorStateView: View {
                 Button(action: onRetry) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.clockwise")
-                        Text("Intentar de nuevo")
+                        Text("explore.error.retry")
                     }
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white)
@@ -491,11 +491,11 @@ struct SuggestedUsersSection: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Personas que podrían interesarte")
+                        Text("explore.suggestedUsers.title")
                             .font(.custom("Poppins-SemiBold", size: 22))
                             .foregroundColor(.primary)
                         
-                        Text("Basado en tus intereses")
+                        Text("explore.suggestedUsers.subtitle")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.secondary)
                     }
@@ -580,7 +580,7 @@ struct SuggestedUserCard: View {
                     VerifiedBadgeView(userId: user.id, size: 12)
                 }
                 
-                Text("\(commonInterests) intereses en común")
+                Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
                     .font(.custom("Poppins-Medium", size: 12))
                     .foregroundColor(Color(hex: "667eea"))
                     .multilineTextAlignment(.center)
@@ -653,7 +653,7 @@ struct SearchResultCard: View {
                     }
                     
                     if commonInterests > 0 {
-                        Text("\(commonInterests) intereses en común")
+                        Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
                             .font(.custom("Poppins-Medium", size: 12))
                             .foregroundColor(Color(hex: "667eea"))
                     }
@@ -726,17 +726,17 @@ struct FollowButton: View {
     private var buttonText: String {
         switch buttonState {
         case .ownProfile:
-            return "Tu perfil"
+            return NSLocalizedString("explore.button.ownProfile", comment: "Your profile")
         case .blocked:
-            return "Bloqueado"
+            return NSLocalizedString("explore.button.blocked", comment: "Blocked")
         case .following:
-            return "Siguiendo"
+            return NSLocalizedString("explore.button.following", comment: "Following")
         case .canFollow:
-            return "Seguir"
+            return NSLocalizedString("explore.button.follow", comment: "Follow")
         case .canRequestFollow:
-            return "Solicitar"
+            return NSLocalizedString("explore.button.request", comment: "Request")
         case .requestPending:
-            return "Solicitado"
+            return NSLocalizedString("explore.button.requested", comment: "Requested")
         }
     }
     
@@ -790,11 +790,11 @@ struct MomentsGridSection: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Momentos destacados")
+                    Text("explore.moments.title")
                         .font(.custom("Poppins-SemiBold", size: 22))
                         .foregroundColor(.primary)
                     
-                    Text("\(moments.count) momentos únicos")
+                    Text(String(format: NSLocalizedString("explore.moments.count", comment: "Moments count"), moments.count))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.secondary)
                 }
@@ -1043,11 +1043,11 @@ struct EmptyMomentsView: View {
             }
             
             VStack(spacing: 8) {
-                Text("No hay momentos disponibles")
+                Text("explore.noMoments")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
-                Text("Sigue a más usuarios para ver sus momentos")
+                Text("explore.noMoments.subtitle")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -1075,11 +1075,11 @@ struct EmptySearchView: View {
             }
             
             VStack(spacing: 8) {
-                Text("No se encontraron usuarios")
+                Text("explore.noUsers")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
-                Text("Intenta con un término diferente")
+                Text("explore.noUsers.subtitle")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.secondary)
             }
@@ -1972,7 +1972,7 @@ struct SmartSearchResultsView: View {
     private var hashtagResultsView: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Momentos con \(searchQuery)")
+                Text(String(format: NSLocalizedString("explore.search.moments", comment: "Search moments"), searchQuery))
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
@@ -2015,7 +2015,7 @@ struct SmartSearchResultsView: View {
     private var momentsResultsView: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Momentos encontrados")
+                Text("explore.search.results")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
@@ -2042,7 +2042,7 @@ struct SmartSearchResultsView: View {
             if !users.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("Usuarios")
+                        Text("explore.search.users")
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(.primary)
                         
@@ -2072,7 +2072,7 @@ struct SmartSearchResultsView: View {
             if !moments.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("Momentos")
+                        Text("explore.search.moments.tab")
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(.primary)
                         

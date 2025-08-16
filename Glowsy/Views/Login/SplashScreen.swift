@@ -52,7 +52,7 @@ struct SplashScreenView: View {
                 VStack(spacing: 20) {
                     InstagramStyleLoader()
                     
-                    Text("Cargando...")
+                    Text("splash.loading")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white.opacity(0.8))
                         .opacity(logoOpacity)

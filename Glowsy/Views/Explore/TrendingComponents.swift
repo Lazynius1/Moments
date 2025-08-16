@@ -311,7 +311,7 @@ struct TrendingMomentCard: View {
                 .font(.system(size: 8, weight: .bold))
                 .foregroundColor(.white)
             
-            Text("HOT")
+            Text("trendingComponents.hot")
                 .font(.custom("Poppins-Bold", size: 8))
                 .foregroundColor(.white)
         }
@@ -393,7 +393,7 @@ struct ForYouSection: View {
                     Spacer()
                     
                     Button(action: onSeeAllTap) {
-                        Text("Ver más")
+                        Text("trendingComponents.seeMore")
                             .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(Color(hex: "667eea"))
                     }
@@ -526,7 +526,7 @@ struct ForYouMomentCard: View {
                 .font(.system(size: 8, weight: .bold))
                 .foregroundColor(.white)
             
-            Text("PARA TI")
+                Text("trendingComponents.forYou")
                 .font(.custom("Poppins-Bold", size: 8))
                 .foregroundColor(.white)
         }
@@ -568,13 +568,13 @@ struct TrendingStatsView: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("📊 Estadísticas")
+                Text("trendingComponents.stats")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
                 Spacer()
                 
-                Text("Actualizado \(timeAgo(from: lastUpdated))")
+                Text(String(format: NSLocalizedString("trendingComponents.lastUpdated", comment: "Last updated"), timeAgo(from: lastUpdated)))
                     .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(.secondary)
             }
@@ -582,23 +582,23 @@ struct TrendingStatsView: View {
             HStack(spacing: 16) {
                 StatCard(
                     icon: "🔥",
-                    title: "Hashtags",
+                    title: NSLocalizedString("trendingStats.hashtags", comment: "Hashtags"),
                     value: "\(hashtags.count)",
-                    subtitle: "trending"
+                    subtitle: NSLocalizedString("trendingStats.trending", comment: "trending")
                 )
                 
                 StatCard(
                     icon: "📍",
-                    title: "Lugares",
+                    title: NSLocalizedString("trendingStats.locations", comment: "Locations"),
                     value: "\(locations.count)",
-                    subtitle: "populares"
+                    subtitle: NSLocalizedString("trendingStats.popular", comment: "popular")
                 )
                 
                 StatCard(
                     icon: "🚀",
-                    title: "Momentos",
+                    title: NSLocalizedString("trendingStats.moments", comment: "Moments"),
                     value: "\(moments.count)",
-                    subtitle: "destacados"
+                    subtitle: NSLocalizedString("trendingStats.featured", comment: "featured")
                 )
             }
         }
@@ -693,18 +693,18 @@ struct EmptyTrendingView: View {
                     Text("🔥")
                         .font(.system(size: 32))
                     
-                    Text("TRENDING")
+                    Text("trendingComponents.trending")
                         .font(.custom("Poppins-Bold", size: 8))
                         .foregroundColor(.secondary)
                 }
             }
             
             VStack(spacing: 12) {
-                Text("No hay contenido trending")
+                Text("trendingComponents.empty.title")
                     .font(.custom("Poppins-SemiBold", size: 20))
                     .foregroundColor(.primary)
                 
-                Text("Sé el primero en crear contenido viral")
+                Text("trendingComponents.empty.description")
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -713,7 +713,7 @@ struct EmptyTrendingView: View {
                 Button(action: onRefresh) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.clockwise")
-                        Text("Actualizar")
+                        Text("trendingComponents.refresh")
                     }
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white)
@@ -766,11 +766,11 @@ struct TrendingLoadingView: View {
             }
             
             VStack(spacing: 8) {
-                Text("Analizando tendencias...")
+                Text("trendingComponents.analyzing")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
-                Text("Descubriendo lo más popular")
+                Text("trendingComponents.discovering")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.secondary)
             }

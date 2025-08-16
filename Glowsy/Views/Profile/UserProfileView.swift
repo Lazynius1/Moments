@@ -409,13 +409,13 @@ struct UserModernPublicProfileView: View {
                     VStack(spacing: 0) {
                         // Header de momentos
                         HStack {
-                            Text("Momentos")
+                            Text("userProfile.moments")
                                 .font(.custom("Poppins-SemiBold", size: 20))
                                 .foregroundColor(UserProfileColors.textPrimary) // <- CAMBIO AQUÍ
                             
                             Spacer()
                             
-                            Text("\(viewModel.moments.count)")
+                            Text(String(format: NSLocalizedString("userProfile.moments.count", comment: "Moments count"), viewModel.moments.count))
                                 .font(.custom("Poppins-Medium", size: 12))
                                 .foregroundColor(UserProfileColors.textSecondary) // <- CAMBIO AQUÍ
                                 .padding(.horizontal, 10)
@@ -594,7 +594,7 @@ struct UserModernProfileHeader: View {
                         Image(systemName: "person.2.fill")
                             .font(.system(size: 14))
                         
-                        Text("Conexiones mutuas: \(viewModel.mutualConnections.prefix(3).map { $0.username }.joined(separator: ", "))")
+                        Text(String(format: NSLocalizedString("userProfile.mutualConnections", comment: "Mutual connections"), viewModel.mutualConnections.prefix(3).map { $0.username }.joined(separator: ", ")))
                             .font(.custom("Poppins-Medium", size: 13))
                             .lineLimit(1)
                     }
@@ -870,7 +870,7 @@ struct UserPlusBadgeInline: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.white)
             
-            Text("PLUS")
+            Text("userProfile.plus")
                 .font(.custom("Poppins-Bold", size: 9))
                 .foregroundColor(.white)
         }
@@ -1000,7 +1000,7 @@ struct UserModernRefreshIndicator: View {
                     .scaleEffect(pulseScale)
             }
             
-            Text("Actualizando perfil...")
+            Text("userProfile.updating")
                 .font(.custom("Poppins-Medium", size: 14))
                 .foregroundColor(UserProfileColors.textSecondary)
         }
@@ -1059,7 +1059,7 @@ struct UserModernStatsSection: View {
                     showingUserList = stat.2
                 }) {
                     VStack(spacing: 6) {
-                        Text("\(stat.1)")
+                        Text(String(format: NSLocalizedString("userProfile.stats.count", comment: "Stats count"), stat.1))
                             .font(.custom("Poppins-Bold", size: 18))
                             .foregroundColor(UserProfileColors.textPrimary)
                         
@@ -1130,7 +1130,7 @@ struct UserExpandableBioView: View {
                         isExpanded.toggle()
                     }
                 }) {
-                    Text(isExpanded ? "ver menos" : "ver más")
+                    Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
                         .font(.custom("Poppins-Medium", size: 13))
                         .foregroundColor(UserProfileColors.accent)
                         .padding(.horizontal, 12)
@@ -1233,7 +1233,7 @@ struct UserModernInterestsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Intereses")
+                Text("userProfile.interests")
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(UserProfileColors.textPrimary)
             
@@ -1412,7 +1412,7 @@ struct UserModernMomentThumbnail: View {
                         Image(systemName: "heart.fill")
                             .foregroundColor(.red)
                             .font(.system(size: 9))
-                        Text("\(likeCount)")
+                        Text(String(format: NSLocalizedString("userProfile.likes.count", comment: "Likes count"), likeCount))
                             .font(.custom("Poppins-Medium", size: 9))
                             .foregroundColor(UserProfileColors.textPrimary)
                     }
@@ -1454,7 +1454,7 @@ struct UserModernMomentThumbnail: View {
                                     ProgressView()
                                         .tint(UserProfileColors.accent)
                                         .scaleEffect(0.8)
-                                    Text("Video...")
+                                    Text("userProfile.video.loading")
                                         .font(.custom("Poppins-Regular", size: 8))
                                         .foregroundColor(UserProfileColors.textSecondary)
                                 }
@@ -1463,7 +1463,7 @@ struct UserModernMomentThumbnail: View {
                                     Image(systemName: "video")
                                         .font(.system(size: 16))
                                         .foregroundColor(UserProfileColors.textTertiary)
-                                    Text("Video")
+                                    Text("userProfile.video")
                                         .font(.custom("Poppins-Regular", size: 8))
                                         .foregroundColor(UserProfileColors.textSecondary)
                                 }
@@ -1491,7 +1491,7 @@ struct UserModernMomentThumbnail: View {
                                 ProgressView()
                                     .tint(UserProfileColors.accent)
                                     .scaleEffect(0.8)
-                                Text("Imagen...")
+                                Text("userProfile.image.loading")
                                     .font(.custom("Poppins-Regular", size: 8))
                                     .foregroundColor(UserProfileColors.textSecondary)
                             }
@@ -1521,7 +1521,7 @@ struct UserModernMomentThumbnail: View {
                         .font(.system(size: 16))
                         .foregroundColor(UserProfileColors.textTertiary)
                     
-                    Text(moment.content.isEmpty ? "Sin contenido" : String(moment.content.prefix(12)))
+                    Text(moment.content.isEmpty ? NSLocalizedString("userProfile.noContent", comment: "No content") : String(moment.content.prefix(12)))
                         .font(.custom("Poppins-Regular", size: 8))
                         .foregroundColor(UserProfileColors.textPrimary)
                         .multilineTextAlignment(.center)
@@ -1639,11 +1639,11 @@ struct UserModernEmptyMomentsView: View {
             }
             
             VStack(spacing: 8) {
-                Text("No hay momentos aún")
+                Text("userProfile.noMoments.title")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(UserProfileColors.textPrimary)
                 
-                Text("Este usuario no ha compartido momentos todavía")
+                Text("userProfile.noMoments.description")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(UserProfileColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -1700,12 +1700,12 @@ struct UserModernBlockedView: View {
                 }
                 
                 VStack(spacing: 16) {
-                    Text(isBlockedByCurrentUser ? "Usuario bloqueado" : "Acceso restringido")
+                    Text(isBlockedByCurrentUser ? NSLocalizedString("userProfile.blockedUser", comment: "Blocked user") : NSLocalizedString("userProfile.restrictedAccess", comment: "Restricted access"))
                         .font(.custom("Poppins-Bold", size: 22))
                         .foregroundColor(.white)
                     Text(isBlockedByCurrentUser ?
-                         "Has bloqueado a este usuario. No puedes ver su contenido ni interactuar con él." :
-                         "Este usuario te ha bloqueado. No puedes ver su perfil ni contenido.")
+                         NSLocalizedString("userProfile.blockedByYou", comment: "You blocked this user") :
+                         NSLocalizedString("userProfile.blockedYou", comment: "This user blocked you"))
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(.gray.opacity(0.8))
                         .multilineTextAlignment(.center)
@@ -1718,7 +1718,7 @@ struct UserModernBlockedView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "person.fill.checkmark")
                                     .font(.system(size: 16))
-                                Text("Desbloquear usuario")
+                                Text("userProfile.unblockUser")
                                     .font(.custom("Poppins-SemiBold", size: 14))
                             }
                             .foregroundColor(.white)
@@ -1730,7 +1730,7 @@ struct UserModernBlockedView: View {
                         }
                     }
                     Button(action: onDismiss) {
-                        Text("Volver")
+                        Text("userProfile.back")
                             .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(.white)
                             .padding(.horizontal, 24)
@@ -1791,7 +1791,7 @@ struct UserModernPrivateProfileView: View {
                 
                 VStack(spacing: 12) {
                     HStack(spacing: 6) {
-                        Text(userProfile?.username ?? "Usuario")
+                        Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
                             .font(.custom("Poppins-Bold", size: 24))
                             .foregroundStyle(
                                 LinearGradient(
@@ -1804,7 +1804,7 @@ struct UserModernPrivateProfileView: View {
                         // ✅ INSIGNIA DE VERIFICADO
                         VerifiedBadgeView(userId: self.userId, size: 20)
                     }
-                    Text(userProfile?.bio ?? "Sin biografía")
+                    Text(userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No biography"))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray.opacity(0.8))
                         .multilineTextAlignment(.center)
@@ -1848,10 +1848,10 @@ struct UserModernPrivateProfileView: View {
                 }
                 
                 VStack(spacing: 12) {
-                    Text("Este perfil es privado")
+                    Text("userProfile.private.title")
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.white)
-                    Text("Envía una solicitud de seguimiento para ver el contenido de este usuario")
+                    Text("userProfile.private.description")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -1918,7 +1918,7 @@ struct UserModernLoadingView: View {
                     .rotationEffect(.degrees(isAnimating ? 360 : 0))
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isAnimating)
             }
-            Text("Cargando perfil...")
+                            Text("userProfile.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(UserProfileColors.textSecondary)
         }
@@ -2816,7 +2816,7 @@ struct UserExpandableContentView: View {
                     }
                 }) {
                     HStack(spacing: 4) {
-                        Text(isExpanded ? "ver menos" : "ver más")
+                        Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
                             .font(.custom("Poppins-SemiBold", size: 12))
                             .foregroundColor(.white)
                         

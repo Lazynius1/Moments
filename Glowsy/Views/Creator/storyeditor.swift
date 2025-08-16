@@ -238,7 +238,7 @@ struct StoryEditingView: View {
                                     .foregroundColor(.white)
                                 
                                 if firstMedia.type == .video {
-                                    Text("Video")
+                                    Text("storyEditor.video")
                                         .font(.caption)
                                         .foregroundColor(.white)
                                 }
@@ -322,7 +322,7 @@ struct StoryEditingView: View {
                             publishStory()
                         }) {
                             HStack(spacing: 8) {
-                                Text("Compartir")
+                                Text("storyEditor.share")
                                     .font(.system(size: 16, weight: .semibold))
                                 Image(systemName: "arrow.right")
                             }
@@ -397,14 +397,14 @@ struct StoryEditingView: View {
                             .scaleEffect(1.5)
                             .tint(.white)
                         
-                        Text("Compartiendo historia...")
+                        Text("storyEditor.sharing")
                             .foregroundColor(.white)
                     }
                 }
             }
         )
         .alert(alertMessage, isPresented: $showAlert) {
-            Button("OK") { }
+            Button(NSLocalizedString("storyEditor.ok", comment: "OK")) { }
         }
         .onDisappear {
             // ✅ Limpiar video y audio cuando se cierra la vista

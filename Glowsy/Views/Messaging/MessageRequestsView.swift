@@ -20,13 +20,41 @@ struct MessageRequestsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
-                LinearGradient(
-                    gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Background adaptativo como MessagingView
+                if colorScheme == .dark {
+                    // Negro elegante tipo Instagram - más suave
+                    Color(hex: "1A1A1A")
+                        .ignoresSafeArea()
+                } else {
+                    // Modo claro: mantener el diseño original
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .ignoresSafeArea()
+                    
+                    // Floating blobs for depth
+                    GeometryReader { geometry in
+                        Circle()
+                            .fill(Color(hex: "00A896").opacity(0.4))
+                            .frame(width: 300, height: 300)
+                            .blur(radius: 100)
+                            .offset(x: -100, y: -100)
+                        
+                        Circle()
+                            .fill(Color(hex: "02C39A").opacity(0.35))
+                            .frame(width: 250, height: 250)
+                            .blur(radius: 80)
+                            .offset(x: geometry.size.width - 150, y: 200)
+                        
+                        Circle()
+                            .fill(Color(hex: "F0F3BD").opacity(0.4))
+                            .frame(width: 200, height: 200)
+                            .blur(radius: 60)
+                            .offset(x: 50, y: geometry.size.height - 200)
+                    }
+                }
                 
                 VStack(spacing: 0) {
                     // Header
@@ -58,23 +86,23 @@ struct MessageRequestsView: View {
         .actionSheet(isPresented: $showingActionSheet) {
             if let request = actionRequest {
                 ActionSheet(
-                    title: Text("Solicitud de mensaje"),
-                    message: Text("¿Qué quieres hacer con esta solicitud?"),
+                    title: Text("messageRequests.request.title"),
+                    message: Text("messageRequests.request.message"),
                     buttons: [
-                        .default(Text("Aceptar")) {
+                        .default(Text("messageRequests.accept")) {
                             acceptRequest(request)
                         },
-                        .destructive(Text("Rechazar")) {
+                        .destructive(Text("messageRequests.reject")) {
                             rejectRequest(request)
                         },
-                        .destructive(Text("Bloquear usuario")) {
+                        .destructive(Text("messageRequests.blockUser")) {
                             blockUser(request)
                         },
                         .cancel()
                     ]
                 )
             } else {
-                ActionSheet(title: Text("Error"), buttons: [.cancel()])
+                ActionSheet(title: Text("messageRequests.error"), buttons: [.cancel()])
             }
         }
     }
@@ -91,7 +119,7 @@ struct MessageRequestsView: View {
                 
                 Spacer()
                 
-                Text("Solicitudes de mensajes")
+                Text("messageRequests.title")
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(adaptiveColors.primary)
@@ -109,7 +137,7 @@ struct MessageRequestsView: View {
             // Badge con número de solicitudes
             if !messageRequestService.pendingRequests.isEmpty {
                 HStack {
-                    Text("\(messageRequestService.pendingRequests.count) solicitud\(messageRequestService.pendingRequests.count == 1 ? "" : "es") pendiente\(messageRequestService.pendingRequests.count == 1 ? "" : "s")")
+                    Text(String(format: NSLocalizedString("messageRequests.count", comment: "Request count"), messageRequestService.pendingRequests.count))
                         .font(.caption)
                         .foregroundColor(adaptiveColors.secondary)
                         .padding(.horizontal, 12)
@@ -178,12 +206,12 @@ struct MessageRequestsView: View {
                 .font(.system(size: 80))
                 .foregroundColor(adaptiveColors.secondary.opacity(0.5))
             
-            Text("No hay solicitudes pendientes")
+                            Text("messageRequests.empty.title")
                 .font(.title3)
                 .fontWeight(.medium)
                 .foregroundColor(adaptiveColors.primary)
             
-            Text("Cuando alguien que no sigues te envíe un mensaje, aparecerá aquí para que puedas revisarlo antes de aceptarlo.")
+                            Text("messageRequests.empty.description")
                 .font(.body)
                 .foregroundColor(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
@@ -389,7 +417,7 @@ struct RequestDetailView: View {
                     .foregroundColor(adaptiveColors.primary)
             
             // Timestamp
-            Text("Enviado \(timeAgoString(from: request.timestamp))")
+                            Text(String(format: NSLocalizedString("messageRequests.sent", comment: "Sent time"), timeAgoString(from: request.timestamp)))
                 .font(.caption)
                 .foregroundColor(adaptiveColors.secondary)
         }
@@ -398,7 +426,7 @@ struct RequestDetailView: View {
     
     private var messageContentSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Mensaje:")
+                            Text("messageRequests.message")
                 .font(.headline)
                 .foregroundColor(adaptiveColors.primary)
             
@@ -429,7 +457,7 @@ struct RequestDetailView: View {
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: 40))
                             .foregroundColor(adaptiveColors.primary)
-                        Text("Video")
+                        Text("messageRequests.video")
                             .font(.caption)
                             .foregroundColor(adaptiveColors.secondary)
                     }
@@ -465,7 +493,7 @@ struct RequestDetailView: View {
             Button(action: { acceptRequest(request) }) {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                    Text("Aceptar")
+                    Text("messageRequests.accept")
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -481,7 +509,7 @@ struct RequestDetailView: View {
             Button(action: { rejectRequest(request) }) {
                 HStack {
                     Image(systemName: "xmark.circle.fill")
-                    Text("Rechazar")
+                    Text("messageRequests.reject")
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -497,7 +525,7 @@ struct RequestDetailView: View {
             Button(action: { blockUser(request) }) {
                 HStack {
                     Image(systemName: "slash.circle.fill")
-                    Text("Bloquear usuario")
+                    Text("messageRequests.blockUser")
                 }
                 .font(.subheadline)
                 .foregroundColor(adaptiveColors.secondary)

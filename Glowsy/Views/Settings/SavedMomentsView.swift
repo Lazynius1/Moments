@@ -353,7 +353,7 @@ struct SavedMomentsView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
-            Text("Cargando momentos guardados...")
+                            Text("savedMoments.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(.gray)
         }
@@ -365,7 +365,7 @@ struct SavedMomentsView: View {
                 .font(.system(size: 50))
                 .foregroundColor(.orange)
             
-            Text("Error al cargar")
+                            Text("savedMoments.error.title")
                 .font(.custom("Poppins-Bold", size: 20))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
@@ -375,7 +375,7 @@ struct SavedMomentsView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
-            Button("Reintentar") {
+            Button(NSLocalizedString("savedMoments.retry", comment: "Retry")) {
                 viewModel.loadSavedMoments()
             }
             .font(.custom("Poppins-SemiBold", size: 16))
@@ -394,18 +394,18 @@ struct SavedMomentsView: View {
                 .foregroundColor(.gray.opacity(0.6))
             
             VStack(spacing: 8) {
-                Text("Sin momentos guardados")
+                Text("savedMoments.empty.title")
                     .font(.custom("Poppins-Bold", size: 24))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Los momentos que guardes aparecerán aquí")
+                Text("savedMoments.empty.description")
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
             }
             
             VStack(spacing: 12) {
-                Text("💡 Tip: Toca el ícono de bookmark en cualquier momento para guardarlo")
+                Text("savedMoments.empty.tip")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
@@ -457,11 +457,11 @@ struct SavedMomentsView: View {
     private var statsHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(viewModel.moments.count) momentos")
+                Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
                     .font(.custom("Poppins-Bold", size: 18))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Guardados en tu colección")
+                Text("savedMoments.inCollection")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray)
             }
@@ -763,9 +763,9 @@ struct ModernSavedMomentsDetailView: View {
                     .environmentObject(firestoreService)
             }
         }
-        .alert("Eliminar de guardados", isPresented: $showingRemoveAlert) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Eliminar", role: .destructive) {
+                        .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRemoveAlert) {
+            Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel"), role: .cancel) {}
+            Button(NSLocalizedString("savedMoments.remove.confirm", comment: "Remove"), role: .destructive) {
                 if let moment = momentToRemove {
                     onRemoveMoment?(moment)
                     
@@ -777,9 +777,9 @@ struct ModernSavedMomentsDetailView: View {
             }
         } message: {
             if let moment = momentToRemove {
-                Text("¿Quieres eliminar el momento de \(moment.username) de tus guardados?")
+                Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), moment.username))
             } else {
-                Text("¿Quieres eliminar este momento de tus guardados?")
+                Text("savedMoments.remove.message.generic")
             }
         }
         .onAppear {
@@ -906,7 +906,7 @@ struct ModernSavedDetailHeader: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white)
                         
-                        Text("GUARDADO")
+                        Text("savedMoments.saved")
                             .font(.custom("Poppins-Bold", size: 11))
                             .foregroundColor(.white)
                     }
@@ -1390,7 +1390,7 @@ struct ModernSavedDetailActionButtons: View {
                                 )
                         }
                         
-                        Text("Quitar")
+                        Text("savedMoments.remove")
                             .font(.custom("Poppins-SemiBold", size: 11))
                             .foregroundColor(adaptiveColors.secondary)  // ✅ CAMBIAR esta línea
                     }
@@ -1427,7 +1427,7 @@ struct ModernSavedDetailActionButtons: View {
                                 )
                         }
                         
-                        Text("Compartir")
+                        Text("savedMoments.share")
                             .font(.custom("Poppins-SemiBold", size: 11))
                             .foregroundColor(adaptiveColors.secondary)  // ✅ CAMBIAR esta línea
                     }

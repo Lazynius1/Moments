@@ -269,7 +269,7 @@ struct EnhancedChatBubble: View {
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .shadow(color: ModernGeminiColors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
                     
-                    Text("Tú")
+                    Text("nova.you")
                         .font(.custom("Poppins-Medium", size: 12))
                         .foregroundColor(ModernGeminiColors.textSecondary)
                         .padding(.trailing, 8)
@@ -293,7 +293,7 @@ struct EnhancedChatBubble: View {
                                 .font(.system(size: 12, weight: .bold))
                         }
                         
-                        Text("Nova")
+                        Text("nova.name")
                             .font(.custom("Poppins-SemiBold", size: 13))
                             .foregroundColor(ModernGeminiColors.accent)
                         
@@ -830,7 +830,7 @@ struct ConversationHistoryOverlay: View {
                 VStack(spacing: 0) {
                     // Header del historial
                     HStack {
-                        Text("Conversaciones Recientes")
+                        Text("nova.recentConversations")
                             .font(.custom("Poppins-Bold", size: 20))
                             .foregroundColor(ModernGeminiColors.textPrimary)
                         
@@ -860,11 +860,11 @@ struct ConversationHistoryOverlay: View {
                                         .font(.system(size: 48))
                                         .foregroundColor(ModernGeminiColors.textSecondary)
                                     
-                                    Text("No hay conversaciones previas")
+                                    Text("nova.noConversations")
                                         .font(.custom("Poppins-Medium", size: 16))
                                         .foregroundColor(ModernGeminiColors.textSecondary)
                                     
-                                    Text("Inicia una nueva conversación y se guardará automáticamente")
+                                    Text("nova.startNewConversation")
                                         .font(.custom("Poppins-Regular", size: 14))
                                         .foregroundColor(ModernGeminiColors.textTertiary)
                                         .multilineTextAlignment(.center)
@@ -882,7 +882,7 @@ struct ConversationHistoryOverlay: View {
                                             .font(.system(size: 20))
                                             .foregroundColor(ModernGeminiColors.primary)
                                         
-                                        Text("Nueva Conversación")
+                                        Text("nova.newConversation")
                                             .font(.custom("Poppins-SemiBold", size: 16))
                                             .foregroundColor(ModernGeminiColors.textPrimary)
                                         
@@ -978,7 +978,7 @@ struct ConversationHistoryItem: View {
                         .foregroundColor(ModernGeminiColors.textSecondary)
                     
                     if conversation.messageCount > 0 {
-                        Text("\(conversation.messageCount) mensajes")
+                        Text("\(conversation.messageCount) \(NSLocalizedString("nova.messages", comment: "Messages count"))")
                             .font(.custom("Poppins-Regular", size: 11))
                             .foregroundColor(ModernGeminiColors.textTertiary)
                     }
@@ -1014,7 +1014,7 @@ struct ConversationHistoryItem: View {
             Button("Cancelar", role: .cancel) { }
             Button("Eliminar", role: .destructive, action: onDelete)
         } message: {
-            Text("¿Estás seguro de que quieres eliminar esta conversación? Esta acción no se puede deshacer.")
+                            Text("nova.deleteConversation.confirm")
         }
     }
 }
@@ -1127,7 +1127,7 @@ struct EnhancedGeminiHeader: View {
             
             VStack(alignment: .leading, spacing: 1) {
                 HStack {
-                    Text("Nova")
+                    Text("nova.name")
                         .font(.custom("Poppins-Bold", size: 20))
                         .foregroundStyle(
                             LinearGradient(
@@ -1155,7 +1155,7 @@ struct EnhancedGeminiHeader: View {
                     }
                 }
                 
-                Text("Tu asistente personal")
+                Text("nova.personalAssistant")
                     .font(.custom("Poppins-Regular", size: 11))
                     .foregroundColor(ModernGeminiColors.textSecondary)
             }
@@ -1369,7 +1369,7 @@ struct ModernWelcomeSection: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 30) {
                     VStack(spacing: 16) {
-                        Text("¡Hola, \(viewModel.userData?.username ?? "Usuario")!")
+                        Text("\(NSLocalizedString("nova.hello", comment: "Hello message")) \(viewModel.userData?.username ?? NSLocalizedString("nova.user", comment: "User"))!")
                             .font(.custom("Poppins-Bold", size: 32))
                             .foregroundStyle(
                                 LinearGradient(
@@ -1384,7 +1384,7 @@ struct ModernWelcomeSection: View {
                             )
                             .multilineTextAlignment(.center)
 
-                        Text("Soy tu asistente personal inteligente. Puedo ayudarte a explorar tus intereses, sugerir conexiones o responder cualquier pregunta que tengas.")
+                        Text("nova.introduction")
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(ModernGeminiColors.textSecondary)
                             .multilineTextAlignment(.center)
@@ -1419,7 +1419,7 @@ struct ModernWelcomeSection: View {
 
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Text("Sugerencias Rápidas")
+                            Text("nova.quickSuggestions")
                                 .font(.custom("Poppins-SemiBold", size: 18))
                                 .foregroundColor(ModernGeminiColors.textPrimary)
 
@@ -1664,7 +1664,7 @@ struct ModernLoadingAnimation: View {
                     }
                 }
                 
-                Text("Nova está escribiendo...")
+                Text("nova.typing")
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(ModernGeminiColors.textSecondary)
                     .opacity(isAnimating ? 1.0 : 0.7)

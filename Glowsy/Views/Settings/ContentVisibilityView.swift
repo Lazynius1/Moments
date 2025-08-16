@@ -15,7 +15,7 @@ struct ContentVisibilityView: View {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
             if isLoading {
-                ProgressView("Cargando configuración...")
+                ProgressView(NSLocalizedString("contentVisibility.loading", comment: "Loading configuration..."))
                     .progressViewStyle(CircularProgressViewStyle())
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(.gray)
@@ -25,8 +25,8 @@ struct ContentVisibilityView: View {
                     Section {
                         contentTypeHeader(
                             icon: "circle.dashed",
-                            title: "Historias",
-                            description: "Controla quién puede ver tus historias"
+                            title: NSLocalizedString("contentVisibility.stories.title", comment: "Stories"),
+                            description: NSLocalizedString("contentVisibility.stories.description", comment: "Control who can see your stories")
                         )
                         
                         // Current story audience
@@ -53,7 +53,7 @@ struct ContentVisibilityView: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Configuración de interacciones")
+                                    Text("contentVisibility.interactions.title")
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
@@ -83,8 +83,8 @@ struct ContentVisibilityView: View {
                     Section {
                         contentTypeHeader(
                             icon: "square.grid.3x3",
-                            title: "Publicaciones",
-                            description: "Controla quién puede ver tus publicaciones"
+                            title: NSLocalizedString("contentVisibility.posts.title", comment: "Posts"),
+                            description: NSLocalizedString("contentVisibility.posts.description", comment: "Control who can see your posts")
                         )
                         
                         // Current post audience
@@ -112,11 +112,11 @@ struct ContentVisibilityView: View {
                                     .frame(width: 24)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Ocultar mi contenido de")
+                                    Text("contentVisibility.hideFrom")
                                         .font(.custom("Poppins-Medium", size: 15))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("\(viewModel.hiddenFromUsers.count) personas no pueden ver tu contenido")
+                                    Text(String(format: NSLocalizedString("contentVisibility.hiddenCount", comment: "Hidden users count"), viewModel.hiddenFromUsers.count))
                                         .font(.custom("Poppins-Regular", size: 13))
                                         .foregroundColor(.gray)
                                 }
@@ -126,7 +126,7 @@ struct ContentVisibilityView: View {
                         }
                         
                     } header: {
-                        Text("Restricciones adicionales")
+                        Text("contentVisibility.additionalRestrictions")
                     }
                     .listRowBackground(SettingsListRowBackground())
                     
@@ -140,11 +140,11 @@ struct ContentVisibilityView: View {
                                     .frame(width: 24)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Gestionar listas personalizadas")
+                                    Text("contentVisibility.manageCustomLists")
                                         .font(.custom("Poppins-Medium", size: 15))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("Crear y editar listas de audiencia")
+                                    Text("contentVisibility.createEditAudience")
                                         .font(.custom("Poppins-Regular", size: 13))
                                         .foregroundColor(.gray)
                                 }
@@ -153,14 +153,14 @@ struct ContentVisibilityView: View {
                             }
                         }
                     } header: {
-                        Text("Listas de audiencia")
+                        Text("contentVisibility.audienceLists")
                     }
                     .listRowBackground(SettingsListRowBackground())
                 }
                 .scrollContentBackground(.hidden)
             }
         }
-        .navigationTitle("Privacidad del Contenido")
+        .navigationTitle(NSLocalizedString("contentVisibility.title", comment: "Content Privacy"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .onAppear {
@@ -189,11 +189,11 @@ struct ContentVisibilityView: View {
         ].filter { $0 }.count
         
         switch activeCount {
-        case 3: return "Todas las interacciones permitidas"
-        case 2: return "Algunas interacciones permitidas"
-        case 1: return "Interacciones limitadas"
-        case 0: return "Sin interacciones"
-        default: return "Configurar interacciones"
+        case 3: return NSLocalizedString("contentVisibility.interactions.allAllowed", comment: "All interactions allowed")
+        case 2: return NSLocalizedString("contentVisibility.interactions.someAllowed", comment: "Some interactions allowed")
+        case 1: return NSLocalizedString("contentVisibility.interactions.limited", comment: "Limited interactions")
+        case 0: return NSLocalizedString("contentVisibility.interactions.none", comment: "No interactions")
+        default: return NSLocalizedString("contentVisibility.interactions.configure", comment: "Configure interactions")
         }
     }
     
@@ -259,9 +259,9 @@ struct ContentVisibilityView: View {
     private func getAudienceDisplayDescription(audience: ContentAudience, customCount: Int) -> String {
         switch audience {
         case .custom:
-            return customCount > 0 ? "\(customCount) personas seleccionadas" : "Selección personalizada"
+            return customCount > 0 ? String(format: NSLocalizedString("contentVisibility.custom.selected", comment: "Selected people"), customCount) : NSLocalizedString("contentVisibility.custom.selection", comment: "Custom selection")
         case .customList:
-            return "Lista personalizada"
+            return NSLocalizedString("contentVisibility.customList", comment: "Custom list")
         default:
             return audience.description
         }
@@ -284,12 +284,12 @@ struct StoryInteractionSettingsView: View {
                             .foregroundColor(Color(hex: "00A896"))
                             .font(.system(size: 18))
                         
-                        Text("Configuración de Interacciones")
+                        Text("contentVisibility.interactionsConfig.title")
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     
-                    Text("Controla qué tipo de interacciones pueden hacer otros usuarios en tus historias. Esta configuración se aplicará a todas tus historias futuras.")
+                    Text("contentVisibility.interactionsConfig.description")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                         .fixedSize(horizontal: false, vertical: true)
@@ -306,22 +306,22 @@ struct StoryInteractionSettingsView: View {
                 VStack(spacing: 16) {
                     InteractionToggleRow(
                         icon: "message.fill",
-                        title: "Mensajes",
-                        description: "Permite que te envíen mensajes privados desde tus historias",
+                        title: NSLocalizedString("contentVisibility.interactions.messages.title", comment: "Messages"),
+                        description: NSLocalizedString("contentVisibility.interactions.messages.description", comment: "Allow them to send you private messages from your stories"),
                         isOn: $viewModel.allowStoryMessages
                     )
                     
                     InteractionToggleRow(
                         icon: "heart.fill",
-                        title: "Reacciones",
-                        description: "Permite que reaccionen con emojis a tus historias",
+                        title: NSLocalizedString("contentVisibility.interactions.reactions.title", comment: "Reactions"),
+                        description: NSLocalizedString("contentVisibility.interactions.reactions.description", comment: "Allow them to react with emojis to your stories"),
                         isOn: $viewModel.allowStoryReactions
                     )
                     
                     InteractionToggleRow(
                         icon: "camera.fill",
-                        title: "Fotos efímeras",
-                        description: "Permite que envíen fotos como respuesta a tus historias",
+                        title: NSLocalizedString("contentVisibility.interactions.ephemeralPhotos.title", comment: "Ephemeral photos"),
+                        description: NSLocalizedString("contentVisibility.interactions.ephemeralPhotos.description", comment: "Allow them to send photos as responses to your stories"),
                         isOn: $viewModel.allowStoryEphemeralPhotos
                     )
                 }
@@ -337,11 +337,11 @@ struct StoryInteractionSettingsView: View {
                             .font(.system(size: 24))
                             .foregroundColor(.orange)
                         
-                        Text("Modo solo visualización")
+                        Text("contentVisibility.viewOnlyMode")
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(.orange)
                         
-                        Text("Los usuarios solo podrán ver tus historias, sin poder interactuar")
+                        Text("contentVisibility.viewOnlyMode.description")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -351,19 +351,19 @@ struct StoryInteractionSettingsView: View {
                 }
             }
             .background(Color(colorScheme == .dark ? .black : .white).ignoresSafeArea())
-            .navigationTitle("Interacciones")
+            .navigationTitle(NSLocalizedString("contentVisibility.interactions.navigation", comment: "Interactions"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("contentVisibility.cancel", comment: "Cancel")) {
                         dismiss()
                     }
                     .foregroundColor(.gray)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Guardar") {
+                    Button(NSLocalizedString("contentVisibility.save", comment: "Save")) {
                         viewModel.saveStoryInteractionSettings()
                         dismiss()
                     }
@@ -440,12 +440,12 @@ struct StoryAudienceSelector: View {
                 selectedListName: $viewModel.storyCustomListName,
                 customSelectedUsers: $viewModel.storyCustomUsers
             )
-            .navigationTitle("Audiencia de Historias")
+            .navigationTitle(NSLocalizedString("contentVisibility.storyAudience.navigation", comment: "Story Audience"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Listo") {
+                    Button(NSLocalizedString("contentVisibility.done", comment: "Done")) {
                         viewModel.saveStorySettings()
                         dismiss()
                     }
@@ -470,12 +470,12 @@ struct PostAudienceSelector: View {
                 selectedListName: $viewModel.postCustomListName,
                 customSelectedUsers: $viewModel.postCustomUsers
             )
-            .navigationTitle("Audiencia de Publicaciones")
+            .navigationTitle(NSLocalizedString("contentVisibility.postAudience.navigation", comment: "Post Audience"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Listo") {
+                    Button(NSLocalizedString("contentVisibility.done", comment: "Done")) {
                         viewModel.savePostSettings()
                         dismiss()
                     }
@@ -658,12 +658,12 @@ struct HiddenFromView: View {
                     Image(systemName: "info.circle")
                         .foregroundColor(Color(hex: "00A896"))
                     
-                    Text("Información")
+                    Text("contentVisibility.info.title")
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 
-                Text("Las personas en esta lista no podrán ver tu contenido, pero aún pueden encontrar tu perfil y enviarte mensajes.")
+                Text("contentVisibility.info.description")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray)
             }
@@ -737,12 +737,12 @@ struct HiddenFromView: View {
                                     .font(.system(size: 40))
                                     .foregroundColor(.gray)
                                 
-                                Text("No has ocultado tu contenido de nadie")
+                                Text("contentVisibility.noHiddenUsers.title")
                                     .font(.custom("Poppins-Regular", size: 16))
                                     .foregroundColor(.gray)
                                     .multilineTextAlignment(.center)
                                 
-                                Text("Busca personas para ocultar tu contenido de ellas")
+                                Text("contentVisibility.noHiddenUsers.description")
                                     .font(.custom("Poppins-Regular", size: 14))
                                     .foregroundColor(.gray)
                                     .multilineTextAlignment(.center)
@@ -756,7 +756,7 @@ struct HiddenFromView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .navigationTitle("Ocultar Contenido")
+        .navigationTitle(NSLocalizedString("contentVisibility.hideContent.navigation", comment: "Hide Content"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
     }

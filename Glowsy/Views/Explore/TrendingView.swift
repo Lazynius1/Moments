@@ -203,7 +203,7 @@ struct TrendingView: View {
                     Text("🔥")
                         .font(.system(size: 24))
                     
-                    Text("Trending")
+                    Text("trending.title")
                         .font(.custom("Poppins-Bold", size: 28))
                         .foregroundStyle(
                             LinearGradient(
@@ -214,7 +214,7 @@ struct TrendingView: View {
                         )
                 }
                 
-                Text("Lo más popular ahora")
+                Text("trending.subtitle")
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(TrendingadaptiveColors.secondary)
             }
@@ -257,7 +257,7 @@ struct TrendingView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
                 
-                Text("EN VIVO")
+                Text("trending.live")
                     .font(.custom("Poppins-Bold", size: 12))
                     .foregroundColor(.white)
                     .tracking(1)
@@ -301,7 +301,7 @@ struct TrendingView: View {
             }
             
             // Descripción
-            Text("Descubre lo que está pasando ahora mismo en tu comunidad")
+                            Text("trending.description")
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(TrendingadaptiveColors.secondary)
                 .multilineTextAlignment(.center)
@@ -437,7 +437,7 @@ struct TrendingErrorStateView: View {
             }
             
             VStack(spacing: 12) {
-                Text("Oops, algo salió mal")
+                Text("trending.error.title")
                     .font(.custom("Poppins-SemiBold", size: 22))
                     .foregroundColor(TrendingadaptiveColors.primary)
                 
@@ -450,7 +450,7 @@ struct TrendingErrorStateView: View {
                 Button(action: onRetry) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.clockwise")
-                        Text("Intentar de nuevo")
+                        Text("trending.error.retry")
                     }
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white)

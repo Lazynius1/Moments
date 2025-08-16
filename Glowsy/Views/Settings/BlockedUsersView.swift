@@ -20,7 +20,7 @@ struct BlockedUsersView: View {
                             .resizable()
                             .frame(width: 50, height: 50)
                             .foregroundColor(.gray)
-                        Text("No tienes usuarios bloqueados")
+                        Text("blockedUsers.empty")
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(.gray)
                         Spacer()
@@ -36,7 +36,7 @@ struct BlockedUsersView: View {
                             Button(action: {
                                 viewModel.unblockUser(userId: user.id)
                             }) {
-                                Text("Desbloquear")
+                                Text("blockedUsers.unblock")
                                     .font(.custom("Poppins-Regular", size: 12))
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 10)
@@ -49,10 +49,10 @@ struct BlockedUsersView: View {
                     }
                 }
             }
-            .navigationTitle("Usuarios bloqueados")
+            .navigationTitle(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") {
+                    Button(NSLocalizedString("blockedUsers.close", comment: "Close")) {
                         dismiss()
                     }
                 }
@@ -65,9 +65,9 @@ struct BlockedUsersView: View {
             }
             .alert(isPresented: $viewModel.showError) {
                 Alert(
-                    title: Text("Error"),
+                    title: Text(NSLocalizedString("blockedUsers.error.title", comment: "Error")),
                     message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
-                    dismissButton: .default(Text("OK"))
+                    dismissButton: .default(Text(NSLocalizedString("blockedUsers.ok", comment: "OK")))
                 )
             }
         }

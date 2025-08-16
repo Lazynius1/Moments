@@ -129,7 +129,7 @@ struct GridPhotoPickerView: View {
                 
                 Spacer()
                 
-                Text("Biblioteca")
+                Text("profileEditor.library")
                     .font(.custom("Poppins-Bold", size: 18))
                     .foregroundColor(.white)
                 
@@ -164,11 +164,11 @@ struct GridPhotoPickerView: View {
                     .scaleEffect(1.5)
                     .tint(Color(hex: "00A896"))
                 
-                Text("Subiendo foto de perfil...")
+                Text("profileEditor.uploadingPhoto")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.white)
                 
-                Text("Esto puede tardar unos segundos")
+                Text("profileEditor.uploadingTime")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.white.opacity(0.8))
             }
@@ -230,7 +230,7 @@ struct GridPhotoPickerView: View {
                 .scaleEffect(1.5)
                 .tint(Color(hex: "00A896"))
             
-            Text("Cargando fotos...")
+                            Text("profileEditor.loadingPhotos")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(.white.opacity(0.8))
         }
@@ -243,11 +243,11 @@ struct GridPhotoPickerView: View {
                 .font(.system(size: 60))
                 .foregroundColor(Color(hex: "00A896"))
             
-            Text("Acceso a Fotos")
+                            Text("profileEditor.photosAccess.title")
                 .font(.custom("Poppins-Bold", size: 20))
                 .foregroundColor(.white)
             
-            Text("Permite el acceso a tu biblioteca de fotos para seleccionar una imagen de perfil.")
+                            Text("profileEditor.photosAccess.description")
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -273,11 +273,11 @@ struct GridPhotoPickerView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.red.opacity(0.8))
             
-            Text("Acceso Denegado")
+                            Text("profileEditor.accessDenied.title")
                 .font(.custom("Poppins-Bold", size: 20))
                 .foregroundColor(.white)
             
-            Text("Ve a Configuración > Privacidad > Fotos para permitir el acceso a tu biblioteca.")
+                            Text("profileEditor.accessDenied.description")
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -685,7 +685,7 @@ struct ModernEditProfileView: View {
                             .scaleEffect(1.5)
                             .tint(Color(hex: "00A896"))
                         
-                        Text("Cargando perfil...")
+                        Text("profileEditor.loadingProfile")
                             .font(.custom("Poppins-Medium", size: 16))
                             .foregroundColor(.white.opacity(0.8))
                     }
@@ -696,7 +696,7 @@ struct ModernEditProfileView: View {
                             .font(.system(size: 50))
                             .foregroundColor(.red.opacity(0.8))
                         
-                        Text("Error")
+                        Text("profileEditor.error")
                             .font(.custom("Poppins-Bold", size: 18))
                             .foregroundColor(.white)
                         
@@ -761,7 +761,7 @@ struct ModernEditProfileView: View {
                 }
                 Button("Cancelar", role: .cancel) { }
             } message: {
-                Text("¿Estás seguro de que quieres eliminar tu foto de perfil?")
+                Text("profileEditor.deletePhoto.confirm")
             }
         }
         .onAppear {
@@ -818,7 +818,7 @@ struct ModernEditProfileView: View {
                 
                 Spacer()
                 
-                Text("Editar perfil")
+                Text("profileEditor.title")
                     .font(.custom("Poppins-Bold", size: 18))
                     .foregroundColor(.white)
                 
@@ -890,7 +890,7 @@ struct ModernEditProfileView: View {
                             Image(systemName: "photo.circle")
                                 .font(.system(size: 20))
                                 .foregroundColor(Color(hex: "00A896"))
-                            Text("Cambiar")
+                            Text("profileEditor.change")
                                 .font(.custom("Poppins-Medium", size: 12))
                                 .foregroundColor(.white.opacity(0.8))
                         }
@@ -902,7 +902,7 @@ struct ModernEditProfileView: View {
                                 Image(systemName: "trash.circle")
                                     .font(.system(size: 20))
                                     .foregroundColor(.red.opacity(0.8))
-                                Text("Eliminar")
+                                Text("profileEditor.delete")
                                     .font(.custom("Poppins-Medium", size: 12))
                                     .foregroundColor(.white.opacity(0.8))
                             }
@@ -967,7 +967,7 @@ struct ModernEditProfileView: View {
                         .foregroundColor(Color(hex: "00A896"))
                         .frame(width: 24)
                     
-                    Text("Nombre de usuario")
+                    Text("profileEditor.username")
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(.white.opacity(0.9))
                 }
@@ -1004,7 +1004,7 @@ struct ModernEditProfileView: View {
                         .foregroundColor(Color(hex: "00A896"))
                         .frame(width: 24)
                     
-                    Text("Email")
+                    Text("profileEditor.email")
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(.white.opacity(0.9))
                 }
@@ -1051,7 +1051,7 @@ struct ModernEditProfileView: View {
                         .foregroundColor(Color(hex: "00A896"))
                         .frame(width: 24)
                     
-                    Text("Biografía")
+                    Text("profileEditor.bio")
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(.white.opacity(0.9))
                     
@@ -1096,7 +1096,7 @@ struct ModernEditProfileView: View {
                         }
                     
                     if newBio.isEmpty {
-                        Text("Cuéntanos algo sobre ti...")
+                        Text("profileEditor.bio.placeholder")
                             .font(.custom("Poppins-Regular", size: 15))
                             .foregroundColor(.gray.opacity(0.6))
                             .padding(.horizontal, 20)
@@ -1116,7 +1116,7 @@ struct ModernEditProfileView: View {
                     .font(.system(size: 20))
                     .foregroundColor(Color(hex: "00A896"))
                 
-                Text("Tus intereses")
+                Text("profileEditor.interests.title")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.white.opacity(0.9))
                 
@@ -1129,7 +1129,7 @@ struct ModernEditProfileView: View {
                 .foregroundColor(Color(hex: "00A896"))
             }
             
-            Text("Añade hasta 5 intereses para ayudar a otros a conocerte mejor")
+                            Text("profileEditor.interests.description")
                 .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(.gray.opacity(0.7))
                 .padding(.top, -10)
@@ -1141,11 +1141,11 @@ struct ModernEditProfileView: View {
                         .font(.system(size: 40))
                         .foregroundColor(.gray.opacity(0.5))
                     
-                    Text("No has seleccionado intereses")
+                    Text("profileEditor.interests.empty.title")
                         .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(.white.opacity(0.7))
                     
-                    Text("Toca en 'Editar' para añadir tus intereses")
+                    Text("profileEditor.interests.empty.subtitle")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -1265,7 +1265,7 @@ struct ModernEditProfileView: View {
     // MARK: - Componentes del selector de intereses
     private var interestPickerHeader: some View {
         HStack {
-            Text("Selecciona hasta 5 intereses")
+                            Text("profileEditor.interests.select.title")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(.white.opacity(0.8))
             
