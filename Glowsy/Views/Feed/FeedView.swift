@@ -559,7 +559,7 @@ struct FeedView: View {
                                     AnalyticsService.shared.trackInteraction("stories_button_tapped")
                                     AnalyticsService.shared.trackFeatureUsage("stories")
                                     
-                                    print("🔍 DEBUG: Círculo tocado")
+                    
                                     print("  - storyUser.userId: '\(storyUser.userId)'")
                                     
                                     guard !storyUser.userId.isEmpty else {
@@ -669,12 +669,12 @@ struct FeedView: View {
                                         }
                                     },
                                     onHashtagTap: { hashtag in
-                                        print("🔍 DEBUG: Callback llamado con hashtag: \(hashtag)")
+                        
                                         selectedHashtag = "#\(hashtag)"
                                         showExploreWithHashtag = true
                                     },
                                     onLocationTap: { locationName, coordinate in
-                                        print("🔍 CALLBACK DEBUG:")
+                        
                                         print("  - locationName recibido: '\(locationName)'")
                                         DispatchQueue.main.async {
                                             self.selectedLocationName = locationName
@@ -2113,7 +2113,7 @@ struct ModernPostCardView: View {
                 
                 if let location = moment.location, !location.isEmpty {
                     Button(action: {
-                        print("🗺️ DEBUG: Tap en ubicación detectado")
+        
                         print("  - location: '\(location)'")
                         
                         let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -3001,7 +3001,7 @@ struct HashtagText: View {
             .environment(\.openURL, OpenURLAction { url in
                 // ✅ Manejar taps en hashtags a través de URLs personalizadas
                 if url.scheme == "hashtag", let hashtag = url.host {
-                    print("🔍 DEBUG: Hashtag específico tocado: \(hashtag)")
+    
                     onHashtagTap(hashtag)
                     return .handled
                 }

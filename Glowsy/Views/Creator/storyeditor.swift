@@ -406,6 +406,30 @@ struct StoryEditingView: View {
         .alert(alertMessage, isPresented: $showAlert) {
             Button("OK") { }
         }
+        .onDisappear {
+            // ✅ Limpiar video y audio cuando se cierra la vista
+            cleanupVideoAndAudio()
+        }
+    }
+    
+    // ✅ FUNCIÓN PARA LIMPIAR VIDEO Y AUDIO
+    private func cleanupVideoAndAudio() {
+        // ✅ Pausar y limpiar el reproductor de video
+        if let videoURL = selectedMediaItems.first?.videoURL {
+            // ✅ Notificar al PlayerUIView que debe limpiar el video
+            NotificationCenter.default.post(
+                name: NSNotification.Name("CleanupVideoPlayer"),
+                object: videoURL
+            )
+        }
+        
+        // ✅ Limpiar los media items seleccionados
+        selectedMediaItems.removeAll()
+        
+        // ✅ Pausar cualquier audio que esté reproduciéndose
+        try? AVAudioSession.sharedInstance().setActive(false)
+        
+        print("🧹 Video y audio limpiados al cerrar StoryEditingView")
     }
     
     // ✅ NUEVAS FUNCIONES AUXILIARES
@@ -940,6 +964,15 @@ class PlayerUIView: UIView {
     
     private func setupPlayer() {
         backgroundColor = .black
+        
+        // ✅ Escuchar notificación para limpiar el video
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("CleanupVideoPlayer"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            self.cleanupPlayer()
+        }
     }
     
     func configure(with url: URL) {
@@ -974,9 +1007,28 @@ class PlayerUIView: UIView {
     
 
     
+    // ✅ FUNCIÓN PARA LIMPIAR EL REPRODUCTOR
+    func cleanupPlayer() {
+        // ✅ Pausar el video
+        player?.pause()
+        
+        // ✅ Remover el player layer
+        playerLayer?.removeFromSuperlayer()
+        
+        // ✅ Limpiar referencias
+        player = nil
+        playerLayer = nil
+        
+        // ✅ Remover observadores
+        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
+        
+        print("🧹 PlayerUIView limpiado")
+    }
+    
     deinit {
         NotificationCenter.default.removeObserver(self)
         player?.pause()
+        cleanupPlayer()
     }
 }
 

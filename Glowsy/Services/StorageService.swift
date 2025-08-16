@@ -118,11 +118,7 @@ class StorageService {
     // MARK: - 🔥 FUNCIÓN PRINCIPAL ACTUALIZADA: uploadMedia - AHORA CON MODERACIÓN
     func uploadMedia(userId: String, mediaItem: UploadMediaItem, completion: @escaping (Result<String, Error>) -> Void) {
         let fileName = "\(UUID().uuidString)_\(userId)"
-        
-        print("🔍 DEBUG StorageService - uploadMedia CON MODERACIÓN:")
-        print("  - Tipo: \(mediaItem.type.rawValue)")
-        print("  - Usuario: \(userId)")
-        print("  - Archivo: \(fileName)")
+
         
         switch mediaItem.type {
         case .image:

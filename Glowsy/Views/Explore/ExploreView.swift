@@ -1507,24 +1507,15 @@ extension ExploreViewModel {
     // ✅ FUNCIÓN DE DEBUG: Verificar contenido visible
     func debugVisibleContent() {
         guard let userId = currentUserId else { return }
-        
-        print("🔍 [DEBUG] Estado actual de ExploreView:")
-        print("   - Usuario actual: \(userId)")
-        print("   - Intereses: \(currentUserInterests)")
-        print("   - Usuarios bloqueados: \(blockedUsers)")
-        print("   - Usuarios sugeridos: \(suggestedUsers.count)")
-        print("   - Momentos totales: \(moments.count)")
-        print("   - Momentos filtrados: \(filteredMoments.count)")
-        
+
         // Mostrar distribución por audiencia
         let audienceDistribution = moments.reduce(into: [String: Int]()) { counts, moment in
             let audience = moment.audience ?? "everyone"
             counts[audience, default: 0] += 1
         }
         
-        print("   - Distribución por audiencia:")
         for (audience, count) in audienceDistribution {
-            print("     • \(audience): \(count)")
+
         }
     }
     
@@ -1782,14 +1773,11 @@ extension ExploreViewModel {
             }
     }
     private func searchHashtags(hashtag: String) {
-        print("🔍 [DEBUG] === SEARCH HASHTAGS ===")
-        print("🔍 [DEBUG] Hashtag buscado: '\(hashtag)'")
-        print("🔍 [DEBUG] Total momentos disponibles: \(moments.count)")
-        print("🔍 [DEBUG] currentUserId: '\(currentUserId ?? "N/A")'")
+        
         
         // Debug de cada momento
         for (index, moment) in moments.enumerated() {
-            print("🔍 [DEBUG] Momento \(index + 1):")
+            
             print("  - Autor: \(moment.authorId) (\(moment.username))")
             print("  - Contenido: '\(moment.content)'")
             print("  - Audiencia: '\(moment.audience ?? "nil")'")
@@ -1801,29 +1789,29 @@ extension ExploreViewModel {
         let candidateMoments = moments.filter { moment in
             // 1. Debe contener el hashtag
             guard moment.content.lowercased().contains("#\(hashtag)") else {
-                print("🔍 [DEBUG] ❌ \(moment.username): No contiene hashtag")
+
                 return false
             }
             
             // 2. Debe ser público para explore (audience: everyone)
             guard moment.audience == "everyone" || moment.audience == nil else {
-                print("🔍 [DEBUG] ❌ \(moment.username): No es público")
+
                 return false
             }
             
             // 3. No debe ser de usuarios bloqueados
             guard !blockedUsers.contains(moment.authorId) else {
-                print("🔍 [DEBUG] ❌ \(moment.username): Usuario bloqueado")
+
                 return false
             }
             
             // 4. No debe ser tuyo (explore es para descubrir)
             guard moment.authorId != currentUserId else {
-                print("🔍 [DEBUG] ❌ \(moment.username): Es tuyo")
+
                 return false
             }
             
-            print("🔍 [DEBUG] ✅ \(moment.username): VÁLIDO")
+            
             return true
         }
         

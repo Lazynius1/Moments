@@ -3362,10 +3362,11 @@ extension FirestoreService {
         textStyle: String? = nil,
         stickers: [StickerData]? = nil,
         drawingData: Data? = nil,
+        aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio del video
+        backgroundFrameURL: String? = nil, // ✅ AÑADIDO: URL del frame de fondo
         completion: @escaping (String?, Error?) -> Void // 🔥 ACTUALIZADO: Ahora devuelve String? para el storyId
     ) {
-        print("🎯 Creando historia con visibilidad: \(audienceSetting)")
-        
+
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
                 completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
@@ -3393,7 +3394,9 @@ extension FirestoreService {
                     textPosition: textPosition,
                     textStyle: textStyle,
                     stickers: stickers,
-                    drawingData: drawingData
+                    drawingData: drawingData,
+                    aspectRatio: aspectRatio, // ✅ AÑADIDO: Aspect ratio del video
+                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: URL del frame de fondo
                 )
 
                 do {
@@ -3719,6 +3722,8 @@ extension FirestoreService {
         textStyle: String? = nil,
         stickers: [StickerData]? = nil,
         drawingData: Data? = nil,
+        aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio del video
+        backgroundFrameURL: String? = nil, // ✅ AÑADIDO: URL del frame de fondo
         completion: @escaping (String?, Error?) -> Void // 🔥 ACTUALIZADO: Ahora devuelve String? para el storyId
     ) {
         print("🎯 Creando historia con lista personalizada: \(customListId)")
@@ -3750,7 +3755,9 @@ extension FirestoreService {
                     textPosition: textPosition,
                     textStyle: textStyle,
                     stickers: stickers,
-                    drawingData: drawingData
+                    drawingData: drawingData,
+                    aspectRatio: aspectRatio, // ✅ AÑADIDO: Aspect ratio del video
+                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: URL del frame de fondo
                 )
 
                 do {

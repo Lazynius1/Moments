@@ -496,6 +496,9 @@ struct CreatorView: View {
         }
         .onDisappear {
             removeResponseStickerListener()
+            
+            // ✅ Limpiar video y audio cuando se cierra CreatorView
+            cleanupVideoAndAudio()
         }
     }
     
@@ -528,6 +531,20 @@ struct CreatorView: View {
         contentType = .story
         currentFlow = .storyEditing
         isCreatingStory = true
+    }
+    
+    // ✅ FUNCIÓN PARA LIMPIAR VIDEO Y AUDIO
+    private func cleanupVideoAndAudio() {
+        // ✅ Limpiar los media items seleccionados
+        selectedMediaItems.removeAll()
+        
+        // ✅ Pausar cualquier audio que esté reproduciéndose
+        try? AVAudioSession.sharedInstance().setActive(false)
+        
+        // ✅ Notificar limpieza de video
+        NotificationCenter.default.post(name: NSNotification.Name("CleanupVideoPlayer"), object: nil)
+        
+        print("🧹 Video y audio limpiados al cerrar CreatorView")
     }
 }
 // MARK: - Content Type Selection
@@ -2202,7 +2219,7 @@ struct CaptionAndDetailsView: View {
         var detectedAspectRatio = "1:1" // Default
         if let firstMedia = selectedMediaItems.first {
             detectedAspectRatio = firstMedia.aspectRatio.displayName
-            print("📏 Aspect ratio detectado para momento: \(detectedAspectRatio)")
+            
         }
         
         print("🚀 === PUBLICACIÓN EN BARRA DE PROGRESO===")
@@ -2460,6 +2477,7 @@ struct StoryCameraView: View {
                 currentFlow = .storyEditing
             }
         }
+
         .onAppear {
             setupAudioSession()
             loadLastGalleryImage()
@@ -3709,6 +3727,8 @@ struct StoryGalleryPicker: View {
     @State private var selectedImage: UIImage?
     @State private var selectedVideoURL: URL?
     @State private var showingMediaPicker = false
+    @State private var showingVideoLengthAlert = false
+    @State private var videoDuration: Double = 0
     
     var body: some View {
         // ✅ Vista invisible que abre directamente la galería
@@ -3743,9 +3763,9 @@ struct StoryGalleryPicker: View {
                                     let duration = CMTimeGetSeconds(asset.duration)
                                     print("🎬 Duración del video: \(duration) segundos")
                                     
-                                    if duration <= 30.0 {
+                                    if duration <= 60.0 {
                                         // ✅ Video corto - ir directamente a edición
-                                        print("✅ Video corto (≤30s), yendo directamente a edición")
+                                        print("✅ Video corto (≤60s), yendo directamente a edición")
                                         let imageGenerator = AVAssetImageGenerator(asset: asset)
                                         imageGenerator.appliesPreferredTrackTransform = true
                                         imageGenerator.maximumSize = CGSize(width: 300, height: 300)
@@ -3772,10 +3792,12 @@ struct StoryGalleryPicker: View {
                                             }
                                         }
                                     } else {
-                                        // ✅ Video muy largo - mostrar mensaje y cancelar
-                                        print("❌ Video muy largo (>30s), cancelando")
-                                        // Por ahora, simplemente cancelamos
-                                        dismiss()
+                                        // ✅ Video muy largo - mostrar mensaje informativo
+                                        print("❌ Video muy largo (>60s), mostrando mensaje informativo")
+                                        
+                                        // Guardar la duración y mostrar alert
+                                        videoDuration = duration
+                                        showingVideoLengthAlert = true
                                     }
                                 }
                             }
@@ -3783,7 +3805,13 @@ struct StoryGalleryPicker: View {
                     }
                 )
             }
-
+            .alert("Video muy largo", isPresented: $showingVideoLengthAlert) {
+                Button("Entendido") {
+                    showingVideoLengthAlert = false
+                }
+            } message: {
+                Text("Los videos para historias deben tener máximo 60 segundos. Tu video tiene \(String(format: "%.0f", videoDuration)) segundos.\n\nPara usar este video, puedes:\n• Recortarlo en la app de Fotos\n• Usar una app de edición de video\n• Seleccionar un video más corto")
+            }
     }
 }
 
@@ -3858,8 +3886,6 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
                             do {
                                 // ✅ Escribir datos al archivo
                                 try videoData.write(to: tempURL)
-                                
-                                print("✅ Video guardado en: \(tempURL)")
                                 self.parent.selectedVideoURL = tempURL
                                 self.parent.onSelect(nil, tempURL)
                             } catch {
@@ -4163,7 +4189,7 @@ struct StoryOverlaysView: View {
     let onNavigateToProfile: (String) -> Void
     let onNavigateToLocation: (String, CLLocationCoordinate2D?) -> Void
     
-    @State private var selectedStickerId: String? 
+    @State private var selectedStickerId: String?
     @State private var isEditingText = false
     @State private var isDraggingItem = false
     @State private var showTrashZone = false
