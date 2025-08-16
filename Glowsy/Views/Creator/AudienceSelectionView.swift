@@ -81,11 +81,11 @@ struct AudienceSelectionView: View {
                             
                             // ✅ Título principal
                             VStack(spacing: 8) {
-                                Text("Seleccionar Audiencia")
+                                Text("audience.selection.title")
                                     .font(.custom("Poppins-Bold", size: 24))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
-                                Text("Elige quién puede ver este contenido")
+                                Text("audience.selection.subtitle")
                                     .font(.custom("Poppins-Regular", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                                     .multilineTextAlignment(.center)
@@ -133,7 +133,7 @@ struct AudienceSelectionView: View {
                                     .font(.system(size: 20))
                                     .foregroundColor(.white)
                                 
-                                Text("Audiencia guardada")
+                                Text("audience.saved")
                                     .font(.custom("Poppins-Medium", size: 16))
                                     .foregroundColor(.white)
                             }
@@ -158,7 +158,7 @@ struct AudienceSelectionView: View {
         VStack(spacing: 12) {
             // ✅ Header de sección con estilo moderno
             HStack {
-                Text("Audiencia predefinida")
+                Text("audience.predefined")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
@@ -226,12 +226,12 @@ struct AudienceSelectionView: View {
         VStack(spacing: 12) {
             // ✅ Header con botón de gestión
             HStack {
-                Text("Listas personalizadas")
+                Text("audience.customLists")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
                 Button(action: { showingManageLists = true }) {
-                    Text("Gestionar")
+                    Text("audience.manage")
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(Color(hex: "00A896"))
                 }
@@ -242,7 +242,7 @@ struct AudienceSelectionView: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Cargando listas...")
+                    Text("audience.loadingLists")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                 }
@@ -286,11 +286,11 @@ struct AudienceSelectionView: View {
             }
             
             VStack(spacing: 4) {
-                Text("Sin listas personalizadas")
+                Text("audience.noCustomLists.title")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Crea listas para compartir con grupos específicos")
+                Text("audience.noCustomLists.description")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                     .multilineTextAlignment(.center)
@@ -300,7 +300,7 @@ struct AudienceSelectionView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 16))
-                    Text("Crear primera lista")
+                    Text("audience.createFirstList")
                         .font(.custom("Poppins-Medium", size: 14))
                 }
                 .foregroundColor(Color(hex: "00A896"))
@@ -340,7 +340,7 @@ struct AudienceSelectionView: View {
     private var manualSelectionSection: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Selección manual")
+                Text("audience.manualSelection")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
@@ -367,7 +367,7 @@ struct AudienceSelectionView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Personalizado")
+                        Text("audience.custom")
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
@@ -502,7 +502,7 @@ struct CustomListRow: View {
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
                             .font(.system(size: 12))
-                        Text("\(list.members.count) personas")
+                        Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
                             .font(.custom("Poppins-Regular", size: 13))
                     }
                     .foregroundColor(.gray)
@@ -730,7 +730,7 @@ struct CustomListRowModern: View {
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
                             .font(.system(size: 12))
-                        Text("\(list.members.count) personas")
+                        Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
                             .font(.custom("Poppins-Regular", size: 13))
                     }
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
@@ -813,7 +813,7 @@ struct AudienceOptionRow: View {
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     if let count = customCount {
-                        Text("\(count) personas")
+                        Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), count))
                             .font(.custom("Poppins-Regular", size: 13))
                             .foregroundColor(.gray)
                     } else {
@@ -913,7 +913,7 @@ struct CustomAudienceSelector: View {
                 // Botón de completar
                 if !selectedUsers.isEmpty {
                     Button(action: onComplete) {
-                        Text("Seleccionar \(selectedUsers.count) personas")
+                        Text(String(format: NSLocalizedString("audience.selectPeople", comment: "Select people"), selectedUsers.count))
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -1050,7 +1050,7 @@ struct CustomAudienceListsView: View {
                 }
             }
         } message: {
-            Text("¿Estás seguro de que quieres eliminar esta lista? Esta acción no se puede deshacer.")
+                            Text("audience.deleteList.confirm")
         }
         .onAppear {
             viewModel.loadLists()
@@ -1063,11 +1063,11 @@ struct CustomAudienceListsView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
             
-            Text("Sin listas personalizadas")
+                            Text("audience.noCustomLists.title")
                 .font(.custom("Poppins-SemiBold", size: 20))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
-            Text("Crea listas de personas para compartir contenido con grupos específicos")
+                            Text("audience.noCustomLists.description")
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -1139,7 +1139,7 @@ struct ManageableCustomListRow: View {
                 HStack(spacing: 4) {
                     Image(systemName: "person.fill")
                         .font(.system(size: 12))
-                    Text("\(list.members.count) personas")
+                    Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
                         .font(.custom("Poppins-Regular", size: 13))
                 }
                 .foregroundColor(.gray)
@@ -1256,7 +1256,7 @@ struct CreateCustomListView: View {
                     VStack(spacing: 24) {
                         // Nombre de la lista
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Nombre de la lista")
+                            Text("audience.list.name")
                                 .font(.custom("Poppins-SemiBold", size: 14))
                                 .foregroundColor(.gray)
                             
@@ -1333,7 +1333,7 @@ struct CreateCustomListView: View {
                         // Miembros
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("Miembros")
+                                Text("audience.members")
                                     .font(.custom("Poppins-SemiBold", size: 14))
                                     .foregroundColor(.gray)
                                 
@@ -1347,7 +1347,7 @@ struct CreateCustomListView: View {
                             }
                             
                             if selectedMembers.isEmpty {
-                                Text("No hay miembros agregados")
+                                Text("audience.noMembers")
                                     .font(.custom("Poppins-Regular", size: 14))
                                     .foregroundColor(.gray)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1355,7 +1355,7 @@ struct CreateCustomListView: View {
                                     .background(Color.white.opacity(0.05))
                                     .cornerRadius(12)
                             } else {
-                                Text("\(selectedMembers.count) personas seleccionadas")
+                                Text(String(format: NSLocalizedString("audience.selectedPeople", comment: "Selected people"), selectedMembers.count))
                                     .font(.custom("Poppins-Regular", size: 14))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1501,7 +1501,7 @@ struct EditCustomListView: View {
         VStack(spacing: 16) {
             // Nombre de la lista
             VStack(alignment: .leading, spacing: 8) {
-                Text("Nombre de la lista")
+                Text("audience.list.name")
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(.gray)
                 

@@ -46,11 +46,11 @@ struct ModernShareBottomSheet: View {
                             .clipShape(Circle())
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Compartir momento")
+                            Text("share.moment.title")
                                 .font(.custom("Poppins-SemiBold", size: 18))
                                 .foregroundColor(.white)
                             
-                            Text("De \(moment.username)")
+                            Text(String(format: NSLocalizedString("share.moment.from", comment: "From user"), moment.username))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.white.opacity(0.7))
                         }
@@ -110,7 +110,7 @@ struct ModernShareBottomSheet: View {
                     .padding(.bottom, 40)
                     
                     // ✅ Botón cancelar consistente
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("share.cancel", comment: "Cancel")) {
                         withAnimation(.easeOut(duration: 0.3)) {
                             isPresented = false
                         }
@@ -323,11 +323,11 @@ struct ModernShareSheet: View {
                             .clipShape(Circle())
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Enviar a...")
+                            Text("share.sendTo")
                                 .font(.custom("Poppins-SemiBold", size: 18))
                                 .foregroundColor(.white)
                             
-                            Text("Momento de \(moment.username)")
+                            Text(String(format: NSLocalizedString("share.moment.by", comment: "Moment by user"), moment.username))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.white.opacity(0.7))
                         }
@@ -467,13 +467,13 @@ struct ModernShareSheet: View {
                                     Image(systemName: "paperplane")
                                         .font(.system(size: 16, weight: .medium))
                                     
-                                    Text("Selecciona contactos")
+                                    Text("share.selectContacts")
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                 } else {
                                     Image(systemName: "paperplane.fill")
                                         .font(.system(size: 16, weight: .medium))
                                     
-                                    Text("Enviar a \(selectedUsers.count)")
+                                    Text(String(format: NSLocalizedString("share.sendToCount", comment: "Send to count"), selectedUsers.count))
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                 }
                             }
@@ -865,11 +865,11 @@ struct AddToStoryView: View {
                         .foregroundColor(Color(hex: "00A896"))
                     
                     VStack(spacing: 12) {
-                        Text("Próximamente")
+                        Text("share.comingSoon")
                             .font(.custom("Poppins-SemiBold", size: 24))
                             .foregroundColor(.white)
                         
-                        Text("Esta función estará disponible pronto")
+                        Text("share.comingSoon.description")
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(.white.opacity(0.7))
                             .multilineTextAlignment(.center)
@@ -879,13 +879,13 @@ struct AddToStoryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Agregar a Historia")
+                    Text("share.addToStory")
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.white)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("share.cancel", comment: "Cancel")) {
                         dismiss()
                     }
                     .foregroundColor(.white)
@@ -921,11 +921,11 @@ struct CollectionPickerView: View {
                         .foregroundColor(.orange)
                     
                     VStack(spacing: 12) {
-                        Text("Próximamente")
+                        Text("share.comingSoon")
                             .font(.custom("Poppins-SemiBold", size: 24))
                             .foregroundColor(.white)
                         
-                        Text("Esta función estará disponible pronto")
+                        Text("share.comingSoon.description")
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(.white.opacity(0.7))
                             .multilineTextAlignment(.center)
@@ -935,13 +935,13 @@ struct CollectionPickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Guardar en Colección")
+                    Text("share.saveToCollection")
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.white)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("share.cancel", comment: "Cancel")) {
                         dismiss()
                     }
                     .foregroundColor(.white)
@@ -970,7 +970,7 @@ struct SharedMomentMessageBubble: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(1.2)
-                    Text("Cargando...")
+                    Text("share.loading")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.white.opacity(0.7))
                 }
@@ -1138,11 +1138,11 @@ struct BlockedMomentBubble: View {
             
             // Texto de restricción
             VStack(alignment: .leading, spacing: 2) {
-                Text("Este momento no está disponible")
+                Text("share.momentUnavailable")
                     .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(.white)
                 
-                Text("No tienes permiso para ver este contenido")
+                Text("share.noPermission")
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -1330,11 +1330,11 @@ struct MomentThumbnailAndInfo: View {
                         .multilineTextAlignment(.leading)
                 } else if let videoUrl = sharedMomentData["momentVideoUrl"], !videoUrl.isEmpty {
                     // ✅ Si es video sin contenido, mostrar "Video"
-                    Text("Video")
+                    Text("share.video")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.white.opacity(0.6))
                 } else {
-                    Text("Momento")
+                    Text("share.moment")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.white.opacity(0.6))
                 }
@@ -1359,7 +1359,7 @@ struct MomentActionButton: View {
                 .font(.system(size: 12))
                 .foregroundColor(Color(hex: "00A896"))
             
-            Text("Ver momento")
+                            Text("share.viewMoment")
                 .font(.custom("Poppins-Medium", size: 13))
                 .foregroundColor(Color(hex: "00A896"))
             

@@ -9,9 +9,9 @@ enum FeedType: String, CaseIterable {
     var displayName: String {
         switch self {
         case .following:
-            return "Siguiendo"
+            return NSLocalizedString("feed.following", comment: "Following feed")
         case .forYou:
-            return "Para Ti"
+            return NSLocalizedString("feed.forYou", comment: "For you feed")
         }
     }
     
@@ -23,9 +23,9 @@ enum FeedType: String, CaseIterable {
     var description: String {
         switch self {
         case .following:
-            return "Momentos de personas que sigues"
+            return NSLocalizedString("feed.following.description", comment: "Following feed description")
         case .forYou:
-            return "Contenido recomendado para ti"
+            return NSLocalizedString("feed.forYou.description", comment: "For you feed description")
         }
     }
     

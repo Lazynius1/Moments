@@ -182,8 +182,8 @@ struct SocialVideoEditorView: View {
         .sheet(isPresented: $showingFormatPicker) {
             formatPickerSheet
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert(NSLocalizedString("videoEditor.error.title", comment: "Error"), isPresented: $showingError) {
+            Button(NSLocalizedString("videoEditor.ok", comment: "OK")) { }
         } message: {
             Text(errorMessage)
         }
@@ -220,7 +220,7 @@ struct SocialVideoEditorView: View {
                         .font(.headline)
                         .foregroundColor(.white)
                     
-                    Text("Optimizando para máxima calidad")
+                    Text("videoEditor.optimizing")
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
@@ -246,7 +246,7 @@ struct SocialVideoEditorView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
                         .font(.title2)
-                    Text("Atrás")
+                    Text("videoEditor.back")
                         .font(.body)
                 }
                 .foregroundColor(.white)
@@ -255,7 +255,7 @@ struct SocialVideoEditorView: View {
             
             Spacer()
             
-            Text("Editar")
+                            Text("videoEditor.edit")
                 .font(.headline)
                 .fontWeight(.semibold)
                 .foregroundColor(.white)
@@ -786,20 +786,20 @@ struct SocialVideoEditorView: View {
         VStack(spacing: 0) {
             // Header del sheet
             HStack {
-                Button("Cancelar") {
+                Button(NSLocalizedString("videoEditor.cancel", comment: "Cancel")) {
                     showingSpeedPicker = false
                 }
                 .foregroundColor(.gray)
                 
                 Spacer()
                 
-                Text("Velocidad")
+                Text("videoEditor.speed")
                     .font(.headline)
                     .fontWeight(.semibold)
                 
                 Spacer()
                 
-                Button("Listo") {
+                Button(NSLocalizedString("videoEditor.done", comment: "Done")) {
                     showingSpeedPicker = false
                     applyPlaybackSpeed()
                 }
@@ -846,20 +846,20 @@ struct SocialVideoEditorView: View {
         VStack(spacing: 0) {
             // Header del sheet
             HStack {
-                Button("Cancelar") {
+                Button(NSLocalizedString("videoEditor.cancel", comment: "Cancel")) {
                     showingFormatPicker = false
                 }
                 .foregroundColor(.gray)
                 
                 Spacer()
                 
-                Text("Formato")
+                Text("videoEditor.format")
                     .font(.headline)
                     .fontWeight(.semibold)
                 
                 Spacer()
                 
-                Button("Listo") {
+                Button(NSLocalizedString("videoEditor.done", comment: "Done")) {
                     showingFormatPicker = false
                 }
                 .foregroundColor(.blue)

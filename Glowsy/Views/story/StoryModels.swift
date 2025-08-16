@@ -1651,7 +1651,7 @@ struct GlassmorphicStoryViewer: View {
                             .font(.system(size: 20))
                             .foregroundColor(.white.opacity(0.6))
                         
-                        Text("El autor no permite interacciones")
+                        Text("stories.noInteractions")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.white.opacity(0.7))
                             .multilineTextAlignment(.center)
@@ -1747,7 +1747,7 @@ struct GlassmorphicStoryViewer: View {
                             Image(systemName: "photo.on.rectangle")
                                 .font(.system(size: 40))
                                 .foregroundColor(.white.opacity(0.6))
-                            Text("Contenido no disponible")
+                            Text("stories.contentUnavailable")
                                 .foregroundColor(.white.opacity(0.8))
                                 .font(.custom("Poppins-Medium", size: 16))
                         }
@@ -2336,7 +2336,7 @@ struct GlassmorphicViewersSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Actividad de la historia")
+                    Text("stories.activity.title")
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(.white)
                 }
@@ -2526,7 +2526,7 @@ struct GlassmorphicEmptyState: View {
             
             if showCloseButton, let onClose = onClose {
                 Button(action: onClose) {
-                    Text("Cerrar")
+                    Text("stories.close")
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.white)
                         .padding(.horizontal, 24)
@@ -2684,12 +2684,12 @@ struct ExpiredEphemeralPlaceholder: View {
                 .font(.system(size: 30))
                 .foregroundColor(.white.opacity(0.4))
             
-            Text("Momento efímero expirado")
+                            Text("stories.ephemeral.expired")
                 .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
             
-            Text("La imagen ya no está disponible")
+                            Text("stories.ephemeral.unavailable")
                 .font(.custom("Poppins-Regular", size: 11))
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
@@ -2830,11 +2830,11 @@ struct EphemeralStoryReplyContent: View {
                     }
                     
                     VStack(spacing: 4) {
-                        Text("Toca para ver")
+                        Text("stories.tapToView")
                             .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(.white)
                         
-                        Text("📸 Momento efímero")
+                        Text("stories.ephemeral.title")
                             .font(.custom("Poppins-Regular", size: 12))
                             .foregroundColor(.white.opacity(0.8))
                         
@@ -2847,7 +2847,7 @@ struct EphemeralStoryReplyContent: View {
                                         .font(.system(size: 10))
                                         .foregroundColor(.white.opacity(0.6))
                                     
-                                    Text("Expira en \(formatTimeLeft(timeLeft))")
+                                    Text(String(format: NSLocalizedString("stories.expiresIn", comment: "Expires in"), formatTimeLeft(timeLeft)))
                                         .font(.custom("Poppins-Regular", size: 10))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
@@ -2975,7 +2975,7 @@ struct ClickableEphemeralImageContent: View {
                                 Image(systemName: "eye")
                                     .font(.system(size: 12))
                                     .foregroundColor(.white.opacity(0.8))
-                                Text("Toca para ver completo")
+                                Text("stories.tapToViewComplete")
                                     .font(.custom("Poppins-Regular", size: 11))
                                     .foregroundColor(.white.opacity(0.8))
                             }
@@ -3045,7 +3045,7 @@ struct FullScreenEphemeralImageView: View {
                     Spacer()
                     
                     if timeLeft > 0 {
-                        Text("Expira en \(formatTimeLeft(timeLeft))")
+                        Text(String(format: NSLocalizedString("stories.expiresIn", comment: "Expires in"), formatTimeLeft(timeLeft)))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.white.opacity(0.8))
                             .padding(.horizontal, 12)
@@ -3375,13 +3375,13 @@ struct InteractivePollOverlay: View {
                 .padding(.horizontal, 30)
                 
                 if hasVoted {
-                    Text("¡Gracias por votar!")
+                    Text("poll.thanks")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.green)
                         .padding(.top, 10)
                 }
                 
-                Text("\(totalVotes) votos")
+                Text(String(format: NSLocalizedString("poll.votes", comment: "Votes count"), totalVotes))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -3668,7 +3668,7 @@ struct PollVoteView: View {
                         .font(.system(size: 40))
                         .foregroundColor(.white)
                     
-                    Text("Votar en la encuesta")
+                    Text("poll.vote")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(.white)
                 }
@@ -3713,7 +3713,7 @@ struct PollVoteView: View {
                 .padding(.horizontal, 20)
                 
                 if hasVoted {
-                    Text("¡Gracias por votar!")
+                    Text("poll.thanks")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.green)
                 }
@@ -4029,7 +4029,7 @@ struct InteractiveQuestionSticker: View {
                 
                 // Contador de respuestas
                 if responseCount > 0 {
-                    Text("\(responseCount) respuestas")
+                    Text(String(format: NSLocalizedString("question.responses", comment: "Responses count"), responseCount))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.white.opacity(0.8))
                 } else {
@@ -4159,7 +4159,7 @@ struct QuestionResponseInputView: View {
                 
                 // Campo de respuesta
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Tu respuesta (anónima)")
+                    Text("question.yourAnswer")
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.secondary)
                     
@@ -4179,7 +4179,7 @@ struct QuestionResponseInputView: View {
                                 .scaleEffect(0.8)
                                 .tint(.white)
                         } else {
-                            Text("Enviar respuesta")
+                            Text("question.sendAnswer")
                                 .font(.custom("Poppins-SemiBold", size: 16))
                         }
                     }

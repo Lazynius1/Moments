@@ -185,7 +185,7 @@ struct RegisterView: View {
                             
                             if currentStep > 1 {
                                 Button(action: { currentStep -= 1 }) {
-                                    Text("Atrás")
+                                    Text("register.back")
                                         .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.white.opacity(0.8))
                                         .padding(.vertical, 12)
@@ -268,7 +268,7 @@ struct RegisterView: View {
         }
         .alert(isPresented: $showAlert) {
             Alert(
-                title: Text("Atención"),
+                title: Text("register.attention.title"),
                 message: Text(errorMessage ?? "Ocurrió un error desconocido"),
                 dismissButton: .default(Text("OK"))
             )
@@ -413,14 +413,14 @@ struct EnhancedStep1View: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                     
-                    Text("Nombre de usuario")
+                    Text("register.username")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                 }
                 
                 TextField("", text: $username)
                     .placeholder(when: username.isEmpty) {
-                        Text("Elige un username único")
+                        Text("register.username.placeholder")
                             .foregroundColor(.white.opacity(0.5))
                     }
                     .foregroundColor(.white)
@@ -495,14 +495,14 @@ struct EnhancedStep1View: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                     
-                    Text("Correo electrónico")
+                    Text("register.email")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                 }
                 
                 TextField("", text: $email)
                     .placeholder(when: email.isEmpty) {
-                        Text("tu@email.com")
+                        Text("register.email.placeholder")
                             .foregroundColor(.white.opacity(0.5))
                     }
                     .foregroundColor(.white)
@@ -539,7 +539,7 @@ struct EnhancedStep1View: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                     
-                    Text("Contraseña")
+                    Text("register.password")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                 }
@@ -560,7 +560,7 @@ struct EnhancedStep1View: View {
                     }
                 }
                 .placeholder(when: password.isEmpty) {
-                    Text("Mínimo 8 caracteres")
+                    Text("register.password.requirement")
                         .foregroundColor(.white.opacity(0.5))
                 }
                 .font(.system(size: 16))
@@ -732,7 +732,7 @@ struct EnhancedProfilePhotoPicker: View {
                 }
             }
             
-            Text("Opcional: Añade una foto de perfil")
+                            Text("register.profilePhoto.optional")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
         }
@@ -787,7 +787,7 @@ struct EnhancedProfilePhotoContent: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                            Text("Añadir foto")
+                            Text("register.profilePhoto.add")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                         }
@@ -854,14 +854,14 @@ struct EnhancedInterestsSelector: View {
                             )
                         )
                     
-                    Text("Elige tus intereses")
+                    Text("register.interests.title")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                 }
                 
                 Spacer()
                 
-                Text("\(selectedInterests.count)/5")
+                Text(String(format: NSLocalizedString("register.interests.count", comment: "Interests count"), selectedInterests.count))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 12)
@@ -1000,7 +1000,7 @@ struct EnhancedStep3View: View {
                             )
                         )
                     
-                    Text("Resumen de tu cuenta")
+                    Text("register.summary.title")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                 }
@@ -1029,7 +1029,7 @@ struct EnhancedStep3View: View {
                             .foregroundColor(.white.opacity(0.7))
                             .frame(width: 20)
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Intereses:")
+                            Text("register.summary.interests")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                             EnhancedFlowLayout(spacing: 8) {
@@ -1087,12 +1087,12 @@ struct EnhancedStep3View: View {
             VStack(spacing: 15) {
                 Toggle(isOn: $privacyPolicyAccepted) {
                     HStack {
-                        Text("Acepto las ")
+                        Text("register.terms.accept")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.white.opacity(0.9))
                         
                         Button(action: { showPrivacyPolicy = true }) {
-                            Text("Políticas de Privacidad")
+                            Text("register.terms.privacyPolicy")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.white)
                                 .underline()
@@ -1101,7 +1101,7 @@ struct EnhancedStep3View: View {
                 }
                 .toggleStyle(EnhancedCustomToggleStyle())
                 
-                Text("Al crear tu cuenta, recibirás un correo de verificación")
+                Text("register.verification.notice")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)

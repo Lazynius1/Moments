@@ -34,7 +34,7 @@ struct ArchiveView: View {
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(1.2)
                     
-                    Text("Cargando archivo...")
+                    Text("archivedStories.loading")
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(.gray)
                 }
@@ -46,11 +46,11 @@ struct ArchiveView: View {
                         .foregroundColor(.gray.opacity(0.5))
                     
                     VStack(spacing: 8) {
-                        Text("No hay historias archivadas")
+                        Text("archivedStories.empty.title")
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
-                        Text("Tus historias expiradas aparecerán aquí")
+                        Text("archivedStories.empty.description")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -165,7 +165,7 @@ struct ArchiveDateSectionVertical: View {
                 
                 Spacer()
                 
-                Text("\(stories.count) historia\(stories.count == 1 ? "" : "s")")
+                Text(String(format: NSLocalizedString("archivedStories.count", comment: "Story count"), stories.count))
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray)
             }
@@ -202,9 +202,9 @@ struct ArchiveDateSectionVertical: View {
             displayFormatter.locale = Locale(identifier: "es")
             
             if Calendar.current.isDateInToday(date) {
-                return "Hoy"
+                return NSLocalizedString("archivedStories.today", comment: "Today")
             } else if Calendar.current.isDateInYesterday(date) {
-                return "Ayer"
+                return NSLocalizedString("archivedStories.yesterday", comment: "Yesterday")
             } else if Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year) {
                 displayFormatter.dateFormat = "d 'de' MMMM"
                 return displayFormatter.string(from: date)
@@ -235,7 +235,7 @@ struct ArchiveDateSectionGrid: View {
                 
                 Spacer()
                 
-                Text("\(stories.count) historia\(stories.count == 1 ? "" : "s")")
+                Text(String(format: NSLocalizedString("archivedStories.count", comment: "Story count"), stories.count))
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray)
             }
@@ -431,7 +431,7 @@ struct ArchiveStoryVerticalCard: View {
                                     .font(.system(size: 10))
                                     .foregroundColor(.blue.opacity(0.8))
                                 
-                                Text("Ver actividad")
+                                Text("archivedStories.viewActivity")
                                     .font(.custom("Poppins-Regular", size: 11))
                                     .foregroundColor(.blue.opacity(0.8))
                             }
@@ -697,7 +697,7 @@ struct SingleStoryViewer: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 14, weight: .medium))
-                                Text("Cancelar")
+                                Text("archivedStories.cancel")
                                     .font(.custom("Poppins-Medium", size: 14))
                             }
                             .foregroundColor(.white.opacity(0.8))
@@ -792,7 +792,7 @@ struct SingleStoryViewer: View {
                                 .foregroundColor(.white.opacity(0.8))
                                 .font(.system(size: 16))
                             
-                            Text("Historia archivada")
+                            Text("archivedStories.archivedStory")
                                 .foregroundColor(.white.opacity(0.8))
                                 .font(.custom("Poppins-Medium", size: 14))
                         }
@@ -890,7 +890,7 @@ struct StoryStatsView: View {
                             .progressViewStyle(CircularProgressViewStyle())
                             .scaleEffect(1.2)
                         
-                        Text("Cargando estadísticas...")
+                        Text("archivedStories.loadingStats")
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(.gray)
                     }
@@ -912,11 +912,11 @@ struct StoryStatsView: View {
                                 }
                                 
                                 VStack(spacing: 4) {
-                                    Text("Historia del \(formatStoryDate(story.timestamp))")
+                                    Text(String(format: NSLocalizedString("archivedStories.storyFrom", comment: "Story from date"), formatStoryDate(story.timestamp)))
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("Publicada a las \(formatStoryTime(story.timestamp))")
+                                    Text(String(format: NSLocalizedString("archivedStories.publishedAt", comment: "Published at time"), formatStoryTime(story.timestamp)))
                                         .font(.custom("Poppins-Regular", size: 14))
                                         .foregroundColor(.gray)
                                 }
@@ -959,13 +959,13 @@ struct StoryStatsView: View {
                             if !viewModel.viewers.isEmpty {
                                 VStack(alignment: .leading, spacing: 16) {
                                     HStack {
-                                        Text("Quién la vio")
+                                        Text("archivedStories.whoViewed")
                                             .font(.custom("Poppins-SemiBold", size: 18))
                                             .foregroundColor(colorScheme == .dark ? .white : .black)
                                         
                                         Spacer()
                                         
-                                        Text("\(viewModel.viewers.count) personas")
+                                        Text(String(format: NSLocalizedString("archivedStories.peopleCount", comment: "People count"), viewModel.viewers.count))
                                             .font(.custom("Poppins-Regular", size: 14))
                                             .foregroundColor(.gray)
                                     }
@@ -977,7 +977,7 @@ struct StoryStatsView: View {
                                         }
                                         
                                         if viewModel.viewers.count > 10 {
-                                            Button("Ver todos (\(viewModel.viewers.count))") {
+                                            Button(String(format: NSLocalizedString("archivedStories.viewAll", comment: "View all"), viewModel.viewers.count)) {
                                                 // TODO: Show all viewers
                                             }
                                             .font(.custom("Poppins-Medium", size: 14))
@@ -992,7 +992,7 @@ struct StoryStatsView: View {
                             if !viewModel.reactions.isEmpty {
                                 VStack(alignment: .leading, spacing: 16) {
                                     HStack {
-                                        Text("Reacciones")
+                                        Text("archivedStories.reactions")
                                             .font(.custom("Poppins-SemiBold", size: 18))
                                             .foregroundColor(colorScheme == .dark ? .white : .black)
                                         
@@ -1020,7 +1020,7 @@ struct StoryStatsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cerrar") {
+                    Button(NSLocalizedString("archivedStories.close", comment: "Close")) {
                         dismiss()
                     }
                     .font(.custom("Poppins-Medium", size: 16))

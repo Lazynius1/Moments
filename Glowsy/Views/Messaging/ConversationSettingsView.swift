@@ -56,7 +56,7 @@ struct ConversationSettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") {
+                    Button(NSLocalizedString("conversationSettings.close", comment: "Close")) {
                         dismiss()
                     }
                     .foregroundColor(adaptiveColors.primary)
@@ -78,8 +78,8 @@ struct ConversationSettingsView: View {
                 FullScreenMediaView(media: selectedMedia)
             }
         }
-        .alert("Configuración de Notificaciones", isPresented: $viewModel.showNotificationAlert) {
-            Button("Entendido") {
+        .alert(NSLocalizedString("conversationSettings.notificationConfig.title", comment: "Notification settings"), isPresented: $viewModel.showNotificationAlert) {
+            Button(NSLocalizedString("conversationSettings.understood", comment: "Understood")) {
                 viewModel.showNotificationAlert = false
             }
         } message: {
@@ -143,7 +143,7 @@ struct ConversationSettingsView: View {
     // MARK: - Conversation Info Section
     private var conversationInfoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Información de la conversación")
+            Text("conversationSettings.conversationInfo")
                 .font(.headline)
                 .foregroundColor(adaptiveColors.messageTextColor)
             
@@ -184,12 +184,12 @@ struct ConversationSettingsView: View {
     // MARK: - Shared Media Section
     private var sharedMediaSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Contenido multimedia compartido")
+                            Text("conversationSettings.sharedMedia")
                 .font(.headline)
                 .foregroundColor(adaptiveColors.messageTextColor)
             
             if viewModel.sharedMedia.isEmpty {
-                Text("No hay contenido multimedia compartido")
+                Text("conversationSettings.noSharedMedia")
                     .font(.subheadline)
                     .foregroundColor(adaptiveColors.timestampColor)
                     .padding(.vertical, 8)
@@ -204,7 +204,7 @@ struct ConversationSettingsView: View {
                 }
                 
                 if viewModel.sharedMedia.count > 9 {
-                    Button("Ver todos (\(viewModel.sharedMedia.count))") {
+                    Button(String(format: NSLocalizedString("conversationSettings.viewAllMedia", comment: "View all media"), viewModel.sharedMedia.count)) {
                         viewModel.showAllMedia = true
                     }
                     .font(.subheadline)
@@ -225,7 +225,7 @@ struct ConversationSettingsView: View {
     // MARK: - Privacy Settings Section
     private var privacySettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Privacidad")
+            Text("conversationSettings.privacy")
                 .font(.headline)
                 .foregroundColor(adaptiveColors.messageTextColor)
             
@@ -266,7 +266,7 @@ struct ConversationSettingsView: View {
                 HStack {
                     Image(systemName: "trash")
                         .foregroundColor(.red)
-                    Text("Limpiar conversación")
+                    Text(NSLocalizedString("conversationSettings.clearConversation", comment: "Clear conversation"))
                         .foregroundColor(.red)
                     Spacer()
                 }
@@ -283,7 +283,7 @@ struct ConversationSettingsView: View {
                 HStack {
                     Image(systemName: "slash.circle")
                         .foregroundColor(.orange)
-                    Text("Bloquear usuario")
+                    Text(NSLocalizedString("conversationSettings.blockUser", comment: "Block user"))
                         .foregroundColor(.orange)
                     Spacer()
                 }
@@ -614,7 +614,7 @@ struct AllSharedMediaView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") {
+                    Button(NSLocalizedString("conversationSettings.close", comment: "Close")) {
                         dismiss()
                     }
                     .foregroundColor(adaptiveColors.primary)
@@ -663,7 +663,7 @@ struct FullScreenMediaView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .padding()
                     } else {
-                        Text("Error al cargar el video")
+                        Text("conversationSettings.videoLoadError")
                             .foregroundColor(.white)
                     }
                 }

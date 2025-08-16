@@ -159,7 +159,7 @@ struct MessagingView: View {
                         GlassmorphicChatView(conversation: conversation)
                     } else {
                         // Fallback si no se encuentra la conversación
-                        Text("Conversación no encontrada")
+                        Text("messaging.conversation.notFound")
                             .onAppear {
                                 targetConversationId = nil
                             }
@@ -323,7 +323,7 @@ struct MessagingView: View {
             Spacer()
             
             // Title centered (sin borde gris)
-            Text("Mensajes")
+                            Text("messaging.title")
                 .font(.custom("Poppins-Bold", size: 26))
                 .foregroundColor(adaptiveColors.primary)
             
@@ -444,7 +444,7 @@ struct MessagingView: View {
                              viewModel.fetchConversations(for: userId)
                          }
                      }) {
-                         Text("Reintentar")
+                         Text("messaging.retry")
                              .font(.custom("Poppins-SemiBold", size: 16))
                              .foregroundColor(Color(hex: "00A896"))
                              .padding(.horizontal, 30)
@@ -468,11 +468,11 @@ struct MessagingView: View {
                          .font(.system(size: 60))
                          .foregroundColor(.white.opacity(0.8))
                      
-                     Text("No tienes conversaciones aún")
+                     Text("messaging.noConversations.title")
                          .font(.custom("Poppins-SemiBold", size: 18))
                          .foregroundColor(.white)
                      
-                     Text("Inicia una nueva conversación")
+                     Text("messaging.noConversations.subtitle")
                          .font(.custom("Poppins-Regular", size: 14))
                          .foregroundColor(.white.opacity(0.8))
                      
@@ -481,7 +481,7 @@ struct MessagingView: View {
                      }) {
                          HStack {
                              Image(systemName: "plus.circle.fill")
-                             Text("Nueva conversación")
+                             Text("messaging.newConversation")
                          }
                          .font(.custom("Poppins-SemiBold", size: 16))
                          .foregroundColor(Color(hex: "00A896"))
@@ -519,7 +519,7 @@ struct MessagingView: View {
         // Conversaciones existentes que coinciden
         if !viewModel.filteredConversations.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Conversaciones")
+                Text("messaging.conversations")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white.opacity(0.8))
                     .padding(.horizontal, 4)
@@ -539,7 +539,7 @@ struct MessagingView: View {
         // Usuarios encontrados
         if !viewModel.searchedUsers.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Usuarios")
+                Text("messaging.users")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white.opacity(0.8))
                     .padding(.horizontal, 4)
@@ -566,11 +566,11 @@ struct MessagingView: View {
                     .font(.system(size: 40))
                     .foregroundColor(.white.opacity(0.6))
                 
-                Text("Sin resultados")
+                Text("messaging.noResults")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white)
                 
-                Text("No se encontraron usuarios ni conversaciones")
+                Text("messaging.noResults.description")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -867,7 +867,7 @@ struct SearchUserRow: View {
                         .font(.custom("Poppins-SemiBold", size: 15))
                         .foregroundColor(.white)
                     
-                    Text("Tocar para iniciar conversación")
+                    Text("messaging.tapToStartConversation")
                         .font(.custom("Poppins-Regular", size: 13))
                         .foregroundColor(.white.opacity(0.7))
                 }
@@ -1128,7 +1128,7 @@ struct GlassmorphicNewConversationView: View {
                         }) {
                             HStack {
                                 Image(systemName: "bubble.left.fill")
-                                Text("Iniciar conversación")
+                                Text("messaging.startConversation")
                             }
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(Color(hex: "00A896"))
@@ -1323,7 +1323,7 @@ struct MessageComposerView: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(adaptiveColors.primary)
                             
-                            Text("Escribe un mensaje para iniciar la conversación")
+                            Text("messaging.writeMessageToStart")
                                 .font(.body)
                                 .foregroundColor(adaptiveColors.secondary)
                                 .multilineTextAlignment(.center)
@@ -1354,7 +1354,7 @@ struct MessageComposerView: View {
                         }) {
                             HStack {
                                 Image(systemName: "paperplane.fill")
-                                Text("Enviar mensaje")
+                                Text("messaging.sendMessage")
                             }
                             .font(.headline)
                             .foregroundColor(.white)

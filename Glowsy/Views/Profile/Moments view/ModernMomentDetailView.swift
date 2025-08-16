@@ -131,13 +131,13 @@ struct ModernMomentDetailView: View {
                 ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
             }
         }
-        .alert("Eliminar momento", isPresented: $showDeleteAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Eliminar", role: .destructive) {
+        .alert(NSLocalizedString("modernMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
+            Button(NSLocalizedString("modernMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
+            Button(NSLocalizedString("modernMomentDetail.delete.confirm", comment: "Delete"), role: .destructive) {
                 deleteMoment()
             }
         } message: {
-            Text("¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.")
+                            Text("modernMomentDetail.delete.message")
         }
         .sheet(isPresented: $showReportSheet) {
             if let moment = contextMenuMoment {

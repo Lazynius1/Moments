@@ -90,7 +90,7 @@ struct SettingsView: View {
                     ))
                 }
             }
-            .navigationTitle("Configuración")
+            .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
             .navigationBarTitleDisplayMode(.large)
             .navigationBarBackButtonHidden(true)
             .toolbar {
@@ -148,9 +148,9 @@ struct SettingsView: View {
             }
             .alert(isPresented: $showError) {
                 Alert(
-                    title: Text("Error"),
+                    title: Text("settings.error.title"),
                     message: Text(errorMessage ?? "Ocurrió un error desconocido"),
-                    dismissButton: .default(Text("OK"))
+                    dismissButton: .default(Text("settings.ok"))
                 )
             }
         }
@@ -203,7 +203,7 @@ struct SettingsView: View {
                 .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
                 .scaleEffect(1.5)
             
-            Text("Cargando configuraciones...")
+                            Text("settings.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
         }
@@ -344,7 +344,7 @@ struct AdvancedAccountSection: View {
                     .foregroundColor(adaptiveColors.accent)
                     .font(.system(size: 20))
                 
-                Text("Ajustes avanzados")
+                Text("settings.advanced.title")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(adaptiveColors.primary)
                 
@@ -384,8 +384,8 @@ struct AdvancedAccountSection: View {
                 VStack(spacing: 8) {
                     SettingsRow(
                         icon: "person.crop.circle.badge.exclamationmark",
-                        title: "Gestión de cuenta",
-                        subtitle: "Desactivar o eliminar cuenta",
+                        title: NSLocalizedString("settings.sections.accountManagement", comment: "Account Management"),
+                        subtitle: NSLocalizedString("settings.sections.accountManagement.subtitle", comment: "Deactivate or delete account"),
                         destination: AnyView(AdvancedAccountManagementView()),
                         iconColor: .orange
                     )
@@ -418,12 +418,12 @@ struct AdvancedAccountManagementView: View {
                                 .foregroundColor(.orange)
                                 .font(.system(size: 20))
                             
-                            Text("Zona de riesgo")
+                            Text("settings.dangerZone.title")
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(.orange)
                         }
                         
-                        Text("Las siguientes acciones son irreversibles o requieren confirmación especial. Úsalas con precaución.")
+                        Text("settings.dangerZone.warning")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
                     }
@@ -440,14 +440,14 @@ struct AdvancedAccountManagementView: View {
                 // Info section
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("ℹ️ Información importante")
+                        Text("settings.info.title")
                             .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("• Desactivar: Tu perfil se oculta pero tus datos se conservan")
-                            Text("• Eliminar: Se borran todos los datos permanentemente")
-                            Text("• Puedes reactivar una cuenta desactivada en cualquier momento")
+                            Text("settings.info.deactivate")
+                            Text("settings.info.delete")
+                            Text("settings.info.reactivate")
                         }
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray)
@@ -458,7 +458,7 @@ struct AdvancedAccountManagementView: View {
             }
             .scrollContentBackground(.hidden)
         }
-        .navigationTitle("Gestión de cuenta")
+        .navigationTitle(NSLocalizedString("settings.accountManagement", comment: "Account Management"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
     }
@@ -561,7 +561,7 @@ struct ProfileSection: View {
                         // Badges inline
                         if let currentUser = authService.currentUser {
                             if currentUser.isPlusSubscriber {
-                                Text("PLUS")
+                                Text("settings.plus")
                                     .font(.custom("Poppins-Bold", size: 9))
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 6)
@@ -595,7 +595,7 @@ struct ProfileSection: View {
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(Color(hex: "FFD700"))
                             
-                            Text("Moments Plus Activo")
+                            Text("settings.plus.active")
                                 .font(.custom("Poppins-Medium", size: 13))
                                 .foregroundColor(Color(hex: "FFD700"))
                             
@@ -641,9 +641,9 @@ struct ProfileSection: View {
                             
                             if let currentUser = authService.currentUser,
                                currentUser.isSupporter || currentUser.isPlusSubscriber {
-                                Text("Gestionar badges")
+                                Text("settings.badges.manage")
                             } else {
-                                Text("Explorar badges")
+                                Text("settings.badges.explore")
                             }
                         }
                         .font(.custom("Poppins-Medium", size: 14))
@@ -668,15 +668,15 @@ struct AccountSection: View {
         Section("Cuenta") {
             SettingsRow(
                 icon: "person.crop.circle",
-                title: "Información personal",
-                subtitle: "Nombre, teléfono, email",
+                title: NSLocalizedString("settings.sections.personalInfo", comment: "Personal Information"),
+                subtitle: NSLocalizedString("settings.sections.personalInfo.subtitle", comment: "Name, phone, email"),
                 destination: AnyView(PersonalInfoView(username: $username, email: $email, phoneNumber: $phoneNumber))
             )
             
             SettingsRow(
                 icon: "qrcode",
-                title: "Código QR",
-                subtitle: "Compartir tu perfil",
+                title: NSLocalizedString("settings.sections.qrCode", comment: "QR Code"),
+                subtitle: NSLocalizedString("settings.sections.qrCode.subtitle", comment: "Share your profile"),
                 destination: AnyView(QRCodeView())
             )
         }
@@ -693,15 +693,15 @@ struct ArchiveSection: View {
         Section("Archivo") {
             SettingsRow(
                 icon: "archivebox",
-                title: "Historias archivadas",
-                subtitle: "Ver todas tus historias pasadas",
+                title: NSLocalizedString("settings.sections.archivedStories", comment: "Archived Stories"),
+                subtitle: NSLocalizedString("settings.sections.archivedStories.subtitle", comment: "View all your past stories"),
                 destination: AnyView(ArchiveView())
             )
             
             SettingsRow(
                 icon: "star",
-                title: "Historias destacadas",
-                subtitle: "Gestionar tus historias favoritas",
+                title: NSLocalizedString("settings.sections.highlightedStories", comment: "Highlighted Stories"),
+                subtitle: NSLocalizedString("settings.sections.highlightedStories.subtitle", comment: "Manage your favorite stories"),
                 destination: AnyView(HighlightedStoriesView())
             )
         }
@@ -726,9 +726,9 @@ struct PrivacySection: View {
                     .font(.system(size: 20))
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Cuenta privada")
+                    Text("settings.privacy.privateAccount")
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                    Text("Solo tus seguidores pueden ver tu contenido")
+                    Text("settings.privacy.privateAccount.description")
                         .foregroundColor(.gray)
                         .font(.custom("Poppins-Regular", size: 12))
                 }
@@ -745,14 +745,14 @@ struct PrivacySection: View {
             
             SettingsRow(
                 icon: "eye.slash",
-                title: "Visibilidad de contenido",
-                subtitle: "Gestionar quién puede ver tu contenido",
+                title: NSLocalizedString("settings.sections.contentVisibility", comment: "Content Visibility"),
+                subtitle: NSLocalizedString("settings.sections.contentVisibility.subtitle", comment: "Manage who can see your content"),
                 destination: AnyView(ContentVisibilityView())
             )
             
             SettingsRow(
                 icon: "person.2.circle",
-                title: "Conexiones",
+                title: NSLocalizedString("settings.sections.connections", comment: "Connections"),
                 subtitle: getConnectionPrivacyStatus(),
                 destination: AnyView(ConnectionVisibilityView(
                     showMutualConnections: $showMutualConnections,
@@ -763,22 +763,22 @@ struct PrivacySection: View {
             
             SettingsRow(
                 icon: "person.2.fill",
-                title: "Mejores amigos",
-                subtitle: "Gestionar lista de mejores amigos",
+                title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
+                subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
                 destination: AnyView(BestFriendsView())
             )
             
             SettingsRow(
                 icon: "hand.raised",
-                title: "Cuentas bloqueadas",
-                subtitle: "\(0) cuentas",
+                title: NSLocalizedString("settings.sections.blockedAccounts", comment: "Blocked Accounts"),
+                subtitle: String(format: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "X accounts"), 0),
                 destination: AnyView(BlockedUsersView())
             )
             
             SettingsRow(
                 icon: "bell.slash",
-                title: "Silenciar",
-                subtitle: "Cuentas, palabras y frases",
+                title: NSLocalizedString("settings.sections.mute", comment: "Mute"),
+                subtitle: NSLocalizedString("settings.sections.mute.subtitle", comment: "Accounts, words and phrases"),
                 destination: AnyView(MuteSettingsView())
             )
         }
@@ -807,7 +807,7 @@ struct ConnectionVisibilityView: View {
     var body: some View {
         List {
             Section(header:
-                Text("Control de Privacidad")
+                Text("settings.privacy.control.title")
                     .font(.custom("Poppins-Medium", size: 12))
                     .foregroundColor(.gray)
             ) {
@@ -817,10 +817,10 @@ struct ConnectionVisibilityView: View {
                         .font(.system(size: 20))
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Ocultar conexiones mutuas")
+                        Text("settings.privacy.hideMutual")
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .font(.custom("Poppins-SemiBold", size: 14))
-                        Text("Solo tú podrás ver quiénes son tus amigos en común")
+                        Text("settings.privacy.hideMutual.description")
                             .foregroundColor(.gray)
                             .font(.custom("Poppins-Regular", size: 12))
                     }
@@ -846,10 +846,10 @@ struct ConnectionVisibilityView: View {
                         .font(.system(size: 20))
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Ocultar mi lista de seguidos")
+                        Text("settings.privacy.hideFollowing")
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .font(.custom("Poppins-SemiBold", size: 14))
-                        Text("Solo tú podrás ver a quién sigues")
+                        Text("settings.privacy.hideFollowing.description")
                             .foregroundColor(.gray)
                             .font(.custom("Poppins-Regular", size: 12))
                     }
@@ -871,13 +871,13 @@ struct ConnectionVisibilityView: View {
             }
             
             Section(footer:
-                Text("Cuando actives estas opciones, otros usuarios no podrán ver estas listas en tu perfil. Siempre podrás cambiar estas configuraciones.")
+                Text("settings.privacy.control.description")
                     .font(.custom("Poppins-Regular", size: 11))
                     .foregroundColor(.gray.opacity(0.8))
                     .padding(.top, 8)
             ) {}
         }
-        .navigationTitle("Privacidad de Conexiones")
+        .navigationTitle(NSLocalizedString("settings.connectionPrivacy", comment: "Connection Privacy"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true) // Ocultar botón de atrás
         .listRowBackground(SettingsListRowBackground())
@@ -890,22 +890,22 @@ struct SecuritySection: View {
         Section("Seguridad") {
             SettingsRow(
                 icon: "key",
-                title: "Contraseña",
-                subtitle: "Cambiar contraseña",
+                title: NSLocalizedString("settings.sections.password", comment: "Password"),
+                subtitle: NSLocalizedString("settings.sections.password.subtitle", comment: "Change password"),
                 destination: AnyView(PasswordChangeView())
             )
             
             SettingsRow(
                 icon: "shield.checkered",
-                title: "Autenticación en dos pasos",
-                subtitle: "Añade una capa extra de seguridad",
-                destination: AnyView(Text("2FA").navigationBarBackButtonHidden(true))
+                title: NSLocalizedString("settings.sections.2fa", comment: "Two-Factor Authentication"),
+                subtitle: NSLocalizedString("settings.sections.2fa.subtitle", comment: "Add an extra layer of security"),
+                destination: AnyView(Text(NSLocalizedString("settings.2fa", comment: "Two-Factor Authentication")).navigationBarBackButtonHidden(true))
             )
             
             SettingsRow(
                 icon: "clock.arrow.circlepath",
-                title: "Actividad de inicio de sesión",
-                subtitle: "Revisa tu actividad reciente",
+                title: NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity"),
+                subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
                 destination: AnyView(LoginActivityView())
             )
         }
@@ -921,22 +921,22 @@ struct ActivitySection: View {
         Section("Tu actividad") {
             SettingsRow(
                 icon: "bookmark",
-                title: "Guardados",
-                subtitle: "Momentos que has guardado",
+                title: NSLocalizedString("settings.sections.saved", comment: "Saved"),
+                subtitle: NSLocalizedString("settings.sections.saved.subtitle", comment: "Moments you've saved"),
                 destination: AnyView(SavedMomentsView())
             )
             
             SettingsRow(
                 icon: "clock",
-                title: "Tu actividad",
-                subtitle: "Tiempo en la app, interacciones",
+                title: NSLocalizedString("settings.sections.yourActivity", comment: "Your Activity"),
+                subtitle: NSLocalizedString("settings.sections.yourActivity.subtitle", comment: "Time in app, interactions"),
                 destination: AnyView(UserActivityView())
             )
             
             SettingsRow(
                 icon: "arrow.down.circle",
-                title: "Descargar tus datos",
-                subtitle: "Solicita una copia de tus datos",
+                title: NSLocalizedString("settings.sections.downloadData", comment: "Download Your Data"),
+                subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Request a copy of your data"),
                 destination: AnyView(DataExportView())
             )
         }
@@ -957,8 +957,8 @@ struct NotificationsSection: View {
         Section("Notificaciones") {
             SettingsRow(
                 icon: "bell",
-                title: "Notificaciones push",
-                subtitle: "Publicaciones, historias, comentarios",
+                title: NSLocalizedString("settings.sections.pushNotifications", comment: "Push Notifications"),
+                subtitle: NSLocalizedString("settings.sections.pushNotifications.subtitle", comment: "Posts, stories, comments"),
                 destination: AnyView(NotificationSettingsView(
                     viewModel: viewModel,
                     isScheduleEnabled: $isScheduleEnabled,
@@ -969,9 +969,9 @@ struct NotificationsSection: View {
             
             SettingsRow(
                 icon: "envelope",
-                title: "Notificaciones por email",
-                subtitle: "Resúmenes de actividad",
-                destination: AnyView(Text("Email notifications").navigationBarBackButtonHidden(true))
+                title: NSLocalizedString("settings.sections.emailNotifications", comment: "Email Notifications"),
+                subtitle: NSLocalizedString("settings.sections.emailNotifications.subtitle", comment: "Activity summaries"),
+                destination: AnyView(Text(NSLocalizedString("settings.emailNotifications", comment: "Email Notifications")).navigationBarBackButtonHidden(true))
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -986,8 +986,8 @@ struct HelpSection: View {
         Section("Soporte") {
             SettingsRow(
                 icon: "questionmark.circle",
-                title: "Centro de ayuda",
-                subtitle: "Obtén respuestas a tus preguntas",
+                title: NSLocalizedString("settings.sections.helpCenter", comment: "Help Center"),
+                subtitle: NSLocalizedString("settings.sections.helpCenter.subtitle", comment: "Get answers to your questions"),
                 isExternal: true,
                 action: {
                     if let url = URL(string: "https://example.com/support") {
@@ -998,8 +998,8 @@ struct HelpSection: View {
             
             SettingsRow(
                 icon: "exclamationmark.triangle",
-                title: "Reportar un problema",
-                subtitle: "Háznos saber si algo no funciona",
+                title: NSLocalizedString("settings.sections.reportProblem", comment: "Report a Problem"),
+                subtitle: NSLocalizedString("settings.sections.reportProblem.subtitle", comment: "Let us know if something isn't working"),
                 isExternal: true,
                 action: {
                     if let url = URL(string: "https://example.com/report") {
@@ -1010,7 +1010,7 @@ struct HelpSection: View {
             
             SettingsRow(
                 icon: "doc.text",
-                title: "Términos de uso",
+                title: NSLocalizedString("settings.sections.termsOfUse", comment: "Terms of Use"),
                 subtitle: "",
                 isExternal: true,
                 action: {
@@ -1022,7 +1022,7 @@ struct HelpSection: View {
             
             SettingsRow(
                 icon: "hand.raised.circle",
-                title: "Política de privacidad",
+                title: NSLocalizedString("settings.sections.privacyPolicy", comment: "Privacy Policy"),
                 subtitle: "",
                 isExternal: true,
                 action: {
@@ -1054,7 +1054,7 @@ struct LogoutSection: View {
                         .font(.system(size: 18))
                         .foregroundColor(.red)
                     
-                    Text("Cerrar sesión")
+                    Text("settings.logout")
                         .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(.red)
                     
@@ -1069,7 +1069,7 @@ struct LogoutSection: View {
                     dismiss()
                 }
             } message: {
-                Text("¿Estás seguro de que quieres cerrar sesión?")
+                Text("settings.logout.confirm")
             }
         }
         .listRowBackground(SettingsListRowBackground())
@@ -1217,13 +1217,13 @@ struct PersonalInfoView: View {
     @Binding var phoneNumber: String
     
     var body: some View {
-        SettingsSubsectionWrapper(title: "Información personal") {
+        SettingsSubsectionWrapper(title: NSLocalizedString("settings.sections.personalInfo", comment: "Personal Information")) {
             ScrollView {
                 VStack(spacing: 16) {
                     // ✅ Sección de información
                     VStack(spacing: 12) {
                         HStack {
-                            Text("Nombre de usuario")
+                            Text("settings.profile.username")
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             Spacer()
@@ -1239,7 +1239,7 @@ struct PersonalInfoView: View {
                         )
                         
                         HStack {
-                            Text("Email")
+                            Text("settings.profile.email")
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             Spacer()
@@ -1255,7 +1255,7 @@ struct PersonalInfoView: View {
                         )
                         
                         HStack {
-                            Text("Teléfono")
+                            Text("settings.profile.phone")
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             Spacer()
@@ -1314,7 +1314,7 @@ struct NotificationSettingsView: View {
                         Button(action: {
                             viewModel.updateActiveHours(startTime: startTime, endTime: endTime)
                         }) {
-                            Text("Guardar horario")
+                            Text("settings.schedule.save")
                                 .font(.custom("Poppins-SemiBold", size: 14))
                                 .frame(maxWidth: .infinity)
                                 .padding()
@@ -1364,7 +1364,7 @@ struct NotificationSettingsView: View {
             }
             .scrollContentBackground(.hidden)
         }
-        .navigationTitle("Notificaciones")
+        .navigationTitle(NSLocalizedString("settings.notifications", comment: "Notifications"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true) // Ocultar botón de atrás
     }
@@ -1398,7 +1398,7 @@ struct OnlineStatusSection: View {
                     .foregroundColor(.green)
                     .font(.system(size: 16))
                 
-                Text("Estado en línea")
+                Text("settings.onlineStatus.title")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(SettingsProfileColors.textPrimary)
                 
@@ -1412,7 +1412,7 @@ struct OnlineStatusSection: View {
                         .foregroundColor(onlineStatusService.currentUserStatus.color)
                         .font(.system(size: 16))
                     
-                    Text("Estado actual: \(onlineStatusService.currentUserStatus.displayName)")
+                    Text(String(format: NSLocalizedString("settings.onlineStatus.current", comment: "Current status"), onlineStatusService.currentUserStatus.displayName))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(SettingsProfileColors.textSecondary)
                     
@@ -1421,7 +1421,7 @@ struct OnlineStatusSection: View {
                 
                 // Selector de estado
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Cambiar estado")
+                    Text("settings.onlineStatus.change")
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(SettingsProfileColors.textPrimary)
                     
@@ -1443,7 +1443,7 @@ struct OnlineStatusSection: View {
                                 .foregroundColor(SettingsProfileColors.accent)
                                 .font(.system(size: 16))
                             
-                            Text("Seleccionar estado")
+                            Text("settings.onlineStatus.select")
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(SettingsProfileColors.textPrimary)
                             
@@ -1460,15 +1460,15 @@ struct OnlineStatusSection: View {
                 
                 // Información adicional
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("• El estado se actualiza automáticamente")
+                                            Text("settings.onlineStatus.info.auto")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(SettingsProfileColors.textSecondary)
                     
-                    Text("• Puedes configurar estados específicos por conversación")
+                                            Text("settings.onlineStatus.info.conversation")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(SettingsProfileColors.textSecondary)
                     
-                    Text("• El estado 'Invisible' te oculta de otros usuarios")
+                                            Text("settings.onlineStatus.info.invisible")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(SettingsProfileColors.textSecondary)
                 }

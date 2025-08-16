@@ -187,7 +187,7 @@ struct StoriesView: View {
                 blockUserConfirmed()
             }
         } message: {
-            Text("¿Seguro que quieres bloquear a este usuario? No podrás ver su contenido y se eliminarán todas las interacciones entre ustedes.")
+                            Text("stories.blockUser.confirm")
         }
     }
 

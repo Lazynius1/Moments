@@ -26,12 +26,12 @@ struct LoginActivityView: View {
                                     .foregroundColor(Color(hex: "00A896"))
                                     .font(.system(size: 20))
                                 
-                                Text("Actividad de Inicio de Sesión")
+                                Text("loginActivity.title")
                                     .font(.custom("Poppins-SemiBold", size: 18))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                             
-                            Text("Revisa cuándo y desde dónde has iniciado sesión en tu cuenta")
+                            Text("loginActivity.description")
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.gray)
                         }
@@ -44,7 +44,7 @@ struct LoginActivityView: View {
                         
                         // Current Session
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Sesión Actual")
+                            Text("loginActivity.currentSession")
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
@@ -55,13 +55,13 @@ struct LoginActivityView: View {
                         // Recent Activity
                         VStack(alignment: .leading, spacing: 16) {
                             HStack {
-                                Text("Actividad Reciente")
+                                Text("loginActivity.recentActivity")
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 Spacer()
                                 
-                                Button("Cerrar todas las sesiones") {
+                                Button(NSLocalizedString("loginActivity.logoutAll", comment: "Logout all sessions")) {
                                     viewModel.showLogoutAllAlert = true
                                 }
                                 .font(.custom("Poppins-Medium", size: 14))
@@ -74,7 +74,7 @@ struct LoginActivityView: View {
                                         .font(.system(size: 40))
                                         .foregroundColor(.gray)
                                     
-                                    Text("No hay actividad reciente")
+                                    Text("loginActivity.noRecentActivity")
                                         .font(.custom("Poppins-Regular", size: 16))
                                         .foregroundColor(.gray)
                                 }
@@ -111,23 +111,23 @@ struct LoginActivityView: View {
         .refreshable {
             await viewModel.refreshLoginActivity()
         }
-        .alert("Cerrar todas las sesiones", isPresented: $viewModel.showLogoutAllAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Cerrar todas", role: .destructive) {
+        .alert(NSLocalizedString("loginActivity.logoutAll.title", comment: "Logout all sessions"), isPresented: $viewModel.showLogoutAllAlert) {
+            Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) { }
+            Button(NSLocalizedString("loginActivity.logoutAll.confirm", comment: "Logout all"), role: .destructive) {
                 viewModel.logoutAllSessions()
             }
         } message: {
-            Text("Esto cerrará sesión en todos los dispositivos. Tendrás que volver a iniciar sesión.")
+                            Text("loginActivity.logoutAll.message")
         }
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK") { }
+        .alert(NSLocalizedString("loginActivity.error.title", comment: "Error"), isPresented: $viewModel.showError) {
+            Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
         } message: {
             Text(viewModel.errorMessage)
         }
-        .alert("Sesiones cerradas", isPresented: $viewModel.showLogoutSuccess) {
-            Button("OK") { }
-        } message: {
-            Text("Se han cerrado todas las sesiones activas correctamente.")
+        .alert(NSLocalizedString("loginActivity.logoutSuccess.title", comment: "Sessions closed"), isPresented: $viewModel.showLogoutSuccess) {
+                        Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
+          } message: {
+            Text("loginActivity.logoutSuccess.message")
         }
     }
 }
@@ -143,13 +143,13 @@ struct CurrentSessionCard: View {
                     .foregroundColor(.green)
                     .font(.system(size: 20))
                 
-                Text("Sesión Activa")
+                Text("loginActivity.activeSession")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
-                Text("ACTUAL")
+                Text("loginActivity.current")
                     .font(.custom("Poppins-Bold", size: 10))
                     .foregroundColor(.green)
                     .padding(.horizontal, 8)
@@ -171,7 +171,7 @@ struct CurrentSessionCard: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Cargando información de sesión...")
+                    Text("loginActivity.loading")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                 }
@@ -283,7 +283,7 @@ struct SecurityTipsSection: View {
                 Image(systemName: "lightbulb.fill")
                     .foregroundColor(Color(hex: "00A896"))
                 
-                Text("Consejos de Seguridad")
+                Text("loginActivity.securityTips")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
             }

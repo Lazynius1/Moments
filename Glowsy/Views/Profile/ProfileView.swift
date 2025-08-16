@@ -88,10 +88,10 @@ struct ProfileView: View {
 
         var title: String {
             switch self {
-            case .visits: return "Visitas"
-            case .admirers: return "Admiradores"
-            case .connections: return "Conexiones"
-            case .mutualConnections: return "Conexiones Mutuas"
+            case .visits: return NSLocalizedString("profile.userList.visits", comment: "Visits")
+            case .admirers: return NSLocalizedString("profile.userList.admirers", comment: "Admirers")
+            case .connections: return NSLocalizedString("profile.userList.connections", comment: "Connections")
+            case .mutualConnections: return NSLocalizedString("profile.userList.mutuals", comment: "Mutual connections")
             }
         }
     }
@@ -392,7 +392,7 @@ struct ModernProfileContentView: View {
                         
                         VStack(spacing: 0) {
                             HStack {
-                                Text("Momentos")
+                                Text("profile.moments.title")
                                     .font(.custom("Poppins-SemiBold", size: 20))
                                     .foregroundColor(ProfileColors.textPrimary) // <- CAMBIO AQUÍ
                                 
@@ -524,7 +524,7 @@ struct ModernRefreshIndicator: View {
                     .scaleEffect(pulseScale)
             }
             
-            Text("Actualizando perfil...")
+                            Text("profile.updating")
                 .font(.custom("Poppins-Medium", size: 14))
                 .foregroundColor(ProfileColors.textSecondary)
         }
@@ -736,7 +736,7 @@ struct ModernProfileHeader: View {
                     HStack(spacing: 8) {
                         Image(systemName: "pencil.circle")
                             .font(.system(size: 16))
-                        Text("Editar perfil")
+                        Text("profile.editButton")
                             .font(.custom("Poppins-SemiBold", size: 14))
                     }
                     .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -854,7 +854,7 @@ struct PlusBadgeInline: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.white)
             
-            Text("PLUS")
+                            Text("profile.plus")
                 .font(.custom("Poppins-Bold", size: 9))
                 .foregroundColor(.white)
         }
@@ -916,10 +916,10 @@ struct ModernStatsSection: View {
     
     private var computedStats: [(String, Int, ProfileView.UserListType)] {
         [
-            ("Visitas", viewModel.visits.count, .visits),
-            ("Admiradores", viewModel.admirers.count, .admirers),
-            ("Conexiones", viewModel.connections.count, .connections),
-            ("Mutuas", viewModel.mutualConnections.count, .mutualConnections)
+            (NSLocalizedString("profile.stats.visits", comment: "Visits"), viewModel.visits.count, .visits),
+            (NSLocalizedString("profile.stats.admirers", comment: "Admirers"), viewModel.admirers.count, .admirers),
+            (NSLocalizedString("profile.stats.connections", comment: "Connections"), viewModel.connections.count, .connections),
+            (NSLocalizedString("profile.stats.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
         ]
     }
 
@@ -972,7 +972,7 @@ struct ModernInterestsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Intereses")
+                            Text("profile.interests.title")
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(ProfileColors.textPrimary)
             
@@ -1154,7 +1154,7 @@ struct ModernMomentThumbnail: View {
                                     ProgressView()
                                         .tint(Color(hex: "00A896"))
                                         .scaleEffect(0.8)
-                                    Text("Video...")
+                                    Text("profile.video.uploading")
                                         .font(.custom("Poppins-Regular", size: 8))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
@@ -1163,7 +1163,7 @@ struct ModernMomentThumbnail: View {
                                     Image(systemName: "video")
                                         .font(.system(size: 16))
                                         .foregroundColor(.gray.opacity(0.6))
-                                    Text("Video")
+                                    Text("profile.video")
                                         .font(.custom("Poppins-Regular", size: 8))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
@@ -1191,7 +1191,7 @@ struct ModernMomentThumbnail: View {
                                 ProgressView()
                                     .tint(Color(hex: "00A896"))
                                     .scaleEffect(0.8)
-                                Text("Imagen...")
+                                Text("profile.image.uploading")
                                     .font(.custom("Poppins-Regular", size: 8))
                                     .foregroundColor(.white.opacity(0.6))
                             }
@@ -1338,11 +1338,11 @@ struct ModernEmptyMomentsView: View {
             }
             
             VStack(spacing: 8) {
-                Text("No hay momentos aún")
+                Text("profile.moments.empty.title")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(ProfileColors.textPrimary)
                 
-                Text("Comparte tu primer momento para que aparezca aquí")
+                Text("profile.moments.empty.subtitle")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(ProfileColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -1396,7 +1396,7 @@ struct ModernLoadingView: View {
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isAnimating)
             }
             
-            Text("Cargando perfil...")
+                            Text("profile.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(ProfileColors.textSecondary)
         }
@@ -1429,7 +1429,7 @@ struct ModernErrorView: View {
             }
             
             VStack(spacing: 12) {
-                Text("Ups, algo salió mal")
+                Text("profile.error.title")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(ProfileColors.textPrimary)
                 
@@ -1444,7 +1444,7 @@ struct ModernErrorView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))
-                    Text("Reintentar")
+                    Text("profile.error.retryButton")
                         .font(.custom("Poppins-SemiBold", size: 14))
                 }
                 .foregroundColor(.white)

@@ -64,11 +64,11 @@ struct ModernCommentsView: View {
                             .font(.system(size: 48))
                             .foregroundColor(.gray.opacity(0.6))
                         
-                        Text("Comentarios deshabilitados")
+                        Text("modernComments.disabled.title")
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
-                        Text("El autor ha deshabilitado los comentarios en este momento")
+                        Text("modernComments.disabled.description")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -141,15 +141,15 @@ struct ModernCommentsView: View {
                 self.commentsListener = nil
             }
         }
-        .alert("Eliminar comentario", isPresented: $showDeleteAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Eliminar", role: .destructive) {
+        .alert(NSLocalizedString("modernComments.delete.title", comment: "Delete comment"), isPresented: $showDeleteAlert) {
+            Button(NSLocalizedString("modernComments.cancel", comment: "Cancel"), role: .cancel) { }
+            Button(NSLocalizedString("modernComments.delete.confirm", comment: "Delete"), role: .destructive) {
                 if let comment = commentToDelete {
                     deleteComment(comment)
                 }
             }
         } message: {
-            Text("¿Estás seguro de que quieres eliminar este comentario? Esta acción no se puede deshacer.")
+                            Text("modernComments.delete.message")
         }
     }
     
@@ -241,7 +241,7 @@ struct ModernCommentsView: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
-                    Text("Comentarios")
+                    Text("modernComments.title")
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
@@ -262,7 +262,7 @@ struct ModernCommentsView: View {
                 }
                 
                 HStack(spacing: 3) {
-                    Text("Post de \(moment.username)")
+                    Text(String(format: NSLocalizedString("modernComments.postOf", comment: "Post of user"), moment.username))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
                     
@@ -276,13 +276,13 @@ struct ModernCommentsView: View {
             // Menú de ordenación
             Menu {
                 Button(action: { sortOption = .newest }) {
-                    Label("Más recientes", systemImage: "clock.arrow.circlepath")
+                    Label(NSLocalizedString("modernComments.sort.newest", comment: "Most recent"), systemImage: "clock.arrow.circlepath")
                 }
                 Button(action: { sortOption = .oldest }) {
-                    Label("Más antiguos", systemImage: "clock")
+                    Label(NSLocalizedString("modernComments.sort.oldest", comment: "Oldest"), systemImage: "clock")
                 }
                 Button(action: { sortOption = .mostLiked }) {
-                    Label("Más populares", systemImage: "heart.fill")
+                    Label(NSLocalizedString("modernComments.sort.mostLiked", comment: "Most liked"), systemImage: "heart.fill")
                 }
             } label: {
                 ZStack {
@@ -343,7 +343,7 @@ struct ModernCommentsView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
                             .scaleEffect(1.2)
                         
-                        Text("Cargando comentarios...")
+                        Text("modernComments.loading")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray)
                     }
@@ -401,7 +401,7 @@ struct ModernCommentsView: View {
                 .foregroundColor(Color(hex: "00A896"))
             
             VStack(alignment: .leading, spacing: 2) {
-                Text("Respondiendo a \(replyComment.username)")
+                Text(String(format: NSLocalizedString("modernComments.replyingTo", comment: "Replying to user"), replyComment.username))
                     .font(.custom("Poppins-Medium", size: 13))
                     .foregroundColor(.white.opacity(0.8))
                 
@@ -453,7 +453,7 @@ struct ModernCommentsView: View {
                                     .font(.system(size: 12))
                                     .foregroundColor(Color(hex: "00A896"))
                                 
-                                Text("Editando comentario")
+                                Text("modernComments.editing")
                                     .font(.custom("Poppins-Medium", size: 12))
                                     .foregroundColor(Color(hex: "00A896"))
                                 
@@ -1020,7 +1020,7 @@ struct EnhancedModernCommentRow: View {
                             .font(.system(size: 12))
                             .foregroundColor(Color(hex: "00A896"))
                         
-                        Text("Ver \(nestedComments.count) respuesta\(nestedComments.count == 1 ? "" : "s") más")
+                        Text(String(format: NSLocalizedString("modernComments.viewMoreReplies", comment: "View more replies"), nestedComments.count))
                             .font(.custom("Poppins-Medium", size: 12))
                             .foregroundColor(Color(hex: "00A896"))
                     }
@@ -1146,7 +1146,7 @@ struct EnhancedModernCommentRow: View {
             
             // ✅ Indicador de editado
             if comment.isEditedFlag {
-                Text("(editado)")
+                Text("modernComments.edited")
                     .font(.custom("Poppins-Regular", size: 10))
                     .foregroundColor(.gray.opacity(0.6))
                     .italic()
@@ -1351,11 +1351,11 @@ struct ModernEmptyCommentsView: View {
             }
             
             VStack(spacing: 8) {
-                Text("No hay comentarios aún")
+                Text("modernComments.empty.title")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Sé el primero en comentar este momento")
+                Text("modernComments.empty.description")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray.opacity(0.7))
                     .multilineTextAlignment(.center)

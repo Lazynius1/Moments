@@ -21,12 +21,12 @@ struct NotificationsView: View {
     }
 
     enum NotificationTab: String, CaseIterable {
-        case all = "Todas"
-        case likes = "Me gusta"
-        case follows = "Seguidores"
-        case mentions = "Comentarios"
-        case storyReactions = "Historias"
-        case requests = "Solicitudes"
+        case all = "notifications.tab.all"
+        case likes = "notifications.tab.likes"
+        case follows = "notifications.tab.follows"
+        case mentions = "notifications.tab.mentions"
+        case storyReactions = "notifications.tab.stories"
+        case requests = "notifications.tab.requests"
     }
 
     var body: some View {
@@ -72,9 +72,9 @@ struct NotificationsView: View {
             }
             .alert(isPresented: $viewModel.showError) {
                 Alert(
-                    title: Text("Error"),
+                    title: Text("notifications.error.title"),
                     message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
-                    dismissButton: .default(Text("OK"))
+                    dismissButton: .default(Text("notifications.ok"))
                 )
             }
             .sheet(item: $selectedMoment) { moment in
@@ -123,7 +123,7 @@ struct NotificationsView: View {
     // ✅ HEADER ADAPTATIVO
     private var headerView: some View {
         HStack {
-            Text("Notificaciones")
+                            Text("notifications.title")
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -169,7 +169,7 @@ struct NotificationsView: View {
                     }) {
                         VStack(spacing: 8) {
                             HStack(spacing: 6) {
-                                Text(tab.rawValue)
+                                Text(NSLocalizedString(tab.rawValue, comment: "Notification tab"))
                                     .font(.custom("Poppins-Medium", size: 14))
                                     .foregroundColor(
                                         selectedTab == tab ?
@@ -734,7 +734,7 @@ struct EnhancedNotificationRow: View {
                 Button(action: {
                     toggleFollow()
                 }) {
-                    Text(isFollowing ? "Siguiendo" : "Seguir")
+                    Text(isFollowing ? "feed.following" : "feed.follow")
                         .font(.custom("Poppins-SemiBold", size: 12))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
@@ -828,40 +828,40 @@ struct EnhancedNotificationRow: View {
         if group.notifications.count > 1 && firstNotification.type != .profileVisit {
             switch firstNotification.type {
             case .like:
-                return "\(firstNotification.senderUsername) y \(group.notifications.count - 1) más reaccionaron a tu momento."
+                return String(format: NSLocalizedString("notifications.message.like.multiple", comment: "Multiple likes"), firstNotification.senderUsername, group.notifications.count - 1)
             case .mention:
-                return "\(firstNotification.senderUsername) y \(group.notifications.count - 1) más te mencionaron."
+                return String(format: NSLocalizedString("notifications.message.mention.multiple", comment: "Multiple mentions"), firstNotification.senderUsername, group.notifications.count - 1)
             case .newFollower:
-                return "\(firstNotification.senderUsername) y \(group.notifications.count - 1) más comenzaron a seguirte."
+                return String(format: NSLocalizedString("notifications.message.follow.multiple", comment: "Multiple follows"), firstNotification.senderUsername, group.notifications.count - 1)
             case .followRequest:
-                return "\(firstNotification.senderUsername) y \(group.notifications.count - 1) más quieren seguirte."
+                return String(format: NSLocalizedString("notifications.message.request.multiple", comment: "Multiple requests"), firstNotification.senderUsername, group.notifications.count - 1)
             case .mutualConnection:
-                return "Ahora tienes una conexión mutua con \(firstNotification.senderUsername) y \(group.notifications.count - 1) más."
+                return String(format: NSLocalizedString("notifications.message.mutual.multiple", comment: "Multiple mutual connections"), firstNotification.senderUsername, group.notifications.count - 1)
             case .comment:
-                return "\(firstNotification.senderUsername) y \(group.notifications.count - 1) más comentaron en tu momento."
+                return String(format: NSLocalizedString("notifications.message.comment.multiple", comment: "Multiple comments"), firstNotification.senderUsername, group.notifications.count - 1)
             case .storyReaction:
-                return "\(firstNotification.senderUsername) y \(group.notifications.count - 1) más reaccionaron a tu historia."
+                return String(format: NSLocalizedString("notifications.message.story.multiple", comment: "Multiple story reactions"), firstNotification.senderUsername, group.notifications.count - 1)
             case .profileVisit:
-                return "\(firstNotification.visitCount ?? 0) personas visitaron tu perfil hoy."
+                return String(format: NSLocalizedString("notifications.message.visit.multiple", comment: "Multiple profile visits"), firstNotification.visitCount ?? 0)
             }
         } else {
             switch firstNotification.type {
             case .like:
-                return "\(firstNotification.senderUsername) Reaccionó a tu momento."
+                return String(format: NSLocalizedString("notifications.message.like.single", comment: "Single like"), firstNotification.senderUsername)
             case .mention:
-                return "\(firstNotification.senderUsername) te mencionó."
+                return String(format: NSLocalizedString("notifications.message.mention.single", comment: "Single mention"), firstNotification.senderUsername)
             case .newFollower:
-                return "\(firstNotification.senderUsername) comenzó a seguirte."
+                return String(format: NSLocalizedString("notifications.message.follow.single", comment: "Single follow"), firstNotification.senderUsername)
             case .followRequest:
-                return "\(firstNotification.senderUsername) quiere seguirte."
+                return String(format: NSLocalizedString("notifications.message.request.single", comment: "Single request"), firstNotification.senderUsername)
             case .mutualConnection:
-                return "Ahora tienes una conexión mutua con \(firstNotification.senderUsername)."
+                return String(format: NSLocalizedString("notifications.message.mutual.single", comment: "Single mutual connection"), firstNotification.senderUsername)
             case .comment:
-                return "\(firstNotification.senderUsername) comentó en tu momento."
+                return String(format: NSLocalizedString("notifications.message.comment.single", comment: "Single comment"), firstNotification.senderUsername)
             case .storyReaction:
-                return "\(firstNotification.senderUsername) reaccionó a tu historia."
+                return String(format: NSLocalizedString("notifications.message.story.single", comment: "Single story reaction"), firstNotification.senderUsername)
             case .profileVisit:
-                return "\(firstNotification.visitCount ?? 0) personas visitaron tu perfil hoy."
+                return String(format: NSLocalizedString("notifications.message.visit.single", comment: "Single profile visit"), firstNotification.visitCount ?? 0)
             }
         }
     }

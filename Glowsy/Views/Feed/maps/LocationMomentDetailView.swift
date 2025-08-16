@@ -128,13 +128,13 @@ struct LocationMomentDetailView: View {
                 )
             }
         }
-        .alert("Eliminar momento", isPresented: $showDeleteAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Eliminar", role: .destructive) {
+        alert(NSLocalizedString("locationMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
+            Button(NSLocalizedString("locationMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
+            Button(NSLocalizedString("locationMomentDetail.delete.confirm", comment: "Delete"), role: .destructive) {
                 deleteMoment()
             }
         } message: {
-            Text("¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.")
+                            Text("locationMomentDetail.delete.message")
         }
         .sheet(isPresented: $showReportSheet) {
             if let moment = contextMenuMoment {
@@ -266,7 +266,7 @@ struct LocationMomentDetailView: View {
                                     .font(.custom("Poppins-Regular", size: 12))
                                     .foregroundColor(.gray.opacity(0.6))
                                 
-                                Text("\(locationMoments.count) \(locationMoments.count == 1 ? "foto" : "fotos")")
+                                Text(String(format: NSLocalizedString("locationMomentDetail.photoCount", comment: "Photo count"), locationMoments.count))
                                     .font(.custom("Poppins-Regular", size: 12))
                                     .foregroundColor(.gray.opacity(0.8))
                             }
@@ -788,7 +788,7 @@ struct LocationMomentCard: View {
                     .font(.system(size: 18))
                     .foregroundColor(Color(hex: "00A896"))
                 
-                Text("Comentarios")
+                Text("locationMomentDetail.comments")
                     .font(.custom("Poppins-SemiBold", size: 20))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
@@ -811,7 +811,7 @@ struct LocationMomentCard: View {
                 
                 Spacer()
                 
-                Button("Ver todos") {
+                Button(NSLocalizedString("locationMomentDetail.viewAll", comment: "View all")) {
                     onComment()
                 }
                 .font(.custom("Poppins-SemiBold", size: 14))
@@ -841,17 +841,17 @@ struct LocationMomentCard: View {
                     }
                     
                     VStack(spacing: 8) {
-                        Text("No hay comentarios aún")
+                        Text("locationMomentDetail.noComments.title")
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                         
-                        Text("Sé el primero en compartir tu opinión")
+                        Text("locationMomentDetail.noComments.description")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray.opacity(0.8))
                             .multilineTextAlignment(.center)
                     }
                     
-                    Button("Comentar") {
+                    Button(NSLocalizedString("locationMomentDetail.comment", comment: "Comment")) {
                         onComment()
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))

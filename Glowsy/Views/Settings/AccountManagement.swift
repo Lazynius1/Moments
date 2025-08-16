@@ -42,23 +42,23 @@ struct AccountManagementSection: View {
         .listRowBackground(SettingsListRowBackground())
         
         // Deactivate confirmation
-        .alert("¿Desactivar cuenta?", isPresented: $showDeactivateConfirmation) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Desactivar", role: .destructive) {
+        .alert(NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account"), isPresented: $showDeactivateConfirmation) {
+            Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
+            Button(NSLocalizedString("accountManagement.deactivate", comment: "Deactivate"), role: .destructive) {
                 deactivateAccount()
             }
         } message: {
-            Text("Tu perfil se ocultará y no podrás usar la app hasta que la reactives. Tus datos se conservarán.")
+                            Text("accountManagement.deactivate.message")
         }
         
         // Delete confirmation
-        .alert("⚠️ Eliminar cuenta permanentemente", isPresented: $showDeleteConfirmation) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Continuar", role: .destructive) {
+        .alert(NSLocalizedString("accountManagement.delete.title", comment: "Delete account permanently"), isPresented: $showDeleteConfirmation) {
+            Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
+            Button(NSLocalizedString("accountManagement.continue", comment: "Continue"), role: .destructive) {
                 showDeleteVerification = true
             }
         } message: {
-            Text("Esta acción NO se puede deshacer. Se eliminarán todos tus datos, historias, conexiones y mensajes.")
+                            Text("accountManagement.delete.message")
         }
         
         // Delete verification sheet
@@ -75,8 +75,8 @@ struct AccountManagementSection: View {
         }
         
         // Error alert
-        .alert("Error", isPresented: $showError) {
-            Button("OK") {}
+        .alert(NSLocalizedString("accountManagement.error.title", comment: "Error"), isPresented: $showError) {
+            Button(NSLocalizedString("accountManagement.ok", comment: "OK")) {}
         } message: {
             if let error = errorMessage {
                 Text(error)
@@ -192,7 +192,7 @@ struct DeleteAccountVerificationView: View {
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                 .scaleEffect(1.5)
                             
-                            Text("Eliminando cuenta...")
+                            Text("accountManagement.deleting")
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(.white)
                         }
@@ -207,11 +207,11 @@ struct DeleteAccountVerificationView: View {
                                     .foregroundColor(.red)
                                 
                                 VStack(spacing: 8) {
-                                    Text("Eliminación permanente")
+                                    Text("accountManagement.permanentDeletion")
                                         .font(.custom("Poppins-Bold", size: 24))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("Esta acción no se puede deshacer")
+                                    Text("accountManagement.irreversible")
                                         .font(.custom("Poppins-Regular", size: 16))
                                         .foregroundColor(.red)
                                 }
@@ -220,7 +220,7 @@ struct DeleteAccountVerificationView: View {
                             
                             // What will be deleted
                             VStack(alignment: .leading, spacing: 16) {
-                                Text("Se eliminarán permanentemente:")
+                                Text("accountManagement.willBeDeleted")
                                     .font(.custom("Poppins-SemiBold", size: 18))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
@@ -239,7 +239,7 @@ struct DeleteAccountVerificationView: View {
                             VStack(spacing: 20) {
                                 // Password verification
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("Confirma tu contraseña:")
+                                    Text("accountManagement.confirmPassword")
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
@@ -259,7 +259,7 @@ struct DeleteAccountVerificationView: View {
                                 
                                 // Text confirmation
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("Escribe exactamente:")
+                                    Text("accountManagement.writeExactly")
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
@@ -300,7 +300,7 @@ struct DeleteAccountVerificationView: View {
                                             .foregroundColor(agreeToDelete ? Color(hex: "00A896") : .gray)
                                     }
                                     
-                                    Text("Entiendo que esta acción es irreversible y acepto la eliminación permanente de mi cuenta y todos mis datos.")
+                                    Text("accountManagement.understandIrreversible")
                                         .font(.custom("Poppins-Regular", size: 14))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .fixedSize(horizontal: false, vertical: true)
@@ -325,7 +325,7 @@ struct DeleteAccountVerificationView: View {
                                 }) {
                                     HStack {
                                         Image(systemName: "trash.fill")
-                                        Text("ELIMINAR MI CUENTA PERMANENTEMENTE")
+                                        Text("accountManagement.deleteAccountPermanently")
                                             .font(.custom("Poppins-Bold", size: 16))
                                     }
                                     .foregroundColor(.white)
@@ -356,13 +356,13 @@ struct DeleteAccountVerificationView: View {
                     }
                 }
             }
-            .navigationTitle("Eliminar cuenta")
+            .navigationTitle(NSLocalizedString("accountManagement.deleteAccount.title", comment: "Delete Account"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 if !isProcessing {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Cancelar") {
+                        Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel")) {
                             onCancel()
                         }
                         .font(.custom("Poppins-Medium", size: 16))
