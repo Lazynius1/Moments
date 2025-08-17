@@ -2,6 +2,33 @@ import SwiftUI
 import PhotosUI
 import Photos
 
+// MARK: - Extensión para normalizar orientación de imagen
+extension UIImage {
+    func normalized() -> UIImage {
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        draw(in: CGRect(origin: .zero, size: size))
+        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return normalizedImage ?? self
+    }
+    
+    // ✅ EXTENSIÓN PARA BLUR: Crear fondo desenfocado
+    func withBlur(radius: CGFloat) -> UIImage {
+        guard let ciImage = CIImage(image: self) else { return self }
+        
+        let blurFilter = CIFilter(name: "CIGaussianBlur")
+        blurFilter?.setValue(ciImage, forKey: kCIInputImageKey)
+        blurFilter?.setValue(radius, forKey: kCIInputRadiusKey)
+        
+        guard let outputImage = blurFilter?.outputImage else { return self }
+        
+        let context = CIContext(options: nil)
+        guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else { return self }
+        
+        return UIImage(cgImage: cgImage)
+    }
+}
+
 // MARK: -  Profile Picture Editor
 struct PhotoCropEditorView: View {
     @Environment(\.dismiss) var dismiss
@@ -23,7 +50,7 @@ struct PhotoCropEditorView: View {
     @State private var isLoadingRecentPhotos = false
     
     private let imageManager = PHImageManager.default()
-    private let cropSize: CGFloat = 360 // Área cuadrada de trabajo
+    private let cropSize: CGFloat = 400 // ✅ Área circular de trabajo (mismo tamaño que outputSize)
     private let outputSize: CGSize = CGSize(width: 400, height: 400) // ✅ COINCIDIR CON STORAGESERVICE
     
     var body: some View {
@@ -132,10 +159,10 @@ struct PhotoCropEditorView: View {
             Spacer()
                 .frame(height: 20)
             
-            // Área de crop cuadrada
+            // ✅ ÁREA DE CROP CIRCULAR REAL (no cuadrada)
             ZStack {
                 // Fondo oscuro
-                Rectangle()
+                Circle()
                     .fill(Color.black)
                     .frame(width: cropSize, height: cropSize)
                 
@@ -187,6 +214,7 @@ struct PhotoCropEditorView: View {
                                     if !isProcessing {
                                         isZooming = true
                                         let newScale = lastScale * value
+                                        // ✅ RANGO DE ZOOM MÁS FLEXIBLE: Permitir zoom out hasta 0.3
                                         scale = max(getMinimumScale(for: image.size), min(newScale, 4.0))
                                         offset = limitOffset(offset, imageSize: image.size)
                                     }
@@ -348,26 +376,15 @@ struct PhotoCropEditorView: View {
     private func getMinimumScale(for imageSize: CGSize) -> CGFloat {
         let scaleX = cropSize / imageSize.width
         let scaleY = cropSize / imageSize.height
-        return max(scaleX, scaleY, 1.0)
+        // ✅ PERMITIR ZOOM OUT: Escala mínima más pequeña para permitir que la imagen se vea completa
+        let minScale = min(scaleX, scaleY)
+        return max(minScale, 0.5) // ✅ Mínimo 0.5 para no hacer la imagen demasiado pequeña
     }
     
     private func calculateSmartOffset(imageSize: CGSize, scale: CGFloat) -> CGSize {
-        let imageAspectRatio = imageSize.width / imageSize.height
-        let scaledImageWidth = cropSize * scale
-        let scaledImageHeight = scaledImageWidth / imageAspectRatio
-        
-        var smartOffsetY: CGFloat = 0
-        var smartOffsetX: CGFloat = 0
-        
-        if imageAspectRatio < 1.0 {
-            let availableMovement = (scaledImageHeight - cropSize) / 2
-            smartOffsetY = availableMovement * 0.3
-        }
-        
-        return limitOffset(
-            CGSize(width: smartOffsetX, height: smartOffsetY),
-            imageSize: imageSize
-        )
+        // ✅ CENTRAR PERFECTAMENTE la imagen en el área de crop
+        // No aplicar offsets automáticos que causen desalineación
+        return CGSize.zero
     }
     
     private func limitOffset(_ proposedOffset: CGSize, imageSize: CGSize) -> CGSize {
@@ -399,7 +416,7 @@ struct PhotoCropEditorView: View {
             options: options
         ) { image, _ in
             DispatchQueue.main.async {
-                self.fullResolutionImage = image
+                self.fullResolutionImage = image?.normalized()
                 self.isLoadingImage = false
             }
         }
@@ -425,31 +442,23 @@ struct PhotoCropEditorView: View {
     
     // MARK: - Función de crop final
     private func cropAndSaveImage() {
-        print("🔵 cropAndSaveImage() iniciado")
         guard let image = fullResolutionImage else { 
-            print("❌ No hay imagen para procesar")
             return 
         }
         
-        print("🔵 Imagen encontrada, iniciando procesamiento...")
         isProcessing = true
         
         DispatchQueue.global(qos: .userInitiated).async {
-            print("🔵 Procesando imagen en background...")
             guard let croppedImage = self.cropSquareImage(from: image) else {
-                print("❌ Error al recortar imagen")
                 DispatchQueue.main.async {
                     self.isProcessing = false
                 }
                 return
             }
             
-            print("🔵 Imagen recortada exitosamente")
             DispatchQueue.main.async {
-                print("🔵 Llamando onSave con imagen recortada")
                 self.isProcessing = false
                 self.onSave(croppedImage)
-                print("🔵 Cerrando PhotoCropEditorView")
                 self.dismiss()
             }
         }
@@ -460,41 +469,46 @@ struct PhotoCropEditorView: View {
         let imageSize = image.size
         let aspectRatio = imageSize.width / imageSize.height
         
-        // ✅ GENERAR IMAGEN CUADRADA DE 400x400 (sin clip circular)
+        // ✅ GENERAR IMAGEN DE 400x400 (mismo tamaño que cropSize)
         UIGraphicsBeginImageContextWithOptions(outputSize, false, 0)
         defer { UIGraphicsEndImageContext() }
         
         guard let context = UIGraphicsGetCurrentContext() else { return nil }
         
-        // ✅ EXACTAMENTE la misma lógica que el preview
+        // ✅ CÁLCULO LIBRE: Sin límites restrictivos
         let scaledWidth = cropSize * scale
         let scaledHeight = scaledWidth / aspectRatio
         
-        // Factor de escala del output respecto al área de crop
-        let scaleFactorToFinal = outputSize.width / cropSize
-        
-        // Aplicar las transformaciones
-        let finalWidth = scaledWidth * scaleFactorToFinal
-        let finalHeight = scaledHeight * scaleFactorToFinal
-        let finalOffsetX = offset.width * scaleFactorToFinal
-        let finalOffsetY = offset.height * scaleFactorToFinal
-        
         // ✅ CENTRAR la imagen en el área de output
-        let centerX = (outputSize.width - finalWidth) / 2
-        let centerY = (outputSize.height - finalHeight) / 2
+        let centerX = (outputSize.width - scaledWidth) / 2
+        let centerY = (outputSize.height - scaledHeight) / 2
         
+        // ✅ APLICAR OFFSET LIBREMENTE: Sin restricciones
+        let finalX = centerX + offset.width
+        let finalY = centerY + offset.height
+        
+        // ✅ PRIMERO: Dibujar fondo blur de la imagen completa
+        let blurImage = image.withBlur(radius: 25) // ✅ BLUR INTENSO para fondo real
+        let backgroundRect = CGRect(origin: .zero, size: outputSize)
+        blurImage.draw(in: backgroundRect)
+        
+        // ✅ SEGUNDO: Agregar overlay oscuro sobre el blur para fondo real
+        let overlayColor = UIColor.black.withAlphaComponent(0.3)
+        overlayColor.setFill()
+        context.fill(backgroundRect)
+        
+        // ✅ TERCERO: Dibujar la imagen principal en la posición elegida por el usuario
         let drawRect = CGRect(
-            x: centerX - finalOffsetX,
-            y: centerY - finalOffsetY,
-            width: finalWidth,
-            height: finalHeight
+            x: finalX,
+            y: finalY,
+            width: scaledWidth,
+            height: scaledHeight
         )
-        
         image.draw(in: drawRect)
         
-        // ✅ IMPORTANTE: NO aplicar clip circular aquí
-        // ProfileView se encargará de mostrar la imagen a 110x110 con clip circular
-        return UIGraphicsGetImageFromCurrentImageContext()
+        let resultImage = UIGraphicsGetImageFromCurrentImageContext()
+        
+        return resultImage
     }
     
     // MARK: - Funciones para el grid de fotos
@@ -541,7 +555,7 @@ struct PhotoCropEditorView: View {
             options: options
         ) { image, _ in
             DispatchQueue.main.async {
-                self.fullResolutionImage = image
+                self.fullResolutionImage = image?.normalized()
                 self.isLoadingImage = false
                 
                 // Resetear transformaciones para la nueva imagen

@@ -384,10 +384,8 @@ struct GridPhotoPickerView: View {
                 print("⚠️ No se pudo obtener perfil anterior, continuando sin borrar imagen previa")
             }
             
-            // 2. Subir nueva imagen (ya viene recortada del editor)
-            let uploadMediaItem = UploadMediaItem(type: .image, image: image, videoURL: nil)
-            
-            self.storageService.uploadMedia(userId: userId, mediaItem: uploadMediaItem) { result in
+            // 2. Subir nueva imagen usando uploadProfileImage (que procesa la imagen correctamente)
+            self.storageService.uploadProfileImage(userId: userId, image: image) { result in
                 switch result {
                 case .success(let newPath):
                     // 3. Actualizar Firestore con nueva URL
