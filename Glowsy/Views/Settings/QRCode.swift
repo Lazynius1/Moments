@@ -17,11 +17,11 @@ struct QRCodeView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 8) {
-                        Text("Mi Código QR")
+                        Text(NSLocalizedString("qrCode.title", comment: "QR code title"))
                             .font(.custom("Poppins-Bold", size: 24))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
-                        Text("Comparte tu perfil fácilmente")
+                        Text(NSLocalizedString("qrCode.subtitle", comment: "QR code subtitle"))
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(.gray)
                     }
@@ -115,7 +115,7 @@ struct QRCodeView: View {
                             HStack {
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.system(size: 16, weight: .medium))
-                                Text("Compartir código QR")
+                                Text(NSLocalizedString("qrCode.share", comment: "Share QR code"))
                                     .font(.custom("Poppins-SemiBold", size: 16))
                             }
                             .foregroundColor(.white)
@@ -136,7 +136,7 @@ struct QRCodeView: View {
                             HStack {
                                 Image(systemName: "square.and.arrow.down")
                                     .font(.system(size: 16, weight: .medium))
-                                Text("Guardar en fotos")
+                                Text(NSLocalizedString("qrCode.saveToPhotos", comment: "Save to photos"))
                                     .font(.custom("Poppins-Medium", size: 16))
                             }
                             .foregroundColor(Color(hex: "00A896"))
@@ -159,9 +159,26 @@ struct QRCodeView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
                     }
                 }
             }

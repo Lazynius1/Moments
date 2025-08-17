@@ -14,12 +14,12 @@ struct AccountManagementSection: View {
     @State private var showError = false
     
     var body: some View {
-        Section("Gestión de cuenta") {
+        Section(NSLocalizedString("accountManagement.section.title", comment: "Account management section")) {
             // Deactivate account
             SettingsRow(
                 icon: "pause.circle",
-                title: "Desactivar cuenta",
-                subtitle: "Oculta tu perfil temporalmente",
+                title: NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account title"),
+                subtitle: NSLocalizedString("accountManagement.deactivate.subtitle", comment: "Deactivate account subtitle"),
                 isDestructive: false,
                 action: {
                     showDeactivateConfirmation = true
@@ -29,8 +29,8 @@ struct AccountManagementSection: View {
             // Delete account
             SettingsRow(
                 icon: "trash.circle",
-                title: "Eliminar cuenta",
-                subtitle: "Eliminación permanente de todos los datos",
+                title: NSLocalizedString("accountManagement.delete.title", comment: "Delete account title"),
+                subtitle: NSLocalizedString("accountManagement.delete.subtitle", comment: "Delete account subtitle"),
                 isDestructive: true,
                 action: {
                     showDeleteConfirmation = true
@@ -48,7 +48,7 @@ struct AccountManagementSection: View {
                 deactivateAccount()
             }
         } message: {
-                            Text("accountManagement.deactivate.message")
+            Text(NSLocalizedString("accountManagement.deactivate.message", comment: "Deactivate account message"))
         }
         
         // Delete confirmation
@@ -58,7 +58,7 @@ struct AccountManagementSection: View {
                 showDeleteVerification = true
             }
         } message: {
-                            Text("accountManagement.delete.message")
+            Text(NSLocalizedString("accountManagement.delete.message", comment: "Delete account message"))
         }
         
         // Delete verification sheet
@@ -112,7 +112,7 @@ struct AccountManagementSection: View {
         guard let user = Auth.auth().currentUser else {
             DispatchQueue.main.async {
                 isProcessing = false
-                errorMessage = "No se pudo obtener el usuario actual"
+                errorMessage = NSLocalizedString("accountManagement.userNotFound", comment: "User not found error")
                 showError = true
             }
             return
@@ -169,7 +169,7 @@ struct DeleteAccountVerificationView: View {
     @FocusState private var isPasswordFocused: Bool
     @FocusState private var isConfirmFocused: Bool
     
-    private let requiredText = "ELIMINAR MI CUENTA"
+    private let requiredText = NSLocalizedString("accountManagement.requiredText", comment: "Required text for deletion")
     
     var isFormValid: Bool {
         !password.isEmpty &&
@@ -225,12 +225,12 @@ struct DeleteAccountVerificationView: View {
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 VStack(alignment: .leading, spacing: 12) {
-                                    DeletedDataRow(icon: "person.circle", text: "Tu perfil y información personal")
-                                    DeletedDataRow(icon: "photo.on.rectangle", text: "Todas tus historias y momentos")
-                                    DeletedDataRow(icon: "message.circle", text: "Conversaciones y mensajes")
-                                    DeletedDataRow(icon: "person.2.circle", text: "Conexiones y seguidores")
-                                    DeletedDataRow(icon: "bell.circle", text: "Notificaciones y configuraciones")
-                                    DeletedDataRow(icon: "folder.circle", text: "Archivo y contenido guardado")
+                                    DeletedDataRow(icon: "person.circle", text: NSLocalizedString("accountManagement.profileInfo", comment: "Profile info text"))
+                                    DeletedDataRow(icon: "photo.on.rectangle", text: NSLocalizedString("accountManagement.storiesMoments", comment: "Stories and moments text"))
+                                    DeletedDataRow(icon: "message.circle", text: NSLocalizedString("accountManagement.conversations", comment: "Conversations text"))
+                                    DeletedDataRow(icon: "person.2.circle", text: NSLocalizedString("accountManagement.connections", comment: "Connections text"))
+                                    DeletedDataRow(icon: "bell.circle", text: NSLocalizedString("accountManagement.notifications", comment: "Notifications text"))
+                                    DeletedDataRow(icon: "folder.circle", text: NSLocalizedString("accountManagement.savedContent", comment: "Saved content text"))
                                 }
                             }
                             .padding(.horizontal, 20)
@@ -243,7 +243,7 @@ struct DeleteAccountVerificationView: View {
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    SecureField("Contraseña actual", text: $password)
+                                    SecureField(NSLocalizedString("accountManagement.currentPassword", comment: "Current password placeholder"), text: $password)
                                         .focused($isPasswordFocused)
                                         .font(.custom("Poppins-Regular", size: 16))
                                         .padding()
@@ -273,7 +273,7 @@ struct DeleteAccountVerificationView: View {
                                                 .fill(Color.red.opacity(0.1))
                                         )
                                     
-                                    TextField("Escribe aquí", text: $confirmText)
+                                    TextField(NSLocalizedString("accountManagement.writeHere", comment: "Write here placeholder"), text: $confirmText)
                                         .focused($isConfirmFocused)
                                         .font(.custom("Poppins-Regular", size: 16))
                                         .padding()
@@ -339,7 +339,7 @@ struct DeleteAccountVerificationView: View {
                                 .disabled(!isFormValid)
                                 
                                 Button(action: onCancel) {
-                                    Text("Cancelar")
+                                    Text(NSLocalizedString("accountManagement.cancel", comment: "Cancel button"))
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(Color(hex: "00A896"))
                                         .frame(maxWidth: .infinity)

@@ -618,6 +618,10 @@
 "blockedUsers.ok" = "OK";
 "blockedUsers.close" = "Cerrar";
 
+/* Blocked Users - Additional */
+"blockedUsers.unknownError" = "Ocurrió un error desconocido";
+"blockedUsers.notAuthenticated" = "Usuario no autenticado";
+
 /* Navigation Titles */
 "settings.title" = "Configuración";
 "settings.accountManagement" = "Gestión de cuenta";
@@ -834,3 +838,273 @@
 "trendingStats.popular" = "populares";
 "trendingStats.moments" = "Momentos";
 "trendingStats.featured" = "destacados";
+
+/* ContextMenu */
+"contextMenu.editMoment" = "Editar momento";
+"contextMenu.editMoment.subtitle" = "Cambiar descripción";
+"contextMenu.deleteMoment" = "Eliminar momento";
+"contextMenu.deleteMoment.subtitle" = "Eliminar permanentemente";
+"contextMenu.shareMoment" = "Compartir momento";
+"contextMenu.shareMoment.subtitle" = "Enviar a contactos";
+"contextMenu.shareMoment.disabled" = "Solo disponible para momentos públicos";
+"contextMenu.copyLink" = "Copiar enlace";
+"contextMenu.copyLink.subtitle" = "Compartir fuera de la app";
+"contextMenu.reportMoment" = "Reportar momento";
+"contextMenu.reportMoment.subtitle" = "Contenido inapropiado";
+"contextMenu.cancel" = "Cancelar";
+
+/* Privacy Indicator */
+"privacyIndicator.public" = "Público";
+"privacyIndicator.connections" = "Conexiones";
+"privacyIndicator.bestFriends" = "Mejores amigos";
+"privacyIndicator.custom" = "Personalizado";
+"privacyIndicator.customList" = "Lista";
+
+/* ContextMenu Alerts */
+"contextMenu.delete.title" = "Eliminar momento";
+"contextMenu.delete.message" = "¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.";
+"contextMenu.delete.cancel" = "Cancelar";
+"contextMenu.delete.confirm" = "Eliminar";
+
+/* Story ContextMenu */
+"storyContextMenu.myStory" = "Mi historia";
+"storyContextMenu.options" = "Opciones";
+"storyContextMenu.viewActivity" = "Ver\nActividad";
+"storyContextMenu.viewActivity.subtitle" = "Visualizaciones\ny reacciones";
+"storyContextMenu.save" = "Guardar";
+"storyContextMenu.save.subtitle" = "Descargar\nhistoria";
+"storyContextMenu.delete" = "Eliminar";
+"storyContextMenu.delete.subtitle" = "Borrar\nhistoria";
+"storyContextMenu.share" = "Compartir";
+"storyContextMenu.share.subtitle" = "Enviar\na otros";
+"storyContextMenu.report" = "Reportar";
+"storyContextMenu.report.subtitle" = "Contenido\ninapropiado";
+"storyContextMenu.block" = "Bloquear";
+"storyContextMenu.block.subtitle" = "No ver más\ncontenido";
+
+/* User Activity View */
+"userActivity.summary.title" = "Resumen de Actividad";
+"userActivity.totalTime" = "Tiempo Total";
+"userActivity.interactions" = "Interacciones";
+"userActivity.postsViewed" = "Publicaciones Vistas";
+"userActivity.messages" = "Mensajes";
+"userActivity.timeInApp" = "Tiempo en la App";
+"userActivity.dailyInteractions" = "Interacciones Diarias";
+"userActivity.dailyBreakdown" = "Desglose Diario";
+"userActivity.timeAndInteractions" = "%@ min • %@ interacciones";
+"userActivity.mostUsedFeature" = "Función más usada";
+"userActivity.featureUsage" = "Uso de Funciones";
+"userActivity.usageCount" = "%@ veces";
+"userActivity.insights" = "Insights";
+
+/* QR Code */
+"qrCode.title" = "Mi Código QR";
+"qrCode.subtitle" = "Comparte tu perfil fácilmente";
+"qrCode.share" = "Compartir código QR";
+"qrCode.saveToPhotos" = "Guardar en fotos";
+
+/* Password Change */
+"passwordChange.title" = "Cambiar Contraseña";
+"passwordChange.subtitle" = "Actualiza tu contraseña para mantener tu cuenta segura";
+"passwordChange.currentPassword" = "Contraseña actual";
+"passwordChange.currentPasswordPlaceholder" = "Introduce tu contraseña actual";
+"passwordChange.currentPasswordError" = "La contraseña actual es incorrecta";
+"passwordChange.newPassword" = "Nueva contraseña";
+"passwordChange.newPasswordPlaceholder" = "Introduce tu nueva contraseña";
+"passwordChange.passwordRequirement" = "La contraseña debe tener al menos 8 caracteres";
+"passwordChange.confirmPassword" = "Confirmar nueva contraseña";
+"passwordChange.confirmPasswordPlaceholder" = "Confirma tu nueva contraseña";
+"passwordChange.passwordsDontMatch" = "Las contraseñas no coinciden";
+"passwordChange.securityTips" = "Consejos de seguridad";
+"passwordChange.successMessage" = "Tu contraseña ha sido cambiada exitosamente";
+
+/* Question Responses */
+"questionResponses.noAnswers" = "Aún no hay respuestas";
+"questionResponses.shareStory" = "Comparte tu historia para recibir respuestas";
+"questionResponses.createStory" = "Crear historia con esta respuesta";
+
+/* Highlighted Stories */
+"highlightedStories.empty" = "No hay historias destacadas";
+"highlightedStories.storyCount" = "%@ historia%@";
+
+/* Creating Profile */
+"creatingProfile.title" = "Creando tu cuenta";
+
+/* Question Responses - Additional */
+"questionResponses.title" = "Respuestas";
+"questionResponses.close" = "Cerrar";
+"questionResponses.shareResponse" = "Compartir respuesta";
+"questionResponses.cancel" = "Cancelar";
+"questionResponses.loading" = "Cargando respuestas...";
+"questionResponses.response" = "respuesta";
+"questionResponses.responses" = "respuestas";
+"questionResponses.sharingResponseTo" = "Compartiendo respuesta a:";
+"questionResponses.anonymousResponse" = "Respuesta anónima:";
+"questionResponses.anonymousResponseTitle" = "Respuesta anónima";
+
+/* Highlighted Stories - Additional */
+"highlightedStories.loading" = "Cargando destacadas...";
+"highlightedStories.emptyDescription" = "Marca tus historias favoritas como destacadas para guardarlas aquí";
+"highlightedStories.create" = "Crear destacada";
+"highlightedStories.title" = "Historias Destacadas";
+"highlightedStories.new" = "Nueva";
+
+/* Stories View - Additional */
+"stories.noStoriesAvailable" = "No hay historias disponibles";
+"stories.errorLoadingStory" = "Error al cargar la historia";
+"stories.blockUser.title" = "Bloquear Usuario";
+"stories.blockUser.cancel" = "Cancelar";
+"stories.blockUser.confirm" = "Bloquear";
+
+/* Mute Settings */
+"muteSettings.mutedAccounts.title" = "Cuentas silenciadas";
+"muteSettings.mutedAccounts.description" = "No verás publicaciones ni historias de estas cuentas";
+"muteSettings.noMutedUsers" = "No has silenciado a nadie";
+"muteSettings.mutedWords.title" = "Palabras y frases silenciadas";
+"muteSettings.mutedWords.description" = "No verás contenido que contenga estas palabras";
+"muteSettings.noMutedWords" = "No has silenciado palabras";
+"muteSettings.configuration.title" = "Configuración de silenciado";
+"muteSettings.notifications.title" = "Silenciar notificaciones";
+"muteSettings.notifications.description" = "No recibir notificaciones de cuentas silenciadas";
+"muteSettings.hideFromSearch.title" = "Ocultar de búsquedas";
+"muteSettings.hideFromSearch.description" = "Las cuentas silenciadas no aparecerán en búsquedas";
+"muteSettings.additionalOptions" = "Opciones adicionales";
+"muteSettings.noUsersFound" = "No se encontraron usuarios";
+"muteSettings.addWord.title" = "Añadir palabra o frase";
+"muteSettings.addWord.description" = "No verás contenido que contenga esta palabra o frase";
+"muteSettings.add" = "Añadir";
+
+/* Mute Settings - Additional */
+"muteSettings.navigation.title" = "Silenciar";
+"muteSettings.activate" = "Activar";
+"muteSettings.cancel" = "Cancelar";
+"muteSettings.remove" = "Quitar";
+"muteSettings.muteUser.title" = "Silenciar Usuario";
+"muteSettings.mutedWord.title" = "Palabra Silenciada";
+"muteSettings.searching" = "Buscando...";
+
+/* Mute Settings - TextField */
+"muteSettings.textField.placeholder" = "Escribe una palabra o frase...";
+
+/* Mute Settings - Alerts and Search */
+"muteSettings.alert.activateUser.title" = "¿Activar usuario?";
+"muteSettings.alert.activateUser.message" = "Volverás a ver el contenido de %@";
+"muteSettings.alert.removeWord.title" = "¿Quitar palabra silenciada?";
+"muteSettings.alert.removeWord.message" = "Volverás a ver contenido que contenga '%@'";
+"muteSettings.search.placeholder" = "Buscar usuarios...";
+
+/* Data Export */
+"dataExport.title" = "Descargar tus Datos";
+"dataExport.subtitle" = "Solicita una copia completa de toda tu información almacenada en Moments";
+"dataExport.whatIncludes.title" = "¿Qué incluye la descarga?";
+"dataExport.profileInfo.title" = "Información del perfil";
+"dataExport.profileInfo.description" = "Nombre, email, bio, intereses";
+"dataExport.posts.title" = "Publicaciones";
+"dataExport.posts.description" = "Todas tus publicaciones, fotos y videos";
+"dataExport.stories.title" = "Historias";
+"dataExport.stories.description" = "Historial de historias publicadas";
+"dataExport.messages.title" = "Mensajes";
+"dataExport.messages.description" = "Conversaciones y chats";
+"dataExport.interactions.title" = "Interacciones";
+"dataExport.interactions.description" = "Likes, comentarios y reacciones";
+"dataExport.connections.title" = "Conexiones";
+"dataExport.connections.description" = "Lista de seguidores y siguiendo";
+"dataExport.activity.title" = "Actividad";
+"dataExport.activity.description" = "Historial de uso y estadísticas";
+"dataExport.options.title" = "Opciones de Exportación";
+"dataExport.complete.title" = "Exportación Completa";
+"dataExport.complete.description" = "Incluye todos tus datos en formato JSON y archivos multimedia";
+"dataExport.textOnly.title" = "Solo Datos de Texto";
+"dataExport.textOnly.description" = "Información de perfil, mensajes y configuraciones sin multimedia";
+"dataExport.mediaOnly.title" = "Solo Multimedia";
+"dataExport.mediaOnly.description" = "Todas tus fotos y videos sin datos de texto";
+"dataExport.format.title" = "Formato de Datos";
+"dataExport.format.json.title" = "JSON";
+"dataExport.format.json.description" = "Legible por máquinas";
+"dataExport.format.csv.title" = "CSV";
+"dataExport.format.csv.description" = "Para Excel/Hojas de cálculo";
+
+/* Data Export - Additional */
+"dataExport.privacy.title" = "Aviso de Privacidad";
+"dataExport.privacy.bullet1" = "• Los datos se enviarán al email asociado a tu cuenta";
+"dataExport.privacy.bullet2" = "• El enlace de descarga expirará en 7 días";
+"dataExport.privacy.bullet3" = "• Solo puedes hacer una solicitud cada 30 días";
+"dataExport.processing" = "Procesando...";
+"dataExport.requestDownload" = "Solicitar Descarga";
+"dataExport.navigation.title" = "Descargar Datos";
+"dataExport.success.title" = "Solicitud Enviada";
+"dataExport.error.title" = "Error";
+"dataExport.requestInProgress.title" = "Solicitud en Proceso";
+"dataExport.progress" = "Progreso";
+"dataExport.status.pending" = "Pendiente";
+"dataExport.status.processing" = "Procesando";
+"dataExport.status.ready" = "Listo para descargar";
+"dataExport.status.completed" = "Completado";
+"dataExport.status.failed" = "Error";
+"dataExport.userNotAuthenticated" = "Usuario no autenticado";
+
+/* Data Export - Additional Text */
+"dataExport.privacy.bullet4" = "• Los datos están encriptados y protegidos";
+"dataExport.alreadyRequested" = "Ya has solicitado una descarga recientemente. Puedes hacer otra solicitud en %@ días.";
+"dataExport.success.message" = "Tu solicitud de descarga ha sido enviada. Recibirás un email con el enlace de descarga en las próximas 24-48 horas.";
+"dataExport.ok" = "OK";
+
+/* Account Management */
+"accountManagement.section.title" = "Gestión de cuenta";
+"accountManagement.deactivate.title" = "Desactivar cuenta";
+"accountManagement.deactivate.subtitle" = "Oculta tu perfil temporalmente";
+"accountManagement.delete.title" = "Eliminar cuenta";
+"accountManagement.delete.subtitle" = "Eliminación permanente de todos los datos";
+"accountManagement.deactivate.message" = "Tu cuenta será ocultada pero no eliminada. Puedes reactivarla más tarde iniciando sesión.";
+"accountManagement.delete.message" = "Esta acción no se puede deshacer. Todos tus datos serán eliminados permanentemente.";
+"accountManagement.cancel" = "Cancelar";
+"accountManagement.deactivate" = "Desactivar";
+"accountManagement.continue" = "Continuar";
+"accountManagement.error.title" = "Error";
+"accountManagement.ok" = "OK";
+"accountManagement.userNotFound" = "No se pudo obtener el usuario actual";
+"accountManagement.requiredText" = "ELIMINAR MI CUENTA";
+"accountManagement.deleting" = "Eliminando...";
+"accountManagement.permanentDeletion" = "ELIMINACIÓN PERMANENTE";
+"accountManagement.irreversible" = "Esta acción es irreversible";
+"accountManagement.willBeDeleted" = "Lo siguiente será eliminado:";
+"accountManagement.profileInfo" = "Tu perfil e información personal";
+"accountManagement.storiesMoments" = "Todas tus historias y momentos";
+"accountManagement.conversations" = "Conversaciones y mensajes";
+"accountManagement.connections" = "Conexiones y seguidores";
+"accountManagement.notifications" = "Notificaciones y configuraciones";
+"accountManagement.savedContent" = "Archivo y contenido guardado";
+"accountManagement.confirmPassword" = "Confirmar contraseña";
+"accountManagement.currentPassword" = "Contraseña actual";
+"accountManagement.writeExactly" = "Escribe exactamente:";
+"accountManagement.writeHere" = "Escribe aquí";
+"accountManagement.understandIrreversible" = "Entiendo que esta acción es irreversible y acepto la eliminación permanente de mi cuenta y todos mis datos.";
+"accountManagement.deleteAccountPermanently" = "Eliminar cuenta permanentemente";
+
+/* Notifications */
+"notifications.error.unknown" = "Ocurrió un error desconocido";
+"notifications.empty.mentions" = "Sin menciones";
+"notifications.empty.storyReactions" = "Sin reacciones";
+"notifications.empty.requests" = "Sin solicitudes";
+"notifications.empty.likes" = "Sin me gusta";
+"notifications.empty.follows" = "Sin nuevos seguidores";
+"notifications.empty.default" = "Sin notificaciones";
+"notifications.loadMore" = "Cargar más";
+"notifications.accept" = "Aceptar";
+"notifications.reject" = "Rechazar";
+"notifications.date.today" = "Hoy";
+"notifications.date.yesterday" = "Ayer";
+
+/* Archived Stories */
+"archivedStories.grid" = "Cuadrícula";
+"archivedStories.archive" = "Archivo";
+"archivedStories.today" = "Hoy";
+"archivedStories.yesterday" = "Ayer";
+"archivedStories.video" = "Video";
+"archivedStories.photo" = "Foto";
+"archivedStories.stats.views" = "Visualizaciones";
+"archivedStories.stats.reactions" = "Reacciones";
+"archivedStories.stats.shares" = "Compartidas";
+"archivedStories.stats.reach" = "Alcance";
+"archivedStories.stats.title" = "Estadísticas";
+"archivedStories.user" = "Usuario";

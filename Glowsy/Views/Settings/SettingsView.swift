@@ -62,6 +62,22 @@ struct SettingsView: View {
     @State private var showError: Bool = false
     @State private var errorMessage: String?
     @State private var isLoading: Bool = false
+    @State private var isShowingQRCode: Bool = false
+    @State private var isShowingContentVisibility: Bool = false
+    @State private var isShowingConnections: Bool = false
+    @State private var isShowingBestFriends: Bool = false
+    @State private var isShowingBlockedAccounts: Bool = false
+    @State private var isShowingMute: Bool = false
+    @State private var isShowingPasswordChange: Bool = false
+    @State private var isShowingLoginActivity: Bool = false
+    @State private var isShowingSavedMoments: Bool = false
+    @State private var isShowingUserActivity: Bool = false
+    @State private var isShowingDataExport: Bool = false
+    @State private var isShowingArchivedStories: Bool = false
+    @State private var isShowingHighlightedStories: Bool = false
+    @State private var isShowingSupportMoments: Bool = false
+    @State private var isShowingNotificationSettings: Bool = false
+    @State private var isShowingAdvancedAccountManagement: Bool = false
 
     var body: some View {
         NavigationView {
@@ -82,7 +98,23 @@ struct SettingsView: View {
                         endTime: $endTime,
                         username: $username,
                         email: $email,
-                        phoneNumber: $phoneNumber
+                        phoneNumber: $phoneNumber,
+                        isShowingQRCode: $isShowingQRCode,
+                        isShowingContentVisibility: $isShowingContentVisibility,
+                        isShowingConnections: $isShowingConnections,
+                        isShowingBestFriends: $isShowingBestFriends,
+                        isShowingBlockedAccounts: $isShowingBlockedAccounts,
+                        isShowingMute: $isShowingMute,
+                        isShowingPasswordChange: $isShowingPasswordChange,
+                        isShowingLoginActivity: $isShowingLoginActivity,
+                        isShowingSavedMoments: $isShowingSavedMoments,
+                        isShowingUserActivity: $isShowingUserActivity,
+                        isShowingDataExport: $isShowingDataExport,
+                        isShowingArchivedStories: $isShowingArchivedStories,
+                        isShowingHighlightedStories: $isShowingHighlightedStories,
+                        isShowingSupportMoments: $isShowingSupportMoments,
+                        isShowingNotificationSettings: $isShowingNotificationSettings,
+                        isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -153,8 +185,65 @@ struct SettingsView: View {
                     dismissButton: .default(Text("settings.ok"))
                 )
             }
-        }
-        .navigationViewStyle(StackNavigationViewStyle()) // Forzar navegación por stack
+                    }
+            .fullScreenCover(isPresented: $isShowingQRCode) {
+                QRCodeView()
+            }
+            .fullScreenCover(isPresented: $isShowingContentVisibility) {
+                ContentVisibilityView()
+            }
+            .fullScreenCover(isPresented: $isShowingConnections) {
+                ConnectionVisibilityView(
+                    showMutualConnections: $showMutualConnections,
+                    showFollowing: $showFollowing,
+                    viewModel: viewModel
+                )
+            }
+            .fullScreenCover(isPresented: $isShowingBestFriends) {
+                BestFriendsView()
+            }
+            .fullScreenCover(isPresented: $isShowingBlockedAccounts) {
+                BlockedUsersView()
+            }
+            .fullScreenCover(isPresented: $isShowingMute) {
+                MuteSettingsView()
+            }
+            .fullScreenCover(isPresented: $isShowingPasswordChange) {
+                PasswordChangeView()
+            }
+            .fullScreenCover(isPresented: $isShowingLoginActivity) {
+                LoginActivityView()
+            }
+            .fullScreenCover(isPresented: $isShowingSavedMoments) {
+                SavedMomentsView()
+            }
+            .fullScreenCover(isPresented: $isShowingUserActivity) {
+                UserActivityView()
+            }
+                    .fullScreenCover(isPresented: $isShowingDataExport) {
+            DataExportView()
+            }
+            .fullScreenCover(isPresented: $isShowingArchivedStories) {
+                ArchiveView()
+            }
+            .fullScreenCover(isPresented: $isShowingHighlightedStories) {
+                HighlightedStoriesView()
+            }
+            .fullScreenCover(isPresented: $isShowingSupportMoments) {
+                SupportMomentsView()
+            }
+            .fullScreenCover(isPresented: $isShowingNotificationSettings) {
+                NotificationSettingsView(
+                    viewModel: viewModel,
+                    isScheduleEnabled: $isScheduleEnabled,
+                    startTime: $startTime,
+                    endTime: $endTime
+                )
+            }
+            .fullScreenCover(isPresented: $isShowingAdvancedAccountManagement) {
+                AdvancedAccountManagementView()
+            }
+            .navigationViewStyle(StackNavigationViewStyle()) // Forzar navegación por stack
     }
 
     private func showError(message: String) {
@@ -223,6 +312,22 @@ struct SettingsFormView: View {
     @Binding var username: String
     @Binding var email: String
     @Binding var phoneNumber: String
+    @Binding var isShowingQRCode: Bool
+    @Binding var isShowingContentVisibility: Bool
+    @Binding var isShowingConnections: Bool
+    @Binding var isShowingBestFriends: Bool
+    @Binding var isShowingBlockedAccounts: Bool
+    @Binding var isShowingMute: Bool
+    @Binding var isShowingPasswordChange: Bool
+    @Binding var isShowingLoginActivity: Bool
+    @Binding var isShowingSavedMoments: Bool
+    @Binding var isShowingUserActivity: Bool
+    @Binding var isShowingDataExport: Bool
+    @Binding var isShowingArchivedStories: Bool
+    @Binding var isShowingHighlightedStories: Bool
+    @Binding var isShowingSupportMoments: Bool
+    @Binding var isShowingNotificationSettings: Bool
+    @Binding var isShowingAdvancedAccountManagement: Bool
     
     @State private var animateSections = false
 
@@ -237,7 +342,7 @@ struct SettingsFormView: View {
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     
-                    AccountSection(username: $username, email: $email, phoneNumber: $phoneNumber)
+                    AccountSection(username: $username, email: $email, phoneNumber: $phoneNumber, isShowingQRCode: $isShowingQRCode)
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
@@ -247,7 +352,12 @@ struct SettingsFormView: View {
                         isPrivate: $isPrivate,
                         showMutualConnections: $showMutualConnections,
                         showFollowing: $showFollowing,
-                        viewModel: viewModel
+                        viewModel: viewModel,
+                        isShowingContentVisibility: $isShowingContentVisibility,
+                        isShowingConnections: $isShowingConnections,
+                        isShowingBestFriends: $isShowingBestFriends,
+                        isShowingBlockedAccounts: $isShowingBlockedAccounts,
+                        isShowingMute: $isShowingMute
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .leading).combined(with: .opacity),
@@ -260,25 +370,37 @@ struct SettingsFormView: View {
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     
-                    SecuritySection()
+                    SecuritySection(
+                        isShowingPasswordChange: $isShowingPasswordChange,
+                        isShowingLoginActivity: $isShowingLoginActivity
+                    )
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     
-                    ActivitySection()
+                    ActivitySection(
+                        isShowingSavedMoments: $isShowingSavedMoments,
+                        isShowingUserActivity: $isShowingUserActivity,
+                        isShowingDataExport: $isShowingDataExport
+                    )
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     
-                    ArchiveSection()
+                    ArchiveSection(
+                        isShowingArchivedStories: $isShowingArchivedStories,
+                        isShowingHighlightedStories: $isShowingHighlightedStories
+                    )
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     
-                    SupportMomentsSection()
+                    SupportMomentsSection(
+                        isShowingSupportMoments: $isShowingSupportMoments
+                    )
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
@@ -288,7 +410,8 @@ struct SettingsFormView: View {
                         viewModel: viewModel,
                         isScheduleEnabled: $isScheduleEnabled,
                         startTime: $startTime,
-                        endTime: $endTime
+                        endTime: $endTime,
+                        isShowingNotificationSettings: $isShowingNotificationSettings
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .leading).combined(with: .opacity),
@@ -301,7 +424,9 @@ struct SettingsFormView: View {
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     
-                    AdvancedAccountSection()
+                    AdvancedAccountSection(
+                        isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement
+                    )
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
@@ -331,6 +456,7 @@ struct SettingsFormView: View {
 struct AdvancedAccountSection: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var isExpanded = false
+    @Binding var isShowingAdvancedAccountManagement: Bool
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -386,7 +512,9 @@ struct AdvancedAccountSection: View {
                         icon: "person.crop.circle.badge.exclamationmark",
                         title: NSLocalizedString("settings.sections.accountManagement", comment: "Account Management"),
                         subtitle: NSLocalizedString("settings.sections.accountManagement.subtitle", comment: "Deactivate or delete account"),
-                        destination: AnyView(AdvancedAccountManagementView()),
+                        action: {
+                            isShowingAdvancedAccountManagement = true
+                        },
                         iconColor: .orange
                     )
                     .transition(.asymmetric(
@@ -404,9 +532,11 @@ struct AdvancedAccountSection: View {
 // ✅ NUEVA VISTA: Wrapper con advertencias
 struct AdvancedAccountManagementView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     
     var body: some View {
-        ZStack {
+        NavigationView {
+            ZStack {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
             Form {
@@ -461,6 +591,33 @@ struct AdvancedAccountManagementView: View {
         .navigationTitle(NSLocalizedString("settings.accountManagement", comment: "Account Management"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                }
+            }
+        }
+        }
     }
 }
 
@@ -663,6 +820,7 @@ struct AccountSection: View {
     @Binding var username: String
     @Binding var email: String
     @Binding var phoneNumber: String
+    @Binding var isShowingQRCode: Bool
 
     var body: some View {
         Section("Cuenta") {
@@ -677,7 +835,9 @@ struct AccountSection: View {
                 icon: "qrcode",
                 title: NSLocalizedString("settings.sections.qrCode", comment: "QR Code"),
                 subtitle: NSLocalizedString("settings.sections.qrCode.subtitle", comment: "Share your profile"),
-                destination: AnyView(QRCodeView())
+                action: {
+                    isShowingQRCode = true
+                }
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -688,6 +848,8 @@ struct AccountSection: View {
 
 struct ArchiveSection: View {
     @Environment(\.colorScheme) var colorScheme
+    @Binding var isShowingArchivedStories: Bool
+    @Binding var isShowingHighlightedStories: Bool
     
     var body: some View {
         Section("Archivo") {
@@ -695,14 +857,18 @@ struct ArchiveSection: View {
                 icon: "archivebox",
                 title: NSLocalizedString("settings.sections.archivedStories", comment: "Archived Stories"),
                 subtitle: NSLocalizedString("settings.sections.archivedStories.subtitle", comment: "View all your past stories"),
-                destination: AnyView(ArchiveView())
+                action: {
+                    isShowingArchivedStories = true
+                }
             )
             
             SettingsRow(
                 icon: "star",
                 title: NSLocalizedString("settings.sections.highlightedStories", comment: "Highlighted Stories"),
                 subtitle: NSLocalizedString("settings.sections.highlightedStories.subtitle", comment: "Manage your favorite stories"),
-                destination: AnyView(HighlightedStoriesView())
+                action: {
+                    isShowingHighlightedStories = true
+                }
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -717,6 +883,11 @@ struct PrivacySection: View {
     @Binding var showMutualConnections: Bool
     @Binding var showFollowing: Bool
     @ObservedObject var viewModel: SettingsViewModel
+    @Binding var isShowingContentVisibility: Bool
+    @Binding var isShowingConnections: Bool
+    @Binding var isShowingBestFriends: Bool
+    @Binding var isShowingBlockedAccounts: Bool
+    @Binding var isShowingMute: Bool
 
     var body: some View {
         Section("Privacidad") {
@@ -747,39 +918,45 @@ struct PrivacySection: View {
                 icon: "eye.slash",
                 title: NSLocalizedString("settings.sections.contentVisibility", comment: "Content Visibility"),
                 subtitle: NSLocalizedString("settings.sections.contentVisibility.subtitle", comment: "Manage who can see your content"),
-                destination: AnyView(ContentVisibilityView())
+                action: {
+                    isShowingContentVisibility = true
+                }
             )
             
             SettingsRow(
                 icon: "person.2.circle",
                 title: NSLocalizedString("settings.sections.connections", comment: "Connections"),
                 subtitle: getConnectionPrivacyStatus(),
-                destination: AnyView(ConnectionVisibilityView(
-                    showMutualConnections: $showMutualConnections,
-                    showFollowing: $showFollowing,
-                    viewModel: viewModel
-                ))
+                action: {
+                    isShowingConnections = true
+                }
             )
             
             SettingsRow(
                 icon: "person.2.fill",
                 title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
                 subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
-                destination: AnyView(BestFriendsView())
+                action: {
+                    isShowingBestFriends = true
+                }
             )
             
             SettingsRow(
                 icon: "hand.raised",
                 title: NSLocalizedString("settings.sections.blockedAccounts", comment: "Blocked Accounts"),
                 subtitle: String(format: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "X accounts"), 0),
-                destination: AnyView(BlockedUsersView())
+                action: {
+                    isShowingBlockedAccounts = true
+                }
             )
             
             SettingsRow(
                 icon: "bell.slash",
                 title: NSLocalizedString("settings.sections.mute", comment: "Mute"),
                 subtitle: NSLocalizedString("settings.sections.mute.subtitle", comment: "Accounts, words and phrases"),
-                destination: AnyView(MuteSettingsView())
+                action: {
+                    isShowingMute = true
+                }
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -800,12 +977,14 @@ struct PrivacySection: View {
 
 struct ConnectionVisibilityView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @Binding var showMutualConnections: Bool
     @Binding var showFollowing: Bool
     @ObservedObject var viewModel: SettingsViewModel
 
     var body: some View {
-        List {
+        NavigationView {
+            List {
             Section(header:
                 Text("settings.privacy.control.title")
                     .font(.custom("Poppins-Medium", size: 12))
@@ -880,33 +1059,56 @@ struct ConnectionVisibilityView: View {
         .navigationTitle(NSLocalizedString("settings.connectionPrivacy", comment: "Connection Privacy"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true) // Ocultar botón de atrás
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                }
+            }
+        }
         .listRowBackground(SettingsListRowBackground())
+        }
     }
 }
 
 struct SecuritySection: View {
     @Environment(\.colorScheme) var colorScheme
+    @Binding var isShowingPasswordChange: Bool
+    @Binding var isShowingLoginActivity: Bool
+    
     var body: some View {
         Section("Seguridad") {
             SettingsRow(
                 icon: "key",
                 title: NSLocalizedString("settings.sections.password", comment: "Password"),
                 subtitle: NSLocalizedString("settings.sections.password.subtitle", comment: "Change password"),
-                destination: AnyView(PasswordChangeView())
-            )
-            
-            SettingsRow(
-                icon: "shield.checkered",
-                title: NSLocalizedString("settings.sections.2fa", comment: "Two-Factor Authentication"),
-                subtitle: NSLocalizedString("settings.sections.2fa.subtitle", comment: "Add an extra layer of security"),
-                destination: AnyView(Text(NSLocalizedString("settings.2fa", comment: "Two-Factor Authentication")).navigationBarBackButtonHidden(true))
+                action: { isShowingPasswordChange = true }
             )
             
             SettingsRow(
                 icon: "clock.arrow.circlepath",
                 title: NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity"),
                 subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
-                destination: AnyView(LoginActivityView())
+                action: { isShowingLoginActivity = true }
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -917,27 +1119,31 @@ struct SecuritySection: View {
 
 struct ActivitySection: View {
     @Environment(\.colorScheme) var colorScheme
+    @Binding var isShowingSavedMoments: Bool
+    @Binding var isShowingUserActivity: Bool
+    @Binding var isShowingDataExport: Bool
+    
     var body: some View {
         Section("Tu actividad") {
             SettingsRow(
                 icon: "bookmark",
                 title: NSLocalizedString("settings.sections.saved", comment: "Saved"),
                 subtitle: NSLocalizedString("settings.sections.saved.subtitle", comment: "Moments you've saved"),
-                destination: AnyView(SavedMomentsView())
+                action: { isShowingSavedMoments = true }
             )
             
             SettingsRow(
                 icon: "clock",
                 title: NSLocalizedString("settings.sections.yourActivity", comment: "Your Activity"),
                 subtitle: NSLocalizedString("settings.sections.yourActivity.subtitle", comment: "Time in app, interactions"),
-                destination: AnyView(UserActivityView())
+                action: { isShowingUserActivity = true }
             )
             
             SettingsRow(
                 icon: "arrow.down.circle",
                 title: NSLocalizedString("settings.sections.downloadData", comment: "Download Your Data"),
                 subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Request a copy of your data"),
-                destination: AnyView(DataExportView())
+                action: { isShowingDataExport = true }
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -952,6 +1158,7 @@ struct NotificationsSection: View {
     @Binding var isScheduleEnabled: Bool
     @Binding var startTime: Date
     @Binding var endTime: Date
+    @Binding var isShowingNotificationSettings: Bool
 
     var body: some View {
         Section("Notificaciones") {
@@ -959,19 +1166,18 @@ struct NotificationsSection: View {
                 icon: "bell",
                 title: NSLocalizedString("settings.sections.pushNotifications", comment: "Push Notifications"),
                 subtitle: NSLocalizedString("settings.sections.pushNotifications.subtitle", comment: "Posts, stories, comments"),
-                destination: AnyView(NotificationSettingsView(
-                    viewModel: viewModel,
-                    isScheduleEnabled: $isScheduleEnabled,
-                    startTime: $startTime,
-                    endTime: $endTime
-                ))
+                action: {
+                    isShowingNotificationSettings = true
+                }
             )
             
             SettingsRow(
                 icon: "envelope",
                 title: NSLocalizedString("settings.sections.emailNotifications", comment: "Email Notifications"),
                 subtitle: NSLocalizedString("settings.sections.emailNotifications.subtitle", comment: "Activity summaries"),
-                destination: AnyView(Text(NSLocalizedString("settings.emailNotifications", comment: "Email Notifications")).navigationBarBackButtonHidden(true))
+                action: {
+                    // TODO: Implementar vista de notificaciones por email
+                }
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -1280,93 +1486,122 @@ struct PersonalInfoView: View {
 
 struct NotificationSettingsView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: SettingsViewModel
     @Binding var isScheduleEnabled: Bool
     @Binding var startTime: Date
     @Binding var endTime: Date
     
     var body: some View {
-        ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-            
-            Form {
-                Section("Horario de notificaciones") {
-                    Toggle("Establecer horario", isOn: $isScheduleEnabled)
+        NavigationView {
+            ZStack {
+                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                
+                Form {
+                    Section("Horario de notificaciones") {
+                        Toggle("Establecer horario", isOn: $isScheduleEnabled)
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .tint(Color(hex: "00A896"))
+                        
+                        if isScheduleEnabled {
+                            DatePicker("Hora de inicio",
+                                       selection: $startTime,
+                                       displayedComponents: .hourAndMinute)
+                                .datePickerStyle(.compact)
+                                .font(.custom("Poppins-Regular", size: 14))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                            
+                            DatePicker("Hora de fin",
+                                       selection: $endTime,
+                                       displayedComponents: .hourAndMinute)
+                                .datePickerStyle(.compact)
+                                .font(.custom("Poppins-Regular", size: 14))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                            
+                            Button(action: {
+                                viewModel.updateActiveHours(startTime: startTime, endTime: endTime)
+                            }) {
+                                Text("settings.schedule.save")
+                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(hex: "00A896").opacity(0.5), lineWidth: 1.5)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                        }
+                    }
+                    .listRowBackground(SettingsListRowBackground())
+                    
+                    Section("Tipos de notificaciones") {
+                        ForEach(NotificationType.allCases, id: \.rawValue) { type in
+                            Toggle(type.displayName, isOn: Binding(
+                                get: { viewModel.notificationPreferences[type.rawValue] ?? true },
+                                set: { viewModel.updateNotificationPreference(type: type.rawValue, isEnabled: $0) }
+                            ))
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .tint(Color(hex: "00A896"))
+                        }
+                    }
+                    .listRowBackground(SettingsListRowBackground())
+                    
+                    Section("Configuración avanzada") {
+                        Toggle("Solo comentarios de mejores amigos", isOn: Binding(
+                            get: { viewModel.notificationPreferences["commentsBestFriendsOnly"] ?? false },
+                            set: { viewModel.updateNotificationPreference(type: "commentsBestFriendsOnly", isEnabled: $0) }
+                        ))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .tint(Color(hex: "00A896"))
-                    
-                    if isScheduleEnabled {
-                        DatePicker("Hora de inicio",
-                                   selection: $startTime,
-                                   displayedComponents: .hourAndMinute)
-                            .datePickerStyle(.compact)
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
                         
-                        DatePicker("Hora de fin",
-                                   selection: $endTime,
-                                   displayedComponents: .hourAndMinute)
-                            .datePickerStyle(.compact)
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
-                        Button(action: {
-                            viewModel.updateActiveHours(startTime: startTime, endTime: endTime)
-                        }) {
-                            Text("settings.schedule.save")
-                                .font(.custom("Poppins-SemiBold", size: 14))
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(hex: "00A896").opacity(0.5), lineWidth: 1.5)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                        }
-                    }
-                }
-                .listRowBackground(SettingsListRowBackground())
-                
-                Section("Tipos de notificaciones") {
-                    ForEach(NotificationType.allCases, id: \.rawValue) { type in
-                        Toggle(type.displayName, isOn: Binding(
-                            get: { viewModel.notificationPreferences[type.rawValue] ?? true },
-                            set: { viewModel.updateNotificationPreference(type: type.rawValue, isEnabled: $0) }
+                        Toggle("Silenciar likes en publicaciones antiguas", isOn: Binding(
+                            get: { viewModel.notificationPreferences["muteOldPostLikes"] ?? false },
+                            set: { viewModel.updateNotificationPreference(type: "muteOldPostLikes", isEnabled: $0) }
                         ))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .tint(Color(hex: "00A896"))
                     }
+                    .listRowBackground(SettingsListRowBackground())
                 }
-                .listRowBackground(SettingsListRowBackground())
-                
-                Section("Configuración avanzada") {
-                    Toggle("Solo comentarios de mejores amigos", isOn: Binding(
-                        get: { viewModel.notificationPreferences["commentsBestFriendsOnly"] ?? false },
-                        set: { viewModel.updateNotificationPreference(type: "commentsBestFriendsOnly", isEnabled: $0) }
-                    ))
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .tint(Color(hex: "00A896"))
-                    
-                    Toggle("Silenciar likes en publicaciones antiguas", isOn: Binding(
-                        get: { viewModel.notificationPreferences["muteOldPostLikes"] ?? false },
-                        set: { viewModel.updateNotificationPreference(type: "muteOldPostLikes", isEnabled: $0) }
-                    ))
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .tint(Color(hex: "00A896"))
-                }
-                .listRowBackground(SettingsListRowBackground())
+                .scrollContentBackground(.hidden)
             }
-            .scrollContentBackground(.hidden)
+            .navigationTitle(NSLocalizedString("settings.notifications", comment: "Notifications"))
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
+                    }
+                }
+            }
         }
-        .navigationTitle(NSLocalizedString("settings.notifications", comment: "Notifications"))
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true) // Ocultar botón de atrás
     }
 }
 

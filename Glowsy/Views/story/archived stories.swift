@@ -25,8 +25,9 @@ struct ArchiveView: View {
     }
     
     var body: some View {
-        ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+        NavigationView {
+            ZStack {
+                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
             if viewModel.isLoading {
                 VStack(spacing: 16) {
@@ -93,15 +94,32 @@ struct ArchiveView: View {
                 }
             }
         }
-        .navigationTitle("Archivo")
+        .navigationTitle(NSLocalizedString("archivedStories.archive", comment: "Archive navigation title"))
         .navigationBarTitleDisplayMode(.large)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
                 }
             }
             
@@ -143,6 +161,7 @@ struct ArchiveView: View {
             if let story = selectedStory {
                 StoryStatsView(story: story)
             }
+        }
         }
     }
 }
@@ -267,9 +286,9 @@ struct ArchiveDateSectionGrid: View {
             displayFormatter.locale = Locale(identifier: "es")
             
             if Calendar.current.isDateInToday(date) {
-                return "Hoy"
+                return NSLocalizedString("archivedStories.today", comment: "Today")
             } else if Calendar.current.isDateInYesterday(date) {
-                return "Ayer"
+                return NSLocalizedString("archivedStories.yesterday", comment: "Yesterday")
             } else if Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year) {
                 displayFormatter.dateFormat = "d 'de' MMMM"
                 return displayFormatter.string(from: date)
@@ -419,7 +438,7 @@ struct ArchiveStoryVerticalCard: View {
                                 .font(.system(size: 10))
                                 .foregroundColor(Color(hex: "00A896"))
                             
-                            Text(story.mediaItem.type == .video ? "Video" : "Foto")
+                            Text(story.mediaItem.type == .video ? NSLocalizedString("archivedStories.video", comment: "Video") : NSLocalizedString("archivedStories.photo", comment: "Photo"))
                                 .font(.custom("Poppins-Regular", size: 11))
                                 .foregroundColor(.gray)
                         }
@@ -926,30 +945,30 @@ struct StoryStatsView: View {
                             // Stats cards
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
                                 StatsCard(
-                                    icon: "eye.fill",
-                                    title: "Visualizaciones",
-                                    value: "\(viewModel.viewCount)",
-                                    color: .blue
-                                )
-                                
-                                StatsCard(
-                                    icon: "heart.fill",
-                                    title: "Reacciones",
-                                    value: "\(viewModel.reactionCount)",
-                                    color: .red
-                                )
-                                
-                                StatsCard(
-                                    icon: "paperplane.fill",
-                                    title: "Compartidas",
-                                    value: "\(viewModel.shareCount)",
-                                    color: Color(hex: "00A896")
-                                )
-                                
-                                StatsCard(
-                                    icon: "person.2.fill",
-                                    title: "Alcance",
-                                    value: "\(viewModel.reachCount)",
+                                icon: "eye.fill",
+                                title: NSLocalizedString("archivedStories.stats.views", comment: "Views"),
+                                value: "\(viewModel.viewCount)",
+                                color: .blue
+                            )
+                            
+                            StatsCard(
+                                icon: "heart.fill",
+                                title: NSLocalizedString("archivedStories.stats.reactions", comment: "Reactions"),
+                                value: "\(viewModel.reactionCount)",
+                                color: .red
+                            )
+                            
+                            StatsCard(
+                                icon: "paperplane.fill",
+                                title: NSLocalizedString("archivedStories.stats.shares", comment: "Shares"),
+                                value: "\(viewModel.shareCount)",
+                                color: Color(hex: "00A896")
+                            )
+                            
+                            StatsCard(
+                                icon: "person.2.fill",
+                                title: NSLocalizedString("archivedStories.stats.reach", comment: "Reach"),
+                                value: "\(viewModel.reachCount)",
                                     color: .purple
                                 )
                             }
@@ -1016,7 +1035,7 @@ struct StoryStatsView: View {
                     }
                 }
             }
-            .navigationTitle("Estadísticas")
+            .navigationTitle(NSLocalizedString("archivedStories.stats.title", comment: "Statistics title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -1117,7 +1136,7 @@ struct ViewerRow: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(viewer.username ?? "Usuario")
+                Text(viewer.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
                     .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
@@ -1143,7 +1162,7 @@ struct ViewerRow: View {
 struct ReactionRow: View {
     let reaction: StoryReaction
     @Environment(\.colorScheme) var colorScheme
-    @State private var username: String = "Usuario"
+    @State private var username: String = NSLocalizedString("archivedStories.user", comment: "User")
     
     var body: some View {
         HStack(spacing: 12) {
@@ -1184,7 +1203,7 @@ struct ReactionRow: View {
             case .success(let user):
                 self.username = user.username
             case .failure(_):
-                self.username = "Usuario"
+                self.username = NSLocalizedString("archivedStories.user", comment: "User")
             }
         }
     }

@@ -73,7 +73,7 @@ struct NotificationsView: View {
             .alert(isPresented: $viewModel.showError) {
                 Alert(
                     title: Text("notifications.error.title"),
-                    message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
+                    message: Text(viewModel.errorMessage ?? NSLocalizedString("notifications.error.unknown", comment: "Unknown error message")),
                     dismissButton: .default(Text("notifications.ok"))
                 )
             }
@@ -123,7 +123,7 @@ struct NotificationsView: View {
     // ✅ HEADER ADAPTATIVO
     private var headerView: some View {
         HStack {
-                            Text("notifications.title")
+                Text("notifications.title")
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -307,12 +307,12 @@ struct NotificationsView: View {
 
     private var emptyStateTitle: String {
         switch selectedTab {
-        case .mentions: return "Sin menciones"
-        case .storyReactions: return "Sin reacciones"
-        case .requests: return "Sin solicitudes"
-        case .likes: return "Sin me gusta"
-        case .follows: return "Sin nuevos seguidores"
-        default: return "Sin notificaciones"
+        case .mentions: return NSLocalizedString("notifications.empty.mentions", comment: "No mentions")
+        case .storyReactions: return NSLocalizedString("notifications.empty.storyReactions", comment: "No story reactions")
+        case .requests: return NSLocalizedString("notifications.empty.requests", comment: "No requests")
+        case .likes: return NSLocalizedString("notifications.empty.likes", comment: "No likes")
+        case .follows: return NSLocalizedString("notifications.empty.follows", comment: "No new followers")
+        default: return NSLocalizedString("notifications.empty.default", comment: "No notifications")
         }
     }
 
@@ -349,7 +349,7 @@ struct NotificationsView: View {
                 
                 // ✅ Indicador de carga más notificaciones
                 if viewModel.canLoadMore {
-                    Button("Cargar más") {
+                    Button(NSLocalizedString("notifications.loadMore", comment: "Load more button")) {
                         viewModel.loadMoreNotifications()
                     }
                     .disabled(viewModel.isLoadingMore)
@@ -709,7 +709,7 @@ struct EnhancedNotificationRow: View {
 
             case .followRequest:
                 HStack(spacing: 8) {
-                    Button("Aceptar") {
+                    Button(NSLocalizedString("notifications.accept", comment: "Accept button")) {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             viewModel.acceptFollowRequest(group: group)
                         }
@@ -719,7 +719,7 @@ struct EnhancedNotificationRow: View {
                         colorScheme: colorScheme // ✅ PASADO colorScheme
                     ))
                     
-                    Button("Rechazar") {
+                    Button(NSLocalizedString("notifications.reject", comment: "Reject button")) {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             viewModel.rejectFollowRequest(group: group)
                         }
@@ -1541,9 +1541,9 @@ class NotificationsViewModel: ObservableObject {
     private func formatDateKey(_ date: Date) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) {
-            return "Hoy"
+            return NSLocalizedString("notifications.date.today", comment: "Today")
         } else if calendar.isDateInYesterday(date) {
-            return "Ayer"
+            return NSLocalizedString("notifications.date.yesterday", comment: "Yesterday")
         } else {
             let formatter = DateFormatter()
             formatter.dateFormat = "d 'de' MMMM"
@@ -1554,16 +1554,16 @@ class NotificationsViewModel: ObservableObject {
     
     private func getDatePriority(_ dateString: String) -> Int {
         switch dateString {
-        case "Hoy": return 2
-        case "Ayer": return 1
+        case NSLocalizedString("notifications.date.today", comment: "Today"): return 2
+        case NSLocalizedString("notifications.date.yesterday", comment: "Yesterday"): return 1
         default: return 0
         }
     }
     
     private func getDateFromString(_ dateString: String) -> Date {
-        if dateString == "Hoy" {
+        if dateString == NSLocalizedString("notifications.date.today", comment: "Today") {
             return Date()
-        } else if dateString == "Ayer" {
+        } else if dateString == NSLocalizedString("notifications.date.yesterday", comment: "Yesterday") {
             return Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         } else {
             let formatter = DateFormatter()

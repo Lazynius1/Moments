@@ -56,6 +56,7 @@ struct ProfileView: View {
     @Binding var selectedTab: Int
     @StateObject private var storyViewModel = StoryViewModel()
     @State private var isShowingSettings = false
+    @State private var isShowingEditProfile = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var newBio: String = ""
     @State private var showingUserList: UserListType?
@@ -118,6 +119,7 @@ struct ProfileView: View {
                         safeAreaTop: safeAreaTop,
                         safeAreaBottom: safeAreaBottom,
                         isShowingSettings: $isShowingSettings,
+                        isShowingEditProfile: $isShowingEditProfile,
                         newBio: $newBio,
                         showingUserList: $showingUserList,
                         showStoryViewer: $showStoryViewer,
@@ -137,6 +139,9 @@ struct ProfileView: View {
                 .navigationBarHidden(true)
                 .ignoresSafeArea(.all, edges: .all)
                 .fullScreenCover(isPresented: $isShowingSettings) {
+                    SettingsView()
+                }
+                .fullScreenCover(isPresented: $isShowingEditProfile) {
                     ModernEditProfileView(
                         selectedPhoto: $selectedPhoto,
                         newBio: $newBio,
@@ -229,6 +234,7 @@ struct ProfileView: View {
                 .onChange(of: selectedTab) { newTab in
                     if newTab == 4 {
                         isShowingSettings = false
+                        isShowingEditProfile = false
                     }
                 }
                 .onAppear {
@@ -334,6 +340,7 @@ struct ModernProfileContentView: View {
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
     @Binding var isShowingSettings: Bool
+    @Binding var isShowingEditProfile: Bool
     @Binding var newBio: String
     @Binding var showingUserList: ProfileView.UserListType?
     @Binding var showStoryViewer: Bool
@@ -362,6 +369,7 @@ struct ModernProfileContentView: View {
                             viewModel: viewModel,
                             storyViewModel: storyViewModel,
                             isShowingSettings: $isShowingSettings,
+                            isShowingEditProfile: $isShowingEditProfile,
                             newBio: $newBio,
                             showStoryViewer: $showStoryViewer,
                             selectedStoryIndex: $selectedStoryIndex,
@@ -565,6 +573,7 @@ struct ModernProfileHeader: View {
     @ObservedObject var storyViewModel: StoryViewModel
     @EnvironmentObject var authService: AuthService
     @Binding var isShowingSettings: Bool
+    @Binding var isShowingEditProfile: Bool
     @Binding var newBio: String
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
@@ -731,7 +740,7 @@ struct ModernProfileHeader: View {
             HStack(spacing: 16) {
                 Button(action: {
                     newBio = viewModel.userProfile?.bio ?? ""
-                    isShowingSettings = true
+                    isShowingEditProfile = true
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: "pencil.circle")
@@ -777,7 +786,7 @@ struct ModernProfileHeader: View {
                     }
                 }
                 
-                NavigationLink(destination: SettingsView()) {
+                Button(action: { isShowingSettings = true }) {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 18))
                         .foregroundColor(ProfileColors.textPrimary)

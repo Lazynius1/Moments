@@ -4,130 +4,159 @@ import FirebaseFirestore
 
 struct LoginActivityView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = LoginActivityViewModel()
     @State private var isLoading = true
     
     var body: some View {
-        ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-            
-            if isLoading {
-                ProgressView("Cargando actividad...")
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(.gray)
-            } else {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Header Info
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "shield.checkered")
-                                    .foregroundColor(Color(hex: "00A896"))
-                                    .font(.system(size: 20))
+        NavigationView {
+            ZStack {
+                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                
+                if isLoading {
+                    ProgressView("Cargando actividad...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .font(.custom("Poppins-Regular", size: 16))
+                        .foregroundColor(.gray)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Header Info
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Image(systemName: "shield.checkered")
+                                        .foregroundColor(Color(hex: "00A896"))
+                                        .font(.system(size: 20))
+                                    
+                                    Text("loginActivity.title")
+                                        .font(.custom("Poppins-SemiBold", size: 18))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                }
                                 
-                                Text("loginActivity.title")
-                                    .font(.custom("Poppins-SemiBold", size: 18))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                Text("loginActivity.description")
+                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .foregroundColor(.gray)
                             }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(hex: "00A896").opacity(0.1))
+                            )
+                            .padding(.horizontal)
                             
-                            Text("loginActivity.description")
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(hex: "00A896").opacity(0.1))
-                        )
-                        .padding(.horizontal)
-                        
-                        // Current Session
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("loginActivity.currentSession")
-                                .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                            
-                            CurrentSessionCard(session: viewModel.currentSession)
-                        }
-                        .padding(.horizontal)
-                        
-                        // Recent Activity
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Text("loginActivity.recentActivity")
+                            // Current Session
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("loginActivity.currentSession")
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
-                                Spacer()
-                                
-                                Button(NSLocalizedString("loginActivity.logoutAll", comment: "Logout all sessions")) {
-                                    viewModel.showLogoutAllAlert = true
-                                }
-                                .font(.custom("Poppins-Medium", size: 14))
-                                .foregroundColor(.red)
+                                CurrentSessionCard(session: viewModel.currentSession)
                             }
+                            .padding(.horizontal)
                             
-                            if viewModel.loginActivities.isEmpty {
-                                VStack(spacing: 12) {
-                                    Image(systemName: "clock.badge.checkmark")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(.gray)
+                            // Recent Activity
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Text("loginActivity.recentActivity")
+                                        .font(.custom("Poppins-SemiBold", size: 16))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("loginActivity.noRecentActivity")
-                                        .font(.custom("Poppins-Regular", size: 16))
-                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    
+                                    Button(NSLocalizedString("loginActivity.logoutAll", comment: "Logout all sessions")) {
+                                        viewModel.showLogoutAllAlert = true
+                                    }
+                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .foregroundColor(.red)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 40)
-                            } else {
-                                LazyVStack(spacing: 12) {
-                                    ForEach(viewModel.loginActivities) { activity in
-                                        LoginActivityCard(activity: activity)
+                                
+                                if viewModel.loginActivities.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "clock.badge.checkmark")
+                                            .font(.system(size: 40))
+                                            .foregroundColor(.gray)
+                                        
+                                        Text("loginActivity.noRecentActivity")
+                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .foregroundColor(.gray)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 40)
+                                } else {
+                                    LazyVStack(spacing: 12) {
+                                        ForEach(viewModel.loginActivities) { activity in
+                                            LoginActivityCard(activity: activity)
+                                        }
                                     }
                                 }
                             }
-                        }
-                        .padding(.horizontal)
-                        
-                        // Security Tips
-                        SecurityTipsSection()
                             .padding(.horizontal)
-                        
-                        Spacer(minLength: 20)
+                            
+                            // Security Tips
+                            SecurityTipsSection()
+                                .padding(.horizontal)
+                            
+                            Spacer(minLength: 20)
+                        }
+                        .padding(.top)
                     }
-                    .padding(.top)
                 }
             }
-        }
-        .navigationTitle("Actividad de Inicio")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .onAppear {
-            viewModel.loadLoginActivity {
-                isLoading = false
+            .navigationTitle("Actividad de Inicio")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
+                    }
+                }
             }
-        }
-        .refreshable {
-            await viewModel.refreshLoginActivity()
-        }
-        .alert(NSLocalizedString("loginActivity.logoutAll.title", comment: "Logout all sessions"), isPresented: $viewModel.showLogoutAllAlert) {
-            Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) { }
-            Button(NSLocalizedString("loginActivity.logoutAll.confirm", comment: "Logout all"), role: .destructive) {
-                viewModel.logoutAllSessions()
+            .onAppear {
+                viewModel.loadLoginActivity {
+                    isLoading = false
+                }
             }
-        } message: {
-                            Text("loginActivity.logoutAll.message")
-        }
-        .alert(NSLocalizedString("loginActivity.error.title", comment: "Error"), isPresented: $viewModel.showError) {
-            Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
-        } message: {
-            Text(viewModel.errorMessage)
-        }
-        .alert(NSLocalizedString("loginActivity.logoutSuccess.title", comment: "Sessions closed"), isPresented: $viewModel.showLogoutSuccess) {
-                        Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
-          } message: {
-            Text("loginActivity.logoutSuccess.message")
+            .refreshable {
+                await viewModel.refreshLoginActivity()
+            }
+            .alert(NSLocalizedString("loginActivity.logoutAll.title", comment: "Logout all sessions"), isPresented: $viewModel.showLogoutAllAlert) {
+                Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) { }
+                Button(NSLocalizedString("loginActivity.logoutAll.confirm", comment: "Logout all"), role: .destructive) {
+                    viewModel.logoutAllSessions()
+                }
+            } message: {
+                Text("loginActivity.logoutAll.message")
+            }
+            .alert(NSLocalizedString("loginActivity.error.title", comment: "Error"), isPresented: $viewModel.showError) {
+                Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
+            } message: {
+                Text(viewModel.errorMessage)
+            }
+            .alert(NSLocalizedString("loginActivity.logoutSuccess.title", comment: "Sessions closed"), isPresented: $viewModel.showLogoutSuccess) {
+                Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
+            } message: {
+                Text("loginActivity.logoutSuccess.message")
+            }
         }
     }
 }

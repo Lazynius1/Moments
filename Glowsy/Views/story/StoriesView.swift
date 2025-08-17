@@ -58,7 +58,7 @@ struct StoriesView: View {
             } else if userIds.isEmpty || storyViewModel.stories.isEmpty {
                 GlassmorphicEmptyState(
                     icon: "photo.on.rectangle",
-                    message: "No hay historias disponibles",
+                    message: NSLocalizedString("stories.noStoriesAvailable", comment: "No stories available"),
                     showCloseButton: true,
                     onClose: { dismiss() }
                 )
@@ -156,7 +156,7 @@ struct StoriesView: View {
             } else {
                 GlassmorphicEmptyState(
                     icon: "exclamationmark.triangle",
-                    message: "Error al cargar la historia",
+                    message: NSLocalizedString("stories.errorLoadingStory", comment: "Error loading story"),
                     showCloseButton: true,
                     onClose: { dismiss() }
                 )
@@ -181,9 +181,9 @@ struct StoriesView: View {
                 ReportBottomSheet(story: story)
             }
         }
-        .alert("Bloquear Usuario", isPresented: $showingBlockConfirmation) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Bloquear", role: .destructive) {
+        .alert(NSLocalizedString("stories.blockUser.title", comment: "Block user"), isPresented: $showingBlockConfirmation) {
+                Button(NSLocalizedString("stories.blockUser.cancel", comment: "Cancel"), role: .cancel) { }
+                Button(NSLocalizedString("stories.blockUser.confirm", comment: "Block"), role: .destructive) {
                 blockUserConfirmed()
             }
         } message: {

@@ -286,6 +286,7 @@ class SavedMomentsViewModel: ObservableObject {
 // MARK: - ✅ SavedMomentsView CORREGIDO sin confirmaciones duplicadas
 struct SavedMomentsView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = SavedMomentsViewModel()
     @State private var selectedViewMode: ViewMode = .grid
     
@@ -302,34 +303,61 @@ struct SavedMomentsView: View {
     }
 
     var body: some View {
-        ZStack {
-            backgroundGradient
-            
-            if viewModel.isLoading {
-                loadingView
-            } else if let error = viewModel.error {
-                errorView(error)
-            } else if viewModel.moments.isEmpty {
-                emptyStateView
-            } else {
-                mainContent
+        NavigationView {
+            ZStack {
+                backgroundGradient
+                
+                if viewModel.isLoading {
+                    loadingView
+                } else if let error = viewModel.error {
+                    errorView(error)
+                } else if viewModel.moments.isEmpty {
+                    emptyStateView
+                } else {
+                    mainContent
+                }
             }
-        }
-        .navigationTitle("Guardados")
-        .navigationBarTitleDisplayMode(.large)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                viewModeToggle
+            .navigationTitle("Guardados")
+            .navigationBarTitleDisplayMode(.large)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    viewModeToggle
+                }
             }
-        }
-        .onAppear {
-            if viewModel.moments.isEmpty && !viewModel.isLoading {
-                viewModel.loadSavedMoments()
+            .onAppear {
+                if viewModel.moments.isEmpty && !viewModel.isLoading {
+                    viewModel.loadSavedMoments()
+                }
             }
-        }
-        .refreshable {
-            await refreshMoments()
+            .refreshable {
+                await refreshMoments()
+            }
         }
     }
     

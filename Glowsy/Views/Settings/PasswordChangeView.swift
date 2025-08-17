@@ -20,11 +20,11 @@ struct PasswordChangeView: View {
                                 .font(.system(size: 50))
                                 .foregroundColor(Color(hex: "00A896"))
                             
-                            Text("Cambiar Contraseña")
+                            Text(NSLocalizedString("passwordChange.title", comment: "Change password title"))
                                 .font(.custom("Poppins-Bold", size: 24))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
-                            Text("Actualiza tu contraseña para mantener tu cuenta segura")
+                            Text(NSLocalizedString("passwordChange.subtitle", comment: "Change password subtitle"))
                                 .font(.custom("Poppins-Regular", size: 16))
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
@@ -35,16 +35,16 @@ struct PasswordChangeView: View {
                         VStack(spacing: 20) {
                             // Current Password
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Contraseña actual")
+                                Text(NSLocalizedString("passwordChange.currentPassword", comment: "Current password"))
                                     .font(.custom("Poppins-Medium", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 HStack {
                                     if viewModel.showCurrentPassword {
-                                        TextField("Introduce tu contraseña actual", text: $viewModel.currentPassword)
+                                        TextField(NSLocalizedString("passwordChange.currentPasswordPlaceholder", comment: "Current password placeholder"), text: $viewModel.currentPassword)
                                             .font(.custom("Poppins-Regular", size: 16))
                                     } else {
-                                        SecureField("Introduce tu contraseña actual", text: $viewModel.currentPassword)
+                                        SecureField(NSLocalizedString("passwordChange.currentPasswordPlaceholder", comment: "Current password placeholder"), text: $viewModel.currentPassword)
                                             .font(.custom("Poppins-Regular", size: 16))
                                     }
                                     
@@ -66,7 +66,7 @@ struct PasswordChangeView: View {
                                 )
                                 
                                 if viewModel.currentPasswordError {
-                                    Text("La contraseña actual es incorrecta")
+                                    Text(NSLocalizedString("passwordChange.currentPasswordError", comment: "Current password error"))
                                         .font(.custom("Poppins-Regular", size: 12))
                                         .foregroundColor(.red)
                                 }
@@ -74,16 +74,16 @@ struct PasswordChangeView: View {
                             
                             // New Password
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Nueva contraseña")
+                                Text(NSLocalizedString("passwordChange.newPassword", comment: "New password"))
                                     .font(.custom("Poppins-Medium", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 HStack {
                                     if viewModel.showNewPassword {
-                                        TextField("Introduce tu nueva contraseña", text: $viewModel.newPassword)
+                                        TextField(NSLocalizedString("passwordChange.newPasswordPlaceholder", comment: "New password placeholder"), text: $viewModel.newPassword)
                                             .font(.custom("Poppins-Regular", size: 16))
                                     } else {
-                                        SecureField("Introduce tu nueva contraseña", text: $viewModel.newPassword)
+                                        SecureField(NSLocalizedString("passwordChange.newPasswordPlaceholder", comment: "New password placeholder"), text: $viewModel.newPassword)
                                             .font(.custom("Poppins-Regular", size: 16))
                                     }
                                     
@@ -134,7 +134,7 @@ struct PasswordChangeView: View {
                                 }
                                 
                                 if viewModel.newPasswordError {
-                                    Text("La contraseña debe tener al menos 8 caracteres")
+                                    Text(NSLocalizedString("passwordChange.passwordRequirement", comment: "Password requirement"))
                                         .font(.custom("Poppins-Regular", size: 12))
                                         .foregroundColor(.red)
                                 }
@@ -142,16 +142,16 @@ struct PasswordChangeView: View {
                             
                             // Confirm New Password
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Confirmar nueva contraseña")
+                                Text(NSLocalizedString("passwordChange.confirmPassword", comment: "Confirm password"))
                                     .font(.custom("Poppins-Medium", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 HStack {
                                     if viewModel.showConfirmPassword {
-                                        TextField("Confirma tu nueva contraseña", text: $viewModel.confirmPassword)
+                                        TextField(NSLocalizedString("passwordChange.confirmPasswordPlaceholder", comment: "Confirm password placeholder"), text: $viewModel.confirmPassword)
                                             .font(.custom("Poppins-Regular", size: 16))
                                     } else {
-                                        SecureField("Confirma tu nueva contraseña", text: $viewModel.confirmPassword)
+                                        SecureField(NSLocalizedString("passwordChange.confirmPasswordPlaceholder", comment: "Confirm password placeholder"), text: $viewModel.confirmPassword)
                                             .font(.custom("Poppins-Regular", size: 16))
                                     }
                                     
@@ -173,7 +173,7 @@ struct PasswordChangeView: View {
                                 )
                                 
                                 if viewModel.confirmPasswordError {
-                                    Text("Las contraseñas no coinciden")
+                                    Text(NSLocalizedString("passwordChange.passwordsDontMatch", comment: "Passwords don't match"))
                                         .font(.custom("Poppins-Regular", size: 12))
                                         .foregroundColor(.red)
                                 }
@@ -187,7 +187,7 @@ struct PasswordChangeView: View {
                                 Image(systemName: "lightbulb")
                                     .foregroundColor(Color(hex: "00A896"))
                                 
-                                Text("Consejos de seguridad")
+                                Text(NSLocalizedString("passwordChange.securityTips", comment: "Security tips"))
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
@@ -242,8 +242,27 @@ struct PasswordChangeView: View {
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
-                        dismiss()
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
                     }
                 }
             }
@@ -252,12 +271,12 @@ struct PasswordChangeView: View {
             } message: {
                 Text(viewModel.errorMessage)
             }
-            .alert("Éxito", isPresented: $viewModel.showSuccess) {
+            .alert(NSLocalizedString("passwordChange.successMessage", comment: "Success alert title"), isPresented: $viewModel.showSuccess) {
                 Button("OK") {
                     dismiss()
                 }
             } message: {
-                Text("Tu contraseña ha sido cambiada exitosamente")
+                Text(NSLocalizedString("passwordChange.successMessage", comment: "Success message"))
             }
         }
     }

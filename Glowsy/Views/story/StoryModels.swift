@@ -1344,7 +1344,7 @@ struct GlassmorphicStoryViewer: View {
                 .padding(.bottom, 20)
             
             // Título
-            Text(story.authorId == Auth.auth().currentUser?.uid ? "Mi historia" : "Opciones")
+            Text(story.authorId == Auth.auth().currentUser?.uid ? NSLocalizedString("storyContextMenu.myStory", comment: "My story title") : NSLocalizedString("storyContextMenu.options", comment: "Options title"))
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(.white)
                 .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
@@ -1355,8 +1355,8 @@ struct GlassmorphicStoryViewer: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 20) {
                     ModernActionTile(
                         icon: "eye.fill",
-                        title: "Ver\nActividad",
-                        subtitle: "Visualizaciones\ny reacciones",
+                        title: NSLocalizedString("storyContextMenu.viewActivity", comment: "View activity button"),
+                        subtitle: NSLocalizedString("storyContextMenu.viewActivity.subtitle", comment: "View activity subtitle"),
                         color: .blue
                     ) {
                         fetchViewersAndShow()
@@ -1364,8 +1364,8 @@ struct GlassmorphicStoryViewer: View {
                     
                     ModernActionTile(
                         icon: "square.and.arrow.down",
-                        title: "Guardar",
-                        subtitle: "Descargar\nhistoria",
+                        title: NSLocalizedString("storyContextMenu.save", comment: "Save story button"),
+                        subtitle: NSLocalizedString("storyContextMenu.save.subtitle", comment: "Save story subtitle"),
                         color: .green
                     ) {
                         saveStoryToDevice()
@@ -1378,8 +1378,8 @@ struct GlassmorphicStoryViewer: View {
                     
                     ModernActionTile(
                         icon: "trash.fill",
-                        title: "Eliminar",
-                        subtitle: "Borrar\nhistoria",
+                        title: NSLocalizedString("storyContextMenu.delete", comment: "Delete story button"),
+                        subtitle: NSLocalizedString("storyContextMenu.delete.subtitle", comment: "Delete story subtitle"),
                         color: .red
                     ) {
                         deleteStory()
@@ -1393,8 +1393,8 @@ struct GlassmorphicStoryViewer: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 20) {
                     ModernActionTile(
                         icon: "square.and.arrow.up",
-                        title: "Compartir",
-                        subtitle: "Enviar\na otros",
+                        title: NSLocalizedString("storyContextMenu.share", comment: "Share story button"),
+                        subtitle: NSLocalizedString("storyContextMenu.share.subtitle", comment: "Share story subtitle"),
                         color: .blue
                     ) {
                         showShareSheet = true
@@ -1407,8 +1407,8 @@ struct GlassmorphicStoryViewer: View {
                     
                     ModernActionTile(
                         icon: "flag.fill",
-                        title: "Reportar",
-                        subtitle: "Contenido\ninapropiado",
+                        title: NSLocalizedString("storyContextMenu.report", comment: "Report story button"),
+                        subtitle: NSLocalizedString("storyContextMenu.report.subtitle", comment: "Report story subtitle"),
                         color: .orange
                     ) {
                         onReportStory()
@@ -1419,8 +1419,8 @@ struct GlassmorphicStoryViewer: View {
                     
                     ModernActionTile(
                         icon: "person.slash",
-                        title: "Bloquear",
-                        subtitle: "No ver más\ncontenido",
+                        title: NSLocalizedString("storyContextMenu.block", comment: "Block user button"),
+                        subtitle: NSLocalizedString("storyContextMenu.block.subtitle", comment: "Block user subtitle"),
                         color: .red
                     ) {
                         onBlockUser()

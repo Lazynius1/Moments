@@ -39,7 +39,7 @@ struct QuestionResponsesView: View {
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(.blue)
                         
-                        Text(responses.count == 1 ? "respuesta" : "respuestas")
+                        Text(responses.count == 1 ? NSLocalizedString("questionResponses.response", comment: "Response singular") : NSLocalizedString("questionResponses.responses", comment: "Responses plural"))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.secondary)
                     }
@@ -50,7 +50,7 @@ struct QuestionResponsesView: View {
                 // Lista de respuestas
                 if isLoading {
                     Spacer()
-                    ProgressView("Cargando respuestas...")
+                    ProgressView(NSLocalizedString("questionResponses.loading", comment: "Loading responses"))
                         .font(.custom("Poppins-Regular", size: 14))
                     Spacer()
                 } else if responses.isEmpty {
@@ -60,11 +60,11 @@ struct QuestionResponsesView: View {
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
                         
-                        Text("Aún no hay respuestas")
+                        Text(NSLocalizedString("questionResponses.noAnswers", comment: "No answers yet"))
                             .font(.custom("Poppins-Medium", size: 16))
                             .foregroundColor(.secondary)
                         
-                        Text("Comparte tu historia para recibir respuestas")
+                        Text(NSLocalizedString("questionResponses.shareStory", comment: "Share story to receive answers"))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.secondary.opacity(0.8))
                             .multilineTextAlignment(.center)
@@ -97,11 +97,11 @@ struct QuestionResponsesView: View {
                     }
                 }
             }
-            .navigationTitle("Respuestas")
+            .navigationTitle(NSLocalizedString("questionResponses.title", comment: "Responses title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") {
+                    Button(NSLocalizedString("questionResponses.close", comment: "Close button")) {
                         dismiss()
                     }
                     .foregroundColor(.blue)
@@ -281,7 +281,7 @@ struct ShareResponseView: View {
                                 .scaleEffect(0.8)
                                 .tint(.white)
                         } else {
-                            Text("Crear historia con esta respuesta")
+                            Text(NSLocalizedString("questionResponses.createStory", comment: "Create story with this answer"))
                                 .font(.custom("Poppins-SemiBold", size: 16))
                         }
                     }
@@ -301,11 +301,11 @@ struct ShareResponseView: View {
                 .padding(.horizontal, 20)
             }
             .padding(.top, 20)
-            .navigationTitle("Compartir respuesta")
+            .navigationTitle(NSLocalizedString("questionResponses.shareResponse", comment: "Share response title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("questionResponses.cancel", comment: "Cancel button")) {
                         dismiss()
                         onDismiss()
                     }
@@ -360,7 +360,7 @@ struct CreatorViewWithResponse: View {
                         )
                     )
                 
-                Text("Compartiendo respuesta a:")
+                Text(NSLocalizedString("questionResponses.sharingResponseTo", comment: "Sharing response to"))
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(.secondary)
                 
@@ -370,7 +370,7 @@ struct CreatorViewWithResponse: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
                 
-                Text("Respuesta anónima:")
+                Text(NSLocalizedString("questionResponses.anonymousResponse", comment: "Anonymous response"))
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.secondary)
                 
@@ -397,7 +397,7 @@ struct CreatorViewWithResponse: View {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
                     
-                    Text("Crear historia con esta respuesta")
+                    Text(NSLocalizedString("questionResponses.createStory", comment: "Create story with this answer"))
                         .font(.custom("Poppins-SemiBold", size: 16))
                 }
                 .foregroundColor(.white)
@@ -415,17 +415,17 @@ struct CreatorViewWithResponse: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
-        .navigationTitle("Compartir respuesta")
+                    .navigationTitle(NSLocalizedString("questionResponses.shareResponse", comment: "Share response title"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancelar") {
-                    dismiss()
-                    onDismiss()
+                    .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(NSLocalizedString("questionResponses.cancel", comment: "Cancel button")) {
+                        dismiss()
+                        onDismiss()
+                    }
+                    .foregroundColor(.blue)
                 }
-                .foregroundColor(.blue)
             }
-        }
         .fullScreenCover(isPresented: $showingCreatorView) {
             CreatorViewWithResponseData(
                 questionText: questionText,
@@ -506,7 +506,7 @@ struct CreatorViewWithResponseData: View {
                 .foregroundColor: UIColor.white
             ]
             
-            let titleString = "Respuesta anónima"
+            let titleString = NSLocalizedString("questionResponses.anonymousResponseTitle", comment: "Anonymous response title")
             let titleSize = titleString.size(withAttributes: titleAttributes)
             titleString.draw(
                 at: CGPoint(x: 35, y: 12),

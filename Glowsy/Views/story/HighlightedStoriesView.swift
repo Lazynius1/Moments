@@ -8,82 +8,101 @@ struct HighlightedStoriesView: View {
     @StateObject private var viewModel = HighlightedStoriesViewModel()
     
     var body: some View {
-        ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-            
-            if viewModel.isLoading {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(1.2)
-                    
-                    Text("Cargando destacadas...")
-                        .font(.custom("Poppins-Regular", size: 16))
-                        .foregroundColor(.gray)
-                }
-            } else if viewModel.highlightedStories.isEmpty {
-                // Empty state
-                VStack(spacing: 20) {
-                    Image(systemName: "star.circle")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray.opacity(0.5))
-                    
-                    VStack(spacing: 8) {
-                        Text("No hay historias destacadas")
-                            .font(.custom("Poppins-SemiBold", size: 18))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+        NavigationView {
+            ZStack {
+                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                
+                if viewModel.isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(1.2)
                         
-                        Text("Marca tus historias favoritas como destacadas para guardarlas aquí")
-                            .font(.custom("Poppins-Regular", size: 14))
+                        Text(NSLocalizedString("highlightedStories.loading", comment: "Loading highlighted stories"))
+                            .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
                     }
-                    
-                    Button("Crear destacada") {
-                        // TODO: Implementar creación de destacada
-                    }
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color(hex: "00A896"))
-                    .cornerRadius(25)
-                }
-                .padding()
-            } else {
-                // Highlighted stories content
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(viewModel.highlightedStories, id: \.id) { highlight in
-                            HighlightedStoryCard(highlight: highlight)
+                } else if viewModel.highlightedStories.isEmpty {
+                    // Empty state
+                    VStack(spacing: 20) {
+                        Image(systemName: "star.circle")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.5))
+                        
+                        VStack(spacing: 8) {
+                            Text(NSLocalizedString("highlightedStories.empty", comment: "No highlighted stories"))
+                                .font(.custom("Poppins-SemiBold", size: 18))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                            
+                            Text(NSLocalizedString("highlightedStories.emptyDescription", comment: "Mark your favorite stories as highlighted to save them here"))
+                                .font(.custom("Poppins-Regular", size: 14))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
                         }
+                        
+                        Button(NSLocalizedString("highlightedStories.create", comment: "Create highlighted")) {
+                            // TODO: Implementar creación de destacada
+                        }
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color(hex: "00A896"))
+                        .cornerRadius(25)
                     }
                     .padding()
+                } else {
+                    // Highlighted stories content
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(viewModel.highlightedStories, id: \.id) { highlight in
+                                HighlightedStoryCard(highlight: highlight)
+                            }
+                        }
+                        .padding()
+                    }
                 }
             }
-        }
-        .navigationTitle("Historias Destacadas")
-        .navigationBarTitleDisplayMode(.large)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+            .navigationTitle(NSLocalizedString("highlightedStories.title", comment: "Highlighted stories"))
+            .navigationBarTitleDisplayMode(.large)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("highlightedStories.new", comment: "New highlighted")) {
+                        // TODO: Implementar creación de nueva destacada
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(Color(hex: "00A896"))
                 }
             }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Nueva") {
-                    // TODO: Implementar creación de nueva destacada
-                }
-                .font(.custom("Poppins-SemiBold", size: 16))
-                .foregroundColor(Color(hex: "00A896"))
+            .onAppear {
+                viewModel.loadHighlightedStories()
             }
-        }
-        .onAppear {
-            viewModel.loadHighlightedStories()
         }
     }
 }
@@ -111,7 +130,7 @@ struct HighlightedStoryCard: View {
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
-                    Text("\(highlight.storiesCount) historia\(highlight.storiesCount == 1 ? "" : "s")")
+                    Text(String(format: NSLocalizedString("highlightedStories.storyCount", comment: "Story count"), highlight.storiesCount, highlight.storiesCount == 1 ? "" : "s"))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                     

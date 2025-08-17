@@ -5,11 +5,13 @@ import FirebaseFirestore
 
 struct DataExportView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = DataExportViewModel()
     @State private var showMailComposer = false
     
     var body: some View {
-        ZStack {
+        NavigationView {
+            ZStack {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
             ScrollView {
@@ -20,11 +22,11 @@ struct DataExportView: View {
                             .font(.system(size: 50))
                             .foregroundColor(Color(hex: "00A896"))
                         
-                        Text("Descargar tus Datos")
+                        Text(NSLocalizedString("dataExport.title", comment: "Data export title"))
                             .font(.custom("Poppins-Bold", size: 24))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
-                        Text("Solicita una copia completa de toda tu información almacenada en Moments")
+                        Text(NSLocalizedString("dataExport.subtitle", comment: "Data export subtitle"))
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -37,19 +39,19 @@ struct DataExportView: View {
                             Image(systemName: "info.circle.fill")
                                 .foregroundColor(Color(hex: "00A896"))
                             
-                            Text("¿Qué incluye la descarga?")
+                            Text(NSLocalizedString("dataExport.whatIncludes.title", comment: "What includes download title"))
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         
                         VStack(spacing: 12) {
-                            DataIncludeRow(icon: "person.fill", title: "Información del perfil", description: "Nombre, email, bio, intereses")
-                            DataIncludeRow(icon: "square.grid.3x3.fill", title: "Publicaciones", description: "Todas tus publicaciones, fotos y videos")
-                            DataIncludeRow(icon: "circle.dashed", title: "Historias", description: "Historial de historias publicadas")
-                            DataIncludeRow(icon: "message.fill", title: "Mensajes", description: "Conversaciones y chats")
-                            DataIncludeRow(icon: "heart.fill", title: "Interacciones", description: "Likes, comentarios y reacciones")
-                            DataIncludeRow(icon: "person.2.fill", title: "Conexiones", description: "Lista de seguidores y siguiendo")
-                            DataIncludeRow(icon: "clock.fill", title: "Actividad", description: "Historial de uso y estadísticas")
+                            DataIncludeRow(icon: "person.fill", title: NSLocalizedString("dataExport.profileInfo.title", comment: "Profile info title"), description: NSLocalizedString("dataExport.profileInfo.description", comment: "Profile info description"))
+                            DataIncludeRow(icon: "square.grid.3x3.fill", title: NSLocalizedString("dataExport.posts.title", comment: "Posts title"), description: NSLocalizedString("dataExport.posts.description", comment: "Posts description"))
+                            DataIncludeRow(icon: "circle.dashed", title: NSLocalizedString("dataExport.stories.title", comment: "Stories title"), description: NSLocalizedString("dataExport.stories.description", comment: "Stories description"))
+                            DataIncludeRow(icon: "message.fill", title: NSLocalizedString("dataExport.messages.title", comment: "Messages title"), description: NSLocalizedString("dataExport.messages.description", comment: "Messages description"))
+                            DataIncludeRow(icon: "heart.fill", title: NSLocalizedString("dataExport.interactions.title", comment: "Interactions title"), description: NSLocalizedString("dataExport.interactions.description", comment: "Interactions description"))
+                            DataIncludeRow(icon: "person.2.fill", title: NSLocalizedString("dataExport.connections.title", comment: "Connections title"), description: NSLocalizedString("dataExport.connections.description", comment: "Connections description"))
+                            DataIncludeRow(icon: "clock.fill", title: NSLocalizedString("dataExport.activity.title", comment: "Activity title"), description: NSLocalizedString("dataExport.activity.description", comment: "Activity description"))
                         }
                     }
                     .padding()
@@ -61,14 +63,14 @@ struct DataExportView: View {
                     
                     // Export Options
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Opciones de Exportación")
+                        Text(NSLocalizedString("dataExport.options.title", comment: "Export options title"))
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         VStack(spacing: 12) {
                             ExportOptionCard(
-                                title: "Exportación Completa",
-                                description: "Incluye todos tus datos en formato JSON y archivos multimedia",
+                                title: NSLocalizedString("dataExport.complete.title", comment: "Complete export title"),
+                                description: NSLocalizedString("dataExport.complete.description", comment: "Complete export description"),
                                 icon: "doc.fill.badge.plus",
                                 estimatedSize: "50-200 MB",
                                 isSelected: viewModel.selectedExportType == .complete,
@@ -76,8 +78,8 @@ struct DataExportView: View {
                             )
                             
                             ExportOptionCard(
-                                title: "Solo Datos de Texto",
-                                description: "Información de perfil, mensajes y configuraciones sin multimedia",
+                                title: NSLocalizedString("dataExport.textOnly.title", comment: "Text only export title"),
+                                description: NSLocalizedString("dataExport.textOnly.description", comment: "Text only export description"),
                                 icon: "doc.text.fill",
                                 estimatedSize: "1-5 MB",
                                 isSelected: viewModel.selectedExportType == .textOnly,
@@ -85,8 +87,8 @@ struct DataExportView: View {
                             )
                             
                             ExportOptionCard(
-                                title: "Solo Multimedia",
-                                description: "Todas tus fotos y videos sin datos de texto",
+                                title: NSLocalizedString("dataExport.mediaOnly.title", comment: "Media only export title"),
+                                description: NSLocalizedString("dataExport.mediaOnly.description", comment: "Media only export description"),
                                 icon: "photo.fill.on.rectangle.fill",
                                 estimatedSize: "10-150 MB",
                                 isSelected: viewModel.selectedExportType == .mediaOnly,
@@ -98,21 +100,21 @@ struct DataExportView: View {
                     
                     // Format Selection
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Formato de Datos")
+                        Text(NSLocalizedString("dataExport.format.title", comment: "Data format title"))
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         HStack(spacing: 12) {
                             FormatButton(
-                                title: "JSON",
-                                description: "Legible por máquinas",
+                                title: NSLocalizedString("dataExport.format.json.title", comment: "JSON format title"),
+                                description: NSLocalizedString("dataExport.format.json.description", comment: "JSON format description"),
                                 isSelected: viewModel.selectedFormat == .json,
                                 onTap: { viewModel.selectedFormat = .json }
                             )
                             
                             FormatButton(
-                                title: "CSV",
-                                description: "Para Excel/Hojas de cálculo",
+                                title: NSLocalizedString("dataExport.format.csv.title", comment: "CSV format title"),
+                                description: NSLocalizedString("dataExport.format.csv.description", comment: "CSV format description"),
                                 isSelected: viewModel.selectedFormat == .csv,
                                 onTap: { viewModel.selectedFormat = .csv }
                             )
@@ -132,25 +134,25 @@ struct DataExportView: View {
                             Image(systemName: "shield.checkerboard")
                                 .foregroundColor(.orange)
                             
-                            Text("Aviso de Privacidad")
-                                .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                            Text(NSLocalizedString("dataExport.privacy.title", comment: "Privacy notice title"))
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("• Los datos se enviarán al email asociado a tu cuenta")
+                            Text(NSLocalizedString("dataExport.privacy.bullet1", comment: "Privacy bullet 1"))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.gray)
                             
-                            Text("• El enlace de descarga expirará en 7 días")
+                            Text(NSLocalizedString("dataExport.privacy.bullet2", comment: "Privacy bullet 2"))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.gray)
                             
-                            Text("• Solo puedes hacer una solicitud cada 30 días")
+                            Text(NSLocalizedString("dataExport.privacy.bullet3", comment: "Privacy bullet 3"))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.gray)
                             
-                            Text("• Los datos están encriptados y protegidos")
+                            Text(NSLocalizedString("dataExport.privacy.bullet4", comment: "Privacy bullet 4"))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.gray)
                         }
@@ -182,7 +184,7 @@ struct DataExportView: View {
                                     .font(.system(size: 16, weight: .medium))
                             }
                             
-                            Text(viewModel.isProcessing ? "Procesando..." : "Solicitar Descarga")
+                            Text(viewModel.isProcessing ? NSLocalizedString("dataExport.processing", comment: "Processing text") : NSLocalizedString("dataExport.requestDownload", comment: "Request download text"))
                                 .font(.custom("Poppins-SemiBold", size: 16))
                         }
                         .foregroundColor(.white)
@@ -197,7 +199,7 @@ struct DataExportView: View {
                     .padding(.horizontal)
                     
                     if !viewModel.canRequestExport && viewModel.currentRequest == nil {
-                        Text("Ya has solicitado una descarga recientemente. Puedes hacer otra solicitud en \(viewModel.daysUntilNextRequest) días.")
+                        Text(String(format: NSLocalizedString("dataExport.alreadyRequested", comment: "Already requested message"), "\(viewModel.daysUntilNextRequest)"))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.orange)
                             .multilineTextAlignment(.center)
@@ -209,21 +211,48 @@ struct DataExportView: View {
                 .padding(.top)
             }
         }
-        .navigationTitle("Descargar Datos")
+        .navigationTitle(NSLocalizedString("dataExport.navigation.title", comment: "Download data navigation title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                }
+            }
+        }
         .onAppear {
             viewModel.checkExistingRequests()
         }
-        .alert("Solicitud Enviada", isPresented: $viewModel.showSuccess) {
-            Button("OK") { }
+        .alert(NSLocalizedString("dataExport.success.title", comment: "Success alert title"), isPresented: $viewModel.showSuccess) {
+            Button(NSLocalizedString("dataExport.ok", comment: "OK button")) { }
         } message: {
-            Text("Tu solicitud de descarga ha sido enviada. Recibirás un email con el enlace de descarga en las próximas 24-48 horas.")
+            Text(NSLocalizedString("dataExport.success.message", comment: "Success message"))
         }
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK") { }
+        .alert(NSLocalizedString("dataExport.error.title", comment: "Error alert title"), isPresented: $viewModel.showError) {
+            Button(NSLocalizedString("dataExport.ok", comment: "OK button")) { }
         } message: {
             Text(viewModel.errorMessage)
+        }
         }
     }
 }
@@ -365,9 +394,9 @@ struct CurrentRequestSection: View {
                 Image(systemName: "clock.fill")
                     .foregroundColor(.blue)
                 
-                Text("Solicitud en Proceso")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        Text(NSLocalizedString("dataExport.requestInProgress.title", comment: "Request in progress title"))
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -407,9 +436,9 @@ struct CurrentRequestSection: View {
             // Progress Bar
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Progreso")
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
+                                            Text(NSLocalizedString("dataExport.progress", comment: "Progress text"))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(.gray)
                     
                     Spacer()
                     
@@ -468,11 +497,11 @@ enum ExportStatus {
     
     var displayName: String {
         switch self {
-        case .pending: return "Pendiente"
-        case .processing: return "Procesando"
-        case .ready: return "Listo para descargar"
-        case .completed: return "Completado"
-        case .failed: return "Error"
+        case .pending: return NSLocalizedString("dataExport.status.pending", comment: "Pending status")
+        case .processing: return NSLocalizedString("dataExport.status.processing", comment: "Processing status")
+        case .ready: return NSLocalizedString("dataExport.status.ready", comment: "Ready status")
+        case .completed: return NSLocalizedString("dataExport.status.completed", comment: "Completed status")
+        case .failed: return NSLocalizedString("dataExport.status.failed", comment: "Failed status")
         }
     }
     
@@ -581,7 +610,7 @@ class DataExportViewModel: ObservableObject {
     
     func requestDataExport() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            showErrorAlert("Usuario no autenticado")
+            showErrorAlert(NSLocalizedString("dataExport.userNotAuthenticated", comment: "User not authenticated error"))
             return
         }
         
