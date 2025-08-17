@@ -50,13 +50,13 @@ struct ModernMomentContextMenu: View {
                     }
                 )
             }
-            .alert("Eliminar momento", isPresented: $showDeleteAlert) {
-                Button("Cancelar", role: .cancel) { }
-                Button("Eliminar", role: .destructive) {
+            .alert(NSLocalizedString("contextMenu.delete.title", comment: "Delete moment alert title"), isPresented: $showDeleteAlert) {
+                Button(NSLocalizedString("contextMenu.delete.cancel", comment: "Cancel button"), role: .cancel) { }
+                Button(NSLocalizedString("contextMenu.delete.confirm", comment: "Delete button"), role: .destructive) {
                     deleteMoment()
                 }
             } message: {
-                Text("¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.")
+                Text(NSLocalizedString("contextMenu.delete.message", comment: "Delete moment confirmation message"))
             }
             .sheet(isPresented: $showReportSheet) {
                 ReportBottomSheet(moment: moment)
@@ -280,16 +280,16 @@ struct ModernContextMenuContent: View {
                 if isMyMoment {
                     ContextMenuButton(
                         icon: "pencil",
-                        title: "Editar momento",
-                        subtitle: "Cambiar descripción",
+                        title: NSLocalizedString("contextMenu.editMoment", comment: "Edit moment button"),
+                        subtitle: NSLocalizedString("contextMenu.editMoment.subtitle", comment: "Edit moment subtitle"),
                         iconColor: .blue,
                         action: onEdit
                     )
                     
                     ContextMenuButton(
                         icon: "trash",
-                        title: "Eliminar momento",
-                        subtitle: "Eliminar permanentemente",
+                        title: NSLocalizedString("contextMenu.deleteMoment", comment: "Delete moment button"),
+                        subtitle: NSLocalizedString("contextMenu.deleteMoment.subtitle", comment: "Delete moment subtitle"),
                         iconColor: .red,
                         action: onDelete
                     )
@@ -303,24 +303,24 @@ struct ModernContextMenuContent: View {
                 if canShare {
                     ContextMenuButton(
                         icon: "paperplane.fill",
-                        title: "Compartir momento",
-                        subtitle: "Enviar a contactos",
+                        title: NSLocalizedString("contextMenu.shareMoment", comment: "Share moment button"),
+                        subtitle: NSLocalizedString("contextMenu.shareMoment.subtitle", comment: "Share moment subtitle"),
                         iconColor: .green,
                         action: onShare
                     )
                 } else {
                     ContextMenuButtonDisabled(
                         icon: "paperplane.fill",
-                        title: "Compartir momento",
-                        subtitle: "Solo disponible para momentos públicos",
+                        title: NSLocalizedString("contextMenu.shareMoment", comment: "Share moment button"),
+                        subtitle: NSLocalizedString("contextMenu.shareMoment.disabled", comment: "Share moment disabled subtitle"),
                         iconColor: .gray
                     )
                 }
                 
                 ContextMenuButton(
                     icon: "link",
-                    title: "Copiar enlace",
-                    subtitle: "Compartir fuera de la app",
+                    title: NSLocalizedString("contextMenu.copyLink", comment: "Copy link button"),
+                    subtitle: NSLocalizedString("contextMenu.copyLink.subtitle", comment: "Copy link subtitle"),
                     iconColor: .orange,
                     action: onCopyLink
                 )
@@ -333,8 +333,8 @@ struct ModernContextMenuContent: View {
                     
                     ContextMenuButton(
                         icon: "flag",
-                        title: "Reportar momento",
-                        subtitle: "Contenido inapropiado",
+                        title: NSLocalizedString("contextMenu.reportMoment", comment: "Report moment button"),
+                        subtitle: NSLocalizedString("contextMenu.reportMoment.subtitle", comment: "Report moment subtitle"),
                         iconColor: .red,
                         action: onReport
                     )
@@ -344,7 +344,7 @@ struct ModernContextMenuContent: View {
             .padding(.bottom, 40) // ✅ Más padding para que no esté pegado al borde
             
             // ✅ Botón cancelar
-            Button("Cancelar") {
+            Button(NSLocalizedString("contextMenu.cancel", comment: "Cancel button")) {
                 onCancel()
             }
             .font(.custom("Poppins-SemiBold", size: 16))
@@ -503,17 +503,17 @@ struct PrivacyIndicator: View {
     private var audienceInfo: (icon: String, color: Color, text: String) {
         switch audience {
         case "everyone":
-            return ("globe", .green, "Público")
+            return ("globe", .green, NSLocalizedString("privacyIndicator.public", comment: "Public privacy level"))
         case "connections":
-            return ("person.2", .blue, "Conexiones")
+            return ("person.2", .blue, NSLocalizedString("privacyIndicator.connections", comment: "Connections privacy level"))
         case "bestFriends":
-            return ("star.fill", .yellow, "Mejores amigos")
+            return ("star.fill", .yellow, NSLocalizedString("privacyIndicator.bestFriends", comment: "Best friends privacy level"))
         case "custom":
-            return ("person.3", .purple, "Personalizado")
+            return ("person.3", .purple, NSLocalizedString("privacyIndicator.custom", comment: "Custom privacy level"))
         case "customList":
-            return ("list.bullet", .orange, "Lista")
+            return ("list.bullet", .orange, NSLocalizedString("privacyIndicator.customList", comment: "Custom list privacy level"))
         default:
-            return ("globe", .green, "Público")
+            return ("globe", .green, NSLocalizedString("privacyIndicator.public", comment: "Public privacy level"))
         }
     }
     

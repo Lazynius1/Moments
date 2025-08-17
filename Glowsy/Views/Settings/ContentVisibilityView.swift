@@ -4,6 +4,7 @@ import FirebaseFirestore
 
 struct ContentVisibilityView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = ContentVisibilityViewModel()
     @State private var isLoading = true
     @State private var showingStoryAudienceSelector = false
@@ -11,16 +12,17 @@ struct ContentVisibilityView: View {
     @State private var showingStoryInteractionSettings = false // ✅ NUEVO
     
     var body: some View {
-        ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-            
-            if isLoading {
-                ProgressView(NSLocalizedString("contentVisibility.loading", comment: "Loading configuration..."))
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(.gray)
-            } else {
-                List {
+        NavigationView {
+            ZStack {
+                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                
+                if isLoading {
+                    ProgressView(NSLocalizedString("contentVisibility.loading", comment: "Loading configuration..."))
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .font(.custom("Poppins-Regular", size: 16))
+                        .foregroundColor(.gray)
+                } else {
+                    List {
                     // Stories Settings
                     Section {
                         contentTypeHeader(
@@ -163,6 +165,32 @@ struct ContentVisibilityView: View {
         .navigationTitle(NSLocalizedString("contentVisibility.title", comment: "Content Privacy"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                }
+            }
+        }
         .onAppear {
             viewModel.loadSettings {
                 isLoading = false
@@ -179,6 +207,7 @@ struct ContentVisibilityView: View {
             StoryInteractionSettingsView(viewModel: viewModel)
         }
     }
+}
     
     // ✅ NUEVA FUNCIÓN: Resumen de configuración de interacciones
     private func getInteractionSummary() -> String {

@@ -157,7 +157,7 @@ struct LoadingCardView: View {
             
             // Text Section
             VStack(spacing: 16) {
-                Text("Creando tu cuenta")
+                Text(NSLocalizedString("creatingProfile.title", comment: "Creating your account"))
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)

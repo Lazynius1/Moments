@@ -403,46 +403,84 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     });
     if (already) return null;
     
-    const message = {
-      token: fcmToken,
-      notification: {
-        title: `${followerData.username} comenzó a seguirte`,
-        body: 'Toca para ver su perfil',
-        image: cleanImageUrl
-      },
-      data: {
-        type: 'new_follower',
-        followerId: followerId,
-        userId: userId,
-        targetType: 'profile',
-        targetId: followerId,
-        senderUsername: followerData.username,
-        senderProfileImage: followerData.profileImagePath || ''
-      },
-      apns: {
-        payload: {
-          aps: {
-            badge: 1,
-            sound: 'default',
-            'mutable-content': 1,
-            'thread-id': `new_followers_${userId}` // ✅ Agrupación para seguidores
+    // ✅ NUEVO: Verificar si se crea una conexión mutua
+    const isMutualConnection = await checkMutualConnection(userId, followerId);
+    
+    let notificationTitle, notificationBody, notificationType;
+    
+    if (isMutualConnection) {
+      // ✅ CONEXIÓN MUTUA
+      notificationTitle = `Ahora tienes una conexión mutua con ${followerData.username}`;
+      notificationBody = '¡Ambos se siguen mutuamente!';
+      notificationType = 'mutualConnection';
+      
+      // ✅ ENVIAR NOTIFICACIÓN AL USUARIO ORIGINAL
+      await sendMutualConnectionNotification(userData, followerData, userId, followerId);
+      
+      // ✅ ENVIAR NOTIFICACIÓN AL SEGUIDOR TAMBIÉN
+      if (followerData.fcmToken) {
+        await sendMutualConnectionNotification(followerData, userData, followerId, userId);
+        
+        // ✅ GUARDAR NOTIFICACIÓN EN FIRESTORE PARA EL SEGUIDOR TAMBIÉN
+        await admin.firestore().collection(`users/${followerId}/notifications`).add({
+          type: 'mutualConnection',
+          senderId: userId,
+          senderUsername: userData.username,
+          senderProfileImage: userData.profileImagePath || '',
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          isPending: true
+        });
+      }
+      
+    } else {
+      // ✅ SEGUIDOR NORMAL
+      notificationTitle = `${followerData.username} comenzó a seguirte`;
+      notificationBody = 'Toca para ver su perfil';
+      notificationType = 'newFollower';
+      
+      // ✅ ENVIAR NOTIFICACIÓN NORMAL
+      const message = {
+        token: fcmToken,
+        notification: {
+          title: notificationTitle,
+          body: notificationBody,
+          image: cleanImageUrl
+        },
+        data: {
+          type: 'new_follower',
+          followerId: followerId,
+          userId: userId,
+          targetType: 'profile',
+          targetId: followerId,
+          senderUsername: followerData.username,
+          senderProfileImage: followerData.profileImagePath || ''
+        },
+        apns: {
+          payload: {
+            aps: {
+              badge: 1,
+              sound: 'default',
+              'mutable-content': 1,
+              'thread-id': `new_followers_${userId}` // ✅ Agrupación para seguidores
+            }
           }
         }
+      };
+      
+      try {
+        await admin.messaging().send(message);
+        console.log(`✅ Notificación de seguidor enviada: ${followerData.username} -> ${userData.username}`);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(userId, fcmToken);
+        }
+        throw error;
       }
-    };
-    
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación de seguidor enviada: ${followerData.username} -> ${userData.username}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
-      }
-      throw error;
     }
     
+    // ✅ GUARDAR NOTIFICACIÓN EN FIRESTORE
     await admin.firestore().collection(`users/${userId}/notifications`).add({
-      type: 'newFollower',
+      type: notificationType,
       senderId: followerId,
       senderUsername: followerData.username,
       senderProfileImage: followerData.profileImagePath || '',
@@ -454,6 +492,64 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     console.error('❌ Error sending follower notification:', error);
   }
 });
+
+// ✅ FUNCIÓN AUXILIAR: Verificar conexión mutua
+async function checkMutualConnection(user1Id, user2Id) {
+  try {
+    const [user1Followers, user2Followers] = await Promise.all([
+      admin.firestore().collection(`users/${user1Id}/followers`).doc(user2Id).get(),
+      admin.firestore().collection(`users/${user2Id}/followers`).doc(user1Id).get()
+    ]);
+    
+    return user1Followers.exists && user2Followers.exists;
+  } catch (error) {
+    console.error('❌ Error verificando conexión mutua:', error);
+    return false;
+  }
+}
+
+// ✅ FUNCIÓN AUXILIAR: Enviar notificación de conexión mutua
+async function sendMutualConnectionNotification(receiverData, senderData, receiverId, senderId) {
+  try {
+    const message = {
+      token: receiverData.fcmToken,
+      notification: {
+        title: `Ahora tienes una conexión mutua con ${senderData.username}`,
+        body: '¡Ambos se siguen mutuamente!',
+        image: senderData.profileImagePath ? senderData.profileImagePath.replace(':443', '') : null
+      },
+      data: {
+        type: 'mutualConnection',
+        senderId: senderId,
+        userId: receiverId,
+        targetType: 'profile',
+        targetId: senderId,
+        senderUsername: senderData.username,
+        senderProfileImage: senderData.profileImagePath || ''
+      },
+      apns: {
+        payload: {
+          aps: {
+            badge: 1,
+            sound: 'default',
+            'mutable-content': 1,
+            'thread-id': `mutual_connections_${receiverId}` // ✅ Agrupación para conexiones mutuas
+          }
+        }
+      }
+    };
+    
+    await admin.messaging().send(message);
+    console.log(`✅ Notificación de conexión mutua enviada: ${senderData.username} ↔ ${receiverData.username}`);
+    
+  } catch (error) {
+    if (error.code === 'messaging/registration-token-not-registered') {
+      await removeInvalidToken(receiverId, receiverData.fcmToken);
+    } else {
+      console.error('❌ Error enviando notificación de conexión mutua:', error);
+    }
+  }
+}
 
 // 💬 MENSAJES DIRECTOS
 exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messages/{messageId}', async (event) => {

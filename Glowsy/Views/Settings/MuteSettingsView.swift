@@ -3,13 +3,15 @@ import FirebaseAuth
 
 struct MuteSettingsView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = MuteSettingsViewModel()
     @State private var isLoading = true
     @State private var showAddMutedUser = false
     @State private var showAddMutedWord = false
     
     var body: some View {
-        ZStack {
+        NavigationView {
+            ZStack {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
             if isLoading {
@@ -23,11 +25,11 @@ struct MuteSettingsView: View {
                     Section {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Cuentas silenciadas")
+                                Text(NSLocalizedString("muteSettings.mutedAccounts.title", comment: "Muted accounts title"))
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
-                                Text("No verás publicaciones ni historias de estas cuentas")
+                                Text(NSLocalizedString("muteSettings.mutedAccounts.description", comment: "Muted accounts description"))
                                     .font(.custom("Poppins-Regular", size: 14))
                                     .foregroundColor(.gray)
                             }
@@ -50,7 +52,7 @@ struct MuteSettingsView: View {
                                         .font(.system(size: 30))
                                         .foregroundColor(.gray)
                                     
-                                    Text("No has silenciado a nadie")
+                                    Text(NSLocalizedString("muteSettings.noMutedUsers", comment: "No muted users"))
                                         .font(.custom("Poppins-Regular", size: 14))
                                         .foregroundColor(.gray)
                                 }
@@ -74,11 +76,11 @@ struct MuteSettingsView: View {
                     Section {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Palabras y frases silenciadas")
+                                Text(NSLocalizedString("muteSettings.mutedWords.title", comment: "Muted words title"))
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
-                                Text("No verás contenido que contenga estas palabras")
+                                Text(NSLocalizedString("muteSettings.mutedWords.description", comment: "Muted words description"))
                                     .font(.custom("Poppins-Regular", size: 14))
                                     .foregroundColor(.gray)
                             }
@@ -101,7 +103,7 @@ struct MuteSettingsView: View {
                                         .font(.system(size: 30))
                                         .foregroundColor(.gray)
                                     
-                                    Text("No has silenciado palabras")
+                                    Text(NSLocalizedString("muteSettings.noMutedWords", comment: "No muted words"))
                                         .font(.custom("Poppins-Regular", size: 14))
                                         .foregroundColor(.gray)
                                 }
@@ -129,18 +131,18 @@ struct MuteSettingsView: View {
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .font(.system(size: 18))
                                 
-                                Text("Configuración de silenciado")
+                                Text(NSLocalizedString("muteSettings.configuration.title", comment: "Mute configuration title"))
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                             
                             Toggle(isOn: $viewModel.muteNotifications) {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Silenciar notificaciones")
+                                    Text(NSLocalizedString("muteSettings.notifications.title", comment: "Mute notifications title"))
                                         .font(.custom("Poppins-Medium", size: 15))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("No recibir notificaciones de cuentas silenciadas")
+                                    Text(NSLocalizedString("muteSettings.notifications.description", comment: "Mute notifications description"))
                                         .font(.custom("Poppins-Regular", size: 13))
                                         .foregroundColor(.gray)
                                 }
@@ -152,11 +154,11 @@ struct MuteSettingsView: View {
                             
                             Toggle(isOn: $viewModel.hideFromSearch) {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Ocultar de búsquedas")
+                                    Text(NSLocalizedString("muteSettings.hideFromSearch.title", comment: "Hide from search title"))
                                         .font(.custom("Poppins-Medium", size: 15))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("Las cuentas silenciadas no aparecerán en búsquedas")
+                                    Text(NSLocalizedString("muteSettings.hideFromSearch.description", comment: "Hide from search description"))
                                         .font(.custom("Poppins-Regular", size: 13))
                                         .foregroundColor(.gray)
                                 }
@@ -169,16 +171,42 @@ struct MuteSettingsView: View {
                         .padding(.vertical, 4)
                         
                     } header: {
-                        Text("Opciones adicionales")
+                        Text(NSLocalizedString("muteSettings.additionalOptions", comment: "Additional options"))
                     }
                     .listRowBackground(LiistRowBackground())
                 }
                 .scrollContentBackground(.hidden)
             }
         }
-        .navigationTitle("Silenciar")
+        .navigationTitle(NSLocalizedString("muteSettings.navigation.title", comment: "Mute navigation title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                }
+            }
+        }
         .onAppear {
             viewModel.loadSettings {
                 isLoading = false
@@ -189,6 +217,7 @@ struct MuteSettingsView: View {
         }
         .sheet(isPresented: $showAddMutedWord) {
             AddMutedWordView(viewModel: viewModel)
+        }
         }
     }
 }
@@ -233,7 +262,7 @@ struct MutedUserRow: View {
             
             Spacer()
             
-            Button("Activar") {
+            Button(NSLocalizedString("muteSettings.activate", comment: "Activate button")) {
                 showUnmuteAlert = true
             }
             .font(.custom("Poppins-Medium", size: 14))
@@ -245,13 +274,13 @@ struct MutedUserRow: View {
                     .stroke(Color(hex: "00A896"), lineWidth: 1)
             )
         }
-        .alert("¿Activar usuario?", isPresented: $showUnmuteAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Activar", role: .destructive) {
+                .alert(NSLocalizedString("muteSettings.alert.activateUser.title", comment: "Activate user alert title"), isPresented: $showUnmuteAlert) {
+            Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button"), role: .cancel) { }
+            Button(NSLocalizedString("muteSettings.activate", comment: "Activate button"), role: .destructive) {
                 onUnmute()
             }
         } message: {
-            Text("Volverás a ver el contenido de \(user.username)")
+            Text(String(format: NSLocalizedString("muteSettings.alert.activateUser.message", comment: "Activate user alert message"), user.username))
         }
     }
 }
@@ -282,13 +311,13 @@ struct MutedWordRow: View {
                     .font(.system(size: 20))
             }
         }
-        .alert("¿Quitar palabra silenciada?", isPresented: $showRemoveAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Quitar", role: .destructive) {
+        .alert(NSLocalizedString("muteSettings.alert.removeWord.title", comment: "Remove word alert title"), isPresented: $showRemoveAlert) {
+            Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button"), role: .cancel) { }
+            Button(NSLocalizedString("muteSettings.remove", comment: "Remove button"), role: .destructive) {
                 onRemove()
             }
         } message: {
-            Text("Volverás a ver contenido que contenga '\(word)'")
+            Text(String(format: NSLocalizedString("muteSettings.alert.removeWord.message", comment: "Remove word alert message"), word))
         }
     }
 }
@@ -309,7 +338,7 @@ struct AddMutedUserView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
                     
-                    TextField("Buscar usuarios...", text: $searchText)
+                    TextField(NSLocalizedString("muteSettings.search.placeholder", comment: "Search users placeholder"), text: $searchText)
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .onChange(of: searchText) { newValue in
@@ -328,10 +357,10 @@ struct AddMutedUserView: View {
                 .padding(.horizontal)
                 
                 if isSearching {
-                    ProgressView("Buscando...")
+                    ProgressView(NSLocalizedString("muteSettings.searching", comment: "Searching progress"))
                         .padding()
                 } else if searchResults.isEmpty && !searchText.isEmpty {
-                    Text("No se encontraron usuarios")
+                    Text(NSLocalizedString("muteSettings.noUsersFound", comment: "No users found"))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                         .padding()
@@ -372,7 +401,7 @@ struct AddMutedUserView: View {
                             
                             let isMuted = viewModel.mutedUsers.contains { $0.id == user.id }
                             
-                            Button(isMuted ? "Activar" : "Silenciar") {
+                            Button(isMuted ? NSLocalizedString("muteSettings.activate", comment: "Activate button") : NSLocalizedString("muteSettings.navigation.title", comment: "Mute button")) {
                                 if isMuted {
                                     viewModel.unmuteUser(user.id)
                                 } else {
@@ -395,7 +424,7 @@ struct AddMutedUserView: View {
                 
                 Spacer()
             }
-            .navigationTitle("Silenciar Usuario")
+            .navigationTitle(NSLocalizedString("muteSettings.muteUser.title", comment: "Mute user navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
@@ -436,15 +465,15 @@ struct AddMutedWordView: View {
         NavigationView {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Añadir palabra o frase")
+                    Text(NSLocalizedString("muteSettings.addWord.title", comment: "Add word title"))
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
-                    Text("No verás contenido que contenga esta palabra o frase")
+                    Text(NSLocalizedString("muteSettings.addWord.description", comment: "Add word description"))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                     
-                    TextField("Escribe una palabra o frase...", text: $newWord)
+                    TextField(NSLocalizedString("muteSettings.textField.placeholder", comment: "Text field placeholder"), text: $newWord)
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding()
@@ -463,7 +492,7 @@ struct AddMutedWordView: View {
                             dismiss()
                         }
                     }) {
-                        Text("Añadir")
+                        Text(NSLocalizedString("muteSettings.add", comment: "Add button"))
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -479,12 +508,12 @@ struct AddMutedWordView: View {
                 
                 Spacer()
             }
-            .navigationTitle("Palabra Silenciada")
+            .navigationTitle(NSLocalizedString("muteSettings.mutedWord.title", comment: "Muted word navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button")) {
                         dismiss()
                     }
                 }

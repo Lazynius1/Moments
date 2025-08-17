@@ -55,6 +55,12 @@ class NotificationNavigationService: ObservableObject {
                 print("🔔 Navegación configurada: nuevo seguidor(\(userId))")
             }
             
+        case "mutualConnection":
+            if let userId = userInfo["senderId"] as? String {
+                pendingNavigation = .profile(userId)
+                print("🔔 Navegación configurada: conexión mutua(\(userId))")
+            }
+            
         case "new_message":
             if let conversationId = userInfo["conversationId"] as? String {
                 pendingNavigation = .conversation(conversationId)

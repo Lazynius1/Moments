@@ -52,8 +52,27 @@ struct BlockedUsersView: View {
             .navigationTitle(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("blockedUsers.close", comment: "Close")) {
-                        dismiss()
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
                     }
                 }
             }
@@ -66,7 +85,7 @@ struct BlockedUsersView: View {
             .alert(isPresented: $viewModel.showError) {
                 Alert(
                     title: Text(NSLocalizedString("blockedUsers.error.title", comment: "Error")),
-                    message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
+                    message: Text(viewModel.errorMessage ?? NSLocalizedString("blockedUsers.unknownError", comment: "Unknown error occurred")),
                     dismissButton: .default(Text(NSLocalizedString("blockedUsers.ok", comment: "OK")))
                 )
             }
@@ -84,7 +103,7 @@ class BlockedUsersViewModel: ObservableObject {
 
     func fetchBlockedUsers() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            showError(message: "Usuario no autenticado")
+            showError(message: NSLocalizedString("blockedUsers.notAuthenticated", comment: "User not authenticated"))
             return
         }
 
@@ -122,7 +141,7 @@ class BlockedUsersViewModel: ObservableObject {
 
     func unblockUser(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            showError(message: "Usuario no autenticado")
+            showError(message: NSLocalizedString("blockedUsers.notAuthenticated", comment: "User not authenticated"))
             return
         }
 

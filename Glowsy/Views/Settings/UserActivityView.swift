@@ -4,12 +4,14 @@ import Charts
 
 struct UserActivityView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = UserActivityViewModel()
     @State private var selectedTimeRange: ActivityTimeRange = .week
     @State private var isLoading = true
     
     var body: some View {
-        ZStack {
+        NavigationView {
+            ZStack {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
             if isLoading {
@@ -60,10 +62,37 @@ struct UserActivityView: View {
         .navigationTitle("Tu Actividad")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                }
+            }
+        }
         .onAppear {
             viewModel.loadActivityData(for: selectedTimeRange) {
                 isLoading = false
             }
+        }
         }
     }
 }
@@ -106,21 +135,21 @@ struct ActivitySummarySection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Resumen de Actividad")
+            Text(NSLocalizedString("userActivity.summary.title", comment: "Activity summary title"))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             HStack(spacing: 12) {
                 SummaryCard(
                     icon: "clock.fill",
-                    title: "Tiempo Total",
+                    title: NSLocalizedString("userActivity.totalTime", comment: "Total time"),
                     value: summary.totalTimeSpent,
                     color: Color(hex: "00A896")
                 )
                 
                 SummaryCard(
                     icon: "heart.fill",
-                    title: "Interacciones",
+                    title: NSLocalizedString("userActivity.interactions", comment: "Interactions"),
                     value: "\(summary.totalInteractions)",
                     color: .red
                 )
@@ -129,14 +158,14 @@ struct ActivitySummarySection: View {
             HStack(spacing: 12) {
                 SummaryCard(
                     icon: "eye.fill",
-                    title: "Publicaciones Vistas",
+                    title: NSLocalizedString("userActivity.postsViewed", comment: "Posts viewed"),
                     value: "\(summary.postsViewed)",
                     color: .blue
                 )
                 
                 SummaryCard(
                     icon: "message.fill",
-                    title: "Mensajes",
+                    title: NSLocalizedString("userActivity.messages", comment: "Messages"),
                     value: "\(summary.messagesSent)",
                     color: .green
                 )
@@ -187,7 +216,7 @@ struct TimeSpentChartSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Tiempo en la App")
+            Text(NSLocalizedString("userActivity.timeInApp", comment: "Time in app"))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
@@ -249,7 +278,7 @@ struct InteractionsChartSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Interacciones Diarias")
+            Text(NSLocalizedString("userActivity.dailyInteractions", comment: "Daily interactions"))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
@@ -291,7 +320,7 @@ struct DailyBreakdownSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Desglose Diario")
+            Text(NSLocalizedString("userActivity.dailyBreakdown", comment: "Daily breakdown"))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
@@ -315,7 +344,7 @@ struct DailyActivityRow: View {
                     .font(.custom("Poppins-Medium", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("\(activity.timeSpent) min • \(activity.interactions) interacciones")
+                Text(String(format: NSLocalizedString("userActivity.timeAndInteractions", comment: "Time and interactions"), "\(activity.timeSpent)", "\(activity.interactions)"))
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.gray)
             }
@@ -327,7 +356,7 @@ struct DailyActivityRow: View {
                     .font(.custom("Poppins-Medium", size: 13))
                     .foregroundColor(Color(hex: "00A896"))
                 
-                Text("Función más usada")
+                Text(NSLocalizedString("userActivity.mostUsedFeature", comment: "Most used feature"))
                     .font(.custom("Poppins-Regular", size: 11))
                     .foregroundColor(.gray)
             }
@@ -346,7 +375,7 @@ struct AppFeaturesSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Uso de Funciones")
+            Text(NSLocalizedString("userActivity.featureUsage", comment: "Feature usage"))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
@@ -375,7 +404,7 @@ struct FeatureUsageRow: View {
                     .font(.custom("Poppins-Medium", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("\(feature.usageCount) veces")
+                Text(String(format: NSLocalizedString("userActivity.usageCount", comment: "Usage count"), "\(feature.usageCount)"))
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.gray)
             }
@@ -412,7 +441,7 @@ struct InsightsSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Insights")
+            Text(NSLocalizedString("userActivity.insights", comment: "Insights"))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             

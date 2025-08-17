@@ -7,6 +7,7 @@ import FirebaseAuth
 struct SupportMomentsSection: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var authService: AuthService
+    @Binding var isShowingSupportMoments: Bool
     
     var body: some View {
         Section("Apoyar Moments") {
@@ -15,7 +16,9 @@ struct SupportMomentsSection: View {
                 icon: "star.circle",
                 title: "Badges de apoyo",
                 subtitle: getBadgeSubtitle(),
-                destination: AnyView(SupportMomentsView())
+                action: {
+                    isShowingSupportMoments = true
+                }
             )
             
             // Gestionar suscripción (solo si es Plus)
@@ -32,16 +35,6 @@ struct SupportMomentsSection: View {
                     }
                 )
             }
-            
-            // Suscripción Plus (solo si NO es Plus)
-            if authService.currentUser?.isPlusSubscriber != true {
-                SettingsRow(
-                    icon: "crown.circle",
-                    title: "Moments Plus",
-                    subtitle: "Sin anuncios + Badge exclusivo - €2.99/mes",
-                    destination: AnyView(SupportMomentsView())
-                )
-            }
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
         .font(.custom("Poppins-Regular", size: 14))
@@ -50,7 +43,7 @@ struct SupportMomentsSection: View {
     
     private func getBadgeSubtitle() -> String {
         guard let currentUser = authService.currentUser else {
-            return "Apoya el proyecto con badges únicos"
+            return "Badges únicos + Suscripción Plus"
         }
         
         let badgeCount = currentUser.ownedBadges.count
@@ -60,9 +53,9 @@ struct SupportMomentsSection: View {
         } else if currentUser.isPlusSubscriber {
             return "Plus activo - Explora badges disponibles"
         } else if badgeCount > 0 {
-            return "\(badgeCount) badge\(badgeCount > 1 ? "s" : "") - Explora más"
+            return "\(badgeCount) badge\(badgeCount > 1 ? "s" : "") + Suscripción Plus"
         } else {
-            return "Apoya el proyecto con badges únicos"
+            return "Badges únicos + Suscripción Plus"
         }
     }
 }
@@ -78,41 +71,70 @@ struct SupportMomentsView: View {
     @State private var showThankYou = false
     
     var body: some View {
-        ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-            
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    headerSection
-                    
-                    // Sin anuncios section
-                    noAdsSection
-                    
-                    // Badges section
-                    badgesSection
-                    
-                    // FAQ section
-                    faqSection
-                    
-                    Spacer(minLength: 40)
+        NavigationView {
+            ZStack {
+                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Header
+                        headerSection
+                        
+                        // Sin anuncios section
+                        noAdsSection
+                        
+                        // Badges section
+                        badgesSection
+                        
+                        // FAQ section
+                        faqSection
+                        
+                        Spacer(minLength: 40)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
             }
-        }
-        .navigationTitle("Apoyar Moments")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            storeManager.loadProducts()
-        }
-        .sheet(item: $selectedBadge) { badge in
-            BadgePurchaseView(badge: badge, storeManager: storeManager)
-        }
-        .alert("¡Gracias!", isPresented: $showThankYou) {
-            Button("OK") {}
-        } message: {
-            Text("Tu apoyo nos ayuda a mantener Moments gratuito para todos.")
+            .navigationTitle("Apoyar Moments")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "00A896"))
+                        }
+                    }
+                }
+            }
+            .onAppear {
+                storeManager.loadProducts()
+            }
+            .sheet(item: $selectedBadge) { badge in
+                BadgePurchaseView(badge: badge, storeManager: storeManager)
+            }
+            .alert("¡Gracias!", isPresented: $showThankYou) {
+                Button("OK") {}
+            } message: {
+                Text("Tu apoyo nos ayuda a mantener Moments gratuito para todos.")
+            }
         }
     }
     
