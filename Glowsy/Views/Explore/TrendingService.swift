@@ -87,8 +87,7 @@ class TrendingService: ObservableObject {
     
     // MARK: - 🔥 TRENDING HASHTAGS
     func fetchTrendingHashtags(limit: Int = 20, completion: @escaping (Result<[TrendingHashtag], Error>) -> Void) {
-        print("🔥 [Trending] Buscando hashtags trending...")
-        
+
         let now = Date()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
         
@@ -133,16 +132,13 @@ class TrendingService: ObservableObject {
                             category: self.categorizeHashtag(hashtag)
                         )
                     }
-                
-                print("🔥 [Trending] Hashtags encontrados: \(Array(trendingHashtags).count)")
                 completion(.success(Array(trendingHashtags)))
             }
     }
     
     // MARK: - 📍 TRENDING LOCATIONS
     func fetchTrendingLocations(limit: Int = 15, completion: @escaping (Result<[TrendingLocation], Error>) -> Void) {
-        print("📍 [Trending] Buscando ubicaciones trending...")
-        
+
         let now = Date()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
         
@@ -193,15 +189,12 @@ class TrendingService: ObservableObject {
                             coordinate: nil // TODO: Geocoding si es necesario
                         )
                     }
-                
-                print("📍 [Trending] Ubicaciones encontradas: \(Array(trendingLocations).count)")
                 completion(.success(Array(trendingLocations)))
             }
     }
     
     // MARK: - 🚀 TRENDING MOMENTS (Algoritmo inteligente)
     func fetchTrendingMoments(for userId: String, limit: Int = 20, completion: @escaping (Result<[TrendingMoment], Error>) -> Void) {
-        print("🚀 [Trending] Calculando momentos trending para usuario: \(userId)")
         
         let now = Date()
         let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: now) ?? now

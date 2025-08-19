@@ -1408,18 +1408,15 @@ class MessagingViewModel: ObservableObject {
     }
     
     func fetchConversations(for userId: String) {
-        print("MessagingViewModel: Fetching conversations for user: \(userId)")
         chatService.fetchConversations(for: userId) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 switch result {
                 case .success(let conversations):
-                    print("Fetched \(conversations.count) conversations")
                     self.conversations = conversations.filter { $0.id != nil && !$0.id!.isEmpty }
                     self.hasUnreadMessages = conversations.contains { !($0.readStatus[userId] ?? true) }
                     self.errorMessage = nil
                 case .failure(let error):
-                    print("Error fetching conversations: \(error.localizedDescription)")
                     self.errorMessage = "Error al cargar conversaciones: \(error.localizedDescription)"
                 }
             }

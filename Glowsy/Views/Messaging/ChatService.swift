@@ -986,7 +986,6 @@ class ChatService: ObservableObject {
     }
     
     func fetchConversations(for userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) {
-        print("📋 Setting up bidirectional listener for conversations of user: \(userId)")
         
         db.collection("conversations")
             .whereField("participants", arrayContains: userId)
@@ -994,18 +993,14 @@ class ChatService: ObservableObject {
             .addSnapshotListener { snapshot, error in
                 
                 if let error = error {
-                    print("❌ Error listening to conversations: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
                 guard let documents = snapshot?.documents else {
-                    print("📋 No conversations found")
                     completion(.success([]))
                     return
                 }
-                
-                print("📋 Found \(documents.count) conversation documents")
                 
                 var conversations: [Conversation] = []
                 
@@ -1014,7 +1009,6 @@ class ChatService: ObservableObject {
                     
                     // ✅ Filtrar conversaciones eliminadas para este usuario (estilo Instagram)
                     if let deletedFor = data["deletedFor"] as? [String], deletedFor.contains(userId) {
-                        print("🚫 Conversación \(doc.documentID) eliminada para \(userId), saltando...")
                         continue
                     }
                     
@@ -1023,7 +1017,6 @@ class ChatService: ObservableObject {
                         let timestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
                         let readStatus = data["readStatus"] as? [String: Bool]
                     else {
-                        print("⚠️ Invalid conversation data in \(doc.documentID)")
                         continue
                     }
                     
@@ -1039,18 +1032,15 @@ class ChatService: ObservableObject {
                         // ✅ Usar datos bidireccionales
                         otherParticipantUsername = otherData["username"] as? String ?? "Usuario"
                         otherParticipantProfileImagePath = otherData["profileImagePath"] as? String ?? ""
-                        print("✅ Usando datos bidireccionales para \(otherParticipantId)")
                     } else {
                         // ✅ Fallback: usar datos del sistema anterior o cache
                         if let cachedUser = UserCacheService.shared.getCachedUser(userId: otherParticipantId) {
                             otherParticipantUsername = cachedUser.username
                             otherParticipantProfileImagePath = cachedUser.profileImagePath ?? ""
-                            print("📋 Usando cache para \(otherParticipantId)")
                         } else {
                             // Último fallback: datos almacenados del sistema anterior
                             otherParticipantUsername = data["otherParticipantUsername"] as? String ?? "Usuario"
                             otherParticipantProfileImagePath = data["otherParticipantProfileImagePath"] as? String ?? ""
-                            print("⚠️ Usando datos antiguos para \(otherParticipantId)")
                         }
                     }
                     
@@ -1075,7 +1065,6 @@ class ChatService: ObservableObject {
                 }
                 
                 conversations.sort { $0.timestamp > $1.timestamp }
-                print("📋 Returning \(conversations.count) conversations")
                 completion(.success(conversations))
             }
     }
@@ -1086,24 +1075,20 @@ class ChatService: ObservableObject {
         
         let metadata = StorageMetadata()
         metadata.contentType = getContentType(for: type)
-        
-        print("📤 Uploading media to path: conversations/\(conversationId)/\(fileName)")
+
         storageRef.putData(data, metadata: metadata) { [weak self] _, error in
             if let error = error {
-                print("❌ Error al subir archivo: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
             storageRef.downloadURL { url, error in
                 if let error = error {
-                    print("❌ Error al obtener URL: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
                 guard let mediaUrl = url?.absoluteString else {
-                    print("❌ Failed to get media URL")
                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener la URL del archivo"])))
                     return
                 }

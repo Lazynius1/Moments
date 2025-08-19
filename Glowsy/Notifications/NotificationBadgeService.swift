@@ -120,21 +120,18 @@ class NotificationBadgeService: ObservableObject {
     
     // ✅ LIMPIAR notificaciones (llamado desde NotificationsView)
     func clearNotificationBadge() {
-        print("🔔 BadgeService: Limpiando badge de notificaciones")
         unreadNotificationsCount = 0
         updateAppBadge()
     }
     
     // ✅ LIMPIAR mensajes (llamado desde MessagingView)
     func clearMessageBadge() {
-        print("📨 BadgeService: Limpiando badge de mensajes")
         unreadMessagesCount = 0
         updateAppBadge()
     }
     
     // ✅ LIMPIAR badge completo de la app
     func clearAppBadge() {
-        print("🧹 BadgeService: Limpiando badge completo de la app")
         DispatchQueue.main.async {
             UIApplication.shared.applicationIconBadgeNumber = 0
         }
@@ -142,7 +139,6 @@ class NotificationBadgeService: ObservableObject {
     
     // ✅ LIMPIAR listeners cuando el usuario se desloguee
     func cleanup() {
-        print("🧹 BadgeService: Limpiando listeners")
         notificationListener?.remove()
         messageListener?.remove()
         notificationListener = nil

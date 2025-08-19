@@ -165,8 +165,6 @@ struct EpicReactionButton: View {
     private func setupReactionListener() {
         guard let momentId = moment.id else { return }
         
-        print("🔄 Configurando listener para momento: \(momentId)")
-        
         // ✅ Listener en tiempo real para reacciones usando el método correcto
         reactionListener = firestoreService.listenToReactions(
             for: momentId,
@@ -203,8 +201,6 @@ struct EpicReactionButton: View {
             self.currentReaction = userReaction
             self.reactionCount = totalCount
         }
-        
-        print("📊 Estado actualizado - Reaccionado: \(hasReacted), Tipo: \(userReaction?.rawValue ?? "ninguno"), Total: \(totalCount)")
     }
     
     // ✨ ANIMACIONES ÉPICAS (mantenidas igual)

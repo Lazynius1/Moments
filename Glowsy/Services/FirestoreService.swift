@@ -716,18 +716,15 @@ class FirestoreService: ObservableObject {
     }
 
     func fetchConnections(userId: String, completion: @escaping (Result<[Connection], Error>) -> Void) {
-        print("Obteniendo conexiones para usuario: \(userId)")
         self.db.collection("users").document(userId).collection("connections")
             .order(by: "timestamp", descending: true)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al obtener conexiones: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron conexiones")
                     completion(.success([]))
                     return
                 }
@@ -736,11 +733,9 @@ class FirestoreService: ObservableObject {
                     do {
                         return try doc.data(as: Connection.self)
                     } catch {
-                        print("Error al decodificar conexión \(doc.documentID): \(error.localizedDescription)")
                         return nil
                     }
                 }
-                print("Conexiones obtenidas: \(connections.count)")
                 completion(.success(connections))
             }
     }
@@ -847,6 +842,7 @@ class FirestoreService: ObservableObject {
         mediaItems: [MediaItem],
         taggedUsers: [String]? = nil,
         location: String? = nil,
+        locationCoordinate: Moment.LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         audience: String? = nil,
         aspectRatio: String? = nil,
         disableComments: Bool = false,
@@ -893,6 +889,7 @@ class FirestoreService: ObservableObject {
                     profileImagePath: user.profileImagePath,
                     taggedUsers: taggedUsers,
                     location: location,
+                    locationCoordinate: locationCoordinate,  // ✅ MOVIDO: Antes de audience
                     audience: audience,
                     mediaItems: mediaItems,
                     aspectRatio: aspectRatio ?? "1:1",
@@ -1245,52 +1242,42 @@ class FirestoreService: ObservableObject {
                 group.notify(queue: .main) {
                     allMoments.sort { $0.timestamp > $1.timestamp }
                     let limitedMoments = Array(allMoments.prefix(10))
-                    print("Más momentos obtenidos: \(limitedMoments.count)")
                     completion(.success((moments: limitedMoments, lastDocument: lastDocument)))
                 }
 
             case .failure(let error):
-                print("Error al obtener conexiones: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
     }
     
     func isUserPlus(userId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
-        print("Verificando si el usuario \(userId) es Plus")
         self.db.collection("users").document(userId).getDocument(source: .default, completion: { snapshot, error in
             if let error = error {
-                print("Error al verificar estado Plus: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
             guard let data = snapshot?.data(),
                   let isPlus = data["isPlusSubscriber"] as? Bool else {
-                print("No se encontró el campo isPlusSubscriber, asumiendo false")
                 completion(.success(false))
                 return
             }
-            
-            print("Usuario \(userId) es Plus: \(isPlus)")
             completion(.success(isPlus))
         })
     }
     
     func fetchMoments(for userId: String, completion: @escaping (Result<[Moment], Error>) -> Void) {
-        print("Obteniendo momentos para usuario: \(userId)")
         self.db.collection("users").document(userId).collection("moments")
             .order(by: "timestamp", descending: true)
             .limit(to: 20)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al obtener momentos: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron momentos")
                     completion(.success([]))
                     return
                 }
@@ -1298,14 +1285,12 @@ class FirestoreService: ObservableObject {
                 let moments = documents.compactMap { doc -> Moment? in
                     try? doc.data(as: Moment.self)
                 }
-                print("Momentos obtenidos: \(moments.count)")
                 completion(.success(moments))
             }
     }
 
     // ✅ FUNCIÓN fetchComments CORREGIDA - Incluye TODOS los campos necesarios
     func fetchComments(for momentId: String, userId: String, limit: Int = 10, lastDocument: DocumentSnapshot? = nil, completion: @escaping (Result<(comments: [Comment], lastDocument: DocumentSnapshot?), Error>) -> Void) {
-        print("🔄 Obteniendo comentarios para momento \(momentId) de usuario \(userId), límite: \(limit)")
         
         var query = db.collection("users").document(userId).collection("moments").document(momentId).collection("comments")
             .order(by: "timestamp", descending: false)
@@ -1317,7 +1302,6 @@ class FirestoreService: ObservableObject {
         
         query.getDocuments { snapshot, error in
             if let error = error {
-                print("❌ Error al obtener comentarios: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
@@ -2229,18 +2213,12 @@ class FirestoreService: ObservableObject {
         if Date().timeIntervalSince(lastCacheUpdate) > 15 {
             followingCache.removeAll()
             lastCacheUpdate = Date()
-            print("🧹 Cache automático limpiado por tiempo")
         }
-        
-        print("🔍 Verificando si \(currentUserId) sigue a \(targetUserId) (DIRECTA)")
-        
         db.collection("users").document(currentUserId).collection("following").document(targetUserId).getDocument { [weak self] snapshot, error in
             if let error = error {
-                print("❌ Error verificando si sigue: \(error.localizedDescription)")
                 completion(false)
             } else {
                 let isFollowing = snapshot?.exists == true
-                print("📊 Resultado DIRECTO: \(isFollowing ? "SÍ" : "NO") está siguiendo")
                 
                 // Actualizar cache solo si es exitoso
                 if error == nil {
@@ -2727,20 +2705,16 @@ class FirestoreService: ObservableObject {
                             switch result {
                             case .success(let mutualConnections):
                                 let isMutualConnection = mutualConnections.contains { $0.id == targetUserId }
-                                print("¿Es conexión mutua? \(isMutualConnection)")
                                 completion(.success(isMutualConnection))
                             case .failure(let error):
-                                print("Error al verificar conexiones mutuas: \(error.localizedDescription)")
                                 completion(.failure(error))
                             }
                         }
                     case .failure(let error):
-                        print("Error al verificar usuario actual: \(error.localizedDescription)")
                         completion(.failure(error))
                     }
                 }
             case .failure(let error):
-                print("Error al verificar usuario objetivo: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
@@ -2804,7 +2778,6 @@ class FirestoreService: ObservableObject {
     }
     
     func fetchNotifications(for userId: String, completion: @escaping (Result<[Notification], Error>) -> Void) {
-        print("Obteniendo notificaciones para usuario: \(userId)")
         self.db.collection("users").document(userId).collection("notifications")
             .order(by: "timestamp", descending: true)
             .limit(to: 50)
@@ -2816,7 +2789,6 @@ class FirestoreService: ObservableObject {
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron notificaciones")
                     completion(.success([]))
                     return
                 }
@@ -2824,13 +2796,11 @@ class FirestoreService: ObservableObject {
                 let notifications = documents.compactMap { doc -> Notification? in
                     try? doc.data(as: Notification.self)
                 }
-                print("Notificaciones obtenidas: \(notifications.count)")
                 completion(.success(notifications))
             }
     }
     
     func markNotificationsAsRead(userId: String, notificationIds: [String], completion: @escaping (Error?) -> Void) {
-            print("Marcando notificaciones como leídas para usuario \(userId): \(notificationIds)")
             let batch = db.batch()
             
             for notificationId in notificationIds {
@@ -2843,10 +2813,8 @@ class FirestoreService: ObservableObject {
             
             batch.commit { error in
                 if let error = error {
-                    print("Error al marcar notificaciones como leídas: \(error.localizedDescription)")
                     completion(error)
                 } else {
-                    print("Notificaciones marcadas como leídas con éxito")
                     completion(nil)
                 }
             }
@@ -2854,23 +2822,20 @@ class FirestoreService: ObservableObject {
 
 
     func fetchMoment(momentId: String, userId: String, completion: @escaping (Result<Moment, Error>) -> Void) {
-        print("Obteniendo momento \(momentId) para el usuario \(userId)")
         self.db.collection("users").document(userId).collection("moments").document(momentId).getDocument { snapshot, error in
             if let error = error {
-                print("Error al obtener momento: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
 
             guard let document = snapshot, document.exists else {
-                print("Momento no encontrado: \(momentId) para el usuario \(userId)")
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Momento no encontrado"])))
                 return
             }
 
             do {
                 let moment = try document.data(as: Moment.self)
-                print("Momento obtenido: \(momentId)")
+
                 completion(.success(moment))
             } catch {
                 print("Error al decodificar momento: \(error.localizedDescription)")
@@ -2881,17 +2846,14 @@ class FirestoreService: ObservableObject {
     
 
     func fetchUsersWithSharedInterests(interests: [String], excludingUserId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
-        print("Buscando usuarios con intereses compartidos: \(interests), excluyendo: \(excludingUserId)")
 
         guard !interests.isEmpty else {
-            print("No hay intereses para buscar")
             completion(.success([]))
             return
         }
 
         self.fetchUserProfile(userId: excludingUserId) { [weak self] result in
             guard let self = self else {
-                print("Instancia liberada antes de completar la búsqueda de usuarios con intereses compartidos")
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"])))
                 return
             }
@@ -2915,7 +2877,6 @@ class FirestoreService: ObservableObject {
                         .limit(to: 50)
                         .getDocuments { snapshot, error in
                             if let error = error {
-                                print("Error al buscar usuarios con intereses compartidos: \(error.localizedDescription)")
                                 group.leave()
                                 return
                             }
@@ -2943,23 +2904,18 @@ class FirestoreService: ObservableObject {
                             uniqueUsers.append(user)
                         }
                     }
-
-                    print("Usuarios con intereses compartidos obtenidos: \(uniqueUsers.count)")
                     completion(.success(uniqueUsers))
                 }
 
             case .failure(let error):
-                print("Error al obtener perfil del usuario actual: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
     }
 
     func fetchMomentsFromUsers(userIds: [String], completion: @escaping (Result<[Moment], Error>) -> Void) {
-        print("Obteniendo momentos de usuarios: \(userIds)")
         
         guard !userIds.isEmpty else {
-            print("No hay usuarios para buscar momentos")
             completion(.success([]))
             return
         }
@@ -3211,7 +3167,8 @@ extension FirestoreService {
         mediaItems: [MediaItem],
         taggedUsers: [String]? = nil,
         location: String? = nil,
-        audienceSetting: CaptionAndDetailsView.AudienceSetting,
+        audienceSetting: CaptionAndDetailsView.AudienceSetting,  // ✅ MOVIDO: Antes de locationCoordinate
+        locationCoordinate: Moment.LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         selectedListId: String? = nil,
         customViewers: [String]? = nil,
         aspectRatio: String? = nil,
@@ -3263,6 +3220,7 @@ extension FirestoreService {
                     profileImagePath: user.profileImagePath,
                     taggedUsers: taggedUsers,
                     location: location,
+                    locationCoordinate: locationCoordinate,  // ✅ MOVIDO: Antes de audience
                     audience: contentAudience.rawValue,
                     mediaItems: mediaItems,
                     aspectRatio: aspectRatio ?? "1:1",
@@ -3601,6 +3559,7 @@ extension FirestoreService {
         customListId: String,
         taggedUsers: [String]? = nil,
         location: String? = nil,
+        locationCoordinate: Moment.LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         aspectRatio: String? = nil,
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
@@ -3640,6 +3599,7 @@ extension FirestoreService {
                     profileImagePath: user.profileImagePath,
                     taggedUsers: taggedUsers,
                     location: location,
+                    locationCoordinate: locationCoordinate,  // ✅ MOVIDO: Antes de audience
                     audience: "customList",
                     mediaItems: mediaItems,
                     aspectRatio: aspectRatio ?? "1:1",

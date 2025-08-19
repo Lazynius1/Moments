@@ -13,6 +13,7 @@ class UploadingMoment: ObservableObject, Identifiable {
     let mediaItems: [ProcessedMedia]
     let taggedUsers: [String]?
     let location: String?
+    let locationCoordinate: Moment.LocationCoordinate?  // ✅ NUEVO: Coordenadas de ubicación
     let audienceSetting: CaptionAndDetailsView.AudienceSetting
     let customViewers: [String]?
     let customListId: String?
@@ -37,6 +38,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         mediaItems: [ProcessedMedia],
         taggedUsers: [String]?,
         location: String?,
+        locationCoordinate: Moment.LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         audienceSetting: CaptionAndDetailsView.AudienceSetting,
         customViewers: [String]?,
         customListId: String?,
@@ -51,6 +53,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         self.mediaItems = mediaItems
         self.taggedUsers = taggedUsers
         self.location = location
+        self.locationCoordinate = locationCoordinate  // ✅ NUEVO: Asignar coordenadas
         self.audienceSetting = audienceSetting
         self.customViewers = customViewers
         self.customListId = customListId
@@ -108,6 +111,7 @@ class BackgroundMomentUploadService: ObservableObject {
         mediaItems: [ProcessedMedia],
         taggedUsers: [String]?,
         location: String?,
+        locationCoordinate: Moment.LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         audienceSetting: CaptionAndDetailsView.AudienceSetting,
         customViewers: [String]?,
         customListId: String?,
@@ -129,6 +133,7 @@ class BackgroundMomentUploadService: ObservableObject {
             mediaItems: mediaItems,
             taggedUsers: taggedUsers,
             location: location,
+            locationCoordinate: locationCoordinate,  // ✅ NUEVO: Pasar coordenadas
             audienceSetting: audienceSetting,
             customViewers: customViewers,
             customListId: customListId,
@@ -268,7 +273,11 @@ class BackgroundMomentUploadService: ObservableObject {
                     customListId: uploadingMoment.customListId!,
                     taggedUsers: uploadingMoment.taggedUsers,
                     location: uploadingMoment.location,
-                    aspectRatio: uploadingMoment.aspectRatio
+                    locationCoordinate: uploadingMoment.locationCoordinate,  // ✅ NUEVO: Pasar coordenadas
+                    aspectRatio: uploadingMoment.aspectRatio,
+                    disableComments: uploadingMoment.disableComments,      // ✅ NUEVO: Configuración avanzada
+                    hideLikeCounts: uploadingMoment.hideLikeCounts,        // ✅ NUEVO: Configuración avanzada
+                    allowSharing: uploadingMoment.allowSharing            // ✅ NUEVO: Configuración avanzada
                 ) { momentId, error in // 🔥 Captura el momentId
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -288,9 +297,13 @@ class BackgroundMomentUploadService: ObservableObject {
                     mediaItems: mediaUrls,
                     taggedUsers: uploadingMoment.taggedUsers,
                     location: uploadingMoment.location,
-                    audienceSetting: uploadingMoment.audienceSetting,
+                    audienceSetting: uploadingMoment.audienceSetting,      // ✅ MOVIDO: Antes de locationCoordinate
+                    locationCoordinate: uploadingMoment.locationCoordinate,
                     customViewers: uploadingMoment.customViewers,
-                    aspectRatio: uploadingMoment.aspectRatio
+                    aspectRatio: uploadingMoment.aspectRatio,
+                    disableComments: uploadingMoment.disableComments,      // ✅ NUEVO: Configuración avanzada
+                    hideLikeCounts: uploadingMoment.hideLikeCounts,        // ✅ NUEVO: Configuración avanzada
+                    allowSharing: uploadingMoment.allowSharing            // ✅ NUEVO: Configuración avanzada
                 ) { momentId, error in // 🔥 Captura el momentId
                     if let error = error {
                         continuation.resume(throwing: error)

@@ -144,28 +144,28 @@ struct FeedView: View {
                         onEdit: {
                             editedContent = moment.content
                             showEditSheet = true
-                            print("🖊️ Abriendo editor para momento: \(moment.id ?? "N/A")")
+
                         },
                         onDelete: {
                             showDeleteAlert = true
-                            print("🗑️ Mostrando alerta de eliminación para: \(moment.id ?? "N/A")")
+
                         },
                         onShare: {
                             if privacyService.canShareMoment(moment) {
                                 showShareSheet = true
-                                print("📤 Abriendo share sheet para momento: \(moment.id ?? "N/A")")
+                                // Share sheet abierto
                             } else {
-                                print("❌ No se puede compartir momento privado")
+                                // No se puede compartir momento privado
                             }
                         },
                         onReport: {
                             showReportSheet = true
-                            print("🚨 Abriendo reporte para momento: \(moment.id ?? "N/A")")
+
                         },
                         onCopyLink: {
                             if let momentId = moment.id {
                                 UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
-                                print("🔗 Enlace copiado: \(momentId)")
+
                                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                                 impactFeedback.impactOccurred()
                             }
@@ -238,11 +238,11 @@ struct FeedView: View {
         }
         .onDisappear {
             // cleanupListeners() // ❌ ELIMINAR
-            print("🧹 FeedView: Vista cerrada")
+
         }
         .sheet(isPresented: $showNotifications) {
             NotificationsView(onNotificationsCleared: {
-                print("🔔 FeedView: Notificaciones limpiadas, actualizando badge")
+
                 // ✅ No es necesario actualizar hasUnreadNotifications localmente
                 // badgeService.clearAppBadge() // ❌ No llamar aquí, NotificationsView ya lo maneja
                 NotificationCenter.default.post(
@@ -282,6 +282,12 @@ struct FeedView: View {
                 isPresented: $showingLocationMap
             )
         }
+        .onChange(of: showingLocationMap) { isShowing in
+            if isShowing {
+                // ✅ El onChange es crucial para el funcionamiento, pero sin prints
+            }
+        }
+
 
         .fullScreenCover(isPresented: $showMomentDetail) {
             if let momentId = targetMomentId, let userId = targetMomentUserId {
@@ -331,24 +337,24 @@ struct FeedView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 switch navigation {
                 case .conversation(let conversationId):
-                    print("🔔 Navegando a conversación: \(conversationId)")
                     targetConversationId = conversationId  // ✅ PASAR el ID
                     showMessages = true
                     
                 case .moment(let momentId, let userId):  // ✅ AHORA CON userId
-                    print("🔔 Navegando a momento: \(momentId) de usuario: \(userId)")
                     targetMomentId = momentId
                     targetMomentUserId = userId  // ✅ NUEVA variable
                     showMomentDetail = true
                     
                 case .profile(let userId):
-                    print("🔔 Navegando a perfil: \(userId)")
+                    // Navegando a perfil
+                    break
                     
                 case .notifications(let filter):
                     showNotifications = true
                     
                 default:
-                    print("🔔 Tipo de navegación no implementado: \(navigation)")
+                    // Tipo de navegación no implementado
+                    break
                 }
                 
                 navigationService.clearPendingNavigation()
@@ -373,7 +379,7 @@ struct FeedView: View {
             }
         }
         .onChange(of: badgeService.unreadNotificationsCount) { count in
-            print("🔔 FeedView: Badge actualizado desde badgeService: hasUnread = \(count > 0)")
+
         }
         .environmentObject(firestoreService)
         .sheet(isPresented: $showUserProfile) {
@@ -386,7 +392,7 @@ struct FeedView: View {
     private func setupServiceConnections() {
         // Conectar UploadService con FeedViewModel
         uploadService.setFeedViewModel(viewModel)
-        print("🔗 Servicios conectados: UploadService ↔ FeedViewModel")
+
     }
     
     // ✅ Nuevo: Solicitud de permisos de notificaciones desde el Feed en primera carga
@@ -413,9 +419,9 @@ struct FeedView: View {
             content: newContent
         ) { error in
             if let error = error {
-                print("Error al actualizar momento: \(error)")
+                // Error al actualizar momento
             } else {
-                print("Momento actualizado exitosamente")
+                // Momento actualizado exitosamente
             }
         }
     }
@@ -433,9 +439,9 @@ struct FeedView: View {
                 self.isDeleting = false
                 
                 if let error = error {
-                    print("❌ Error al eliminar momento: \(error)")
+                    // Error al eliminar momento
                 } else {
-                    print("✅ Momento eliminado exitosamente")
+                    // Momento eliminado exitosamente
                     self.viewModel.moments.removeAll { $0.id == momentId }
                     self.showGlobalContextMenu = false
                     self.selectedMomentForMenu = nil
@@ -535,14 +541,14 @@ struct FeedView: View {
                                     AnalyticsService.shared.trackInteraction("own_story_tapped")
                                     selectedStoryUserId = currentUserId
                                     showSpecificUserStories = true
-                                    print("📖 Mostrando TUS historias existentes")
+
                                     
                                 } else {
                                     
                                     // ➕ Si no tienes historia, crear nueva
                                     AnalyticsService.shared.trackInteraction("create_story_tapped")
                                     showCreatorView = true
-                                    print("➕ Abriendo CreatorView para nueva historia")
+
                                     
                                 }
                             }
@@ -560,18 +566,12 @@ struct FeedView: View {
                                     AnalyticsService.shared.trackFeatureUsage("stories")
                                     
                     
-                                    print("  - storyUser.userId: '\(storyUser.userId)'")
-                                    
                                     guard !storyUser.userId.isEmpty else {
-                                        print("❌ ERROR: userId está vacío")
                                         return
                                     }
                                     
                                     selectedStoryUserId = storyUser.userId
                                     showSpecificUserStories = true
-                                    
-                                    print("  - selectedStoryUserId asignado: '\(selectedStoryUserId)'")
-                                    print("  - showSpecificUserStories = true")
                                 }
                             }
                         }
@@ -674,8 +674,6 @@ struct FeedView: View {
                                         showExploreWithHashtag = true
                                     },
                                     onLocationTap: { locationName, coordinate in
-                        
-                                        print("  - locationName recibido: '\(locationName)'")
                                         DispatchQueue.main.async {
                                             self.selectedLocationName = locationName
                                             self.selectedLocationCoordinate = coordinate
@@ -684,7 +682,7 @@ struct FeedView: View {
                                     },
                                     // ✅ NUEVO: Callback para mostrar menú contextual global
                                     onContextMenu: { moment in
-                                        print("📱 Abriendo menú contextual para: \(moment.id ?? "N/A")")
+
                                         selectedMomentForMenu = moment
                                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                             showGlobalContextMenu = true
@@ -700,7 +698,7 @@ struct FeedView: View {
                                     SmartNativeAdView()
                                         .onAppear {
                                             AnalyticsService.shared.trackFeatureUsage("native_ad_shown")
-                                            print("📺 Anuncio nativo mostrado en \(selectedFeedType) - posición \(index + 1)")
+
                                         }
                                 }
                             }
@@ -1193,7 +1191,7 @@ struct FeedView: View {
         
         // ✅ NUEVO: Evitar recargas innecesarias
         if hasLoadedInitialData {
-            print("🔄 Feed ya cargado, saltando recarga")
+
             return
         }
         
@@ -1202,7 +1200,7 @@ struct FeedView: View {
         
         // ✅ NUEVO: Recuperar preferencia del usuario al cargar
         selectedFeedType = UserDefaults.standard.selectedFeedType
-        print("📱 Preferencia de feed cargada: \(selectedFeedType.displayName)")
+
         
         Task {
             await withTaskGroup(of: Void.self) { group in
@@ -1231,7 +1229,7 @@ struct FeedView: View {
     private func clearCacheIfNeeded() {
         let cacheAge = Date().timeIntervalSince(cachedStoriesTimestamp)
         if cacheAge > 600 { // 10 minutos
-            print("🧹 Limpiando cache de stories (edad: \(Int(cacheAge))s)")
+
             cachedStories.removeAll()
             cachedStoriesTimestamp = Date()
         }
@@ -1239,7 +1237,7 @@ struct FeedView: View {
     
     // ✅ NUEVO: Función para forzar refresh
     private func forceRefresh() {
-        print("🔄 Forzando refresh del feed")
+
         hasLoadedInitialData = false
         cachedStories.removeAll()
         cachedStoriesTimestamp = Date()
@@ -1261,7 +1259,7 @@ struct FeedView: View {
                     // ✅ NUEVO: Verificar cache primero
                     let cacheAge = Date().timeIntervalSince(self.cachedStoriesTimestamp)
                     if cacheAge < 300 && !self.cachedStories.isEmpty { // 5 minutos
-                        print("🔄 Usando cache de stories (edad: \(Int(cacheAge))s)")
+
                         var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool)] = []
                         
                         // Agregar tu historia
@@ -1483,7 +1481,7 @@ struct FeedView: View {
             .compactMap { $0.imagePath }
             .compactMap { URL(string: $0) }
         let prefetcher = ImagePrefetcher(urls: momentUrls) { skipped, failed, completed in
-            print("🖼️ Prefetched \(completed.count) images, \(failed.count) failed, \(skipped.count) skipped")
+
         }
         prefetcher.start()
     }
@@ -1850,7 +1848,7 @@ struct ModernPostCardView: View {
         
         // ✅ Validar que maxWidth sea positivo
         guard maxWidth > 0 else {
-            print("⚠️ Feed - maxWidth inválido: \(maxWidth)")
+
             return 300 // Fallback seguro
         }
         
@@ -1867,7 +1865,7 @@ struct ModernPostCardView: View {
         
         // ✅ Validar que la altura calculada sea válida
         guard idealHeight > 0 && idealHeight.isFinite else {
-            print("⚠️ Feed - idealHeight inválido: \(idealHeight)")
+
             return aspectRatioType.maxHeight // Usar altura máxima como fallback
         }
         
@@ -1880,7 +1878,7 @@ struct ModernPostCardView: View {
         
         // ✅ SOLO LOGEAR EN PRIMERA CARGA (no en cada recálculo)
         if isFirstAppear {
-            print("📏 Feed - Width: \(maxWidth), AspectRatio: \(aspectRatio), Type: \(aspectRatioType.displayName), Height: \(safeHeight)")
+    
         }
         
         return safeHeight
@@ -1924,7 +1922,7 @@ struct ModernPostCardView: View {
                         HStack {
                             Spacer()
                             Button(action: {
-                                print("📱 Botón de menú contextual presionado")
+
                                 onContextMenu(moment) // ✅ Llamar al callback del FeedView
                             }) {
                                 Image(systemName: "ellipsis")
@@ -1995,7 +1993,7 @@ struct ModernPostCardView: View {
                                     content: moment.content,
                                     colorScheme: colorScheme,
                                     onHashtagTap: { hashtag in
-                                        print("🔍 Hashtag tocado: #\(hashtag)")
+
                                         onHashtagTap(hashtag)
                                     }
                                 )
@@ -2033,7 +2031,7 @@ struct ModernPostCardView: View {
             
             // Solo para videos, notificar que está visible
             if mediaItems.first?.type == .video {
-                print("📺 Video post visible: \(moment.id ?? "N/A")")
+
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -2051,7 +2049,7 @@ struct ModernPostCardView: View {
             .environmentObject(firestoreService)
             .onAppear {
 
-                print("  - moment.authorId: '\(moment.authorId)'")
+
             }
         }
     }
@@ -2114,15 +2112,13 @@ struct ModernPostCardView: View {
                 if let location = moment.location, !location.isEmpty {
                     Button(action: {
         
-                        print("  - location: '\(location)'")
+
                         
                         let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmedLocation.isEmpty else {
-                            print("❌ Ubicación vacía después de trim")
                             return
                         }
-                        
-                        onLocationTap(trimmedLocation, nil)
+                        onLocationTap(trimmedLocation, moment.locationCoordinate?.toCLLocationCoordinate2D)
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "location.fill")
@@ -2254,7 +2250,7 @@ struct ModernPostCardView: View {
                         self.hasStory = isAnyStoryVisible
                         self.hasUnseenStory = hasUnseenStory
                         self.isLoadingStory = false
-                        print("📖 Historia check para \(moment.username): hasStory=\(isAnyStoryVisible), hasUnseen=\(hasUnseenStory)")
+
                     }
                 }
             }
@@ -2280,7 +2276,7 @@ struct ModernPostCardView: View {
                     // ✅ INVALIDAR cache para recalcular con nuevo ratio
                     self.cachedCardHeight = nil
                 } else {
-                    print("⚠️ Feed - Aspect ratio desde BD inválido: \(ratioValue)")
+
                     self.detectedAspectRatio = 1.0 // Fallback a square
                 }
                 
@@ -2288,16 +2284,16 @@ struct ModernPostCardView: View {
                 switch aspectRatioFromDB {
                 case .landscape:
                     self.aspectRatioType = .landscape
-                    print("🏞️ Feed - Aspect ratio desde BD: Landscape (16:9)")
+
                 case .portrait:
                     self.aspectRatioType = .portrait
-                    print("📱 Feed - Aspect ratio desde BD: Portrait (4:5)")
+
                 case .square:
                     self.aspectRatioType = .square
-                    print("⬜ Feed - Aspect ratio desde BD: Square (1:1)")
+
                 case .nineBySixteen:
                     self.aspectRatioType = .reels
-                    print("📱 Feed - Aspect ratio desde BD: Reels (9:16)")
+
                 }
             }
             return
@@ -2305,7 +2301,7 @@ struct ModernPostCardView: View {
         
         // ✅ FALLBACK: Si no hay aspect ratio guardado, detectar una sola vez
         guard let firstItem = mediaItems.first, !firstItem.url.isEmpty else {
-            print("⚠️ Feed - No hay URL válida para la imagen")
+
             DispatchQueue.main.async {
                 self.detectedAspectRatio = 0.8 // Fallback a 4:5
                 self.aspectRatioType = .portrait
@@ -2315,12 +2311,12 @@ struct ModernPostCardView: View {
         }
         
         if firstItem.type == .image {
-            print("📸 Feed - Detectando aspect ratio de imagen: \(firstItem.url)")
+
             KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
-                    print("📏 Feed - Dimensiones: \(imageSize.width)x\(imageSize.height), Ratio: \(ratio)")
+
                     
                     DispatchQueue.main.async {
                         // ✅ Validar ratio calculado
@@ -2328,14 +2324,14 @@ struct ModernPostCardView: View {
                             self.detectedAspectRatio = ratio
                             self.classifyAspectRatio(ratio)
                         } else {
-                            print("⚠️ Feed - Ratio calculado inválido: \(ratio)")
+
                             self.detectedAspectRatio = 1.0
                             self.aspectRatioType = .square
                         }
                     }
                 }
                 .onFailure { error in
-                    print("❌ Feed - Error cargando imagen: \(error)")
+
                     DispatchQueue.main.async {
                         self.detectedAspectRatio = 0.8 // Fallback a 4:5
                         self.aspectRatioType = .portrait
@@ -2343,13 +2339,13 @@ struct ModernPostCardView: View {
                 }
         } else {
             // ✅ MEJORADO: Para videos, detectar si es vertical (reels) o horizontal (landscape)
-            print("🎥 Feed - Video detectado, determinando orientación...")
+
             
             // Por defecto, asumir formato reels para videos (9:16)
             DispatchQueue.main.async {
                 self.detectedAspectRatio = 0.5625 // 9÷16 = 0.5625
                 self.aspectRatioType = .reels
-                print("📱 Feed - Video detectado: usando formato reels (9:16) por defecto")
+
             }
             
             if let url = URL(string: firstItem.url) {
@@ -2364,11 +2360,11 @@ struct ModernPostCardView: View {
                             DispatchQueue.main.async {
                                 self.detectedAspectRatio = videoRatio
                                 self.classifyAspectRatio(videoRatio)
-                                print("🎥 Feed - Video ratio detectado: \(videoRatio)")
+
                             }
                         }
                     } catch {
-                        print("❌ Error detectando ratio de video: \(error)")
+
                     }
                 }
             }
@@ -2382,27 +2378,27 @@ struct ModernPostCardView: View {
         if abs(ratio - 1.0) < tolerance {
             // Square: ~1.0 (como 1080x1080)
             self.aspectRatioType = .square
-            print("⬜ Feed - Tipo detectado: Square (1:1)")
+
         } else if abs(ratio - 0.8) < tolerance {
             // Portrait 4:5: ~0.8 (como 1080x1350)
             self.aspectRatioType = .portrait
-            print("📱 Feed - Tipo detectado: Portrait (4:5)")
+
         } else if abs(ratio - 0.5625) < tolerance {
             // Reels 9:16: ~0.5625 (como 1080x1920)
             self.aspectRatioType = .reels
-            print("📱 Feed - Tipo detectado: Reels (9:16)")
+
         } else if ratio > 1.4 {
             // Landscape: > 1.4 (16:9 = 1.778)
             self.aspectRatioType = .landscape
-            print("🏞️ Feed - Tipo detectado: Landscape (16:9)")
+
         } else if ratio < 0.7 {
             // Muy vertical: usar como reels
             self.aspectRatioType = .reels
-            print("📱 Feed - Tipo detectado: Reels (muy vertical)")
+
         } else {
             // Default entre ratios: usar square
             self.aspectRatioType = .square
-            print("⬜ Feed - Tipo detectado: Square (default para ratio: \(ratio))")
+
         }
     }
     
@@ -2453,7 +2449,6 @@ struct ModernPostCardView: View {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         self.commentCount = newCount
                     }
-                    print("💬 Comentarios en momento \(momentId): \(newCount)")
                 }
             }
     }
@@ -3325,7 +3320,9 @@ class FeedViewModel: ObservableObject {
         }
         
         group.notify(queue: .main) {
-            let sortedMoments = allMoments.sorted { $0.timestamp > $1.timestamp }
+            let sortedMoments = self.momentsQueue.sync {
+                allMoments.sorted { $0.timestamp > $1.timestamp }
+            }
             
             let finalMoments = feedType == .forYou ?
                 Array(sortedMoments.shuffled().prefix(60)) :
@@ -3385,7 +3382,9 @@ class FeedViewModel: ObservableObject {
         }
         
         group.notify(queue: .main) {
-            let sortedNewMoments = newMoments.sorted { $0.timestamp > $1.timestamp }
+            let sortedNewMoments = self.momentsQueue.sync {
+                newMoments.sorted { $0.timestamp > $1.timestamp }
+            }
             
             self.filterMomentsForPrivacy(viewerId: userId, moments: sortedNewMoments) { filteredMoments in
                 DispatchQueue.main.async {
@@ -3516,7 +3515,7 @@ class FeedViewModel: ObservableObject {
                             hasCompleted = true
                             
                             if canView {
-                                self.momentsQueue.async(flags: .barrier) {
+                                syncQueue.sync {
                                     batchResults.append(moment)
                                 }
                             }
@@ -3569,8 +3568,6 @@ class FeedViewModel: ObservableObject {
             self.commentListeners.values.forEach { $0.remove() }
             self.commentListeners.removeAll()
         }
-        
-        print("🧹 Listeners y updates pendientes limpiados")
     }
     
     private func setupListenersForMoments(_ moments: [Moment]) {
@@ -3588,13 +3585,10 @@ class FeedViewModel: ObservableObject {
         // ✅ MEJORADO: Protección contra listeners duplicados
         listenersQueue.async(flags: .barrier) {
             if self.commentListeners[momentId] != nil || self.momentListeners[momentId] != nil {
-                print("🔄 Listener ya existe para momento: \(momentId)")
                 return
             }
         }
-        
-        print("🔗 Configurando listener para momento: \(momentId)")
-        
+
         // Listener para comentarios (mantener igual)
         let commentListener = firestoreService.db.collection("users").document(authorId)
             .collection("moments").document(momentId)
@@ -3724,9 +3718,6 @@ class FeedViewModel: ObservableObject {
             // Crear nuevo update con delay
             let workItem = DispatchWorkItem { [weak self] in
                 guard let self = self else { return }
-                
-                print("🔄 Aplicando update para momento: \(momentId)")
-                
                 DispatchQueue.main.async {
                     if let index = self.moments.firstIndex(where: { $0.id == momentId }) {
                         self.moments[index] = updatedMoment

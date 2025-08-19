@@ -624,21 +624,17 @@ extension PrivacyService {
             .document("\(contentType)_\(contentId)")
             .getDocument { snapshot, error in
                 if let error = error {
-                    print("❌ Error verificando audiencia personalizada: \(error)")
                     completion(false)
                     return
                 }
                 
                 guard let data = snapshot?.data(),
                       let allowedUsers = data["allowedUsers"] as? [String] else {
-                    print("❌ No se encontró audiencia personalizada para \(contentType)_\(contentId)")
                     completion(false)
                     return
                 }
                 
                 let canView = allowedUsers.contains(viewerId)
-                print("📊 Audiencia personalizada encontrada: \(allowedUsers)")
-                print(canView ? "✅ Usuario \(viewerId) está en la audiencia" : "❌ Usuario \(viewerId) NO está en la audiencia")
                 completion(canView)
             }
     }
@@ -771,8 +767,7 @@ extension PrivacyService {
         viewerId: String,
         completion: @escaping (Bool) -> Void
     ) {
-        print("📝 Verificando lista personalizada para \(contentType)_\(contentId)")
-        
+
         // Primero obtener el customListId del contenido
         let contentCollection = contentType == "story" ? "stories" : "moments"
         
@@ -781,7 +776,6 @@ extension PrivacyService {
             .getDocument { [weak self] document, error in
                 guard let data = document?.data(),
                       let customListId = data["customListId"] as? String else {
-                    print("❌ No se encontró customListId para \(contentType)_\(contentId)")
                     completion(false)
                     return
                 }
@@ -923,13 +917,9 @@ extension PrivacyService {
         
         guard let customListId = story.customListId, !customListId.isEmpty else {
             // Si la historia no tiene un ID de lista personalizada, el usuario no puede verla por este método.
-            print("❌ La historia de \(story.authorId) no tiene un customListId asociado.")
             completion(false)
             return
         }
-        
-        print("📝 Verificando si \(viewerId) es miembro de la lista \(customListId) para la historia de \(story.authorId).")
-        
         // Ahora que tenemos el ID de la lista, verificamos si el viewer es miembro.
         self.checkUserInList(
             userId: viewerId,
@@ -951,12 +941,9 @@ extension PrivacyService {
         
         guard let customListId = moment.customListId, !customListId.isEmpty else {
             // Si el momento no tiene un ID de lista personalizada, el usuario no puede verlo por este método.
-            print("❌ El momento de \(moment.authorId) no tiene un customListId asociado.")
             completion(false)
             return
         }
-        
-        print("📝 Verificando si \(viewerId) es miembro de la lista \(customListId) para el momento de \(moment.authorId).")
         
         // Verificar si el viewer es miembro de la lista.
         self.checkUserInList(
@@ -980,15 +967,11 @@ extension PrivacyService {
             .getDocument { document, error in
                 guard let data = document?.data(),
                       let members = data["members"] as? [String] else {
-                    print("❌ Lista no encontrada o sin miembros: \(listId)")
                     completion(false)
                     return
                 }
                 
                 let isMember = members.contains(userId)
-                print(isMember ?
-                      "✅ Usuario \(userId) está en la lista \(listId)" :
-                      "❌ Usuario \(userId) NO está en la lista \(listId)")
                 completion(isMember)
             }
     }
@@ -1014,12 +997,10 @@ extension PrivacyService {
     // MARK: - Actualizar canUserViewMoment para soportar listas
     func canUserViewMomentEnhanced(_ moment: Moment, viewerId: String, completion: @escaping (Bool) -> Void) {
         guard let momentId = moment.id, !momentId.isEmpty else {
-            print("❌ [PrivacyService] Momento sin ID válido")
             completion(false)
             return
         }
         
-        print("🔍 Verificando si \(viewerId) puede ver momento \(momentId) de \(moment.authorId)")
         
         // 1. Si es el autor, siempre puede verlo
         if moment.authorId == viewerId {
@@ -1030,13 +1011,11 @@ extension PrivacyService {
         // 2. Verificar bloqueos
         checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
             guard let self = self else {
-                print("❌ [PrivacyService] Self liberado durante verificación de bloqueos")
                 completion(false)
                 return
             }
             
             if isBlocked {
-                print("🚫 [PrivacyService] Bloqueo detectado entre \(viewerId) y \(moment.authorId)")
                 completion(false)
                 return
             }
@@ -1047,19 +1026,16 @@ extension PrivacyService {
             switch audience {
             case "everyone":
                 self.canViewUserContent(viewerId: viewerId, targetUserId: moment.authorId) { canView in
-                    print("📜 [PrivacyService] everyone - Puede ver: \(canView)")
                     completion(canView)
                 }
                 
             case "connections":
                 self.firestoreService.isFollowing(currentUserId: moment.authorId, targetUserId: viewerId) { authorFollowsViewer in
-                    print("📜 [PrivacyService] connections - Sigue: \(authorFollowsViewer)")
                     completion(authorFollowsViewer)
                 }
                 
             case "bestFriends":
                 self.checkIfBestFriend(userId: moment.authorId, friendId: viewerId) { isBestFriend in
-                    print("📜 [PrivacyService] bestFriends - Es mejor amigo: \(isBestFriend)")
                     completion(isBestFriend)
                 }
                 
@@ -1070,7 +1046,6 @@ extension PrivacyService {
                     authorId: moment.authorId,
                     viewerId: viewerId
                 ) { canView in
-                    print("📜 [PrivacyService] custom - Puede ver: \(canView)")
                     completion(canView)
                 }
                 
@@ -1079,12 +1054,10 @@ extension PrivacyService {
                     for: moment,
                     viewerId: viewerId
                 ) { isMember in
-                    print("📜 [PrivacyService] customList - Es miembro: \(isMember)")
                     completion(isMember)
                 }
                 
             default:
-                print("❌ [PrivacyService] Audiencia desconocida: \(audience)")
                 completion(false)
             }
         }
@@ -1092,7 +1065,6 @@ extension PrivacyService {
     
     // MARK: - Actualizar canUserViewStory para soportar listas
     func canUserViewStoryEnhanced(_ story: Story, viewerId: String, completion: @escaping (Bool) -> Void) {
-        print("🔍 Verificando si \(viewerId) puede ver historia de \(story.authorId)")
         
         // 1. Si es el autor, siempre puede verla
         if story.authorId == viewerId {
@@ -1158,7 +1130,6 @@ extension PrivacyService {
     
     // ✅ NUEVA FUNCIÓN: Verificar visibilidad para ExploreView (más permisiva)
     func canUserViewMomentInExplore(_ moment: Moment, viewerId: String, completion: @escaping (Bool) -> Void) {
-        print("🔍 [Explore] Verificando si \(viewerId) puede ver momento de \(moment.authorId) con audiencia: \(moment.audience ?? "everyone")")
         
         // 1. Si es el autor, siempre puede verlo
         if moment.authorId == viewerId {
@@ -1169,7 +1140,6 @@ extension PrivacyService {
         // 2. Verificar bloqueos primero (esto siempre aplica)
         checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
             if isBlocked {
-                print("❌ [Explore] Momento filtrado: hay bloqueos entre usuarios")
                 completion(false)
                 return
             }
@@ -1180,22 +1150,18 @@ extension PrivacyService {
             switch audience {
             case "everyone":
                 // Para contenido público, solo verificar si el perfil del autor es accesible
-                print("📢 [Explore] Momento público - verificando acceso al perfil")
                 self?.canViewUserContentForExplore(viewerId: viewerId, targetUserId: moment.authorId, completion: completion)
                 
             case "connections":
                 // Solo mostrar si hay conexión mutua
-                print("👥 [Explore] Momento para conexiones - verificando conexión mutua")
                 self?.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
                 
             case "bestFriends":
                 // Solo mostrar si es mejor amigo
-                print("⭐ [Explore] Momento para mejores amigos - verificando membresía")
                 self?.checkIfBestFriend(userId: moment.authorId, friendId: viewerId, completion: completion)
                 
             case "custom":
                 // Solo mostrar si está en la audiencia personalizada
-                print("🎯 [Explore] Momento con audiencia personalizada - verificando membresía")
                 self?.checkCustomAudience(
                     contentType: "moment",
                     contentId: moment.id ?? "",
@@ -1206,7 +1172,6 @@ extension PrivacyService {
                 
             case "customList":
                 // Solo mostrar si está en la lista personalizada
-                print("📝 [Explore] Momento con lista personalizada - verificando membresía")
                 self?.checkCustomListMembership(
                     for: moment,
                     viewerId: viewerId,
@@ -1215,7 +1180,6 @@ extension PrivacyService {
                 
             case "onlyMe":
                 // Nunca mostrar en Explore (solo para el autor)
-                print("🔒 [Explore] Momento privado - no mostrar")
                 completion(false)
                 
             default:
@@ -1239,15 +1203,10 @@ extension PrivacyService {
             case .success(let settings):
                 if !settings.isPrivate {
                     // ✅ PERFIL PÚBLICO: Mostrar en Explore
-                    print("🌍 [Explore] Perfil público - contenido visible")
                     completion(true)
                 } else {
                     // ❌ PERFIL PRIVADO: Solo mostrar si lo sigue
-                    print("🔒 [Explore] Perfil privado - verificando si lo sigue")
                     self.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: targetUserId) { isFollowing in
-                        print(isFollowing ?
-                              "✅ [Explore] Lo sigue - contenido visible" :
-                              "❌ [Explore] No lo sigue - contenido oculto")
                         completion(isFollowing)
                     }
                 }
