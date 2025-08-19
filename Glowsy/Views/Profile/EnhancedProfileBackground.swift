@@ -4,7 +4,7 @@ import Kingfisher
 private func getThemeColor(_ theme: ProfileTheme) -> Color {
     switch theme {
     case .default: return Color.blue
-    case .supporter: return Color(hex: "FF6B6B") // Rosa supporter
+    case .supporter: return Color(hex: "a8170c") // Rojo supporter
     case .earlyAdopter: return Color(hex: "4ECDC4") // Azul early adopter
     case .champion: return Color(hex: "FFD93D") // Amarillo champion
     case .vip: return Color(hex: "9B59B6") // Púrpura VIP
@@ -61,43 +61,18 @@ struct EnhancedProfileBackground: View {
     
     private var backgroundGradientLayer: some View {
         ZStack {
-            // Primary gradient
+            // Primary gradient (para todos los temas)
             if colorScheme == .dark {
                 profileTheme.darkBackgroundGradient
             } else {
                 profileTheme.backgroundGradient
-            }
-            
-            // Secondary depth gradient (solo para temas no clásicos)
-            if profileTheme != .default {
-                LinearGradient(
-                    colors: [
-                        Color.clear,
-                        getThemeColor(profileTheme).opacity(0.3),
-                        Color.clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .scaleEffect(1.2)
-                .rotationEffect(.degrees(profileTheme == .default ? 0 : animationPhase * 30))
-                .opacity(0.6)
             }
         }
     }
     
     private var atmosphericEffectsLayer: some View {
         ZStack {
-            // Floating orbs
-            if profileTheme != .default {
-                FloatingOrbsView(
-                    theme: profileTheme,
-                    animationPhase: animationPhase,
-                    intensity: glowIntensity
-                )
-            }
-            
-            // Ambient particles
+            // Ambient particles (para todos los temas)
             AmbientParticlesView(
                 theme: profileTheme,
                 animationPhase: animationPhase
@@ -107,58 +82,13 @@ struct EnhancedProfileBackground: View {
     
     private var particleSystemsLayer: some View {
         ZStack {
-            // Enhanced particle effects
-            if profileTheme.particleEffect != .none {
-                EnhancedParticleEffectView(
-                    effect: profileTheme.particleEffect,
-                    animationPhase: animationPhase,
-                    positions: particlePositions
-                )
-            }
-            
-            // Light rays from center
-            if profileTheme.lightRays != .none {
-                EnhancedLightRaysView(
-                    lightRays: profileTheme.lightRays,
-                    animationPhase: animationPhase,
-                    scrollOffset: scrollOffset
-                )
-            }
-            
-            // Energy waves
-            if profileTheme.energyWaves != .none {
-                EnhancedEnergyWavesView(
-                    energyWaves: profileTheme.energyWaves,
-                    animationPhase: animationPhase
-                )
-            }
-            
-            // Dynamic sparks
-            if profileTheme.dynamicSparks != .none {
-                EnhancedDynamicSparksView(
-                    dynamicSparks: profileTheme.dynamicSparks,
-                    animationPhase: animationPhase
-                )
-            }
+            // Sin sistemas de partículas (todos los temas iguales al clásico)
         }
     }
     
     private var dynamicLightingLayer: some View {
         ZStack {
-            // Enhanced glow effects
-            if profileTheme.glowEffect != .none {
-                EnhancedGlowEffectView(
-                    effect: profileTheme.glowEffect,
-                    animationPhase: animationPhase,
-                    intensity: glowIntensity
-                )
-            }
-            
-            // Volumetric lighting
-            VolumetricLightingView(
-                theme: profileTheme,
-                animationPhase: animationPhase
-            )
+            // Sin efectos de iluminación (todos los temas iguales al clásico)
         }
     }
     
@@ -194,23 +124,7 @@ struct EnhancedProfileBackground: View {
                 let avatarCenterX = geometry.size.width / 2
                 let avatarCenterY = geometry.size.height * 0.17 // Posición ajustada
                 
-                // Theme-based energy field (igual que en la preview)
-                if profileTheme != .default {
-                    ThemeEnergyFieldView(
-                        theme: profileTheme,
-                        animationPhase: animationPhase,
-                        centerX: avatarCenterX,
-                        centerY: avatarCenterY
-                    )
-                    
-                    // Orbiting particles based on theme
-                    ThemeOrbitingParticlesView(
-                        theme: profileTheme,
-                        animationPhase: animationPhase,
-                        centerX: avatarCenterX,
-                        centerY: avatarCenterY
-                    )
-                }
+                // Sin efectos adicionales (todos los temas iguales al clásico)
             }
         }
     }
@@ -315,98 +229,7 @@ struct EnhancedProfileBackground: View {
 }
 
 // MARK: - Theme Centered Effects Views
-struct ThemeEnergyFieldView: View {
-    let theme: ProfileTheme
-    let animationPhase: CGFloat
-    let centerX: CGFloat
-    let centerY: CGFloat
-    
-    private var themeEnergyGradient: RadialGradient {
-        RadialGradient(
-            colors: [
-                getThemeColor(theme).opacity(1.0),
-                getThemeColor(theme).opacity(0.8),
-                getThemeColor(theme).opacity(0.5),
-                Color.clear
-            ],
-            center: .center,
-            startRadius: 30,
-            endRadius: 150
-        )
-    }
-    
-    private var scaleEffect: CGFloat {
-        1.0 + 0.2 * sin(animationPhase * 2 * Double.pi)
-    }
-    
-    private var opacity: Double {
-        0.8 + 0.2 * sin(animationPhase * 3 * Double.pi)
-    }
-    
-    var body: some View {
-        Circle()
-            .fill(themeEnergyGradient)
-            .frame(width: 300, height: 300)
-            .position(x: centerX, y: centerY)
-            .scaleEffect(scaleEffect)
-            .opacity(opacity)
-            .blur(radius: 0)
-            .allowsHitTesting(false)
-    }
-}
-
-struct ThemeOrbitingParticlesView: View {
-    let theme: ProfileTheme
-    let animationPhase: CGFloat
-    let centerX: CGFloat
-    let centerY: CGFloat
-    
-    var body: some View {
-        ForEach(0..<8, id: \.self) { index in
-            ThemeParticleView(
-                theme: theme,
-                animationPhase: animationPhase,
-                centerX: centerX,
-                centerY: centerY,
-                index: index
-            )
-        }
-    }
-}
-
-struct ThemeParticleView: View {
-    let theme: ProfileTheme
-    let animationPhase: CGFloat
-    let centerX: CGFloat
-    let centerY: CGFloat
-    let index: Int
-    
-    private var particleX: CGFloat {
-        centerX + cos(animationPhase * 2 * Double.pi + Double(index) * Double.pi / 4) * 80
-    }
-    
-    private var particleY: CGFloat {
-        centerY + sin(animationPhase * 2 * Double.pi + Double(index) * Double.pi / 4) * 80
-    }
-    
-    private var scaleEffect: CGFloat {
-        0.5 + 0.5 * sin(animationPhase * 4 * Double.pi + Double(index))
-    }
-    
-    private var opacity: Double {
-        0.7 + 0.3 * sin(animationPhase * 2 * Double.pi + Double(index) * 0.5)
-    }
-    
-    var body: some View {
-        Circle()
-            .fill(getThemeColor(theme).opacity(0.9))
-            .frame(width: 12, height: 12)
-            .position(x: particleX, y: particleY)
-            .scaleEffect(scaleEffect)
-            .opacity(opacity)
-            .allowsHitTesting(false)
-    }
-}
+// Eliminadas las estructuras que ya no se usan
 
 // MARK: - Badge Centered Effects Views
 struct BadgeEnergyFieldView: View {
@@ -1153,510 +976,19 @@ struct BorderLayerView: View {
     }
 }
 
-struct VolumetricLightingView: View {
-    let theme: ProfileTheme
-    let animationPhase: CGFloat
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                ForEach(0..<3, id: \.self) { index in
-                    VolumetricLightLayerView(
-                        theme: theme,
-                        animationPhase: animationPhase,
-                        index: index,
-                        geometry: geometry
-                    )
-                }
-            }
-        }
-    }
-}
-
-struct VolumetricLightLayerView: View {
-    let theme: ProfileTheme
-    let animationPhase: CGFloat
-    let index: Int
-    let geometry: GeometryProxy
-    
-    private var lightGradient: RadialGradient {
-        RadialGradient(
-            colors: [
-                getThemeColor(theme).opacity(0.3),
-                Color.clear
-            ],
-            center: .center,
-            startRadius: 0,
-            endRadius: 200
-        )
-    }
-    
-    private var xPosition: CGFloat {
-        geometry.size.width * 0.5
-    }
-    
-    private var yPosition: CGFloat {
-        geometry.size.height * (0.2 + Double(index) * 0.3)
-    }
-    
-    private var scaleEffect: CGFloat {
-        let baseScale = 0.8
-        let amplitude = 0.4
-        let frequency = 1.5
-        let phase = Double(index) * 0.8
-        let scaleOffset = sin(animationPhase * frequency * Double.pi + phase)
-        return baseScale + amplitude * scaleOffset
-    }
-    
-    private var opacity: Double {
-        let baseOpacity = 0.2
-        let amplitude = 0.3
-        let frequency = 2.0
-        let phase = Double(index) * 0.5
-        let opacityOffset = sin(animationPhase * frequency * Double.pi + phase)
-        return baseOpacity + amplitude * opacityOffset
-    }
-    
-    private var rotationAngle: Double {
-        animationPhase * 30 + Double(index) * 45
-    }
-    
-    var body: some View {
-        Ellipse()
-            .fill(lightGradient)
-            .frame(width: 400, height: 200)
-            .position(x: xPosition, y: yPosition)
-            .scaleEffect(scaleEffect)
-            .opacity(opacity)
-            .blur(radius: 20)
-            .rotationEffect(.degrees(rotationAngle))
-    }
-}
+// Eliminadas las estructuras de iluminación volumétrica que ya no se usan
 
 // MARK: - Enhanced Particle Effects
+// Eliminadas las estructuras que ya no se usan
 
-struct EnhancedParticleEffectView: View {
-    let effect: ParticleEffect
-    let animationPhase: CGFloat
-    let positions: [CGPoint]
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ForEach(0..<min(effect.count, positions.count), id: \.self) { index in
-                EnhancedParticleView(
-                    emoji: effect.emoji,
-                    index: index,
-                    total: effect.count,
-                    size: geometry.size,
-                    animationPhase: animationPhase,
-                    position: positions[index]
-                )
-            }
-        }
-    }
-}
+// Eliminadas las estructuras de rayos de luz que ya no se usan
 
-struct EnhancedParticleView: View {
-    let emoji: String
-    let index: Int
-    let total: Int
-    let size: CGSize
-    let animationPhase: CGFloat
-    let position: CGPoint
-    
-    private var dynamicScale: CGFloat {
-        let baseScale = 0.7 + 0.5 * sin(animationPhase * 3 * .pi + CGFloat(index) * 0.6)
-        let distanceFromCenter = sqrt(pow(position.x - size.width/2, 2) + pow(position.y - size.height/2, 2))
-        let maxDistance = sqrt(pow(size.width/2, 2) + pow(size.height/2, 2))
-        let distanceFactor = 1.0 - (distanceFromCenter / maxDistance) * 0.5
-        return baseScale * distanceFactor
-    }
-    
-    private var dynamicOpacity: Double {
-        let baseOpacity = 0.5 + 0.5 * sin(animationPhase * 2 * .pi + CGFloat(index) * 0.4)
-        return baseOpacity * 0.8
-    }
-    
-    var body: some View {
-        Text(emoji)
-            .font(.system(size: 28))
-            .scaleEffect(dynamicScale)
-            .opacity(dynamicOpacity)
-            .position(position)
-            .shadow(
-                color: Color.white.opacity(0.6),
-                radius: 4,
-                x: 0,
-                y: 0
-            )
-            .blur(radius: 0.5)
-    }
-}
+// Eliminadas las estructuras de ondas de energía que ya no se usan
 
-struct EnhancedLightRaysView: View {
-    let lightRays: LightRays
-    let animationPhase: CGFloat
-    let scrollOffset: CGFloat
-    
-    var body: some View {
-        GeometryReader { geometry in
-            let centerX = geometry.size.width / 2
-            let centerY = geometry.size.height * 0.3 + scrollOffset * 0.1
-            
-            ZStack {
-                ForEach(0..<lightRays.count, id: \.self) { index in
-                    LightRayView(
-                        lightRays: lightRays,
-                        animationPhase: animationPhase,
-                        index: index,
-                        centerX: centerX,
-                        centerY: centerY
-                    )
-                }
-            }
-        }
-    }
-}
+// Eliminadas las estructuras de chispas dinámicas que ya no se usan
 
-struct LightRayView: View {
-    let lightRays: LightRays
-    let animationPhase: CGFloat
-    let index: Int
-    let centerX: CGFloat
-    let centerY: CGFloat
-    
-    private var angle: Double {
-        (2 * Double.pi * Double(index)) / Double(lightRays.count)
-    }
-    
-    private var dynamicLength: Double {
-        let baseLength = lightRays.length
-        let lengthVariation = 0.7 + 0.5 * sin(animationPhase * 2 * Double.pi + Double(index) * 0.4)
-        return baseLength * lengthVariation
-    }
-    
-    private var endX: Double {
-        centerX + cos(angle) * dynamicLength
-    }
-    
-    private var endY: Double {
-        centerY + sin(angle) * dynamicLength
-    }
-    
-    private var rayGradient: LinearGradient {
-        let rayColor = lightRays.colors[index % lightRays.colors.count]
-        return LinearGradient(
-            colors: [
-                rayColor.opacity(0.9),
-                rayColor.opacity(0.6),
-                rayColor.opacity(0.3),
-                Color.clear
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-    
-    private var lineWidth: CGFloat {
-        let baseWidth = lightRays.width
-        let widthVariation = 0.8 + 0.4 * sin(animationPhase * 3 * Double.pi + Double(index) * 0.3)
-        return baseWidth * widthVariation
-    }
-    
-    private var opacity: Double {
-        let baseOpacity = 0.8
-        let amplitude = 0.2
-        let frequency = 2.5
-        let phase = Double(index) * 0.4
-        let opacityOffset = sin(animationPhase * frequency * Double.pi + phase)
-        return baseOpacity + amplitude * opacityOffset
-    }
-    
-    private var shadowColor: Color {
-        lightRays.colors[index % lightRays.colors.count].opacity(0.4)
-    }
-    
-    var body: some View {
-        Path { path in
-            path.move(to: CGPoint(x: centerX, y: centerY))
-            path.addLine(to: CGPoint(x: endX, y: endY))
-        }
-        .stroke(
-            rayGradient,
-            style: StrokeStyle(
-                lineWidth: lineWidth,
-                lineCap: .round
-            )
-        )
-        .opacity(opacity)
-        .blur(radius: 1.5)
-        .shadow(
-            color: shadowColor,
-            radius: 8,
-            x: 0,
-            y: 0
-        )
-    }
-}
+// Eliminadas las estructuras de efectos de brillo que ya no se usan
 
-struct EnhancedEnergyWavesView: View {
-    let energyWaves: EnergyWaves
-    let animationPhase: CGFloat
-    
-    var body: some View {
-        GeometryReader { geometry in
-            let centerX = geometry.size.width / 2
-            let centerY = geometry.size.height * 0.3
-            
-            ZStack {
-                ForEach(0..<energyWaves.count, id: \.self) { index in
-                    EnergyWaveView(
-                        energyWaves: energyWaves,
-                        animationPhase: animationPhase,
-                        index: index,
-                        centerX: centerX,
-                        centerY: centerY
-                    )
-                }
-            }
-        }
-    }
-}
-
-struct EnergyWaveView: View {
-    let energyWaves: EnergyWaves
-    let animationPhase: CGFloat
-    let index: Int
-    let centerX: CGFloat
-    let centerY: CGFloat
-    
-    private var waveRadius: CGFloat {
-        energyWaves.radius + CGFloat(index) * 30
-    }
-    
-    private var dynamicScale: CGFloat {
-        let baseScale = 0.3
-        let amplitude = 0.7
-        let frequency = energyWaves.speed * 2
-        let phase = Double(index) * 1.2
-        let scaleOffset = sin(animationPhase * frequency + phase)
-        return baseScale + amplitude * scaleOffset
-    }
-    
-    private var waveGradient: LinearGradient {
-        LinearGradient(
-            colors: energyWaves.colors + [Color.clear],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    private var lineWidth: CGFloat {
-        4 * (1.0 - Double(index) / Double(energyWaves.count))
-    }
-    
-    private var opacity: Double {
-        0.8 * (1.0 - Double(index) / Double(energyWaves.count))
-    }
-    
-    private var shadowColor: Color {
-        energyWaves.colors.first?.opacity(0.3) ?? Color.clear
-    }
-    
-    var body: some View {
-        Circle()
-            .stroke(
-                waveGradient,
-                style: StrokeStyle(
-                    lineWidth: lineWidth,
-                    lineCap: .round,
-                    dash: [10, 5]
-                )
-            )
-            .frame(width: waveRadius * 2, height: waveRadius * 2)
-            .position(x: centerX, y: centerY)
-            .scaleEffect(dynamicScale)
-            .opacity(opacity)
-            .blur(radius: 2)
-            .shadow(
-                color: shadowColor,
-                radius: 6,
-                x: 0,
-                y: 0
-            )
-    }
-}
-
-struct EnhancedDynamicSparksView: View {
-    let dynamicSparks: DynamicSparks
-    let animationPhase: CGFloat
-    
-    var body: some View {
-        GeometryReader { geometry in
-            let centerX = geometry.size.width / 2
-            let centerY = geometry.size.height * 0.3
-            
-            ZStack {
-                ForEach(0..<dynamicSparks.count, id: \.self) { index in
-                    DynamicSparkView(
-                        dynamicSparks: dynamicSparks,
-                        animationPhase: animationPhase,
-                        index: index,
-                        centerX: centerX,
-                        centerY: centerY
-                    )
-                }
-            }
-        }
-    }
-}
-
-struct DynamicSparkView: View {
-    let dynamicSparks: DynamicSparks
-    let animationPhase: CGFloat
-    let index: Int
-    let centerX: CGFloat
-    let centerY: CGFloat
-    
-    private var angle: Double {
-        (2 * Double.pi * Double(index)) / Double(dynamicSparks.count)
-    }
-    
-    private var dynamicDistance: Double {
-        let baseDistance = dynamicSparks.spreadRadius
-        let distanceVariation = 0.5 + 0.7 * sin(animationPhase * dynamicSparks.speed * 1.8 + Double(index) * 0.3)
-        return baseDistance * distanceVariation
-    }
-    
-    private var wobble: Double {
-        sin(animationPhase * 5 * Double.pi + Double(index) * 0.8) * 20
-    }
-    
-    private var xPosition: Double {
-        centerX + cos(angle) * dynamicDistance + wobble
-    }
-    
-    private var yPosition: Double {
-        centerY + sin(angle) * dynamicDistance + wobble * 0.6
-    }
-    
-    private var scaleEffect: CGFloat {
-        let baseScale = 0.5
-        let amplitude = 0.7
-        let frequency = 4.0
-        let phase = Double(index) * 0.5
-        let scaleOffset = sin(animationPhase * frequency * Double.pi + phase)
-        return baseScale + amplitude * scaleOffset
-    }
-    
-    private var opacity: Double {
-        let baseOpacity = 0.6
-        let amplitude = 0.4
-        let frequency = 2.8
-        let phase = Double(index) * 0.6
-        let opacityOffset = sin(animationPhase * frequency * Double.pi + phase)
-        return baseOpacity + amplitude * opacityOffset
-    }
-    
-    private var rotationAngle: Double {
-        animationPhase * 360 + Double(index) * 30
-    }
-    
-    var body: some View {
-        Text(dynamicSparks.emoji)
-            .font(.system(size: 20))
-            .scaleEffect(scaleEffect)
-            .opacity(opacity)
-            .position(x: xPosition, y: yPosition)
-            .rotationEffect(.degrees(rotationAngle))
-            .shadow(
-                color: Color.white.opacity(0.7),
-                radius: 5,
-                x: 0,
-                y: 0
-            )
-            .blur(radius: 0.8)
-    }
-}
-
-struct EnhancedGlowEffectView: View {
-    let effect: GlowEffect
-    let animationPhase: CGFloat
-    let intensity: CGFloat
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Primary glow with enhanced movement
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color.white.opacity(effect.opacity * 1.5 * intensity),
-                                Color.white.opacity(effect.opacity * 0.8 * intensity),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: effect.radius * 15
-                        )
-                    )
-                    .frame(width: effect.radius * 30, height: effect.radius * 30)
-                    .position(
-                        x: geometry.size.width * (0.25 + 0.5 * sin(animationPhase * 1.8 * .pi)) + cos(animationPhase * 2.2 * .pi) * 80,
-                        y: geometry.size.height * (0.15 + 0.3 * cos(animationPhase * 1.5 * .pi)) + sin(animationPhase * 2 * .pi) * 60
-                    )
-                    .blur(radius: effect.radius * 1.2)
-                    .opacity(0.6 + 0.4 * intensity)
-                
-                // Secondary glow
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color.white.opacity(effect.opacity * 1.2 * intensity),
-                                Color.white.opacity(effect.opacity * 0.6 * intensity),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: effect.radius * 12
-                        )
-                    )
-                    .frame(width: effect.radius * 24, height: effect.radius * 24)
-                    .position(
-                        x: geometry.size.width * (0.75 + 0.3 * cos(animationPhase * 2.1 * .pi)) + sin(animationPhase * 1.8 * .pi) * 70,
-                        y: geometry.size.height * (0.85 + 0.2 * sin(animationPhase * 1.7 * .pi)) + cos(animationPhase * 2.3 * .pi) * 50
-                    )
-                    .blur(radius: effect.radius)
-                    .opacity(0.5 + 0.3 * intensity)
-                
-                // Tertiary accent glow
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color.white.opacity(effect.opacity * 0.8 * intensity),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: effect.radius * 8
-                        )
-                    )
-                    .frame(width: effect.radius * 16, height: effect.radius * 16)
-                    .position(
-                        x: geometry.size.width * (0.5 + 0.4 * sin(animationPhase * 2.5 * .pi)),
-                        y: geometry.size.height * (0.5 + 0.3 * cos(animationPhase * 2.8 * .pi))
-                    )
-                    .blur(radius: effect.radius * 0.8)
-                    .opacity(0.4 + 0.2 * intensity)
-            }
-        }
-    }
-}
-
-// MARK: - Enhanced Preview Card
 struct EnhancedProfilePreviewCard: View {
     let theme: ProfileTheme
     @Environment(\.colorScheme) var colorScheme
@@ -1750,3 +1082,4 @@ struct EnhancedProfilePreviewCard: View {
     }
     .background(Color.black)
 }
+

@@ -24,7 +24,7 @@ enum ProfileTheme: String, CaseIterable {
     var description: String {
         switch self {
         case .default: return "Tema clásico de Moments"
-        case .supporter: return "Fondo con gradiente rosa y rojo + efectos de corazón + aura rosa"
+        case .supporter: return "Gradiente rojo elegante + partículas de corazones sutiles"
         case .earlyAdopter: return "Fondo con gradiente azul y púrpura + efectos de partículas + aura azul"
         case .champion: return "Fondo con gradiente dorado y naranja + efectos de brillo + aura dorada"
         case .vip: return "Fondo con gradiente púrpura e índigo + efectos de diamante + aura púrpura"
@@ -61,11 +61,10 @@ enum ProfileTheme: String, CaseIterable {
         case .supporter:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "FF6B6B"),
-                    Color(hex: "FF8E8E").opacity(0.9),
-                    Color(hex: "FFB3B3").opacity(0.8),
-                    Color(hex: "FFD6D6"),
-                    Color(hex: "FFE6E6").opacity(0.7)
+                    Color(hex: "F8F9FA"),           // Blanco sutil
+                    Color(hex: "FFE6E6").opacity(0.9),  // Rojo muy claro
+                    Color(hex: "FFD6D6").opacity(0.8),  // Rosa claro
+                    Color(hex: "F8F9FA")            // Blanco sutil
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -74,11 +73,10 @@ enum ProfileTheme: String, CaseIterable {
         case .earlyAdopter:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "4ECDC4"),
-                    Color(hex: "6ED5CE").opacity(0.9),
-                    Color(hex: "8EDDD8").opacity(0.8),
-                    Color(hex: "AEE5E2"),
-                    Color(hex: "9B59B6").opacity(0.6)
+                    Color(hex: "F8F9FA"),           // Blanco sutil
+                    Color(hex: "E3F2FD").opacity(0.9),  // Azul muy claro
+                    Color(hex: "E8F4FD").opacity(0.8),  // Azul pálido
+                    Color(hex: "F8F9FA")            // Blanco sutil
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -87,11 +85,10 @@ enum ProfileTheme: String, CaseIterable {
         case .champion:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "FFD93D"),
-                    Color(hex: "FFE066").opacity(0.9),
-                    Color(hex: "FFE78F").opacity(0.8),
-                    Color(hex: "FFEEB8"),
-                    Color(hex: "FFA500").opacity(0.7)
+                    Color(hex: "F8F9FA"),           // Blanco sutil
+                    Color(hex: "FFE066").opacity(0.9),  // Dorado intenso
+                    Color(hex: "FFA500").opacity(0.8),  // Naranja vibrante
+                    Color(hex: "F8F9FA")            // Blanco sutil
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -100,11 +97,10 @@ enum ProfileTheme: String, CaseIterable {
         case .vip:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "9B59B6"),
-                    Color(hex: "B07CC6").opacity(0.9),
-                    Color(hex: "C59FD6").opacity(0.8),
-                    Color(hex: "DAC2E6"),
-                    Color(hex: "4B0082").opacity(0.6)
+                    Color(hex: "F8F9FA"),           // Blanco sutil
+                    Color(hex: "F3E5F5").opacity(0.9),  // Púrpura muy claro
+                    Color(hex: "E1BEE7").opacity(0.8),  // Púrpura pálido
+                    Color(hex: "F8F9FA")            // Blanco sutil
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -113,11 +109,10 @@ enum ProfileTheme: String, CaseIterable {
         case .plus:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "FFD700"),
-                    Color(hex: "FFE44D").opacity(0.9),
-                    Color(hex: "FFF174").opacity(0.8),
-                    Color(hex: "FFF9B8"),
-                    Color(hex: "FFA500").opacity(0.7)
+                    Color(hex: "F8F9FA"),           // Blanco sutil
+                    Color(hex: "F5F5DC").opacity(0.9),  // Dorado sutil (beige)
+                    Color(hex: "DEB887").opacity(0.8),  // Beige suave
+                    Color(hex: "F8F9FA")            // Blanco sutil
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -142,11 +137,10 @@ enum ProfileTheme: String, CaseIterable {
         case .supporter:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "8B0000"),
-                    Color(hex: "A52A2A").opacity(0.9),
-                    Color(hex: "CD5C5C").opacity(0.8),
-                    Color(hex: "DC143C"),
-                    Color(hex: "FF1493").opacity(0.6)
+                    Color(hex: "1a0000"),           // Negro con toque rojo
+                    Color(hex: "8B0000").opacity(0.9),  // Rojo oscuro intenso
+                    Color(hex: "DC143C").opacity(0.8),  // Rojo vibrante
+                    Color(hex: "1a0000")            // Negro con toque rojo
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -155,11 +149,10 @@ enum ProfileTheme: String, CaseIterable {
         case .earlyAdopter:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "006994"),
-                    Color(hex: "1E90FF").opacity(0.9),
-                    Color(hex: "4169E1").opacity(0.8),
-                    Color(hex: "6495ED"),
-                    Color(hex: "8A2BE2").opacity(0.6)
+                    Color(hex: "001a2e"),           // Negro con toque azul
+                    Color(hex: "006994").opacity(0.9),  // Azul oscuro intenso
+                    Color(hex: "1E90FF").opacity(0.8),  // Azul vibrante
+                    Color(hex: "001a2e")            // Negro con toque azul
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -168,11 +161,10 @@ enum ProfileTheme: String, CaseIterable {
         case .champion:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "DAA520"),
-                    Color(hex: "FFD700").opacity(0.9),
-                    Color(hex: "FFA500").opacity(0.8),
-                    Color(hex: "FF8C00"),
-                    Color(hex: "FF4500").opacity(0.6)
+                    Color(hex: "2a1a00"),           // Negro con toque dorado
+                    Color(hex: "DAA520").opacity(0.9),  // Dorado oscuro intenso
+                    Color(hex: "FFD700").opacity(0.8),  // Dorado vibrante
+                    Color(hex: "2a1a00")            // Negro con toque dorado
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -181,11 +173,10 @@ enum ProfileTheme: String, CaseIterable {
         case .vip:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "4B0082"),
-                    Color(hex: "8A2BE2").opacity(0.9),
-                    Color(hex: "9370DB").opacity(0.8),
-                    Color(hex: "9932CC"),
-                    Color(hex: "FF1493").opacity(0.6)
+                    Color(hex: "1a002e"),           // Negro con toque púrpura
+                    Color(hex: "4B0082").opacity(0.9),  // Púrpura oscuro intenso
+                    Color(hex: "8A2BE2").opacity(0.8),  // Púrpura vibrante
+                    Color(hex: "1a002e")            // Negro con toque púrpura
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -194,11 +185,10 @@ enum ProfileTheme: String, CaseIterable {
         case .plus:
             return LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(hex: "B8860B"),
-                    Color(hex: "FFD700").opacity(0.9),
-                    Color(hex: "FFA500").opacity(0.8),
-                    Color(hex: "FF8C00"),
-                    Color(hex: "FF4500").opacity(0.6)
+                    Color(hex: "1a1a1a"),           // Negro sutil
+                    Color(hex: "8B7355").opacity(0.9),  // Marrón suave
+                    Color(hex: "D2B48C").opacity(0.8),  // Beige suave
+                    Color(hex: "1a1a1a")            // Negro sutil
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -210,11 +200,11 @@ enum ProfileTheme: String, CaseIterable {
     var particleEffect: ParticleEffect {
         switch self {
         case .default: return .none
-        case .supporter: return .hearts
-        case .earlyAdopter: return .stars
-        case .champion: return .sparkles
-        case .vip: return .diamonds
-        case .plus: return .crowns
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -222,11 +212,11 @@ enum ProfileTheme: String, CaseIterable {
     var glowEffect: GlowEffect {
         switch self {
         case .default: return .none
-        case .supporter: return .soft
-        case .earlyAdopter: return .medium
-        case .champion: return .strong
-        case .vip: return .intense
-        case .plus: return .premium
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -234,11 +224,11 @@ enum ProfileTheme: String, CaseIterable {
     var animation: ThemeAnimation {
         switch self {
         case .default: return .none
-        case .supporter: return .pulse
-        case .earlyAdopter: return .float
-        case .champion: return .rotate
-        case .vip: return .wave
-        case .plus: return .premium
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -246,11 +236,11 @@ enum ProfileTheme: String, CaseIterable {
     var profileAura: ProfileAura {
         switch self {
         case .default: return .none
-        case .supporter: return .pink
-        case .earlyAdopter: return .blue
-        case .champion: return .gold
-        case .vip: return .purple
-        case .plus: return .premium
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -258,11 +248,11 @@ enum ProfileTheme: String, CaseIterable {
     var dynamicBorder: DynamicBorder {
         switch self {
         case .default: return .none
-        case .supporter: return .heartbeat
-        case .earlyAdopter: return .pulse
-        case .champion: return .sparkle
-        case .vip: return .diamond
-        case .plus: return .crown
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -270,11 +260,11 @@ enum ProfileTheme: String, CaseIterable {
     var profileParticles: ProfileParticles {
         switch self {
         case .default: return .none
-        case .supporter: return .hearts
-        case .earlyAdopter: return .stars
-        case .champion: return .sparkles
-        case .vip: return .diamonds
-        case .plus: return .crowns
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -282,11 +272,11 @@ enum ProfileTheme: String, CaseIterable {
     var lightRays: LightRays {
         switch self {
         case .default: return .none
-        case .supporter: return .pink
-        case .earlyAdopter: return .blue
-        case .champion: return .gold
-        case .vip: return .purple
-        case .plus: return .premium
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -294,11 +284,11 @@ enum ProfileTheme: String, CaseIterable {
     var energyWaves: EnergyWaves {
         switch self {
         case .default: return .none
-        case .supporter: return .gentle
-        case .earlyAdopter: return .moderate
-        case .champion: return .strong
-        case .vip: return .intense
-        case .plus: return .epic
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -306,11 +296,11 @@ enum ProfileTheme: String, CaseIterable {
     var dynamicSparks: DynamicSparks {
         switch self {
         case .default: return .none
-        case .supporter: return .hearts
-        case .earlyAdopter: return .stars
-        case .champion: return .sparkles
-        case .vip: return .diamonds
-        case .plus: return .crowns
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -318,11 +308,11 @@ enum ProfileTheme: String, CaseIterable {
     var atmosphericEffects: AtmosphericEffects {
         switch self {
         case .default: return .none
-        case .supporter: return .gentle
-        case .earlyAdopter: return .moderate
-        case .champion: return .strong
-        case .vip: return .intense
-        case .plus: return .epic
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -330,11 +320,11 @@ enum ProfileTheme: String, CaseIterable {
     var volumetricLighting: VolumetricLighting {
         switch self {
         case .default: return .none
-        case .supporter: return .soft
-        case .earlyAdopter: return .medium
-        case .champion: return .bright
-        case .vip: return .intense
-        case .plus: return .premium
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -342,11 +332,11 @@ enum ProfileTheme: String, CaseIterable {
     var floatingOrbs: FloatingOrbs {
         switch self {
         case .default: return .none
-        case .supporter: return .few
-        case .earlyAdopter: return .moderate
-        case .champion: return .many
-        case .vip: return .abundant
-        case .plus: return .premium
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     
@@ -354,11 +344,11 @@ enum ProfileTheme: String, CaseIterable {
     var breathingEffect: BreathingEffect {
         switch self {
         case .default: return .none
-        case .supporter: return .gentle
-        case .earlyAdopter: return .moderate
-        case .champion: return .strong
-        case .vip: return .intense
-        case .plus: return .premium
+        case .supporter: return .none
+        case .earlyAdopter: return .none
+        case .champion: return .none
+        case .vip: return .none
+        case .plus: return .none
         }
     }
     

@@ -9,6 +9,7 @@ import GoogleMobileAds
 struct GlowsyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var ephemeralCleanupManager = EphemeralCleanupManager()
+    @StateObject private var cacheManager = CacheManager.shared
     @State private var showSplash = true
 
     // Agregar una propiedad para almacenar el listener de autenticación
@@ -20,7 +21,10 @@ struct GlowsyApp: App {
         print("Firebase inicializado")
 
         let settings = FirestoreSettings()
-        settings.cacheSettings = MemoryCacheSettings()
+        // ✅ LÍMITE FIREBASE: 100MB máximo para cache persistente
+        settings.cacheSettings = PersistentCacheSettings(
+            sizeBytes: NSNumber(value: 100 * 1024 * 1024) // 100MB max para Firebase
+        )
         Firestore.firestore().settings = settings
         print("Firestore configurado con cacheSettings: \(settings.cacheSettings)")
 
@@ -58,16 +62,16 @@ struct GlowsyApp: App {
                                     
                                     // Configurar caches con tamaños más moderados
                                     let memoryCapacity = 20 * 1024 * 1024
-                                    let diskCapacity = 200 * 1024 * 1024
+                                    let diskCapacity = 150 * 1024 * 1024  // ✅ AJUSTADO: 150MB (más conservador)
                                     let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
                                     URLCache.shared = cache
                                     print("URLCache configurado: \(memoryCapacity / 1024 / 1024) MB en memoria, \(diskCapacity / 1024 / 1024) MB en disco")
                                     
                                     let kingfisherCache = KingfisherManager.shared.cache
                                     kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
-                                    kingfisherCache.diskStorage.config.sizeLimit = 200 * 1024 * 1024
-                                    kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(7)
-                                    print("Kingfisher configurado: 20 MB en memoria, 200 MB en disco, caducidad de 7 días")
+                                    kingfisherCache.diskStorage.config.sizeLimit = 150 * 1024 * 1024  // ✅ AJUSTADO: 150MB (más conservador)
+                                    kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(1)  // ✅ MÁS AGRESIVO: 1 día en lugar de 3
+                                    print("Kingfisher configurado: 20 MB en memoria, 150 MB en disco, caducidad de 1 día")
                                 }
                             }
                             

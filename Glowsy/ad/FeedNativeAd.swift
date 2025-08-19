@@ -53,7 +53,10 @@ struct SmartNativeAdView: View {
                     // Lógica para mostrar la pre-alerta de ATT
                     if #available(iOS 14, *) {
                         let status = ATTrackingManager.trackingAuthorizationStatus
-                        if status == .notDetermined {
+                        let userDeclined = UserDefaults.standard.bool(forKey: "userDeclinedATTAlert")
+                        
+                        // Solo mostrar si no se ha determinado Y el usuario no la rechazó antes
+                        if status == .notDetermined && !userDeclined {
                             showingATTPreAlert = true
                         }
                     }
@@ -394,7 +397,7 @@ struct ATTPreAlertView: View {
                 .padding(.horizontal)
                 .foregroundColor(.white)
 
-            Text("Para poder seguir ofreciéndote esta aplicación de forma gratuita, necesitamos mostrarte anuncios. Al permitir el seguimiento, nos ayudas a personalizar los anuncios para que sean más interesantes para ti.")
+            Text("Para poder seguir ofreciéndote esta aplicación de forma gratuita, necesitamos mostrarte anuncios. Al permitir el seguimiento, nos ayudas a personalizar los anuncios para que sean más interesantes para ti. Si prefieres no permitir el seguimiento, seguirás viendo anuncios pero serán menos relevantes para tus intereses.")
                 .font(.custom("Poppins-Regular", size: 15))
                 .multilineTextAlignment(.center)
                 .foregroundColor(.white.opacity(0.8))
@@ -402,6 +405,8 @@ struct ATTPreAlertView: View {
 
             Button {
                 isPresented = false
+                // Limpiar la preferencia cuando acepta
+                UserDefaults.standard.removeObject(forKey: "userDeclinedATTAlert")
                 AdMobConfiguration.shared.requestATTAuthorization()
             } label: {
                 Text("Permitir seguimiento")
@@ -416,7 +421,8 @@ struct ATTPreAlertView: View {
 
             Button {
                 isPresented = false
-                // No solicitamos el permiso ATT si el usuario no acepta la pre-alerta
+                // Guardar que el usuario no quiere ver la alerta de nuevo
+                UserDefaults.standard.set(true, forKey: "userDeclinedATTAlert")
             } label: {
                 Text("No, gracias")
                     .font(.custom("Poppins-Medium", size: 16))
@@ -472,15 +478,29 @@ struct IntegratedAdLoadingView: View {
                 Spacer()
                 
                 // Badge "Anuncio"
-                Text("Anuncio")
-                    .font(.custom("Poppins-Medium", size: 10))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    )
+                VStack(spacing: 2) {
+                    Text("Anuncio")
+                        .font(.custom("Poppins-Medium", size: 10))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                        )
+                    
+                    // Indicador de personalización
+                    let personalizationStatus = AdMobConfiguration.shared.getAdPersonalizationStatus()
+                    Text(personalizationStatus.isPersonalized ? "Personalizado" : "No personalizado")
+                        .font(.custom("Poppins-Regular", size: 8))
+                        .foregroundColor(personalizationStatus.isPersonalized ? .green : .orange)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(personalizationStatus.isPersonalized ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
+                        )
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

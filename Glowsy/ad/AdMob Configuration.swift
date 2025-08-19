@@ -61,22 +61,88 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     func requestATTAuthorization() {
         if #available(iOS 14, *) {
             ATTrackingManager.requestTrackingAuthorization { status in
-                switch status {
-                case .authorized:
-                    print("✅ ATT: Autorizado. IDFA: \(ASIdentifierManager.shared().advertisingIdentifier.uuidString)")
-                case .denied:
-                    print("❌ ATT: Denegado.")
-                case .notDetermined:
-                    print("ℹ️ ATT: No determinado.")
-                case .restricted:
-                    print("⛔️ ATT: Restringido.")
-                @unknown default:
-                    print("❓ ATT: Estado desconocido.")
+                DispatchQueue.main.async {
+                    switch status {
+                    case .authorized:
+                        print("✅ ATT: Autorizado. IDFA: \(ASIdentifierManager.shared().advertisingIdentifier.uuidString)")
+                        // Configurar anuncios personalizados
+                        self.configureAdPersonalization(enabled: true)
+                    case .denied:
+                        print("❌ ATT: Denegado.")
+                        // Configurar anuncios no personalizados
+                        self.configureAdPersonalization(enabled: false)
+                    case .notDetermined:
+                        print("ℹ️ ATT: No determinado.")
+                        // Configuración por defecto
+                        self.configureAdPersonalization(enabled: false)
+                    case .restricted:
+                        print("⛔️ ATT: Restringido.")
+                        // Configurar anuncios no personalizados
+                        self.configureAdPersonalization(enabled: false)
+                    @unknown default:
+                        print("❓ ATT: Estado desconocido.")
+                        // Configuración por defecto
+                        self.configureAdPersonalization(enabled: false)
+                    }
                 }
             }
         } else {
             // Manejar versiones anteriores de iOS si es necesario
             print("ℹ️ ATT: No aplicable para versiones anteriores a iOS 14.")
+            // Configuración por defecto para versiones anteriores
+            configureAdPersonalization(enabled: false)
+        }
+    }
+    
+    /// Configura la personalización de anuncios según el consentimiento del usuario
+    private func configureAdPersonalization(enabled: Bool) {
+        if enabled {
+            // Usuario aceptó seguimiento - anuncios personalizados
+            print("🎯 Configurando anuncios personalizados")
+            // Las opciones por defecto de Google ya incluyen personalización
+        } else {
+            // Usuario no aceptó seguimiento - anuncios no personalizados
+            print("🚫 Configurando anuncios no personalizados")
+            // Configurar opciones para anuncios menos personalizados
+            configureNonPersonalizedAds()
+        }
+    }
+    
+    /// Configura opciones para anuncios no personalizados
+    private func configureNonPersonalizedAds() {
+        // Nota: En iOS, las opciones de no personalización se manejan principalmente
+        // a través del consentimiento de ATT, pero podemos configurar algunas opciones adicionales
+        print("📱 Configurando opciones para anuncios no personalizados en iOS")
+    }
+    
+    /// Obtiene el estado actual de personalización de anuncios
+    func getAdPersonalizationStatus() -> (isPersonalized: Bool, reason: String) {
+        if #available(iOS 14, *) {
+            let status = ATTrackingManager.trackingAuthorizationStatus
+            let userDeclined = UserDefaults.standard.bool(forKey: "userDeclinedATTAlert")
+            
+            switch status {
+            case .authorized:
+                if userDeclined {
+                    return (false, "Usuario rechazó la alerta de consentimiento")
+                } else {
+                    return (true, "Usuario autorizó seguimiento")
+                }
+            case .denied:
+                return (false, "Usuario denegó seguimiento")
+            case .restricted:
+                return (false, "Seguimiento restringido")
+            case .notDetermined:
+                if userDeclined {
+                    return (false, "Usuario rechazó la alerta de consentimiento")
+                } else {
+                    return (true, "Usuario no ha decidido aún")
+                }
+            @unknown default:
+                return (false, "Estado desconocido")
+            }
+        } else {
+            return (false, "iOS anterior a 14.5")
         }
     }
 
@@ -128,6 +194,23 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     private func createNativeAdOptions() -> NativeAdMediaAdLoaderOptions {
         let options = NativeAdMediaAdLoaderOptions()
         options.mediaAspectRatio = .landscape
+        
+        // Configurar opciones según el consentimiento del usuario
+        if #available(iOS 14, *) {
+            let status = ATTrackingManager.trackingAuthorizationStatus
+            let userDeclined = UserDefaults.standard.bool(forKey: "userDeclinedATTAlert")
+            
+            if status == .denied || userDeclined {
+                // Usuario no aceptó seguimiento - configurar para anuncios menos personalizados
+                print("🚫 Configurando opciones para anuncios no personalizados")
+                // En iOS, esto se maneja principalmente a través del consentimiento ATT
+                // pero podemos configurar algunas opciones adicionales si es necesario
+            } else {
+                // Usuario aceptó seguimiento o no ha decidido - anuncios personalizados
+                print("🎯 Configurando opciones para anuncios personalizados")
+            }
+        }
+        
         return options
     }
 }

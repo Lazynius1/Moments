@@ -13,14 +13,12 @@ class FCMTokenService {
     // ✅ MEJORADO: Método centralizado con límite de reintentos
     func updateFCMToken() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            print("⏳ No se puede actualizar FCM token: usuario no autenticado")
             return
         }
         
         // ✅ NUEVO: Límite de 3 reintentos por usuario
         let currentRetries = retryCount[userId] ?? 0
         if currentRetries >= 3 {
-            print("❌ Límite de reintentos alcanzado para userId: \(userId)")
             return
         }
         
@@ -29,26 +27,18 @@ class FCMTokenService {
         
         // ✅ VERIFICAR que APNs token esté configurado
         if Messaging.messaging().apnsToken == nil {
-            print("⚠️ APNs token no configurado aún, reintentando...")
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 self.updateFCMToken()
             }
             return
         }
-        
-        print("🔄 Solicitando FCM token...")
         Messaging.messaging().token { [weak self] token, error in
             if let error = error {
-                print("❌ Error obteniendo FCM token: \(error)")
                 // Reintentar después de 5 segundos si falla
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                     self?.updateFCMToken()
                 }
             } else if let token = token {
-                print("✅ FCM token obtenido: \(String(token.prefix(20)))...")
-                print("🎯 TOKEN COMPLETO: \(token)")
-                UIPasteboard.general.string = token
-                print("📋 Token copiado al clipboard!")
                 self?.saveFCMToken(token: token, userId: userId)
                 
                 // ✅ NUEVO: Resetear contador de reintentos en éxito
@@ -71,13 +61,10 @@ class FCMTokenService {
         
         Firestore.firestore().collection("users").document(userId).updateData(userData) { error in
             if let error = error {
-                print("❌ Error guardando FCM token: \(error)")
                 // ✅ RETRY: Intentar de nuevo en 30 segundos
                 DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
                     FCMTokenService.shared.updateFCMToken()
                 }
-            } else {
-                print("✅ FCM token guardado exitosamente para usuario: \(userId)")
             }
         }
     }
@@ -93,7 +80,6 @@ class FCMTokenService {
             if let error = error {
                 print("❌ Error limpiando FCM token: \(error)")
             } else {
-                print("✅ FCM token limpiado exitosamente")
                 // ✅ NUEVO: Notificar al backend para evitar enviar notificaciones
                 self.notifyBackendTokenCleared(userId: userId)
             }

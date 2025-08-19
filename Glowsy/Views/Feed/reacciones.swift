@@ -363,7 +363,6 @@ extension FirestoreService {
     
     // ✅ Listener para reacciones en tiempo real
     func listenToReactions(for momentId: String, authorId: String, completion: @escaping ([String: [String]]) -> Void) -> ListenerRegistration {
-        print("👂 Configurando listener para reacciones del momento \(momentId)")
         
         return db.collection("users").document(authorId)
             .collection("moments").document(momentId)
@@ -371,7 +370,6 @@ extension FirestoreService {
             .addSnapshotListener { snapshot, error in
                 
                 if let error = error {
-                    print("❌ Error en listener de reacciones: \(error.localizedDescription)")
                     return
                 }
                 
@@ -402,7 +400,6 @@ extension FirestoreService {
             .getDocument { snapshot, error in
                 
                 if let error = error {
-                    print("❌ Error verificando reacción del usuario: \(error.localizedDescription)")
                     completion(nil)
                     return
                 }

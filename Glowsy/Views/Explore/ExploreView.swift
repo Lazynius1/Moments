@@ -1132,7 +1132,7 @@ class ExploreViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        print("🔍 Iniciando carga de ExploreView para usuario: \(userId)")
+
         
         // 1. PASO OBLIGATORIO: Cargar perfil del usuario actual
         self.firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
@@ -1143,7 +1143,7 @@ class ExploreViewModel: ObservableObject {
                 self.currentUserInterests = currentUserProfile.interests
                 self.blockedUsers = Set(currentUserProfile.blockedUsers ?? [])
                 
-                print("🔍 Perfil cargado. Intereses: \(self.currentUserInterests.count)")
+        
                 
                 // 2. PASO PRINCIPAL: Cargar usuarios y momentos
                 self.loadUsersAndMoments()
@@ -1179,7 +1179,7 @@ class ExploreViewModel: ObservableObject {
                 syncQueue.async {
                     allDiscoveredUsers.formUnion(users)
                 }
-                print("👥 [Explore] Usuarios con intereses compartidos: \(users.count)")
+        
             }
         }
         
@@ -1192,7 +1192,7 @@ class ExploreViewModel: ObservableObject {
                 syncQueue.async {
                     allDiscoveredUsers.formUnion(users.prefix(20))
                 }
-                print("🎯 [Explore] Usuarios sugeridos: \(users.count)")
+        
             }
         }
         
@@ -1202,7 +1202,7 @@ class ExploreViewModel: ObservableObject {
             syncQueue.async {
                 allDiscoveredUsers.formUnion(users)
             }
-            print("🔥 [Explore] Usuarios populares: \(users.count)")
+    
             group.leave()
         }
         
@@ -1213,7 +1213,7 @@ class ExploreViewModel: ObservableObject {
                 !(user.blockedUsers ?? []).contains(userId)
             }
             
-            print("👥 [Explore] Total de usuarios después de filtrar: \(filteredUsers.count)")
+    
             
             // Ordenar por relevancia (intereses comunes)
             let sortedUsers = filteredUsers.sorted { user1, user2 in
@@ -1224,7 +1224,7 @@ class ExploreViewModel: ObservableObject {
             
             DispatchQueue.main.async {
                 self.suggestedUsers = Array(sortedUsers.prefix(15))
-                print("👥 [Explore] Usuarios sugeridos finales: \(self.suggestedUsers.count)")
+        
             }
             
             // Cargar momentos de una muestra diversa de usuarios
@@ -1260,14 +1260,14 @@ class ExploreViewModel: ObservableObject {
     
     // MARK: - ✅ FUNCIÓN ACTUALIZADA: Cargar momentos con filtrado específico para Explore
     private func loadMomentsFromUsers(userIds: [String]) {
-        print("📸 [Explore] Cargando momentos de \(userIds.count) usuarios")
+
         
         self.firestoreService.fetchMomentsFromUsers(userIds: userIds) { [weak self] result in
             guard let self = self else { return }
             
             switch result {
             case .success(let allMoments):
-                print("📸 [Explore] Momentos encontrados: \(allMoments.count)")
+        
                 
                 // ✅ USAR LA FUNCIÓN DE FILTRADO ESPECÍFICA PARA EXPLORE
                 self.filterMomentsForExploreVisibility(moments: allMoments) { filteredMoments in
@@ -1275,7 +1275,7 @@ class ExploreViewModel: ObservableObject {
                         self.isLoading = false
                         self.moments = filteredMoments
                         self.filteredMoments = filteredMoments
-                        print("📸 [Explore] Momentos después de filtrar: \(self.moments.count)")
+                
                         self.loadConnectionsOptionally()
                     }
                 }
@@ -1301,7 +1301,7 @@ class ExploreViewModel: ObservableObject {
         var visibleMoments: [Moment] = []
         let syncQueue = DispatchQueue(label: "explore.moments.filter", attributes: .concurrent)
         
-        print("🔍 [Explore] Filtrando \(moments.count) momentos para viewer: \(currentUserId)")
+
         
         for moment in moments {
             // Excluir momentos del propio usuario (Explore es para descubrir contenido de otros)
@@ -1322,9 +1322,9 @@ class ExploreViewModel: ObservableObject {
                     syncQueue.sync {
                         visibleMoments.append(moment)
                     }
-                    print("✅ [Explore] Momento de \(moment.authorId) visible - Audiencia: \(moment.audience ?? "everyone")")
-                } else {
-                    print("❌ [Explore] Momento de \(moment.authorId) filtrado - Audiencia: \(moment.audience ?? "everyone")")
+                                    // Momento visible
+            } else {
+                // Momento filtrado
                 }
                 group.leave()
             }
@@ -1341,7 +1341,7 @@ class ExploreViewModel: ObservableObject {
                 finalVisibleMoments.contains { $0.id == moment.id }
             }
             
-            print("📊 [Explore] Filtrado completado: \(orderedVisibleMoments.count)/\(moments.count) momentos visibles")
+    
             completion(orderedVisibleMoments)
         }
     }
@@ -1355,7 +1355,7 @@ class ExploreViewModel: ObservableObject {
             case .success(let connections):
                 DispatchQueue.main.async {
                     self?.followedUserIds = Set(connections.map { $0.userId })
-                    print("🔗 Conexiones cargadas: \(connections.count)")
+            
                     self?.updateButtonStatesForAllUsers()
                 }
             case .failure(let error):
@@ -1370,7 +1370,7 @@ class ExploreViewModel: ObservableObject {
                     self?.pendingRequests = Set(notifications.filter {
                         $0.type == .followRequest && $0.isPending
                     }.map { $0.senderId })
-                    print("📬 Solicitudes pendientes: \(self?.pendingRequests.count ?? 0)")
+            
                     self?.updateButtonStatesForAllUsers()
                 }
             case .failure(let error):
@@ -1562,7 +1562,7 @@ extension ExploreViewModel {
         isLoadingTrending = true
         trendingError = nil
         
-        print("🔥 [ExploreVM] Cargando contenido trending...")
+
         
         trendingService.fetchPersonalizedTrendingContent(for: currentUserId) { [weak self] result in
             DispatchQueue.main.async {
@@ -1571,10 +1571,7 @@ extension ExploreViewModel {
                 switch result {
                 case .success(let content):
                     self?.trendingContent = content
-                    print("🔥 [ExploreVM] Trending cargado exitosamente")
-                    print("   - Hashtags: \(content.hashtags.count)")
-                    print("   - Ubicaciones: \(content.locations.count)")
-                    print("   - Momentos: \(content.moments.count)")
+                    
                     
                 case .failure(let error):
                     self?.trendingError = "Error cargando trending: \(error.localizedDescription)"
@@ -1600,7 +1597,7 @@ extension ExploreViewModel {
     
     // ✅ FUNCIÓN para buscar por hashtag
     func searchByHashtag(_ hashtag: String) {
-        print("🔍 [ExploreVM] Buscando por hashtag: #\(hashtag)")
+
         
         // Limpiar búsqueda de usuarios
         searchedUsers = []
@@ -1611,12 +1608,12 @@ extension ExploreViewModel {
         }
         
         filteredMoments = filteredByHashtag
-        print("🔍 [ExploreVM] Encontrados \(filteredByHashtag.count) momentos con #\(hashtag)")
+
     }
     
     // ✅ FUNCIÓN para explorar por ubicación
     func exploreByLocation(_ locationName: String) {
-        print("📍 [ExploreVM] Explorando ubicación: \(locationName)")
+
         
         // Filtrar momentos de esa ubicación
         let filteredByLocation = moments.filter { moment in
@@ -1625,7 +1622,7 @@ extension ExploreViewModel {
         
         filteredMoments = filteredByLocation
         searchedUsers = []
-        print("📍 [ExploreVM] Encontrados \(filteredByLocation.count) momentos en \(locationName)")
+
     }
     
     // ✅ FUNCIÓN para refrescar todo
@@ -1657,46 +1654,39 @@ extension ExploreViewModel {
     
     // ✅ NUEVA FUNCIÓN: Búsqueda inteligente que reemplaza searchUsers
     func smartSearch(query: String) {
-        print("📱 SmartSearch ejecutado con: '\(query)'")
-        print("📱 Momentos totales antes de buscar: \(moments.count)")
+
         
         if query.isEmpty {
             // Limpiar resultados
             searchedUsers = []
             filteredMoments = self.moments
-            print("📱 Query vacío - mostrando todos los momentos: \(filteredMoments.count)")
+
             return
         }
         
         let searchType = detectSearchType(query: query)
-        print("🔍 [SmartSearch] Query: '\(query)' → Tipo: \(searchType)")
+
         
         switch searchType {
         case .hashtag(let hashtag):
-            print("🏷️ Buscando hashtag: '\(hashtag)'")
+
             searchHashtags(hashtag: hashtag)
             
         case .username(let username):
-            print("👤 Buscando usuario: '\(username)'")
+
             searchUsers(username: username)
             
         case .location(let location):
-            print("📍 Buscando ubicación: '\(location)'")
+
             searchLocations(location: location)
             
         case .mixed(let cleanQuery):
-            print("🔄 Búsqueda mixta: '\(cleanQuery)'")
+
             searchEverything(query: cleanQuery)
         }
         
         // ✅ NUEVO: Debug final
-        print("📱 Momentos encontrados después de búsqueda: \(filteredMoments.count)")
-        for (index, moment) in filteredMoments.enumerated() {
-            print("  [\(index + 1)] Usuario: \(moment.username)")
-            print("      Contenido: '\(moment.content)'")
-            print("      Ubicación: '\(moment.location ?? "sin ubicación")'")
-            print("      ----")
-        }
+
     }
     
     // ✅ DETECTAR tipo de búsqueda
@@ -1768,7 +1758,7 @@ extension ExploreViewModel {
                 
                 DispatchQueue.main.async {
                     self.searchedUsers = users
-                    print("🔍 [SmartSearch] Usuarios '@\(username)': \(users.count) encontrados")
+            
                 }
             }
     }
@@ -1778,10 +1768,7 @@ extension ExploreViewModel {
         // Debug de cada momento
         for (index, moment) in moments.enumerated() {
             
-            print("  - Autor: \(moment.authorId) (\(moment.username))")
-            print("  - Contenido: '\(moment.content)'")
-            print("  - Audiencia: '\(moment.audience ?? "nil")'")
-            print("  - ¿Contiene #\(hashtag)? \(moment.content.lowercased().contains("#\(hashtag)"))")
+
         }
         
         searchedUsers = []
@@ -1816,7 +1803,7 @@ extension ExploreViewModel {
         }
         
         filteredMoments = candidateMoments
-        print("🔍 [SmartSearch] Hashtag '#\(hashtag)': \(candidateMoments.count) momentos públicos")
+
     }
     
     // ✅ BUSCAR por ubicaciones CON FILTRADO DE PRIVACIDAD
@@ -1842,7 +1829,7 @@ extension ExploreViewModel {
         }
         
         filteredMoments = candidateMoments
-        print("🔍 [SmartSearch] Ubicación '\(location)': \(candidateMoments.count) momentos públicos")
+
     }
     
     // ✅ BÚSQUEDA MIXTA: usuarios + hashtags + ubicaciones CON FILTRADO
@@ -1877,7 +1864,7 @@ extension ExploreViewModel {
         
         DispatchQueue.main.async {
             self.filteredMoments = candidateMoments
-            print("🔍 [SmartSearch] Búsqueda mixta '\(query)': \(candidateMoments.count) momentos públicos")
+    
         }
     }
 }

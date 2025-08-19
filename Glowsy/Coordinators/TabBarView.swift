@@ -62,7 +62,6 @@ struct TabBarView: View {
                         if !hasPreloadedExplore {
                             exploreViewModel.fetchMomentsByInterestsWithTrending()
                             hasPreloadedExplore = true
-                            print("🚀 Explore pre-cargado en background")
                         }
                     }
                 }
@@ -74,7 +73,6 @@ struct TabBarView: View {
                 if newSelection == 3 && !hasPreloadedExplore {
                     exploreViewModel.fetchMomentsByInterestsWithTrending()
                     hasPreloadedExplore = true
-                    print("🚀 Explore cargado al hacer tap")
                 }
                 
                 if newSelection == 2 {
@@ -94,14 +92,12 @@ struct TabBarView: View {
             // ✅ Manejar navegación desde stickers de mención
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfile"))) { notification in
                 if let userId = notification.object as? String {
-                    print("🔔 Navegación desde sticker de mención a usuario: \(userId)")
                     navigationService.pendingNavigation = .profile(userId)
                 }
             }
             // ✅ Manejar navegación directa a perfil
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfile"))) { notification in
                 if let userId = notification.object as? String {
-                    print("🔔 Mostrando perfil de usuario: \(userId)")
                     selectedTab = 0 // Ir al feed
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: userId)
@@ -121,35 +117,27 @@ struct TabBarView: View {
     private func handlePendingNavigation(_ navigation: NotificationNavigationService.PendingNavigation?) {
         guard let navigation = navigation else { return }
         
-        print("🔔 Procesando navegación pendiente: \(navigation.description)")
-        
         switch navigation {
         case .moment(let momentId):
-            print("🔔 Navegando a momento: \(momentId)")
             selectedTab = 0
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
             
         case .profile(let userId):
-            print("🔔 Navegando a perfil: \(userId)")
             selectedTab = 0
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToProfile"), object: userId)
             
         case .conversation(let conversationId):
-            print("🔔 Navegando a conversación: \(conversationId)")
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToConversation"), object: conversationId)
             
         case .story(let storyId):
-            print("🔔 Navegando a historia: \(storyId)")
             selectedTab = 0
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToStory"), object: storyId)
             
         case .followRequests(let requestId):
-            print("🔔 Navegando a solicitudes de seguimiento: \(requestId)")
             selectedTab = 4
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToFollowRequests"), object: requestId)
             
         case .notifications(let filter):
-            print("🔔 Navegando a notificaciones con filtro: \(filter ?? "ninguno")")
             selectedTab = 4
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToNotifications"), object: filter)
         }

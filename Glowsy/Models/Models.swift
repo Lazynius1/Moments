@@ -315,6 +315,7 @@ struct Moment: Identifiable, Codable, Equatable {
     let profileImagePath: String?
     let taggedUsers: [String]?
     let location: String?
+    let locationCoordinate: LocationCoordinate?  // ✅ NUEVO: Coordenadas de la ubicación
     let audience: String?
     let mediaItems: [MediaItem]?
     let aspectRatio: String?
@@ -333,9 +334,20 @@ struct Moment: Identifiable, Codable, Equatable {
     let trendingScore: Double?
     let engagementRate: Double?
 
+    // ✅ NUEVO: Estructura para coordenadas de ubicación
+    struct LocationCoordinate: Codable, Equatable {
+        let latitude: Double
+        let longitude: Double
+        
+        // ✅ CONVERTIR A CLLocationCoordinate2D
+        var toCLLocationCoordinate2D: CLLocationCoordinate2D {
+            CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, authorId, username, content, timestamp, reactions, commentCount
-        case profileImagePath, taggedUsers, location, audience, mediaItems
+        case profileImagePath, taggedUsers, location, locationCoordinate, audience, mediaItems
         case aspectRatio, customListId
         case imagePath = "imageUrl"
         case videoUrl
@@ -363,6 +375,7 @@ struct Moment: Identifiable, Codable, Equatable {
         profileImagePath: String?,
         taggedUsers: [String]?,
         location: String?,
+        locationCoordinate: LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         audience: String?,
         mediaItems: [MediaItem]?,
         aspectRatio: String?,
@@ -389,6 +402,7 @@ struct Moment: Identifiable, Codable, Equatable {
         self.profileImagePath = profileImagePath
         self.taggedUsers = taggedUsers
         self.location = location
+        self.locationCoordinate = locationCoordinate  // ✅ NUEVO: Asignar coordenadas
         self.audience = audience
         self.mediaItems = mediaItems
         self.aspectRatio = aspectRatio

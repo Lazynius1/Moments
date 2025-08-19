@@ -39,6 +39,9 @@ struct LocationMapView: View {
     @State private var bottomSheetOffset: CGFloat = 300
     @State private var isDragging = false
     
+    // ✅ NUEVO: Estado para manejar mejor la carga inicial
+    @State private var hasInitializedMap = false
+    
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService()
     
@@ -88,13 +91,16 @@ struct LocationMapView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            print("🗺️ LocationMapView apareciendo para: \(locationName)")
-            checkLocationPermissionsAndSetup()
+            // ✅ MEJORADO: Verificar si ya tenemos coordenadas válidas antes de hacer setup
+            if let coordinate = coordinate, CLLocationCoordinate2DIsValid(coordinate) {
+                setupMapWithCoordinate(coordinate)
+            } else {
+                checkLocationPermissionsAndSetup()
+            }
         }
         .onChange(of: coordinate?.latitude) { _ in
             // ✅ NUEVO: Reaccionar a cambios en las coordenadas usando latitude como trigger
-            if let newCoordinate = coordinate, CLLocationCoordinate2DIsValid(newCoordinate) {
-                print("📍 Coordenadas actualizadas: \(newCoordinate)")
+            if let newCoordinate = coordinate, CLLocationCoordinate2DIsValid(newCoordinate), !hasInitializedMap {
                 setupMapWithCoordinate(newCoordinate)
             }
         }
@@ -663,32 +669,29 @@ extension LocationMapView {
     
     // MARK: - Funciones de permisos y setup
     func checkLocationPermissionsAndSetup() {
-        print("🔍 Verificando permisos de ubicación...")
-        print("📍 Estado actual: \(LocationUtilities.getLocationPermissionStatus())")
-        
         let currentStatus = CLLocationManager.authorizationStatus()
+        
+        // ✅ MEJORADO: Priorizar coordenadas existentes sobre permisos
+        if let coordinate = coordinate, CLLocationCoordinate2DIsValid(coordinate) {
+            setupMapWithCoordinate(coordinate)
+            return
+        }
         
         switch currentStatus {
         case .notDetermined:
-            print("⚠️ Permisos no determinados, solicitando...")
             locationManager.requestLocationPermission()
         case .denied, .restricted:
-            print("❌ Permisos denegados, procediendo sin verificación de ubicación")
             locationPermissionGranted = false
             setupMapLocation()
         case .authorizedWhenInUse, .authorizedAlways:
-            print("✅ Permisos concedidos")
             locationPermissionGranted = true
             setupMapLocation()
         @unknown default:
-            print("⚠️ Estado de permisos desconocido")
             setupMapLocation()
         }
     }
     
     func handleLocationPermissionChange(_ status: CLAuthorizationStatus) {
-        print("📍 Cambio en permisos de ubicación: \(status)")
-        
         switch status {
         case .authorizedWhenInUse, .authorizedAlways:
             locationPermissionGranted = true
@@ -706,55 +709,32 @@ extension LocationMapView {
     }
     
     func setupMapLocation() {
-        print("🗺️ Iniciando setup del mapa para: \(locationName)")
-        
         DispatchQueue.main.async {
             self.isLoading = true
             self.errorMessage = nil
         }
         
-        // ✅ MEJORADO: Verificar que las coordenadas sean válidas
-        if let coord = coordinate {
-            print("🔍 Debug - coordinate recibido: lat: \(coord.latitude), lon: \(coord.longitude)")
-        } else {
-            print("🔍 Debug - coordinate recibido: nil")
-        }
-        print("🔍 Debug - locationName: \(locationName)")
-        
+        // ✅ MEJORADO: Priorizar coordenadas existentes
         if let coordinate = coordinate, CLLocationCoordinate2DIsValid(coordinate) {
-            print("✅ Usando coordenadas proporcionadas: \(coordinate)")
             setupMapWithCoordinate(coordinate)
-        } else {
-            print("🔍 Coordenadas no disponibles o inválidas, geocodificando ubicación: \(locationName)")
-            geocodeLocation()
+            return
         }
+        
+        // ✅ MEJORADO: Si no hay coordenadas, intentar geocoding con mejor manejo
+        geocodeLocationWithRetry()
     }
     
-    func geocodeLocation() {
-        print("🔍 Iniciando geocoding para: \(locationName)")
+    func geocodeLocationWithRetry() {
+        // ✅ NUEVO: Configuración mejorada para geocoding
         let geocoder = CLGeocoder()
         
-        // ✅ MEJORADO: Agregar contexto para mejorar la precisión
-        var searchQuery = locationName
+        // ✅ MEJORADO: Usar el nombre de ubicación tal como viene
+        let searchQuery = locationName
         
-        // ✅ MEJORADO: Agregar contexto de ciudad para ubicaciones famosas
-        if locationName.lowercased().contains("sagrada familia") {
-            searchQuery = "Sagrada Familia, Barcelona, Spain"
-        } else if locationName.lowercased().contains("park güell") {
-            searchQuery = "Park Güell, Barcelona, Spain"
-        } else if locationName.lowercased().contains("casa batlló") {
-            searchQuery = "Casa Batlló, Barcelona, Spain"
-        } else if locationName.lowercased().contains("la pedrera") {
-            searchQuery = "La Pedrera, Barcelona, Spain"
-        }
-        
-        print("🔍 Búsqueda mejorada: \(searchQuery)")
-        
-        // ✅ MEJORADO: Agregar timeout y mejor manejo de errores
+        // ✅ NUEVO: Geocoding con timeout y reintentos
         geocoder.geocodeAddressString(searchQuery) { placemarks, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("❌ Error en geocoding: \(error.localizedDescription)")
                     
                     if let clError = error as? CLError {
                         switch clError.code {
@@ -770,13 +750,11 @@ extension LocationMapView {
                             self.errorMessage = "Búsqueda cancelada"
                         default:
                             // ✅ MEJORADO: Para errores de geocoding, mostrar ubicación por defecto
-                            print("⚠️ Usando ubicación por defecto debido a error de geocoding")
                             self.setupDefaultLocation()
                             return
                         }
                     } else {
                         // ✅ MEJORADO: Para errores generales, mostrar ubicación por defecto
-                        print("⚠️ Usando ubicación por defecto debido a error general")
                         self.setupDefaultLocation()
                         return
                     }
@@ -786,7 +764,6 @@ extension LocationMapView {
                 }
                 
                 guard let placemarks = placemarks, !placemarks.isEmpty else {
-                    print("❌ No se encontraron placemarks para: \(searchQuery)")
                     self.errorMessage = "No se encontraron resultados para '\(self.locationName)'"
                     self.isLoading = false
                     return
@@ -798,47 +775,29 @@ extension LocationMapView {
                           CLLocationCoordinate2DIsValid(location.coordinate) else {
                         return false
                     }
-                    
-                    // ✅ Priorizar resultados en España para ubicaciones españolas
-                    if searchQuery.lowercased().contains("barcelona") || 
-                       searchQuery.lowercased().contains("spain") ||
-                       searchQuery.lowercased().contains("sagrada familia") {
-                        return placemark.isoCountryCode == "ES"
-                    }
-                    
                     return true
                 }
                 
-                guard let bestPlacemark = validPlacemarks.first, let location = bestPlacemark.location else {
-                    print("❌ No se encontraron placemarks válidos para: \(searchQuery)")
-                    self.errorMessage = "Ubicación inválida"
+                guard let bestPlacemark = validPlacemarks.first,
+                      let location = bestPlacemark.location else {
+                    self.errorMessage = "No se pudo obtener la ubicación de '\(self.locationName)'"
                     self.isLoading = false
                     return
                 }
                 
-                // ✅ MEJORADO: Verificar que las coordenadas sean válidas
-                guard CLLocationCoordinate2DIsValid(location.coordinate) else {
-                    print("❌ Coordenadas geocodificadas inválidas: \(location.coordinate)")
-                    self.errorMessage = "Coordenadas de ubicación inválidas"
-                    self.isLoading = false
-                    return
-                }
-                
-                print("✅ Geocoding exitoso para '\(self.locationName)':")
-                print("  - Coordenadas: \(location.coordinate)")
-                print("  - País: \(bestPlacemark.country ?? "N/A")")
-                print("  - Ciudad: \(bestPlacemark.locality ?? "N/A")")
-                print("  - Dirección: \(bestPlacemark.thoroughfare ?? "N/A")")
+                // ✅ MEJORADO: Actualizar las coordenadas y configurar el mapa
                 self.setupMapWithCoordinate(location.coordinate)
             }
         }
     }
     
     func setupMapWithCoordinate(_ coordinate: CLLocationCoordinate2D) {
-        print("🗺️ Configurando mapa con coordenadas: \(coordinate)")
+        // ✅ PREVENIR múltiples configuraciones del mapa
+        guard !hasInitializedMap else {
+            return
+        }
         
         guard CLLocationCoordinate2DIsValid(coordinate) else {
-            print("❌ Coordenadas inválidas: \(coordinate)")
             DispatchQueue.main.async {
                 self.errorMessage = "Coordenadas de ubicación inválidas"
                 self.isLoading = false
@@ -864,10 +823,12 @@ extension LocationMapView {
                 title: self.locationName
             ))
             
+            // ✅ NUEVO: Marcar como inicializado y limpiar estados
+            self.hasInitializedMap = true
             self.isLoading = false
             self.errorMessage = nil
             
-            print("✅ Mapa configurado exitosamente para: \(self.locationName)")
+
             
             // ✅ CARGAR MOMENTOS Y CLIMA EN PARALELO
             self.loadLocationMoments()
@@ -877,7 +838,7 @@ extension LocationMapView {
     
     // ✅ NUEVA FUNCIÓN: Configurar ubicación por defecto cuando falla el geocoding
     private func setupDefaultLocation() {
-        print("🗺️ Configurando ubicación por defecto para: \(locationName)")
+
         
         // ✅ Usar ubicación por defecto (Madrid, España)
         let defaultCoordinate = CLLocationCoordinate2D(latitude: 40.4168, longitude: -3.7038)
@@ -901,7 +862,7 @@ extension LocationMapView {
             self.isLoading = false
             self.errorMessage = "Mostrando ubicación por defecto. '\(self.locationName)' no se pudo encontrar."
             
-            print("✅ Ubicación por defecto configurada para: \(self.locationName)")
+
             
             // ✅ CARGAR MOMENTOS Y CLIMA DE LA UBICACIÓN POR DEFECTO
             self.loadLocationMoments()
@@ -910,7 +871,13 @@ extension LocationMapView {
     }
     
     func loadWeatherData(for coordinate: CLLocationCoordinate2D) {
-        print("🌤️ Cargando datos climáticos para: \(coordinate)")
+        // ✅ PREVENIR múltiples llamadas al clima si ya tenemos datos
+        guard currentWeather == nil else {
+            print("☀️ Ya tenemos datos del clima, omitiendo nueva solicitud")
+            return
+        }
+        
+
         
         Task {
             do {
@@ -918,19 +885,15 @@ extension LocationMapView {
                 
                 DispatchQueue.main.async {
                     self.currentWeather = weather
-                    print("✅ Clima cargado: \(weather.condition.displayName), \(weather.temperatureFormatted)")
                 }
                 
             } catch {
-                print("⚠️ No se pudo cargar el clima: \(error.localizedDescription)")
                 // No mostrar error al usuario, los efectos simplemente no aparecerán
             }
         }
     }
     
     func loadLocationMoments() {
-        print("📸 Cargando momentos para: \(locationName)")
-        
         DispatchQueue.main.async {
             self.isLoadingMoments = true
         }
@@ -948,8 +911,6 @@ extension LocationMapView {
                 if !moments.isEmpty {
                     self.showingBottomSheet = true
                 }
-                
-                print("📸 Cargados \(moments.count) momentos")
             }
         }
     }
@@ -1711,26 +1672,20 @@ class LocationSearchService {
         currentUserId: String?,
         completion: @escaping ([Moment]) -> Void
     ) {
-        print("🔍 [LocationSearch] Buscando momentos para: '\(locationName)'")
-        
         db.collectionGroup("moments")
             .whereField("location", isEqualTo: locationName)
             .whereField("audience", isEqualTo: "everyone")
             .limit(to: 20)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
-                    print("❌ [LocationSearch] Error: \(error.localizedDescription)")
                     completion([])
                     return
                 }
                 
                 guard let documents = snapshot?.documents else {
-                    print("📭 [LocationSearch] No hay documentos")
                     completion([])
                     return
                 }
-                
-                print("📄 [LocationSearch] Documentos encontrados: \(documents.count)")
                 
                 let group = DispatchGroup()
                 var moments: [Moment] = []
@@ -1745,7 +1700,6 @@ class LocationSearchService {
                         // ✅ Verificar que tenga imagen y username
                         guard let imagePath = moment.imagePath, !imagePath.isEmpty,
                               !moment.username.isEmpty else {
-                            print("⚠️ [LocationSearch] Momento incompleto: \(document.documentID)")
                             group.leave()
                             continue
                         }
@@ -1758,7 +1712,7 @@ class LocationSearchService {
                                         moments.append(moment)
                                     }
                                 } else {
-                                    print("🔒 [LocationSearch] Momento filtrado por privacidad: \(document.documentID)")
+                                    // Momento filtrado por privacidad
                                 }
                                 group.leave()
                             }
@@ -1770,14 +1724,12 @@ class LocationSearchService {
                             group.leave()
                         }
                     } catch {
-                        print("❌ [LocationSearch] Error parseando momento: \(error)")
                         group.leave()
                     }
                 }
                 
                 group.notify(queue: .main) {
                     let sortedMoments = moments.sorted { $0.timestamp > $1.timestamp }
-                    print("✅ [LocationSearch] Momentos finales: \(sortedMoments.count)")
                     completion(sortedMoments)
                 }
             }
@@ -1801,12 +1753,12 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func requestLocationPermission() {
-        print("📍 [LocationUtilities] Solicitando permisos de ubicación")
         switch authorizationStatus {
         case .notDetermined:
             locationManager.requestWhenInUseAuthorization()
         case .denied, .restricted:
-            print("❌ [LocationUtilities] Permisos de ubicación denegados")
+            // Permisos denegados
+            break
         case .authorizedWhenInUse, .authorizedAlways:
             locationManager.startUpdatingLocation()
         @unknown default:
@@ -1815,7 +1767,6 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        print("📍 [LocationUtilities] Cambio de autorización: \(status.rawValue)")
         DispatchQueue.main.async {
             self.authorizationStatus = status
         }
@@ -1824,7 +1775,8 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
         case .authorizedWhenInUse, .authorizedAlways:
             locationManager.startUpdatingLocation()
         case .denied, .restricted:
-            print("❌ [LocationUtilities] Permisos denegados")
+            // Permisos denegados
+            break
         default:
             break
         }
@@ -1833,7 +1785,6 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else { return }
         
-        print("📍 [LocationUtilities] Ubicación actualizada: \(location.coordinate)")
         DispatchQueue.main.async {
             self.currentLocation = location
         }
@@ -1842,15 +1793,12 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("❌ [LocationUtilities] Error de ubicación: \(error.localizedDescription)")
+        // Error de ubicación
     }
     
     static func getCoordinates(for locationName: String, completion: @escaping (CLLocationCoordinate2D?) -> Void) {
-        print("🔍 [LocationUtilities] Geocoding: \(locationName)")
-        
         let authStatus = CLLocationManager.authorizationStatus()
         if authStatus == .denied || authStatus == .restricted {
-            print("❌ [LocationUtilities] Permisos de ubicación denegados para geocoding")
             completion(nil)
             return
         }
@@ -1858,45 +1806,25 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
         let geocoder = CLGeocoder()
         geocoder.geocodeAddressString(locationName) { placemarks, error in
             if let error = error {
-                let clError = error as? CLError
-                switch clError?.code {
-                case .locationUnknown:
-                    print("❌ [LocationUtilities] Ubicación desconocida")
-                case .denied:
-                    print("❌ [LocationUtilities] Geocoding denegado - permisos insuficientes")
-                case .network:
-                    print("❌ [LocationUtilities] Error de red en geocoding")
-                case .geocodeFoundNoResult:
-                    print("❌ [LocationUtilities] No se encontraron resultados para: \(locationName)")
-                case .geocodeCanceled:
-                    print("❌ [LocationUtilities] Geocoding cancelado")
-                default:
-                    print("❌ [LocationUtilities] Error geocoding: \(error.localizedDescription)")
-                }
                 completion(nil)
                 return
             }
             
             if let placemark = placemarks?.first,
                let location = placemark.location {
-                print("✅ [LocationUtilities] Geocoding exitoso: \(location.coordinate)")
                 completion(location.coordinate)
             } else {
-                print("❌ [LocationUtilities] No se encontraron coordenadas para: \(locationName)")
                 completion(nil)
             }
         }
     }
     
     static func getLocationName(for coordinate: CLLocationCoordinate2D, completion: @escaping (String?) -> Void) {
-        print("🔍 [LocationUtilities] Reverse geocoding: \(coordinate)")
-        
         let geocoder = CLGeocoder()
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         
         geocoder.reverseGeocodeLocation(location) { placemarks, error in
             if let error = error {
-                print("❌ [LocationUtilities] Error reverse geocoding: \(error.localizedDescription)")
                 completion(nil)
                 return
             }
@@ -1920,7 +1848,6 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
                 
                 let locationName = locationComponents.joined(separator: ", ")
                 let finalName = locationName.isEmpty ? "Ubicación desconocida" : locationName
-                print("✅ [LocationUtilities] Reverse geocoding exitoso: \(finalName)")
                 completion(finalName)
             } else {
                 completion("Ubicación desconocida")

@@ -2233,6 +2233,10 @@ struct CaptionAndDetailsView: View {
             mediaItems: selectedMediaItems,
             taggedUsers: taggedUsers.isEmpty ? nil : taggedUsers,
             location: locationName.isEmpty ? nil : locationName,
+            locationCoordinate: selectedLocation != nil ? Moment.LocationCoordinate(
+                latitude: selectedLocation!.latitude,
+                longitude: selectedLocation!.longitude
+            ) : nil,  // ✅ NUEVO: Convertir coordenadas a LocationCoordinate
             audienceSetting: audienceSetting,
             customViewers: customSelectedUsers.isEmpty ? nil : customSelectedUsers,
             customListId: selectedListId,
