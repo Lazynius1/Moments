@@ -117,6 +117,8 @@ struct FeedView: View {
     @State private var showDeleteAlert = false
     @State private var showReportSheet = false
     @State private var editedContent = ""
+    // ✨ NUEVO: Variables para ReactionsListSheet
+
     @State private var isDeleting = false
     @State private var targetConversationId: String? = nil
     @State private var targetMomentId: String? = nil
@@ -178,6 +180,8 @@ struct FeedView: View {
                     .zIndex(1000)
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showGlobalContextMenu)
                 }
+                
+
                 
                 if showShareSheet, let moment = selectedMomentForMenu {
                     ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
@@ -378,6 +382,7 @@ struct FeedView: View {
                 showUserProfile = true
             }
         }
+
         .onChange(of: badgeService.unreadNotificationsCount) { count in
 
         }

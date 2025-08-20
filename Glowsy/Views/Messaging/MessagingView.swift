@@ -118,6 +118,10 @@ struct MessagingView: View {
     @State private var showingMessageRequests = false
     @State private var pendingRequestCount = 0
     
+    // ✅ NUEVO: Estado para el selector de estados online
+    @StateObject private var onlineStatusService = OnlineStatusService()
+    @State private var showingStatusSelector = false
+    
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
@@ -307,54 +311,98 @@ struct MessagingView: View {
     }
     
     private var glassmorphicTopBar: some View {
-        HStack {
-            // New conversation button (izquierda)
-            Button(action: {
-                isShowingNewConversation = true
-            }) {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 22))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-            }
-            
-            Spacer()
-            
-            // Title centered (sin borde gris)
-                            Text("messaging.title")
-                .font(.custom("Poppins-Bold", size: 26))
-                .foregroundColor(adaptiveColors.primary)
-            
-            Spacer()
-            
-            // Message requests button (derecha)
-            Button(action: {
-                showingMessageRequests = true
-            }) {
-                ZStack {
-                    Image(systemName: "message.circle")
+        VStack(spacing: 8) {
+            HStack {
+                // New conversation button (izquierda)
+                Button(action: {
+                    isShowingNewConversation = true
+                }) {
+                    Image(systemName: "square.and.pencil")
                         .font(.system(size: 22))
                         .foregroundColor(adaptiveColors.primary)
                         .frame(width: 44, height: 44)
                         .background(.ultraThinMaterial)
                         .clipShape(Circle())
+                }
+                
+                Spacer()
+                
+                // Title centered con selector de estados
+                VStack(spacing: 4) {
+                    Text("messaging.title")
+                        .font(.custom("Poppins-Bold", size: 26))
+                        .foregroundColor(adaptiveColors.primary)
                     
-                    // Badge for pending requests
-                    if pendingRequestCount > 0 {
-                        Text("\(pendingRequestCount)")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .frame(width: 18, height: 18)
-                            .background(
-                                Circle()
-                                    .fill(Color(hex: "FF3B30"))
-                            )
-                            .offset(x: 12, y: -12)
+                    // ✅ NUEVO: Selector de estados online
+                    Button(action: {
+                        showingStatusSelector = true
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: onlineStatusService.currentUserStatus.icon)
+                                .font(.system(size: 12))
+                                .foregroundColor(onlineStatusService.currentUserStatus.color)
+                            
+                            Text(onlineStatusService.currentUserStatus.displayName)
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(adaptiveColors.secondary)
+                            
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10))
+                                .foregroundColor(adaptiveColors.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(adaptiveColors.secondary.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .scaleEffect(showingStatusSelector ? 0.95 : 1.0)
+                    .animation(.easeInOut(duration: 0.1), value: showingStatusSelector)
+                }
+                
+                Spacer()
+                
+                // Message requests button (derecha)
+                Button(action: {
+                    showingMessageRequests = true
+                }) {
+                    ZStack {
+                        Image(systemName: "message.circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(adaptiveColors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                        
+                        // Badge for pending requests
+                        if pendingRequestCount > 0 {
+                            Text("\(pendingRequestCount)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(width: 18, height: 18)
+                                .background(
+                                    Circle()
+                                        .fill(Color(hex: "FF3B30"))
+                                )
+                                .offset(x: 12, y: -12)
+                        }
                     }
                 }
+            }
+            
+            // ✅ NUEVO: Sheet para seleccionar estado
+            .sheet(isPresented: $showingStatusSelector) {
+                OnlineStatusSelectorView(
+                    currentStatus: onlineStatusService.currentUserStatus,
+                    onStatusSelected: { newStatus in
+                        onlineStatusService.setGlobalStatus(newStatus)
+                        showingStatusSelector = false
+                    }
+                )
             }
         }
         .padding(.horizontal, 16)
@@ -1362,7 +1410,7 @@ struct MessageComposerView: View {
                             .padding()
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
+                                    .fill(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?
                                           adaptiveColors.secondary : Color(hex: "00A896"))
                             )
                         }
@@ -1383,6 +1431,122 @@ struct MessageComposerView: View {
                 }
             }
         }
+    }
+}
+
+// ✅ NUEVO: Vista para seleccionar estado online
+struct OnlineStatusSelectorView: View {
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
+    
+    let currentStatus: OnlineStatus
+    let onStatusSelected: (OnlineStatus) -> Void
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background glassmórfico
+                LinearGradient(
+                    gradient: Gradient(colors: adaptiveColors.chatBackground),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 24) {
+                    // Header
+                    VStack(spacing: 8) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(currentStatus.color)
+                        
+                        Text("Estado actual")
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(adaptiveColors.secondary)
+                        
+                        Text(currentStatus.displayName)
+                            .font(.custom("Poppins-Bold", size: 24))
+                            .foregroundColor(adaptiveColors.primary)
+                    }
+                    .padding(.top, 20)
+                    
+                    // Estados disponibles
+                    VStack(spacing: 12) {
+                        ForEach(OnlineStatus.allCases, id: \.self) { status in
+                            Button(action: {
+                                onStatusSelected(status)
+                            }) {
+                                HStack(spacing: 16) {
+                                    Image(systemName: status.icon)
+                                        .font(.system(size: 20))
+                                        .foregroundColor(status.color)
+                                        .frame(width: 24)
+                                    
+                                    Text(status.displayName)
+                                        .font(.custom("Poppins-Regular", size: 16))
+                                        .foregroundColor(adaptiveColors.primary)
+                                    
+                                    Spacer()
+                                    
+                                    if status == currentStatus {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(adaptiveColors.accent)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(adaptiveColors.cardBackground)
+                                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            status == currentStatus ? 
+                                            adaptiveColors.accent.opacity(0.5) : 
+                                            Color.clear,
+                                            lineWidth: 2
+                                        )
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    Spacer()
+                    
+                    // Botón de cerrar
+                    Button(action: { dismiss() }) {
+                        Text("Cerrar")
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(adaptiveColors.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(adaptiveColors.cardBackground)
+                                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(adaptiveColors.accent.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+                }
+            }
+            .navigationBarHidden(true)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 

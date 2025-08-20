@@ -10,26 +10,59 @@ enum ReactionType: String, CaseIterable {
     case mood = "mood"
     case glow = "glow"
     case feel = "feel"
+    // ✨ NUEVAS REACCIONES
+    case love = "love" // Cambiado de "heart" a "love" para diferenciarlo de "feel"
+    case wow = "wow"
+    case laugh = "laugh"
+    case cry = "cry"
+    case respect = "respect"
+    case power = "power"
+    case genius = "genius"
+    case creative = "creative"
+    case chill = "chill"
+    case hype = "hype"
     
     var icon: String {
         switch self {
-        case .vibe: return "water.waves" // ✅ ARREGLADO: era "waveform"
+        case .vibe: return "water.waves"
         case .fire: return "flame"
-        case .real: return "checkmark.seal" // ✅ ARREGLADO: era "100.square"
+        case .real: return "checkmark.seal"
         case .mood: return "face.smiling"
         case .glow: return "star"
-        case .feel: return "heart"
+        case .feel: return "heart.fill"
+        // ✨ NUEVAS REACCIONES
+        case .love: return "heart.circle.fill"
+        case .wow: return "face.dashed" // Mantener
+        case .laugh: return "face.smiling.inverse"
+        case .cry: return "cloud.rain.fill" // Cambiado: icono de lluvia más visible
+        case .respect: return "hand.raised.fill"
+        case .power: return "bolt.fill"
+        case .genius: return "brain.head.profile" // Cambiado: cerebro en lugar de bombilla
+        case .creative: return "paintbrush.fill"
+        case .chill: return "leaf.fill"
+        case .hype: return "party.popper.fill"
         }
     }
     
     var filledIcon: String {
         switch self {
-        case .vibe: return "water.waves.slash" // ✅ ARREGLADO: era "waveform.circle.fill"
+        case .vibe: return "water.waves.slash"
         case .fire: return "flame.fill"
-        case .real: return "checkmark.seal.fill" // ✅ ARREGLADO: era "100.square.fill"
-        case .mood: return "face.smiling.fill" // ✅ ARREGLADO: era "face.smiling.inverse"
+        case .real: return "checkmark.seal.fill"
+        case .mood: return "face.smiling.fill"
         case .glow: return "star.fill"
         case .feel: return "heart.fill"
+        // ✨ NUEVAS REACCIONES
+        case .love: return "heart.circle.fill"
+        case .wow: return "face.dashed.fill" // Mantener
+        case .laugh: return "face.smiling.inverse"
+        case .cry: return "cloud.rain.fill" // Cambiado: icono de lluvia más visible
+        case .respect: return "hand.raised.fill"
+        case .power: return "bolt.fill"
+        case .genius: return "brain.head.profile" // Cambiado: cerebro en lugar de bombilla
+        case .creative: return "paintbrush.fill"
+        case .chill: return "leaf.fill"
+        case .hype: return "party.popper.fill"
         }
     }
     
@@ -41,6 +74,17 @@ enum ReactionType: String, CaseIterable {
         case .mood: return .yellow
         case .glow: return .orange
         case .feel: return .pink
+        // ✨ NUEVAS REACCIONES
+        case .love: return .red
+        case .wow: return .blue
+        case .laugh: return .yellow
+        case .cry: return .cyan // Cambiado: azul claro para diferenciarlo del azul de "wow"
+        case .respect: return .green
+        case .power: return .orange
+        case .genius: return .indigo // Cambiado: índigo para diferenciarlo del amarillo de "mood"
+        case .creative: return .purple
+        case .chill: return .green
+        case .hype: return .pink
         }
     }
     
@@ -52,6 +96,62 @@ enum ReactionType: String, CaseIterable {
         case .mood: return "Mood"
         case .glow: return "Glow"
         case .feel: return "Feel"
+        // ✨ NUEVAS REACCIONES
+        case .love: return "Love" // Cambiado de "Heart" a "Love"
+        case .wow: return "Wow"
+        case .laugh: return "Laugh"
+        case .cry: return "Cry"
+        case .respect: return "Respect"
+        case .power: return "Power"
+        case .genius: return "Genius"
+        case .creative: return "Creative"
+        case .chill: return "Chill"
+        case .hype: return "Hype"
+        }
+    }
+}
+
+// MARK: - User Reaction Usage Tracker
+class UserReactionUsageTracker: ObservableObject {
+    @Published var reactionUsageCounts: [String: Int] = [:]
+    private let userId: String
+    
+    init(userId: String) {
+        self.userId = userId
+        loadUsageCounts()
+    }
+    
+    private func loadUsageCounts() {
+        // Cargar desde UserDefaults por ahora
+        // En el futuro se puede sincronizar con Firestore
+        if let data = UserDefaults.standard.data(forKey: "reactionUsage_\(userId)"),
+           let counts = try? JSONDecoder().decode([String: Int].self, from: data) {
+            reactionUsageCounts = counts
+        } else {
+            // Inicializar con valores por defecto
+            for reaction in ReactionType.allCases {
+                reactionUsageCounts[reaction.rawValue] = 0
+            }
+        }
+    }
+    
+    func incrementUsage(for reaction: ReactionType) {
+        let currentCount = reactionUsageCounts[reaction.rawValue] ?? 0
+        reactionUsageCounts[reaction.rawValue] = currentCount + 1
+        saveUsageCounts()
+    }
+    
+    private func saveUsageCounts() {
+        if let data = try? JSONEncoder().encode(reactionUsageCounts) {
+            UserDefaults.standard.set(data, forKey: "reactionUsage_\(userId)")
+        }
+    }
+    
+    func getReactionsOrderedByUsage() -> [ReactionType] {
+        return ReactionType.allCases.sorted { reaction1, reaction2 in
+            let count1 = reactionUsageCounts[reaction1.rawValue] ?? 0
+            let count2 = reactionUsageCounts[reaction2.rawValue] ?? 0
+            return count1 > count2 // Orden descendente (más usado primero)
         }
     }
 }
@@ -122,7 +222,7 @@ struct ModernReactionButton: View {
                     .foregroundColor(.white.opacity(0.8))
             }
             
-            // ✨ NUEVO: Reaction Picker
+            // ✨ NUEVO: Reaction Picker con Scroll Horizontal
             if showReactionPicker {
                 ReactionPickerView(
                     onReactionSelected: { reaction in
@@ -232,74 +332,117 @@ struct ModernReactionButton: View {
     }
 }
 
-// MARK: - Reaction Picker View
+// MARK: - Reaction Picker View con Scroll Horizontal
 struct ReactionPickerView: View {
     let onReactionSelected: (ReactionType) -> Void
     let onClose: () -> Void
     
+    @StateObject private var usageTracker: UserReactionUsageTracker
+    
+    init(onReactionSelected: @escaping (ReactionType) -> Void, onClose: @escaping () -> Void) {
+        self.onReactionSelected = onReactionSelected
+        self.onClose = onClose
+        
+        let userId = Auth.auth().currentUser?.uid ?? ""
+        self._usageTracker = StateObject(wrappedValue: UserReactionUsageTracker(userId: userId))
+    }
+    
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(ReactionType.allCases, id: \.self) { reaction in
-                Button(action: {
-                    onReactionSelected(reaction)
-                }) {
-                    VStack(spacing: 4) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 44, height: 44)
-                                .overlay(
+        VStack(spacing: 0) {
+            // ✨ Scroll Horizontal con todas las reacciones
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(usageTracker.getReactionsOrderedByUsage(), id: \.self) { reaction in
+                        Button(action: {
+                            // Incrementar uso de esta reacción
+                            usageTracker.incrementUsage(for: reaction)
+                            onReactionSelected(reaction)
+                        }) {
+                            VStack(spacing: 6) {
+                                ZStack {
                                     Circle()
-                                        .stroke(
+                                        .fill(reaction.color.opacity(0.2))
+                                        .frame(width: 50, height: 50)
+                                        .blur(radius: 8)
+                                    
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .frame(width: 44, height: 44)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(
+                                                    LinearGradient(
+                                                        colors: [reaction.color.opacity(0.8), reaction.color],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ),
+                                                    lineWidth: 2
+                                                )
+                                        )
+                                        .shadow(color: reaction.color.opacity(0.4), radius: 6, x: 0, y: 3)
+                                    
+                                    Image(systemName: reaction.filledIcon)
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(
                                             LinearGradient(
-                                                colors: [reaction.color.opacity(0.6), reaction.color.opacity(0.8)],
+                                                colors: [reaction.color, reaction.color.opacity(0.7)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
+                                            )
                                         )
-                                )
-                                .shadow(color: reaction.color.opacity(0.3), radius: 4, x: 0, y: 2)
-                            
-                            Image(systemName: reaction.filledIcon)
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [reaction.color, reaction.color.opacity(0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                        .shadow(color: reaction.color.opacity(0.6), radius: 2)
+                                }
+                                
+                                Text(reaction.displayName)
+                                    .font(.custom("Poppins-Bold", size: 10))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.5), radius: 1)
+                            }
                         }
-                        
-                        Text(reaction.displayName)
-                            .font(.custom("Poppins-Medium", size: 10))
-                            .foregroundColor(.white.opacity(0.8))
+                        .buttonStyle(PlainButtonStyle())
+                        .scaleEffect(1.0)
+                        .animation(.spring(response: 0.2, dampingFraction: 0.6), value: true)
                     }
                 }
-                .scaleEffect(1.0)
-                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: true)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
+            
+            // ✨ Botón de cerrar
+            Button(action: onClose) {
+                Text("Cerrar")
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(.white.opacity(0.8))
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+            }
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 25)
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20)
+                    RoundedRectangle(cornerRadius: 25)
                         .stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
+                                colors: [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.5)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
-                            lineWidth: 1
+                            lineWidth: 1.5
                         )
                 )
         )
-        .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 8)
-        .offset(y: -80) // Aparecer arriba del botón
+        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .offset(y: -80)
     }
 }
 

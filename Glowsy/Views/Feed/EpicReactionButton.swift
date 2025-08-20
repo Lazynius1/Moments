@@ -25,6 +25,7 @@ struct EpicReactionButton: View {
     @State private var pulseScale: CGFloat = 1.0
     @State private var rotationAngle: Double = 0
     @State private var showRipple = false
+    @State private var showReactionsSheet = false
     
     @EnvironmentObject private var firestoreService: FirestoreService
     
@@ -90,8 +91,8 @@ struct EpicReactionButton: View {
                         .rotationEffect(.degrees(rotationAngle))
                         .shadow(
                             color: hasReacted ?
-                            (currentReaction?.color.opacity(0.6) ?? .clear) : .clear,
-                            radius: hasReacted ? 4 : 0
+                            (currentReaction?.color.opacity(0.6) ?? Color(hex: "00A896").opacity(0.6)) : Color.black.opacity(0.1),
+                            radius: hasReacted ? 4 : 2
                         )
                     
                     // ✨ Partículas optimizadas
@@ -112,8 +113,12 @@ struct EpicReactionButton: View {
             .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
                 isPressed = pressing
             }, perform: {})
+            .onLongPressGesture(minimumDuration: 0.5) {
+                // ✨ Long press en el botón principal también muestra la lista
+                showReactionsList()
+            }
             
-            // ✨ Contador animado
+            // ✨ Contador animado con Long Press
             if showCount && reactionCount > 0 {
                 Text("\(reactionCount)")
                     .font(.custom("Poppins-Bold", size: 12))
@@ -130,9 +135,13 @@ struct EpicReactionButton: View {
                     )
                     .scaleEffect(hasReacted ? 1.1 : 1.0)
                     .animation(.bouncy(duration: 0.4), value: reactionCount)
+                    .onLongPressGesture(minimumDuration: 0.5) {
+                        // ✨ NUEVO: Long press para mostrar quién reaccionó
+                        showReactionsList()
+                    }
             }
             
-            // ✨ Epic Reaction Picker
+            // ✨ Epic Reaction Picker con Scroll Horizontal
             if showReactionPicker {
                 EpicReactionPickerView(
                     onReactionSelected: { reaction in
@@ -158,6 +167,14 @@ struct EpicReactionButton: View {
             if hasReacted {
                 triggerSuccessAnimation()
             }
+        }
+        .sheet(isPresented: $showReactionsSheet) {
+            ReactionsListSheet(moment: moment, onDismiss: {
+                showReactionsSheet = false
+            })
+            .presentationBackground(.clear)
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(false)
         }
     }
     
@@ -283,6 +300,17 @@ struct EpicReactionButton: View {
         }
     }
     
+    // ✨ NUEVO: Mostrar lista de reacciones via Sheet local
+    private func showReactionsList() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // Mostrar sheet local
+        showReactionsSheet = true
+        
+        print("🔍 Solicitando mostrar lista de reacciones para momento: \(moment.id ?? "unknown")")
+    }
+    
     // ✅ CORREGIDO: Métodos de Firebase usando el método corregido
     private func addReactionToFirebase(_ reactionType: ReactionType) {
         guard let currentUserId = Auth.auth().currentUser?.uid,
@@ -365,78 +393,113 @@ struct ParticleView: View {
     }
 }
 
-// ✨ EPIC REACTION PICKER (mantener igual)
+// ✨ EPIC REACTION PICKER con Scroll Horizontal y Tracking de Uso
 struct EpicReactionPickerView: View {
     let onReactionSelected: (ReactionType) -> Void
     let onClose: () -> Void
-    @State private var appearScale: [CGFloat] = Array(repeating: 0.3, count: 6)
+    @State private var appearScale: [CGFloat] = Array(repeating: 0.3, count: 16) // Actualizado para 16 reacciones
+    
+    @StateObject private var usageTracker: UserReactionUsageTracker
+    
+    init(onReactionSelected: @escaping (ReactionType) -> Void, onClose: @escaping () -> Void) {
+        self.onReactionSelected = onReactionSelected
+        self.onClose = onClose
+        
+        let userId = Auth.auth().currentUser?.uid ?? ""
+        self._usageTracker = StateObject(wrappedValue: UserReactionUsageTracker(userId: userId))
+    }
     
     var body: some View {
-        HStack(spacing: 12) {
-            ForEach(Array(ReactionType.allCases.enumerated()), id: \.offset) { index, reaction in
-                Button(action: {
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                    impactFeedback.impactOccurred()
-                    
-                    onReactionSelected(reaction)
-                }) {
-                    VStack(spacing: 6) {
-                        ZStack {
-                            Circle()
-                                .fill(reaction.color.opacity(0.2))
-                                .frame(width: 50, height: 50)
-                                .blur(radius: 8)
+        VStack(spacing: 0) {
+            // ✨ Scroll Horizontal con todas las reacciones ordenadas por uso
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(Array(usageTracker.getReactionsOrderedByUsage().enumerated()), id: \.offset) { index, reaction in
+                        Button(action: {
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                            impactFeedback.impactOccurred()
                             
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 44, height: 44)
-                                .overlay(
+                            // Incrementar uso de esta reacción
+                            usageTracker.incrementUsage(for: reaction)
+                            onReactionSelected(reaction)
+                        }) {
+                            VStack(spacing: 6) {
+                                ZStack {
                                     Circle()
-                                        .stroke(
+                                        .fill(reaction.color.opacity(0.2))
+                                        .frame(width: 50, height: 50)
+                                        .blur(radius: 8)
+                                    
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .frame(width: 44, height: 44)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(
+                                                    LinearGradient(
+                                                        colors: [reaction.color.opacity(0.8), reaction.color],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ),
+                                                    lineWidth: 2
+                                                )
+                                        )
+                                        .shadow(color: reaction.color.opacity(0.4), radius: 6, x: 0, y: 3)
+                                    
+                                    Image(systemName: reaction.filledIcon)
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(
                                             LinearGradient(
-                                                colors: [reaction.color.opacity(0.8), reaction.color],
+                                                colors: [reaction.color, reaction.color.opacity(0.7)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 2
+                                            )
                                         )
-                                )
-                                .shadow(color: reaction.color.opacity(0.4), radius: 6, x: 0, y: 3)
-                            
-                            Image(systemName: reaction.filledIcon)
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [reaction.color, reaction.color.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: reaction.color.opacity(0.6), radius: 2)
+                                        .shadow(color: reaction.color.opacity(0.6), radius: 2)
+                                }
+                                
+                                Text(reaction.displayName)
+                                    .font(.custom("Poppins-Bold", size: 10))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.5), radius: 1)
+                            }
                         }
-                        
-                        Text(reaction.displayName)
-                            .font(.custom("Poppins-Bold", size: 10))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.5), radius: 1)
-                    }
-                }
-                .scaleEffect(appearScale[index])
-                .animation(.bouncy(duration: 0.6, extraBounce: 0.3).delay(Double(index) * 0.1), value: appearScale[index])
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.1)) {
-                        appearScale[index] = 0.9
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.bouncy(duration: 0.4)) {
-                            appearScale[index] = 1.0
+                        .scaleEffect(appearScale[index])
+                        .animation(.bouncy(duration: 0.6, extraBounce: 0.3).delay(Double(index) * 0.05), value: appearScale[index])
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                appearScale[index] = 0.9
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.bouncy(duration: 0.4)) {
+                                    appearScale[index] = 1.0
+                                }
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
+            
+            // ✨ Botón de cerrar
+            Button(action: onClose) {
+                Text("Cerrar")
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(.white.opacity(0.8))
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+            }
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
         .background(
             RoundedRectangle(cornerRadius: 25)
                 .fill(.ultraThinMaterial)
@@ -456,12 +519,562 @@ struct EpicReactionPickerView: View {
         .offset(y: -90)
         .onAppear {
             for index in 0..<appearScale.count {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.05) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.03) {
                     withAnimation(.bouncy(duration: 0.4, extraBounce: 0.2)) {
                         appearScale[index] = 1.0
                     }
                 }
             }
         }
+    }
+}
+
+// MARK: - ReactionsListSheet
+struct ReactionsListSheet: View {
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
+    let moment: Moment
+    let onDismiss: () -> Void
+
+    @State private var reactions: [String: [String]] = [:]
+    @State private var userProfiles: [String: AppUser] = [:]
+    @State private var isLoading = true
+    @State private var followStates: [String: Bool] = [:] // Estado de seguir para cada usuario
+    @State private var followLoadingStates: [String: Bool] = [:] // Estados de carga para seguir
+    @State private var searchText = ""
+
+    @EnvironmentObject private var firestoreService: FirestoreService
+
+    struct ReactionGroup {
+        let type: ReactionType
+        let users: [String]
+        let count: Int
+    }
+
+    private var reactionGroups: [ReactionGroup] {
+        let groups = reactions.compactMap { (reactionTypeString, userIds) -> ReactionGroup? in
+            guard let reactionType = ReactionType(rawValue: reactionTypeString),
+                  !userIds.isEmpty else { return nil }
+            return ReactionGroup(type: reactionType, users: userIds, count: userIds.count)
+        }
+        return groups.sorted { $0.count > $1.count } // Order by count (most popular first)
+    }
+    
+    // MARK: - Filtered Reaction Groups
+    private var filteredReactionGroups: [ReactionGroup] {
+        if searchText.isEmpty {
+            return reactionGroups
+        } else {
+            return reactionGroups.compactMap { group in
+                // Filtrar usuarios que coincidan con la búsqueda
+                let filteredUsers = group.users.filter { userId in
+                    if let user = userProfiles[userId] {
+                        return user.username.localizedCaseInsensitiveContains(searchText) ||
+                               (user.bio?.localizedCaseInsensitiveContains(searchText) ?? false)
+                    }
+                    return false
+                }
+                
+                // Solo incluir grupos que tengan usuarios filtrados
+                if filteredUsers.isEmpty {
+                    return nil
+                }
+                
+                return ReactionGroup(type: group.type, users: filteredUsers, count: filteredUsers.count)
+            }
+        }
+    }
+
+    var body: some View {
+                        VStack(spacing: 0) {
+                    // Header con título
+                    headerView
+                    
+                    // Searchbar para buscar usuarios
+                    searchBarView
+                    
+                    // Contenido principal
+                    if isLoading { loadingView }
+                    else if filteredReactionGroups.isEmpty { 
+                        if reactionGroups.isEmpty { emptyStateView }
+                        else { noResultsView }
+                    }
+                    else { reactionsList }
+                    
+                    // Botón cerrar en la parte inferior
+                    cancelButton
+                }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.3),
+                                    Color(hex: "00A896").opacity(0.4)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .onAppear { loadReactions() }
+    }
+
+    // MARK: - Header
+    private var headerView: some View {
+        VStack(alignment: .center, spacing: 2) {
+            Text("Reacciones")
+                .font(.custom("Poppins-Bold", size: 22))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+            
+            Text("\(filteredReactionGroups.count) \(filteredReactionGroups.count == 1 ? "tipo" : "tipos") de reacción")
+                .font(.custom("Poppins-Regular", size: 13))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 24)
+    }
+
+    // MARK: - Loading View
+    private var loadingView: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle())
+                .scaleEffect(1.2)
+                .tint(Color(hex: "00A896"))
+            
+            Text("Cargando reacciones...")
+                .font(.custom("Poppins-Medium", size: 16))
+                .foregroundColor(adaptiveColors.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Empty State
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "heart.slash")
+                .font(.system(size: 48))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+            
+            Text("No hay reacciones")
+                .font(.custom("Poppins-Bold", size: 18))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+            
+            Text("Sé el primero en reaccionar a este momento")
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - No Results View
+    private var noResultsView: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.gray.opacity(0.6), Color(hex: "00A896").opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            
+            VStack(spacing: 8) {
+                Text("No se encontraron resultados")
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                Text("Intenta con otros términos de búsqueda")
+                    .font(.custom("Poppins-Regular", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 40)
+        .padding(.vertical, 60)
+    }
+
+    // MARK: - Reactions List
+    private var reactionsList: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(filteredReactionGroups, id: \.type.rawValue) { group in
+                    reactionGroupView(group: group)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+    }
+
+    // MARK: - Reaction Group View
+    private func reactionGroupView(group: ReactionGroup) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header del grupo con icono y contador
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(group.type.color.opacity(0.2))
+                        .frame(width: 32, height: 32)
+                    
+                    Image(systemName: group.type.filledIcon)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(group.type.color)
+                }
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(group.type.displayName)
+                        .font(.custom("Poppins-Bold", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                    Text("\(group.count) \(group.count == 1 ? "persona" : "personas")")
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                }
+                
+                Spacer()
+            }
+            
+            // Lista de usuarios
+            VStack(spacing: 6) {
+                ForEach(group.users.prefix(10), id: \.self) { userId in
+                    userRowView(userId: userId, reactionType: group.type)
+                }
+                
+                if group.users.count > 10 {
+                    HStack {
+                        Spacer()
+                        Text("Y \(group.users.count - 10) más...")
+                            .font(.custom("Poppins-Regular", size: 11))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color.gray.opacity(0.1))
+                            )
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+        )
+    }
+
+    // MARK: - User Row View
+    private func userRowView(userId: String, reactionType: ReactionType) -> some View {
+        HStack(spacing: 12) {
+            // Avatar del usuario con estilo moderno
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "00A896").opacity(0.15))
+                    .frame(width: 40, height: 40)
+                
+                AsyncImage(url: URL(string: userProfiles[userId]?.profileImagePath ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+                .frame(width: 36, height: 36)
+                .clipShape(Circle())
+            }
+            
+            // Información del usuario
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(userProfiles[userId]?.username ?? "Usuario")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                    if userProfiles[userId]?.isVerified == true {
+                        VerifiedBadge(size: 12)
+                    }
+                }
+                
+                Text("Reaccionó con \(reactionType.displayName)")
+                    .font(.custom("Poppins-Regular", size: 11))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+            }
+            
+            Spacer()
+            
+            // Botón de seguir/dejar de seguir
+            followButton(for: userId)
+            
+            // Icono pequeño de la reacción
+            Image(systemName: reactionType.filledIcon)
+                .font(.system(size: 14))
+                .foregroundColor(reactionType.color)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+        )
+    }
+
+    // MARK: - Data Loading
+    private func loadReactions() {
+        guard let momentId = moment.id else {
+            isLoading = false
+            return
+        }
+        
+        firestoreService.fetchReactions(for: momentId, authorId: moment.authorId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let fetchedReactions):
+                    self.reactions = fetchedReactions
+                    self.loadUserProfiles(for: fetchedReactions)
+                case .failure(let error):
+                    print("❌ Error loading reactions: \(error)")
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+
+    private func loadUserProfiles(for reactions: [String: [String]]) {
+        let allUserIds = Array(Set(reactions.values.flatMap { $0 }))
+        
+        guard !allUserIds.isEmpty else {
+            isLoading = false
+            return
+        }
+        
+        firestoreService.fetchUsers(userIds: allUserIds) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let users):
+                    for user in users {
+                        self.userProfiles[user.id] = user
+                    }
+                    print("✅ Perfiles de usuarios cargados: \(users.count)")
+                    
+                    // Cargar estados de seguir después de cargar perfiles
+                    self.loadFollowStates()
+                case .failure(let error):
+                    print("❌ Error cargando perfiles de usuarios: \(error)")
+                }
+                self.isLoading = false
+            }
+        }
+    }
+
+    // MARK: - Follow Button
+    @ViewBuilder
+    private func followButton(for userId: String) -> some View {
+        let isFollowing = followStates[userId] ?? false
+        let isLoading = followLoadingStates[userId] ?? false
+        
+        // No mostrar botón para el usuario actual
+        if userId == Auth.auth().currentUser?.uid {
+            EmptyView()
+        } else {
+            Button(action: {
+                handleFollowAction(for: userId)
+            }) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(0.8)
+                        .tint(Color(hex: "00A896"))
+                } else {
+                    HStack(spacing: 6) {
+                        Image(systemName: isFollowing ? "person.badge.minus" : "person.badge.plus")
+                            .font(.system(size: 12, weight: .medium))
+                        Text(isFollowing ? "Dejar" : "Seguir")
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(isFollowing ? 
+                                Color.red.opacity(0.2) : 
+                                Color(hex: "00A896").opacity(0.8)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        isFollowing ? 
+                                            Color.red.opacity(0.3) : 
+                                            Color.white.opacity(0.2),
+                                        lineWidth: 1
+                                    )
+                            )
+                    )
+                    .shadow(
+                        color: isFollowing ? 
+                            .red.opacity(0.2) : 
+                            Color(hex: "00A896").opacity(0.3),
+                        radius: isFollowing ? 2 : 4,
+                        x: 0,
+                        y: isFollowing ? 1 : 2
+                    )
+                }
+            }
+            .disabled(isLoading)
+            .scaleEffect(isFollowing ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isFollowing)
+        }
+    }
+    
+    // MARK: - Follow Actions
+    private func handleFollowAction(for userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        let isFollowing = followStates[userId] ?? false
+        
+        // Actualizar estado de carga
+        followLoadingStates[userId] = true
+        
+        if isFollowing {
+            // Dejar de seguir
+            firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { error in
+                DispatchQueue.main.async {
+                    followLoadingStates[userId] = false
+                    if error == nil {
+                        followStates[userId] = false
+                        print("✅ Dejado de seguir a usuario: \(userId)")
+                    } else {
+                        print("❌ Error al dejar de seguir: \(error?.localizedDescription ?? "unknown")")
+                    }
+                }
+            }
+        } else {
+            // Seguir
+            firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { error in
+                DispatchQueue.main.async {
+                    followLoadingStates[userId] = false
+                    if error == nil {
+                        followStates[userId] = true
+                        print("✅ Usuario seguido: \(userId)")
+                    } else {
+                        print("❌ Error al seguir usuario: \(error?.localizedDescription ?? "unknown")")
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Load Follow States
+    private func loadFollowStates() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        let userIds = Array(userProfiles.keys)
+        for userId in userIds {
+            if userId != currentUserId {
+                firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: userId) { isFollowing in
+                    DispatchQueue.main.async {
+                        followStates[userId] = isFollowing
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Search Bar
+    private var searchBarView: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+                .font(.system(size: 16))
+            
+            TextField("Buscar usuarios...", text: $searchText)
+                .font(.custom("Poppins-Regular", size: 16))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .textFieldStyle(PlainTextFieldStyle())
+            
+            if !searchText.isEmpty {
+                Button(action: {
+                    searchText = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                        .font(.system(size: 16))
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                )
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
+    }
+    
+    // MARK: - Cancel Button
+    private var cancelButton: some View {
+        Button(action: {
+            dismiss()
+            onDismiss()
+        }) {
+            Text("Cerrar")
+                .font(.custom("Poppins-Medium", size: 16))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "00A896"), Color(hex: "02C39A")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+    }
+    
+    // MARK: - Adaptive Colors
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
     }
 }
