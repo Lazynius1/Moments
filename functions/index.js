@@ -64,14 +64,24 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     const fcmToken = momentOwnerData.fcmToken;
     if (!fcmToken) return null;
     
-    // ✅ MAPEAR REACTIONTYPE A EMOJIS
+    // ✅ MAPEAR REACTIONTYPE A EMOJIS - SOLO LAS NUEVAS REACCIONES
     const reactionEmojis = {
       'vibe': '✨',
       'fire': '🔥',
       'real': '💯',
       'mood': '😊',
       'glow': '🌟',
-      'feel': '💙'
+      'feel': '💙',
+      'love': '❤️',
+      'wow': '😮',
+      'laugh': '😂',
+      'cry': '😢',
+      'respect': '🙏',
+      'power': '💪',
+      'genius': '🧠',
+      'creative': '🎨',
+      'chill': '😌',
+      'hype': '🚀'
     };
     
     const emoji = reactionEmojis[reaction.reactionType] || '❤️';
