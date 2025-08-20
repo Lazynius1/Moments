@@ -89,7 +89,7 @@ struct ReelsViewer: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 50)
+                .padding(.top, 30) // Alineado con los otros elementos
                 
                 Spacer()
             }
@@ -109,9 +109,21 @@ struct ReelVideoView: View {
     @State private var showComments = false
     @State private var commentCount: Int = 0
     @State private var isDoubleTapAnimating = false
+    @State private var showContextMenu = false
+    @State private var showShareSheet = false
+    @State private var showReportSheet = false
+    @State private var showDeleteAlert = false
+    @State private var navigateToProfile = false
+    @State private var hasStory = false
+    @State private var hasUnseenStory = false
+    @State private var showingStories = false
+    @State private var storiesUserId: String = ""
     
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject private var firestoreService: FirestoreService
+    
+    // ✅ NUEVO: Instancia de PrivacyService para verificar historias
+    private let privacyService = PrivacyService()
     
     var body: some View {
         GeometryReader { geometry in
@@ -230,14 +242,28 @@ struct ReelVideoView: View {
                         VStack {
                             // User info a la misma altura que el botón cerrar
                             HStack(spacing: 12) {
-                                AsyncProfileImageView(userId: video.moment.authorId)
-                                    .frame(width: 40, height: 40)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white, lineWidth: 2)
-                                    )
-                                    .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
+                                Button(action: {
+                                    if !video.moment.authorId.isEmpty {
+                                        if hasStory {
+                                            // ✅ Si tiene historias, abrir StoriesView
+                                            storiesUserId = video.moment.authorId
+                                            showingStories = true
+                                        } else {
+                                            // ✅ Si no tiene historias, ir al perfil
+                                            navigateToProfile = true
+                                        }
+                                    }
+                                }) {
+                                    AsyncProfileImageView(userId: video.moment.authorId)
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 0)
+                                        )
+                                        .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 6) {
@@ -282,7 +308,7 @@ struct ReelVideoView: View {
                                 Spacer()
                             }
                             .padding(.horizontal, 20)
-                            .padding(.top, 50) // Misma altura que el botón cerrar
+                            .padding(.top, 30) // Subido más arriba para evitar montajes
                             
                             Spacer()
                         }
@@ -364,7 +390,7 @@ struct ReelVideoView: View {
                                     activeColor: .white,
                                     action: {
                                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            showUserActions.toggle()
+                                            showContextMenu.toggle()
                                         }
                                     }
                                 )
@@ -381,22 +407,6 @@ struct ReelVideoView: View {
                     
                     if playerManager.duration > 0 {
                         VStack(spacing: 8) {
-                            // Time indicators
-                            HStack {
-                                Text(formatTime(playerManager.progress * playerManager.duration))
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(.white.opacity(0.8))
-                                    .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
-                                
-                                Spacer()
-                                
-                                Text(formatTime(playerManager.duration))
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(.white.opacity(0.8))
-                                    .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
-                            }
-                            .padding(.horizontal, 20)
-                            
                             // Progress bar interactiva estilo TikTok
                             GeometryReader { geometry in
                                 ZStack(alignment: .leading) {
@@ -448,10 +458,74 @@ struct ReelVideoView: View {
                             .frame(height: 44) // Área de toque amplia pero visualmente delgada
                             .padding(.horizontal, 20)
                         }
-                        .padding(.bottom, 30)
+                        .padding(.bottom, 10) // Bajada más abajo para evitar montajes
                     }
                 }
+                
+                // Context Menu Overlay
+                if showContextMenu {
+                    ModernContextMenuOverlay(
+                        moment: video.moment,
+                        isPresented: $showContextMenu,
+                        showShareSheet: $showShareSheet,
+                        onEdit: {
+                            // No implementado en reels por ahora
+                        },
+                        onDelete: {
+                            showDeleteAlert = true
+                        },
+                        onShare: {
+                            if video.moment.allowSharing {
+                                showShareSheet = true
+                            }
+                        },
+                        onReport: {
+                            showReportSheet = true
+                        },
+                        onCopyLink: {
+                            if let momentId = video.moment.id {
+                                UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                            }
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .bottom).combined(with: .opacity)
+                    ))
+                    .zIndex(1000)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showContextMenu)
+                }
+                
+                // Share Sheet
+                if showShareSheet {
+                    ModernShareBottomSheet(moment: video.moment, isPresented: $showShareSheet)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .opacity)
+                        ))
+                        .zIndex(1001)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showShareSheet)
+                }
             }
+        }
+        .sheet(isPresented: $showReportSheet) {
+            ReportBottomSheet(moment: video.moment)
+        }
+        .sheet(isPresented: $navigateToProfile) {
+            UserProfileView(userId: video.moment.authorId)
+        }
+        .sheet(isPresented: $showingStories) {
+            StoriesView(startWithUserId: .constant(storiesUserId))
+        }
+        .alert("Eliminar momento", isPresented: $showDeleteAlert) {
+            Button("Eliminar", role: .destructive) {
+                deleteMoment()
+            }
+            Button("Cancelar", role: .cancel) { }
+        } message: {
+            Text("¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.")
         }
         .onAppear {
             if isCurrentVideo {
@@ -459,6 +533,7 @@ struct ReelVideoView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     setupVideo()
                     loadVideoData()
+                    checkUserStories() // ✅ NUEVO: Verificar historias del usuario
                 }
             }
         }
@@ -496,6 +571,142 @@ struct ReelVideoView: View {
             return .fill  // Videos verticales llenan pantalla
         } else {
             return .fit   // Videos horizontales se muestran completos
+        }
+    }
+    
+    // MARK: - Funciones auxiliares
+    
+    // ✅ NUEVO: Gradiente para anillo de historias (igual que en el feed)
+    private var storyRingGradient: LinearGradient {
+        if hasUnseenStory {
+            // ✅ HISTORIA NO VISTA: Gradiente azul → morado → rosa
+            return LinearGradient(
+                colors: [Color.blue, Color.purple, Color.pink],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else if hasStory {
+            // ✅ HISTORIA YA VISTA: Gris según el tema
+            return LinearGradient(
+                colors: colorScheme == .dark ?
+                [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
+                [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            // ✅ SIN HISTORIAS: Sin anillo (transparente)
+            return LinearGradient(
+                colors: [Color.clear],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+    
+    // ✅ NUEVO: Función para verificar historias del usuario (con filtrado de privacidad como en el feed)
+    private func checkUserStories() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let otherUserId = video.moment.authorId
+        guard !otherUserId.isEmpty else { return }
+        
+        // ✅ USAR LA MISMA LÓGICA DEL FEED: Verificar historias con filtrado de privacidad
+        firestoreService.db.collection("users").document(otherUserId).collection("stories")
+            .whereField("expirationDate", isGreaterThan: Date())
+            .order(by: "timestamp", descending: false)
+            .getDocuments { snapshot, error in
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    DispatchQueue.main.async {
+                        self.hasStory = false
+                        self.hasUnseenStory = false
+                    }
+                    return
+                }
+                
+                let stories = documents.compactMap { doc -> Story? in
+                    try? doc.data(as: Story.self)
+                }
+                
+                guard !stories.isEmpty else {
+                    DispatchQueue.main.async {
+                        self.hasStory = false
+                        self.hasUnseenStory = false
+                    }
+                    return
+                }
+                
+                // ✅ FILTRADO DE PRIVACIDAD: Solo contar historias que se pueden ver
+                let group = DispatchGroup()
+                var visibleStories: [Story] = []
+                var hasUnseen = false
+                
+                for story in stories {
+                    group.enter()
+                    // ✅ USAR PRIVACY SERVICE como en el feed
+                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
+                        if canView {
+                            visibleStories.append(story)
+                        }
+                        group.leave()
+                    }
+                }
+                
+                group.notify(queue: .main) {
+                    if !visibleStories.isEmpty {
+                        self.hasStory = true
+                        
+                        // ✅ VERIFICAR SI HAY HISTORIAS NO VISTAS (solo de las visibles)
+                        var hasUnseenVisible = false
+                        let viewGroup = DispatchGroup()
+                        
+                        for story in visibleStories {
+                            viewGroup.enter()
+                            self.firestoreService.db.collection("users").document(story.authorId)
+                                .collection("stories").document(story.id ?? "")
+                                .collection("viewers").document(currentUserId)
+                                .getDocument { viewerDoc, _ in
+                                    let wasViewed = viewerDoc?.exists == true
+                                    if !wasViewed {
+                                        hasUnseenVisible = true
+                                    }
+                                    viewGroup.leave()
+                                }
+                        }
+                        
+                        viewGroup.notify(queue: .main) {
+                            self.hasUnseenStory = hasUnseenVisible
+                        }
+                    } else {
+                        self.hasStory = false
+                        self.hasUnseenStory = false
+                    }
+                }
+            }
+    }
+    
+    private func deleteMoment() {
+        guard let momentId = video.moment.id else { return }
+        
+        // Cerrar context menu
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showContextMenu = false
+        }
+        
+        // Eliminar de Firestore (igual que en FeedView)
+        firestoreService.deleteMoment(
+            userId: video.moment.authorId,
+            momentId: momentId
+        ) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Error al eliminar momento: \(error.localizedDescription)")
+                    // Aquí podrías mostrar un alert de error
+                } else {
+                    print("✅ Momento eliminado exitosamente")
+                    // Cerrar el reels viewer
+                    onClose()
+                }
+            }
         }
     }
     

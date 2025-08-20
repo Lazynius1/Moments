@@ -126,6 +126,9 @@ struct MessagingView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
     
+    // ✅ NUEVO: Instancia de PrivacyService para verificar historias
+    private let privacyService = PrivacyService()
+    
     var body: some View {
         NavigationStack { // ✅ CAMBIO 1: NavigationStack en lugar de NavigationView
             ZStack {
@@ -793,7 +796,7 @@ struct SwipeableConversationRow: View {
             
             // ✅ Fila de conversación principal (estilo Instagram)
             VStack(spacing: 0) {
-                GlassmorphicConversationRow(conversation: conversation)
+                GlassmorphicConversationRow(conversation: conversation, onTap: onTap)
                     .background(Color.clear) // ✅ Sin fondo sólido, mantener transparencia
                     .offset(x: offset)
                 
@@ -937,50 +940,87 @@ struct SearchUserRow: View {
 // MARK: - Glassmorphic Conversation Row
 struct GlassmorphicConversationRow: View {
     let conversation: Conversation
+    let onTap: () -> Void // ✅ NUEVO: Callback para abrir el chat
     @Environment(\.colorScheme) var colorScheme
     @State private var hasStory: Bool = false
     @State private var hasUnseenStory: Bool = false
     
+    // ✅ NUEVO: Estados para navegación
+    @State private var showingUserProfile = false
+    @State private var showingStories = false
+    @State private var storiesUserId: String = ""
+    
+    // ✅ NUEVO: Instancia de PrivacyService para verificar historias
+    private let privacyService = PrivacyService()
+    
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                AsyncProfileImageView(userId: conversation.otherParticipantId ?? "")
-                    .frame(width: 56, height: 56)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 0)
-                    )
+                // ✅ SEPARADO: Botón solo para la foto (historias o perfil)
+                Button(action: {
+                    if hasStory {
+                        // ✅ SI TIENE HISTORIAS: Establecer userId y abrir StoriesView
+                        storiesUserId = conversation.otherParticipantId
+                        showingStories = true
+                    } else {
+                        // ✅ SI NO TIENE HISTORIAS: Ir al perfil
+                        showingUserProfile = true
+                    }
+                }) {
+                    AsyncProfileImageView(userId: conversation.otherParticipantId ?? "")
+                        .frame(width: 56, height: 56)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 0)
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
             }
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text(conversation.otherParticipantUsername ?? "Usuario")
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white)
-                    
-                    // ✅ INSIGNIA DE VERIFICADO
-                    VerifiedBadgeView(userId: conversation.otherParticipantId ?? "", size: 14)
-                    
-                    // ✅ INDICADOR DE PIN
-                    if conversation.isPinned == true {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.blue)
+                    // ✅ SEPARADO: Botón solo para el nombre (siempre al perfil)
+                    Button(action: {
+                        showingUserProfile = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(conversation.otherParticipantUsername ?? "Usuario")
+                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .foregroundColor(.white)
+                            
+                            // ✅ INSIGNIA DE VERIFICADO
+                            VerifiedBadgeView(userId: conversation.otherParticipantId ?? "", size: 14)
+                            
+                            // ✅ INDICADOR DE PIN
+                            if conversation.isPinned == true {
+                                Image(systemName: "pin.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            // ✅ INDICADOR DE MUTE
+                            if conversation.isMuted == true {
+                                Image(systemName: "bell.slash.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.orange)
+                            }
+                        }
                     }
-                    
-                    // ✅ INDICADOR DE MUTE
-                    if conversation.isMuted == true {
-                        Image(systemName: "bell.slash.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.orange)
-                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
                 
-                Text(conversation.lastMessage ?? "Inicia un chat")
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.white.opacity(0.8))
-                    .lineLimit(1)
+                // ✅ SEPARADO: Botón para el resto de la fila (abrir chat)
+                Button(action: {
+                    onTap() // ✅ Abrir el chat
+                }) {
+                    Text(conversation.lastMessage ?? "Inicia un chat")
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(PlainButtonStyle())
             }
             
             Spacer()
@@ -1007,6 +1047,14 @@ struct GlassmorphicConversationRow: View {
         .glassmorphic() // ✅ Mantener el efecto glassmorphic único
         .onAppear {
             checkUserStories()
+        }
+        // ✅ NUEVO: Sheet para mostrar historias del usuario
+        .sheet(isPresented: $showingStories) {
+            StoriesView(startWithUserId: .constant(storiesUserId))
+        }
+        // ✅ NUEVO: Sheet para navegación al perfil del usuario
+        .sheet(isPresented: $showingUserProfile) {
+            UserProfileView(userId: conversation.otherParticipantId)
         }
     }
     
@@ -1037,18 +1085,21 @@ struct GlassmorphicConversationRow: View {
         }
     }
     
+    // ✅ ACTUALIZADO: Función para verificar historias del usuario (con filtrado de privacidad como en reels)
     private func checkUserStories() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         let otherUserId = conversation.otherParticipantId ?? ""
         guard !otherUserId.isEmpty else { return }
         
+        // ✅ USAR LA MISMA LÓGICA DE REELS: Verificar historias con filtrado de privacidad
         Firestore.firestore().collection("users").document(otherUserId).collection("stories")
             .whereField("expirationDate", isGreaterThan: Date())
+            .order(by: "timestamp", descending: false)
             .getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
                     DispatchQueue.main.async {
-                        hasStory = false
-                        hasUnseenStory = false
+                        self.hasStory = false
+                        self.hasUnseenStory = false
                     }
                     return
                 }
@@ -1059,33 +1110,56 @@ struct GlassmorphicConversationRow: View {
                 
                 guard !stories.isEmpty else {
                     DispatchQueue.main.async {
-                        hasStory = false
-                        hasUnseenStory = false
+                        self.hasStory = false
+                        self.hasUnseenStory = false
                     }
                     return
                 }
                 
-                // Verificar si alguna historia no ha sido vista
-                var hasUnseen = false
+                // ✅ FILTRADO DE PRIVACIDAD: Solo contar historias que se pueden ver
                 let group = DispatchGroup()
+                var visibleStories: [Story] = []
                 
                 for story in stories {
                     group.enter()
-                    Firestore.firestore().collection("users").document(story.authorId)
-                        .collection("stories").document(story.id ?? "")
-                        .collection("viewers").document(currentUserId)
-                        .getDocument { viewerDoc, _ in
-                            let wasViewed = viewerDoc?.exists == true
-                            if !wasViewed {
-                                hasUnseen = true
-                            }
-                            group.leave()
+                    // ✅ USAR PRIVACY SERVICE como en reels
+                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
+                        if canView {
+                            visibleStories.append(story)
                         }
+                        group.leave()
+                    }
                 }
                 
                 group.notify(queue: .main) {
-                    hasStory = true
-                    hasUnseenStory = hasUnseen
+                    if !visibleStories.isEmpty {
+                        self.hasStory = true
+                        
+                        // ✅ VERIFICAR SI HAY HISTORIAS NO VISTAS (solo de las visibles)
+                        var hasUnseenVisible = false
+                        let viewGroup = DispatchGroup()
+                        
+                        for story in visibleStories {
+                            viewGroup.enter()
+                            Firestore.firestore().collection("users").document(story.authorId)
+                                .collection("stories").document(story.id ?? "")
+                                .collection("viewers").document(currentUserId)
+                                .getDocument { viewerDoc, _ in
+                                    let wasViewed = viewerDoc?.exists == true
+                                    if !wasViewed {
+                                        hasUnseenVisible = true
+                                    }
+                                    viewGroup.leave()
+                                }
+                        }
+                        
+                        viewGroup.notify(queue: .main) {
+                            self.hasUnseenStory = hasUnseenVisible
+                        }
+                    } else {
+                        self.hasStory = false
+                        self.hasUnseenStory = false
+                    }
                 }
             }
     }

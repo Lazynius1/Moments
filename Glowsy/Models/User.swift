@@ -53,6 +53,7 @@ struct AppUser: Identifiable, Codable {
     let isPrivate: Bool
     let showMutualConnections: Bool
     let showFollowing: Bool
+    let showAdmirers: Bool
     let activeHoursStart: String?
     let activeHoursEnd: String?
     let notificationPreferences: [String: Bool]?
@@ -95,6 +96,7 @@ struct AppUser: Identifiable, Codable {
         case isPrivate
         case showMutualConnections
         case showFollowing
+        case showAdmirers
         case activeHoursStart
         case activeHoursEnd
         case notificationPreferences
@@ -127,6 +129,7 @@ struct AppUser: Identifiable, Codable {
         self.isPrivate = (try container.decodeIfPresent(Bool.self, forKey: .isPrivate)) ?? false
         self.showMutualConnections = (try container.decodeIfPresent(Bool.self, forKey: .showMutualConnections)) ?? true
         self.showFollowing = (try container.decodeIfPresent(Bool.self, forKey: .showFollowing)) ?? true
+        self.showAdmirers = (try container.decodeIfPresent(Bool.self, forKey: .showAdmirers)) ?? true
         self.activeHoursStart = try container.decodeIfPresent(String.self, forKey: .activeHoursStart)
         self.activeHoursEnd = try container.decodeIfPresent(String.self, forKey: .activeHoursEnd)
         self.notificationPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .notificationPreferences)
@@ -184,6 +187,7 @@ struct AppUser: Identifiable, Codable {
         isPrivate: Bool,
         showMutualConnections: Bool = true,
         showFollowing: Bool = true,
+        showAdmirers: Bool = true,
         activeHoursStart: String?,
         activeHoursEnd: String?,
         notificationPreferences: [String: Bool]?,
@@ -213,6 +217,7 @@ struct AppUser: Identifiable, Codable {
         self.isPrivate = isPrivate
         self.showMutualConnections = showMutualConnections
         self.showFollowing = showFollowing
+        self.showAdmirers = showAdmirers
         self.activeHoursStart = activeHoursStart
         self.activeHoursEnd = activeHoursEnd
         self.notificationPreferences = notificationPreferences

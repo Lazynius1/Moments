@@ -32,6 +32,19 @@
 "profile.stats.connections" = "Conexiones";
 "profile.stats.mutuals" = "Mutuas";
 
+/* UserListView */
+"userListView.search.placeholder" = "Buscar usuarios...";
+"userListView.empty.title" = "No hay %@";
+"userListView.empty.description" = "Cuando tengas %@, aparecerán aquí";
+"userListView.noResults.title" = "No se encontraron resultados";
+"userListView.noResults.description" = "Intenta con otros términos de búsqueda";
+"userListView.closeButton" = "Cerrar";
+"userListView.frequentVisits" = "Visitas frecuentes";
+"userListView.followButton" = "Seguir";
+"userListView.unfollowButton" = "Dejar";
+"userListView.person.singular" = "persona";
+"userListView.person.plural" = "personas";
+
 /* SettingsView */
 "settings.title" = "Configuración";
 "settings.loading" = "Cargando configuración...";
@@ -276,7 +289,9 @@
 "settings.privacy.hideMutual.description" = "Solo tú podrás ver quiénes son tus amigos en común";
 "settings.privacy.hideFollowing" = "Ocultar mi lista de seguidos";
 "settings.privacy.hideFollowing.description" = "Solo tú podrás ver a quién sigues";
-"settings.privacy.control.description" = "Cuando actives estas opciones, otros usuarios no podrán ver estas listas en tu perfil. Siempre podrás cambiar estas configuraciones.";
+"settings.privacy.hideAdmirers" = "Ocultar mis admiradores";
+"settings.privacy.hideAdmirers.description" = "Solo tú podrás ver quién te sigue";
+"settings.privacy.control.description" = "Cuando actives estas opciones, otros usuarios no podrán ver estas listas en tu perfil. Nota: Ocultar 'siguiendo' o 'admiradores' también ocultará 'conexiones mutuas' ya que no se pueden calcular sin ambas listas. Siempre podrás cambiar estas configuraciones.";
 "settings.logout" = "Cerrar sesión";
 "settings.logout.confirm" = "¿Estás seguro de que quieres cerrar sesión?";
 "settings.profile.username" = "Nombre de usuario";
@@ -311,8 +326,8 @@
 "creator.interactions.title" = "Interacciones";
 "creator.interactions.disableComments" = "Desactivar comentarios";
 "creator.interactions.disableComments.description" = "Nadie podrá comentar en este momento";
-"creator.interactions.allowSharing" = "Permitir compartir";
-"creator.interactions.allowSharing.description" = "Otros pueden compartir tu momento";
+"creator.interactions.allowSharing" = "Permitir guardar";
+"creator.interactions.allowSharing.description" = "Otros pueden guardar tu momento";
 "creator.visualization.title" = "Visualización";
 "creator.visualization.hideReactions" = "Ocultar contador de reacciones";
 "creator.visualization.hideReactions.description" = "El botón de reacciones seguirá visible, pero sin mostrar el número";
@@ -407,6 +422,19 @@
 "messageRequests.sent" = "Enviado %@";
 "messageRequests.message" = "Mensaje:";
 "messageRequests.video" = "Video";
+
+/* Message Request Modal */
+"messageRequestModal.title" = "Enviar solicitud de mensaje";
+"messageRequestModal.description" = "Este usuario no te sigue. Envía una solicitud de mensaje que podrá aceptar o rechazar.";
+"messageRequestModal.placeholder" = "Escribe tu mensaje...";
+"messageRequestModal.sendButton" = "Enviar solicitud";
+"messageRequestModal.sendButton.subtitle" = "Tu mensaje será enviado al usuario";
+"messageRequestModal.cancelButton" = "Cancelar";
+"messageRequestModal.cancelButton.subtitle" = "Cerrar sin enviar";
+"messageRequestModal.error.empty" = "El mensaje no puede estar vacío";
+"messageRequestModal.error.generic" = "Error al enviar solicitud: %@";
+"messageRequestModal.success.title" = "Solicitud enviada";
+"messageRequestModal.success.message" = "Tu solicitud de mensaje ha sido enviada. El usuario recibirá una notificación y podrá aceptarla o rechazarla.";
 
 /* Profile Editor */
 "profileEditor.library" = "Biblioteca";

@@ -6,6 +6,8 @@ import CoreMotion
 import FirebaseFirestore
 import AVKit
 
+// ✅ USAR: Sistema de colores adaptativos existente (definido en FeedView.swift)
+
 struct UserProfileColors {
     static var background: Color {
         Color(UIColor.systemBackground)
@@ -55,8 +57,13 @@ struct UserProfileView: View {
     @State private var showingUserList: UserProfileView.UserListType?
     private let userId: String
     @StateObject private var messagingViewModel = MessagingViewModel()
+    @StateObject private var messageRequestService = MessageRequestService()
     @State private var navigateToChat: Bool = false
     @State private var targetConversation: Conversation?
+    @State private var showingMessageRequestAlert = false
+    @State private var messageRequestText = ""
+    @State private var messageRequestError: String?
+    @State private var showingSuccessMessage = false
     @State private var selectedMoment: Moment?
     @State private var showCircularMenu: Bool = false
     @StateObject private var storyViewModel = StoryViewModel()
@@ -159,19 +166,19 @@ struct UserProfileView: View {
                 onDismiss: { showingUserList = nil }
             )
             .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .presentationDragIndicator(.hidden)
             .interactiveDismissDisabled(false)
+            .presentationBackground(.clear)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        .background(
-            NavigationLink(
-                destination: targetConversation != nil ? GlassmorphicChatView(conversation: targetConversation!) : nil,
-                isActive: $navigateToChat
-            ) { EmptyView() }
-        )
+        .fullScreenCover(isPresented: $navigateToChat) {
+            if let conversation = targetConversation {
+                GlassmorphicChatView(conversation: conversation)
+            }
+        }
         // ✅ CORREGIDO: Eliminar el sheet duplicado y usar solo fullScreenCover
         .fullScreenCover(isPresented: $showMomentDetail) {
             ModernMomentDetailView(
@@ -308,6 +315,10 @@ struct UserProfileView: View {
                     navigateToChat: $navigateToChat,
                     targetConversation: $targetConversation,
                     scrollOffset: $scrollOffset,
+                    showingMessageRequestAlert: $showingMessageRequestAlert,
+                    messageRequestText: $messageRequestText,
+                    messageRequestError: $messageRequestError,
+                    showingSuccessMessage: $showingSuccessMessage,
                     onFollowAction: {
                         handleFollowAction()
                     },
@@ -356,6 +367,10 @@ struct UserModernPublicProfileView: View {
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
     @Binding var scrollOffset: CGFloat
+    @Binding var showingMessageRequestAlert: Bool
+    @Binding var messageRequestText: String
+    @Binding var messageRequestError: String?
+    @Binding var showingSuccessMessage: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
 
@@ -374,6 +389,10 @@ struct UserModernPublicProfileView: View {
                         navigateToChat: $navigateToChat,
                         targetConversation: $targetConversation,
                         showingUserList: $showingUserList,
+                        showingMessageRequestAlert: $showingMessageRequestAlert,
+                        messageRequestText: $messageRequestText,
+                        messageRequestError: $messageRequestError,
+                        showingSuccessMessage: $showingSuccessMessage,
                         onFollowAction: onFollowAction,
                         onDismiss: onDismiss
                     )
@@ -495,6 +514,7 @@ struct UserModernProfileHeader: View {
     @ObservedObject var viewModel: UserProfileViewModel
     @ObservedObject var storyViewModel: StoryViewModel
     @ObservedObject var messagingViewModel: MessagingViewModel
+    @StateObject private var messageRequestService = MessageRequestService()
     @EnvironmentObject var authService: AuthService // ✅ NUEVO: Para acceder a badges del usuario visitado
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
@@ -502,6 +522,10 @@ struct UserModernProfileHeader: View {
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
     @Binding var showingUserList: UserProfileView.UserListType?
+    @Binding var showingMessageRequestAlert: Bool
+    @Binding var messageRequestText: String
+    @Binding var messageRequestError: String?
+    @Binding var showingSuccessMessage: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void // ✅ NUEVO: Para el botón de atrás
     @Environment(\.colorScheme) var colorScheme
@@ -587,8 +611,12 @@ struct UserModernProfileHeader: View {
                 UserExpandableBioView(bio: viewModel.userProfile?.bio ?? "Sin biografía")
             }
             
-            // Conexiones mutuas adaptativas
-            if viewModel.canViewConnections && !viewModel.mutualConnections.isEmpty {
+            // Conexiones mutuas adaptativas - Solo mostrar si se pueden ver las mutuas Y hay datos
+            if viewModel.canViewConnections && 
+               viewModel.visibleConnectionTypes.canViewMutualConnections && 
+               viewModel.visibleConnectionTypes.canViewConnections && 
+               viewModel.visibleConnectionTypes.canViewAdmirers && 
+               !viewModel.mutualConnections.isEmpty {
                 Button(action: { showingUserList = .mutualConnections }) {
                     HStack(spacing: 8) {
                         Image(systemName: "person.2.fill")
@@ -648,10 +676,20 @@ struct UserModernProfileHeader: View {
                 Button(action: {
                     guard let currentUserId = Auth.auth().currentUser?.uid,
                           let targetUser = viewModel.userProfile else { return }
+                    
+                    // ✅ Intentar crear conversación directa primero
                     messagingViewModel.startConversation(with: targetUser, from: currentUserId) {
                         if let conversation = messagingViewModel.selectedConversation {
+                            // ✅ Conversación creada exitosamente
                             targetConversation = conversation
                             navigateToChat = true
+                        } else {
+                            // ❌ Verificar si es error de seguimiento mutuo
+                            let errorMessage = messagingViewModel.errorMessage ?? ""
+                            if errorMessage.contains("no siguen mutuamente") || errorMessage.contains("Se requiere una solicitud") {
+                                // 📤 Mostrar alerta para crear MessageRequest
+                                showingMessageRequestAlert = true
+                            }
                         }
                     }
                 }) {
@@ -690,6 +728,30 @@ struct UserModernProfileHeader: View {
             }
         }
         .padding(.horizontal, 28)
+        .sheet(isPresented: $showingMessageRequestAlert) {
+            MessageRequestModalView(
+                messageText: $messageRequestText,
+                errorMessage: $messageRequestError,
+                showingSuccessMessage: $showingSuccessMessage,
+                onSend: sendMessageRequest,
+                onDismiss: {
+                    showingMessageRequestAlert = false
+                    messageRequestText = ""
+                    messageRequestError = nil
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(false)
+            .presentationBackground(.clear)
+        }
+        .alert(NSLocalizedString("messageRequestModal.success.title", comment: "Success title"), isPresented: $showingSuccessMessage) {
+            Button("OK") {
+                showingSuccessMessage = false
+            }
+        } message: {
+            Text(NSLocalizedString("messageRequestModal.success.message", comment: "Success message"))
+        }
     }
 
     private var followButtonText: String {
@@ -710,7 +772,225 @@ struct UserModernProfileHeader: View {
         case .ownProfile, .blocked: return Color.gray.opacity(0.4)
         }
     }
+    
+    // ✅ NUEVA: Función para enviar solicitud de mensaje
+    private func sendMessageRequest() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let targetUser = viewModel.userProfile else { return }
+        
+        let message = messageRequestText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty else {
+            messageRequestError = NSLocalizedString("messageRequestModal.error.empty", comment: "Empty message error")
+            return
+        }
+        
+        print("📤 Enviando solicitud de mensaje a \(targetUser.username)...")
+        
+        messageRequestService.sendMessageRequest(
+            to: targetUser.id,
+            message: message
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ Solicitud de mensaje enviada exitosamente")
+                    showingMessageRequestAlert = false
+                    messageRequestText = ""
+                    messageRequestError = nil
+                    showingSuccessMessage = true
+                case .failure(let error):
+                    print("❌ Error enviando solicitud: \(error)")
+                    messageRequestError = String(format: NSLocalizedString("messageRequestModal.error.generic", comment: "Generic error"), error.localizedDescription)
+                }
+            }
+        }
+    }
 }
+
+// ✅ NUEVO: Modal elegante para solicitud de mensaje (mismo estilo que MessageRequestsView)
+struct MessageRequestModalView: View {
+    @Binding var messageText: String
+    @Binding var errorMessage: String?
+    @Binding var showingSuccessMessage: Bool
+    let onSend: () -> Void
+    let onDismiss: () -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
+    @FocusState private var isTextFieldFocused: Bool
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            headerView
+            
+            // Content
+            contentView
+            
+            Spacer()
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                                                        .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.3),
+                                            Color.white.opacity(0.1)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                )
+        )
+        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isTextFieldFocused = true
+            }
+        }
+    }
+    
+    // MARK: - Header View
+    private var headerView: some View {
+        VStack(spacing: 0) {
+            Text(NSLocalizedString("messageRequestModal.title", comment: "Modal title"))
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundColor(adaptiveColors.primary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+        }
+    }
+    
+    // MARK: - Content View
+    private var contentView: some View {
+        VStack(spacing: 24) {
+                            // Icono principal
+                VStack(spacing: 16) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 48, weight: .medium))
+                        .foregroundColor(.blue)
+                
+                VStack(spacing: 8) {
+                    Text(NSLocalizedString("messageRequestModal.description", comment: "Modal description"))
+                        .font(.body)
+                        .foregroundColor(adaptiveColors.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+            }
+            
+            // Campo de texto
+            VStack(spacing: 12) {
+                TextField(NSLocalizedString("messageRequestModal.placeholder", comment: "Message placeholder"), text: $messageText, axis: .vertical)
+                    .font(.body)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(adaptiveColors.cardBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: adaptiveColors.overlayStroke,
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                    )
+                    .focused($isTextFieldFocused)
+                    .lineLimit(3...6)
+                
+                if let error = errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 16)
+                }
+            }
+            
+            // Botones de acción
+            VStack(spacing: 12) {
+                Button(action: onSend) {
+                    HStack {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 16, weight: .medium))
+                        
+                        Text(NSLocalizedString("messageRequestModal.sendButton", comment: "Send button"))
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [.blue, .blue.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                    )
+                    .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                }
+                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.6 : 1.0)
+                
+                Button(action: { dismiss() }) {
+                    Text(NSLocalizedString("messageRequestModal.cancelButton", comment: "Cancel button"))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(adaptiveColors.cardBackground)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: adaptiveColors.overlayStroke,
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                        )
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
 //SISTEMA DE BADGES //
 struct UserModernAvatarWithBadges: View {
     let userProfile: AppUser?
@@ -1146,6 +1426,7 @@ struct UserExpandableBioView: View {
 // MARK: - ✅ Avatar actualizado
 struct UserModernAvatar: View {
     let profileImagePath: String?
+    let userId: String // ✅ NUEVO: Agregar userId como parámetro
     @ObservedObject var storyViewModel: StoryViewModel
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
@@ -1153,8 +1434,8 @@ struct UserModernAvatar: View {
     let size: CGFloat
     
     private var hasStory: Bool {
-        guard let profileImagePath = profileImagePath else { return false }
-        return !(storyViewModel.stories[profileImagePath]?.isEmpty ?? true)
+        // ✅ CORREGIDO: Usar userId en lugar de profileImagePath
+        return !(storyViewModel.stories[userId]?.isEmpty ?? true)
     }
 
     var body: some View {
@@ -1253,7 +1534,7 @@ struct UserModernInterestsView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(
-                            isShared ? 
+                            isShared ?
                             LinearGradient(
                                 colors: [Color.blue, Color.purple, Color.pink],
                                 startPoint: .topLeading,
@@ -1782,6 +2063,7 @@ struct UserModernPrivateProfileView: View {
             VStack(spacing: 20) {
                 UserModernAvatar(
                     profileImagePath: userProfile?.profileImagePath,
+                    userId: self.userId, // ✅ NUEVO: Pasar userId
                     storyViewModel: storyViewModel,
                     showStoryViewer: $showStoryViewer,
                     selectedStoryIndex: $selectedStoryIndex,
@@ -2231,7 +2513,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 guard let self = self else { return }
                 self.canViewContent = canView
                 if canView {
-                    self.loadProfileContent()
+                    self.fetchConnectionsDirect()
                     self.checkConnectionsVisibility(currentUserId: currentUserId)
                 } else {
                     self.isLoading = false
@@ -2242,6 +2524,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     
     // ✅ FUNCIÓN CLAVE: Verificar visibilidad de conexiones con configuraciones de privacidad
     private func checkConnectionsVisibility(currentUserId: String) {
+        print("🔍 DEBUG: checkConnectionsVisibility iniciado para userId: \(userId), viewerId: \(currentUserId)")
         privacyService.getVisibleConnectionTypes(viewerId: currentUserId, targetUserId: userId) { [weak self] visibleTypes in
             DispatchQueue.main.async {
                 self?.visibleConnectionTypes = visibleTypes
@@ -2255,142 +2538,84 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
-    private func loadProfileContent() {
-        firestoreService.fetchConnections(userId: userId) { [weak self] result in
-            guard let self = self else { return }
-            switch result {
-            case .success(let followingConnections):
-                let followingIds = followingConnections.map { $0.userId }
-                
-                self.firestoreService.fetchAdmirers(userId: userId) { [weak self] result in
-                    guard let self = self else { return }
-                    switch result {
-                    case .success(let followerConnections):
-                        let followerIds = followerConnections.map { $0.userId }
-                        let mutualIds = Set(followingIds).intersection(followerIds)
-                        let connectionIds = Set(followingIds).subtracting(mutualIds)
-                        let admirerIds = Set(followerIds).subtracting(mutualIds)
-                        
-                        // ✅ SOLO cargar datos si tengo permisos específicos
-                        let loadGroup = DispatchGroup()
-                        
-                        if self.visibleConnectionTypes.canViewMutualConnections {
-                            loadGroup.enter()
-                            self.fetchUsersInBatches(userIds: Array(mutualIds)) { [weak self] users in
-                                DispatchQueue.main.async {
-                                    self?.mutualConnections = users
-                                    print("✅ Mutual connections cargadas: \(users.count)")
-                                }
-                                loadGroup.leave()
-                            }
-                        } else {
-                            DispatchQueue.main.async {
-                                self.mutualConnections = []
-                                print("🚫 Mutual connections ocultas por privacidad")
-                            }
-                        }
-                        
-                        if self.visibleConnectionTypes.canViewConnections {
-                            loadGroup.enter()
-                            self.fetchUsersInBatches(userIds: Array(connectionIds)) { [weak self] users in
-                                DispatchQueue.main.async {
-                                    self?.connections = users
-                                    print("✅ Connections cargadas: \(users.count)")
-                                }
-                                loadGroup.leave()
-                            }
-                        } else {
-                            DispatchQueue.main.async {
-                                self.connections = []
-                                print("🚫 Connections ocultas por privacidad")
-                            }
-                        }
-                        
-                        if self.visibleConnectionTypes.canViewAdmirers {
-                            loadGroup.enter()
-                            self.fetchUsersInBatches(userIds: Array(admirerIds)) { [weak self] users in
-                                DispatchQueue.main.async {
-                                    self?.admirers = users
-                                    print("✅ Admirers cargados: \(users.count)")
-                                }
-                                loadGroup.leave()
-                            }
-                        } else {
-                            DispatchQueue.main.async {
-                                self.admirers = []
-                                print("🚫 Admirers ocultos por privacidad")
-                            }
-                        }
-                        
-                        loadGroup.notify(queue: .main) {
-                            self.fetchMoments()
-                            self.isLoading = false
-                        }
-                        
-                    case .failure(let error):
-                        print("Error al obtener admiradores: \(error.localizedDescription)")
-                        DispatchQueue.main.async { self.isLoading = false }
-                    }
-                }
-            case .failure(let error):
-                print("Error al obtener conexiones: \(error.localizedDescription)")
-                DispatchQueue.main.async { self.isLoading = false }
-            }
-        }
-    }
+
     
     // ✅ FUNCIÓN MEJORADA: Fetch conexiones directo con filtrado de privacidad
     private func fetchConnectionsDirect() {
         print("🔄 Fetching connections for user: \(userId)")
         
-        firestoreService.db.collection("users").document(userId).collection("following")
-            .getDocuments { [weak self] followingSnapshot, error in
-                guard let self = self else { return }
-                
-                if let error = error {
-                    print("❌ Error fetching following: \(error.localizedDescription)")
-                    return
-                }
-                
-                let followingIds = followingSnapshot?.documents.compactMap { doc in
-                    doc.data()["userId"] as? String
-                } ?? []
-                
-                // Filtrar unfollows recientes
-                let filteredFollowingIds = followingIds.filter { userId in
-                    if let unfollowTime = self.lastUnfollowTime[userId] {
-                        let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
-                        if timeSinceUnfollow < 5.0 {
-                            print("🚫 Filtering out recent unfollow: \(userId)")
-                            return false
-                        } else {
-                            self.lastUnfollowTime.removeValue(forKey: userId)
-                            self.recentUnfollows.remove(userId)
-                        }
+        // ✅ SOLO consultar following si tengo permisos
+        if visibleConnectionTypes.canViewConnections {
+            firestoreService.db.collection("users").document(userId).collection("following")
+                .getDocuments { [weak self] followingSnapshot, error in
+                    guard let self = self else { return }
+                    
+                    if let error = error {
+                        print("❌ Error fetching following: \(error.localizedDescription)")
+                        return
                     }
-                    return true
-                }
-                
-                self.firestoreService.db.collection("users").document(self.userId).collection("followers")
-                    .getDocuments { [weak self] followersSnapshot, error in
-                        guard let self = self else { return }
-                        
-                        if let error = error {
-                            print("❌ Error fetching followers: \(error.localizedDescription)")
-                            return
+                    
+                    let followingIds = followingSnapshot?.documents.compactMap { doc in
+                        doc.data()["userId"] as? String
+                    } ?? []
+                    
+                    print("🔍 DEBUG: Following IDs encontrados: \(followingIds.count)")
+                    
+                    // Filtrar unfollows recientes
+                    let filteredFollowingIds = followingIds.filter { userId in
+                        if let unfollowTime = self.lastUnfollowTime[userId] {
+                            let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
+                            if timeSinceUnfollow < 5.0 {
+                                print("🚫 Filtering out recent unfollow: \(userId)")
+                                return false
+                            } else {
+                                self.lastUnfollowTime.removeValue(forKey: userId)
+                                self.recentUnfollows.remove(userId)
+                            }
                         }
-                        
-                        let followerIds = followersSnapshot?.documents.compactMap { doc in
-                            doc.data()["userId"] as? String
-                        } ?? []
-                        
-                        // Categorizar conexiones respetando privacidad
-                        self.categorizeConnectionsWithPrivacy(
-                            followingIds: filteredFollowingIds,
-                            followerIds: followerIds
-                        )
+                        return true
                     }
+                
+                // ✅ SOLO consultar followers si tengo permisos
+                if self.visibleConnectionTypes.canViewAdmirers {
+                    self.firestoreService.db.collection("users").document(self.userId).collection("followers")
+                        .getDocuments { [weak self] followersSnapshot, error in
+                            guard let self = self else { return }
+                            
+                            if let error = error {
+                                print("❌ Error fetching followers: \(error.localizedDescription)")
+                                return
+                            }
+                            
+                            let followerIds = followersSnapshot?.documents.compactMap { doc in
+                                doc.data()["userId"] as? String
+                            } ?? []
+                            
+                            print("🔍 DEBUG: Follower IDs encontrados: \(followerIds.count)")
+                            
+                            // Categorizar conexiones respetando privacidad
+                            self.categorizeConnectionsWithPrivacy(
+                                followingIds: filteredFollowingIds,
+                                followerIds: followerIds
+                            )
+                        }
+                } else {
+                    print("🚫 Skipping followers fetch - canViewAdmirers = false")
+                    // Categorizar conexiones sin followers
+                    self.categorizeConnectionsWithPrivacy(
+                        followingIds: filteredFollowingIds,
+                        followerIds: []
+                    )
+                }
             }
+        } else {
+            print("🚫 Skipping following fetch - canViewConnections = false")
+            // Categorizar conexiones sin following
+            self.categorizeConnectionsWithPrivacy(
+                followingIds: [],
+                followerIds: []
+            )
+        }
     }
     
     // ✅ NUEVA FUNCIÓN: Categorizar conexiones respetando configuraciones de privacidad
@@ -2456,6 +2681,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 self.admirers = []
                 print("🚫 Admirers hidden by privacy settings")
             }
+        }
+        
+        // ✅ Cargar momentos cuando terminen todas las conexiones
+        fetchGroup.notify(queue: .main) {
+            self.fetchMoments()
+            self.isLoading = false
         }
     }
     
