@@ -32,6 +32,19 @@
 "profile.stats.connections" = "Connexions";
 "profile.stats.mutuals" = "Mútues";
 
+/* UserListView */
+"userListView.search.placeholder" = "Cercar usuaris...";
+"userListView.empty.title" = "No hi ha %@";
+"userListView.empty.description" = "Quan tenguis %@, apareixeran aquí";
+"userListView.noResults.title" = "No s'han trobat resultats";
+"userListView.noResults.description" = "Intenta amb altres termes de cerca";
+"userListView.closeButton" = "Tancar";
+"userListView.frequentVisits" = "Visites freqüents";
+"userListView.followButton" = "Seguir";
+"userListView.unfollowButton" = "Deixar";
+"userListView.person.singular" = "persona";
+"userListView.person.plural" = "persones";
+
 /* SettingsView */
 "settings.title" = "Configuració";
 "settings.loading" = "Carregant configuració...";
@@ -276,7 +289,9 @@
 "settings.privacy.hideMutual.description" = "Només tu podràs veure qui són els teus amics en comú";
 "settings.privacy.hideFollowing" = "Amagar la meva llista de seguits";
 "settings.privacy.hideFollowing.description" = "Només tu podràs veure a qui segueixes";
-"settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Sempre podràs canviar aquestes configuracions.";
+"settings.privacy.hideAdmirers" = "Amagar els meus admiradors";
+"settings.privacy.hideAdmirers.description" = "Només tu podràs veure qui et segueix";
+"settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Nota: Amagar 'seguits' o 'admiradors' també amagarà 'connexions mútues' ja que no es poden calcular sense ambdues llistes. Sempre podràs canviar aquestes configuracions.";
 "settings.logout" = "Tancar sessió";
 "settings.logout.confirm" = "Estàs segur que vols tancar sessió?";
 "settings.profile.username" = "Nom d'usuari";
@@ -311,8 +326,8 @@
 "creator.interactions.title" = "Interaccions";
 "creator.interactions.disableComments" = "Desactivar comentaris";
 "creator.interactions.disableComments.description" = "Ningú podrà comentar en aquest moment";
-"creator.interactions.allowSharing" = "Permetre compartir";
-"creator.interactions.allowSharing.description" = "Altres poden compartir el teu moment";
+"creator.interactions.allowSharing" = "Permetre desar";
+"creator.interactions.allowSharing.description" = "Altres poden desar el teu moment";
 "creator.visualization.title" = "Visualització";
 "creator.visualization.hideReactions" = "Amagar comptador de reaccions";
 "creator.visualization.hideReactions.description" = "El botó de reaccions seguirà visible, però sense mostrar el número";
@@ -407,6 +422,19 @@
 "messageRequests.sent" = "Enviat %@";
 "messageRequests.message" = "Missatge:";
 "messageRequests.video" = "Vídeo";
+
+/* Message Request Modal */
+"messageRequestModal.title" = "Enviar sol·licitud de missatge";
+"messageRequestModal.description" = "Aquest usuari no et segueix. Envia una sol·licitud de missatge que podrà acceptar o rebutjar.";
+"messageRequestModal.placeholder" = "Escriu el teu missatge...";
+"messageRequestModal.sendButton" = "Enviar sol·licitud";
+"messageRequestModal.sendButton.subtitle" = "El teu missatge serà enviat a l'usuari";
+"messageRequestModal.cancelButton" = "Cancel·lar";
+"messageRequestModal.cancelButton.subtitle" = "Tancar sense enviar";
+"messageRequestModal.error.empty" = "El missatge no pot estar buit";
+"messageRequestModal.error.generic" = "Error en enviar sol·licitud: %@";
+"messageRequestModal.success.title" = "Sol·licitud enviada";
+"messageRequestModal.success.message" = "La teva sol·licitud de missatge ha estat enviada. L'usuari rebrà una notificació i podrà acceptar-la o rebutjar-la.";
 
 /* Profile Editor */
 "profileEditor.library" = "Biblioteca";

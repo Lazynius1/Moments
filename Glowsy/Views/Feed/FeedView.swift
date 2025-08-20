@@ -1365,15 +1365,11 @@ struct FeedView: View {
                     completion(false, false)
                     return
                 }
-                
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
 
                     completion(false, false) // No tiene historias
                     return
                 }
-                
-
-
                 let stories = documents.compactMap { doc -> Story? in
                     do {
                         let story = try doc.data(as: Story.self)

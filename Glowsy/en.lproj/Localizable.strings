@@ -32,6 +32,19 @@
 "profile.stats.connections" = "Connections";
 "profile.stats.mutuals" = "Mutuals";
 
+/* UserListView */
+"userListView.search.placeholder" = "Search users...";
+"userListView.empty.title" = "No %@";
+"userListView.empty.description" = "When you have %@, they will appear here";
+"userListView.noResults.title" = "No results found";
+"userListView.noResults.description" = "Try different search terms";
+"userListView.closeButton" = "Close";
+"userListView.frequentVisits" = "Frequent visits";
+"userListView.followButton" = "Follow";
+"userListView.unfollowButton" = "Unfollow";
+"userListView.person.singular" = "person";
+"userListView.person.plural" = "people";
+
 /* SettingsView */
 "settings.title" = "Settings";
 "settings.loading" = "Loading settings...";
@@ -276,7 +289,9 @@
 "settings.privacy.hideMutual.description" = "Only you can see who your mutual friends are";
 "settings.privacy.hideFollowing" = "Hide my following list";
 "settings.privacy.hideFollowing.description" = "Only you can see who you follow";
-"settings.privacy.control.description" = "When you activate these options, other users won't be able to see these lists on your profile. You can always change these settings.";
+"settings.privacy.hideAdmirers" = "Hide my admirers";
+"settings.privacy.hideAdmirers.description" = "Only you can see who follows you";
+"settings.privacy.control.description" = "When you activate these options, other users won't be able to see these lists on your profile. Note: Hiding 'following' or 'admirers' will also hide 'mutual connections' since they cannot be calculated without both lists. You can always change these settings.";
 "settings.logout" = "Log out";
 "settings.logout.confirm" = "Are you sure you want to log out?";
 "settings.profile.username" = "Username";
@@ -311,8 +326,8 @@
 "creator.interactions.title" = "Interactions";
 "creator.interactions.disableComments" = "Disable comments";
 "creator.interactions.disableComments.description" = "No one will be able to comment on this moment";
-"creator.interactions.allowSharing" = "Allow sharing";
-"creator.interactions.allowSharing.description" = "Others can share your moment";
+"creator.interactions.allowSharing" = "Allow saving";
+"creator.interactions.allowSharing.description" = "Others can save your moment";
 "creator.visualization.title" = "Visualization";
 "creator.visualization.hideReactions" = "Hide reaction count";
 "creator.visualization.hideReactions.description" = "The reaction button will remain visible, but without showing the number";
@@ -407,6 +422,19 @@
 "messageRequests.sent" = "Sent %@";
 "messageRequests.message" = "Message:";
 "messageRequests.video" = "Video";
+
+/* Message Request Modal */
+"messageRequestModal.title" = "Send message request";
+"messageRequestModal.description" = "This user doesn't follow you. Send a message request that they can accept or reject.";
+"messageRequestModal.placeholder" = "Write your message...";
+"messageRequestModal.sendButton" = "Send request";
+"messageRequestModal.sendButton.subtitle" = "Your message will be sent to the user";
+"messageRequestModal.cancelButton" = "Cancel";
+"messageRequestModal.cancelButton.subtitle" = "Close without sending";
+"messageRequestModal.error.empty" = "Message cannot be empty";
+"messageRequestModal.error.generic" = "Error sending request: %@";
+"messageRequestModal.success.title" = "Request sent";
+"messageRequestModal.success.message" = "Your message request has been sent. The user will receive a notification and can accept or reject it.";
 
 /* Profile Editor */
 "profileEditor.library" = "Library";

@@ -295,6 +295,11 @@ struct StoriesView: View {
             if let specificUserId = self.startWithUserId, !specificUserId.isEmpty {
                 self.userIds = stories.keys.contains(specificUserId) ? [specificUserId] : []
                 self.currentUserIndex = 0
+                
+                // ✅ CORREGIDO: Si es otro usuario, empezar en la última historia no vista (más reciente)
+                if let userStories = stories[specificUserId] {
+                    self.currentStoryIndex = self.getLastUnseenStoryIndex(for: userStories)
+                }
             } else {
                 let newUserIds = stories.keys.sorted()
                 self.userIds = newUserIds
@@ -308,7 +313,11 @@ struct StoriesView: View {
                 }
             }
             
-            self.currentStoryIndex = 0
+            // ✅ CORREGIDO: Solo resetear currentStoryIndex si NO es usuario específico
+            if self.startWithUserId == nil || self.startWithUserId?.isEmpty == true {
+                self.currentStoryIndex = 0
+            }
+            
             self.isLoading = false
             
             // Reset contadores al cargar nuevas historias
@@ -365,6 +374,28 @@ struct StoriesView: View {
                 currentStoryIndex = 0
             }
         }
+    }
+    
+    // ✅ CORREGIDO: Obtener índice de la última historia no vista (más reciente)
+    private func getLastUnseenStoryIndex(for stories: [Story]) -> Int {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return 0 }
+        
+        // Buscar desde el final (más reciente) hacia el principio
+        for index in stride(from: stories.count - 1, through: 0, by: -1) {
+            let story = stories[index]
+            if let storyId = story.id {
+                let wasViewed = storyViewModel.storyViewers[storyId]?.contains { viewer in
+                    viewer.userId == currentUserId
+                } ?? false
+                
+                if !wasViewed {
+                    return index
+                }
+            }
+        }
+        
+        // Si todas están vistas, empezar desde el principio
+        return 0
     }
 }
 

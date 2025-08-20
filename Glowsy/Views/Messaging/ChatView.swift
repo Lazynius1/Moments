@@ -33,6 +33,9 @@ struct GlassmorphicChatView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     
+    // ✅ NUEVO: Instancia de PrivacyService para verificar historias
+    private let privacyService = PrivacyService()
+    
     // ✅ NUEVO: Estados para navegación al perfil
     @State private var showingUserProfile = false
     @State private var navigateToProfile = false
@@ -41,6 +44,13 @@ struct GlassmorphicChatView: View {
     @State private var showingMomentDetail = false
     @State private var selectedMoment: Moment?
     @State private var showingMomentError = false
+    
+    // ✅ NUEVO: Estado para mostrar historias
+    @State private var showingStories = false
+    
+    // ✅ NUEVO: Estado para el userId de las historias
+    @State private var storiesUserId: String = ""
+    
     // ✅ HISTORIAS: Estados para anillo de historias
     @State private var hasStory: Bool = false
     @State private var hasUnseenStory: Bool = false
@@ -63,100 +73,13 @@ struct GlassmorphicChatView: View {
                 glassmorphicNavigationBar
                 
                 // Messages List
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(viewModel.groupedMessages, id: \.0) { date, messages in
-                                GlassmorphicDateHeader(date: date)
-                                    .padding(.vertical, 10)
-                                
-                                ForEach(messages) { message in
-                                    GlassmorphicMessageRow(
-                                        message: message,
-                                        isCurrentUser: message.senderId == viewModel.currentUserId,
-                                        showAvatar: shouldShowAvatar(for: message, in: messages),
-                                        otherUserAvatar: viewModel.conversation.otherParticipantProfileImagePath,
-                                        onReply: { replyingTo = message },
-                                        onReaction: { emoji in
-                                            viewModel.addReaction(to: message, emoji: emoji)
-                                        },
-                                        onAvatarTap: {
-                                            showingUserProfile = true
-                                        },
-                                        // ✅ NUEVO: Callback para cuando un mensaje es visto
-                                        onMessageViewed: { messageId in
-                                            // Actualizar el mensaje localmente
-                                            if let index = viewModel.messages.firstIndex(where: { $0.id == messageId }) {
-                                                viewModel.messages[index].isViewed = true
-                                            }
-                                        },
-                                        // ✅ NUEVO: Callback para navegación al momento
-                                        onMomentNavigation: { message in
-                                            handleMomentNavigationFromChat(message: message)
-                                        }
-                                    )
-                                    .id(message.id)
-                                    .onLongPressGesture {
-                                        showingMessageOptions = message
-                                    }
-                                }
-                            }
-                            
-                            if !viewModel.typingUsers.isEmpty {
-                                GlassmorphicTypingIndicator()
-                                    .padding(.horizontal)
-                                    .id("typing")
-                            }
-                        }
-                        .padding(.vertical, 10)
-                    }
-                    .onReceive(viewModel.$messages) { _ in
-                        withAnimation {
-                            proxy.scrollTo(viewModel.messages.last?.id ?? "typing", anchor: .bottom)
-                        }
-                    }
-                }
+                messagesListSection
                 
                 // Reply Bar
-                if let replyingTo = replyingTo {
-                    GlassmorphicReplyBar(message: replyingTo) {
-                        self.replyingTo = nil
-                    }
-                }
+                replyBarSection
                 
                 // Input Bar
-                GlassmorphicInputBar(
-                    text: $messageText,
-                    isTyping: $viewModel.isTyping,
-                    isRecordingVoice: $isRecordingVoice,
-                    recordingTime: recordingTime,
-                    onSend: {
-                        let messageToSend = messageText
-                        let replyToMessageId = replyingTo?.id
-                        
-                        guard !messageToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                            return
-                        }
-                        
-                        messageText = ""
-                        replyingTo = nil
-                        
-                        viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
-                    },
-                    onCamera: {
-                        showEnhancedCamera = true
-                    },
-                    onMedia: {
-                        showMediaPicker = true
-                    },
-                    onStartVoiceRecording: {
-                        startVoiceRecording()
-                    },
-                    onStopVoiceRecording: {
-                        stopVoiceRecording()
-                    }
-                )
-                .focused($isTextFieldFocused)
+                inputBarSection
             }
         }
         .navigationBarHidden(true)
@@ -196,6 +119,10 @@ struct GlassmorphicChatView: View {
         .sheet(isPresented: $showingConversationSettings) {
             ConversationSettingsView(conversation: viewModel.conversation)
         }
+        // ✅ NUEVO: Sheet para mostrar historias del usuario
+        .sheet(isPresented: $showingStories) {
+            StoriesView(startWithUserId: .constant(storiesUserId))
+        }
         // ✅ NUEVO: Sheet para navegación al detalle del momento
         .sheet(isPresented: $showingMomentDetail) {
             if let moment = selectedMoment {
@@ -206,7 +133,7 @@ struct GlassmorphicChatView: View {
         .alert("Error", isPresented: $showingMomentError) {
             Button("OK") { }
         } message: {
-                            Text("chat.moment.loadError")
+            Text("chat.moment.loadError")
         }
         // ✅ NUEVO: Navegación al perfil del usuario
         .background(
@@ -217,32 +144,10 @@ struct GlassmorphicChatView: View {
             ) { EmptyView() }
         )
         .onAppear {
-            if let conversationId = viewModel.conversation.id {
-                Task {
-                    await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
-                }
-            }
-            AnalyticsService.shared.trackScreenView("ChatView")
-            AnalyticsService.shared.trackFeatureUsage("chat")
-            AnalyticsService.shared.trackInteraction("chat_opened", details: [
-                "conversationId": viewModel.conversation.id,
-                "otherUserId": viewModel.conversation.otherParticipantId ?? "unknown"
-            ])
-            viewModel.startListening()
-            setupOnlineStatusObserver()
+            onAppearActions()
         }
         .onDisappear {
-            print("🔍 ChatView disappeared!")
-            print("🔍 Conversation ID: \(viewModel.conversation.id ?? "nil")")
-            print("🔍 Messages sent this session: \(viewModel.messagesSentThisSession)")
-            print("🔍 Current messages count: \(viewModel.messages.count)")
-            
-            AnalyticsService.shared.trackInteraction("chat_closed", details: [
-                "conversationId": viewModel.conversation.id,
-                "messagesSent": viewModel.messagesSentThisSession
-            ])
-            viewModel.stopListening()
-            statusListener?.remove()
+            onDisappearActions()
         }
     }
     
@@ -260,10 +165,18 @@ struct GlassmorphicChatView: View {
             }
             
             // ✅ ACTUALIZADO: User info con navegación al perfil
-            Button(action: {
-                showingUserProfile = true
-            }) {
-                HStack(spacing: 10) {
+            HStack(spacing: 10) {
+                // ✅ SEPARADO: Botón solo para la foto (historias o perfil)
+                Button(action: {
+                    if hasStory {
+                        // ✅ SI TIENE HISTORIAS: Establecer userId y abrir StoriesView
+                        storiesUserId = viewModel.conversation.otherParticipantId
+                        showingStories = true
+                    } else {
+                        // ✅ SI NO TIENE HISTORIAS: Ir al perfil
+                        showingUserProfile = true
+                    }
+                }) {
                     if let profileImagePath = viewModel.conversation.otherParticipantProfileImagePath,
                        let url = URL(string: profileImagePath) {
                         KFImage(url)
@@ -285,7 +198,13 @@ struct GlassmorphicChatView: View {
                                     .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 0)
                             )
                     }
-                    
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // ✅ SEPARADO: Botón solo para el nombre (siempre al perfil)
+                Button(action: {
+                    showingUserProfile = true
+                }) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
                             Text(viewModel.conversation.otherParticipantUsername ?? "Usuario")
@@ -319,8 +238,8 @@ struct GlassmorphicChatView: View {
                         }
                     }
                 }
+                .buttonStyle(PlainButtonStyle())
             }
-            .buttonStyle(PlainButtonStyle())
             
             Spacer()
             
@@ -346,6 +265,142 @@ struct GlassmorphicChatView: View {
         .onAppear {
             checkUserStories()
         }
+    }
+    
+    // ✅ REFACTORIZADO: Sección de lista de mensajes
+    private var messagesListSection: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(viewModel.groupedMessages, id: \.0) { date, messages in
+                        GlassmorphicDateHeader(date: date)
+                            .padding(.vertical, 10)
+                        
+                        ForEach(messages) { message in
+                            GlassmorphicMessageRow(
+                                message: message,
+                                isCurrentUser: message.senderId == viewModel.currentUserId,
+                                showAvatar: shouldShowAvatar(for: message, in: messages),
+                                otherUserAvatar: viewModel.conversation.otherParticipantProfileImagePath,
+                                onReply: { replyingTo = message },
+                                onReaction: { emoji in
+                                    viewModel.addReaction(to: message, emoji: emoji)
+                                },
+                                onAvatarTap: {
+                                    showingUserProfile = true
+                                },
+                                // ✅ NUEVO: Callback para cuando un mensaje es visto
+                                onMessageViewed: { messageId in
+                                    // Actualizar el mensaje localmente
+                                    if let index = viewModel.messages.firstIndex(where: { $0.id == messageId }) {
+                                        viewModel.messages[index].isViewed = true
+                                    }
+                                },
+                                // ✅ NUEVO: Callback para navegación al momento
+                                onMomentNavigation: { message in
+                                    handleMomentNavigationFromChat(message: message)
+                                }
+                            )
+                            .id(message.id)
+                            .onLongPressGesture {
+                                showingMessageOptions = message
+                            }
+                        }
+                    }
+                    
+                    if !viewModel.typingUsers.isEmpty {
+                        GlassmorphicTypingIndicator()
+                            .padding(.horizontal)
+                            .id("typing")
+                    }
+                }
+                .padding(.vertical, 10)
+            }
+            .onReceive(viewModel.$messages) { _ in
+                withAnimation {
+                    proxy.scrollTo(viewModel.messages.last?.id ?? "typing", anchor: .bottom)
+                }
+            }
+        }
+    }
+    
+    // ✅ REFACTORIZADO: Sección de barra de respuesta
+    private var replyBarSection: some View {
+        Group {
+            if let replyingTo = replyingTo {
+                GlassmorphicReplyBar(message: replyingTo) {
+                    self.replyingTo = nil
+                }
+            }
+        }
+    }
+    
+    // ✅ REFACTORIZADO: Sección de barra de entrada
+    private var inputBarSection: some View {
+        GlassmorphicInputBar(
+            text: $messageText,
+            isTyping: $viewModel.isTyping,
+            isRecordingVoice: $isRecordingVoice,
+            recordingTime: recordingTime,
+            onSend: {
+                let messageToSend = messageText
+                let replyToMessageId = replyingTo?.id
+                
+                guard !messageToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    return
+                }
+                
+                messageText = ""
+                replyingTo = nil
+                
+                viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
+            },
+            onCamera: {
+                showEnhancedCamera = true
+            },
+            onMedia: {
+                showMediaPicker = true
+            },
+            onStartVoiceRecording: {
+                startVoiceRecording()
+            },
+            onStopVoiceRecording: {
+                stopVoiceRecording()
+            }
+        )
+        .focused($isTextFieldFocused)
+    }
+    
+    // ✅ REFACTORIZADO: Acciones al aparecer
+    private func onAppearActions() {
+        if let conversationId = viewModel.conversation.id {
+            Task {
+                await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
+            }
+        }
+        AnalyticsService.shared.trackScreenView("ChatView")
+        AnalyticsService.shared.trackFeatureUsage("chat")
+        AnalyticsService.shared.trackInteraction("chat_opened", details: [
+            "conversationId": viewModel.conversation.id,
+            "otherUserId": viewModel.conversation.otherParticipantId ?? "unknown"
+        ])
+        viewModel.startListening()
+        setupOnlineStatusObserver()
+    }
+    
+    // ✅ REFACTORIZADO: Acciones al desaparecer
+    private func onDisappearActions() {
+        print("🔍 ChatView disappeared!")
+        print("🔍 Conversation ID: \(viewModel.conversation.id ?? "nil")")
+        print("🔍 Messages sent this session: \(viewModel.messagesSentThisSession)")
+        print("🔍 Current messages count: \(viewModel.messages.count)")
+        
+        AnalyticsService.shared.trackInteraction("chat_closed", details: [
+            "conversationId": viewModel.conversation.id,
+            "messagesSent": viewModel.messagesSentThisSession
+        ])
+        viewModel.stopListening()
+        statusListener?.remove()
     }
     
     // ✅ NUEVO: Gradiente para anillo de historias
@@ -376,19 +431,21 @@ struct GlassmorphicChatView: View {
         }
     }
     
-    // ✅ NUEVO: Función para verificar historias del usuario
+    // ✅ ACTUALIZADO: Función para verificar historias del usuario (con filtrado de privacidad como en reels)
     private func checkUserStories() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         let otherUserId = viewModel.conversation.otherParticipantId ?? ""
         guard !otherUserId.isEmpty else { return }
         
+        // ✅ USAR LA MISMA LÓGICA DE REELS: Verificar historias con filtrado de privacidad
         Firestore.firestore().collection("users").document(otherUserId).collection("stories")
             .whereField("expirationDate", isGreaterThan: Date())
+            .order(by: "timestamp", descending: false)
             .getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
                     DispatchQueue.main.async {
-                        hasStory = false
-                        hasUnseenStory = false
+                        self.hasStory = false
+                        self.hasUnseenStory = false
                     }
                     return
                 }
@@ -399,33 +456,56 @@ struct GlassmorphicChatView: View {
                 
                 guard !stories.isEmpty else {
                     DispatchQueue.main.async {
-                        hasStory = false
-                        hasUnseenStory = false
+                        self.hasStory = false
+                        self.hasUnseenStory = false
                     }
                     return
                 }
                 
-                // Verificar si alguna historia no ha sido vista
-                var hasUnseen = false
+                // ✅ FILTRADO DE PRIVACIDAD: Solo contar historias que se pueden ver
                 let group = DispatchGroup()
+                var visibleStories: [Story] = []
                 
                 for story in stories {
                     group.enter()
-                    Firestore.firestore().collection("users").document(story.authorId)
-                        .collection("stories").document(story.id ?? "")
-                        .collection("viewers").document(currentUserId)
-                        .getDocument { viewerDoc, _ in
-                            let wasViewed = viewerDoc?.exists == true
-                            if !wasViewed {
-                                hasUnseen = true
-                            }
-                            group.leave()
+                    // ✅ USAR PRIVACY SERVICE como en reels
+                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
+                        if canView {
+                            visibleStories.append(story)
                         }
+                        group.leave()
+                    }
                 }
                 
                 group.notify(queue: .main) {
-                    hasStory = true
-                    hasUnseenStory = hasUnseen
+                    if !visibleStories.isEmpty {
+                        self.hasStory = true
+                        
+                        // ✅ VERIFICAR SI HAY HISTORIAS NO VISTAS (solo de las visibles)
+                        var hasUnseenVisible = false
+                        let viewGroup = DispatchGroup()
+                        
+                        for story in visibleStories {
+                            viewGroup.enter()
+                            Firestore.firestore().collection("users").document(story.authorId)
+                                .collection("stories").document(story.id ?? "")
+                                .collection("viewers").document(currentUserId)
+                                .getDocument { viewerDoc, _ in
+                                    let wasViewed = viewerDoc?.exists == true
+                                    if !wasViewed {
+                                        hasUnseenVisible = true
+                                    }
+                                    viewGroup.leave()
+                                }
+                        }
+                        
+                        viewGroup.notify(queue: .main) {
+                            self.hasUnseenStory = hasUnseenVisible
+                        }
+                    } else {
+                        self.hasStory = false
+                        self.hasUnseenStory = false
+                    }
                 }
             }
     }

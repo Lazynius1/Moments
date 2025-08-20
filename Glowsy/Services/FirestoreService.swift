@@ -434,6 +434,7 @@ class FirestoreService: ObservableObject {
             isPrivate: false,
             showMutualConnections: true, // ✅ CAMPO OBLIGATORIO en tu modelo
             showFollowing: true,         // ✅ CAMPO OBLIGATORIO en tu modelo
+            showAdmirers: true,          // ✅ CAMPO OBLIGATORIO en tu modelo
             activeHoursStart: nil,
             activeHoursEnd: nil,
             notificationPreferences: [
@@ -493,6 +494,7 @@ class FirestoreService: ObservableObject {
             print("   - email: \(userData["email"] ?? "no encontrado")")
             print("   - showMutualConnections: \(userData["showMutualConnections"] ?? "no encontrado")")
             print("   - showFollowing: \(userData["showFollowing"] ?? "no encontrado")")
+            print("   - showAdmirers: \(userData["showAdmirers"] ?? "no encontrado")")
             
             let usernameData: [String: Any] = [
                 "userId": userId,

@@ -63,7 +63,7 @@ class PrivacyService {
         }
     }
     
-    func fetchPrivacySettings(userId: String, completion: @escaping (Result<(isPrivate: Bool, showMutualConnections: Bool, showFollowing: Bool), Error>) -> Void) {
+    func fetchPrivacySettings(userId: String, completion: @escaping (Result<(isPrivate: Bool, showMutualConnections: Bool, showFollowing: Bool, showAdmirers: Bool), Error>) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
                 print("Error fetching privacy settings: \(error.localizedDescription)")
@@ -80,12 +80,13 @@ class PrivacyService {
             let isPrivate = data["isPrivate"] as? Bool ?? false
             let showMutualConnections = data["showMutualConnections"] as? Bool ?? true
             let showFollowing = data["showFollowing"] as? Bool ?? true
+            let showAdmirers = data["showAdmirers"] as? Bool ?? true
 
-            completion(.success((isPrivate: isPrivate, showMutualConnections: showMutualConnections, showFollowing: showFollowing)))
+            completion(.success((isPrivate: isPrivate, showMutualConnections: showMutualConnections, showFollowing: showFollowing, showAdmirers: showAdmirers)))
         }
     }
 
-    func updatePrivacySettings(userId: String, isPrivate: Bool? = nil, showMutualConnections: Bool? = nil, showFollowing: Bool? = nil, completion: @escaping (Error?) -> Void) {
+    func updatePrivacySettings(userId: String, isPrivate: Bool? = nil, showMutualConnections: Bool? = nil, showFollowing: Bool? = nil, showAdmirers: Bool? = nil, completion: @escaping (Error?) -> Void) {
         var updateData: [String: Any] = [:]
 
         if let isPrivate = isPrivate {
@@ -96,6 +97,9 @@ class PrivacyService {
         }
         if let showFollowing = showFollowing {
             updateData["showFollowing"] = showFollowing
+        }
+        if let showAdmirers = showAdmirers {
+            updateData["showAdmirers"] = showAdmirers
         }
 
         guard !updateData.isEmpty else {
@@ -156,10 +160,10 @@ class PrivacyService {
     }
     
     // ✅ FUNCIÓN CORREGIDA: Ahora interpreta correctamente los toggles
-    func canViewUserConnections(viewerId: String, targetUserId: String, completion: @escaping (Result<(canViewMutualConnections: Bool, canViewFollowing: Bool), Error>) -> Void) {
+    func canViewUserConnections(viewerId: String, targetUserId: String, completion: @escaping (Result<(canViewMutualConnections: Bool, canViewFollowing: Bool, canViewAdmirers: Bool), Error>) -> Void) {
         // Si es el mismo usuario, siempre puede ver sus propias listas
         guard viewerId != targetUserId else {
-            completion(.success((canViewMutualConnections: true, canViewFollowing: true)))
+            completion(.success((canViewMutualConnections: true, canViewFollowing: true, canViewAdmirers: true)))
             return
         }
         
@@ -175,7 +179,7 @@ class PrivacyService {
                 self?.checkMutualBlocks(viewerId: viewerId, targetUserId: targetUserId) { isBlocked in
                     if isBlocked {
                         print("🚫 Conexiones ocultas: hay bloqueos")
-                        completion(.success((canViewMutualConnections: false, canViewFollowing: false)))
+                        completion(.success((canViewMutualConnections: false, canViewFollowing: false, canViewAdmirers: false)))
                         return
                     }
                     
@@ -189,9 +193,11 @@ class PrivacyService {
                         print("🌍 Perfil público - aplicando configuraciones:")
                         print("   - Puede ver mutuas: \(settings.showMutualConnections)")
                         print("   - Puede ver siguiendo: \(settings.showFollowing)")
+                        print("   - Puede ver admiradores: \(settings.showAdmirers)")
                         completion(.success((
                             canViewMutualConnections: settings.showMutualConnections,
-                            canViewFollowing: settings.showFollowing
+                            canViewFollowing: settings.showFollowing,
+                            canViewAdmirers: settings.showAdmirers
                         )))
                         return
                     }
@@ -202,13 +208,15 @@ class PrivacyService {
                             print("🔒 Perfil privado pero lo sigue - aplicando configuraciones:")
                             print("   - Puede ver mutuas: \(settings.showMutualConnections)")
                             print("   - Puede ver siguiendo: \(settings.showFollowing)")
+                            print("   - Puede ver admiradores: \(settings.showAdmirers)")
                             completion(.success((
                                 canViewMutualConnections: settings.showMutualConnections,
-                                canViewFollowing: settings.showFollowing
+                                canViewFollowing: settings.showFollowing,
+                                canViewAdmirers: settings.showAdmirers
                             )))
                         } else {
                             print("🔒 Perfil privado y no lo sigue - sin acceso a conexiones")
-                            completion(.success((canViewMutualConnections: false, canViewFollowing: false)))
+                            completion(.success((canViewMutualConnections: false, canViewFollowing: false, canViewAdmirers: false)))
                         }
                     }
                 }
@@ -226,7 +234,7 @@ class PrivacyService {
             case .success(let permissions):
                 // ✅ CORRECCIÓN: Mapear correctamente las configuraciones
                 let visibleTypes = VisibleConnectionTypes(
-                    canViewAdmirers: permissions.canViewFollowing,  // Admirers = seguidores del target
+                    canViewAdmirers: permissions.canViewAdmirers,  // Admirers = seguidores del target
                     canViewConnections: permissions.canViewFollowing, // Connections = a quién sigue el target
                     canViewMutualConnections: permissions.canViewMutualConnections
                 )

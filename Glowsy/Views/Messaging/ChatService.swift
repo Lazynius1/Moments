@@ -1360,7 +1360,7 @@ class ChatService: ObservableObject {
         
         // 🔐 Encrypt initial message content
         Task {
-            let initialMessage = message ?? "👋 ¡Hola! Iniciemos una conversación"
+            let initialMessage = message ?? "👋"
             let encryptedContent = await encryptMessageContent(initialMessage, for: conversationId)
             
             let messageId = UUID().uuidString

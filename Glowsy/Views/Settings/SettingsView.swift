@@ -53,6 +53,7 @@ struct SettingsView: View {
     @State private var isPrivate: Bool = false
     @State private var showMutualConnections: Bool = true
     @State private var showFollowing: Bool = true
+    @State private var showAdmirers: Bool = true
     @State private var isScheduleEnabled: Bool = false
     @State private var startTime: Date = Date()
     @State private var endTime: Date = Date()
@@ -196,6 +197,7 @@ struct SettingsView: View {
                 ConnectionVisibilityView(
                     showMutualConnections: $showMutualConnections,
                     showFollowing: $showFollowing,
+                    showAdmirers: $showAdmirers,
                     viewModel: viewModel
                 )
             }
@@ -980,6 +982,7 @@ struct ConnectionVisibilityView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var showMutualConnections: Bool
     @Binding var showFollowing: Bool
+    @Binding var showAdmirers: Bool
     @ObservedObject var viewModel: SettingsViewModel
 
     var body: some View {
@@ -1040,6 +1043,35 @@ struct ConnectionVisibilityView: View {
                         set: { newValue in
                             showFollowing = !newValue
                             viewModel.updatePrivacySettings(showFollowing: !newValue)
+                            let impact = UIImpactFeedbackGenerator(style: .light)
+                            impact.impactOccurred()
+                        }
+                    ))
+                        .tint(Color(hex: "00A896"))
+                }
+                .padding(.vertical, 4)
+                
+                HStack {
+                    Image(systemName: "eye.slash.circle.fill")
+                        .foregroundColor(Color(hex: "00A896"))
+                        .font(.system(size: 20))
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("settings.privacy.hideAdmirers")
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                        Text("settings.privacy.hideAdmirers.description")
+                            .foregroundColor(.gray)
+                            .font(.custom("Poppins-Regular", size: 12))
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: Binding(
+                        get: { !showAdmirers },
+                        set: { newValue in
+                            showAdmirers = !newValue
+                            viewModel.updatePrivacySettings(showAdmirers: !newValue)
                             let impact = UIImpactFeedbackGenerator(style: .light)
                             impact.impactOccurred()
                         }
@@ -1755,13 +1787,14 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    func updatePrivacySettings(isPrivate: Bool? = nil, showMutualConnections: Bool? = nil, showFollowing: Bool? = nil) {
+    func updatePrivacySettings(isPrivate: Bool? = nil, showMutualConnections: Bool? = nil, showFollowing: Bool? = nil, showAdmirers: Bool? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         privacyService.updatePrivacySettings(
             userId: userId,
             isPrivate: isPrivate,
             showMutualConnections: showMutualConnections,
-            showFollowing: showFollowing
+            showFollowing: showFollowing,
+            showAdmirers: showAdmirers
         ) { error in
             if let error = error {
                 print("Error updating privacy settings: \(error)")

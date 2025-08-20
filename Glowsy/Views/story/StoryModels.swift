@@ -56,8 +56,10 @@ class StoryViewModel: ObservableObject {
                     }
                     return
                 }
-                let group = DispatchGroup()
-                var userStories: [Story] = []
+                // ✅ CORREGIDO: Mantener el orden original de Firestore
+                var allStories: [Story] = []
+                
+                // Primero, procesar todas las historias para obtener visibilidad
                 for doc in snapshot?.documents ?? [] {
                     let data = doc.data()
                     // Handle legacy fields for backwards compatibility
@@ -80,25 +82,39 @@ class StoryViewModel: ObservableObject {
                     updatedData["id"] = doc.documentID
                     do {
                         let story = try Firestore.Decoder().decode(Story.self, from: updatedData)
-                        // Verificar si el viewer puede ver esta historia
-                        group.enter()
-                        self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
-                            if canView {
-                                userStories.append(story)
-                            } else {
-                            }
-                            group.leave()
-                        }
+                        allStories.append(story)
                     } catch {
+                        continue
+                    }
+                }
+                
+                // Ahora verificar visibilidad manteniendo el orden
+                let group = DispatchGroup()
+                var storyVisibilityResults: [String: Bool] = [:]
+                
+                for story in allStories {
+                    group.enter()
+                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
+                        if let storyId = story.id {
+                            storyVisibilityResults[storyId] = canView
+                        }
+                        group.leave()
                     }
                 }
                 group.notify(queue: .main) {
+                    // ✅ CORREGIDO: Construir array final manteniendo el orden original
+                    let userStories = allStories.filter { story in
+                        guard let storyId = story.id else { return false }
+                        return storyVisibilityResults[storyId] == true
+                    }
+                    
                     if userStories.isEmpty {
                         DispatchQueue.main.async {
                             self.stories = [:]
                         }
                         return
                     }
+                    
                     DispatchQueue.main.async {
                         self.stories = [userId: userStories]
                         // Fetch reactions and viewers for each story
@@ -3195,13 +3211,13 @@ extension StoryViewModel {
         let group = DispatchGroup()
         var visibleStories: [Story] = []
         let syncQueue = DispatchQueue(label: "profile.stories.filter")
-        let privacyService = PrivacyService()
+        // ✅ Usar la instancia existente de la clase en lugar de crear una nueva
         
         print("🔍 Filtrando \(stories.count) historias del perfil para viewer: \(viewerId)")
         
         for story in stories {
             group.enter()
-            privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
+            self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
                 if canView {
                     syncQueue.async {
                         visibleStories.append(story)
