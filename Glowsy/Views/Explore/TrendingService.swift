@@ -231,11 +231,9 @@ class TrendingService: ObservableObject {
                         
                         candidateMoments.append(moment)
                     } catch {
-                        print("Error parsing moment: \(error)")
                     }
                 }
                 
-                print("🚀 [Trending] Momentos candidatos: \(candidateMoments.count)")
                 
                 // Calcular trending score para cada momento
                 self.calculateTrendingScores(for: candidateMoments, viewerId: userId) { trendingMoments in
@@ -319,7 +317,6 @@ class TrendingService: ObservableObject {
             // Score final: engagement ajustado por tiempo + factor de recencia
             let trendingScore = (engagementRate * 10) + (recencyFactor * 50)
             
-            print("📊 [Score] Momento \(momentId): Trending=\(trendingScore), Engagement=\(engagementRate), Age=\(ageInHours)h")
             
             completion(trendingScore, engagementRate)
         }

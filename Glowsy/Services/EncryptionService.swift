@@ -687,11 +687,9 @@ class EncryptionService: ObservableObject {
             // 4. Limpieza
             await scanAndCleanupKeychain()
             
-            print("🔐 EncryptionService v2: Sistema robusto configurado exitosamente")
             encryptionStatus = .ready
             
         } catch {
-            print("❌ EncryptionService: Error crítico en setup: \(error)")
             encryptionStatus = .error(error.localizedDescription)
             isEncryptionEnabled = false
             
@@ -711,7 +709,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - ✅ VALIDAR CLAVES EXISTENTES
     private func validateExistingKeys() async {
-        print("🔍 Validando claves existentes en el sistema...")
         
         var validKeys = 0
         var invalidKeys = 0
@@ -720,10 +717,8 @@ class EncryptionService: ObservableObject {
         for (userId, cachedKey) in userKeys {
             if await isKeyValid(cachedKey.key) {
                 validKeys += 1
-                print("✅ User key válida: \(userId)")
             } else {
                 invalidKeys += 1
-                print("❌ User key inválida: \(userId)")
                 // Eliminar clave inválida
                 userKeys.removeValue(forKey: userId)
                 await cleanupKeychainKey(tag: userKeysPrefix + userId)
@@ -734,15 +729,12 @@ class EncryptionService: ObservableObject {
         for (conversationId, cachedKey) in conversationKeys {
             if await isKeyValid(cachedKey.key) {
                 validKeys += 1
-                print("✅ Conversation key válida: \(conversationId)")
             } else {
                 invalidKeys += 1
-                print("❌ Conversation key inválida: \(conversationId)")
                 await handleCorruptedKey(conversationId: conversationId)
             }
         }
         
-        print("🔍 Validación completada: \(validKeys) válidas, \(invalidKeys) inválidas")
         
         await updateEnhancedMetrics { metrics in
             metrics.validatedKeys = validKeys
@@ -769,22 +761,18 @@ class EncryptionService: ObservableObject {
         let isFirstInstall = storedDeviceId == nil
         
         if isFirstInstall {
-            print("🆕 Primera instalación detectada")
             UserDefaults.standard.set(currentDeviceId, forKey: "encryption_device_id")
             UserDefaults.standard.set(Date(), forKey: "encryption_first_install")
             await updateEnhancedMetrics { $0.firstInstalls += 1 }
         } else if storedDeviceId != currentDeviceId {
-            print("📱 Cambio de dispositivo detectado: \(storedDeviceId ?? "nil") → \(currentDeviceId)")
             await performDeviceRecovery(oldDeviceId: storedDeviceId ?? "unknown", newDeviceId: currentDeviceId)
             UserDefaults.standard.set(currentDeviceId, forKey: "encryption_device_id")
         } else {
-            print("✅ Mismo dispositivo, continuando normalmente")
         }
     }
     
     // MARK: - 🔄 RECUPERACIÓN TOTAL DE DISPOSITIVO
     private func performDeviceRecovery(oldDeviceId: String, newDeviceId: String) async {
-        print("🔄 Iniciando recuperación completa de claves...")
         
         encryptionStatus = .degraded("Recuperando claves del dispositivo anterior")
         
@@ -799,18 +787,15 @@ class EncryptionService: ObservableObject {
         // 2. Validar integridad de claves recuperadas
         await validateRecoveredKeys()
         
-        print("✅ Recuperación de dispositivo completada")
         encryptionStatus = .ready
     }
     
     // MARK: - 🔍 RECUPERAR TODAS LAS CONVERSACIONES
     private func recoverAllUserConversations() async {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            print("❌ No hay usuario autenticado para recuperación")
             return
         }
         
-        print("🔍 Recuperando conversaciones para usuario: \(currentUserId)")
         
         do {
             // Obtener todas las conversaciones del usuario
@@ -818,7 +803,6 @@ class EncryptionService: ObservableObject {
                 .whereField("participants", arrayContains: currentUserId)
                 .getDocuments()
             
-            print("📋 Encontradas \(conversationsSnapshot.documents.count) conversaciones para recuperar")
             
             // Recuperar claves en paralelo
             await withTaskGroup(of: Void.self) { group in
@@ -832,10 +816,8 @@ class EncryptionService: ObservableObject {
                 }
             }
             
-            print("✅ Recuperación de conversaciones completada")
             
         } catch {
-            print("❌ Error recuperando conversaciones: \(error)")
             await updateEnhancedMetrics {
                 $0.recoveryErrors += 1
                 $0.lastError = error.localizedDescription
@@ -845,11 +827,9 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🔑 RECUPERAR CLAVE INDIVIDUAL CON MÁXIMA ROBUSTEZ
     private func recoverConversationKey(conversationId: String, conversationData: [String: Any]) async {
-        print("🔑 Recuperando clave para conversación: \(conversationId)")
         
         // Verificar si ya tenemos la clave localmente
         if conversationKeys[conversationId] != nil {
-            print("✅ Clave ya disponible localmente: \(conversationId)")
             return
         }
         
@@ -859,9 +839,7 @@ class EncryptionService: ObservableObject {
             conversationData: conversationData
         ) {
             await cacheConversationKey(conversationId: conversationId, key: recoveredKey)
-            print("✅ Clave recuperada exitosamente: \(conversationId)")
         } else {
-            print("❌ No se pudo recuperar clave para: \(conversationId)")
             await updateEnhancedMetrics { $0.keyRecoveryFailures += 1 }
         }
     }
@@ -874,24 +852,20 @@ class EncryptionService: ObservableObject {
     ) async -> SymmetricKey? {
         
         for attempt in 1...maxRetries {
-            print("🔄 Intento \(attempt)/\(maxRetries) para recuperar clave: \(conversationId)")
             
             do {
                 // Buscar en múltiples ubicaciones
                 if let key = await tryRecoverFromPrimaryLocation(conversationData: conversationData) {
-                    print("✅ Clave encontrada en ubicación primaria")
                     await updateEnhancedMetrics { $0.firestoreHits += 1 }
                     return key
                 }
                 
                 if let key = await tryRecoverFromBackupLocation(conversationId: conversationId) {
-                    print("✅ Clave encontrada en ubicación de respaldo")
                     await updateEnhancedMetrics { $0.backupLocationHits += 1 }
                     return key
                 }
                 
                 if let key = await tryRecoverFromLegacyLocation(conversationId: conversationId) {
-                    print("✅ Clave encontrada en ubicación legacy")
                     await updateEnhancedMetrics { $0.legacyLocationHits += 1 }
                     return key
                 }
@@ -899,19 +873,16 @@ class EncryptionService: ObservableObject {
                 // Si no encontramos la clave, esperar antes del siguiente intento
                 if attempt < maxRetries {
                     let delay = Double(attempt) * 0.5 // Backoff exponencial
-                    print("⏳ Esperando \(delay)s antes del siguiente intento...")
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 }
                 
             } catch {
-                print("❌ Error en intento \(attempt): \(error)")
                 if attempt < maxRetries {
                     try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                 }
             }
         }
         
-        print("❌ No se pudo recuperar clave después de \(maxRetries) intentos: \(conversationId)")
         return nil
     }
     
@@ -968,7 +939,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - ✅ VALIDACIÓN DE CLAVES RECUPERADAS
     private func validateRecoveredKeys() async {
-        print("🔍 Validando integridad de claves recuperadas...")
         
         var validKeys = 0
         var corruptedKeys = 0
@@ -981,12 +951,10 @@ class EncryptionService: ObservableObject {
                 validKeys += 1
             case .corrupted, .notFound:
                 corruptedKeys += 1
-                print("⚠️ Clave corrompida detectada: \(conversationId)")
                 await handleCorruptedKey(conversationId: conversationId)
             }
         }
         
-        print("✅ Validación completada: \(validKeys) válidas, \(corruptedKeys) corrompidas")
         
         await updateEnhancedMetrics { metrics in
             metrics.validatedKeys = validKeys
@@ -996,7 +964,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🚨 MANEJO DE CLAVES CORROMPIDAS
     private func handleCorruptedKey(conversationId: String) async {
-        print("🚨 Manejando clave corrompida: \(conversationId)")
         
         // 1. Eliminar clave corrompida
         conversationKeys.removeValue(forKey: conversationId)
@@ -1007,7 +974,6 @@ class EncryptionService: ObservableObject {
         
         // 3. Si todo falla, crear nueva clave y notificar
         if conversationKeys[conversationId] == nil {
-            print("⚠️ Creando nueva clave para conversación con clave corrompida: \(conversationId)")
             
             do {
                 let newKey = try await createNewSharedConversationKey(conversationId: conversationId)
@@ -1017,7 +983,6 @@ class EncryptionService: ObservableObject {
                 await updateEnhancedMetrics { $0.emergencyRotations += 1 }
                 
             } catch {
-                print("❌ Error crítico: No se pudo crear nueva clave: \(error)")
                 encryptionStatus = .error("No se pudo recuperar clave para \(conversationId)")
             }
         }
@@ -1025,7 +990,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🔄 SINCRONIZACIÓN CON FIRESTORE
     private func syncWithFirestore() async {
-        print("🔄 Sincronizando estado con Firestore...")
         
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
@@ -1045,9 +1009,7 @@ class EncryptionService: ObservableObject {
                 .document("current")
                 .setData(deviceInfo, merge: true)
             
-            print("✅ Estado sincronizado con Firestore")
         } catch {
-            print("❌ Error sincronizando con Firestore: \(error)")
         }
     }
     
@@ -1066,7 +1028,6 @@ class EncryptionService: ObservableObject {
                     let newKey = SymmetricKey(size: .bits256)
                     try self.storeKeyInKeychain(key: newKey, tag: self.masterKeyTag)
                     
-                    print("🔐 New master key created and stored in Keychain")
                     continuation.resume(returning: newKey)
                 } catch {
                     continuation.resume(throwing: error)
@@ -1126,7 +1087,6 @@ class EncryptionService: ObservableObject {
                         }
                     }
                     
-                    print("🔐 New user key created for: \(userId)")
                     continuation.resume(returning: newKey)
                 } catch {
                     continuation.resume(throwing: error)
@@ -1144,7 +1104,6 @@ class EncryptionService: ObservableObject {
         
         // 1. Check if there's already a task loading this key
         if let existingTask = preloadTasks[conversationId] {
-            print("🔄 Using existing preload task for: \(conversationId)")
             do {
                 let result = try await existingTask.value
                 await updateMetrics { $0.cacheHits += 1 }
@@ -1202,7 +1161,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🚀 FIRESTORE OPERATIONS Optimizadas
     private func getSharedConversationKeyFromFirestore(conversationId: String) async throws -> SymmetricKey {
-        print("📡 Fetching shared key from Firestore: \(conversationId)")
         
         do {
             let snapshot = try await db.collection("conversations")
@@ -1217,7 +1175,6 @@ class EncryptionService: ObservableObject {
                 let sharedKey = SymmetricKey(data: keyData)
                 await cacheConversationKey(conversationId: conversationId, key: sharedKey)
                 await updateMetrics { $0.firestoreHits += 1 }
-                print("✅ Shared key found in Firestore")
                 return sharedKey
                 
             } else {
@@ -1238,7 +1195,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🛡️ ATOMIC Key Creation (evita race conditions)
     private func createNewSharedConversationKey(conversationId: String) async throws -> SymmetricKey {
-        print("⚡ Creating new shared key atomically for: \(conversationId)")
         
         let newKey = SymmetricKey(size: .bits256)
         let keyData = newKey.withUnsafeBytes { Data($0) }
@@ -1260,7 +1216,6 @@ class EncryptionService: ObservableObject {
             .setData(uploadData, merge: true)
         
         await cacheConversationKey(conversationId: conversationId, key: newKey)
-        print("✅ New shared key created and uploaded atomically")
         
         return newKey
     }
@@ -1278,7 +1233,6 @@ class EncryptionService: ObservableObject {
                     do {
                         try self.storeKeyInKeychain(key: key, tag: keyTag)
                     } catch {
-                        print("❌ Failed to store key in keychain: \(error)")
                     }
                     continuation.resume()
                 }
@@ -1287,7 +1241,6 @@ class EncryptionService: ObservableObject {
     }
     
     private func loadCachedKeys() async {
-        print("📚 Loading cached keys from keychain...")
         let startTime = Date()
         
         await withTaskGroup(of: Void.self) { group in
@@ -1303,8 +1256,6 @@ class EncryptionService: ObservableObject {
         }
         
         let loadTime = Date().timeIntervalSince(startTime)
-        print("📚 Cache loading completed in \(String(format: "%.3f", loadTime))s")
-        print("📊 Loaded \(userKeys.count) user keys and \(conversationKeys.count) conversation keys")
         
         await updateMetrics { metrics in
             metrics.cacheLoadTime = loadTime
@@ -1332,7 +1283,6 @@ class EncryptionService: ObservableObject {
                 
                 guard status == errSecSuccess,
                       let items = result as? [[String: Any]] else {
-                    print("📚 No cached user keys found or keychain error: \(status)")
                     continuation.resume()
                     return
                 }
@@ -1357,11 +1307,9 @@ class EncryptionService: ObservableObject {
                         
                         loadedCount += 1
                     } catch {
-                        print("❌ Failed to load user key for \(userId): \(error)")
                     }
                 }
                 
-                print("📚 Loaded \(loadedCount) user keys from keychain")
                 continuation.resume()
             }
         }
@@ -1386,7 +1334,6 @@ class EncryptionService: ObservableObject {
                 
                 guard status == errSecSuccess,
                       let items = result as? [[String: Any]] else {
-                    print("📚 No cached conversation keys found or keychain error: \(status)")
                     continuation.resume()
                     return
                 }
@@ -1411,11 +1358,9 @@ class EncryptionService: ObservableObject {
                         
                         loadedCount += 1
                     } catch {
-                        print("❌ Failed to load conversation key for \(conversationId): \(error)")
                     }
                 }
                 
-                print("📚 Loaded \(loadedCount) conversation keys from keychain")
                 continuation.resume()
             }
         }
@@ -1423,7 +1368,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🧹 ENHANCED CLEANUP con Keychain Scanning
     private func scanAndCleanupKeychain() async {
-        print("🧹 Scanning keychain for cleanup...")
         
         await withTaskGroup(of: Void.self) { group in
             // Cleanup expired user keys
@@ -1490,7 +1434,6 @@ class EncryptionService: ObservableObject {
                     }
                 }
                 
-                print("🧹 Deleted \(deletedCount) expired \(type) keys from keychain")
                 continuation.resume()
             }
         }
@@ -1551,7 +1494,6 @@ class EncryptionService: ObservableObject {
                     }
                 }
                 
-                print("🧹 Deleted \(orphanedCount) orphaned keys from keychain")
                 continuation.resume()
             }
         }
@@ -1624,7 +1566,6 @@ class EncryptionService: ObservableObject {
             value.isExpired ? key : nil
         }
         
-        print("🧹 Cleaning up \(expiredUsers.count) user keys and \(expiredConversations.count) conversation keys")
         
         for userId in expiredUsers {
             userKeys.removeValue(forKey: userId)
@@ -1653,7 +1594,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🔄 KEY ROTATION (Nueva funcionalidad)
     func rotateConversationKey(for conversationId: String, reason: KeyRotationReason = .manual) async throws -> Bool {
-        print("🔄 Rotating conversation key for: \(conversationId) (reason: \(reason))")
         
         // Generate new key
         let newKey = SymmetricKey(size: .bits256)
@@ -1677,7 +1617,6 @@ class EncryptionService: ObservableObject {
         await cacheConversationKey(conversationId: conversationId, key: newKey)
         
         await updateMetrics { $0.keyRotations += 1 }
-        print("✅ Key rotation completed successfully")
         
         return true
     }
@@ -1720,7 +1659,6 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🚀 BATCH PRELOADING Optimizado
     func preloadConversationKeys(for conversationIds: [String]) async {
-        print("🔄 Batch preloading \(conversationIds.count) conversation keys")
         
         await updateMetrics { $0.batchPreloadRequests += 1 }
         let startTime = Date()
@@ -1731,7 +1669,6 @@ class EncryptionService: ObservableObject {
                     do {
                         _ = try await self.getConversationKey(for: conversationId)
                     } catch {
-                        print("❌ Failed to preload key for: \(conversationId)")
                     }
                 }
             }
@@ -1742,7 +1679,6 @@ class EncryptionService: ObservableObject {
             $0.averagePreloadTime = (($0.averagePreloadTime * Double($0.batchPreloadRequests - 1)) + duration) / Double($0.batchPreloadRequests)
         }
         
-        print("✅ Batch preload completed in \(String(format: "%.2f", duration))s")
     }
     
     // MARK: - PUBLIC ENCRYPTION METHODS (Optimizadas con métricas)
@@ -1759,7 +1695,6 @@ class EncryptionService: ObservableObject {
                 $0.encryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
-            print("❌ Error encrypting Gemini data: \(error)")
             return text
         }
     }
@@ -1777,7 +1712,6 @@ class EncryptionService: ObservableObject {
                 $0.decryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
-            print("❌ Error decrypting Gemini data: \(error)")
             return encryptedText
         }
     }
@@ -1795,7 +1729,6 @@ class EncryptionService: ObservableObject {
                 $0.encryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
-            print("❌ Error encrypting chat message: \(error)")
             return text
         }
     }
@@ -1813,7 +1746,6 @@ class EncryptionService: ObservableObject {
                 $0.decryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
-            print("❌ Error decrypting chat message: \(error)")
             return encryptedText
         }
     }
@@ -1831,7 +1763,6 @@ class EncryptionService: ObservableObject {
                 $0.encryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
-            print("❌ Error encrypting user data: \(error)")
             return text
         }
     }
@@ -1849,7 +1780,6 @@ class EncryptionService: ObservableObject {
                 $0.decryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
-            print("❌ Error decrypting user data: \(error)")
             return encryptedText
         }
     }
@@ -1996,14 +1926,12 @@ class EncryptionService: ObservableObject {
     func deleteUserKeys(for userId: String) async {
         userKeys.removeValue(forKey: userId)
         await cleanupKeychainKey(tag: userKeysPrefix + userId)
-        print("🗑️ User keys deleted for: \(userId)")
     }
     
     func deleteConversationKeys(for conversationId: String) async {
         conversationKeys.removeValue(forKey: conversationId)
         preloadTasks.removeValue(forKey: conversationId)?.cancel()
         await cleanupKeychainKey(tag: conversationKeysPrefix + conversationId)
-        print("🗑️ Conversation keys deleted for: \(conversationId)")
     }
     
     func deleteAllKeys() async {
@@ -2027,20 +1955,17 @@ class EncryptionService: ObservableObject {
             }
         }
         
-        print("🗑️ All encryption keys and tasks deleted")
         await updateMetrics { $0.fullResets += 1 }
     }
     
     func toggleEncryption(_ enabled: Bool) async {
         isEncryptionEnabled = enabled
         await updateMetrics { $0.toggleEvents += 1 }
-        print("🔐 Encryption \(enabled ? "enabled" : "disabled")")
     }
     
     // MARK: - 📊 FIRESTORE METRICS UPLOAD
     func uploadMetricsToFirestore() async {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            print("❌ No hay usuario autenticado para subir métricas del sistema")
             return
         }
         
@@ -2084,7 +2009,6 @@ class EncryptionService: ObservableObject {
             ]
             
             try await db.collection("encryption_metrics").addDocument(data: metricsData)
-            print("✅ Métricas de encriptación subidas")
             
             // 2. Upload keychain statistics (SISTEMA) - ✅ FIX: Usar FieldValue.serverTimestamp()
             let keychainStats = await getKeychainStatistics()
@@ -2109,7 +2033,6 @@ class EncryptionService: ObservableObject {
             ]
             
             try await db.collection("keychain_statistics").addDocument(data: keychainData)
-            print("✅ Estadísticas de keychain subidas")
             
             // 3. Upload health report (SISTEMA) - ✅ FIX: Usar FieldValue.serverTimestamp()
             let healthReport = await performHealthCheck()
@@ -2136,20 +2059,13 @@ class EncryptionService: ObservableObject {
             ]
             
             try await db.collection("encryption_health").addDocument(data: healthData)
-            print("✅ Reporte de salud subido")
             
-            print("🎉 Todas las métricas del sistema subidas exitosamente a Firestore")
             
         } catch {
-            print("❌ Error subiendo métricas del sistema: \(error)")
             
             // Log más detallado del error
             if let firestoreError = error as NSError? {
-                print("📋 Código de error: \(firestoreError.code)")
-                print("📋 Descripción: \(firestoreError.localizedDescription)")
-                print("📋 Domain: \(firestoreError.domain)")
                 if let userInfo = firestoreError.userInfo["NSUnderlyingError"] as? NSError {
-                    print("📋 Error subyacente: \(userInfo.localizedDescription)")
                 }
             }
         }

@@ -78,7 +78,6 @@ class FCMTokenService {
             "fcmTokenUpdatedAt": FieldValue.serverTimestamp()
         ]) { error in
             if let error = error {
-                print("❌ Error limpiando FCM token: \(error)")
             } else {
                 // ✅ NUEVO: Notificar al backend para evitar enviar notificaciones
                 self.notifyBackendTokenCleared(userId: userId)
@@ -89,7 +88,6 @@ class FCMTokenService {
     // ✅ NUEVO: Notificar al backend cuando el token es eliminado
     private func notifyBackendTokenCleared(userId: String) {
         // Simular llamada al backend (por ejemplo, vía HTTPS function)
-        print("📡 Notificando al backend que el token de \(userId) fue eliminado")
         // Aquí podrías invocar una Cloud Function para limpiar el token en otros sistemas
         
         // Ejemplo de implementación futura:

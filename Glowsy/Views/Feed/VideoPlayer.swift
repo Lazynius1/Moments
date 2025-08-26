@@ -13,12 +13,10 @@ class GlobalVideoManager: ObservableObject {
     
     func registerPlayer(_ playerId: String, manager: VideoPlayerManager) {
         allPlayers[playerId] = manager
-        print("📺 Player registrado: \(playerId)")
     }
     
     func unregisterPlayer(_ playerId: String) {
         allPlayers.removeValue(forKey: playerId)
-        print("📺 Player desregistrado: \(playerId)")
         
         if activeVideoId == playerId {
             activeVideoId = nil
@@ -29,13 +27,11 @@ class GlobalVideoManager: ObservableObject {
         // ✅ PAUSAR todos los otros videos primero
         if let currentActive = activeVideoId, currentActive != playerId {
             allPlayers[currentActive]?.pauseVideo()
-            print("⏸️ Pausando video anterior: \(currentActive)")
         }
         
         // ✅ REPRODUCIR el nuevo video
         activeVideoId = playerId
         allPlayers[playerId]?.resumeVideo()
-        print("▶️ Reproduciendo video: \(playerId)")
     }
     
     func pauseVideo(_ playerId: String) {
@@ -43,14 +39,12 @@ class GlobalVideoManager: ObservableObject {
             activeVideoId = nil
         }
         allPlayers[playerId]?.pauseVideo()
-        print("⏸️ Video pausado: \(playerId)")
     }
     
     func pauseAllVideos() {
         activeVideoId = nil
         for (id, manager) in allPlayers {
             manager.pauseVideo()
-            print("⏸️ Pausando video: \(id)")
         }
     }
 }
@@ -241,7 +235,6 @@ struct ModernVideoPlayer: View {
         
         playerManager.setupPlayer(with: videoURL)
         hasSetupPlayer = true
-        print("🎬 Player configurado para: \(videoId)")
     }
     
     // ✅ NUEVO: Toggle playback que usa el manager global
@@ -318,7 +311,6 @@ class VideoPlayerManager: ObservableObject {
         setupLooping(for: playerItem)
         hasSetupPlayer = true
         
-        print("✅ Player configurado (sin auto-play)")
     }
     
     // ✅ NUEVO: Función para reproducir controlada externamente
@@ -390,7 +382,6 @@ class VideoPlayerManager: ObservableObject {
     }
     
     func cleanup() {
-        print("🧹 Limpiando VideoPlayerManager")
         
         if let timeObserver = timeObserver {
             player?.removeTimeObserver(timeObserver)

@@ -13,23 +13,23 @@ enum ContentAudience: String, Codable, CaseIterable {
     
     var title: String {
         switch self {
-        case .everyone: return "Todos"
-        case .connections: return "Mutuos"
-        case .bestFriends: return "Mejores amigos"
-        case .custom: return "Personalizado"
-        case .customList: return "Lista personalizada"
-        case .onlyMe: return "Solo yo"
+        case .everyone: return NSLocalizedString("audience.type.everyone", comment: "Everyone audience type")
+        case .connections: return NSLocalizedString("audience.type.connections", comment: "Connections audience type")
+        case .bestFriends: return NSLocalizedString("audience.type.bestFriends", comment: "Best friends audience type")
+        case .custom: return NSLocalizedString("audience.type.custom", comment: "Custom audience type")
+        case .customList: return NSLocalizedString("audience.type.customList", comment: "Custom list audience type")
+        case .onlyMe: return NSLocalizedString("audience.type.onlyMe", comment: "Only me audience type")
         }
     }
     
     var description: String {
         switch self {
-        case .everyone: return "Cualquier persona puede ver este contenido"
-        case .connections: return "Solo las personas que sigues y te siguen"
-        case .bestFriends: return "Solo tu lista de mejores amigos"
-        case .custom: return "Elige personas específicas"
-        case .customList: return "Usar una lista personalizada"
-        case .onlyMe: return "Contenido privado, solo tú puedes verlo"
+        case .everyone: return NSLocalizedString("audience.description.everyone", comment: "Everyone audience description")
+        case .connections: return NSLocalizedString("audience.description.connections", comment: "Connections audience description")
+        case .bestFriends: return NSLocalizedString("audience.description.bestFriends", comment: "Best friends audience description")
+        case .custom: return NSLocalizedString("audience.description.custom", comment: "Custom audience description")
+        case .customList: return NSLocalizedString("audience.description.customList", comment: "Custom list audience description")
+        case .onlyMe: return NSLocalizedString("audience.description.onlyMe", comment: "Only me audience description")
         }
     }
     
@@ -372,8 +372,8 @@ struct AudienceSelectionView: View {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text(customSelectedUsers.isEmpty ?
-                             "Elige personas específicas" :
-                             "\(customSelectedUsers.count) personas seleccionadas")
+                             NSLocalizedString("audience.description.custom", comment: "Custom audience description") :
+                             String(format: NSLocalizedString("audience.people.count", comment: "People count"), customSelectedUsers.count))
                             .font(.custom("Poppins-Regular", size: 13))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                     }
@@ -415,11 +415,11 @@ struct AudienceSelectionView: View {
                 customSelectedUsers = selectedUsersForCustom.map { $0.id }
                 showingCustomSelector = false
             }
-            .navigationTitle("Seleccionar personas")
+            .navigationTitle(NSLocalizedString("audience.actions.selectPeople", comment: "Select people navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("audience.actions.cancel", comment: "Cancel action")) {
                         showingCustomSelector = false
                     }
                     .foregroundColor(.gray)
@@ -437,7 +437,6 @@ struct AudienceSelectionView: View {
                 case .success(let lists):
                     self.customLists = lists
                 case .failure(let error):
-                    print("Error cargando listas: \(error)")
                     self.customLists = []
                 }
                 self.isLoadingLists = false
@@ -936,7 +935,6 @@ struct CustomAudienceSelector: View {
                 case .success(let users):
                     self.searchResults = users
                 case .failure(let error):
-                    print("Error searching users: \(error)")
                     self.searchResults = []
                 }
             }
@@ -1199,7 +1197,6 @@ class CustomAudienceListsViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 if let error = error {
-                    print("Error loading lists: \(error)")
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
                     return
@@ -1228,7 +1225,6 @@ class CustomAudienceListsViewModel: ObservableObject {
             .document(listId)
             .delete { error in
                 if let error = error {
-                    print("Error deleting list: \(error)")
                 }
             }
     }
@@ -1355,13 +1351,34 @@ struct CreateCustomListView: View {
                                     .background(Color.white.opacity(0.05))
                                     .cornerRadius(12)
                             } else {
-                                Text(String(format: NSLocalizedString("audience.selectedPeople", comment: "Selected people"), selectedMembers.count))
-                                    .font(.custom("Poppins-Regular", size: 14))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding()
-                                    .background(Color(hex: selectedColor).opacity(0.2))
-                                    .cornerRadius(12)
+                                // ✅ MEJORADO: Feedback visual mejorado para miembros seleccionados
+                                VStack(spacing: 8) {
+                                    HStack {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(Color(hex: selectedColor))
+                                        
+                                        Text("\(selectedMembers.count) personas seleccionadas")
+                                            .font(.custom("Poppins-Medium", size: 14))
+                                            .foregroundColor(.white)
+                                        
+                                        Spacer()
+                                    }
+                                    
+                                    Text("Toca 'Agregar' para modificar la selección")
+                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color(hex: selectedColor).opacity(0.2))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color(hex: selectedColor).opacity(0.4), lineWidth: 1)
+                                        )
+                                )
                             }
                         }
                     }
@@ -1664,6 +1681,39 @@ struct EditCustomListView: View {
                 .background(Color.white.opacity(0.05))
                 .cornerRadius(12)
             } else {
+                // ✅ MEJORADO: Feedback visual mejorado para miembros existentes
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "person.3.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color(hex: selectedColor))
+                        
+                        Text("\(filteredMembers.count) miembros mostrados")
+                            .font(.custom("Poppins-Medium", size: 14))
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                    }
+                    
+                    if !searchText.isEmpty {
+                        Text("Resultados de búsqueda para '\(searchText)'")
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(hex: selectedColor).opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(hex: selectedColor).opacity(0.3), lineWidth: 1)
+                        )
+                )
+                .padding(.bottom, 8)
+                
                 VStack(spacing: 8) {
                     ForEach(filteredMembers) { member in
                         MemberRowWithRemove(
@@ -1693,7 +1743,6 @@ struct EditCustomListView: View {
                 case .success(let users):
                     self.currentMembers = users
                 case .failure(let error):
-                    print("Error loading members: \(error)")
                     self.currentMembers = []
                 }
             }
@@ -1814,6 +1863,16 @@ struct MemberPickerView: View {
                         dismiss()
                     }
                     .foregroundColor(.gray)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Confirmar") {
+                        // ✅ CONFIRMAR: Cerrar y guardar selección
+                        dismiss()
+                    }
+                    .foregroundColor(Color(hex: "00A896"))
+                    .fontWeight(.semibold)
+                    .disabled(selectedMembers.isEmpty)
                 }
             }
         }
@@ -1950,11 +2009,27 @@ struct MemberPickerView: View {
                 
                 Spacer()
                 
-                Button("Limpiar") {
-                    selectedMembers.removeAll()
+                // ✅ MEJORADO: Botones más claros y útiles
+                HStack(spacing: 12) {
+                    Button("Limpiar") {
+                        selectedMembers.removeAll()
+                    }
+                    .font(.custom("Poppins-Medium", size: 14))
+                    .foregroundColor(.red)
+                    
+                    Button("Confirmar") {
+                        dismiss()
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color(hex: "00A896"))
+                    )
+                    .disabled(selectedMembers.isEmpty)
                 }
-                .font(.custom("Poppins-Medium", size: 14))
-                .foregroundColor(.red)
             }
             .padding()
             .background(Color.black)
@@ -1971,7 +2046,6 @@ struct MemberPickerView: View {
                 case .success(let users):
                     self.searchResults = users
                 case .failure(let error):
-                    print("Error searching users: \(error)")
                     self.searchResults = []
                 }
             }
@@ -2060,13 +2134,11 @@ class CreateListViewModel: ObservableObject {
                 .collection("customAudienceLists")
                 .addDocument(from: newList) { error in
                     if let error = error {
-                        print("Error creating list: \(error)")
                     } else {
                         completion()
                     }
                 }
         } catch {
-            print("Error encoding list: \(error)")
         }
     }
 }
@@ -2091,7 +2163,6 @@ class EditListViewModel: ObservableObject {
             .document(listId)
             .updateData(updateData) { error in
                 if let error = error {
-                    print("Error updating list: \(error)")
                 } else {
                     completion()
                 }

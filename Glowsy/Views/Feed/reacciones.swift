@@ -294,7 +294,6 @@ struct ModernReactionButton: View {
                         self.reactionCount -= 1
                     }
                 }
-                print("Error adding reaction: \(error)")
             }
         }
     }
@@ -326,7 +325,6 @@ struct ModernReactionButton: View {
                         self.reactionCount += 1
                     }
                 }
-                print("Error removing reaction: \(error)")
             }
         }
     }
@@ -452,7 +450,6 @@ extension FirestoreService {
     
     // ✅ MÉTODO CORREGIDO: Remover reacción de la subcolección
     func removeReaction(from momentId: String, reaction: String, userId: String, authorId: String, completion: @escaping (Error?) -> Void) {
-        print("🗑️ Removiendo reacción '\(reaction)' del momento \(momentId) por el usuario \(userId)")
         
         // ✅ USAR LA SUBCOLECCIÓN en lugar del documento principal
         let reactionRef = db.collection("users").document(authorId)
@@ -461,10 +458,8 @@ extension FirestoreService {
         
         reactionRef.delete { error in
             if let error = error {
-                print("❌ Error al remover reacción: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("✅ Reacción removida con éxito")
                 completion(nil)
             }
         }
@@ -472,7 +467,6 @@ extension FirestoreService {
     
     // ✅ Obtener reacciones de un momento
     func fetchReactions(for momentId: String, authorId: String, completion: @escaping (Result<[String: [String]], Error>) -> Void) {
-        print("📊 Obteniendo reacciones para momento \(momentId)")
         
         db.collection("users").document(authorId)
             .collection("moments").document(momentId)
@@ -480,7 +474,6 @@ extension FirestoreService {
             .getDocuments { snapshot, error in
                 
                 if let error = error {
-                    print("❌ Error al obtener reacciones: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
@@ -499,7 +492,6 @@ extension FirestoreService {
                     }
                 }
                 
-                print("📊 Reacciones obtenidas: \(reactions)")
                 completion(.success(reactions))
             }
     }

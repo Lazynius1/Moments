@@ -22,9 +22,9 @@ struct NotificationsView: View {
 
     enum NotificationTab: String, CaseIterable {
         case all = "notifications.tab.all"
-        case likes = "notifications.tab.likes"
+        case reactions = "notifications.tab.reactions"
         case follows = "notifications.tab.follows"
-        case mentions = "notifications.tab.mentions"
+        case comments = "notifications.tab.comments"
         case storyReactions = "notifications.tab.stories"
         case requests = "notifications.tab.requests"
     }
@@ -58,7 +58,6 @@ struct NotificationsView: View {
             )
             .navigationBarHidden(true)
             .onAppear {
-                print("🔔 NotificationsView apareció - iniciando limpieza automática")
                 
                 // Cargar notificaciones
                 viewModel.fetchNotifications()
@@ -67,7 +66,6 @@ struct NotificationsView: View {
                 clearNotificationsAutomatically()
             }
             .onDisappear {
-                print("🔔 NotificationsView desapareció - notificando al parent")
                 onNotificationsCleared?()
             }
             .alert(isPresented: $viewModel.showError) {
@@ -109,7 +107,6 @@ struct NotificationsView: View {
     }
     
     private func clearNotificationsAutomatically() {
-        print("🔔 NotificationsView: Limpiando notificaciones automáticamente")
         
         // 1. Marcar notificaciones como vistas en Firebase
         viewModel.clearUnreadNotifications()
@@ -117,7 +114,6 @@ struct NotificationsView: View {
         // 2. Actualizar badge service
         NotificationBadgeService.shared.clearNotificationBadge()
         
-        print("✅ NotificationsView: Limpieza automática completada")
     }
     
     // ✅ HEADER ADAPTATIVO
@@ -229,19 +225,32 @@ struct NotificationsView: View {
         switch selectedTab {
         case .all:
             return viewModel.groupedNotifications
-        case .likes:
-            return viewModel.groupedNotifications.filter { $0.notifications.first?.type == .like }
-        case .follows:
-            return viewModel.groupedNotifications.filter {
-                let type = $0.notifications.first?.type
-                return type == .newFollower || type == .mutualConnection
+        case .reactions:
+            return viewModel.groupedNotifications.filter { group in
+                // ✅ Grupos que contengan AL MENOS UNA reacción a momentos
+                return group.notifications.contains { $0.type == .reaction }
             }
-        case .mentions:
-            return viewModel.groupedNotifications.filter { $0.notifications.first?.type == .comment }
+        case .follows:
+            return viewModel.groupedNotifications.filter { group in
+                // ✅ SOLO notificaciones de seguidores
+                guard let firstNotification = group.notifications.first else { return false }
+                return firstNotification.type == .newFollower || firstNotification.type == .mutualConnection
+            }
+        case .comments:
+            return viewModel.groupedNotifications.filter { group in
+                // ✅ SOLO grupos donde TODAS las notificaciones sean comentarios
+                return group.notifications.allSatisfy { $0.type == .comment }
+            }
         case .storyReactions:
-            return viewModel.groupedNotifications.filter { $0.notifications.first?.type == .storyReaction }
+            return viewModel.groupedNotifications.filter { group in
+                // ✅ SOLO grupos donde TODAS las notificaciones sean reacciones a historias
+                return group.notifications.allSatisfy { $0.type == .storyReaction }
+            }
         case .requests:
-            return viewModel.groupedNotifications.filter { $0.notifications.first?.type == .followRequest }
+            return viewModel.groupedNotifications.filter { group in
+                // ✅ SOLO grupos donde TODAS las notificaciones sean solicitudes
+                return group.notifications.allSatisfy { $0.type == .followRequest }
+            }
         }
     }
 
@@ -296,10 +305,10 @@ struct NotificationsView: View {
 
     private func getEmptyStateIcon() -> String {
         switch selectedTab {
-        case .mentions: return "text.bubble.slash"
+        case .comments: return "text.bubble.slash"
         case .storyReactions: return "heart.slash"
         case .requests: return "person.2.slash"
-        case .likes: return "heart.slash"
+        case .reactions: return "heart.slash"
         case .follows: return "person.badge.plus"
         default: return "bell.slash"
         }
@@ -307,10 +316,10 @@ struct NotificationsView: View {
 
     private var emptyStateTitle: String {
         switch selectedTab {
-        case .mentions: return NSLocalizedString("notifications.empty.mentions", comment: "No mentions")
+        case .comments: return NSLocalizedString("notifications.empty.comments", comment: "No comments")
         case .storyReactions: return NSLocalizedString("notifications.empty.storyReactions", comment: "No story reactions")
         case .requests: return NSLocalizedString("notifications.empty.requests", comment: "No requests")
-        case .likes: return NSLocalizedString("notifications.empty.likes", comment: "No likes")
+        case .reactions: return NSLocalizedString("notifications.empty.reactions", comment: "No reactions")
         case .follows: return NSLocalizedString("notifications.empty.follows", comment: "No new followers")
         default: return NSLocalizedString("notifications.empty.default", comment: "No notifications")
         }
@@ -318,10 +327,10 @@ struct NotificationsView: View {
 
     private var emptyStateMessage: String {
         switch selectedTab {
-        case .mentions: return "Cuando alguien comente en tus momentos, aparecerá aquí"
+        case .comments: return "Cuando alguien comente en tus momentos, aparecerá aquí"
         case .storyReactions: return "Cuando alguien reaccione a tus historias, aparecerá aquí"
         case .requests: return "Cuando alguien quiera seguirte, aparecerá aquí"
-        case .likes: return "Cuando alguien le dé me gusta a tus momentos, aparecerá aquí"
+        case .reactions: return "Cuando alguien reaccione a tus momentos (vibe, fire, etc.), aparecerá aquí"
         case .follows: return "Cuando alguien te siga, aparecerá aquí"
         default: return "Cuando alguien interactúe contigo, aparecerá aquí"
         }
@@ -405,7 +414,7 @@ struct NotificationsView: View {
     private func handleNotificationTap(group: NotificationGroup) {
         let firstNotification = group.notifications.first!
         switch firstNotification.type {
-        case .like, .comment:
+        case .like, .reaction, .comment:
             if let momentId = firstNotification.momentId {
                 fetchMoment(momentId: momentId)
             }
@@ -416,11 +425,14 @@ struct NotificationsView: View {
                 fetchMoment(momentId: momentId)
             }
         case .newFollower, .followRequest, .mutualConnection:
-            print("Tapped notification for user with ID: \(firstNotification.senderId)")
+            // Handle follower-related notifications
+            break
         case .profileVisit:
-            print("Tapped visit notification, navigating to VisitsView")
+            // Handle profile visit notifications
+            break
         case .storyReaction:
-            print("Tapped story reaction notification for story: \(firstNotification.storyId ?? "")")
+            // Handle story reaction notifications
+            break
         }
     }
 
@@ -433,15 +445,14 @@ struct NotificationsView: View {
                 DispatchQueue.main.async {
                     self.selectedMoment = moment
                 }
-            case .failure(let error):
-                print("Error fetching moment: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
     
     // ✅ Navegación real a historias
     private func navigateToStory(storyId: String) {
-        print("📱 Navegando a historia: \(storyId)")
         
         // ✅ Buscar la historia usando StoryViewModel
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -452,7 +463,6 @@ struct NotificationsView: View {
                 DispatchQueue.main.async {
                     self.selectedStory = story
                     self.showStoryViewer = true
-                    print("✅ Historia encontrada y navegando: \(story.id)")
                 }
                 return
             }
@@ -462,20 +472,17 @@ struct NotificationsView: View {
         let db = Firestore.firestore()
         db.collection("users").document(userId).collection("stories").document(storyId).getDocument { snapshot, error in
             if let error = error {
-                print("❌ Error navegando a historia: \(error.localizedDescription)")
                 return
             }
             
             guard let data = snapshot?.data(),
                   let story = try? Firestore.Decoder().decode(Story.self, from: data) else {
-                print("❌ No se pudo decodificar la historia")
                 return
             }
             
             DispatchQueue.main.async {
                 self.selectedStory = story
                 self.showStoryViewer = true
-                print("✅ Historia encontrada en Firestore y navegando: \(story.id)")
             }
         }
     }
@@ -791,7 +798,6 @@ struct EnhancedNotificationRow: View {
             .document(storyId)
             .getDocument { snapshot, error in
                 if let error = error {
-                    print("Error fetching story preview: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         self.isLoadingStoryImage = false
                         self.storyImageLoadFailed = true
@@ -829,6 +835,13 @@ struct EnhancedNotificationRow: View {
             switch firstNotification.type {
             case .like:
                 return String(format: NSLocalizedString("notifications.message.like.multiple", comment: "Multiple likes"), firstNotification.senderUsername, group.notifications.count - 1)
+            case .reaction:
+                // ✅ Mostrar el tipo de reacción específico para múltiples reacciones
+                if let reactionType = firstNotification.reaction {
+                    return String(format: NSLocalizedString("notifications.message.reaction.multiple.withType", comment: "Multiple reactions with type"), firstNotification.senderUsername, reactionType, group.notifications.count - 1)
+                } else {
+                    return String(format: NSLocalizedString("notifications.message.reaction.multiple", comment: "Multiple reactions"), firstNotification.senderUsername, group.notifications.count - 1)
+                }
             case .mention:
                 return String(format: NSLocalizedString("notifications.message.mention.multiple", comment: "Multiple mentions"), firstNotification.senderUsername, group.notifications.count - 1)
             case .newFollower:
@@ -848,6 +861,13 @@ struct EnhancedNotificationRow: View {
             switch firstNotification.type {
             case .like:
                 return String(format: NSLocalizedString("notifications.message.like.single", comment: "Single like"), firstNotification.senderUsername)
+            case .reaction:
+                // ✅ Mostrar el tipo de reacción específico (fire, love, vibe, etc.)
+                if let reactionType = firstNotification.reaction {
+                    return String(format: NSLocalizedString("notifications.message.reaction.single.withType", comment: "Single reaction with type"), firstNotification.senderUsername, reactionType)
+                } else {
+                    return String(format: NSLocalizedString("notifications.message.reaction.single", comment: "Single reaction"), firstNotification.senderUsername)
+                }
             case .mention:
                 return String(format: NSLocalizedString("notifications.message.mention.single", comment: "Single mention"), firstNotification.senderUsername)
             case .newFollower:
@@ -895,7 +915,6 @@ struct EnhancedNotificationRow: View {
                     self.viewModel.updateProfileImageCache(for: senderId, imagePath: user.profileImagePath)
                 }
             case .failure(let error):
-                print("Error fetching sender profile for \(senderId): \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.retryCount += 1
                     if self.retryCount < self.maxRetries {
@@ -926,7 +945,6 @@ struct EnhancedNotificationRow: View {
                     }
                 }
             case .failure(let error):
-                print("Error fetching moment preview: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.isLoadingMomentImage = false
                     self.momentImageLoadFailed = true
@@ -938,7 +956,6 @@ struct EnhancedNotificationRow: View {
     private func loadMomentImage(from path: String) {
         isLoadingMomentImage = true
         guard let url = URL(string: path) else {
-            print("Invalid URL for moment image: \(path)")
             DispatchQueue.main.async {
                 self.isLoadingMomentImage = false
                 self.momentImageLoadFailed = true
@@ -955,7 +972,6 @@ struct EnhancedNotificationRow: View {
                     self.momentImageLoadFailed = false
                 }
             case .failure(let error):
-                print("Kingfisher error loading moment image: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.isLoadingMomentImage = false
                     self.momentImageLoadFailed = true
@@ -974,8 +990,8 @@ struct EnhancedNotificationRow: View {
                 DispatchQueue.main.async {
                     self.isFollowing = following
                 }
-            case .failure(let error):
-                print("Error checking following status: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -987,7 +1003,6 @@ struct EnhancedNotificationRow: View {
         if isFollowing {
             viewModel.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 if let error = error {
-                    print("Error unfollowing user: \(error.localizedDescription)")
                 } else {
                     DispatchQueue.main.async {
                         self.isFollowing = false
@@ -997,7 +1012,6 @@ struct EnhancedNotificationRow: View {
         } else {
             viewModel.followUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 if let error = error {
-                    print("Error following user: \(error.localizedDescription)")
                 } else {
                     DispatchQueue.main.async {
                         self.isFollowing = true
@@ -1235,12 +1249,10 @@ class NotificationsViewModel: ObservableObject {
                 do {
                     let notification = try doc.data(as: Notification.self)
                     if notification.senderId.isEmpty && notification.type != .profileVisit {
-                        print("Invalid notification with empty senderId: \(doc.documentID)")
                         return nil
                     }
                     return notification
                 } catch {
-                    print("Error al decodificar notificación \(doc.documentID): \(error.localizedDescription)")
                     return nil
                 }
             }
@@ -1294,7 +1306,6 @@ class NotificationsViewModel: ObservableObject {
             }
             
             if let error = error {
-                print("Error loading more notifications: \(error.localizedDescription)")
                 return
             }
             
@@ -1317,7 +1328,6 @@ class NotificationsViewModel: ObservableObject {
                     }
                     return notification
                 } catch {
-                    print("Error decoding notification: \(error)")
                     return nil
                 }
             }
@@ -1380,7 +1390,6 @@ class NotificationsViewModel: ObservableObject {
                     }
                     
                 case .failure(let error):
-                    print("Error fetching users batch: \(error.localizedDescription)")
                     for userId in batch {
                         self?.userProfileImageCache[userId] = nil
                     }
@@ -1403,7 +1412,6 @@ class NotificationsViewModel: ObservableObject {
 
     func clearUnreadNotifications() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            print("❌ No user ID available")
             return
         }
         
@@ -1413,7 +1421,6 @@ class NotificationsViewModel: ObservableObject {
         
         notificationsRef.getDocuments { [weak self] snapshot, error in
             if let error = error {
-                print("❌ Error fetching unread notifications: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self?.errorMessage = "Error al cargar notificaciones: \(error.localizedDescription)"
                     self?.showError = true
@@ -1422,7 +1429,6 @@ class NotificationsViewModel: ObservableObject {
             }
             
             guard let documents = snapshot?.documents, !documents.isEmpty else {
-                print("🔔 No unread notifications to clear")
                 DispatchQueue.main.async {
                     self?.hasUnreadNotifications = false
                     self?.pendingRequestsCount = 0
@@ -1430,23 +1436,19 @@ class NotificationsViewModel: ObservableObject {
                 return
             }
             
-            print("🔔 Clearing \(documents.count) unread notifications")
             
             let batch = db.batch()
             for document in documents {
-                print("🔔 Marking notification as read: \(document.documentID)")
                 batch.updateData(["isPending": false], forDocument: document.reference)
             }
             
             batch.commit { error in
                 if let error = error {
-                    print("❌ Error committing batch update: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         self?.errorMessage = "Error al marcar notificaciones como vistas: \(error.localizedDescription)"
                         self?.showError = true
                     }
                 } else {
-                    print("✅ Successfully cleared \(documents.count) notifications")
                     DispatchQueue.main.async {
                         for document in documents {
                             if let index = self?.notifications.firstIndex(where: { $0.id == document.documentID }) {
@@ -1469,7 +1471,7 @@ class NotificationsViewModel: ObservableObject {
         let calendar = Calendar.current
         var tempGroupedByDate: [String: [NotificationGroup]] = [:]
         
-        // Primero agrupa por usuario/tipo como antes
+        // ✅ MEJORADO: Agrupación más específica por tipo de notificación
         var groupedDict: [String: [Notification]] = [:]
         for notification in notifications {
             let key: String
@@ -1478,7 +1480,9 @@ class NotificationsViewModel: ObservableObject {
                 dateFormatter.dateFormat = "yyyy-MM-dd"
                 key = "visit_\(dateFormatter.string(from: notification.timestamp))"
             } else {
-                key = "\(notification.type.rawValue)_\(notification.senderId)"
+                // ✅ Agrupar por tipo + usuario + contenido específico
+                let contentId = notification.momentId ?? notification.storyId ?? notification.commentId ?? "general"
+                key = "\(notification.type.rawValue)_\(notification.senderId)_\(contentId)"
             }
             
             if groupedDict[key] == nil {
@@ -1576,7 +1580,7 @@ class NotificationsViewModel: ObservableObject {
     func acceptFollowRequest(group: NotificationGroup) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
 
-        let followRequestNotifications = group.notifications.filter { $0.type == .followRequest && $0.isPending }
+        let followRequestNotifications = group.notifications.filter { $0.type == .followRequest }
         
         for notification in followRequestNotifications {
             firestoreService.acceptFollowRequest(
@@ -1605,7 +1609,7 @@ class NotificationsViewModel: ObservableObject {
     func rejectFollowRequest(group: NotificationGroup) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
 
-        let followRequestNotifications = group.notifications.filter { $0.type == .followRequest && $0.isPending }
+        let followRequestNotifications = group.notifications.filter { $0.type == .followRequest }
         
         for notification in followRequestNotifications {
             firestoreService.rejectFollowRequest(
@@ -1663,6 +1667,5 @@ class NotificationsViewModel: ObservableObject {
     
     deinit {
         listener?.remove()
-        print("NotificationsViewModel deinitializada")
     }
 }

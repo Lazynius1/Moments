@@ -176,20 +176,18 @@ class BadgeService: ObservableObject {
                     self?.ownedBadges = user.ownedBadges
                     self?.plusSubscription = user.plusSubscription
                 }
-            case .failure(let error):
-                print("Error loading user badges: \(error)")
+            case .failure(_):
+                break
             }
         }
     }
     
     func purchaseBadge(_ badge: Badge, completion: @escaping (Bool) -> Void) {
         guard let userId = Auth.auth().currentUser?.uid else {
-            print("❌ No hay userId para comprar badge")
             completion(false)
             return
         }
         
-        print("🛒 Iniciando compra de badge: \(badge.name) para user: \(userId)")
         
         // Simular compra exitosa
         let userBadge = UserBadge(
@@ -200,22 +198,17 @@ class BadgeService: ObservableObject {
             price: badge.price
         )
         
-        print("✅ Badge creado: \(userBadge.badgeId) - \(userBadge.name)")
         
         // Actualizar en Firestore
         var updatedBadges = ownedBadges
         updatedBadges.append(userBadge)
         
-        print("📝 Badges antes de actualizar: \(ownedBadges.count)")
-        print("📝 Badges después de agregar: \(updatedBadges.count)")
         
         updateUserBadges(userId: userId, badges: updatedBadges) { [weak self] success in
-            print("🔄 Resultado de updateUserBadges: \(success)")
             
             if success {
                 DispatchQueue.main.async {
                     self?.ownedBadges = updatedBadges
-                    print("✅ ownedBadges actualizado localmente: \(self?.ownedBadges.count ?? 0)")
                 }
             }
             completion(success)
@@ -242,15 +235,12 @@ class BadgeService: ObservableObject {
         
         updateUserBadges(userId: userId, badges: ownedBadges) { success in
             if !success {
-                print("Error updating badge visibility")
             }
             completion(success)
         }
     }
     
     private func updateUserBadges(userId: String, badges: [UserBadge], completion: @escaping (Bool) -> Void) {
-        print("🔥 Actualizando badges en Firestore para user: \(userId)")
-        print("🔥 Cantidad de badges a guardar: \(badges.count)")
         
         let db = Firestore.firestore()
         
@@ -258,22 +248,18 @@ class BadgeService: ObservableObject {
             let encoder = Firestore.Encoder()
             let badgesData = try badges.map { try encoder.encode($0) }
             
-            print("🔥 Badges encoded exitosamente")
             
             db.collection("users").document(userId).updateData([
                 "ownedBadges": badgesData,
                 "updatedAt": FieldValue.serverTimestamp()
             ]) { error in
                 if let error = error {
-                    print("❌ Error al actualizar badges en Firestore: \(error)")
                     completion(false)
                 } else {
-                    print("✅ Badges actualizados exitosamente en Firestore")
                     completion(true)
                 }
             }
         } catch {
-            print("❌ Error encoding badges: \(error)")
             completion(false)
         }
     }
@@ -313,7 +299,6 @@ class BadgeService: ObservableObject {
                 completion(error == nil)
             }
         } catch {
-            print("Error encoding subscription: \(error)")
             completion(false)
         }
     }

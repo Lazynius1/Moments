@@ -70,15 +70,17 @@ struct NotificationSummaryPopup: View {
                         }
                     }
                     
-                    // Seguidores (simulado)
-                    HStack(spacing: 3) {
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.white)
-                        
-                        Text("3")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                    // ✅ Seguidores (solo si hay solicitudes pendientes)
+                    if unreadNotifications > 0 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "person.badge.plus")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
+                            
+                            Text("\(unreadNotifications)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        }
                     }
                     
                     // Botón de cerrar

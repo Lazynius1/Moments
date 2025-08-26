@@ -240,7 +240,7 @@ class QRCodeViewModel: ObservableObject {
                 case .success(let user):
                     self?.user = user
                 case .failure(let error):
-                    print("Error loading user data: \(error)")
+                    break
                 }
             }
         }

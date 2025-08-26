@@ -125,7 +125,6 @@ struct PhotoCropEditorView: View {
             Spacer()
             
             Button(action: {
-                print("🔵 Botón 'Listo' presionado")
                 // Feedback háptico para confirmar la pulsación
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                 impactFeedback.impactOccurred()

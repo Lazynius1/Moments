@@ -1046,8 +1046,6 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             self.timestamp = timestamp.dateValue()
         } catch {
             // Si falla la decodificación de Timestamp, usar fecha actual como fallback
-            print("⚠️ Error decodificando timestamp de Firestore, usando fecha actual como fallback")
-            print("🔍 Error details: \(error)")
             self.timestamp = Date()
         }
         

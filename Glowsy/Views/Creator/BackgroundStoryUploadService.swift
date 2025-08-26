@@ -91,7 +91,6 @@ class BackgroundStoryUploadService: ObservableObject {
         
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
         
-        print("📤 === INICIANDO UPLOAD DE HISTORIA EN BACKGROUND ===")
         
         // Si ya hay una historia subiendo, cancelar la anterior
         if let existingStory = uploadingStory {
@@ -140,13 +139,11 @@ class BackgroundStoryUploadService: ObservableObject {
             await self.processStoryUpload(uploadingStory)
         }
         
-        print("✅ Historia agregada al header con progreso")
         return uploadingStory
     }
     
     // MARK: - 🔄 PROCESAMIENTO COMPLETO DE HISTORIA
     private func processStoryUpload(_ uploadingStory: UploadingStory) async {
-        print("🔄 Procesando upload de historia: \(uploadingStory.tempId)")
         
         do {
             // PASO 1: Preparar media item para upload (0% - 20%)
@@ -167,7 +164,6 @@ class BackgroundStoryUploadService: ObservableObject {
             // PASO 4: Completado (90% - 100%)
             await updateProgress(uploadingStory, progress: 1.0, status: .completed)
             
-            print("✅ Upload de historia completado: \(storyId)")
             
             // PASO 5: Moderar en background silencioso
             Task.detached(priority: .background) {
@@ -183,7 +179,6 @@ class BackgroundStoryUploadService: ObservableObject {
                 // Procesar menciones
                 let mentionStickers = stickerData.filter { $0.type == .mention }
                 if !mentionStickers.isEmpty {
-                    print("📧 Enviando notificaciones de menciones con storyId real: \(storyId)")
                     StickerPickerView.sendMentionNotificationsForStory(
                         storyId: storyId, // ✅ Usar storyId real
                         stickers: mentionStickers
@@ -193,28 +188,24 @@ class BackgroundStoryUploadService: ObservableObject {
                 // ✅ NUEVO: Procesar polls
                 let pollStickers = stickerData.filter { $0.type == .poll }
                 if !pollStickers.isEmpty {
-                    print("📊 Configurando polls con storyId real: \(storyId)")
                     await setupPollStickers(storyId: storyId, stickers: pollStickers)
                 }
                 
                 // ✅ NUEVO: Procesar questions
                 let questionStickers = stickerData.filter { $0.type == .question }
                 if !questionStickers.isEmpty {
-                    print("❓ Configurando questions con storyId real: \(storyId)")
                     await setupQuestionStickers(storyId: storyId, stickers: questionStickers)
                 }
                 
                 // ✅ NUEVO: Procesar question responses
                 let questionResponseStickers = stickerData.filter { $0.type == .questionResponse }
                 if !questionResponseStickers.isEmpty {
-                    print("💬 Configurando question responses con storyId real: \(storyId)")
                     await setupQuestionResponseStickers(storyId: storyId, stickers: questionResponseStickers)
                 }
                 
                 // ✅ NUEVO: Procesar weather stickers
                 let weatherStickers = stickerData.filter { $0.type == .weather }
                 if !weatherStickers.isEmpty {
-                    print("🌤️ Configurando weather stickers con storyId real: \(storyId)")
                     await setupWeatherStickers(storyId: storyId, stickers: weatherStickers)
                 }
             }
@@ -226,7 +217,6 @@ class BackgroundStoryUploadService: ObservableObject {
             }
             
         } catch {
-            print("❌ Error en upload de historia: \(error)")
             await updateProgress(uploadingStory, progress: 0.0, status: .failed, error: error.localizedDescription)
         }
         
@@ -238,7 +228,6 @@ class BackgroundStoryUploadService: ObservableObject {
     // MARK: - 📁 PREPARAR MEDIA ITEM
     // ✅ COMPRESIÓN SIMPLE - PRESERVAR DIMENSIONES ORIGINALES
     private func compressVideoForStory(_ videoURL: URL) async throws -> URL {
-        print("🎬 Comprimiendo video preservando dimensiones originales...")
         
         let asset = AVAsset(url: videoURL)
         
@@ -288,7 +277,6 @@ class BackgroundStoryUploadService: ObservableObject {
         // ✅ LÍMITE DE TAMAÑO RAZONABLE
         exportSession.fileLengthLimit = 50 * 1024 * 1024 // 50MB
         
-        print("🚀 Iniciando compresión simple...")
         
         // ✅ EJECUTAR COMPRESIÓN
         await exportSession.export()
@@ -297,10 +285,6 @@ class BackgroundStoryUploadService: ObservableObject {
         case .completed:
             let originalSize = getFileSize(videoURL)
             let compressedSize = getFileSize(compressedURL)
-            print("✅ Video comprimido exitosamente:")
-            print("  - Original: \(originalSize)")
-            print("  - Comprimido: \(compressedSize)")
-            print("  - Dimensiones: Preservadas")
             return compressedURL
             
         case .failed:
@@ -350,7 +334,6 @@ class BackgroundStoryUploadService: ObservableObject {
         
         // ✅ SOLO COMPRIMIR SI ES MUY PESADO O TIENE BITRATE ALTO
         if fileSize > 100 * 1024 * 1024 { // Más de 100MB
-            print("🔄 Video muy pesado (\(fileSize / 1024 / 1024)MB) - necesita compresión")
             return true
         }
         
@@ -358,12 +341,10 @@ class BackgroundStoryUploadService: ObservableObject {
             let bitrate = try? await videoTrack.load(.estimatedDataRate)
             
             if let rate = bitrate, rate > 15_000_000 { // Más de 15 Mbps
-                print("🔄 Bitrate muy alto (\(Int(rate / 1_000_000))Mbps) - necesita compresión")
                 return true
             }
         }
         
-        print("✅ Video ya optimizado - no necesita compresión")
         return false
     }
 
@@ -376,11 +357,9 @@ class BackgroundStoryUploadService: ObservableObject {
             let needsCompression = await needsCompressionBySize(videoURL)
             
             if needsCompression {
-                print("🎬 Comprimiendo video por tamaño/bitrate...")
                 let compressedVideoURL = try await compressVideoForStory(videoURL)
                 return UploadMediaItem(type: .video, image: nil, videoURL: compressedVideoURL)
             } else {
-                print("✅ Usando video original - ya optimizado")
                 return UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
             }
         } else {
@@ -418,7 +397,6 @@ class BackgroundStoryUploadService: ObservableObject {
     
     // MARK: - 📁 UPLOAD DE ARCHIVO DE HISTORIA
     private func uploadStoryMedia(_ uploadingStory: UploadingStory, uploadMediaItem: UploadMediaItem) async throws -> String {
-        print("📁 Subiendo archivo de historia...")
         
         let storageService = StorageService()
         
@@ -520,8 +498,6 @@ class BackgroundStoryUploadService: ObservableObject {
         uploadingStory: UploadingStory,
         mediaUrl: String
     ) async {
-        print("🛡️ === MODERACIÓN SILENCIOSA DE HISTORIA INICIADA ===")
-        print("📱 Historia ID: \(storyId)")
         
         await withCheckedContinuation { continuation in
             MediaModerationService.shared.moderateMedia(
@@ -533,47 +509,40 @@ class BackgroundStoryUploadService: ObservableObject {
             ) { result in
                 switch result {
                 case .approved:
-                    print("✅ Historia aprobada: \(mediaUrl)")
+                    // Story approved - no action needed
+                    break
                     
                 case .deleted(let reason, let category):
-                    print("🚨 Historia moderada - ocultando: \(reason)")
-                    print("📊 Categoría: \(category)")
-                    
                     // ✅ IGUAL QUE MOMENTOS: MediaModerationService YA ejecutó hideContentUsingOnlyMe()
                     // NO necesitamos llamar a hideStoryUsingOnlyMe() aquí
+                    break
                     
                 case .warning(let reason, let category):
-                    print("⚠️ Historia con advertencia: \(reason)")
-                    print("📊 Categoría: \(category)")
-                    
                     // ✅ IGUAL QUE MOMENTOS: MediaModerationService YA ejecutó hideContentUsingOnlyMe()
                     // La historia queda visible pero marcada para revisión
+                    break
                     
                 case .error(let errorMessage):
-                    print("❌ Error moderando historia: \(errorMessage)")
                     // Mantener visible si hay error técnico
+                    break
                 }
                 
                 continuation.resume()
             }
         }
         
-        print("✅ Moderación silenciosa de historia completada")
     }
     
     // MARK: - 📊 CONFIGURAR POLLS
     private func setupPollStickers(storyId: String, stickers: [StickerItem]) async {
-        print("📊 Configurando \(stickers.count) polls para historia: \(storyId)")
         
         // ✅ CORREGIDO: Unwrap uploadingStory de forma segura
         guard let uploadingStory = uploadingStory else {
-            print("❌ No hay historia subiendo")
             return
         }
         
         for sticker in stickers {
             guard let pollData = sticker.interactionData?.pollData else {
-                print("⚠️ Poll sin datos de interacción")
                 continue
             }
             
@@ -597,26 +566,21 @@ class BackgroundStoryUploadService: ObservableObject {
             
             do {
                 try await pollVotesRef.document("metadata").setData(pollMetadata)
-                print("✅ Poll configurado: \(sticker.id)")
             } catch {
-                print("❌ Error configurando poll: \(error)")
             }
         }
     }
     
     // MARK: - ❓ CONFIGURAR QUESTIONS
     private func setupQuestionStickers(storyId: String, stickers: [StickerItem]) async {
-        print("❓ Configurando \(stickers.count) questions para historia: \(storyId)")
         
         // ✅ CORREGIDO: Unwrap uploadingStory de forma segura
         guard let uploadingStory = uploadingStory else {
-            print("❌ No hay historia subiendo")
             return
         }
         
         for sticker in stickers {
             guard let questionText = sticker.interactionData?.questionText else {
-                print("⚠️ Question sin datos de interacción")
                 continue
             }
             
@@ -638,43 +602,35 @@ class BackgroundStoryUploadService: ObservableObject {
             
             do {
                 try await questionResponsesRef.document("metadata").setData(questionMetadata)
-                print("✅ Question configurado: \(sticker.id)")
             } catch {
-                print("❌ Error configurando question: \(error)")
             }
         }
     }
     
     // MARK: - 💬 CONFIGURAR QUESTION RESPONSES
     private func setupQuestionResponseStickers(storyId: String, stickers: [StickerItem]) async {
-        print("💬 Configurando \(stickers.count) question responses para historia: \(storyId)")
         
         // Los stickers de respuesta de preguntas son estáticos y se muestran en la historia
         // No necesitan configuración especial en Firestore
         for sticker in stickers {
             guard let questionText = sticker.interactionData?.questionText else {
-                print("⚠️ Question response sin datos de interacción")
                 continue
             }
             
-            print("✅ Question response configurado: \(sticker.id) - \(questionText)")
         }
     }
     
     // MARK: - 🌤️ CONFIGURAR WEATHER STICKERS
     private func setupWeatherStickers(storyId: String, stickers: [StickerItem]) async {
-        print("🌤️ Configurando \(stickers.count) weather stickers para historia: \(storyId)")
         
         // Los stickers de clima son estáticos y se muestran animados en la historia
         // No necesitan configuración especial en Firestore, solo se guardan los datos
         for sticker in stickers {
             guard let weatherSymbol = sticker.interactionData?.weatherSymbol,
                   let temperature = sticker.interactionData?.questionText else {
-                print("⚠️ Weather sticker sin datos de interacción")
                 continue
             }
             
-            print("✅ Weather sticker configurado: \(sticker.id) - \(weatherSymbol) \(temperature)")
         }
     }
     

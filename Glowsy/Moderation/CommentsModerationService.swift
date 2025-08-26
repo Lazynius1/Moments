@@ -125,11 +125,9 @@ class CommentModerationService {
         if let cached = cachedSettings,
            let lastFetch = lastFetchTime,
            Date().timeIntervalSince(lastFetch) < cacheValidityDuration {
-            print("🔄 Usando configuración en cache")
             return cached
         }
         
-        print("📥 Cargando configuración desde Firestore...")
         
         let db = Firestore.firestore()
         
@@ -144,18 +142,13 @@ class CommentModerationService {
                 self.cachedSettings = settings
                 self.lastFetchTime = Date()
                 
-                print("✅ Configuración cargada: Modo \(settings.moderationMode)")
-                print("📊 Umbrales delete - harassment: \(settings.deleteThresholds.harassment)")
-                print("📊 Umbrales warning - harassment: \(settings.warningThresholds.harassment)")
                 
                 return settings
             } else {
-                print("⚠️ No se encontró configuración, usando valores por defecto")
                 return getDefaultSettings()
             }
             
         } catch {
-            print("❌ Error cargando configuración: \(error.localizedDescription)")
             return getDefaultSettings()
         }
     }
@@ -201,9 +194,7 @@ class CommentModerationService {
         }
         
         if httpResponse.statusCode != 200 {
-            print("❌ OpenAI API Error: \(httpResponse.statusCode)")
             if let errorData = String(data: data, encoding: .utf8) {
-                print("Error details: \(errorData)")
             }
             throw CommentsModerationError.apiError
         }
@@ -240,10 +231,6 @@ class CommentModerationService {
         let categories = result.categories
         let scores = result.categoryScores
         
-        print("🔍 Aplicando umbrales dinámicos:")
-        print("📊 Scores - harassment: \(scores.harassment), hate: \(scores.hate), sexual: \(scores.sexual)")
-        print("⚙️ Delete thresholds - harassment: \(settings.deleteThresholds.harassment), hate: \(settings.deleteThresholds.hate)")
-        print("⚙️ Warning thresholds - harassment: \(settings.warningThresholds.harassment), hate: \(settings.warningThresholds.hate)")
         
         // 🚨 RECHAZAR INMEDIATAMENTE - Contenido muy grave (sin cambios)
         if categories.sexualMinors {
@@ -264,58 +251,47 @@ class CommentModerationService {
         
         // 🚨 RECHAZAR - Usando umbrales dinámicos de eliminación
         if scores.harassment > settings.deleteThresholds.harassment {
-            print("🚨 Eliminando por harassment: \(scores.harassment) > \(settings.deleteThresholds.harassment)")
             return .rejected(reason: "Contenido de acoso detectado", category: "harassment")
         }
         
         if scores.hate > settings.deleteThresholds.hate {
-            print("🚨 Eliminando por hate: \(scores.hate) > \(settings.deleteThresholds.hate)")
             return .rejected(reason: "Discurso de odio detectado", category: "hate")
         }
         
         if scores.sexual > settings.deleteThresholds.sexual {
-            print("🚨 Eliminando por sexual: \(scores.sexual) > \(settings.deleteThresholds.sexual)")
             return .rejected(reason: "Contenido sexual inapropiado", category: "sexual")
         }
         
         if scores.violence > settings.deleteThresholds.violence {
-            print("🚨 Eliminando por violence: \(scores.violence) > \(settings.deleteThresholds.violence)")
             return .rejected(reason: "Contenido violento detectado", category: "violence")
         }
         
         if scores.selfHarm > settings.deleteThresholds.selfHarm {
-            print("🚨 Eliminando por selfHarm: \(scores.selfHarm) > \(settings.deleteThresholds.selfHarm)")
             return .rejected(reason: "Contenido de autolesión detectado", category: "self-harm")
         }
         
         // ⚠️ ADVERTIR - Usando umbrales dinámicos de advertencia
         if scores.harassment > settings.warningThresholds.harassment {
-            print("⚠️ Advertencia por harassment: \(scores.harassment) > \(settings.warningThresholds.harassment)")
             return .warning(reason: "Comentario detectado como potencialmente ofensivo", category: "harassment")
         }
         
         if scores.hate > settings.warningThresholds.hate {
-            print("⚠️ Advertencia por hate: \(scores.hate) > \(settings.warningThresholds.hate)")
             return .warning(reason: "Posible discurso de odio detectado", category: "hate")
         }
         
         if scores.sexual > settings.warningThresholds.sexual {
-            print("⚠️ Advertencia por sexual: \(scores.sexual) > \(settings.warningThresholds.sexual)")
             return .warning(reason: "Contenido sexual inapropiado", category: "sexual")
         }
         
         if scores.violence > settings.warningThresholds.violence {
-            print("⚠️ Advertencia por violence: \(scores.violence) > \(settings.warningThresholds.violence)")
             return .warning(reason: "Contenido violento detectado", category: "violence")
         }
         
         if scores.selfHarm > settings.warningThresholds.selfHarm {
-            print("⚠️ Advertencia por selfHarm: \(scores.selfHarm) > \(settings.warningThresholds.selfHarm)")
             return .warning(reason: "Contenido de autolesión detectado", category: "self-harm")
         }
         
         // ✅ Si llega aquí, aprobar
-        print("✅ Contenido aprobado - todos los scores están por debajo de los umbrales")
         return .approved
     }
     
@@ -381,11 +357,9 @@ class CommentModerationService {
         // 💾 Guardar en Firestore
         db.collection("moderationLogs").addDocument(data: logData) { error in
             if let error = error {
-                print("❌ Error guardando log de moderación: \(error.localizedDescription)")
+                // Error logging failed
             } else {
-                print("📊 Log de moderación guardado exitosamente")
-                print("📝 Acción: \(action) - Categoría: \(category)")
-                print("📝 Razón: \(reason)")
+                // Successfully logged
             }
         }
     }
@@ -455,13 +429,10 @@ class CommentModerationService {
         // 💾 Guardar en Firestore
         db.collection("moderationLogs").addDocument(data: logData) { error in
             if let error = error {
-                print("❌ Error guardando log detallado: \(error.localizedDescription)")
+                // Error logging failed
             } else {
-                print("📊 Log detallado guardado exitosamente")
-                print("📝 Acción: \(action) - Categoría: \(category)")
-                print("📝 Razón: \(reason)")
                 if let result = moderationResult {
-                    print("📈 Score más alto: \(self.getHighestScore(result.categoryScores))")
+                    // Successfully logged with moderation result
                 }
             }
         }
@@ -488,7 +459,6 @@ class CommentModerationService {
     func reloadSettings() {
         cachedSettings = nil
         lastFetchTime = nil
-        print("🔄 Cache de configuración limpiado - se recargará en el próximo uso")
     }
 }
 

@@ -86,7 +86,6 @@ struct LoginView: View {
         }
         // ✅ NUEVO: Observar cambios en el estado de autenticación
         .onChange(of: authService.authState) { newState in
-            print("🔄 LoginView - Estado cambió a: \(newState)")
         }
     }
     
@@ -99,7 +98,6 @@ struct LoginView: View {
                     case .success:
                         AnalyticsService.shared.trackSuccessfulLogin()
                         errorMessage = nil
-                        print("✅ Login completado - esperando AuthStateListener")
                         
                         // ✅ SIMPLIFICADO: Usar el servicio centralizado
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

@@ -102,7 +102,6 @@ struct EnhancedCameraPickerView: View {
             handleSelectedMedia(items)
         }
         .onAppear {
-            print("📷 Camera picker appeared - isEphemeralMode: \(isEphemeralMode)")
         }
     }
     
@@ -114,7 +113,7 @@ struct EnhancedCameraPickerView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .medium))
-                    Text("Cancelar")
+                    Text(NSLocalizedString("camera.actions.cancel", comment: "Cancel camera action"))
                         .font(.custom("Poppins-Medium", size: 14))
                 }
                 .foregroundColor(.white)
@@ -162,7 +161,7 @@ struct EnhancedCameraPickerView: View {
                 HStack(spacing: 6) {
                     Image(systemName: isEphemeralMode ? "eye.slash.circle.fill" : "eye.circle")
                         .font(.system(size: 16))
-                    Text(isEphemeralMode ? "EFÍMERO" : "NORMAL")
+                    Text(isEphemeralMode ? NSLocalizedString("camera.mode.ephemeral", comment: "Ephemeral mode") : NSLocalizedString("camera.mode.normal", comment: "Normal mode"))
                         .font(.custom("Poppins-SemiBold", size: 12))
                 }
                 .foregroundColor(isEphemeralMode ? .black : .white)
@@ -222,7 +221,6 @@ struct EnhancedCameraPickerView: View {
             // Gallery Button - FUNCIONAL ✅
             Button(action: {
                 showPhotoPicker = true
-                print("📸 Gallery opened")
             }) {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.black.opacity(0.6))
@@ -250,7 +248,6 @@ struct EnhancedCameraPickerView: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showGridLines.toggle()
                 }
-                print("📐 Grid lines: \(showGridLines ? "ON" : "OFF")")
                 
                 // Haptic feedback
                 let impactFeedback = UIImpactFeedbackGenerator(style: .light)
@@ -283,10 +280,10 @@ struct EnhancedCameraPickerView: View {
                         Image(systemName: "timer")
                             .font(.system(size: 20))
                             .foregroundColor(.yellow)
-                        Text("Se elimina al ver")
+                        Text(NSLocalizedString("camera.ephemeral.deleteOnView", comment: "Ephemeral delete on view message"))
                             .font(.custom("Poppins-Medium", size: 11))
                             .foregroundColor(.yellow)
-                        Text("¡Solo una vez!")
+                        Text(NSLocalizedString("camera.ephemeral.onceOnly", comment: "Ephemeral once only message"))
                             .font(.custom("Poppins-Regular", size: 9))
                             .foregroundColor(.yellow.opacity(0.8))
                     }
@@ -314,14 +311,12 @@ struct EnhancedCameraPickerView: View {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             isEphemeralMode.toggle()
         }
-        print("🔄 Ephemeral mode toggled to: \(isEphemeralMode)")
     }
     
     private func switchCamera() {
         withAnimation(.easeInOut(duration: 0.3)) {
             cameraPosition = cameraPosition == .back ? .front : .back
         }
-        print("📱 Camera switched to: \(cameraPosition)")
     }
     
     private func cycleFlashMode() {
@@ -329,24 +324,20 @@ struct EnhancedCameraPickerView: View {
         if let currentIndex = modes.firstIndex(of: flashMode) {
             flashMode = modes[(currentIndex + 1) % modes.count]
         }
-        print("⚡ Flash mode changed to: \(flashMode)")
     }
     
     // ✅ HANDLE SELECTED MEDIA FROM GALLERY
     private func handleSelectedMedia(_ items: [PhotosPickerItem]) {
         guard let item = items.first else { return }
         
-        print("📱 Processing selected media from gallery")
         
         Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 DispatchQueue.main.async {
                     // Determine if it's image or video
                     if let _ = UIImage(data: data) {
-                        print("📸 Selected image from gallery")
                         self.onMediaCaptured(data, .image, self.isEphemeralMode)
                     } else {
-                        print("🎥 Selected video from gallery")
                         self.onMediaCaptured(data, .video, self.isEphemeralMode)
                     }
                     
@@ -355,18 +346,15 @@ struct EnhancedCameraPickerView: View {
                     self.dismiss()
                 }
             } else {
-                print("❌ Failed to load media from gallery")
             }
         }
     }
     
     private func handleCapture() {
         guard let cameraVC = cameraViewController else {
-            print("❌ Error: CameraViewController no disponible.")
             return
         }
         
-        print("🎯 HandleCapture - mode: \(captureMode), ephemeral: \(isEphemeralMode)")
         
         switch captureMode {
         case .photo:
@@ -657,7 +645,6 @@ class CameraViewController: UIViewController {
     
     private func setupCameraInput(position: AVCaptureDevice.Position) {
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else {
-            print("Unable to access \(position == .back ? "back" : "front") camera")
             return
         }
         
@@ -674,7 +661,6 @@ class CameraViewController: UIViewController {
                 currentCameraPosition = position == .back ? .back : .front
             }
         } catch {
-            print("Error setting up camera input: \(error)")
         }
     }
     
@@ -773,30 +759,25 @@ class CameraViewController: UIViewController {
 extension CameraViewController: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard let imageData = photo.fileDataRepresentation() else {
-            print("Error capturing photo: \(error?.localizedDescription ?? "Unknown error")")
             return
         }
         
         delegate?.didCapturePhoto(imageData)
-        print("📸 Photo captured successfully!")
     }
 }
 
 extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         if let error = error {
-            print("Error recording video: \(error.localizedDescription)")
             return
         }
         
         do {
             let videoData = try Data(contentsOf: outputFileURL)
             delegate?.didCaptureVideo(videoData)
-            print("🎥 Video captured successfully!")
             
             try FileManager.default.removeItem(at: outputFileURL)
         } catch {
-            print("Error reading video data: \(error)")
         }
     }
 }

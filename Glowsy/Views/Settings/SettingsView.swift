@@ -400,13 +400,14 @@ struct SettingsFormView: View {
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     
-                    SupportMomentsSection(
-                        isShowingSupportMoments: $isShowingSupportMoments
-                    )
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .leading).combined(with: .opacity),
-                            removal: .move(edge: .trailing).combined(with: .opacity)
-                        ))
+                    // ✅ TEMPORALMENTE OCULTO: Sección de suscripciones
+                    // SupportMomentsSection(
+                    //     isShowingSupportMoments: $isShowingSupportMoments
+                    // )
+                    //     .transition(.asymmetric(
+                    //         insertion: .move(edge: .leading).combined(with: .opacity),
+                    //         removal: .move(edge: .trailing).combined(with: .opacity)
+                    //     ))
                     
                     NotificationsSection(
                         viewModel: viewModel,
@@ -773,41 +774,41 @@ struct ProfileSection: View {
                         )
                     }
                     
-                    // Mensaje de agradecimiento personalizado
-                    if let currentUser = authService.currentUser,
-                       let thankYouMessage = currentUser.thankYouMessage {
-                        Text(thankYouMessage)
-                            .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(Color(hex: "00A896"))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color(hex: "00A896").opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1)
-                                    )
-                            )
-                    }
+                    // ✅ TEMPORALMENTE OCULTO: Mensaje de agradecimiento personalizado
+                    // if let currentUser = authService.currentUser,
+                    //    let thankYouMessage = currentUser.thankYouMessage {
+                    //     Text(thankYouMessage)
+                    //         .font(.custom("Poppins-Regular", size: 12))
+                    //         .foregroundColor(Color(hex: "00A896"))
+                    //         .multilineTextAlignment(.center)
+                    //         .padding(.horizontal, 16)
+                    //         .padding(.vertical, 8)
+                    //         .background(
+                    //             RoundedRectangle(cornerRadius: 8)
+                    //                 .fill(Color(hex: "00A896").opacity(0.1))
+                    //                 .overlay(
+                    //                     RoundedRectangle(cornerRadius: 8)
+                    //                         .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1)
+                    //                 )
+                    //         )
+                    // }
                     
-                    // Botón de editar badges (reemplaza "Editar perfil")
-                    NavigationLink(destination: BadgeManagementView()) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "star.circle")
-                                .font(.system(size: 14, weight: .medium))
-                            
-                            if let currentUser = authService.currentUser,
-                               currentUser.isSupporter || currentUser.isPlusSubscriber {
-                                Text("settings.badges.manage")
-                            } else {
-                                Text("settings.badges.explore")
-                            }
-                        }
-                        .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(Color(hex: "00A896"))
-                    }
+                    // ✅ TEMPORALMENTE OCULTO: Botón de editar badges
+                    // NavigationLink(destination: BadgeManagementView()) {
+                    //     HStack(spacing: 6) {
+                    //         Image(systemName: "star.circle")
+                    //         .font(.system(size: 14, weight: .medium))
+                    //         
+                    //         if let currentUser = authService.currentUser,
+                    //            currentUser.isSupporter || currentUser.isPlusSubscriber {
+                    //             Text("settings.badges.manage")
+                    //         } else {
+                    //             Text("settings.badges.explore")
+                    //         }
+                    //     }
+                    //     .font(.custom("Poppins-Medium", size: 14))
+                    //     .foregroundColor(Color(hex: "00A896"))
+                    // }
                 }
             }
             .padding(.vertical, 8)
@@ -1797,7 +1798,6 @@ class SettingsViewModel: ObservableObject {
             showAdmirers: showAdmirers
         ) { error in
             if let error = error {
-                print("Error updating privacy settings: \(error)")
             }
         }
     }
@@ -1808,7 +1808,6 @@ class SettingsViewModel: ObservableObject {
         let endHour = dateFormatter.string(from: endTime)
         firestoreService.updateActiveHours(userId: userId, startHour: startHour, endHour: endHour) { error in
             if let error = error {
-                print("Error updating active hours: \(error)")
             }
         }
     }
@@ -1818,7 +1817,6 @@ class SettingsViewModel: ObservableObject {
         notificationPreferences[type] = isEnabled
         firestoreService.updateNotificationPreferences(userId: userId, preferences: notificationPreferences) { error in
             if let error = error {
-                print("Error updating notification preference: \(error)")
             }
         }
     }

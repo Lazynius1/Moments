@@ -9,7 +9,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        print("🚀 AppDelegate - didFinishLaunchingWithOptions iniciado")
         
         // ✅ CONFIGURAR PRIMERO el delegate de messaging
         Messaging.messaging().delegate = self
@@ -20,18 +19,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         // ✅ SOLICITAR PERMISOS Y REGISTRAR para notificaciones remotas
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            print("🔐 AppDelegate - Permisos concedidos: \(granted)")
             if let error = error {
-                print("❌ AppDelegate - Error en permisos: \(error)")
             }
             if granted {
                 DispatchQueue.main.async {
-                    print("📱 AppDelegate - Solicitando registro de notificaciones...")
                     application.registerForRemoteNotifications()
-                    print("📱 AppDelegate - registerForRemoteNotifications() llamado")
                 }
             } else {
-                print("❌ AppDelegate - Permisos denegados")
             }
         }
         
@@ -40,34 +34,24 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     
     // ✅ LOGS DETALLADOS: Registro exitoso de APNs
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        print("🎉 ====== APNs registration SUCCESS! ======")
-        print("📱 Device token recibido: \(deviceToken.map { String(format: "%02.2hhx", $0) }.joined())")
         
         // ✅ PRIMERO: Configurar el token en Firebase Messaging
         Messaging.messaging().apnsToken = deviceToken
-        print("✅ APNs token configurado en Firebase Messaging")
         
         // ✅ SEGUNDO: Esperar un poco y luego obtener FCM token
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            print("🔄 Solicitando FCM token después de configurar APNs...")
             FCMTokenService.shared.updateFCMToken()
         }
     }
     
     // ✅ LOGS DETALLADOS: Registro fallido de APNs
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("💥 ====== APNs registration FAILED! ======")
-        print("❌ Error: \(error)")
-        print("❌ Error code: \((error as NSError).code)")
-        print("❌ Error domain: \((error as NSError).domain)")
-        print("❌ Error localizedDescription: \(error.localizedDescription)")
     }
 }
 
 // MARK: - MessagingDelegate
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        print("🔄 FCM Token actualizado")
         
         // ✅ USAR EL SERVICIO CENTRALIZADO mejorado
         FCMTokenService.shared.updateFCMToken()
@@ -100,7 +84,6 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         
-        print("🔔 Usuario tocó notificación: \(userInfo)")
         
         // ✅ USAR EL SERVICIO DE NAVEGACIÓN
         NotificationNavigationService.shared.handleNotificationData(userInfo)
@@ -123,9 +106,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             .document(notificationId)
             .updateData(["isPending": false]) { error in
                 if let error = error {
-                    print("❌ Error marcando notificación como leída: \(error)")
                 } else {
-                    print("✅ Notificación marcada como leída: \(notificationId)")
                 }
             }
     }

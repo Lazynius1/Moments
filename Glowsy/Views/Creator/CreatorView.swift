@@ -120,7 +120,6 @@ struct ProcessedMedia: Identifiable {
             
             return (duration: duration, fileSize: fileSize)
         } catch {
-            print("Error obteniendo info del video: \(error)")
             return nil
         }
     }
@@ -544,7 +543,6 @@ struct CreatorView: View {
         // ✅ Notificar limpieza de video
         NotificationCenter.default.post(name: NSNotification.Name("CleanupVideoPlayer"), object: nil)
         
-        print("🧹 Video y audio limpiados al cerrar CreatorView")
     }
 }
 // MARK: - Content Type Selection
@@ -664,6 +662,8 @@ struct MediaSelectionView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     
+    @Environment(\.colorScheme) var colorScheme
+    
     @State private var mediaAssets: [PHAsset] = []
     @State private var thumbnails: [String: UIImage] = [:]
     @State private var selectedAssetIDs: [String] = []
@@ -695,7 +695,7 @@ struct MediaSelectionView: View {
             // Grid de fotos y videos
             mediaGridSection
         }
-        .background(Color.black)
+        .background(colorScheme == .dark ? Color.black : Color.white)
         .onAppear {
             requestPhotoLibraryAccess()
         }
@@ -721,14 +721,14 @@ struct MediaSelectionView: View {
             }) {
                 Image(systemName: "chevron.left")
                     .font(.title2)
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
             }
             
             Spacer()
             
-                            Text("creator.newMoment")
+            Text("creator.newMoment")
                 .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Spacer()
             
@@ -745,7 +745,7 @@ struct MediaSelectionView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.black)
+        .background(colorScheme == .dark ? Color.black : Color.white)
     }
     
     // MARK: - Preview principal
@@ -756,7 +756,7 @@ struct MediaSelectionView: View {
                let currentAsset = mediaAssets.first(where: { $0.localIdentifier == currentAssetID }) {
                 
                 ZStack {
-                    Color.black
+                    (colorScheme == .dark ? Color.black : Color.white)
                     
                     if let thumbnail = thumbnails[currentAssetID] {
                         Image(uiImage: thumbnail)
@@ -780,10 +780,10 @@ struct MediaSelectionView: View {
                                     Text(formatDuration(currentAsset.duration))
                                         .font(.caption.bold())
                                 }
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.black.opacity(0.7))
+                                .background((colorScheme == .dark ? Color.black : Color.white).opacity(0.7))
                                 .clipShape(Capsule())
                                 .padding(.trailing, 12)
                                 .padding(.top, 12)
@@ -816,7 +816,7 @@ struct MediaSelectionView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.black)
+            .background(colorScheme == .dark ? Color.black : Color.white)
         }
     }
     
@@ -837,11 +837,11 @@ struct MediaSelectionView: View {
                     HStack(spacing: 6) {
                         Text(selectedAlbum?.title ?? "Recientes")
                             .font(.custom("Poppins-SemiBold", size: 16))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Image(systemName: "chevron.down")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                             .rotationEffect(.degrees(showingAlbumPicker ? 180 : 0))
                             .animation(.easeInOut(duration: 0.2), value: showingAlbumPicker)
                     }
@@ -866,7 +866,7 @@ struct MediaSelectionView: View {
                         Text("creator.camera")
                             .font(.custom("Poppins-Medium", size: 14))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color(hex: "00A896"))
@@ -875,7 +875,7 @@ struct MediaSelectionView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.black)
+            .background(colorScheme == .dark ? Color.black : Color.white)
             
             // Grid de fotos
             if isLoadingLibrary {
@@ -1221,25 +1221,18 @@ struct MediaSelectionView: View {
                 let hasImages = processedMedia.contains { $0.type == .image }
                 let hasVideos = processedMedia.contains { $0.type == .video }
                 
-                print("📱 Medios procesados:")
-                print("  - Imágenes: \(processedMedia.filter { $0.type == .image }.count)")
-                print("  - Videos: \(processedMedia.filter { $0.type == .video }.count)")
                 
                 if hasVideos && !hasImages {
                     // Solo videos: ir al editor de videos
-                    print("🎥 Flujo: Solo videos → Editor de videos")
                     currentFlow = .videoEditing
                 } else if hasImages && !hasVideos {
                     // Solo imágenes: ir al editor de fotos
-                    print("📸 Flujo: Solo imágenes → Editor de fotos")
                     currentFlow = .mediaEditing
                 } else if hasImages && hasVideos {
                     // Mezcla: permitir al usuario elegir o ir directo a caption
-                    print("🎭 Flujo: Mezcla → Caption directo")
                     currentFlow = .captionAndDetails
                 } else {
                     // Fallback (no debería pasar)
-                    print("⚠️ Flujo: Sin medios → Editor de fotos")
                     currentFlow = .mediaEditing
                 }
             }
@@ -1252,9 +1245,7 @@ struct MediaSelectionView: View {
         
         for (index, videoItem) in videoItems.enumerated() {
             if videoItem.videoURL == nil {
-                print("⚠️ Video \(index + 1) no tiene URL válida")
             } else {
-                print("✅ Video \(index + 1) tiene URL: \(videoItem.videoURL!)")
             }
         }
     }
@@ -1265,9 +1256,6 @@ struct MediaSelectionView: View {
     private func detectAspectRatio(from image: UIImage) -> ProcessedMedia.AspectRatio {
         let imageRatio = image.size.width / image.size.height
         
-        print("🔍 Detectando aspect ratio:")
-        print("  - Tamaño imagen: \(image.size)")
-        print("  - Ratio calculado: \(imageRatio)")
         
         // Tolerancia del 8% para variaciones
         let tolerance: CGFloat = 0.08
@@ -1276,40 +1264,32 @@ struct MediaSelectionView: View {
         
         // 9:16 (Stories/Reels) - ratio ≈ 0.5625
         if abs(imageRatio - 0.5625) < tolerance {
-            print("  - ✅ Detectado: 9:16 (Stories)")
             return .nineBySixteen
         }
         
         // 4:5 (Portrait posts) - ratio = 0.8
         if abs(imageRatio - 0.8) < tolerance {
-            print("  - ✅ Detectado: 4:5 (Portrait)")
             return .portrait
         }
         
         // 1:1 (Square) - ratio = 1.0
         if abs(imageRatio - 1.0) < tolerance {
-            print("  - ✅ Detectado: 1:1 (Square)")
             return .square
         }
         
         // 16:9 (Landscape) - ratio ≈ 1.777
         if abs(imageRatio - 1.777) < tolerance {
-            print("  - ✅ Detectado: 16:9 (Landscape)")
             return .landscape
         }
         
         // Detección por rangos si no coincide exactamente
         if imageRatio < 0.7 {
-            print("  - 📱 Detectado: Muy vertical → 9:16")
             return .nineBySixteen
         } else if imageRatio < 0.9 {
-            print("  - 📱 Detectado: Vertical → 4:5")
             return .portrait
         } else if imageRatio < 1.2 {
-            print("  - ⬜ Detectado: Casi cuadrado → 1:1")
             return .square
         } else {
-            print("  - 📺 Detectado: Horizontal → 16:9")
             return .landscape
         }
     }
@@ -1334,7 +1314,6 @@ struct MediaSelectionView: View {
     }
     
     private func loadFullVideo(for asset: PHAsset) async -> (UIImage?, URL?) {
-        print("🎥 Cargando video: \(asset.localIdentifier)")
         
         // Cargar thumbnail del video
         let thumbnail = await loadFullImage(for: asset)
@@ -1346,55 +1325,40 @@ struct MediaSelectionView: View {
             options.deliveryMode = .highQualityFormat
             options.version = .current // Usar versión actual, no la original
             
-            print("🎥 Solicitando video con opciones mejoradas...")
             
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, audioMix, info in
                 
-                print("🎥 Respuesta de PHImageManager:")
-                print("  - AVAsset: \(avAsset != nil)")
-                print("  - AudioMix: \(audioMix != nil)")
-                print("  - Info: \(info ?? [:])")
                 
                 // Verificar si es degraded (baja calidad)
                 if let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool, isDegraded {
-                    print("  - ⚠️ Video degradado, esperando alta calidad...")
                     return // Esperar la versión de alta calidad
                 }
                 
                 // Verificar si hay error
                 if let error = info?[PHImageErrorKey] as? Error {
-                    print("  - ❌ Error obteniendo video: \(error)")
                     continuation.resume(returning: nil)
                     return
                 }
                 
                 // Verificar si necesita descargar de iCloud
                 if let needsDownload = info?[PHImageResultIsInCloudKey] as? Bool, needsDownload {
-                    print("  - ☁️ Video en iCloud, descargando...")
                     // Ya configuramos isNetworkAccessAllowed = true
                     return
                 }
                 
                 // Extraer URL del AVAsset
                 guard let urlAsset = avAsset as? AVURLAsset else {
-                    print("  - ❌ No es AVURLAsset")
                     continuation.resume(returning: nil)
                     return
                 }
                 
                 let videoURL = urlAsset.url
-                print("  - ✅ URL obtenida: \(videoURL)")
-                print("  - Es file URL: \(videoURL.isFileURL)")
-                print("  - Path: \(videoURL.path)")
-                print("  - Archivo existe: \(FileManager.default.fileExists(atPath: videoURL.path))")
                 
                 // Verificar tamaño del archivo
                 do {
                     let fileAttributes = try FileManager.default.attributesOfItem(atPath: videoURL.path)
                     let fileSize = fileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-                    print("  - Tamaño: \(fileSize) bytes (\(Double(fileSize)/1024.0/1024.0) MB)")
                 } catch {
-                    print("  - ⚠️ Error obteniendo tamaño: \(error)")
                 }
                 
                 continuation.resume(returning: videoURL)
@@ -1402,9 +1366,7 @@ struct MediaSelectionView: View {
         }
         
         if let videoURL = videoURL {
-            print("✅ Video cargado exitosamente: \(videoURL.lastPathComponent)")
         } else {
-            print("❌ Error: No se pudo obtener URL del video")
         }
         
         return (thumbnail, videoURL)
@@ -1419,11 +1381,8 @@ struct MediaSelectionView: View {
         PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, audioMix, info in
             DispatchQueue.main.async {
                 if let error = info?[PHImageErrorKey] as? Error {
-                    print("⚠️ Error de acceso al video: \(error)")
                 } else if let isInCloud = info?[PHImageResultIsInCloudKey] as? Bool, isInCloud {
-                    print("☁️ Video está en iCloud")
                 } else if avAsset != nil {
-                    print("✅ Video accesible localmente")
                 }
             }
         }
@@ -1476,68 +1435,117 @@ struct AlbumInfo: Identifiable, Equatable {
     }
 }
 
-// MARK: - Vista del selector de álbumes
+// MARK: - Vista del selector de álbumes (ESTILO ELEGANTE)
 struct AlbumPickerView: View {
     let albums: [AlbumInfo]
     let selectedAlbum: AlbumInfo?
     let onAlbumSelected: (AlbumInfo) -> Void
     
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @State private var albumThumbnails: [String: UIImage] = [:]
     
     private let imageManager = PHImageManager.default()
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button("Cancelar") {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Text("creator.album.select")
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Color.clear
-                        .frame(width: 70)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.black)
-                
-                Divider()
-                    .background(Color.gray.opacity(0.3))
-                
-                // Lista de álbumes
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(albums) { album in
-                            AlbumRowView(
-                                album: album,
-                                thumbnail: albumThumbnails[album.id],
-                                isSelected: selectedAlbum?.id == album.id,
-                                onTap: {
-                                    onAlbumSelected(album)
-                                }
-                            )
-                            .onAppear {
-                                loadAlbumThumbnail(for: album)
-                            }
+        VStack(spacing: 0) {
+            // ✅ Header compacto y elegante
+            headerView
+            
+            // ✅ Lista de álbumes
+            albumListView
+            
+            // ✅ Botón cerrar elegante
+            cancelButton
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.3),
+                                    Color(hex: "00A896").opacity(0.4)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.hidden)
+        .interactiveDismissDisabled(false)
+        .presentationBackground(.clear)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+    
+    // ✅ Header compacto sin padding extra
+    private var headerView: some View {
+        VStack(spacing: 0) {
+            // Handle del sheet
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color.white.opacity(0.6))
+                .frame(width: 36, height: 5)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+            
+            // Título centrado
+            Text("creator.album.select")
+                .font(.custom("Poppins-SemiBold", size: 18))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .padding(.bottom, 20)
+        }
+    }
+    
+    // ✅ Lista de álbumes con scroll
+    private var albumListView: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(albums) { album in
+                    AlbumRowView(
+                        album: album,
+                        thumbnail: albumThumbnails[album.id],
+                        isSelected: selectedAlbum?.id == album.id,
+                        onTap: {
+                            onAlbumSelected(album)
                         }
+                    )
+                    .onAppear {
+                        loadAlbumThumbnail(for: album)
                     }
                 }
             }
-            .background(Color.black)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+    }
+    
+    // ✅ Botón cancelar elegante
+    private var cancelButton: some View {
+        Button("Cancelar") {
+            withAnimation(.easeOut(duration: 0.3)) {
+                dismiss()
+            }
+        }
+        .font(.custom("Poppins-SemiBold", size: 16))
+        .foregroundColor(colorScheme == .dark ? .white : .black)
+        .frame(maxWidth: .infinity)
+        .frame(height: 50)
+        .background(
+            RoundedRectangle(cornerRadius: 25)
+                .fill(Color.white.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 25)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 20)
+        .padding(.bottom, 30)
     }
     
     private func loadAlbumThumbnail(for album: AlbumInfo) {
@@ -1575,6 +1583,8 @@ struct AlbumRowView: View {
     let isSelected: Bool
     let onTap: () -> Void
     
+    @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 16) {
@@ -1601,7 +1611,7 @@ struct AlbumRowView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(album.title)
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     Text(String(format: NSLocalizedString("creator.album.elements", comment: "Album elements"), album.assetCount))
@@ -2210,10 +2220,6 @@ struct CaptionAndDetailsView: View {
         let hideLikeCounts = UserDefaults.standard.bool(forKey: "hideLikeCounts")
         let allowSharing = UserDefaults.standard.bool(forKey: "allowSharing")
         
-        print("⚙️ Configuración avanzada:")
-        print("  - disableComments: \(disableComments)")
-        print("  - hideLikeCounts: \(hideLikeCounts)")
-        print("  - allowSharing: \(allowSharing)")
         
         // Detectar aspect ratio del primer media item
         var detectedAspectRatio = "1:1" // Default
@@ -2222,10 +2228,6 @@ struct CaptionAndDetailsView: View {
             
         }
         
-        print("🚀 === PUBLICACIÓN EN BARRA DE PROGRESO===")
-        print("📱 Contenido: \(captionText)")
-        print("📁 Archivos: \(selectedMediaItems.count)")
-        print("👥 Audiencia: \(audienceSetting.title)")
         
         // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
         let uploadingMoment = uploadService.uploadMoment(
@@ -2252,8 +2254,6 @@ struct CaptionAndDetailsView: View {
             self.showCreatorView = false
             
             if uploadingMoment != nil {
-                print("✅ Momento agregado a la cola - pantalla cerrada")
-                print("📊 El usuario verá el progreso en el feed")
                 
                 // 🎉 Feedback háptico de éxito
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -2271,7 +2271,6 @@ struct CaptionAndDetailsView: View {
                 ])
                 
             } else {
-                print("❌ Error: No se pudo agregar momento al servicio")
                 
                 // ❌ Feedback háptico de error
                 let notificationFeedback = UINotificationFeedbackGenerator()
@@ -2294,7 +2293,6 @@ struct CaptionAndDetailsView: View {
         selectedListName = nil
         audienceSetting = .everyone
         
-        print("🧹 Formulario limpiado para próximo momento")
     }
 }
 
@@ -2556,7 +2554,6 @@ struct StoryCameraView: View {
             try session.setCategory(.playAndRecord, mode: .videoRecording, options: [])
             try session.setActive(true)
         } catch {
-            print("Error setting up audio session: \(error)")
         }
     }
     
@@ -2595,7 +2592,6 @@ struct StoryCameraView: View {
                     currentFlow = .storyEditing
                 }
             } catch {
-                print("Error generating video thumbnail: \(error)")
             }
         }
     }
@@ -2628,7 +2624,6 @@ struct StoryCameraView: View {
                     }
                 }
             } catch {
-                print("Error loading last gallery image: \(error)")
             }
         }
     }
@@ -2734,7 +2729,6 @@ class CameraPreviewView: UIView {
         // Request camera permission first
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             guard granted else {
-                print("Camera permission denied")
                 return
             }
             
@@ -2753,7 +2747,6 @@ class CameraPreviewView: UIView {
         // Setup camera input
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: currentPosition),
               let input = try? AVCaptureDeviceInput(device: camera) else {
-            print("Failed to create camera input")
             return
         }
         
@@ -2868,7 +2861,6 @@ class CameraPreviewView: UIView {
             camera.videoZoomFactor = min(max(level, 1.0), maxZoom)
             camera.unlockForConfiguration()
         } catch {
-            print("Error updating zoom: \(error)")
         }
     }
     
@@ -3324,7 +3316,6 @@ struct UserSearchView: View {
                 case .success(let users):
                     self.searchResults = users
                 case .failure(let error):
-                    print("Error buscando usuarios: \(error)")
                     self.searchResults = []
                 }
             }
@@ -3765,11 +3756,9 @@ struct StoryGalleryPicker: View {
                             asset.loadValuesAsynchronously(forKeys: ["duration"]) {
                                 DispatchQueue.main.async {
                                     let duration = CMTimeGetSeconds(asset.duration)
-                                    print("🎬 Duración del video: \(duration) segundos")
                                     
                                     if duration <= 60.0 {
                                         // ✅ Video corto - ir directamente a edición
-                                        print("✅ Video corto (≤60s), yendo directamente a edición")
                                         let imageGenerator = AVAssetImageGenerator(asset: asset)
                                         imageGenerator.appliesPreferredTrackTransform = true
                                         imageGenerator.maximumSize = CGSize(width: 300, height: 300)
@@ -3797,7 +3786,6 @@ struct StoryGalleryPicker: View {
                                         }
                                     } else {
                                         // ✅ Video muy largo - mostrar mensaje informativo
-                                        print("❌ Video muy largo (>60s), mostrando mensaje informativo")
                                         
                                         // Guardar la duración y mostrar alert
                                         videoDuration = duration
@@ -3858,18 +3846,15 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
                 return
             }
             
-            print("📱 Media seleccionado - Tipo: \(result.itemProvider.registeredTypeIdentifiers)")
             
             if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                 // ✅ Procesar imagen
                 result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
                     DispatchQueue.main.async {
                         if let image = object as? UIImage {
-                            print("📸 Imagen seleccionada")
                             self.parent.selectedImage = image
                             self.parent.onSelect(image, nil)
                         } else {
-                            print("❌ Error cargando imagen: \(error?.localizedDescription ?? "")")
                             self.parent.onSelect(nil, nil)
                         }
                         self.parent.dismiss()
@@ -3880,7 +3865,6 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
                 result.itemProvider.loadDataRepresentation(forTypeIdentifier: UTType.movie.identifier) { data, error in
                     DispatchQueue.main.async {
                         if let videoData = data {
-                            print("🎥 Video cargado en memoria: \(videoData.count) bytes")
                             
                             // ✅ Guardar datos en archivo temporal
                             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -3893,18 +3877,15 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
                                 self.parent.selectedVideoURL = tempURL
                                 self.parent.onSelect(nil, tempURL)
                             } catch {
-                                print("❌ Error guardando video: \(error.localizedDescription)")
                                 self.parent.onSelect(nil, nil)
                             }
                         } else {
-                            print("❌ Error cargando video: \(error?.localizedDescription ?? "")")
                             self.parent.onSelect(nil, nil)
                         }
                         self.parent.dismiss()
                     }
                 }
             } else {
-                print("❌ Tipo de media no soportado")
                 parent.onSelect(nil, nil)
                 parent.dismiss()
             }
@@ -4168,7 +4149,6 @@ struct CameraCapture: UIViewControllerRepresentable {
                     )
                     parent.onCapture(media)
                 } catch {
-                    print("Error generating video thumbnail: \(error)")
                 }
             }
             
@@ -4441,7 +4421,6 @@ struct StoryOverlaysView: View {
                     completion(nil)
                 }
             case .failure(let error):
-                print("Error buscando usuario por username: \(error)")
                 completion(nil)
             }
         }
@@ -4451,32 +4430,26 @@ struct StoryOverlaysView: View {
     // ✅ FUNCIONES AUXILIARES: Mostrar toasts informativos
     private func showUserNotFoundToast(username: String) {
         // Implementar toast: "Usuario @username no encontrado"
-        print("Toast: Usuario @\(username) no encontrado")
     }
     
     private func showHashtagToast(hashtag: String) {
         // Implementar toast: "Ver publicaciones con #hashtag"
-        print("Toast: Ver publicaciones con #\(hashtag)")
     }
     
     private func showLocationToast(location: String) {
         // Implementar toast: "Ver ubicación: location"
-        print("Toast: Ver ubicación: \(location)")
     }
     
     private func showPollToast() {
         // Implementar toast: "Toca para votar en la encuesta"
-        print("Toast: Toca para votar en la encuesta")
     }
     
     private func showQuestionToast() {
         // Implementar toast: "Toca para responder la pregunta"
-        print("Toast: Toca para responder la pregunta")
     }
     
     private func showQuestionResponseToast() {
         // Implementar toast: "Respuesta anónima compartida"
-        print("Toast: Respuesta anónima compartida")
     }
 }
 
@@ -4868,7 +4841,6 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard let imageData = photo.fileDataRepresentation(),
               let image = UIImage(data: imageData) else {
-            print("Error processing photo: \(error?.localizedDescription ?? "Unknown error")")
             return
         }
         
@@ -4892,12 +4864,10 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
 // MARK: - AVCaptureFileOutputRecordingDelegate
 extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
-        print("Started recording video")
     }
     
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         if let error = error {
-            print("Error recording video: \(error)")
             return
         }
         

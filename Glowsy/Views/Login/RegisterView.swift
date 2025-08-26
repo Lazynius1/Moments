@@ -156,7 +156,7 @@ struct RegisterView: View {
                                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                             .scaleEffect(0.8)
                                     } else {
-                                        Text(currentStep == 3 ? "Crear cuenta" : "Continuar")
+                                        Text(currentStep == 3 ? NSLocalizedString("register.actions.createAccount", comment: "Create account button") : NSLocalizedString("register.actions.continue", comment: "Continue button"))
                                             .font(.system(size: 18, weight: .semibold))
                                             .foregroundColor(.white)
                                     }
@@ -253,7 +253,6 @@ struct RegisterView: View {
             // ✅ Overlay de creación de perfil
             if isCreatingProfile {
                 CreatingProfileView { // Pasar closure de completion
-                    print("⏰ RegisterView: Animación de CreatingProfileView terminada.")
                     self.animationFinished = true // Establecer flag de animación
                     self.checkAndCompleteRegistration() // Intentar completar registro
                 }
@@ -269,7 +268,7 @@ struct RegisterView: View {
         .alert(isPresented: $showAlert) {
             Alert(
                 title: Text("register.attention.title"),
-                message: Text(errorMessage ?? "Ocurrió un error desconocido"),
+                message: Text(errorMessage ?? NSLocalizedString("register.error.unknown", comment: "Unknown error message")),
                 dismissButton: .default(Text("OK"))
             )
         }
@@ -281,11 +280,11 @@ struct RegisterView: View {
     private func getStepDescription() -> String {
         switch currentStep {
         case 1:
-            return "Comienza con tus datos básicos"
+            return NSLocalizedString("register.step.description.basic", comment: "Basic data step description")
         case 2:
-            return "Personaliza tu perfil"
+            return NSLocalizedString("register.step.description.profile", comment: "Profile customization step description")
         case 3:
-            return "Último paso para unirte"
+            return NSLocalizedString("register.step.description.final", comment: "Final step description")
         default:
             return ""
         }
@@ -331,11 +330,9 @@ struct RegisterView: View {
         firebaseOperationsCompleted = false
         animationFinished = false
         
-        print("🚀 RegisterView: Iniciando registro...")
         
         // ✅ IMPORTANTE: Mostrar CreatingProfileView INMEDIATAMENTE
         self.isCreatingProfile = true
-        print("✅ CreatingProfileView mostrada - iniciando registro")
         
         // ✅ CRÍTICO: NO USAR DELAY - Llamar register inmediatamente
         self.authService.register(
@@ -351,12 +348,10 @@ struct RegisterView: View {
                 
                 switch result {
                 case .success:
-                    print("✅ RegisterView: Registro exitoso")
                     self.firebaseOperationsCompleted = true
                     self.checkAndCompleteRegistration()
                     
                 case .failure(let error):
-                    print("❌ RegisterView: Error en registro: \(error.localizedDescription)")
                     self.isCreatingProfile = false
                     self.firebaseOperationsCompleted = false
                     self.animationFinished = false
@@ -370,23 +365,17 @@ struct RegisterView: View {
 
     // ✅ FUNCIÓN MEJORADA: Asegurar tiempo mínimo de visualización
     private func checkAndCompleteRegistration() {
-        print("🔄 RegisterView: Verificando condiciones de finalización")
-        print("   - Firebase completado: \(firebaseOperationsCompleted)")
-        print("   - Animación terminada: \(animationFinished)")
         
         if firebaseOperationsCompleted && animationFinished {
-            print("✅ RegisterView: Ambas condiciones cumplidas")
             
             // ✅ IMPORTANTE: Delay mínimo para asegurar que el usuario vea la animación
             let minimumDisplayTime: TimeInterval = 3.0 // 3 segundos mínimo
             
             DispatchQueue.main.asyncAfter(deadline: .now() + minimumDisplayTime) {
-                print("🎉 RegisterView: Finalizando después del tiempo mínimo")
                 self.isCreatingProfile = false
                 self.authService.completeRegistration()
             }
         } else {
-            print("⏳ RegisterView: Esperando condiciones. Firebase: \(firebaseOperationsCompleted), Animación: \(animationFinished)")
         }
     }
 }
@@ -631,7 +620,7 @@ struct EnhancedStep1View: View {
                 usernameError = nil
                 usernameSuggestions = []
             } else {
-                usernameError = "Username no disponible"
+                usernameError = NSLocalizedString("register.error.usernameUnavailable", comment: "Username unavailable error")
                 usernameSuggestions = suggestions ?? []
             }
         }
@@ -662,10 +651,10 @@ struct EnhancedStep1View: View {
     
     private func passwordStrengthMessage() -> String {
         switch passwordStrength() {
-        case 1: return "Contraseña débil"
-        case 2: return "Contraseña regular"
-        case 3: return "Contraseña buena"
-        case 4: return "Contraseña excelente"
+        case 1: return NSLocalizedString("register.password.weak", comment: "Weak password strength")
+        case 2: return NSLocalizedString("register.password.fair", comment: "Fair password strength")
+        case 3: return NSLocalizedString("register.password.good", comment: "Good password strength")
+        case 4: return NSLocalizedString("register.password.excellent", comment: "Excellent password strength")
         default: return ""
         }
     }

@@ -916,23 +916,18 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
     
     class Coordinator: NSObject, VideoControllerDelegate {
         func videoControllerDidPlayVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio de historia empezó")
         }
         
         func videoControllerDidPauseVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio de historia pausado")
         }
         
         func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {
-            print("🎯 Video del anuncio de historia terminó")
         }
         
         func videoControllerDidMuteVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio de historia silenciado")
         }
         
         func videoControllerDidUnmuteVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio de historia con sonido")
         }
     }
 }

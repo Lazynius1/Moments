@@ -69,6 +69,7 @@ import AVFoundation
 import UIKit
 import MapKit
 import UserNotifications
+import Combine
 
 struct FeedView: View {
     @EnvironmentObject var authService: AuthService
@@ -83,6 +84,7 @@ struct FeedView: View {
     @StateObject private var notificationSummaryService = NotificationSummaryService.shared
     @ObservedObject private var badgeService = NotificationBadgeService.shared // ✅ NUEVO
     @StateObject private var navigationService = NotificationNavigationService.shared
+    @StateObject private var networkMonitor = NetworkMonitor.shared // ✅ NUEVO: NetworkMonitor
     private let privacyService = PrivacyService()
     @State private var showNotifications = false
     @State private var showMessages = false
@@ -137,6 +139,22 @@ struct FeedView: View {
                 modernBackgroundView
                     .ignoresSafeArea()
                 mainContent
+                
+                // ✅ NUEVO: Banners de estado de red
+                VStack {
+                    Spacer()
+                        .frame(height: 80) // ✅ Espacio para el header (ajustado a 80)
+                    
+                    OfflineBanner(networkMonitor: networkMonitor) {
+                        // Reintentar conexión usando forceRefresh (ya recarga todo)
+                        forceRefresh()
+                    }
+                    
+                    SlowConnectionBanner(networkMonitor: networkMonitor)
+                    
+                    Spacer()
+                }
+                .zIndex(999)
                 
                 if showGlobalContextMenu, let moment = selectedMomentForMenu {
                     ModernContextMenuOverlay(
@@ -281,7 +299,7 @@ struct FeedView: View {
         }
         .fullScreenCover(isPresented: $showingLocationMap) {
             LocationMapView(
-                locationName: selectedLocationName.isEmpty ? "Ubicación" : selectedLocationName,
+                locationName: selectedLocationName.isEmpty ? NSLocalizedString("feed.location.default", comment: "Default location name") : selectedLocationName,
                 coordinate: selectedLocationCoordinate,
                 isPresented: $showingLocationMap
             )
@@ -317,15 +335,15 @@ struct FeedView: View {
                 )
             }
         }
-        .alert("Eliminar momento", isPresented: $showDeleteAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Eliminar", role: .destructive) {
+        .alert(NSLocalizedString("feed.actions.delete.title", comment: "Delete moment alert title"), isPresented: $showDeleteAlert) {
+            Button(NSLocalizedString("feed.actions.cancel", comment: "Cancel action"), role: .cancel) { }
+            Button(NSLocalizedString("feed.actions.delete", comment: "Delete action"), role: .destructive) {
                 if let moment = selectedMomentForMenu {
                     deleteMoment(moment: moment)
                 }
             }
         } message: {
-                            Text("feed.delete.confirm")
+            Text("feed.delete.confirm")
         }
         .sheet(isPresented: $showReportSheet) {
             if let moment = selectedMomentForMenu {
@@ -978,7 +996,7 @@ struct FeedView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         // Texto del momento
-                        Text(uploadingMoment.content.isEmpty ? "Nuevo momento" : uploadingMoment.content)
+                        Text(uploadingMoment.content.isEmpty ? NSLocalizedString("feed.uploading.newMoment", comment: "New moment text") : uploadingMoment.content)
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.primary)
                             .lineLimit(1)
@@ -1179,13 +1197,13 @@ struct FeedView: View {
         private var statusText: String {
             switch uploadingMoment.status {
             case .uploading:
-                return "Subiendo archivos..."
+                return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
             case .processing:
-                return "Creando momento..."
+                return NSLocalizedString("feed.uploading.creating", comment: "Creating moment status")
             case .completed, .moderated:
-                return "¡Tu momento ya está disponible!"
+                return NSLocalizedString("feed.uploading.available", comment: "Moment available status")
             case .failed:
-                return uploadingMoment.errorMessage ?? "Error al subir"
+                return uploadingMoment.errorMessage ?? NSLocalizedString("feed.uploading.error", comment: "Upload error status")
             }
         }
     }
@@ -1337,8 +1355,6 @@ struct FeedView: View {
                     }
                     
                 case .failure(let error):
-
-                    
                     // ✅ CORREGIDO: Fallback también debe verificar tu historia
                     self.checkUserStories(userId: userId, currentUserId: userId) { hasStory, hasUnseen in
                         DispatchQueue.main.async {
@@ -1603,58 +1619,50 @@ struct ModernMessageButton: View {
     }
 }
 
-// ✅ Loading moderno para más posts
+// ✅ Loading moderno tipo "respiración" para más posts
 struct ModernLoadingMoreView: View {
-    let colorScheme: ColorScheme  // ✅ AGREGAR parámetro
-    @State private var rotationAngle: Double = 0
+    let colorScheme: ColorScheme
+    @State private var scale: CGFloat = 0.8
+    @State private var opacity: Double = 0.6
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
     
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: adaptiveColors.buttonStroke,  // ✅ CAMBIAR
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
+        HStack(spacing: 16) {
+            // Círculo que "respira" con gradiente de Glowsy
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-                
-                Image(systemName: "arrow.down.circle")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: adaptiveColors.buttonGradient,  // ✅ CAMBIAR
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .rotationEffect(.degrees(rotationAngle))
-            }
+                )
+                .frame(width: 24, height: 24)
+                .scaleEffect(scale)
+                .opacity(opacity)
+                .animation(
+                    .easeInOut(duration: 1.2)
+                    .repeatForever(autoreverses: true),
+                    value: scale
+                )
             
-                            Text("feed.loadingMore")
-                .font(.custom("Poppins-Medium", size: 14))
-                .foregroundColor(adaptiveColors.secondary)  // ✅ CAMBIAR esta línea
+            Text("feed.loadingMore")
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(adaptiveColors.secondary)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.vertical, 16)
         .background(.ultraThinMaterial)
         .clipShape(Capsule())
-
-        .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)  // ✅ CAMBIAR
+        .shadow(color: adaptiveColors.shadowColor.opacity(0.3), radius: 6, x: 0, y: 3)
         .onAppear {
-            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                rotationAngle = 360
+            // Iniciar animación de respiración
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                scale = 1.2
+                opacity = 1.0
             }
         }
     }
@@ -1806,6 +1814,12 @@ struct ModernPostCardView: View {
     }
 
     private var mediaItems: [MediaItem] {
+        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
+        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
+            return mediaItems
+        }
+        
+        // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
         var items: [MediaItem] = []
         if let imagePath = moment.imagePath, !imagePath.isEmpty {
             items.append(MediaItem(type: .image, url: imagePath))
@@ -1902,6 +1916,7 @@ struct ModernPostCardView: View {
                     )
                     .frame(height: max(cardHeight, 200))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(
@@ -1916,6 +1931,11 @@ struct ModernPostCardView: View {
                     .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 8)
                     .onAppear {
                         detectAspectRatio()
+                    }
+                    
+                    // ✅ NUEVO: Función para colores de indicadores
+                    .onReceive(Just(currentImageIndex)) { _ in
+                        // Trigger animation when index changes
                     }
                     
                     // ✅ NUEVO: Botón simple de menú contextual (sin overlay local)
@@ -1957,12 +1977,13 @@ struct ModernPostCardView: View {
                             HStack(spacing: 8) {
                                 ForEach(0..<mediaItems.count, id: \.self) { index in
                                     Capsule()
-                                        .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.5))
-                                        .frame(width: currentImageIndex == index ? 25 : 8, height: 4)
+                                        .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
+                                        .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
                                         .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
+                                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                                 }
                             }
-                            .padding(.top, 60) // ✅ Espacio para evitar solapamiento con el botón de menú
+                            .padding(.top, 20) // ✅ Más arriba para mejor visibilidad
                             Spacer()
                         }
                     }
@@ -2257,6 +2278,22 @@ struct ModernPostCardView: View {
             }
     }
     
+    // ✅ NUEVO: Función para colores de indicadores multicolores
+    private func getIndicatorColor(for index: Int) -> Color {
+        let colors: [Color] = [
+            Color(hex: "#5b2c6f"), // Púrpura
+            Color(hex: "#007bff"), // Azul
+            Color(hex: "#40dfcf"), // Turquesa
+            Color(hex: "#ff6b6b"), // Rojo coral
+            Color(hex: "#4ecdc4"), // Verde azulado
+            Color(hex: "#45b7d1"), // Azul claro
+            Color(hex: "#96ceb4"), // Verde menta
+            Color(hex: "#feca57")  // Amarillo
+        ]
+        
+        return colors[index % colors.count]
+    }
+    
     // ✅ MEJORADO: Función detectAspectRatio con mejor clasificación
     private func detectAspectRatio() {
         // ✅ Evitar detectar múltiples veces para el mismo momento
@@ -2408,7 +2445,6 @@ struct ModernPostCardView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
-        print("🔄 Cargando datos para momento: \(momentId)")
         
         feedViewModel.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
         loadCommentCount()
@@ -2428,30 +2464,43 @@ struct ModernPostCardView: View {
                     self.isSaved = saved
                 }
             case .failure(let error):
-                print("Error checking save status: \(error)")
+                break
             }
         }
     }
     
     private func loadCommentCount() {
-        guard let momentId = moment.id else { return }
+        guard let momentId = moment.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        firestoreService.db.collection("users").document(moment.authorId)
-            .collection("moments").document(momentId)
-            .collection("comments")
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    print("❌ Error cargando comentarios: \(error)")
-                    return
-                }
+        // ✅ VALIDAR: Solo cargar comentarios si el usuario puede ver el momento
+        firestoreService.canViewContent(currentUserId: currentUserId, targetUserId: moment.authorId) { result in
+            switch result {
+            case .success(let canView):
+                guard canView else { return } // No cargar comentarios si no puede ver el momento
                 
-                DispatchQueue.main.async {
-                    let newCount = snapshot?.documents.count ?? 0
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        self.commentCount = newCount
+                // ✅ Solo cargar comentarios si tiene permisos
+                self.firestoreService.db.collection("users").document(self.moment.authorId)
+                    .collection("moments").document(momentId)
+                    .collection("comments")
+                    .getDocuments { snapshot, error in
+                        if let error = error {
+                            return
+                        }
+                        
+                        DispatchQueue.main.async {
+                            let newCount = snapshot?.documents.count ?? 0
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                self.commentCount = newCount
+                            }
+                        }
                     }
-                }
+                    
+            case .failure(_):
+                // Si falla la verificación de permisos, no cargar comentarios
+                return
             }
+        }
     }
     
     private func toggleFollow() {
@@ -2494,7 +2543,6 @@ struct ModernPostCardView: View {
             DispatchQueue.main.async {
                 self.isSaveLoading = false
                 if let error = error {
-                    print("Error toggling save: \(error)")
                 } else {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                         self.isSaved.toggle()
@@ -2738,9 +2786,15 @@ struct EnhancedCarouselView: View {
                     .tag(index)
                     .frame(width: geometry.size.width)
                     .clipped()
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                        removal: .opacity.combined(with: .scale(scale: 1.05))
+                    ))
+                    .animation(.easeInOut(duration: 0.3), value: currentIndex)
                 }
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            .animation(.easeInOut(duration: 0.4), value: currentIndex)
         }
     }
 }
@@ -2752,6 +2806,7 @@ struct MediaItemView: View {
     let currentMoment: Moment
     
     @State private var showReelsViewer = false
+    @State private var isVisible = false
     
     var body: some View {
         Group {
@@ -2776,6 +2831,17 @@ struct MediaItemView: View {
                     onTap: { openReelsViewer() }
                 )
             }
+        }
+        .opacity(isVisible ? 1.0 : 0.8)
+        .scaleEffect(isVisible ? 1.0 : 0.98)
+        .animation(.easeInOut(duration: 0.4), value: isVisible)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.4)) {
+                isVisible = true
+            }
+        }
+        .onDisappear {
+            isVisible = false
         }
         .fullScreenCover(isPresented: $showReelsViewer) {
             ReelsViewer(
@@ -3082,7 +3148,6 @@ class FeedViewModel: ObservableObject {
 
     deinit {
         performCleanup() // Usar la nueva función de cleanup
-        print("🗑️ FeedViewModel destruido")
     }
 
     // MARK: - Main Functions
@@ -3126,6 +3191,8 @@ class FeedViewModel: ObservableObject {
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 segundos
     }
     
+
+    
     func loadMoreMoments(userId: String) {
         guard !isLoadingMore else { return }
         isLoadingMore = true
@@ -3144,10 +3211,10 @@ class FeedViewModel: ObservableObject {
                     }
                     
                     self?.fetchMoreMomentsFromUsers(userIds: targetUserIds, userId: userId, feedType: .following)
-                case .failure:
+                case .failure(_):
                     DispatchQueue.main.async {
                         self?.isLoadingMore = false
-                        self?.errorMessage = "Error cargando más contenido"
+                        self?.errorMessage = NSLocalizedString("feed.loading.moreContent", comment: "Error loading more content")
                     }
                 }
             }
@@ -3196,12 +3263,12 @@ class FeedViewModel: ObservableObject {
                     self?.fetchMomentsFromUsers(userIds: targetUserIds, userId: userId, feedType: .following)
                 }
                 
-            case .failure:
+            case .failure(_):
                 DispatchQueue.main.async {
                     self?.isLoading = false
                     self?.followingMoments = []
                     self?.moments = []
-                    self?.errorMessage = "Error cargando contenido"
+                    self?.errorMessage = NSLocalizedString("feed.loading.content", comment: "Error loading content")
                 }
             }
         }
@@ -3430,7 +3497,7 @@ class FeedViewModel: ObservableObject {
                     self?.fetchMoreMomentsFromUsers(userIds: finalUserIds, userId: userId, feedType: .forYou)
                 }
                 
-            case .failure:
+            case .failure(_):
                 DispatchQueue.main.async {
                     self?.isLoadingMore = false
                 }
@@ -3590,23 +3657,43 @@ class FeedViewModel: ObservableObject {
             }
         }
 
-        // Listener para comentarios (mantener igual)
-        let commentListener = firestoreService.db.collection("users").document(authorId)
-            .collection("moments").document(momentId)
-            .collection("comments")
-            .addSnapshotListener { snapshot, error in
-                guard error == nil else { return }
-                
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("CommentAdded"),
-                        object: momentId
-                    )
-                }
-            }
+        // ✅ VALIDAR: Solo crear listener si el usuario puede ver el momento
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        listenersQueue.async(flags: .barrier) {
-            self.commentListeners[momentId] = commentListener
+        // ✅ DECLARAR commentListener en el scope correcto
+        var commentListener: ListenerRegistration?
+        
+        firestoreService.canViewContent(currentUserId: currentUserId, targetUserId: authorId) { [weak self] result in
+            switch result {
+            case .success(let canView):
+                guard canView else { return } // No crear listener si no puede ver el momento
+                
+                // ✅ Solo crear listener si tiene permisos
+                commentListener = self?.firestoreService.db.collection("users").document(authorId)
+                    .collection("moments").document(momentId)
+                    .collection("comments")
+                    .addSnapshotListener { snapshot, error in
+                        guard error == nil else { return }
+                        
+                        DispatchQueue.main.async {
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("CommentAdded"),
+                                object: momentId
+                            )
+                        }
+                    }
+                
+                // ✅ Guardar el listener solo si se creó correctamente
+                if let listener = commentListener {
+                    self?.listenersQueue.async(flags: .barrier) {
+                        self?.commentListeners[momentId] = listener
+                    }
+                }
+                
+            case .failure(_):
+                // Si falla la verificación de permisos, no crear listener
+                return
+            }
         }
         
         // 🔥 LISTENER ARREGLADO: Con debounce y comparación inteligente
@@ -3619,13 +3706,11 @@ class FeedViewModel: ObservableObject {
                           let document = document,
                           document.exists,
                           error == nil else {
-                        print("❌ Error en listener o documento no existe: \(error?.localizedDescription ?? "unknown")")
                         return
                     }
                     
                     // ✅ NUEVO: Pausa durante uploads para evitar conflictos
                     if self.isPausedForUploads {
-                        print("⏸️ Listener pausado durante upload para: \(momentId)")
                         return
                     }
                     
@@ -3633,7 +3718,6 @@ class FeedViewModel: ObservableObject {
                         // ✅ MEJORADO: Verificación segura de documentID
                         let documentID = document.documentID
                         guard !documentID.isEmpty else {
-                            print("❌ Document ID está vacío para momento")
                             return
                         }
                         
@@ -3642,7 +3726,6 @@ class FeedViewModel: ObservableObject {
                         
                         // ✅ NUEVO: Solo actualizar si hay cambios significativos
                         guard self.shouldUpdateMoment(momentId: momentId, newMoment: updatedMoment) else {
-                            print("🔄 Sin cambios significativos para: \(momentId)")
                             return
                         }
                         
@@ -3650,7 +3733,6 @@ class FeedViewModel: ObservableObject {
                         self.debouncedUpdateMoment(momentId: momentId, updatedMoment: updatedMoment)
                         
                     } catch {
-                        print("❌ Error decodificando momento \(momentId): \(error)")
                     }
                 }
             
@@ -3674,11 +3756,9 @@ class FeedViewModel: ObservableObject {
         // Solo actualizar si el hash cambió
         if newHash != currentHash {
             lastUpdateHashes[momentId] = newHash
-            print("✅ Cambio detectado en momento \(momentId): hash \(currentHash) → \(newHash)")
             return true
         }
         
-        print("🔄 Sin cambios en momento \(momentId) (hash: \(newHash))")
         return false
     }
     
@@ -3756,7 +3836,6 @@ class FeedViewModel: ObservableObject {
     
     // ✅ MEJORADO: Pausar listeners durante uploads
     func pauseListenersForUpload() {
-        print("⏸️ Pausando listeners durante upload")
         isPausedForUploads = true
         
         // Auto-resume después de 10 segundos (safety)
@@ -3767,7 +3846,6 @@ class FeedViewModel: ObservableObject {
     
     // ✅ MEJORADO: Reanudar listeners después de upload
     func resumeListenersAfterUpload() {
-        print("▶️ Reanudando listeners después de upload")
         isPausedForUploads = false
     }
     

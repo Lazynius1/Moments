@@ -22,89 +22,74 @@ class NotificationNavigationService: ObservableObject {
     // ✅ SIMPLIFICADO: Método para procesar datos de notificación
     func handleNotificationData(_ userInfo: [AnyHashable: Any]) {
         guard let type = userInfo["type"] as? String else {
-            print("⚠️ Tipo de notificación no encontrado")
             return
         }
         
-        print("🔔 Procesando notificación tipo: \(type)")
         
         switch type {
         case "moment_reaction":
             if let momentId = userInfo["momentId"] as? String,
                let userId = userInfo["momentOwnerId"] as? String {
                 pendingNavigation = .moment(momentId, userId)
-                print("🔔 Navegación configurada: momento(\(momentId), \(userId))")
             }
             
         case "moment_comment":
             if let momentId = userInfo["momentId"] as? String,
                let userId = userInfo["momentOwnerId"] as? String {
                 pendingNavigation = .moment(momentId, userId)
-                print("🔔 Navegación configurada: comentario en momento(\(momentId), \(userId))")
             }
             
         case "story_reaction":
             if let storyId = userInfo["storyId"] as? String {
                 pendingNavigation = .notifications(storyId)
-                print("🔔 Navegación configurada: reacción en historia(\(storyId))")
             }
             
         case "new_follower":
             if let userId = userInfo["followerId"] as? String ?? userInfo["senderId"] as? String {
                 pendingNavigation = .profile(userId)
-                print("🔔 Navegación configurada: nuevo seguidor(\(userId))")
             }
             
         case "mutualConnection":
             if let userId = userInfo["senderId"] as? String {
                 pendingNavigation = .profile(userId)
-                print("🔔 Navegación configurada: conexión mutua(\(userId))")
             }
             
         case "new_message":
             if let conversationId = userInfo["conversationId"] as? String {
                 pendingNavigation = .conversation(conversationId)
-                print("🔔 Navegación configurada: mensaje(\(conversationId))")
             }
             
         case "follow_request":
             if let requestId = userInfo["requestId"] as? String {
                 pendingNavigation = .followRequests(requestId)
-                print("🔔 Navegación configurada: solicitud de seguimiento(\(requestId))")
             }
             
         case "mention":
             if let userId = userInfo["senderId"] as? String {
                 pendingNavigation = .profile(userId)
-                print("🔔 Navegación configurada: mención de usuario(\(userId))")
             }
             
-        // ✅ ACTUALIZAR: Caso legacy con userId
+        // ✅ CASO LEGACY: Para notificaciones antiguas de tipo 'like'
         case "like":
             if let momentId = userInfo["momentId"] as? String {
                 // ✅ BUSCAR userId en la notificación legacy
                 if let userId = userInfo["momentOwnerId"] as? String {
                     pendingNavigation = .moment(momentId, userId)
-                    print("🔔 Navegación configurada: like en momento(\(momentId), \(userId))")
                 } else {
                     // ✅ FALLBACK: Si no hay userId, ir a notificaciones
-                    print("⚠️ Like legacy sin userId, enviando a notificaciones")
                     pendingNavigation = .notifications(nil)
                 }
             }
             
         default:
-            print("⚠️ Tipo de notificación no manejado: \(type)")
             pendingNavigation = .notifications(nil)
         }
         
-        print("🔔 Navegación procesada: \(type) -> \(pendingNavigation?.description ?? "ninguna")")
     }
     
     // ✅ MÉTODO para limpiar navegación pendiente
     func clearPendingNavigation() {
         pendingNavigation = nil
-        print("🧹 Navegación pendiente limpiada")
     }
 }
 

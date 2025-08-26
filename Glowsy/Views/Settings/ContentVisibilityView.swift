@@ -55,7 +55,7 @@ struct ContentVisibilityView: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("contentVisibility.interactions.title")
+                                    Text(NSLocalizedString("contentVisibility.interactions.title", comment: "Interactions title"))
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
@@ -114,7 +114,7 @@ struct ContentVisibilityView: View {
                                     .frame(width: 24)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("contentVisibility.hideFrom")
+                                    Text(NSLocalizedString("contentVisibility.hideFrom", comment: "Hide from label"))
                                         .font(.custom("Poppins-Medium", size: 15))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
@@ -128,7 +128,7 @@ struct ContentVisibilityView: View {
                         }
                         
                     } header: {
-                        Text("contentVisibility.additionalRestrictions")
+                        Text(NSLocalizedString("contentVisibility.additionalRestrictions", comment: "Additional restrictions header"))
                     }
                     .listRowBackground(SettingsListRowBackground())
                     
@@ -142,11 +142,11 @@ struct ContentVisibilityView: View {
                                     .frame(width: 24)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("contentVisibility.manageCustomLists")
+                                    Text(NSLocalizedString("contentVisibility.manageCustomLists", comment: "Manage custom lists label"))
                                         .font(.custom("Poppins-Medium", size: 15))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
-                                    Text("contentVisibility.createEditAudience")
+                                    Text(NSLocalizedString("contentVisibility.createEditAudience", comment: "Create and edit custom audiences label"))
                                         .font(.custom("Poppins-Regular", size: 13))
                                         .foregroundColor(.gray)
                                 }
@@ -155,7 +155,7 @@ struct ContentVisibilityView: View {
                             }
                         }
                     } header: {
-                        Text("contentVisibility.audienceLists")
+                        Text(NSLocalizedString("contentVisibility.audienceLists", comment: "Audience lists header"))
                     }
                     .listRowBackground(SettingsListRowBackground())
                 }
@@ -313,12 +313,12 @@ struct StoryInteractionSettingsView: View {
                             .foregroundColor(Color(hex: "00A896"))
                             .font(.system(size: 18))
                         
-                        Text("contentVisibility.interactionsConfig.title")
+                        Text(NSLocalizedString("contentVisibility.interactionsConfig.title", comment: "Configure interactions title"))
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     
-                    Text("contentVisibility.interactionsConfig.description")
+                    Text(NSLocalizedString("contentVisibility.interactionsConfig.description", comment: "Configure interactions description"))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                         .fixedSize(horizontal: false, vertical: true)
@@ -366,11 +366,11 @@ struct StoryInteractionSettingsView: View {
                             .font(.system(size: 24))
                             .foregroundColor(.orange)
                         
-                        Text("contentVisibility.viewOnlyMode")
+                        Text(NSLocalizedString("contentVisibility.viewOnlyMode", comment: "View only mode label"))
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(.orange)
                         
-                        Text("contentVisibility.viewOnlyMode.description")
+                        Text(NSLocalizedString("contentVisibility.viewOnlyMode.description", comment: "View only mode description"))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -616,7 +616,6 @@ class ContentVisibilityViewModel: ObservableObject {
             "contentVisibilitySettings.allowStoryEphemeralPhotos": allowStoryEphemeralPhotos
         ]) { error in
             if let error = error {
-                print("Error saving story interaction settings: \(error)")
             }
         }
     }
@@ -650,7 +649,6 @@ class ContentVisibilityViewModel: ObservableObject {
             "contentVisibilitySettings": settings
         ]) { error in
             if let error = error {
-                print("Error saving content visibility settings: \(error)")
             }
         }
     }
@@ -664,7 +662,7 @@ class ContentVisibilityViewModel: ObservableObject {
                 case .success(let users):
                     self?.hiddenFromUsers = users
                 case .failure(let error):
-                    print("Error loading hidden users: \(error)")
+                    break
                 }
             }
         }
@@ -687,12 +685,12 @@ struct HiddenFromView: View {
                     Image(systemName: "info.circle")
                         .foregroundColor(Color(hex: "00A896"))
                     
-                    Text("contentVisibility.info.title")
+                    Text(NSLocalizedString("contentVisibility.info.title", comment: "Information title"))
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 
-                Text("contentVisibility.info.description")
+                Text(NSLocalizedString("contentVisibility.info.description", comment: "Information description"))
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray)
             }
@@ -800,7 +798,6 @@ struct HiddenFromView: View {
                 case .success(let users):
                     self.searchResults = users
                 case .failure(let error):
-                    print("Error searching users: \(error)")
                     self.searchResults = []
                 }
             }

@@ -179,7 +179,7 @@ struct CustomTabBar: View {
         HStack {
             TabBarItem(
                 icon: "house",
-                title: "Home",
+                title: NSLocalizedString("tabBar.home", comment: "Home tab title"),
                 isSelected: selectedTab == 0,
                 activeColor: activeColor,
                 inactiveColor: inactiveColor
@@ -189,7 +189,7 @@ struct CustomTabBar: View {
             
             TabBarItem(
                 icon: "star",
-                title: "Nova",
+                title: NSLocalizedString("tabBar.nova", comment: "Nova tab title"),
                 isSelected: selectedTab == 1,
                 activeColor: activeColor,
                 inactiveColor: inactiveColor
@@ -226,7 +226,7 @@ struct CustomTabBar: View {
             
             TabBarItem(
                 icon: "magnifyingglass",
-                title: "Explorar",
+                title: NSLocalizedString("tabBar.explore", comment: "Explore tab title"),
                 isSelected: selectedTab == 3,
                 activeColor: activeColor,
                 inactiveColor: inactiveColor
@@ -236,7 +236,7 @@ struct CustomTabBar: View {
             
             TabBarItem(
                 icon: "person",
-                title: "Perfil",
+                title: NSLocalizedString("tabBar.profile", comment: "Profile tab title"),
                 isSelected: selectedTab == 4,
                 activeColor: activeColor,
                 inactiveColor: inactiveColor

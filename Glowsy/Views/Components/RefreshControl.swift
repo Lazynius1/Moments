@@ -42,7 +42,6 @@ struct RefreshControl_Previews: PreviewProvider {
     static var previews: some View {
         ScrollView {
             RefreshControl(coordinateSpace: .named("RefreshControl")) {
-                print("Refreshing...")
             }
             ForEach(0..<20) { i in
                 Text("Item \(i)")

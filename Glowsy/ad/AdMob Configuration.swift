@@ -25,8 +25,6 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     func initialize() {
         // ✅ NUEVA API: MobileAds.shared.start() en lugar de GADMobileAds
         MobileAds.shared.start { status in
-            print("🎯 AdMob inicializado exitosamente")
-            print("Adapter statuses: \(status.adapterStatusesByClassName)")
         }
 
         // Configurar solicitudes de consentimiento si es necesario
@@ -64,23 +62,18 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
                 DispatchQueue.main.async {
                     switch status {
                     case .authorized:
-                        print("✅ ATT: Autorizado. IDFA: \(ASIdentifierManager.shared().advertisingIdentifier.uuidString)")
                         // Configurar anuncios personalizados
                         self.configureAdPersonalization(enabled: true)
                     case .denied:
-                        print("❌ ATT: Denegado.")
                         // Configurar anuncios no personalizados
                         self.configureAdPersonalization(enabled: false)
                     case .notDetermined:
-                        print("ℹ️ ATT: No determinado.")
                         // Configuración por defecto
                         self.configureAdPersonalization(enabled: false)
                     case .restricted:
-                        print("⛔️ ATT: Restringido.")
                         // Configurar anuncios no personalizados
                         self.configureAdPersonalization(enabled: false)
                     @unknown default:
-                        print("❓ ATT: Estado desconocido.")
                         // Configuración por defecto
                         self.configureAdPersonalization(enabled: false)
                     }
@@ -88,7 +81,6 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
             }
         } else {
             // Manejar versiones anteriores de iOS si es necesario
-            print("ℹ️ ATT: No aplicable para versiones anteriores a iOS 14.")
             // Configuración por defecto para versiones anteriores
             configureAdPersonalization(enabled: false)
         }
@@ -98,11 +90,9 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     private func configureAdPersonalization(enabled: Bool) {
         if enabled {
             // Usuario aceptó seguimiento - anuncios personalizados
-            print("🎯 Configurando anuncios personalizados")
             // Las opciones por defecto de Google ya incluyen personalización
         } else {
             // Usuario no aceptó seguimiento - anuncios no personalizados
-            print("🚫 Configurando anuncios no personalizados")
             // Configurar opciones para anuncios menos personalizados
             configureNonPersonalizedAds()
         }
@@ -112,7 +102,6 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     private func configureNonPersonalizedAds() {
         // Nota: En iOS, las opciones de no personalización se manejan principalmente
         // a través del consentimiento de ATT, pero podemos configurar algunas opciones adicionales
-        print("📱 Configurando opciones para anuncios no personalizados en iOS")
     }
     
     /// Obtiene el estado actual de personalización de anuncios
@@ -150,7 +139,6 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
 
     /// ✅ MEJORADA: Función de precarga con mejor logging
     func preloadNativeAd() {
-        print("🎯 Iniciando precarga de anuncio nativo...")
         
         let adUnitID = AdMobConfiguration.getNativeAdUnitId()
         let mediaOptions = NativeAdMediaAdLoaderOptions()
@@ -169,26 +157,22 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
         adLoader.delegate = self
         adLoader.load(request)
         
-        print("✅ Precarga iniciada con AdMobConfiguration delegate")
     }
 
     /// ✅ CORREGIDA: Función que faltaba
     func setPreloadedNativeAd(_ ad: NativeAd) {
         self.preloadedNativeAd = ad
-        print("📦 Anuncio guardado en precarga")
     }
 
     /// Retorna el anuncio nativo precargado si está disponible.
     func getPreloadedNativeAd() -> NativeAd? {
         let ad = preloadedNativeAd
-        print("📤 Obteniendo anuncio precargado: \(ad != nil ? "✅ Disponible" : "❌ No disponible")")
         return ad
     }
 
     /// Limpia el anuncio nativo precargado.
     func clearPreloadedNativeAd() {
         preloadedNativeAd = nil
-        print("🧹 Anuncio precargado limpiado")
     }
 
     private func createNativeAdOptions() -> NativeAdMediaAdLoaderOptions {
@@ -202,12 +186,10 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
             
             if status == .denied || userDeclined {
                 // Usuario no aceptó seguimiento - configurar para anuncios menos personalizados
-                print("🚫 Configurando opciones para anuncios no personalizados")
                 // En iOS, esto se maneja principalmente a través del consentimiento ATT
                 // pero podemos configurar algunas opciones adicionales si es necesario
             } else {
                 // Usuario aceptó seguimiento o no ha decidido - anuncios personalizados
-                print("🎯 Configurando opciones para anuncios personalizados")
             }
         }
         
@@ -218,7 +200,6 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
 // MARK: - ✅ DELEGATES CORREGIDOS PARA PRECARGA
 extension AdMobConfiguration: AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
-        print("❌ Error precargando anuncio nativo: \(error.localizedDescription)")
         DispatchQueue.main.async {
             self.preloadedNativeAd = nil
         }
@@ -227,9 +208,6 @@ extension AdMobConfiguration: AdLoaderDelegate {
 
 extension AdMobConfiguration: NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        print("✅ Anuncio nativo precargado exitosamente")
-        print("   - Headline: '\(nativeAd.headline ?? "N/A")'")
-        print("   - Has video: \(nativeAd.mediaContent.hasVideoContent)")
         
         DispatchQueue.main.async {
             self.preloadedNativeAd = nativeAd
@@ -254,7 +232,6 @@ class NativeAdManager: NSObject, ObservableObject {
 
         // Intentar usar un anuncio precargado si está disponible
         if let preloadedAd = AdMobConfiguration.shared.getPreloadedNativeAd() {
-            print("🎯 Usando anuncio nativo precargado.")
             self.nativeAd = preloadedAd
             self.isLoading = false
             self.hasError = false
@@ -279,7 +256,6 @@ class NativeAdManager: NSObject, ObservableObject {
         let request = GoogleMobileAds.Request()
         adLoader?.load(request)
 
-        print("🎯 Cargando anuncio nativo desde: \(adUnitID)")
     }
 
     private func createNativeAdOptions() -> NativeAdMediaAdLoaderOptions {
@@ -293,7 +269,6 @@ class NativeAdManager: NSObject, ObservableObject {
 extension NativeAdManager: AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         DispatchQueue.main.async {
-            print("❌ Error cargando anuncio nativo: \(error.localizedDescription)")
             self.isLoading = false
             self.hasError = true
         }
@@ -304,7 +279,6 @@ extension NativeAdManager: AdLoaderDelegate {
 extension NativeAdManager: NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
         DispatchQueue.main.async {
-            print("✅ Anuncio nativo cargado exitosamente")
             self.nativeAd = nativeAd
             self.isLoading = false
             self.hasError = false
@@ -341,7 +315,6 @@ class PlusAdManager: ObservableObject {
         isPlus = hasActivePlus
         shouldShowAds = !hasActivePlus
 
-        print("🎯 PlusAdManager actualizado - Plus: \(isPlus), Mostrar anuncios: \(shouldShowAds)")
     }
 
     /// Función para usar cuando el estado del usuario cambie

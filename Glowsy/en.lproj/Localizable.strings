@@ -21,6 +21,14 @@
 "profile.loading" = "Loading profile...";
 "profile.error.title" = "Oops, something went wrong";
 "profile.error.retryButton" = "Retry";
+
+/* Profile Content */
+"profile.content.empty" = "No content";
+"profile.content.seeMore" = "see more";
+"profile.content.seeLess" = "see less";
+
+/* Profile Error */
+"profile.error.loadingImage" = "Error loading image";
 "profile.updating" = "Updating profile...";
 "profile.plus" = "PLUS";
 "profile.video.uploading" = "Video...";
@@ -117,6 +125,25 @@
 "feed.empty.foryou.title" = "Discover new content";
 "feed.empty.foryou.description" = "We'll show you content based on your interests when available";
 
+/* Feed Actions */
+"feed.actions.delete.title" = "Delete moment";
+"feed.actions.cancel" = "Cancel";
+"feed.actions.delete" = "Delete";
+
+/* Feed Location */
+"feed.location.default" = "Location";
+
+/* Feed Upload Status */
+"feed.uploading.newMoment" = "New moment";
+"feed.uploading.creating" = "Creating moment...";
+"feed.uploading.available" = "Your moment is now available!";
+"feed.uploading.error" = "Upload error";
+"feed.uploading.uploading" = "Uploading files...";
+
+/* Feed Loading */
+"feed.loading.moreContent" = "Error loading more content";
+"feed.loading.content" = "Error loading content";
+
 /* ExploreView */
 "explore.title" = "Explore";
 "explore.loading" = "Loading content...";
@@ -201,14 +228,16 @@
 "notifications.error.message" = "An unknown error occurred";
 "notifications.ok" = "OK";
 "notifications.tab.all" = "All";
-"notifications.tab.likes" = "Likes";
+"notifications.tab.reactions" = "Reactions";
 "notifications.tab.follows" = "Followers";
-"notifications.tab.mentions" = "Comments";
+"notifications.tab.comments" = "Comments";
 "notifications.tab.stories" = "Stories";
 "notifications.tab.requests" = "Requests";
 
 /* Notification Messages */
 "notifications.message.like.multiple" = "%@ and %d others reacted to your moment.";
+"notifications.message.reaction.multiple" = "%@ and %d others reacted to your moment.";
+"notifications.message.reaction.multiple.withType" = "%@ reacted %@ and %d others reacted to your moment.";
 "notifications.message.mention.multiple" = "%@ and %d others mentioned you.";
 "notifications.message.follow.multiple" = "%@ and %d others started following you.";
 "notifications.message.request.multiple" = "%@ and %d others want to follow you.";
@@ -217,6 +246,8 @@
 "notifications.message.story.multiple" = "%@ and %d others reacted to your story.";
 "notifications.message.visit.multiple" = "%d people visited your profile today.";
 "notifications.message.like.single" = "%@ reacted to your moment.";
+"notifications.message.reaction.single" = "%@ reacted to your moment.";
+"notifications.message.reaction.single.withType" = "%@ reacted %@ to your moment.";
 "notifications.message.mention.single" = "%@ mentioned you.";
 "notifications.message.follow.single" = "%@ started following you.";
 "notifications.message.request.single" = "%@ wants to follow you.";
@@ -266,6 +297,43 @@
 "nova.introduction" = "I'm your intelligent personal assistant. I can help you explore your interests, suggest connections, or answer any questions you have.";
 "nova.quickSuggestions" = "Quick Suggestions";
 "nova.typing" = "Nova is typing...";
+
+/* Nova Welcome Section */
+"nova.welcome.interests.title" = "Your Interests";
+"nova.welcome.interests.empty" = "None configured";
+"nova.welcome.mutuals.title" = "Your mutuals";
+"nova.welcome.profileVisits.title" = "Profile visits";
+
+/* Nova Quick Suggestions */
+"nova.suggestions.writeHelp.title" = "Help me write";
+"nova.suggestions.writeHelp.prompt" = "Help me write";
+"nova.suggestions.studyTips.title" = "Study tips";
+"nova.suggestions.studyTips.prompt" = "Give me study tips";
+"nova.suggestions.interests.title" = "My interests";
+"nova.suggestions.interests.prompt" = "Tell me about my interests";
+"nova.suggestions.advice.title" = "Give me advice";
+"nova.suggestions.advice.prompt" = "Give me some useful advice";
+
+/* Nova Smart Suggestions */
+"nova.smartSuggestions.viralContent" = "How to create viral content?";
+"nova.smartSuggestions.productiveDay" = "Organize my productive day";
+"nova.smartSuggestions.socialProfile" = "Improve my social profile";
+"nova.smartSuggestions.wellbeing" = "Wellness advice";
+"nova.smartSuggestions.connectPeople" = "Connect with like-minded people";
+"nova.smartSuggestions.momentIdeas" = "Ideas for my next moment";
+
+/* Nova Input */
+"nova.input.placeholder" = "Ask Nova something...";
+
+/* Nova Actions */
+"nova.actions.delete" = "Delete";
+"nova.actions.cancel" = "Cancel";
+"nova.actions.deleteConversation.title" = "Delete Conversation";
+
+/* Nova Easter Egg */
+"nova.easterEgg.thanksButton" = "💝 Thank you Álvaro";
+"nova.easterEgg.message" = "✨ This incredible app was created by Álvaro with lots of ❤️\n\n🎯 His vision: \"Social networks don't have to be all or nothing... they can also be modular!\"\n\n🌟 Thank you for exploring every corner of Moments!";
+"nova.easterEgg.appreciationMessage" = "Thank you for creating this incredible app";
 
 /* Settings */
 "settings.error.title" = "Error";
@@ -477,6 +545,110 @@
 "audience.custom" = "Custom";
 "audience.people.count" = "%d people";
 "audience.selectPeople" = "Select %d people";
+
+/* Audience Types */
+"audience.type.everyone" = "Everyone";
+"audience.type.connections" = "Mutuals";
+"audience.type.bestFriends" = "Best friends";
+"audience.type.custom" = "Custom";
+"audience.type.customList" = "Custom list";
+"audience.type.onlyMe" = "Only me";
+
+/* Audience Descriptions */
+"audience.description.everyone" = "Anyone can see this content";
+"audience.description.connections" = "Only people you follow and follow you";
+"audience.description.bestFriends" = "Only your best friends list";
+"audience.description.custom" = "Choose specific people";
+"audience.description.customList" = "Use a custom list";
+"audience.description.onlyMe" = "Private content, only you can see it";
+
+/* Audience Actions */
+"audience.actions.selectPeople" = "Select people";
+"audience.actions.cancel" = "Cancel";
+
+/* Login Activity */
+"loginActivity.navigation.title" = "Login Activity";
+"loginActivity.session.location" = "Location";
+"loginActivity.session.device" = "Device";
+"loginActivity.session.ip" = "IP";
+"loginActivity.session.startTime" = "Start Time";
+"loginActivity.status.successful" = "Successful login";
+"loginActivity.status.failed" = "Failed attempt";
+"loginActivity.error.credentials" = "Incorrect credentials";
+"loginActivity.security.tip1" = "Regularly review your login activity";
+"loginActivity.security.tip2" = "Log out from devices you don't recognize";
+"loginActivity.security.tip3" = "Use two-factor authentication for better security";
+"loginActivity.security.tip4" = "Change your password if you detect suspicious activity";
+"loginActivity.security.tip5" = "Don't log in from public WiFi networks";
+"loginActivity.error.notAuthenticated" = "User not authenticated";
+
+/* Camera Picker */
+"camera.actions.cancel" = "Cancel";
+"camera.mode.ephemeral" = "EPHEMERAL";
+"camera.mode.normal" = "NORMAL";
+"camera.ephemeral.deleteOnView" = "Deletes when viewed";
+"camera.ephemeral.onceOnly" = "Once only!";
+
+/* Stories */
+"stories.blockUser.confirm" = "Are you sure you want to block this user? You won't be able to see their stories or content.";
+"stories.error.notAuthenticated" = "User not authenticated";
+
+/* Trending Components */
+"trending.hashtags.title" = "🔥 Trending";
+"trending.hashtags.subtitle" = "Popular hashtags now";
+"trending.locations.title" = "📍 Popular places";
+"trending.locations.subtitle" = "Where everything is happening";
+"trending.locations.moments" = "moments";
+"trending.locations.users" = "users";
+
+/* Register */
+"register.actions.createAccount" = "Create account";
+"register.actions.continue" = "Continue";
+"register.step.description.basic" = "Start with your basic data";
+"register.step.description.profile" = "Customize your profile";
+"register.step.description.final" = "Last step to join";
+"register.error.unknown" = "An unknown error occurred";
+"register.error.usernameUnavailable" = "Username unavailable";
+"register.password.weak" = "Weak password";
+"register.password.fair" = "Fair password";
+"register.password.good" = "Good password";
+"register.password.excellent" = "Excellent password";
+
+/* Content Visibility */
+"contentVisibility.interactions.title" = "Interactions";
+"contentVisibility.hideFrom" = "Hide from";
+"contentVisibility.additionalRestrictions" = "Additional restrictions";
+"contentVisibility.manageCustomLists" = "Manage custom lists";
+"contentVisibility.createEditAudience" = "Create and edit custom audiences";
+"contentVisibility.audienceLists" = "Audience lists";
+"contentVisibility.viewOnlyMode" = "View only mode";
+"contentVisibility.viewOnlyMode.description" = "Users can only view your content, no interactions";
+"contentVisibility.interactionsConfig.title" = "Configure interactions";
+"contentVisibility.interactionsConfig.description" = "Customize how users can interact with your stories";
+"contentVisibility.info.title" = "Information";
+"contentVisibility.info.description" = "These settings apply to all your content";
+
+/* Content Visibility - Additional Keys */
+"contentVisibility.interactions.allAllowed" = "All interactions allowed";
+"contentVisibility.interactions.someAllowed" = "Some interactions allowed";
+"contentVisibility.interactions.limited" = "Limited interactions";
+"contentVisibility.interactions.none" = "No interactions";
+"contentVisibility.interactions.configure" = "Configure interactions";
+"contentVisibility.custom.selected" = "%d people selected";
+"contentVisibility.custom.selection" = "Custom selection";
+"contentVisibility.customList" = "Custom list";
+"contentVisibility.interactions.messages.title" = "Messages";
+"contentVisibility.interactions.messages.description" = "Allow them to send you private messages from your stories";
+"contentVisibility.interactions.reactions.title" = "Reactions";
+"contentVisibility.interactions.reactions.description" = "Allow them to react with emojis to your stories";
+"contentVisibility.interactions.ephemeralPhotos.title" = "Ephemeral photos";
+"contentVisibility.interactions.ephemeralPhotos.description" = "Allow them to send photos as responses to your stories";
+"contentVisibility.interactions.navigation" = "Interactions";
+"contentVisibility.cancel" = "Cancel";
+"contentVisibility.save" = "Save";
+"contentVisibility.storyAudience.navigation" = "Story Audience";
+"contentVisibility.postAudience.navigation" = "Post Audience";
+"contentVisibility.done" = "Done";
 "audience.deleteList.confirm" = "Are you sure you want to delete this list? This action cannot be undone.";
 "audience.list.name" = "List name";
 "audience.list.description" = "Description (optional)";
@@ -831,6 +1003,20 @@
 "modernComments.disabled.description" = "The author has disabled comments on this moment";
 "modernComments.delete.title" = "Delete comment";
 "modernComments.delete.message" = "Are you sure you want to delete this comment? This action cannot be undone.";
+
+/* Comments */
+"comments.title" = "Comments";
+"comments.error.title" = "Error";
+"comments.error.unknown" = "Unknown error";
+"comments.error.ok" = "OK";
+"comments.actions.edit" = "Edit";
+"comments.actions.delete" = "Delete";
+"comments.actions.publish" = "Publish";
+"comments.actions.cancel" = "Cancel";
+"comments.actions.save" = "Save";
+"comments.actions.editPlaceholder" = "Edit comment...";
+"comments.edited" = "(edited)";
+"comments.add.placeholder" = "Add a comment...";
 "modernComments.cancel" = "Cancel";
 "modernComments.delete.confirm" = "Delete";
 "modernComments.title" = "Comments";
@@ -1097,6 +1283,7 @@
 "notifications.empty.mentions" = "No mentions";
 "notifications.empty.storyReactions" = "No story reactions";
 "notifications.empty.requests" = "No requests";
+"notifications.empty.reactions" = "No reactions";
 "notifications.empty.likes" = "No likes";
 "notifications.empty.follows" = "No new followers";
 "notifications.empty.default" = "No notifications";
@@ -1119,3 +1306,28 @@
 "archivedStories.stats.reach" = "Reach";
 "archivedStories.stats.title" = "Statistics";
 "archivedStories.user" = "User";
+
+/* Network Status - Offline Banners */
+"network.offline.title" = "No internet connection";
+"network.offline.retry" = "Retry";
+"network.slow.title" = "Slow connection - Using optimized mode";
+
+/* Online Status */
+"onlineStatus.online" = "Online";
+"onlineStatus.away" = "Away";
+"onlineStatus.busy" = "Busy";
+"onlineStatus.offline" = "Offline";
+"onlineStatus.invisible" = "Invisible";
+"onlineStatus.unknown" = "Unknown";
+"onlineStatus.now" = "Now";
+"onlineStatus.minutesAgo" = "%d min ago";
+"onlineStatus.hoursAgo" = "%dh ago";
+"onlineStatus.daysAgo" = "%dd ago";
+"onlineStatus.autoChange.away" = "10 min";
+"onlineStatus.autoChange.offline" = "30 min";
+
+/* Tab Bar */
+"tabBar.home" = "Home";
+"tabBar.nova" = "Nova";
+"tabBar.explore" = "Explore";
+"tabBar.profile" = "Profile";

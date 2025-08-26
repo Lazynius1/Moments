@@ -381,7 +381,6 @@ struct GridPhotoPickerView: View {
                 oldImagePath = user.profileImagePath
             case .failure:
                 oldImagePath = nil
-                print("⚠️ No se pudo obtener perfil anterior, continuando sin borrar imagen previa")
             }
             
             // 2. Subir nueva imagen usando uploadProfileImage (que procesa la imagen correctamente)
@@ -403,12 +402,11 @@ struct GridPhotoPickerView: View {
                                     oldImagePath: oldImagePath
                                 ) { deleteError in
                                     if let deleteError = deleteError {
-                                        print("⚠️ Error al borrar imagen anterior: \(deleteError.localizedDescription)")
+
                                     }
                                     // No mostrar error al usuario, es operación secundaria
                                 }
                                 
-                                print("✅ Foto de perfil actualizada correctamente")
                                 self.dismiss()
                             }
                         }

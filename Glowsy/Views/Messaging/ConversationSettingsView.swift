@@ -394,8 +394,8 @@ class ConversationSettingsViewModel: ObservableObject {
                 switch result {
                 case .success(let messages):
                     self?.processMessages(messages)
-                case .failure(let error):
-                    print("Error loading conversation data: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -453,7 +453,6 @@ class ConversationSettingsViewModel: ObservableObject {
         ) { error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("Error updating notification preference: \(error)")
                     self.notificationAlertMessage = "❌ Error al actualizar las notificaciones"
                 } else {
                     if self.notificationsEnabled {
@@ -469,12 +468,10 @@ class ConversationSettingsViewModel: ObservableObject {
     
     func toggleReadReceipts() {
         UserDefaults.standard.set(readReceiptsEnabled, forKey: "chat_read_receipts_enabled")
-        print("Read receipts toggled: \(readReceiptsEnabled)")
     }
     
     func toggleTypingIndicator() {
         UserDefaults.standard.set(typingIndicatorEnabled, forKey: "chat_typing_indicator_enabled")
-        print("Typing indicator toggled: \(typingIndicatorEnabled)")
     }
     
     private func loadPrivacySettings() {
@@ -506,8 +503,8 @@ class ConversationSettingsViewModel: ObservableObject {
                         self?.typingIndicatorEnabled = true
                     }
                     
-                case .failure(let error):
-                    print("Error loading notification preferences: \(error)")
+                case .failure(_):
+                    break
                     // Mantener valores de UserDefaults como fallback
                 }
             }
@@ -525,9 +522,7 @@ class ConversationSettingsViewModel: ObservableObject {
         chatService.deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: otherParticipantId) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("Error clearing conversation: \(error)")
                 } else {
-                    print("Conversación eliminada exitosamente")
                     // Aquí podrías cerrar la vista o navegar de vuelta
                 }
             }
@@ -545,9 +540,7 @@ class ConversationSettingsViewModel: ObservableObject {
         firestoreService.blockUser(currentUserId: currentUserId, targetUserId: otherParticipantId) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("Error blocking user: \(error)")
                 } else {
-                    print("Usuario bloqueado exitosamente")
                     // Aquí podrías cerrar la vista o mostrar una confirmación
                 }
             }

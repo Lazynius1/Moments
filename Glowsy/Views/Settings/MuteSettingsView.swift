@@ -447,7 +447,6 @@ struct AddMutedUserView: View {
                 case .success(let users):
                     self.searchResults = users
                 case .failure(let error):
-                    print("Error searching users: \(error)")
                     self.searchResults = []
                 }
             }
@@ -546,8 +545,8 @@ class MuteSettingsViewModel: ObservableObject {
                     self?.mutedWords = []
                     self?.muteNotifications = true
                     self?.hideFromSearch = true
-                case .failure(let error):
-                    print("Error loading mute settings: \(error)")
+                case .failure(_):
+                    break
                 }
                 completion()
             }
@@ -592,7 +591,6 @@ class MuteSettingsViewModel: ObservableObject {
             "muteSettings": settings
         ]) { error in
             if let error = error {
-                print("Error saving mute settings: \(error)")
             }
         }
     }

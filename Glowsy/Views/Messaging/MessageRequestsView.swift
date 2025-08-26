@@ -158,14 +158,14 @@ struct MessageRequestsView: View {
     
     // MARK: - Actions
     private func acceptRequest(_ request: MessageRequest) {
-        print("🔄 Botón de aceptar presionado para solicitud: \(request.senderUsername ?? "Unknown")")
         messageRequestService.acceptRequest(request) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("✅ Solicitud aceptada")
-                case .failure(let error):
-                    print("❌ Error aceptando solicitud: \(error)")
+                    // Success
+                    break
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -176,9 +176,10 @@ struct MessageRequestsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("❌ Solicitud rechazada")
-                case .failure(let error):
-                    print("❌ Error rechazando solicitud: \(error)")
+                    // success
+                    break
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -189,9 +190,10 @@ struct MessageRequestsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("🚫 Usuario bloqueado")
-                case .failure(let error):
-                    print("❌ Error bloqueando usuario: \(error)")
+                    // User blocked successfully
+                    break
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -566,15 +568,13 @@ struct RequestDetailView: View {
     
     // MARK: - Actions
     private func acceptRequest(_ request: MessageRequest) {
-        print("🔄 Botón de aceptar presionado para solicitud: \(request.senderUsername ?? "Unknown")")
         messageRequestService.acceptRequest(request) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("✅ Solicitud aceptada")
                     dismiss()
-                case .failure(let error):
-                    print("❌ Error aceptando solicitud: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -585,10 +585,9 @@ struct RequestDetailView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("❌ Solicitud rechazada")
                     dismiss()
-                case .failure(let error):
-                    print("❌ Error rechazando solicitud: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -599,10 +598,9 @@ struct RequestDetailView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("🚫 Usuario bloqueado")
                     dismiss()
-                case .failure(let error):
-                    print("❌ Error bloqueando usuario: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }

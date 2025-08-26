@@ -90,7 +90,6 @@ struct ModernCommentsView: View {
             }
         }
         .onAppear {
-            print("🔍 ModernCommentsView apareció - configurando listener")
             
             // ✅ NUEVO: Resetear estado antes de configurar listener
             DispatchQueue.main.async {
@@ -106,18 +105,15 @@ struct ModernCommentsView: View {
         }
         .task {
             // ✅ NUEVO: Task adicional para asegurar inicialización
-            print("🔍 Task iniciado - asegurando inicialización")
             await initializeCommentsView()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             // ✅ NUEVO: Re-inicializar cuando la app vuelve a estar activa
-            print("🔍 App activa - re-inicializando comentarios")
             Task {
                 await initializeCommentsView()
             }
         }
         .onChange(of: moment.id) { newMomentId in
-            print("🔄 Cambio de momento detectado: \(newMomentId ?? "nil")")
             
             // ✅ NUEVO: Resetear estado cuando cambia el momento
             DispatchQueue.main.async {
@@ -131,7 +127,6 @@ struct ModernCommentsView: View {
             }
         }
         .onDisappear {
-            print("🔍 ModernCommentsView desapareció - removiendo listener")
             commentsListener?.remove()
             
             // ✅ NUEVO: Limpiar estado al desaparecer
@@ -613,14 +608,12 @@ struct ModernCommentsView: View {
     
     private func setupCommentsListener() {
         guard let momentId = moment.id else {
-            print("❌ No hay momentId para configurar listener")
             DispatchQueue.main.async {
                 self.isLoading = false
             }
             return
         }
         
-        print("🔍 Configurando listener para momento: \(momentId)")
         
         // ✅ NUEVO: Asegurar que isLoading esté en true
         DispatchQueue.main.async {
@@ -630,7 +623,6 @@ struct ModernCommentsView: View {
         // ✅ NUEVO: Timeout más corto para mejor UX
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
             if self.isLoading {
-                print("⚠️ Timeout en carga de comentarios - estableciendo como cargado")
                 DispatchQueue.main.async {
                     self.isLoading = false
                 }
@@ -648,7 +640,6 @@ struct ModernCommentsView: View {
             .addSnapshotListener { snapshot, error in
                 
                 if let error = error {
-                    print("❌ Error en listener: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         self.isLoading = false
                     }
@@ -656,7 +647,6 @@ struct ModernCommentsView: View {
                 }
                 
                 guard let documents = snapshot?.documents else {
-                    print("📄 No hay documentos en snapshot")
                     DispatchQueue.main.async {
                         self.comments = []
                         self.isLoading = false
@@ -664,7 +654,6 @@ struct ModernCommentsView: View {
                     return
                 }
                 
-                print("📄 Listener recibió: \(documents.count) documentos")
                 
                 let loadedComments = documents.compactMap { doc -> Comment? in
                     do {
@@ -672,7 +661,6 @@ struct ModernCommentsView: View {
                         comment.id = doc.documentID
                         return comment
                     } catch {
-                        print("❌ Error parseando comentario: \(error)")
                         return nil
                     }
                 }
@@ -680,7 +668,6 @@ struct ModernCommentsView: View {
                 DispatchQueue.main.async {
                     self.comments = loadedComments
                     self.isLoading = false
-                    print("✅ Comentarios actualizados: \(loadedComments.count)")
                 }
             }
     }
@@ -692,7 +679,6 @@ struct ModernCommentsView: View {
     
     // ✅ NUEVO: Método de inicialización robusto
     private func initializeCommentsView() async {
-        print("🔍 Inicializando vista de comentarios para momento: \(moment.id ?? "nil")")
         
         // Asegurar que el estado esté correcto
         await MainActor.run {
@@ -713,9 +699,6 @@ struct ModernCommentsView: View {
     private func addComment(content: String, parentCommentId: String?) {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
         
-        print("\n📝 === CREANDO COMENTARIO ===")
-        print("Contenido: \(content)")
-        print("Parent ID: \(parentCommentId ?? "nil (comentario principal)")")
         
         AnalyticsService.shared.trackInteraction("comment_created", details: [
             "momentId": momentId,
@@ -732,7 +715,6 @@ struct ModernCommentsView: View {
         ) { result in
             switch result {
             case .success:
-                print("✅ Comentario creado, refrescando lista...")
                 DispatchQueue.main.async {
                     self.fetchComments()
                 }
@@ -745,8 +727,8 @@ struct ModernCommentsView: View {
                     parentCommentId: parentCommentId
                 )
                 
-            case .failure(let error):
-                print("❌ Error adding comment: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -765,7 +747,6 @@ struct ModernCommentsView: View {
                 content: content,
                 onApproved: {
                     // ✅ Todo bien, silencio total
-                    print("✅ Comentario aprobado silenciosamente")
                     
                     // 📊 Log opcional para estadísticas (comentarios limpios)
                     CommentModerationService.shared.logModerationEvent(
@@ -779,7 +760,6 @@ struct ModernCommentsView: View {
                 },
                 onWarning: { reason, category in
                     // ⚠️ Marcar para revisión manual pero dejarlo publicado
-                    print("⚠️ Comentario marcado para revisión: \(reason)")
                     
                     // 📊 Log para tu panel de admin - AHORA SÍ SE GUARDA EN FIRESTORE
                     CommentModerationService.shared.logModerationEvent(
@@ -793,7 +773,6 @@ struct ModernCommentsView: View {
                 },
                 onRejected: { reason, category in
                     // ❌ Borrar el comentario silenciosamente
-                    print("❌ Comentario eliminado silenciosamente: \(reason)")
                     
                     // Buscar y eliminar sin avisar al usuario
                     self.deleteCommentByContent(content: content, momentId: momentId, userId: userId)
@@ -810,7 +789,6 @@ struct ModernCommentsView: View {
                 },
                 onError: { error in
                     // 🔍 Error en moderación, marcar para revisión manual
-                    print("❌ Error en moderación automática: \(error)")
                     
                     // 📊 Log del error - AHORA SÍ SE GUARDA EN FIRESTORE
                     CommentModerationService.shared.logModerationEvent(
@@ -848,18 +826,17 @@ struct ModernCommentsView: View {
                     ) { result in
                         switch result {
                         case .success:
-                            print("🤫 Comentario eliminado silenciosamente por moderación")
                             DispatchQueue.main.async {
                                 self.fetchComments() // Refrescar lista silenciosamente
                             }
-                        case .failure(let error):
-                            print("❌ Error eliminando comentario moderado: \(error)")
+                        case .failure(_):
+                            break
                         }
                     }
                 }
                 
-            case .failure(let error):
-                print("❌ Error buscando comentario para eliminar: \(error)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -872,8 +849,8 @@ struct ModernCommentsView: View {
                 DispatchQueue.main.async {
                     self.fetchComments()
                 }
-            case .failure(let error):
-                print("Error updating comment: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -886,8 +863,8 @@ struct ModernCommentsView: View {
                 DispatchQueue.main.async {
                     self.fetchComments()
                 }
-            case .failure(let error):
-                print("Error deleting comment: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -910,7 +887,6 @@ struct ModernCommentsView: View {
             authorId: comment.authorId
         ) { error in
             if let error = error {
-                print("Error toggling comment like: \(error.localizedDescription)")
             } else {
                 DispatchQueue.main.async {
                     self.fetchComments()

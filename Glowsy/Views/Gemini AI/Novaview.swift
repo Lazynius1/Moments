@@ -98,7 +98,7 @@ struct GeminiView: View {
                                         ForEach(viewModel.conversationHistory) { message in
                                             EnhancedChatBubble(
                                                 message: message,
-                                                username: viewModel.userData?.username ?? "Usuario"
+                                                username: viewModel.userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name")
                                             )
                                             .id("\(message.id)_\(message.isHistorical ? "historical" : "new")")
                                         }
@@ -370,7 +370,6 @@ struct EnhancedChatBubble: View {
                 displayedText = message.text
                 isTyping = false
                 isInitialized = true
-                print("🔍 DEBUG: Mensaje histórico mostrado inmediatamente")
             } else {
                 initializeMessage()
             }
@@ -384,27 +383,22 @@ struct EnhancedChatBubble: View {
     private func initializeMessage() {
         // ✅ EVITAR RE-INICIALIZACIÓN SI YA ESTÁ COMPLETO
         if isInitialized {
-            print("🔍 DEBUG: Mensaje ya inicializado, saltando...")
             return
         }
         
-        print("🔍 DEBUG: Mensaje - isUser: \(message.isUser), isHistorical: \(message.isHistorical), texto: \(message.text.prefix(20))...")
         
         if message.isUser {
             // ✅ USUARIO: Siempre mostrar completo
             displayedText = message.text
             isTyping = false
             isInitialized = true
-            print("   → Usuario: Mostrado completo")
         } else if message.isHistorical {
             // ✅ HISTÓRICO: Mostrar completo INMEDIATAMENTE, sin animación
             displayedText = message.text
             isTyping = false
             isInitialized = true
-            print("   → Histórico: Mostrado completo SIN animación")
         } else {
             // ✅ NUEVO: Solo aquí animamos
-            print("   → Nuevo: Iniciando animación")
             startNaturalAnimation(fullText: message.text)
         }
     }
@@ -956,9 +950,6 @@ struct ConversationHistoryItem: View {
     
     var body: some View {
         Button(action: {
-            print("🎯 Seleccionando conversación: \(conversation.title)")
-            print("📊 ID: \(conversation.id)")
-            print("📊 Mensajes: \(conversation.messageCount)")
             
             Task {
                 await viewModel.loadConversation(conversation.id)
@@ -990,7 +981,7 @@ struct ConversationHistoryItem: View {
                     Button(role: .destructive, action: {
                         showDeleteAlert = true
                     }) {
-                        Label("Eliminar", systemImage: "trash")
+                        Label(NSLocalizedString("nova.actions.delete", comment: "Delete action"), systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -1010,11 +1001,11 @@ struct ConversationHistoryItem: View {
                     )
             )
         }
-        .alert("Eliminar Conversación", isPresented: $showDeleteAlert) {
-            Button("Cancelar", role: .cancel) { }
-            Button("Eliminar", role: .destructive, action: onDelete)
+        .alert(NSLocalizedString("nova.actions.deleteConversation.title", comment: "Delete conversation alert title"), isPresented: $showDeleteAlert) {
+            Button(NSLocalizedString("nova.actions.cancel", comment: "Cancel action"), role: .cancel) { }
+            Button(NSLocalizedString("nova.actions.delete", comment: "Delete action"), role: .destructive, action: onDelete)
         } message: {
-                            Text("nova.deleteConversation.confirm")
+                Text("nova.deleteConversation.confirm")
         }
     }
 }
@@ -1117,12 +1108,12 @@ struct EnhancedGeminiHeader: View {
                 Button("🚀 ¡Increíble!") {
                     resetEasterEgg()
                 }
-                Button("💝 Gracias Álvaro") {
+                Button(NSLocalizedString("nova.easterEgg.thanksButton", comment: "Thank you Álvaro button")) {
                     resetEasterEgg()
                     triggerDeveloperAppreciation()
                 }
             } message: {
-                Text("✨ Esta increíble app fue creada por Álvaro con mucho ❤️\n\n🎯 Su visión: \"Las redes sociales no tienen que ser todo o nada... ¡también pueden ser modulares!\"\n\n🌟 ¡Gracias por explorar cada rincón de Moments!")
+                Text(NSLocalizedString("nova.easterEgg.message", comment: "Easter egg message about Álvaro"))
             }
             
             VStack(alignment: .leading, spacing: 1) {
@@ -1279,7 +1270,7 @@ struct EnhancedGeminiHeader: View {
     }
     
     private func triggerDeveloperAppreciation() {
-        viewModel.inputText = "Gracias por crear esta increíble app"
+        viewModel.inputText = NSLocalizedString("nova.easterEgg.appreciationMessage", comment: "Thank you message for Álvaro")
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             if !viewModel.inputText.isEmpty {
@@ -1395,20 +1386,20 @@ struct ModernWelcomeSection: View {
                     if let userData = viewModel.userData {
                         VStack(spacing: 20) {
                             ModernInfoCard(
-                                title: "Tus Intereses",
-                                value: userData.interests.isEmpty ? "Ninguno configurado" : userData.interests.joined(separator: " • "),
+                                title: NSLocalizedString("nova.welcome.interests.title", comment: "Your interests title"),
+                                value: userData.interests.isEmpty ? NSLocalizedString("nova.welcome.interests.empty", comment: "No interests configured") : userData.interests.joined(separator: " • "),
                                 icon: "heart.fill"
                             )
 
                             HStack(spacing: 12) {
                                 ModernStatCard(
-                                    title: "Tus mutuals",
+                                    title: NSLocalizedString("nova.welcome.mutuals.title", comment: "Your mutuals title"),
                                     value: "\(viewModel.mutualConnections.count)",
                                     icon: "person.2.fill"
                                 )
 
                                 ModernStatCard(
-                                    title: "Visitas a tu perfil",
+                                    title: NSLocalizedString("nova.welcome.profileVisits.title", comment: "Profile visits title"),
                                     value: "\(viewModel.profileVisits.count)",
                                     icon: "eye.fill"
                                 )
@@ -1435,41 +1426,41 @@ struct ModernWelcomeSection: View {
                             GridItem(.flexible(), spacing: 12)
                         ], spacing: 12) {
                             ModernSuggestionCard(
-                                title: "Ayúdame a escribir",
+                                title: NSLocalizedString("nova.suggestions.writeHelp.title", comment: "Help me write title"),
                                 icon: "pencil.circle.fill",
                                 gradient: [ModernGeminiColors.primary, ModernGeminiColors.secondary]
                             ) {
-                                viewModel.inputText = "Ayúdame a escribir"
+                                viewModel.inputText = NSLocalizedString("nova.suggestions.writeHelp.prompt", comment: "Help me write prompt")
                                 viewModel.sendMessage()
                                 showSuggestedOptions = false
                             }
 
                             ModernSuggestionCard(
-                                title: "Consejos de estudio",
+                                title: NSLocalizedString("nova.suggestions.studyTips.title", comment: "Study tips title"),
                                 icon: "book.circle.fill",
                                 gradient: [ModernGeminiColors.secondary, ModernGeminiColors.accent]
                             ) {
-                                viewModel.inputText = "Dame consejos para estudiar"
+                                viewModel.inputText = NSLocalizedString("nova.suggestions.studyTips.prompt", comment: "Study tips prompt")
                                 viewModel.sendMessage()
                                 showSuggestedOptions = false
                             }
 
                             ModernSuggestionCard(
-                                title: "Mis intereses",
+                                title: NSLocalizedString("nova.suggestions.interests.title", comment: "My interests title"),
                                 icon: "heart.circle.fill",
                                 gradient: [ModernGeminiColors.accent, ModernGeminiColors.primary]
                             ) {
-                                viewModel.inputText = "Háblame sobre mis intereses"
+                                viewModel.inputText = NSLocalizedString("nova.suggestions.interests.prompt", comment: "My interests prompt")
                                 viewModel.sendMessage()
                                 showSuggestedOptions = false
                             }
 
                             ModernSuggestionCard(
-                                title: "Dame consejos",
+                                title: NSLocalizedString("nova.suggestions.advice.title", comment: "Give me advice title"),
                                 icon: "lightbulb.circle.fill",
                                 gradient: [ModernGeminiColors.primary, ModernGeminiColors.accent]
                             ) {
-                                viewModel.inputText = "Dame algunos consejos útiles"
+                                viewModel.inputText = NSLocalizedString("nova.suggestions.advice.prompt", comment: "Give me advice prompt")
                                 viewModel.sendMessage()
                                 showSuggestedOptions = false
                             }
@@ -1725,7 +1716,7 @@ struct EnhancedInputBar: View {
             
             HStack(spacing: 12) {
                 // ✅ TextField con cambios en el overlay para rendimiento
-                TextField("Pregúntale algo a Nova...", text: $viewModel.inputText, axis: .vertical)
+                TextField(NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"), text: $viewModel.inputText, axis: .vertical)
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(ModernGeminiColors.textPrimary)
                     .padding(.horizontal, 16)
@@ -1803,14 +1794,14 @@ struct SmartSuggestionChips: View {
     @ObservedObject var viewModel: GeminiViewModel
     @Binding var showSuggestedOptions: Bool
     
-    let suggestions: [SmartSuggestion] = [
-        SmartSuggestion(text: "¿Cómo crear contenido viral?", icon: "flame.fill"),
-        SmartSuggestion(text: "Organiza mi día productivo", icon: "clock.fill"),
-        SmartSuggestion(text: "Mejora mi perfil social", icon: "person.crop.circle.fill"),
-        SmartSuggestion(text: "Consejos de bienestar", icon: "heart.fill"),
-        SmartSuggestion(text: "Conectar con personas afines", icon: "person.2.fill"),
-        SmartSuggestion(text: "Ideas para mi próximo momento", icon: "lightbulb.fill")
-    ]
+            let suggestions: [SmartSuggestion] = [
+            SmartSuggestion(text: NSLocalizedString("nova.smartSuggestions.viralContent", comment: "How to create viral content"), icon: "flame.fill"),
+            SmartSuggestion(text: NSLocalizedString("nova.smartSuggestions.productiveDay", comment: "Organize my productive day"), icon: "clock.fill"),
+            SmartSuggestion(text: NSLocalizedString("nova.smartSuggestions.socialProfile", comment: "Improve my social profile"), icon: "person.crop.circle.fill"),
+            SmartSuggestion(text: NSLocalizedString("nova.smartSuggestions.wellbeing", comment: "Wellness advice"), icon: "heart.fill"),
+            SmartSuggestion(text: NSLocalizedString("nova.smartSuggestions.connectPeople", comment: "Connect with like-minded people"), icon: "person.2.fill"),
+            SmartSuggestion(text: NSLocalizedString("nova.smartSuggestions.momentIdeas", comment: "Ideas for my next moment"), icon: "lightbulb.fill")
+        ]
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -1999,8 +1990,11 @@ class GeminiViewModel: ObservableObject {
                         LogConfig.log("🎭 Nombre preferido detectado: \(preferredName)", category: "Personalization")
                     }
                     LogConfig.log("🧠 Memoria personalizada cargada: \(memory.facts.count) hechos", category: "Memory")
-                case .failure:
+                    // ✅ NUEVO: Marcar que la memoria está lista
+                    self?.hasMemoryLoaded = true
+                case .failure(_):
                     self?.userMemory = NovaMemory(userId: userId)
+                    self?.hasMemoryLoaded = true
                 }
             }
         }
@@ -2021,7 +2015,6 @@ class GeminiViewModel: ObservableObject {
     }
 
     func fetchMutualConnections(userId: String) {
-        print("🔍 NovaView: Iniciando fetchMutualConnections para userId: \(userId)")
         
         // Obtener following directamente de Firestore
         firestoreService.db.collection("users").document(userId).collection("following")
@@ -2029,7 +2022,6 @@ class GeminiViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 if let error = error {
-                    print("🔍 NovaView: Error fetching following: \(error.localizedDescription)")
                     return
                 }
                 
@@ -2037,7 +2029,6 @@ class GeminiViewModel: ObservableObject {
                     doc.data()["userId"] as? String
                 } ?? []
                 
-                print("🔍 NovaView: Following IDs: \(followingIds)")
                 
                 // Obtener followers
                 self.firestoreService.db.collection("users").document(userId).collection("followers")
@@ -2045,7 +2036,6 @@ class GeminiViewModel: ObservableObject {
                         guard let self = self else { return }
                         
                         if let error = error {
-                            print("🔍 NovaView: Error fetching followers: \(error.localizedDescription)")
                             return
                         }
                         
@@ -2053,20 +2043,17 @@ class GeminiViewModel: ObservableObject {
                             doc.data()["userId"] as? String
                         } ?? []
                         
-                        print("🔍 NovaView: Follower IDs: \(followerIds)")
                         
                         // Calcular conexiones mutuas
                         let followingSet = Set(followingIds)
                         let followersSet = Set(followerIds)
                         let mutualIds = Array(followingSet.intersection(followersSet))
                         
-                        print("🔍 NovaView: Mutual IDs: \(mutualIds)")
                         
                         if mutualIds.isEmpty {
                             DispatchQueue.main.async {
                                 self.mutualConnections = []
                                 self.objectWillChange.send() // ✅ Forzar actualización de UI
-                                print("🔍 NovaView: No hay conexiones mutuas")
                             }
                             return
                         }
@@ -2076,14 +2063,10 @@ class GeminiViewModel: ObservableObject {
                             DispatchQueue.main.async {
                                 switch result {
                                 case .success(let users):
-                                    print("🔍 NovaView: Conexiones mutuas obtenidas: \(users.count)")
-                                    print("🔍 NovaView: IDs de conexiones mutuas: \(users.map { $0.id ?? "nil" })")
                                     self.mutualConnections = users
                                     self.objectWillChange.send() // ✅ Forzar actualización de UI
-                                    print("🔍 NovaView: UI actualizada - mutualConnections.count ahora es: \(self.mutualConnections.count)")
                                     LogConfig.log("Conexiones mutuas obtenidas: \(users.count)", category: "Data")
                                 case .failure(let error):
-                                    print("🔍 NovaView: Error al obtener usuarios mutuos: \(error.localizedDescription)")
                                     LogConfig.log("Error al obtener usuarios mutuos: \(error.localizedDescription)", category: "Error")
                                 }
                             }
@@ -2119,32 +2102,27 @@ class GeminiViewModel: ObservableObject {
     }
 
     func fetchProfileVisits(userId: String) {
-        print("🔍 NovaView: Iniciando fetchProfileVisits para userId: \(userId)")
         firestoreService.fetchVisits(userId: userId) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let visits):
                     let visitorIds = visits.map { $0.visitorId }
-                    print("🔍 NovaView: Visitor IDs obtenidos: \(visitorIds)")
                     
                     if visitorIds.isEmpty {
                         self?.profileVisits = []
                         self?.objectWillChange.send()
-                        print("🔍 NovaView: No hay visitas al perfil")
                         return
                     }
                     
                     // Obtener usuarios visitantes usando fetchUsersInBatches como ProfileView
                     self?.fetchUsersInBatches(userIds: visitorIds) { users in
                         DispatchQueue.main.async {
-                            print("🔍 NovaView: Visitas al perfil obtenidas: \(users.count)")
                             self?.profileVisits = users
                             self?.objectWillChange.send()
                             LogConfig.log("Visitas al perfil obtenidas: \(users.count)", category: "Data")
                         }
                     }
                 case .failure(let error):
-                    print("🔍 NovaView: Error al obtener visitas: \(error.localizedDescription)")
                     LogConfig.log("Error al obtener visitas: \(error.localizedDescription)", category: "Error")
                 }
             }
@@ -2172,8 +2150,8 @@ class GeminiViewModel: ObservableObject {
                 switch result {
                 case .success(let users):
                     allUsers.append(contentsOf: users)
-                case .failure(let error):
-                    print("Error al obtener usuarios en lote: \(error.localizedDescription)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -2306,6 +2284,13 @@ class GeminiViewModel: ObservableObject {
             conversationHistory.append(ChatMessage(text: responseText, isUser: false))
             return
         }
+        
+        // ✅ NUEVO: Asegurar que la memoria esté cargada antes de enviar
+        guard hasMemoryLoaded else {
+            responseText = "Cargando tu memoria personalizada... Por favor, espera un momento."
+            conversationHistory.append(ChatMessage(text: responseText, isUser: false))
+            return
+        }
 
         // 🎯 DETECTAR COMANDOS DE PERSONALIZACIÓN ANTES DE ENVIAR
         if let personalizationCommand = NovaPersona.detectPersonalizationCommand(inputText) {
@@ -2341,11 +2326,26 @@ class GeminiViewModel: ObservableObject {
         // 🎯 USAR NOMBRE PREFERIDO EN EL PROMPT
         let displayName = userMemory?.preferredName ?? userData.username
         
+        // 🔥 NUEVO: Análisis inteligente para el prompt dinámico
+        let engagement = memoryService.analyzeConversationEngagement(conversationHistory)
+        let patterns = memoryService.analyzeCommunicationPatterns(conversationHistory)
+        
         let finalPrompt = """
         \(fullPrompt)
 
         🎭 ANÁLISIS DE PERSONALIDAD PARA ESTA RESPUESTA:
         \(vibeAnalysis)
+
+        🔥 NUEVO: ANÁLISIS INTELIGENTE DE LA CONVERSACIÓN:
+        - Nivel de engagement: \(engagement.level.description)
+        - Participación del usuario: \(String(format: "%.1f", engagement.userParticipation * 100))%
+        - Consistencia de temas: \(String(format: "%.1f", engagement.topicConsistency * 100))%
+        - Patrón de comunicación: \(patterns.isFormal ? "Formal" : "Casual")
+        - Uso de emojis: \(patterns.usesEmojis ? "Sí" : "No")
+        - Frecuencia de preguntas: \(String(format: "%.1f", patterns.questionFrequency * 100))%
+
+        🎯 ADAPTACIÓN INTELIGENTE:
+        \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
 
         HISTORIAL RECIENTE:
         \(conversationContext)
@@ -2362,6 +2362,14 @@ class GeminiViewModel: ObservableObject {
         - Si conoces el nombre preferido, úsalo SIEMPRE en lugar del username
         - Aplica las preferencias de comunicación automáticamente
         - Si preguntan sobre el creador, menciona "Álvaro", nunca "\(userData.username)"
+        - ADAPTA tu respuesta según el análisis de engagement y patrones arriba
+        
+        🚫 REGLA IMPORTANTE - NO SEAS PESADO CON INTERESES:
+        - NO menciones los intereses del usuario en CADA respuesta
+        - Solo usa intereses cuando sea RELEVANTE para la pregunta específica
+        - NO fuerces sugerencias basadas en intereses si el usuario no las pide
+        - Sé natural y conversacional, no un catálogo de recomendaciones
+        - Los intereses son contexto, NO el tema principal de cada conversación
         """
 
         // ✅ TASK CON MANEJO ROBUSTO DE ERRORES
@@ -2388,13 +2396,111 @@ class GeminiViewModel: ObservableObject {
                     await self.saveCurrentConversation()
                 }
                 
-                // ✅ PROCESAR MEMORIA CON DEBOUNCE MEJORADO
+                            // ✅ PROCESAR MEMORIA CON DEBOUNCE MEJORADO
                 self.scheduleMemoryProcessing(userId: userId)
+                
+                // 🔥 NUEVO: Análisis inteligente de la conversación en tiempo real
+                self.analyzeConversationIntelligently(userId: userId)
                 
             } catch {
                 await handleSendMessageError(error)
             }
         }
+    }
+    
+    // 🔥 NUEVA: Función de análisis inteligente de conversación en tiempo real
+    private func analyzeConversationIntelligently(userId: String) {
+        guard conversationHistory.count >= 3 else { return }
+        
+        // 🎯 Analizar engagement y patrones de la conversación
+        let engagement = memoryService.analyzeConversationEngagement(conversationHistory)
+        let patterns = memoryService.analyzeCommunicationPatterns(conversationHistory)
+        
+        // 🧠 Aprender preferencias automáticamente
+        memoryService.learnConversationPreferences(conversationHistory, userId: userId)
+        
+        // 📊 Log de métricas para debugging
+        LogConfig.log("🎭 Análisis de conversación - Engagement: \(engagement.level.description), Participación: \(String(format: "%.2f", engagement.userParticipation))", category: "Intelligence")
+        LogConfig.log("📊 Patrones detectados - Formal: \(patterns.isFormal), Emojis: \(patterns.usesEmojis), Preguntas: \(patterns.asksQuestions)", category: "Intelligence")
+        
+        // 🎯 Adaptar el comportamiento de Nova según el análisis
+        adaptNovaBehavior(engagement: engagement, patterns: patterns)
+    }
+    
+    // 🎭 Adaptar el comportamiento de Nova según el análisis
+    private func adaptNovaBehavior(engagement: ConversationEngagement, patterns: CommunicationPatterns) {
+        // 🔥 NUEVO: Ajustar el prompt dinámicamente según el engagement
+        if engagement.level == .low {
+            // Usuario poco participativo - ser más estimulante
+            LogConfig.log("🎯 Usuario poco participativo - Adaptando a modo estimulante", category: "Adaptation")
+        } else if engagement.level == .high {
+            // Usuario muy participativo - mantener la energía
+            LogConfig.log("🎯 Usuario muy participativo - Manteniendo alta energía", category: "Adaptation")
+        }
+        
+        // 🔥 NUEVO: Ajustar según patrones de comunicación
+        if patterns.isFormal {
+            LogConfig.log("🎭 Usuario formal detectado - Ajustando a tono respetuoso", category: "Adaptation")
+        }
+        
+        if patterns.usesEmojis {
+            LogConfig.log("😊 Usuario usa emojis - Ajustando a comunicación visual", category: "Adaptation")
+        }
+        
+        if patterns.asksQuestions {
+            LogConfig.log("❓ Usuario curioso detectado - Preparando respuestas informativas", category: "Adaptation")
+        }
+    }
+    
+    // 🔥 NUEVA: Generar instrucciones de adaptación inteligente
+    private func getAdaptationInstructions(engagement: ConversationEngagement, patterns: CommunicationPatterns) -> String {
+        var instructions = ""
+        
+        // 🎯 Instrucciones según engagement
+        switch engagement.level {
+        case .low:
+            instructions += "• El usuario está poco participativo - Sé más estimulante y haz preguntas\n"
+            instructions += "• Usa un tono más energético para motivar la participación\n"
+        case .medium:
+            instructions += "• El usuario tiene participación moderada - Mantén un balance\n"
+            instructions += "• Alterna entre hacer preguntas y dar información\n"
+        case .high:
+            instructions += "• El usuario está muy participativo - Mantén la energía alta\n"
+            instructions += "• Puedes ser más detallado ya que está interesado\n"
+        }
+        
+        // 🎭 Instrucciones según patrones de comunicación
+        if patterns.isFormal {
+            instructions += "• El usuario es formal - Mantén un tono respetuoso y profesional\n"
+            instructions += "• Usa un lenguaje más elaborado y estructurado\n"
+        } else {
+            instructions += "• El usuario es casual - Puedes ser más relajado y amigable\n"
+            instructions += "• Usa un lenguaje más natural y cercano\n"
+        }
+        
+        if patterns.usesEmojis {
+            instructions += "• El usuario usa emojis - Puedes usar emojis apropiados en tu respuesta\n"
+            instructions += "• Mantén un tono visual y expresivo\n"
+        }
+        
+        if patterns.asksQuestions {
+            instructions += "• El usuario es curioso - Prepara respuestas informativas y detalladas\n"
+            instructions += "• Anticipa posibles preguntas de seguimiento\n"
+        }
+        
+        if patterns.prefersLongMessages {
+            instructions += "• El usuario prefiere mensajes largos - Puedes ser más detallado\n"
+            instructions += "• No te limites a respuestas cortas\n"
+        }
+        
+        // 🚫 NUEVA: Instrucciones para NO ser pesado con intereses
+        instructions += "\n🚫 IMPORTANTE - NO SEAS INSISTENTE:\n"
+        instructions += "• NO menciones intereses en cada respuesta\n"
+        instructions += "• Solo usa intereses cuando sea RELEVANTE\n"
+        instructions += "• Sé conversacional, no un catálogo de recomendaciones\n"
+        instructions += "• Los intereses son contexto, NO el tema principal\n"
+        
+        return instructions
     }
     
     // ✅ NUEVA FUNCIÓN PARA RETRY CON FIREBASE
@@ -2916,12 +3022,80 @@ class GeminiViewModel: ObservableObject {
     }
     
     private func getCurrentTimeContext() -> String {
-        let hour = Calendar.current.component(.hour, from: Date())
+        let now = Date()
+        let calendar = Calendar.current
+        
+        // 🕐 Hora del día
+        let hour = calendar.component(.hour, from: now)
+        let timeOfDay: String
         switch hour {
-        case 6..<12: return "Mañana"
-        case 12..<18: return "Tarde"
-        case 18..<22: return "Noche"
-        default: return "Madrugada"
+        case 6..<12: timeOfDay = "Mañana"
+        case 12..<18: timeOfDay = "Tarde"
+        case 18..<22: timeOfDay = "Noche"
+        default: timeOfDay = "Madrugada"
+        }
+        
+        // 📅 Día del mes
+        let day = calendar.component(.day, from: now)
+        
+        // 🌸 Mes
+        let month = calendar.component(.month, from: now)
+        let monthName = getMonthName(month)
+        
+        // 📅 Año
+        let year = calendar.component(.year, from: now)
+        
+        // 🌟 Día de la semana
+        let weekday = calendar.component(.weekday, from: now)
+        let weekdayName = getWeekdayName(weekday)
+        
+        // 🌞 Estación
+        let season = getSeason(month: month, day: day)
+        
+        return "\(timeOfDay) del \(weekdayName) \(day) de \(monthName) de \(year) (\(season))"
+    }
+    
+    // 🌸 Obtener nombre del mes
+    private func getMonthName(_ month: Int) -> String {
+        let months = [
+            1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+            5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+            9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+        ]
+        return months[month] ?? "Mes"
+    }
+    
+    // 🌟 Obtener nombre del día de la semana
+    private func getWeekdayName(_ weekday: Int) -> String {
+        let weekdays = [
+            1: "Domingo", 2: "Lunes", 3: "Martes", 4: "Miércoles",
+            5: "Jueves", 6: "Viernes", 7: "Sábado"
+        ]
+        return weekdays[weekday] ?? "Día"
+    }
+    
+    // 🌞 Obtener estación del año (CORREGIDO CON FECHAS EXACTAS)
+    private func getSeason(month: Int, day: Int) -> String {
+        // ✅ LÓGICA CORRECTA: Fechas exactas de cambio de estaciones
+        switch month {
+        case 12: // Diciembre
+            return day >= 21 ? "Invierno" : "Otoño"
+        case 1, 2: // Enero y Febrero
+            return "Invierno"
+        case 3: // Marzo
+            return day >= 20 ? "Primavera" : "Invierno"
+        case 4, 5: // Abril y Mayo
+            return "Primavera"
+        case 6: // Junio
+            return day >= 21 ? "Verano" : "Primavera"
+        case 7, 8: // Julio y Agosto
+            return "Verano"
+        case 9: // Septiembre
+            return day >= 23 ? "Otoño" : "Verano"
+        case 10, 11: // Octubre y Noviembre
+            return "Otoño"
+        default:
+            return "Estación"
         }
     }
     
@@ -3039,7 +3213,6 @@ struct LogConfig {
     
     static func log(_ message: String, category: String = "Nova") {
         if isVerboseLogging {
-            print("[\(category)] \(message)")
         }
     }
 }
@@ -3112,7 +3285,7 @@ extension GeminiViewModel {
                 memoryService.saveMemory(updatedMemory) { _ in }
             }
             
-            let userName = userMemory?.preferredName ?? userData?.username ?? "Usuario"
+            let userName = userMemory?.preferredName ?? userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name")
             switch style {
             case .formal:
                 responseText = "Entendido, \(userName). A partir de ahora mantendré una comunicación más formal."

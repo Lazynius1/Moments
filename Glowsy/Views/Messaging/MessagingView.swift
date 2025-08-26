@@ -186,7 +186,6 @@ struct MessagingView: View {
                 
                 // ✅ AGREGAR: Verificar si hay conversación objetivo
                 if let targetId = targetConversationId {
-                    print("🎯 MessagingView: Buscando conversación objetivo: \(targetId)")
                     navigateToConversation(id: targetId)
                 }
             }
@@ -198,7 +197,6 @@ struct MessagingView: View {
             // ✅ AGREGAR: Listener para cuando cambie targetConversationId
             .onChange(of: targetConversationId) { newTargetId in
                 if let targetId = newTargetId {
-                    print("🎯 MessagingView: Nuevo objetivo de conversación: \(targetId)")
                     navigateToConversation(id: targetId)
                 }
             }
@@ -214,7 +212,6 @@ struct MessagingView: View {
                 guard let navigation = navigation else { return }
                 
                 if case .conversation(let conversationId) = navigation {
-                    print("🔔 MessagingView: Navegando a conversación \(conversationId)")
                     targetConversationId = conversationId
                     navigationService.clearPendingNavigation()
                 }
@@ -225,21 +222,17 @@ struct MessagingView: View {
     private func navigateToConversation(id: String) {
         // Buscar conversación en la lista cargada
         if let conversation = viewModel.conversations.first(where: { $0.id == id }) {
-            print("✅ Conversación encontrada en lista: \(id)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 selectedConversation = conversation
                 targetConversationId = nil  // Limpiar objetivo
             }
         } else {
-            print("⚠️ Conversación no encontrada en lista: \(id)")
             // Esperar un poco y reintentar (por si las conversaciones se están cargando)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 if let conversation = viewModel.conversations.first(where: { $0.id == id }) {
-                    print("✅ Conversación encontrada tras reintento: \(id)")
                     selectedConversation = conversation
                     targetConversationId = nil
                 } else {
-                    print("❌ Conversación no encontrada tras reintento: \(id)")
                     targetConversationId = nil
                 }
             }
@@ -637,15 +630,14 @@ struct MessagingView: View {
         guard let conversationId = conversation.id,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        print("🗑️ Eliminando conversación: \(conversationId)")
         
         let chatService = ChatService()
         chatService.deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: conversation.otherParticipantId ?? "") { error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("❌ Error eliminando conversación: \(error.localizedDescription)")
+                    // Error deleting conversation
                 } else {
-                    print("✅ Conversación eliminada exitosamente")
+                    // Conversation deleted successfully
                 }
             }
         }
@@ -655,7 +647,6 @@ struct MessagingView: View {
         guard let conversationId = conversation.id,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        print("📌 Pinnando conversación: \(conversationId)")
         
         let chatService = ChatService()
         if conversation.isPinned == true {
@@ -663,9 +654,9 @@ struct MessagingView: View {
             chatService.unpinConversation(conversationId, for: currentUserId) { error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("❌ Error despinnando conversación: \(error.localizedDescription)")
+                        // Error unpinning conversation
                     } else {
-                        print("✅ Conversación despinnada exitosamente")
+                        // Conversation unpinned successfully
                     }
                 }
             }
@@ -674,9 +665,9 @@ struct MessagingView: View {
             chatService.pinConversation(conversationId, for: currentUserId) { error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("❌ Error pinnando conversación: \(error.localizedDescription)")
+                        // Error pinning conversation
                     } else {
-                        print("✅ Conversación pinnada exitosamente")
+                        // Conversation pinned successfully
                     }
                 }
             }
@@ -687,7 +678,6 @@ struct MessagingView: View {
         guard let conversationId = conversation.id,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        print("🔇 Silenciando conversación: \(conversationId)")
         
         let chatService = ChatService()
         if conversation.isMuted == true {
@@ -695,9 +685,9 @@ struct MessagingView: View {
             chatService.unmuteConversation(conversationId, for: currentUserId) { error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("❌ Error desilenciando conversación: \(error.localizedDescription)")
+                        // Error unmuting conversation
                     } else {
-                        print("✅ Conversación desilenciada exitosamente")
+                        // Conversation unmuted successfully
                     }
                 }
             }
@@ -706,9 +696,9 @@ struct MessagingView: View {
             chatService.muteConversation(conversationId, for: currentUserId) { error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("❌ Error silenciando conversación: \(error.localizedDescription)")
+                        // Error muting conversation
                     } else {
-                        print("✅ Conversación silenciada exitosamente")
+                        // Conversation muted successfully
                     }
                 }
             }
@@ -723,7 +713,6 @@ struct MessagingView: View {
                 SwipeableConversationRow(
                     conversation: conversation,
                     onTap: {
-                        print("🔍 Conversation tapped: \(conversationId)")
                         // ✅ Animación de feedback visual
                         offsetValues[conversationId] = -20
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -884,7 +873,6 @@ struct SearchUserRow: View {
                     DispatchQueue.main.async {
                         switch result {
                         case .success(let conversationId):
-                            print("✅ Conversation ready: \(conversationId)")
                             
                             let conversation = Conversation(
                                 id: conversationId,
@@ -900,7 +888,6 @@ struct SearchUserRow: View {
                             onTap(conversation)
                             
                         case .failure(let error):
-                            print("❌ Error creating conversation: \(error)")
                             onTap(nil)
                         }
                     }
@@ -1292,7 +1279,6 @@ struct GlassmorphicNewConversationView: View {
         }
         
         let userMessage = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        print("🔍 Debug - Mensaje del usuario: '\(userMessage)'")
         
         // Intentar crear conversación directa primero
         viewModel.startConversation(with: selectedUser, from: userId, initialMessage: userMessage) {
@@ -1305,15 +1291,12 @@ struct GlassmorphicNewConversationView: View {
                 } else {
                     // Verificar el tipo de error
                     let errorMessage = viewModel.errorMessage ?? ""
-                    print("🔍 Error detectado: \(errorMessage)")
                     
                     if errorMessage.contains("no siguen mutuamente") || errorMessage.contains("Se requiere una solicitud") {
                         // No se pudo crear conversación directa, enviar solicitud
-                        print("📤 Enviando solicitud de mensaje...")
                         sendMessageRequest()
                     } else {
                         // Otro tipo de error
-                        print("❌ Error al crear conversación: \(errorMessage)")
                     }
                 }
             }
@@ -1327,7 +1310,6 @@ struct GlassmorphicNewConversationView: View {
             return
         }
         
-        print("📤 Iniciando envío de solicitud de mensaje a \(selectedUser.username)...")
         
         messageRequestService.sendMessageRequest(
             to: selectedUser.id,
@@ -1336,12 +1318,10 @@ struct GlassmorphicNewConversationView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("✅ Solicitud de mensaje enviada exitosamente")
                     dismiss()
                     // Mostrar mensaje de éxito
                     viewModel.errorMessage = "Solicitud de mensaje enviada. El usuario recibirá una notificación."
                 case .failure(let error):
-                    print("❌ Error enviando solicitud: \(error)")
                     viewModel.errorMessage = "Error al enviar solicitud: \(error.localizedDescription)"
                 }
             }
@@ -1642,7 +1622,6 @@ class MessagingViewModel: ObservableObject {
     
     deinit {
         chatService.removeAllListeners()
-        print("MessagingViewModel deinitialized")
     }
     
     func fetchConversations(for userId: String) {
@@ -1698,7 +1677,6 @@ class MessagingViewModel: ObservableObject {
                     }
                 }
                 
-                print("🔄 Usuario actualizado: \(userId)")
             }
         }
     }
@@ -1710,7 +1688,6 @@ class MessagingViewModel: ObservableObject {
             // ✅ O DIRECTAMENTE ASÍ:
             refreshUserData(userId: conversation.otherParticipantId)
         }
-        print("🔄 Refrescando usuarios visibles...")
     }
     
     // ✅ NUEVO: Búsqueda de conversaciones y usuarios
@@ -1749,7 +1726,6 @@ class MessagingViewModel: ObservableObject {
                         return matchesQuery && notCurrentUser && noExistingConversation
                     }
                 case .failure(let error):
-                    print("Error searching users: \(error.localizedDescription)")
                     self.searchedUsers = []
                 }
             }
@@ -1787,7 +1763,6 @@ class MessagingViewModel: ObservableObject {
                 self?.chatService.createBidirectionalConversation(user1Id: userId, user2Id: user.id) { result in
                     switch result {
                     case .success(let conversationId):
-                        print("✅ Conversación bidireccional creada: \(conversationId)")
                         // Refrescar conversaciones para obtener la nueva
                         DispatchQueue.main.async {
                             self?.fetchConversations(for: userId)
@@ -1862,7 +1837,6 @@ class MessagingViewModel: ObservableObject {
             suggestedUsers = []
             return
         }
-        print("Searching users with query: \(query)")
         // Assuming FirestoreService is still needed for user search
         FirestoreService().fetchSuggestedUsers { [weak self] result in
             DispatchQueue.main.async {
@@ -1873,7 +1847,6 @@ class MessagingViewModel: ObservableObject {
                         $0.id != Auth.auth().currentUser?.uid
                     }
                 case .failure(let error):
-                    print("Error searching users: \(error.localizedDescription)")
                     self?.errorMessage = "Error al buscar usuarios: \(error.localizedDescription)"
                 }
             }
@@ -1881,12 +1854,9 @@ class MessagingViewModel: ObservableObject {
     }
     
     func startConversation(with user: AppUser, from userId: String, initialMessage: String? = nil, completion: @escaping () -> Void) {
-        print("Starting conversation with user: \(user.id)")
-        print("🔍 Debug - initialMessage en startConversation: '\(initialMessage ?? "nil")'")
         
         // Check if conversation already exists
         if let existingConversation = conversations.first(where: { $0.otherParticipantId == user.id && $0.id != nil }) {
-            print("Existing conversation found: \(existingConversation.id!)")
             DispatchQueue.main.async {
                 self.selectedConversation = existingConversation
                 completion()
@@ -1900,7 +1870,6 @@ class MessagingViewModel: ObservableObject {
             switch result {
             case .success(let canSend):
                 if !canSend {
-                    print("Cannot start conversation with \(user.id)")
                     DispatchQueue.main.async {
                         self.errorMessage = "No puedes iniciar una conversación con este usuario."
                         completion()
@@ -1912,7 +1881,6 @@ class MessagingViewModel: ObservableObject {
                 self.chatService.getOrCreateConversation(between: userId, and: user.id, initialMessage: initialMessage) { result in
                     switch result {
                     case .success(let conversationId):
-                        print("✅ Conversación bidireccional creada: \(conversationId)")
                         DispatchQueue.main.async {
                             // Refrescar para obtener la nueva conversación
                             self.fetchConversations(for: userId)
@@ -1921,11 +1889,9 @@ class MessagingViewModel: ObservableObject {
                         }
                         
                     case .failure(let error):
-                        print("Error creating bidirectional conversation: \(error.localizedDescription)")
                         DispatchQueue.main.async {
                             if error.localizedDescription.contains("no siguen mutuamente") {
                                 self.errorMessage = "Los usuarios no se siguen mutuamente. Se requiere una solicitud de mensaje."
-                                print("🔄 Error de seguimiento mutuo detectado, completando...")
                             } else {
                                 self.errorMessage = "Error al crear la conversación: \(error.localizedDescription)"
                             }
@@ -1935,7 +1901,6 @@ class MessagingViewModel: ObservableObject {
                 }
                 
             case .failure(let error):
-                print("Error checking permissions: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.errorMessage = "Error al verificar permisos: \(error.localizedDescription)"
                     completion()
@@ -1946,22 +1911,18 @@ class MessagingViewModel: ObservableObject {
     
     func deleteConversation(_ conversation: Conversation) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            print("Cannot delete conversation: no valid ID")
             return
         }
         
-        print("Deleting conversation: \(conversationId)")
         chatService.deleteConversationsBetweenUsers(
             user1Id: Auth.auth().currentUser?.uid ?? "",
             user2Id: conversation.otherParticipantId
         ) { [weak self] error in
             if let error = error {
-                print("Error deleting conversation: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self?.errorMessage = "Error al eliminar conversación: \(error.localizedDescription)"
                 }
             } else {
-                print("Conversation deleted successfully")
                 DispatchQueue.main.async {
                     self?.conversations.removeAll { $0.id == conversationId }
                     self?.hasUnreadMessages = self?.conversations.contains { !($0.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) } ?? false
@@ -1972,22 +1933,18 @@ class MessagingViewModel: ObservableObject {
     
     func markConversationAsUnread(_ conversation: Conversation) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            print("Cannot mark conversation as unread: no valid ID")
             return
         }
         
-        print("Marking conversation as unread: \(conversationId)")
         Firestore.firestore()
             .collection("conversations")
             .document(conversationId)
             .updateData(["readStatus.\(Auth.auth().currentUser?.uid ?? "")": false]) { [weak self] error in
                 if let error = error {
-                    print("Error marking as unread: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         self?.errorMessage = "Error al marcar como no leído: \(error.localizedDescription)"
                     }
                 } else {
-                    print("Conversation marked as unread")
                     DispatchQueue.main.async {
                         if let index = self?.conversations.firstIndex(where: { $0.id == conversationId }) {
                             var updatedConversation = conversation
@@ -2004,7 +1961,6 @@ class MessagingViewModel: ObservableObject {
     
     func stopListening() {
         chatService.removeAllListeners()
-        print("Stopped listening to conversations")
     }
 }
 

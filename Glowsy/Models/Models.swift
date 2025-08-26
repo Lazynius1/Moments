@@ -574,11 +574,6 @@ struct Story: Identifiable, Codable {
         guard let stickers = stickers else { return [] }
         
         return stickers.compactMap { stickerData in
-            print("🎯 convertStickersToStickerItems - Procesando sticker:")
-            print("🎯 convertStickersToStickerItems - - type: \(stickerData.type)")
-            print("🎯 convertStickersToStickerItems - - content: \(stickerData.content)")
-            print("🎯 convertStickersToStickerItems - - weatherSymbol: \(stickerData.weatherSymbol ?? "nil")")
-            print("🎯 convertStickersToStickerItems - - questionText: \(stickerData.questionText ?? "nil")")
             
             // ✅ RECREAR IMAGEN DEL STICKER basada en el tipo
             let stickerImage: UIImage
@@ -624,8 +619,6 @@ struct Story: Identifiable, Codable {
             }
             
             // Crear datos de interacción
-            print("🎯 convertStickersToStickerItems - stickerData.username: \(stickerData.username ?? "nil")")
-            print("🎯 convertStickersToStickerItems - stickerData.userId: \(stickerData.userId ?? "nil")")
             // ✅ CREAR COORDENADAS SI ESTÁN DISPONIBLES
             let locationCoordinate: CLLocationCoordinate2D?
             if let latitude = stickerData.latitude, let longitude = stickerData.longitude {
@@ -636,7 +629,6 @@ struct Story: Identifiable, Codable {
             
             // ✅ FALLBACK para weather stickers antiguos sin weatherSymbol
             let weatherSymbol = stickerData.weatherSymbol ?? (stickerData.type == "weather" ? stickerData.content : nil)
-            print("🎯 convertStickersToStickerItems - weatherSymbol fallback: \(stickerData.weatherSymbol ?? "nil") -> \(weatherSymbol ?? "nil")")
             
             let interactionData = StickerItem.StickerInteractionData(
                 username: stickerData.username,
@@ -648,9 +640,6 @@ struct Story: Identifiable, Codable {
                 questionText: stickerData.questionText,
                 weatherSymbol: weatherSymbol
             )
-            print("🎯 convertStickersToStickerItems - interactionData creado: \(String(describing: interactionData))")
-            print("🎯 convertStickersToStickerItems - weatherSymbol: \(stickerData.weatherSymbol ?? "nil")")
-            print("🎯 convertStickersToStickerItems - questionText: \(stickerData.questionText ?? "nil")")
             
             // Crear StickerItem con las transformaciones aplicadas
             var stickerItem: StickerItem
@@ -689,11 +678,6 @@ struct Story: Identifiable, Codable {
             stickerItem.scale = stickerData.scale
             stickerItem.rotation = Angle(radians: stickerData.rotation)
             
-            print("🎯 convertStickersToStickerItems - StickerItem final con interactionData: \(stickerItem.interactionData?.username ?? "nil")")
-            print("🎯 convertStickersToStickerItems - StickerItem final con userId: \(stickerItem.interactionData?.userId ?? "nil")")
-            print("🎯 convertStickersToStickerItems - StickerItem final type: \(stickerItem.type)")
-            print("🎯 convertStickersToStickerItems - StickerItem final weatherSymbol: \(stickerItem.interactionData?.weatherSymbol ?? "nil")")
-            print("🎯 convertStickersToStickerItems - StickerItem final questionText: \(stickerItem.interactionData?.questionText ?? "nil")")
             
             return stickerItem
         }
@@ -1015,6 +999,7 @@ struct Notification: Identifiable, Codable {
     let storyId: String?
     let storyAuthorId: String?
     let reaction: String?
+    let commentId: String? // ✅ NUEVO: Para identificar comentarios específicos
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -1028,6 +1013,7 @@ struct Notification: Identifiable, Codable {
         case storyId
         case storyAuthorId
         case reaction
+        case commentId
     }
 
     init(id: String = UUID().uuidString,
@@ -1040,7 +1026,8 @@ struct Notification: Identifiable, Codable {
          visitCount: Int? = nil,
          storyId: String? = nil,
          storyAuthorId: String? = nil,
-         reaction: String? = nil) {
+         reaction: String? = nil,
+         commentId: String? = nil) {
         self.id = id
         self.type = type
         self.senderId = senderId
@@ -1052,6 +1039,7 @@ struct Notification: Identifiable, Codable {
         self.storyId = storyId
         self.storyAuthorId = storyAuthorId
         self.reaction = reaction
+        self.commentId = commentId
     }
 
     init(from decoder: Decoder) throws {
@@ -1069,6 +1057,7 @@ struct Notification: Identifiable, Codable {
         self.storyId = try container.decodeIfPresent(String.self, forKey: .storyId)
         self.storyAuthorId = try container.decodeIfPresent(String.self, forKey: .storyAuthorId)
         self.reaction = try container.decodeIfPresent(String.self, forKey: .reaction)
+        self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1084,11 +1073,13 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(storyId, forKey: .storyId)
         try container.encodeIfPresent(storyAuthorId, forKey: .storyAuthorId)
         try container.encodeIfPresent(reaction, forKey: .reaction)
+        try container.encodeIfPresent(commentId, forKey: .commentId)
     }
 }
 
 enum NotificationType: String, Codable, CaseIterable {
-    case like = "like"
+    case like = "like" // Para likes en comentarios
+    case reaction = "reaction" // ✅ NUEVO: Para reacciones en momentos (vibe, fire, etc.)
     case comment = "comment"
     case mention = "mention" // ✅ NUEVO: Tipo general para menciones
     case newFollower = "newFollower"
@@ -1099,7 +1090,8 @@ enum NotificationType: String, Codable, CaseIterable {
     
     var displayName: String {
         switch self {
-        case .like: return "Me gusta"
+        case .like: return "Me gusta" // Para comentarios
+        case .reaction: return "Reacción" // ✅ NUEVO: Para momentos
         case .comment: return "Comentario"
         case .mention: return "Menciones" // ✅ NUEVO
         case .newFollower: return "Nuevos seguidores"
@@ -1112,7 +1104,8 @@ enum NotificationType: String, Codable, CaseIterable {
     
     var systemIconName: String {
         switch self {
-        case .like: return "heart.fill"
+        case .like: return "heart.fill" // Para comentarios
+        case .reaction: return "sparkles" // ✅ NUEVO: Para reacciones de momentos
         case .comment: return "bubble.right.fill"
         case .mention: return "at.circle.fill" // ✅ NUEVO: Icono @ para menciones
         case .newFollower: return "person.badge.plus"

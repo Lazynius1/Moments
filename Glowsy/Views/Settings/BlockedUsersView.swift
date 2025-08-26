@@ -113,7 +113,6 @@ class BlockedUsersViewModel: ObservableObject {
             switch result {
             case .success(let user):
                 let blockedUserIds = user.blockedUsers
-                print("Usuarios bloqueados obtenidos: \(blockedUserIds)")
                 if blockedUserIds.isEmpty {
                     self.blockedUsers = []
                     self.isLoading = false
@@ -157,7 +156,6 @@ class BlockedUsersViewModel: ObservableObject {
                     if let index = self.blockedUsers.firstIndex(where: { $0.id == userId }) {
                         self.blockedUsers.remove(at: index)
                     }
-                    print("Usuario desbloqueado: \(userId)")
                 }
             }
         }

@@ -325,10 +325,8 @@ struct ReportBottomSheet: View {
                 self.isSubmitting = false
                 
                 if let error = error {
-                    print("❌ Error enviando reporte de \(self.contentType): \(error)")
                     // Aquí podrías mostrar un mensaje de error
                 } else {
-                    print("✅ Reporte de \(self.contentType) enviado exitosamente")
                     withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                         self.showSuccessMessage = true
                     }

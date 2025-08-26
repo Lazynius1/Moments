@@ -561,7 +561,6 @@ class UserActivityViewModel: ObservableObject {
                 case .success(let userData):
                     self?.processRealActivityData(userData)
                 case .failure(let error):
-                    print("Error loading activity data: \(error)")
                     // Fallback to empty data instead of mock
                     self?.loadEmptyData()
                 }

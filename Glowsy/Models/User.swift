@@ -12,11 +12,11 @@ enum OnlineStatus: String, CaseIterable, Codable {
     
     var displayName: String {
         switch self {
-        case .online: return "En línea"
-        case .away: return "Ausente"
-        case .busy: return "Ocupado"
-        case .offline: return "Desconectado"
-        case .invisible: return "Invisible"
+        case .online: return NSLocalizedString("onlineStatus.online", comment: "Online status")
+        case .away: return NSLocalizedString("onlineStatus.away", comment: "Away status")
+        case .busy: return NSLocalizedString("onlineStatus.busy", comment: "Busy status")
+        case .offline: return NSLocalizedString("onlineStatus.offline", comment: "Offline status")
+        case .invisible: return NSLocalizedString("onlineStatus.invisible", comment: "Invisible status")
         }
     }
     

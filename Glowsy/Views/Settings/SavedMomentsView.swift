@@ -23,7 +23,6 @@ class SavedMomentsViewModel: ObservableObject {
         isLoading = true
         error = nil
         
-        print("🔄 [SavedMoments] Iniciando carga para usuario: \(userId)")
         
         // Cargar los IDs de momentos guardados primero
         firestoreService.db.collection("users").document(userId).collection("savedMoments")
@@ -44,7 +43,6 @@ class SavedMomentsViewModel: ObservableObject {
                 
                 DispatchQueue.main.async {
                     self.savedMomentIds = momentIds
-                    print("📚 [SavedMoments] IDs encontrados: \(momentIds.count)")
                 }
                 
                 // Si no hay momentos guardados
@@ -69,7 +67,6 @@ class SavedMomentsViewModel: ObservableObject {
         var notFoundMomentIds: [String] = []
         let syncQueue = DispatchQueue(label: "saved.moments.direct.sync")
         
-        print("🔄 [SavedMoments] Buscando \(momentIds.count) momentos directamente")
         
         // Obtener usuarios activos para buscar
         fetchActiveUsers { [weak self] userIds in
@@ -106,7 +103,6 @@ class SavedMomentsViewModel: ObservableObject {
                 
                 // Limpiar momentos que ya no existen
                 if !notFoundMomentIds.isEmpty {
-                    print("🧹 [SavedMoments] Limpiando \(notFoundMomentIds.count) momentos no encontrados")
                     self.cleanupMissingMoments(missingIds: notFoundMomentIds)
                 }
                 
@@ -115,7 +111,6 @@ class SavedMomentsViewModel: ObservableObject {
                 
                 self.moments = sortedMoments
                 self.isLoading = false
-                print("✅ [SavedMoments] Carga completada: \(sortedMoments.count) momentos encontrados")
                 completion(nil)
             }
         }
@@ -128,7 +123,6 @@ class SavedMomentsViewModel: ObservableObject {
             case .success(let moments):
                 completion(moments)
             case .failure(let error):
-                print("❌ [SavedMoments] Error obteniendo momentos de \(userId): \(error)")
                 completion([])
             }
         }
@@ -144,7 +138,6 @@ class SavedMomentsViewModel: ObservableObject {
             .limit(to: 100) // Aumentar límite para mejor cobertura
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ [SavedMoments] Error obteniendo usuarios activos: \(error)")
                     // Fallback: buscar en todos los usuarios (menos eficiente pero funcional)
                     self.fetchAllUsers(completion: completion)
                     return
@@ -154,7 +147,6 @@ class SavedMomentsViewModel: ObservableObject {
                     doc.documentID
                 } ?? []
                 
-                print("👥 [SavedMoments] Usuarios activos encontrados: \(userIds.count)")
                 
                 if userIds.isEmpty {
                     // Fallback si no hay usuarios con lastActiveAt
@@ -171,7 +163,6 @@ class SavedMomentsViewModel: ObservableObject {
             .limit(to: 200)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ [SavedMoments] Error obteniendo todos los usuarios: \(error)")
                     completion([])
                     return
                 }
@@ -180,7 +171,6 @@ class SavedMomentsViewModel: ObservableObject {
                     doc.documentID
                 } ?? []
                 
-                print("👥 [SavedMoments] Usuarios totales encontrados: \(userIds.count)")
                 completion(userIds)
             }
     }
@@ -198,9 +188,7 @@ class SavedMomentsViewModel: ObservableObject {
                 .collection("savedMoments").document(momentId)
                 .delete { error in
                     if let error = error {
-                        print("❌ [SavedMoments] Error limpiando momento \(momentId): \(error)")
                     } else {
-                        print("🧹 [SavedMoments] Momento \(momentId) limpiado exitosamente")
                     }
                     group.leave()
                 }
@@ -209,7 +197,6 @@ class SavedMomentsViewModel: ObservableObject {
         group.notify(queue: .main) {
             // Actualizar IDs locales
             self.savedMomentIds.removeAll { missingIds.contains($0) }
-            print("✅ [SavedMoments] Limpieza completada")
         }
     }
     
@@ -224,15 +211,12 @@ class SavedMomentsViewModel: ObservableObject {
             return
         }
 
-        print("🗑️ [SavedMoments] Eliminando momento: \(momentId)")
         
         firestoreService.toggleSaveMoment(userId: userId, momentId: momentId) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("❌ [SavedMoments] Error eliminando: \(error)")
                     completion(error)
                 } else {
-                    print("✅ [SavedMoments] Momento eliminado correctamente")
                     self?.moments.removeAll { $0.id == momentId }
                     self?.savedMomentIds.removeAll { $0 == momentId }
                     completion(nil)
@@ -258,25 +242,20 @@ class SavedMomentsViewModel: ObservableObject {
     func debugSavedMoments() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        print("🔍 [SavedMoments] DEBUG: Verificando momentos guardados...")
         firestoreService.db.collection("users").document(userId).collection("savedMoments")
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ [SavedMoments] Error en debug: \(error)")
                     return
                 }
                 
                 let docs = snapshot?.documents ?? []
-                print("📚 [SavedMoments] Documentos en savedMoments: \(docs.count)")
                 
                 docs.forEach { doc in
-                    print("  - \(doc.documentID): \(doc.data())")
                 }
             }
     }
     
     func forceRefresh() {
-        print("🔄 [SavedMoments] Forzando recarga completa...")
         moments = []
         savedMomentIds = []
         loadSavedMoments()
@@ -811,7 +790,6 @@ struct ModernSavedMomentsDetailView: View {
             }
         }
         .onAppear {
-            print("📍 Abriendo vista detallada de guardados en momento índice: \(initialIndex)")
             currentIndex = initialIndex
         }
     }
@@ -859,7 +837,6 @@ struct ModernSavedMomentsDetailView: View {
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     proxy.scrollTo(initialIndex, anchor: .center)
-                    print("📍 Scrolled to saved moment: \(initialIndex)")
                 }
             }
         }
@@ -998,6 +975,22 @@ struct ModernSavedDetailMomentCard: View {
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme  // ✅ AGREGAR esta línea
     @State private var currentImageIndex = 0
+    
+    // ✅ NUEVO: Función para colores de indicadores multicolores
+    private func getIndicatorColor(for index: Int) -> Color {
+        let colors: [Color] = [
+            Color(hex: "#5b2c6f"), // Púrpura
+            Color(hex: "#007bff"), // Azul
+            Color(hex: "#40dfcf"), // Turquesa
+            Color(hex: "#ff6b6b"), // Rojo coral
+            Color(hex: "#4ecdc4"), // Verde azulado
+            Color(hex: "#45b7d1"), // Azul claro
+            Color(hex: "#96ceb4"), // Verde menta
+            Color(hex: "#feca57")  // Amarillo
+        ]
+        
+        return colors[index % colors.count]
+    }
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
@@ -1031,6 +1024,12 @@ struct ModernSavedDetailMomentCard: View {
     }
 
     private var mediaItems: [MediaItem] {
+        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
+        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
+            return mediaItems
+        }
+        
+        // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
         var items: [MediaItem] = []
         if let imagePath = moment.imagePath, !imagePath.isEmpty {
             items.append(MediaItem(type: .image, url: imagePath))
@@ -1083,17 +1082,16 @@ struct ModernSavedDetailMomentCard: View {
                         detectAspectRatio()
                     }
                     
-                    // ✅ Indicadores de media múltiple
+                    // ✅ Indicadores de media múltiple mejorados
                     if mediaItems.count > 1 {
                         VStack {
                             HStack(spacing: 8) {
                                 ForEach(0..<mediaItems.count, id: \.self) { index in
                                     Capsule()
-                                        .fill(currentImageIndex == index ?
-                                              (colorScheme == .dark ? Color.white : Color.black) :
-                                              (colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.5)))  // ✅ CAMBIAR esta línea
-                                        .frame(width: currentImageIndex == index ? 25 : 8, height: 4)
+                                        .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
+                                        .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
                                         .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
+                                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                                 }
                             }
                             .padding(.top, 20)
@@ -1110,7 +1108,6 @@ struct ModernSavedDetailMomentCard: View {
                                     content: moment.content,
                                     colorScheme: colorScheme,
                                     onHashtagTap: { hashtag in
-                                        print("🔍 Hashtag tocado: #\(hashtag)")
                                         // TODO: Navegar a ExploreView
                                     }
                                 )
@@ -1196,7 +1193,6 @@ struct ModernSavedDetailMomentCard: View {
             .collection("comments")
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ Error cargando comentarios: \(error)")
                     return
                 }
                 

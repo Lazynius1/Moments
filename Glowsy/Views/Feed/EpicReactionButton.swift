@@ -308,7 +308,6 @@ struct EpicReactionButton: View {
         // Mostrar sheet local
         showReactionsSheet = true
         
-        print("🔍 Solicitando mostrar lista de reacciones para momento: \(moment.id ?? "unknown")")
     }
     
     // ✅ CORREGIDO: Métodos de Firebase usando el método corregido
@@ -316,7 +315,6 @@ struct EpicReactionButton: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
-        print("➕ Agregando reacción '\(reactionType.rawValue)' al momento \(momentId)")
         
         // ✅ USAR EL MÉTODO CORREGIDO (que ya tienes en FirestoreService)
         firestoreService.addReaction(
@@ -326,10 +324,8 @@ struct EpicReactionButton: View {
             authorId: moment.authorId
         ) { error in
             if let error = error {
-                print("❌ Error adding reaction: \(error)")
                 // El estado se actualizará automáticamente via el listener
             } else {
-                print("✅ Reacción agregada exitosamente")
             }
         }
     }
@@ -339,7 +335,6 @@ struct EpicReactionButton: View {
               let momentId = moment.id,
               let reactionType = currentReaction else { return }
         
-        print("🗑️ Removiendo reacción '\(reactionType.rawValue)' del momento \(momentId)")
         
         // ✅ USAR EL MÉTODO AUXILIAR CORREGIDO
         firestoreService.removeReaction(
@@ -349,10 +344,8 @@ struct EpicReactionButton: View {
             authorId: moment.authorId
         ) { error in
             if let error = error {
-                print("❌ Error removing reaction: \(error)")
                 // El estado se actualizará automáticamente via el listener
             } else {
-                print("✅ Reacción removida exitosamente")
             }
         }
     }
@@ -863,7 +856,6 @@ struct ReactionsListSheet: View {
                     self.reactions = fetchedReactions
                     self.loadUserProfiles(for: fetchedReactions)
                 case .failure(let error):
-                    print("❌ Error loading reactions: \(error)")
                     self.isLoading = false
                 }
             }
@@ -885,12 +877,11 @@ struct ReactionsListSheet: View {
                     for user in users {
                         self.userProfiles[user.id] = user
                     }
-                    print("✅ Perfiles de usuarios cargados: \(users.count)")
                     
                     // Cargar estados de seguir después de cargar perfiles
                     self.loadFollowStates()
-                case .failure(let error):
-                    print("❌ Error cargando perfiles de usuarios: \(error)")
+                case .failure(_):
+                    break
                 }
                 self.isLoading = false
             }
@@ -973,9 +964,7 @@ struct ReactionsListSheet: View {
                     followLoadingStates[userId] = false
                     if error == nil {
                         followStates[userId] = false
-                        print("✅ Dejado de seguir a usuario: \(userId)")
                     } else {
-                        print("❌ Error al dejar de seguir: \(error?.localizedDescription ?? "unknown")")
                     }
                 }
             }
@@ -986,9 +975,7 @@ struct ReactionsListSheet: View {
                     followLoadingStates[userId] = false
                     if error == nil {
                         followStates[userId] = true
-                        print("✅ Usuario seguido: \(userId)")
                     } else {
-                        print("❌ Error al seguir usuario: \(error?.localizedDescription ?? "unknown")")
                     }
                 }
             }

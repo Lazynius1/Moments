@@ -77,11 +77,6 @@ class MediaModerationService {
         contentType: ContentType = .moment,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
-        print("🔍 === MODERACIÓN INTELIGENTE INICIADA (OPTIMIZADA) ===")
-        print("📱 Tipo: \(mediaType.rawValue)")
-        print("🔗 URL: \(mediaURL)")
-        print("👤 Usuario: \(userId)")
-        print("🆔 Content ID (\(contentType.rawValue)): \(contentId ?? "N/A")")
         
         // ✅ NUEVO: Crear task ID único para evitar duplicados
         let taskId = "\(userId)_\(contentId ?? UUID().uuidString)"
@@ -89,7 +84,6 @@ class MediaModerationService {
         taskLock.lock()
         if activeModerationTasks.contains(taskId) {
             taskLock.unlock()
-            print("⏭️ Moderación ya en progreso para: \(taskId)")
             completion(.approved)
             return
         }
@@ -124,7 +118,6 @@ class MediaModerationService {
         downloadImageForAnalysis(from: url) { [weak self] result in
             switch result {
             case .success(let imageData):
-                print("✅ Imagen descargada: \(imageData.count / 1024)KB")
 
                 // ✅ ANÁLISIS EN BACKGROUND CONCURRENTE
                 self?.concurrentQueue.async {
@@ -138,7 +131,6 @@ class MediaModerationService {
                             if let contentId = contentId {
                                 switch action {
                                 case .deleted, .warning:
-                                    print("🛡️ Ejecutando hideContentUsingOnlyMe para imagen moderada (\(contentType.rawValue))")
                                     self?.hideContentUsingOnlyMe(
                                         userId: userId,
                                         contentId: contentId,
@@ -163,7 +155,6 @@ class MediaModerationService {
                 }
 
             case .failure(let error):
-                print("❌ Error descargando imagen: \(error)")
                 self?.logModerationEvent(
                     userId: userId,
                     mediaURL: url,
@@ -189,11 +180,9 @@ class MediaModerationService {
         contentType: ContentType,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
-        print("🎬 === MODERACIÓN AVANZADA DE VIDEO (OPTIMIZADA) ===")
 
         getVideoDuration(from: url) { [weak self] duration in
             guard let duration = duration else {
-                print("❌ No se pudo obtener duración del video")
                 self?.logModerationEvent(
                     userId: userId,
                     mediaURL: url,
@@ -210,14 +199,12 @@ class MediaModerationService {
                 return
             }
 
-            print("⏱️ Duración del video: \(Int(duration))s")
 
             // ✅ EXTRACCIÓN DE FRAMES EN BACKGROUND
             self?.concurrentQueue.async {
                 self?.extractSmartFrames(from: url, duration: duration) { framesResult in
                     switch framesResult {
                     case .success(let frames):
-                        print("📽️ Frames extraídos: \(frames.count)")
 
                         // ✅ ANÁLISIS EN BACKGROUND CONCURRENTE
                         self?.analyzeMultipleFrames(
@@ -268,7 +255,6 @@ class MediaModerationService {
                         }
 
                     case .failure(let error):
-                        print("❌ Error extrayendo frames: \(error)")
                         self?.logModerationEvent(
                             userId: userId,
                             mediaURL: url,
@@ -307,7 +293,6 @@ class MediaModerationService {
         if let contentId = contentId {
             switch finalResult.action {
             case .deleted, .warning:
-                print("🛡️ Ejecutando hideContentUsingOnlyMe para video moderado (\(contentType.rawValue))")
                 hideContentUsingOnlyMe(
                     userId: userId,
                     contentId: contentId,
@@ -350,7 +335,6 @@ class MediaModerationService {
                     completion(durationInSeconds)
                 }
             } catch {
-                print("❌ Error obteniendo duración: \(error)")
                 DispatchQueue.main.async {
                     completion(nil)
                 }
@@ -395,7 +379,6 @@ class MediaModerationService {
             }
         }
 
-        print("🎯 Extrayendo \(timesToExtract.count) frames estratégicos (optimizado)")
 
         let group = DispatchGroup()
         var extractedFrames: [(Data, Double)] = []
@@ -414,7 +397,6 @@ class MediaModerationService {
                 // ✅ MAYOR COMPRESIÓN para mayor velocidad
                 guard let imageData = uiImage.jpegData(compressionQuality: 0.5) else { return }
                 extractedFrames.append((imageData, timestamp))
-                print("✅ Frame extraído en \(Int(timestamp))s: \(imageData.count / 1024)KB")
             }
         }
 
@@ -437,7 +419,6 @@ class MediaModerationService {
         contentType: ContentType,
         completion: @escaping (MediaModerationResult) -> Void
     ) {
-        print("🤖 Analizando \(frames.count) frames con Vision API (optimizado)...")
 
         let group = DispatchGroup()
         var visionResults: [(Double, [String: String])] = []
@@ -471,7 +452,6 @@ class MediaModerationService {
         completion: @escaping ([String: String]?) -> Void
     ) {
         guard let originalImage = UIImage(data: frameData) else {
-            print("❌ Vision API: No se pudo crear UIImage desde frameData.")
             completion(nil)
             return
         }
@@ -480,12 +460,10 @@ class MediaModerationService {
         let maxDimension: CGFloat = 640 // Reducido de 1280
         let resizedImage = originalImage.resized(toMaxDimension: maxDimension)
         guard let resizedImageData = resizedImage.jpegData(compressionQuality: 0.5) else { // Mayor compresión
-            print("❌ Vision API: No se pudo comprimir la imagen redimensionada.")
             completion(nil)
             return
         }
 
-        print("📏 Imagen redimensionada y comprimida a \(resizedImageData.count / 1024)KB para Vision API.")
 
         let base64Image = resizedImageData.base64EncodedString()
         let requestBody: [String: Any] = [
@@ -501,7 +479,6 @@ class MediaModerationService {
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody),
               let url = URL(string: "\(visionBaseURL)?key=\(visionAPIKey)") else {
-            print("❌ Vision API: Error al crear URL de solicitud o datos JSON.")
             completion(nil)
             return
         }
@@ -514,13 +491,11 @@ class MediaModerationService {
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("❌ Vision API Error de red para frame \(Int(timestamp))s: \(error.localizedDescription)")
                 completion(nil)
                 return
             }
 
             guard let data = data else {
-                print("❌ Vision API: No se recibieron datos para frame \(Int(timestamp))s.")
                 completion(nil)
                 return
             }
@@ -529,7 +504,6 @@ class MediaModerationService {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     if let errorJson = json["error"] as? [String: Any],
                        let errorMessage = errorJson["message"] as? String {
-                        print("❌ Vision API Respuesta de error para frame \(Int(timestamp))s: \(errorMessage)")
                         completion(nil)
                         return
                     }
@@ -537,19 +511,15 @@ class MediaModerationService {
                     guard let responses = json["responses"] as? [[String: Any]],
                           let firstResponse = responses.first,
                           let safeSearch = firstResponse["safeSearchAnnotation"] as? [String: String] else {
-                        print("❌ Vision API: Faltan 'responses' o 'safeSearchAnnotation' en la respuesta para frame \(Int(timestamp))s.")
                         completion(nil)
                         return
                     }
 
-                    print("📊 Frame \(Int(timestamp))s analizados - adult: \(safeSearch["adult"] ?? "N/A"), violence: \(safeSearch["violence"] ?? "N/A"), racy: \(safeSearch["racy"] ?? "N/A")")
                     completion(safeSearch)
                 } else {
-                    print("❌ Vision API: No se pudo parsear el objeto JSON de los datos de respuesta para frame \(Int(timestamp))s.")
                     completion(nil)
                 }
             } catch {
-                print("❌ Vision API Error de parseo JSON para frame \(Int(timestamp))s: \(error.localizedDescription)")
                 completion(nil)
             }
         }.resume()
@@ -564,11 +534,9 @@ class MediaModerationService {
         contentType: ContentType,
         completion: @escaping (MediaModerationResult?) -> Void
     ) {
-        print("🎵 === INICIANDO ANÁLISIS DE AUDIO LIGERO ===")
 
         // ✅ SOLO ANALIZAR AUDIO SI EL VIDEO ES LARGO
         guard duration > 10.0 else {
-            print("🎵 Video muy corto, omitiendo análisis de audio")
             completion(nil)
             return
         }
@@ -582,12 +550,10 @@ class MediaModerationService {
         extractAudioSegmentsLightweight(from: url, duration: min(duration, 15.0)) { [weak self] audioResult in
             switch audioResult {
             case .success(let audioData):
-                print("🎵 Audio extraído (ligero): \(audioData.count / 1024)KB")
 
                 self?.convertAudioToText(audioData: audioData) { textResult in
                     switch textResult {
                     case .success(let transcript):
-                        print("📝 Transcripción: \(transcript)")
 
                         Task {
                             do {
@@ -613,19 +579,16 @@ class MediaModerationService {
 
                                 completion(result)
                             } catch {
-                                print("❌ Error moderating comment from audio: \(error.localizedDescription)")
                                 completion(nil)
                             }
                         }
 
                     case .failure(let error):
-                        print("❌ Error en transcripción: \(error)")
                         completion(nil)
                     }
                 }
 
             case .failure(let error):
-                print("❌ Error extrayendo audio: \(error)")
                 completion(nil)
             }
         }
@@ -651,7 +614,6 @@ class MediaModerationService {
             do {
                 try FileManager.default.removeItem(at: audioURL)
             } catch {
-                print("Error removing existing audio file: \(error)")
             }
         }
 
@@ -665,14 +627,12 @@ class MediaModerationService {
         )
         exportSession.timeRange = timeRange
 
-        print("🎵 Extrayendo primeros \(Int(extractDuration))s de audio (ligero)...")
 
         exportSession.exportAsynchronously {
             switch exportSession.status {
             case .completed:
                 do {
                     let audioData = try Data(contentsOf: audioURL)
-                    print("✅ Audio extraído exitosamente: \(audioData.count / 1024)KB")
                     try? FileManager.default.removeItem(at: audioURL)
                     completion(.success(audioData))
                 } catch {
@@ -681,7 +641,6 @@ class MediaModerationService {
 
             case .failed, .cancelled:
                 let error = exportSession.error ?? StorageError.invalidData
-                print("❌ Error extrayendo audio: \(error)")
                 try? FileManager.default.removeItem(at: audioURL)
                 completion(.failure(error))
             default:
@@ -695,7 +654,6 @@ class MediaModerationService {
         audioData: Data,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        print("🗣️ Convirtiendo audio a texto con Speech-to-Text...")
 
         let base64Audio = audioData.base64EncodedString()
         let requestBody: [String: Any] = [
@@ -726,27 +684,23 @@ class MediaModerationService {
         URLSession.shared.dataTask(with: request) { data, response, error in
             // ... (resto de la función igual)
             if let error = error {
-                print("❌ Error de red en Speech-to-Text: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
 
             guard let data = data else {
-                print("❌ No se recibieron datos de la API de Speech-to-Text.")
                 completion(.failure(StorageError.invalidData))
                 return
             }
 
             do {
                 guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    print("❌ No se pudo parsear el JSON de la respuesta de Speech-to-Text.")
                     completion(.failure(StorageError.invalidData))
                     return
                 }
 
                 if let errorJson = json["error"] as? [String: Any],
                    let errorMessage = errorJson["message"] as? String {
-                    print("❌ Error de la API de Speech-to-Text: \(errorMessage)")
                     completion(.failure(NSError(domain: "SpeechToTextError", code: 0, userInfo: [NSLocalizedDescriptionKey: errorMessage])))
                     return
                 }
@@ -756,15 +710,12 @@ class MediaModerationService {
                       let alternatives = firstResult["alternatives"] as? [[String: Any]],
                       let firstAlternative = alternatives.first,
                       let transcript = firstAlternative["transcript"] as? String else {
-                    print("⚠️ No se detectó habla en el audio o transcripción vacía.")
                     completion(.success(""))
                     return
                 }
 
-                print("✅ Transcripción completada: \(transcript)")
                 completion(.success(transcript))
             } catch {
-                print("❌ Error de parseo JSON para Speech-to-Text: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }.resume()
@@ -973,9 +924,7 @@ class MediaModerationService {
     }
 
     private func analyzeSafeSearch(_ safeSearch: [String: String]) -> MediaModerationAction {
-        print("🔍 Safe Search Results:")
         safeSearch.forEach { key, value in
-            print("  - \(key): \(value)")
         }
 
         let adultScore = scoreFromLevel(safeSearch["adult"])
@@ -1072,9 +1021,7 @@ class MediaModerationService {
 
             db.collection("mediaModerationLogs").addDocument(data: logData) { error in
                 if let error = error {
-                    print("❌ Error logging moderation event to Firestore: \(error.localizedDescription)")
                 } else {
-                    print("✅ Moderation event logged to Firestore: \(action) for \(mediaURL)")
                 }
             }
         }
@@ -1114,9 +1061,7 @@ class MediaModerationService {
 
             db.collection("mediaModerationLogs").addDocument(data: logData) { error in
                 if let error = error {
-                    print("❌ Error logging advanced moderation event to Firestore: \(error.localizedDescription)")
                 } else {
-                    print("✅ Advanced moderation event logged to Firestore: \(action) for \(mediaURL)")
                 }
             }
         }
@@ -1143,7 +1088,6 @@ class MediaModerationService {
             contentRef.getDocument { document, error in
                 guard let document = document, document.exists,
                       let contentData = document.data() else {
-                    print("❌ Error obteniendo \(contentType.rawValue) para ocultar: \(error?.localizedDescription ?? "Unknown"). Content ID: \(contentId)")
                     return
                 }
 
@@ -1187,12 +1131,7 @@ class MediaModerationService {
 
                 contentRef.updateData(hideData) { error in
                     if let error = error {
-                        print("❌ Error ocultando \(contentType.rawValue): \(error.localizedDescription)")
                     } else {
-                        print("✅ \(contentType.rawValue.capitalized) ocultado (audience = onlyMe): \(contentId)")
-                        print("📊 Audiencia original: \(originalAudience)")
-                        print("📊 Razón: \(hideData["moderationReason"] ?? "N/A")")
-                        print("📊 Categoría: \(hideData["moderationCategory"] ?? "N/A")")
                     }
                 }
             }
@@ -1218,15 +1157,12 @@ class MediaModerationService {
         let db = Firestore.firestore()
         db.collection("moderationSettings").document("media").getDocument { document, error in
             if let error = error {
-                print("❌ Error cargando configuración: \(error)")
                 completion(nil)
                 return
             }
             if let document = document, document.exists, let data = document.data() {
-                print("✅ Configuración cargada desde Firestore")
                 completion(data)
             } else {
-                print("⚠️ No hay configuración, usando defaults")
                 completion(nil)
             }
         }

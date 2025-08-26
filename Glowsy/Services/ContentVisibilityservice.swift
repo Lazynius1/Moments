@@ -46,11 +46,9 @@ class ContentVisibilityService {
         hiddenFrom: [String]? = nil,
         completion: @escaping (Bool) -> Void
     ) {
-        print("🔍 Verificando visibilidad: \(contentOwnerId) -> \(viewerId), tipo: \(contentType.rawValue)")
         
         // Si es el mismo usuario, siempre puede ver su contenido
         if contentOwnerId == viewerId {
-            print("✅ Es el mismo usuario")
             completion(true)
             return
         }
@@ -58,7 +56,6 @@ class ContentVisibilityService {
         // Verificar si está en la lista de bloqueados
         privacyService.checkMutualBlocks(viewerId: viewerId, targetUserId: contentOwnerId) { isBlocked in
             if isBlocked {
-                print("❌ Usuario bloqueado")
                 completion(false)
                 return
             }
@@ -83,7 +80,6 @@ class ContentVisibilityService {
                 )
                 
             case .onlyMe:
-                print("❌ Contenido solo para el autor")
                 completion(false)
             }
         }
@@ -99,15 +95,12 @@ class ContentVisibilityService {
                 if settings.isPrivate {
                     // Si el perfil es privado, verificar si el viewer sigue al author
                     self.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: contentOwnerId) { isFollowing in
-                        print(isFollowing ? "✅ Perfil privado pero lo sigue" : "❌ Perfil privado y no lo sigue")
                         completion(isFollowing)
                     }
                 } else {
-                    print("✅ Perfil público")
                     completion(true)
                 }
             case .failure:
-                print("❌ Error verificando configuración de privacidad")
                 completion(false)
             }
         }
@@ -123,13 +116,11 @@ class ContentVisibilityService {
         firestoreService.db.collection("users").document(contentOwnerId).getDocument { snapshot, error in
             guard let data = snapshot?.data(),
                   let bestFriends = data["bestFriends"] as? [String] else {
-                print("❌ No se encontró lista de mejores amigos")
                 completion(false)
                 return
             }
             
             let isBestFriend = bestFriends.contains(viewerId)
-            print(isBestFriend ? "✅ Es mejor amigo" : "❌ No es mejor amigo")
             completion(isBestFriend)
         }
     }
@@ -143,7 +134,6 @@ class ContentVisibilityService {
         // Si se proporcionan custom viewers específicos, usarlos
         if let customViewers = customViewers {
             let canSee = customViewers.contains(viewerId)
-            print(canSee ? "✅ En lista personalizada específica" : "❌ No en lista personalizada específica")
             completion(canSee)
             return
         }
@@ -153,10 +143,8 @@ class ContentVisibilityService {
             switch result {
             case .success(let settings):
                 let canSee = settings.customPostViewers.contains(viewerId)
-                print(canSee ? "✅ En lista personalizada por defecto" : "❌ No en lista personalizada por defecto")
                 completion(canSee)
             case .failure:
-                print("❌ Error obteniendo configuración personalizada")
                 completion(false)
             }
         }
@@ -183,7 +171,6 @@ class ContentVisibilityService {
         
         group.notify(queue: .main) {
             let areMutualConnections = user1FollowsUser2 && user2FollowsUser1
-            print(areMutualConnections ? "✅ Conexión mutua" : "❌ No hay conexión mutua")
             completion(areMutualConnections)
         }
     }

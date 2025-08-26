@@ -246,7 +246,6 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
         let containerView = UIView()
         containerView.backgroundColor = .clear
         
-        print("🎯 Creando FeedNativeAd con tamaños optimizados")
         
         // Crear MediaView con tamaño optimizado
         let mediaView = MediaView()
@@ -263,7 +262,6 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
             let videoController = nativeAd.mediaContent.videoController
             videoController.delegate = context.coordinator
             videoController.isMuted = true
-            print("   - ✅ Video configurado CON mute para feed")
         }
         
         // Crear stack view para el layout
@@ -341,9 +339,6 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
             callToActionButton.bottomAnchor.constraint(equalTo: textContainer.bottomAnchor)
         ])
         
-        print("   - ✅ MediaView: 300px altura")
-        print("   - ✅ Contenedor total: ~500px altura")
-        print("   - ✅ Botón CTA: 150x44px")
         
         return containerView
     }
@@ -358,23 +353,18 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
     
     class Coordinator: NSObject, VideoControllerDelegate {
         func videoControllerDidPlayVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio en feed empezó")
         }
         
         func videoControllerDidPauseVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio en feed pausado")
         }
         
         func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {
-            print("🎯 Video del anuncio en feed terminó")
         }
         
         func videoControllerDidMuteVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio en feed silenciado")
         }
         
         func videoControllerDidUnmuteVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio en feed con sonido")
         }
     }
 }
@@ -631,7 +621,6 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         let containerView = UIView()
         containerView.backgroundColor = .clear
         
-        print("🎯 Creando IntegratedAdMediaView con tamaño optimizado para Google")
         
         let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
@@ -643,15 +632,12 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         // ✅ CRÍTICO: Registrar el MediaView con el NativeAd para que Google lo detecte
         nativeAd.register(mediaView, clickableAssetViews: [:], nonclickableAssetViews: [:])
         
-        print("   - ✅ MediaContent asignado: \(nativeAd.mediaContent.hasVideoContent ? "Video" : "Imagen")")
-        print("   - ✅ MediaView registrado con NativeAd")
         
         // Configurar video si existe
         if nativeAd.mediaContent.hasVideoContent {
             let videoController = nativeAd.mediaContent.videoController
             videoController.delegate = context.coordinator
             videoController.isMuted = true
-            print("   - ✅ Video configurado CON mute para feed integrado")
         }
         
         containerView.addSubview(mediaView)
@@ -668,10 +654,6 @@ struct IntegratedAdMediaView: UIViewRepresentable {
             mediaView.widthAnchor.constraint(greaterThanOrEqualToConstant: 150)   // Mínimo 150px, pero flexible
         ])
         
-        print("   - ✅ MediaView: mínimo 300x150px (requerido por Google)")
-        print("   - ✅ Aspect ratio: flexible pero respeta mínimos")
-        print("   - ✅ Container size: \(containerView.frame.size)")
-        print("   - ✅ MediaView size: \(mediaView.frame.size)")
         
         return containerView
     }
@@ -686,23 +668,18 @@ struct IntegratedAdMediaView: UIViewRepresentable {
     
     class Coordinator: NSObject, VideoControllerDelegate {
         func videoControllerDidPlayVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio integrado empezó")
         }
         
         func videoControllerDidPauseVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio integrado pausado")
         }
         
         func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {
-            print("🎯 Video del anuncio integrado terminó")
         }
         
         func videoControllerDidMuteVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio integrado silenciado")
         }
         
         func videoControllerDidUnmuteVideo(_ videoController: VideoController) {
-            print("🎯 Video del anuncio integrado con sonido")
         }
     }
 }
