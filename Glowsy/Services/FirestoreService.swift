@@ -14,8 +14,6 @@ class FirestoreService: ObservableObject {
     }
     
     func updateMoment(userId: String, momentId: String, content: String, completion: @escaping (Error?) -> Void) {
-        print("Actualizando momento \(momentId) para usuario: \(userId)")
-        
         let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
         
         let updateData: [String: Any] = [
@@ -25,24 +23,19 @@ class FirestoreService: ObservableObject {
         
         momentRef.updateData(updateData) { error in
             if let error = error {
-                print("Error al actualizar momento: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Momento actualizado exitosamente")
                 completion(nil)
             }
         }
     }
 
     func deleteMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
-        print("Eliminando momento \(momentId) para usuario: \(userId)")
-        
         let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
         
         // Primero obtener el momento para limpiar archivos de Storage
         momentRef.getDocument { [weak self] snapshot, error in
             if let error = error {
-                print("Error al obtener momento para eliminar: \(error.localizedDescription)")
                 completion(error)
                 return
             }
@@ -60,12 +53,9 @@ class FirestoreService: ObservableObject {
             // Eliminar el documento del momento
             momentRef.delete { error in
                 if let error = error {
-                    print("Error al eliminar momento: \(error.localizedDescription)")
                     completion(error)
                     return
                 }
-                
-                print("Momento eliminado de Firestore exitosamente")
                 
                 // Eliminar archivos de Storage en segundo plano
                 let storageService = StorageService()
@@ -75,9 +65,7 @@ class FirestoreService: ObservableObject {
                     cleanupGroup.enter()
                     storageService.deleteMedia(path: imagePath) { error in
                         if let error = error {
-                            print("Error al eliminar imagen: \(error)")
-                        } else {
-                            print("Imagen eliminada exitosamente")
+                            // Error silencioso para limpieza de archivos
                         }
                         cleanupGroup.leave()
                     }
@@ -87,16 +75,14 @@ class FirestoreService: ObservableObject {
                     cleanupGroup.enter()
                     storageService.deleteMedia(path: videoUrl) { error in
                         if let error = error {
-                            print("Error al eliminar video: \(error)")
-                        } else {
-                            print("Video eliminado exitosamente")
+                            // Error silencioso para limpieza de archivos
                         }
                         cleanupGroup.leave()
                     }
                 }
                 
                 cleanupGroup.notify(queue: .main) {
-                    print("Limpieza de archivos completada")
+                    // Limpieza completada
                 }
                 
                 // Completar la operación aunque falle la limpieza de archivos
@@ -106,21 +92,17 @@ class FirestoreService: ObservableObject {
     }
 
     func deleteMomentComments(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
-        print("Eliminando comentarios del momento \(momentId)")
-        
         let commentsRef = db.collection("users").document(userId)
             .collection("moments").document(momentId)
             .collection("comments")
         
         commentsRef.getDocuments { snapshot, error in
             if let error = error {
-                print("Error al obtener comentarios: \(error.localizedDescription)")
                 completion(error)
                 return
             }
             
             guard let documents = snapshot?.documents else {
-                print("No hay comentarios para eliminar")
                 completion(nil)
                 return
             }
@@ -132,10 +114,8 @@ class FirestoreService: ObservableObject {
             
             batch.commit { error in
                 if let error = error {
-                    print("Error al eliminar comentarios: \(error.localizedDescription)")
                     completion(error)
                 } else {
-                    print("Comentarios eliminados exitosamente")
                     completion(nil)
                 }
             }
@@ -143,21 +123,17 @@ class FirestoreService: ObservableObject {
     }
 
     func deleteMomentReactions(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
-        print("Eliminando reacciones del momento \(momentId)")
-        
         let reactionsRef = db.collection("users").document(userId)
             .collection("moments").document(momentId)
             .collection("reactions")
         
         reactionsRef.getDocuments { snapshot, error in
             if let error = error {
-                print("Error al obtener reacciones: \(error.localizedDescription)")
                 completion(error)
                 return
             }
             
             guard let documents = snapshot?.documents else {
-                print("No hay reacciones para eliminar")
                 completion(nil)
                 return
             }
@@ -169,10 +145,8 @@ class FirestoreService: ObservableObject {
             
             batch.commit { error in
                 if let error = error {
-                    print("Error al eliminar reacciones: \(error.localizedDescription)")
                     completion(error)
                 } else {
-                    print("Reacciones eliminadas exitosamente")
                     completion(nil)
                 }
             }
@@ -184,13 +158,11 @@ class FirestoreService: ObservableObject {
         db.collection("users").document(userId).collection("savedMoments")
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
-                    print("Error al cargar momentos guardados: \(error.localizedDescription)")
                     return
                 }
                 let momentIds = snapshot?.documents.compactMap { $0.documentID } ?? []
                 DispatchQueue.main.async {
                     self?.savedMomentIds = momentIds
-                    print("Momentos guardados cargados: \(momentIds.count)")
                 }
             }
     }
@@ -233,18 +205,15 @@ class FirestoreService: ObservableObject {
     }
     
     func fetchVisits(userId: String, completion: @escaping (Result<[Visit], Error>) -> Void) {
-        print("Obteniendo visitas para usuario: \(userId)")
         self.db.collection("users").document(userId).collection("visits")
             .order(by: "timestamp", descending: true)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al obtener visitas: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron visitas")
                     completion(.success([]))
                     return
                 }
@@ -253,11 +222,9 @@ class FirestoreService: ObservableObject {
                     do {
                         return try doc.data(as: Visit.self)
                     } catch {
-                        print("Error al decodificar visita \(doc.documentID): \(error.localizedDescription)")
                         return nil
                     }
                 }
-                print("Visitas obtenidas: \(visits.count)")
                 completion(.success(visits))
             }
     }
@@ -266,7 +233,6 @@ class FirestoreService: ObservableObject {
     func registerVisit(visitorId: String, to targetUserId: String, completion: @escaping (Error?) -> Void) {
         // ✅ VALIDACIÓN BÁSICA
         guard visitorId != targetUserId else {
-            print("❌ No se puede registrar visita del usuario a su propio perfil")
             completion(nil)
             return
         }
@@ -280,13 +246,11 @@ class FirestoreService: ObservableObject {
             }
             
             if let error = error {
-                print("❌ Error al verificar bloqueos: \(error.localizedDescription)")
                 completion(error)
                 return
             }
             
             if isBlockedByVisitor || isVisitorBlocked {
-                print("🚫 Visita no registrada: usuario bloqueado")
                 completion(nil)
                 return
             }
@@ -302,14 +266,12 @@ class FirestoreService: ObservableObject {
                 .getDocuments { snapshot, error in
                     
                     if let error = error {
-                        print("❌ Error verificando visitas recientes: \(error.localizedDescription)")
                         completion(error)
                         return
                     }
                     
                     // Si hay visita reciente, no registrar
                     if let documents = snapshot?.documents, !documents.isEmpty {
-                        print("⏰ Visita reciente encontrada - Saltando registro")
                         completion(nil)
                         return
                     }
@@ -324,12 +286,9 @@ class FirestoreService: ObservableObject {
                         // ✅ USAR addDocument para @DocumentID
                         visitsRef.addDocument(data: visitData) { error in
                             if let error = error {
-                                print("❌ Error al registrar visita: \(error.localizedDescription)")
-                                completion(error)
-                                return
-                            }
-                            
-                            print("✅ Visita registrada exitosamente")
+                            completion(error)
+                            return
+                        }
                             
                             // ✅ ACTUALIZAR RESUMEN DIARIO
                             self.updateVisitSummary(targetUserId: targetUserId, visitorId: visitorId)
@@ -337,7 +296,6 @@ class FirestoreService: ObservableObject {
                             completion(nil)
                         }
                     } catch {
-                        print("❌ Error al codificar visita: \(error.localizedDescription)")
                         completion(error)
                     }
                 }
@@ -359,9 +317,7 @@ class FirestoreService: ObservableObject {
             "timestamp": Timestamp(date: Date())
         ], merge: true) { error in
             if let error = error {
-                print("⚠️ Error al actualizar resumen: \(error.localizedDescription)")
-            } else {
-                print("✅ Resumen de visitas actualizado")
+                // Error silencioso al actualizar resumen
             }
         }
     }
@@ -375,7 +331,6 @@ class FirestoreService: ObservableObject {
                   let data = snapshot?.data(),
                   let visitCount = data["visitCount"] as? Int64,
                   let visitorIds = data["visitorIds"] as? [String] else {
-                print("Error al obtener el resumen de visitas")
                 return
             }
             
@@ -405,7 +360,7 @@ class FirestoreService: ObservableObject {
                 do {
                     try notificationRef.setData(from: notification, merge: true)
                 } catch {
-                    print("Error al actualizar la notificación de visitas: \(error)")
+                    // Error silencioso al actualizar notificación
                 }
             }
         }
@@ -414,12 +369,7 @@ class FirestoreService: ObservableObject {
     // Crear usuario
     func createUser(userId: String, username: String, email: String, interests: [String], profileImagePath: String? = nil, completion: @escaping (Error?) -> Void) {
         
-        print("🏗️ FirestoreService.createUser iniciado")
-        print("   - userId: \(userId)")
-        print("   - username: \(username)")
-        print("   - email: \(email)")
-        print("   - interests: \(interests)")
-        print("   - profileImagePath: \(profileImagePath ?? "nil")")
+
         
         // ✅ CREAR AppUser que coincida EXACTAMENTE con tu modelo User.swift
         let newUser = AppUser(
@@ -468,7 +418,7 @@ class FirestoreService: ObservableObject {
         )
         
         do {
-            print("🔄 Codificando usuario...")
+    
             let encoder = Firestore.Encoder()
             var userData = try encoder.encode(newUser)
             
@@ -488,13 +438,7 @@ class FirestoreService: ObservableObject {
             userData.removeValue(forKey: "suspendedUntil")
             userData.removeValue(forKey: "suspensionReason")
             
-            print("✅ Usuario codificado correctamente")
-            print("   - isActive: \(userData["isActive"] ?? "no encontrado")")
-            print("   - username: \(userData["username"] ?? "no encontrado")")
-            print("   - email: \(userData["email"] ?? "no encontrado")")
-            print("   - showMutualConnections: \(userData["showMutualConnections"] ?? "no encontrado")")
-            print("   - showFollowing: \(userData["showFollowing"] ?? "no encontrado")")
-            print("   - showAdmirers: \(userData["showAdmirers"] ?? "no encontrado")")
+
             
             let usernameData: [String: Any] = [
                 "userId": userId,
@@ -503,73 +447,50 @@ class FirestoreService: ObservableObject {
                 "updatedAt": FieldValue.serverTimestamp()
             ]
             
-            print("🔄 Iniciando transacción batch...")
+
             
             let batch = db.batch()
             
             // ✅ Crear documento de usuario
             let userRef = db.collection("users").document(userId)
             batch.setData(userData, forDocument: userRef)
-            print("   - Añadido al batch: documento de usuario")
+            
             
             // ✅ Crear documento de username
             let usernameRef = db.collection("usernames").document(username.lowercased())
             batch.setData(usernameData, forDocument: usernameRef)
-            print("   - Añadido al batch: documento de username")
+            
             
             // ✅ Ejecutar batch
             batch.commit { error in
                 if let error = error {
-                    print("❌ Error al ejecutar batch: \(error.localizedDescription)")
                     completion(error)
                 } else {
-                    print("✅ Batch ejecutado exitosamente!")
-                    print("✅ Usuario creado en Firestore: \(userId)")
-                    print("✅ Username registrado: \(username.lowercased())")
-                    
                     // ✅ VERIFICACIÓN: Comprobar que el documento se creó correctamente
                     self.verifyUserCreation(userId: userId) { verified in
-                        if verified {
-                            print("✅ Verificación exitosa: Usuario existe en Firestore")
-                            completion(nil)
-                        } else {
-                            print("⚠️ Advertencia: Usuario creado pero verificación falló")
-                            completion(nil) // Aún así continuar, puede ser un delay de Firestore
-                        }
+                        completion(nil)
                     }
                 }
             }
             
         } catch {
-            print("❌ Error al codificar usuario: \(error.localizedDescription)")
-            print("📝 Detalles del error: \(error)")
             completion(error)
         }
     }
     
     // ✅ FUNCIÓN DE VERIFICACIÓN
     private func verifyUserCreation(userId: String, completion: @escaping (Bool) -> Void) {
-        print("🔍 Verificando creación del usuario: \(userId)")
-        
         // Esperar un poco antes de verificar para dar tiempo a Firestore
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.db.collection("users").document(userId).getDocument { snapshot, error in
                 if let error = error {
-                    print("❌ Error en verificación: \(error.localizedDescription)")
                     completion(false)
                     return
                 }
                 
                 if let data = snapshot?.data() {
-                    print("✅ Usuario verificado en Firestore:")
-                    print("   - username: \(data["username"] ?? "no encontrado")")
-                    print("   - email: \(data["email"] ?? "no encontrado")")
-                    print("   - isActive: \(data["isActive"] ?? "no encontrado")")
-                    print("   - showMutualConnections: \(data["showMutualConnections"] ?? "no encontrado")")
-                    print("   - showFollowing: \(data["showFollowing"] ?? "no encontrado")")
                     completion(true)
                 } else {
-                    print("❌ Usuario no encontrado en verificación")
                     completion(false)
                 }
             }
@@ -578,52 +499,24 @@ class FirestoreService: ObservableObject {
     
     // ✅ FUNCIÓN FETCHUSER CORREGIDA para manejar mejor los errores
     func fetchUser(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
-        print("🔍 Obteniendo usuario: \(userId)")
-        
         guard !userId.isEmpty else {
-            print("❌ Error: El userId está vacío")
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "El userId está vacío"])))
             return
         }
-        
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
-                print("❌ Error al obtener usuario: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
-            
             guard let document = snapshot, document.exists else {
-                print("❌ Documento no encontrado para el usuario: \(userId)")
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Documento no encontrado"])))
                 return
             }
-            
-            // ✅ DEBUGGING: Mostrar datos raw del documento
-            if let data = document.data() {
-                print("📊 Datos raw del documento:")
-                print("   - isActive: \(data["isActive"] ?? "NO PRESENTE")")
-                print("   - username: \(data["username"] ?? "NO PRESENTE")")
-                print("   - email: \(data["email"] ?? "NO PRESENTE")")
-                print("   - showMutualConnections: \(data["showMutualConnections"] ?? "NO PRESENTE")")
-                print("   - showFollowing: \(data["showFollowing"] ?? "NO PRESENTE")")
-                print("   - deactivatedAt: \(data["deactivatedAt"] ?? "NO PRESENTE")")
-            }
-            
             do {
                 // ✅ USAR EL DECODER DE FIRESTORE para manejar automáticamente los tipos
                 let user = try document.data(as: AppUser.self)
-                print("✅ Usuario decodificado exitosamente:")
-                print("   - username: \(user.username)")
-                print("   - isActive: \(user.isActive)")
-                print("   - email: \(user.email)")
-                print("   - showMutualConnections: \(user.showMutualConnections)")
-                print("   - showFollowing: \(user.showFollowing)")
                 completion(.success(user))
             } catch {
-                print("❌ Error al decodificar usuario: \(error.localizedDescription)")
-                print("❌ Detalles del error: \(error)")
-                
                 // ✅ FALLBACK: Intentar decodificación manual si falla la automática
                 if let data = document.data() {
                     self.attemptManualDecoding(data: data, completion: completion)
@@ -636,15 +529,11 @@ class FirestoreService: ObservableObject {
     
     // ✅ FUNCIÓN DE FALLBACK: Decodificación manual para casos problemáticos
     private func attemptManualDecoding(data: [String: Any], completion: @escaping (Result<AppUser, Error>) -> Void) {
-        print("🔧 Intentando decodificación manual...")
-        
         guard let id = data["id"] as? String,
               let email = data["email"] as? String else {
-            print("❌ Campos obligatorios faltantes en decodificación manual")
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Campos obligatorios faltantes"])))
             return
         }
-        
         // Crear AppUser con valores por defecto para campos faltantes
         let user = AppUser(
             id: id,
@@ -671,7 +560,6 @@ class FirestoreService: ObservableObject {
             showBadge: (data["showBadge"] as? Bool) ?? true
         )
         
-        print("✅ Decodificación manual exitosa para usuario: \(user.username)")
         completion(.success(user))
     }
     
@@ -679,39 +567,32 @@ class FirestoreService: ObservableObject {
     func fetchAvailableInterests(completion: @escaping (Result<[String], Error>) -> Void) {
         db.collection("interests").getDocuments { snapshot, error in
             if let error = error {
-                print("❌ Error al cargar intereses: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
             let interests = snapshot?.documents.compactMap { $0.data()["name"] as? String } ?? []
-            print("✅ Intereses cargados: \(interests)")
             completion(.success(interests))
         }
     }
     
     
     func fetchUserProfile(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
-        print("Obteniendo perfil del usuario: \(userId)")
         self.db.collection("users").document(userId).getDocument(source: .default, completion: { snapshot, error in
             if let error = error {
-                print("Error al obtener perfil: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
 
             guard let document = snapshot, document.exists else {
-                print("Documento no encontrado para el usuario: \(userId)")
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Documento no encontrado"])))
                 return
             }
 
             do {
                 let user = try document.data(as: AppUser.self)
-                print("Perfil obtenido: \(user.username)")
                 completion(.success(user))
             } catch {
-                print("Error al decodificar perfil: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         })
@@ -743,18 +624,15 @@ class FirestoreService: ObservableObject {
     }
 
     func fetchAdmirers(userId: String, completion: @escaping (Result<[Admirer], Error>) -> Void) {
-        print("Obteniendo admiradores para usuario: \(userId)")
         self.db.collection("users").document(userId).collection("admirers")
             .order(by: "timestamp", descending: true)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al obtener admiradores: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron admiradores")
                     completion(.success([]))
                     return
                 }
@@ -763,11 +641,9 @@ class FirestoreService: ObservableObject {
                     do {
                         return try doc.data(as: Admirer.self)
                     } catch {
-                        print("Error al decodificar admirador \(doc.documentID): \(error.localizedDescription)")
                         return nil
                     }
                 }
-                print("Admiradores obtenidos: \(admirers.count)")
                 completion(.success(admirers))
             }
     }
@@ -775,8 +651,6 @@ class FirestoreService: ObservableObject {
 
 
     func fetchMutualConnections(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
-        print("🔍 FirestoreService: Obteniendo conexiones mutuas para usuario: \(userId)")
-        
         let group = DispatchGroup()
         var followingIds: Set<String> = []
         var followerIds: Set<String> = []
@@ -825,14 +699,13 @@ class FirestoreService: ObservableObject {
     }
 
     func updateProfilePicture(userId: String, profileImagePath: String, completion: @escaping (Error?) -> Void) {
-        print("Actualizando foto de perfil para usuario: \(userId)")
         self.db.collection("users").document(userId).updateData([
             "profileImagePath": profileImagePath
         ]) { error in
             if let error = error {
-                print("Error al actualizar foto de perfil: \(error.localizedDescription)")
+                // Handle error silently
             } else {
-                print("Foto de perfil actualizada con éxito")
+                // Success
             }
             completion(error)
         }
@@ -852,12 +725,8 @@ class FirestoreService: ObservableObject {
         allowSharing: Bool = true,
         completion: @escaping (Error?) -> Void
     ) {
-        print("Creando momento para usuario \(userId)")
-        print("⚙️ Configuración avanzada: comments=\(!disableComments), likes=\(!hideLikeCounts), sharing=\(allowSharing)")
-        
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
-                print("Instancia liberada antes de completar la operación de crear momento")
                 completion(NSError(
                     domain: "",
                     code: -1,
@@ -940,23 +809,16 @@ class FirestoreService: ObservableObject {
                         .collection("moments")
                         .addDocument(data: momentData) { error in
                             if let error = error {
-                                print("❌ Error al crear momento: \(error.localizedDescription)")
                                 completion(error)
                             } else {
-                                print("✅ Momento creado exitosamente con configuración avanzada")
-                                if let videoRes = videoResolution {
-                                    print("   - Video: \(videoRes)")
-                                }
                                 completion(nil)
                             }
                         }
                 } catch {
-                    print("❌ Error al codificar momento: \(error.localizedDescription)")
                     completion(error)
                 }
                 
             case .failure(let error):
-                print("❌ Error al obtener el usuario para crear momento: \(error.localizedDescription)")
                 completion(error)
             }
         }
@@ -965,11 +827,8 @@ class FirestoreService: ObservableObject {
     func createStory(userId: String,mediaItem: MediaItem,audience: String? = nil,text: String? = nil,textPosition: CGPoint? = nil,textStyle: String? = nil,stickers: [StickerData]? = nil,drawingData: Data? = nil,
     completion: @escaping (Error?) -> Void
     ) {
-        print("Creando historia para usuario \(userId)")
-        
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
-                print("Instancia liberada antes de completar la operación de crear historia")
                 completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
                 return
             }
@@ -1035,20 +894,16 @@ class FirestoreService: ObservableObject {
                         .collection("stories").document(storyId)
                         .setData(storyData) { error in
                             if let error = error {
-                                print("Error al crear historia: \(error.localizedDescription)")
                                 completion(error)
                             } else {
-                                print("Historia creada exitosamente con ID: \(storyId)")
                                 completion(nil)
                             }
                         }
                 } catch {
-                    print("Error al codificar historia: \(error.localizedDescription)")
                     completion(error)
                 }
 
             case .failure(let error):
-                print("Error al obtener el usuario para crear historia: \(error.localizedDescription)")
                 completion(error)
             }
         }
@@ -1060,8 +915,6 @@ class FirestoreService: ObservableObject {
             return
         }
         
-        print("Buscando usuarios con query: \(query)")
-        
         // Búsqueda por username que comience con el query
         db.collection("users")
             .whereField("username", isGreaterThanOrEqualTo: query.lowercased())
@@ -1069,7 +922,6 @@ class FirestoreService: ObservableObject {
             .limit(to: 20)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al buscar usuarios: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
@@ -1083,12 +935,10 @@ class FirestoreService: ObservableObject {
                     do {
                         return try doc.data(as: AppUser.self)
                     } catch {
-                        print("Error al decodificar usuario en búsqueda: \(error)")
                         return nil
                     }
                 }
                 
-                print("Usuarios encontrados: \(users.count)")
                 completion(.success(users))
             }
     }
@@ -1099,18 +949,15 @@ class FirestoreService: ObservableObject {
             return
         }
 
-        print("Obteniendo usuarios: \(userIds)")
         self.db.collection("users")
             .whereField(FieldPath.documentID(), in: userIds)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al obtener usuarios: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron usuarios")
                     completion(.success([]))
                     return
                 }
@@ -1119,47 +966,38 @@ class FirestoreService: ObservableObject {
                     do {
                         return try doc.data(as: AppUser.self)
                     } catch {
-                        print("Error al decodificar usuario \(doc.documentID): \(error.localizedDescription)")
                         return nil
                     }
                 }
-                print("Usuarios obtenidos: \(users.count)")
                 completion(.success(users))
             }
     }
     
     func fetchUserDataForGemini(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
-        print("Obteniendo datos del usuario \(userId) para Gemini")
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
-                print("Error al obtener datos para Gemini: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             guard let document = snapshot, document.exists else {
-                print("Usuario no encontrado para Gemini: \(userId)")
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no encontrado"])))
                 return
             }
             do {
                 let user = try document.data(as: AppUser.self)
-                print("Datos de usuario obtenidos para Gemini: \(user.username)")
                 completion(.success(user))
             } catch {
-                print("Error al decodificar datos para Gemini: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
     }
     
     func fetchInitialMoments(for userId: String, completion: @escaping (Result<(moments: [Moment], lastDocument: DocumentSnapshot?), Error>) -> Void) {
-        print("Intentando obtener conexiones para usuario: \(userId)")
         self.fetchConnections(userId: userId) { result in
             switch result {
             case .success(let connections):
                 let connectionIds = connections.map { $0.userId }
                 if connectionIds.isEmpty {
-                    print("El usuario \(userId) no tiene conexiones")
                     completion(.success((moments: [], lastDocument: nil)))
                     return
                 }
@@ -1175,7 +1013,6 @@ class FirestoreService: ObservableObject {
                         .limit(to: 10)
                         .getDocuments { snapshot, error in
                             if let error = error {
-                                print("Error al obtener momentos de \(connectionId): \(error.localizedDescription)")
                                 group.leave()
                                 return
                             }
@@ -1192,25 +1029,21 @@ class FirestoreService: ObservableObject {
                 group.notify(queue: .main) {
                     allMoments.sort { $0.timestamp > $1.timestamp }
                     let limitedMoments = Array(allMoments.prefix(10))
-                    print("Moments iniciales obtenidos: \(limitedMoments.count)")
                     completion(.success((moments: limitedMoments, lastDocument: lastDocument)))
                 }
 
             case .failure(let error):
-                print("Error al obtener conexiones: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
     }
     
     func fetchMoreMoments(for userId: String, startAfter: DocumentSnapshot, completion: @escaping (Result<(moments: [Moment], lastDocument: DocumentSnapshot?), Error>) -> Void) {
-        print("Intentando obtener conexiones para usuario: \(userId)")
         self.fetchConnections(userId: userId) { result in
             switch result {
             case .success(let connections):
                 let connectionIds = connections.map { $0.userId }
                 if connectionIds.isEmpty {
-                    print("El usuario \(userId) no tiene conexiones")
                     completion(.success((moments: [], lastDocument: nil)))
                     return
                 }
@@ -1227,7 +1060,6 @@ class FirestoreService: ObservableObject {
                         .limit(to: 10)
                         .getDocuments { snapshot, error in
                             if let error = error {
-                                print("Error al obtener más momentos de \(connectionId): \(error.localizedDescription)")
                                 group.leave()
                                 return
                             }
@@ -1314,7 +1146,6 @@ class FirestoreService: ObservableObject {
                       let username = data["username"] as? String,
                       let content = data["content"] as? String,
                       let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
-                    print("⚠️ Datos inválidos en comentario \(document.documentID)")
                     return nil
                 }
                 
@@ -1342,13 +1173,10 @@ class FirestoreService: ObservableObject {
             }.filter { $0.id != nil } ?? []
             
             let lastDoc = snapshot?.documents.last
-            print("✅ Comentarios obtenidos: \(comments.count), último documento: \(lastDoc?.documentID ?? "ninguno")")
             
             // ✅ DEBUGGING: Mostrar estructura de anidación
             let rootComments = comments.filter { $0.parentCommentId == nil }
             let replyComments = comments.filter { $0.parentCommentId != nil }
-            print("📊 Comentarios principales: \(rootComments.count)")
-            print("📊 Respuestas: \(replyComments.count)")
             
             completion(.success((comments: comments, lastDocument: lastDoc)))
         }
@@ -1358,8 +1186,6 @@ class FirestoreService: ObservableObject {
     func addComment(to momentId: String, userId: String, authorId: String, content: String, parentCommentId: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
         let commentId = UUID().uuidString
         let now = Date()
-        
-        print("📝 Agregando comentario: \(parentCommentId != nil ? "RESPUESTA a \(parentCommentId!)" : "COMENTARIO PRINCIPAL")")
         
         // Get current user's username
         fetchUser(userId: authorId) { [weak self] result in
@@ -1383,10 +1209,8 @@ class FirestoreService: ObservableObject {
                 // ✅ MANEJO CORRECTO DE parentCommentId
                 if let parentCommentId = parentCommentId {
                     commentData["parentCommentId"] = parentCommentId
-                    print("🔗 Comentario será respuesta a: \(parentCommentId)")
                 } else {
                     commentData["parentCommentId"] = NSNull()
-                    print("📝 Comentario será principal (sin padre)")
                 }
                 
                 let batch = self.db.batch()
@@ -1403,10 +1227,8 @@ class FirestoreService: ObservableObject {
                 
                 batch.commit { error in
                     if let error = error {
-                        print("❌ Error al crear comentario: \(error.localizedDescription)")
                         completion(.failure(error))
                     } else {
-                        print("✅ Comentario creado exitosamente como \(parentCommentId != nil ? "respuesta" : "principal")")
                         completion(.success(()))
                         
                         // Send notifications
@@ -1437,7 +1259,6 @@ class FirestoreService: ObservableObject {
                 }
                 
             case .failure(let error):
-                print("❌ Error al obtener usuario: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
@@ -1464,11 +1285,6 @@ class FirestoreService: ObservableObject {
     }
     
     func deleteComment(to momentId: String, commentId: String, userId: String, authorId: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        print("🗑️ Attempting to delete comment \(commentId) from moment \(momentId)")
-        print("   - Moment author: \(userId)")
-        print("   - Comment author: \(authorId)")
-        print("   - Current user: \(Auth.auth().currentUser?.uid ?? "nil")")
-        
         let batch = db.batch()
         
         // Delete comment
@@ -1477,18 +1293,14 @@ class FirestoreService: ObservableObject {
         // First check if comment exists
         commentRef.getDocument { snapshot, error in
             if let error = error {
-                print("❌ Error getting comment for deletion: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
             guard snapshot?.exists == true else {
-                print("⚠️ Comment \(commentId) does not exist")
                 completion(.failure(NSError(domain: "CommentNotFound", code: 404, userInfo: [NSLocalizedDescriptionKey: "Comment not found"])))
                 return
             }
-            
-            print("✅ Comment exists, proceeding with deletion")
             
             // Delete the comment
             batch.deleteDocument(commentRef)
@@ -1505,11 +1317,10 @@ class FirestoreService: ObservableObject {
                 .getDocuments { nestedSnapshot, nestedError in
                     
                     if let nestedError = nestedError {
-                        print("⚠️ Error getting nested comments: \(nestedError.localizedDescription)")
+                        // Handle nested error silently
                     }
                     
                     let nestedDocs = nestedSnapshot?.documents ?? []
-                    print("🔗 Found \(nestedDocs.count) nested comments to delete")
                     
                     // Delete nested comments
                     for nestedDoc in nestedDocs {
@@ -1523,10 +1334,8 @@ class FirestoreService: ObservableObject {
                     // Commit the batch
                     batch.commit { batchError in
                         if let batchError = batchError {
-                            print("❌ Error committing delete batch: \(batchError.localizedDescription)")
                             completion(.failure(batchError))
                         } else {
-                            print("✅ Successfully deleted comment and \(nestedDocs.count) nested comments")
                             completion(.success(()))
                         }
                     }
@@ -1582,18 +1391,15 @@ class FirestoreService: ObservableObject {
     }
     
     func fetchSuggestedUsers(completion: @escaping (Result<[AppUser], Error>) -> Void) {
-        print("Obteniendo usuarios sugeridos")
         self.db.collection("users")
             .limit(to: 10)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al obtener usuarios: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron usuarios")
                     completion(.success([]))
                     return
                 }
@@ -1602,19 +1408,15 @@ class FirestoreService: ObservableObject {
                     do {
                         return try doc.data(as: AppUser.self)
                     } catch {
-                        print("Error al decodificar usuario \(doc.documentID): \(error.localizedDescription)")
                         return nil
                     }
                 }.filter { $0.id != Auth.auth().currentUser?.uid }
-                print("Usuarios sugeridos obtenidos: \(users.count)")
                 completion(.success(users))
             }
     }
     
     // ✅ MÉTODO CORREGIDO para FirestoreService.swift - REEMPLAZAR el método existente
     func addReaction(to momentId: String, reaction: String, userId: String, authorId: String, completion: @escaping (Error?) -> Void) {
-        print("📊 Procesando reacción '\(reaction)' al momento \(momentId) por el usuario \(userId)")
-        
         // ✅ CAMBIO PRINCIPAL: Usar la subcolección de reacciones
         let reactionRef = db.collection("users").document(authorId)
             .collection("moments").document(momentId)
@@ -1628,7 +1430,6 @@ class FirestoreService: ObservableObject {
             }
             
             if let error = error {
-                print("❌ Error al verificar reacción existente: \(error.localizedDescription)")
                 completion(error)
                 return
             }
@@ -1640,19 +1441,15 @@ class FirestoreService: ObservableObject {
                 
                 if existingReaction == reaction {
                     // Es la misma reacción, removerla
-                    print("🗑️ Removiendo reacción existente '\(reaction)'")
                     reactionRef.delete { error in
                         if let error = error {
-                            print("❌ Error al remover reacción: \(error.localizedDescription)")
                             completion(error)
                         } else {
-                            print("✅ Reacción '\(reaction)' removida con éxito")
                             completion(nil)
                         }
                     }
                 } else {
                     // Es diferente reacción, actualizarla
-                    print("🔄 Actualizando reacción de '\(existingReaction ?? "")' a '\(reaction)'")
                     let reactionData: [String: Any] = [
                         "userId": userId,
                         "reactionType": reaction,
@@ -1661,13 +1458,11 @@ class FirestoreService: ObservableObject {
                     
                     reactionRef.setData(reactionData) { error in
                         if let error = error {
-                            print("❌ Error al actualizar reacción: \(error.localizedDescription)")
                             completion(error)
                         } else {
-                            print("✅ Reacción actualizada a '\(reaction)' con éxito")
                             // Crear notificación solo si no es el autor
                             if userId != authorId {
-                                self.createReactionNotification(userId: userId, authorId: authorId, momentId: momentId, completion: completion)
+                                self.createReactionNotification(userId: userId, authorId: authorId, momentId: momentId, reactionType: reaction, completion: completion)
                             } else {
                                 completion(nil)
                             }
@@ -1676,7 +1471,6 @@ class FirestoreService: ObservableObject {
                 }
             } else {
                 // No existe reacción, crear nueva
-                print("➕ Creando nueva reacción '\(reaction)'")
                 let reactionData: [String: Any] = [
                     "userId": userId,
                     "reactionType": reaction,
@@ -1685,13 +1479,11 @@ class FirestoreService: ObservableObject {
                 
                 reactionRef.setData(reactionData) { error in
                     if let error = error {
-                        print("❌ Error al añadir reacción: \(error.localizedDescription)")
                         completion(error)
                     } else {
-                        print("✅ Reacción '\(reaction)' añadida con éxito")
                         // Crear notificación solo si no es el autor
                         if userId != authorId {
-                            self.createReactionNotification(userId: userId, authorId: authorId, momentId: momentId, completion: completion)
+                            self.createReactionNotification(userId: userId, authorId: authorId, momentId: momentId, reactionType: reaction, completion: completion)
                         } else {
                             completion(nil)
                         }
@@ -1701,27 +1493,40 @@ class FirestoreService: ObservableObject {
         }
     }
 
+    // ✅ MÉTODO AUXILIAR para obtener contador de reacciones
+    private func getMomentReactionCount(momentId: String, userId: String, completion: @escaping (Int) -> Void) {
+        db.collection("users").document(userId)
+            .collection("moments").document(momentId)
+            .collection("reactions")
+            .getDocuments { snapshot, error in
+                let count = snapshot?.documents.count ?? 0
+                completion(count)
+            }
+    }
+    
     // ✅ MÉTODO AUXILIAR para notificaciones
-    private func createReactionNotification(userId: String, authorId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+    private func createReactionNotification(userId: String, authorId: String, momentId: String, reactionType: String, completion: @escaping (Error?) -> Void) {
         fetchUser(userId: userId) { result in
             switch result {
             case .success(let user):
-                self.createNotification(
-                    recipientId: authorId,
-                    senderId: userId,
-                    senderUsername: user.username,
-                    type: .like, // Cambiar por .reaction si tienes ese tipo
-                    momentId: momentId,
-                    isPending: false,
-                    completion: { error in
-                        if let error = error {
-                            print("❌ Error al crear notificación de reacción: \(error.localizedDescription)")
+                // ✅ OBTENER el contador actual de reacciones para el momento
+                self.getMomentReactionCount(momentId: momentId, userId: authorId) { reactionCount in
+                    self.createNotification(
+                        recipientId: authorId,
+                        senderId: userId,
+                        senderUsername: user.username,
+                        type: .reaction, // ✅ CORREGIDO: Usar .reaction para reacciones a momentos
+                        momentId: momentId,
+                        isPending: false,
+                        reaction: reactionType, // ✅ Pasar el tipo de reacción (love, fire, etc.)
+                        completion: { error in
+                            if let error = error {
+                            }
+                            completion(error)
                         }
-                        completion(error)
-                    }
-                )
+                    )
+                }
             case .failure(let error):
-                print("❌ Error al obtener usuario para notificación: \(error.localizedDescription)")
                 completion(error)
             }
         }
@@ -1730,8 +1535,6 @@ class FirestoreService: ObservableObject {
     // MARK: - SISTEMA COMPLETO DE SEGUIMIENTO ACTUALIZADO
 
     func sendFollowRequest(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        print("Enviando solicitud de seguimiento de \(currentUserId) a \(targetUserId)")
-        
         guard currentUserId != targetUserId else {
             completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No puedes enviarte una solicitud a ti mismo"]))
             return
@@ -1763,11 +1566,16 @@ class FirestoreService: ObservableObject {
                             completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Ya tienes una solicitud pendiente"]))
                             return
                         case .rejected:
-                            if Date().timeIntervalSince(existingRequest.timestamp) < 86400 {
-                                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Debes esperar 24 horas para enviar otra solicitud"]))
+                            let timeSinceRejection = Date().timeIntervalSince(existingRequest.timestamp)
+                            if timeSinceRejection < 86400 {
+                                let remainingHours = Int((86400 - timeSinceRejection) / 3600)
+                                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Debes esperar \(remainingHours) horas para enviar otra solicitud"]))
                                 return
                             }
-                        default:
+                        case .accepted:
+                            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Ya sigues a este usuario"]))
+                            return
+                        case .cancelled:
                             break
                         }
                     }
@@ -1826,11 +1634,8 @@ class FirestoreService: ObservableObject {
             
             batch.commit { [weak self] error in
                 if let error = error {
-                    print("Error creando solicitud de seguimiento: \(error.localizedDescription)")
                     completion(error)
                 } else {
-                    print("Solicitud de seguimiento creada exitosamente")
-                    
                     self?.createNotification(
                         recipientId: recipientId,
                         senderId: senderId,
@@ -1839,16 +1644,12 @@ class FirestoreService: ObservableObject {
                         momentId: nil,
                         isPending: true,
                         completion: { notificationError in
-                            if let notificationError = notificationError {
-                                print("Error creando notificación: \(notificationError)")
-                            }
                             completion(nil)
                         }
                     )
                 }
             }
         } catch {
-            print("Error codificando solicitud: \(error.localizedDescription)")
             completion(error)
         }
     }
@@ -1860,7 +1661,6 @@ class FirestoreService: ObservableObject {
             .limit(to: 1)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error verificando solicitud existente: \(error.localizedDescription)")
                     completion(nil)
                     return
                 }
@@ -1874,15 +1674,12 @@ class FirestoreService: ObservableObject {
                     let request = try document.data(as: FollowRequest.self)
                     completion(request)
                 } catch {
-                    print("Error decodificando solicitud: \(error.localizedDescription)")
                     completion(nil)
                 }
             }
     }
 
     func acceptFollowRequest(notificationId: String, recipientId: String, senderId: String, completion: @escaping (Error?) -> Void) {
-        print("Aceptando solicitud de seguimiento de \(senderId)")
-        
         getFollowRequestByUsers(senderId: senderId, recipientId: recipientId) { [weak self] request in
             guard let self = self, let request = request else {
                 completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Solicitud no encontrada"]))
@@ -1906,50 +1703,58 @@ class FirestoreService: ObservableObject {
                     return
                 }
                 
-                self.updateFollowRequestStatus(requestId: request.id, senderId: senderId, recipientId: recipientId, newStatus: .accepted) { updateError in
-                    if let updateError = updateError {
-                        print("Error actualizando estado de solicitud: \(updateError)")
-                    }
-                    
-                    // Marcar notificación como procesada
-                    self.db.collection("users").document(recipientId).collection("notifications").document(notificationId).updateData([
-                        "isPending": false
-                    ]) { error in
-                        if let error = error {
-                            print("Error actualizando notificación: \(error)")
-                        }
-                        completion(nil)
-                    }
+                let batch = self.db.batch()
+                
+                // 1. Eliminar solicitud de sentFollowRequests del remitente
+                let senderRequestRef = self.db.collection("users").document(senderId)
+                    .collection("sentFollowRequests").document(request.id)
+                batch.deleteDocument(senderRequestRef)
+                
+                // 2. Eliminar solicitud de receivedFollowRequests del destinatario
+                let recipientRequestRef = self.db.collection("users").document(recipientId)
+                    .collection("receivedFollowRequests").document(request.id)
+                batch.deleteDocument(recipientRequestRef)
+                
+                // 3. Eliminar notificación de solicitud de seguimiento completamente
+                let notificationRef = self.db.collection("users").document(recipientId)
+                    .collection("notifications").document(notificationId)
+                batch.deleteDocument(notificationRef)
+                
+                batch.commit { error in
+                    completion(nil)
                 }
             }
         }
     }
 
     func rejectFollowRequest(notificationId: String, recipientId: String, senderId: String, completion: @escaping (Error?) -> Void) {
-        print("Rechazando solicitud de seguimiento de \(senderId)")
-        
         getFollowRequestByUsers(senderId: senderId, recipientId: recipientId) { [weak self] request in
             guard let self = self, let request = request else {
                 completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Solicitud no encontrada"]))
                 return
             }
             
-            self.updateFollowRequestStatus(
-                requestId: request.id,
-                senderId: senderId,
-                recipientId: recipientId,
-                newStatus: .rejected
-            ) { error in
+            let batch = self.db.batch()
+            
+            // 1. Eliminar solicitud de sentFollowRequests del remitente
+            let senderRequestRef = self.db.collection("users").document(senderId)
+                .collection("sentFollowRequests").document(request.id)
+            batch.deleteDocument(senderRequestRef)
+            
+            // 2. Eliminar solicitud de receivedFollowRequests del destinatario
+            let recipientRequestRef = self.db.collection("users").document(recipientId)
+                .collection("receivedFollowRequests").document(request.id)
+            batch.deleteDocument(recipientRequestRef)
+            
+            // 3. Eliminar notificación completamente
+            let notificationRef = self.db.collection("users").document(recipientId)
+                .collection("notifications").document(notificationId)
+            batch.deleteDocument(notificationRef)
+            
+            batch.commit { error in
                 if let error = error {
                     completion(error)
-                    return
-                }
-                
-                // Eliminar notificación
-                self.db.collection("users").document(recipientId).collection("notifications").document(notificationId).delete { error in
-                    if let error = error {
-                        print("Error eliminando notificación: \(error)")
-                    }
+                } else {
                     completion(nil)
                 }
             }
@@ -1963,10 +1768,9 @@ class FirestoreService: ObservableObject {
             .limit(to: 1)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error obteniendo solicitud: \(error.localizedDescription)")
                     completion(nil)
-                    return
-                }
+                return
+            }
                 
                 guard let document = snapshot?.documents.first else {
                     completion(nil)
@@ -1977,7 +1781,6 @@ class FirestoreService: ObservableObject {
                     let request = try document.data(as: FollowRequest.self)
                     completion(request)
                 } catch {
-                    print("Error decodificando solicitud: \(error.localizedDescription)")
                     completion(nil)
                 }
             }
@@ -1996,10 +1799,8 @@ class FirestoreService: ObservableObject {
         
         batch.commit { error in
             if let error = error {
-                print("Error actualizando estado de solicitud: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Estado de solicitud actualizado a: \(newStatus.rawValue)")
                 completion(nil)
             }
         }
@@ -2007,8 +1808,6 @@ class FirestoreService: ObservableObject {
 
     // MARK: - FUNCIÓN FOLLOWUSER ACTUALIZADA CON CACHE MANAGEMENT
     func followUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        print("Usuario \(currentUserId) intentando seguir a \(targetUserId)")
-        
         guard currentUserId != targetUserId else {
             completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No puedes seguirte a ti mismo"]))
             return
@@ -2077,12 +1876,11 @@ class FirestoreService: ObservableObject {
                 ]
                 batch.setData(followerData, forDocument: followerRef)
                 
+                
                 batch.commit { [weak self] error in
                     if let error = error {
-                        print("Error al seguir usuario: \(error.localizedDescription)")
                         completion(error)
                     } else {
-                        print("Usuario \(currentUserId) ahora sigue a \(targetUserId)")
                         
                         // Limpiar cache después de follow exitoso
                         self?.invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
@@ -2107,12 +1905,10 @@ class FirestoreService: ObservableObject {
 
     // MARK: - FUNCIÓN UNFOLLOWUSER CORREGIDA CON CACHE MANAGEMENT
     func unfollowUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        print("🔄 Usuario \(currentUserId) dejando de seguir a \(targetUserId)")
         
         // Verificar que los IDs no estén vacíos
         guard !currentUserId.isEmpty, !targetUserId.isEmpty else {
             let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "IDs de usuario vacíos"])
-            print("❌ Error: IDs vacíos")
             completion(error)
             return
         }
@@ -2120,7 +1916,6 @@ class FirestoreService: ObservableObject {
         // Verificar que no sean el mismo usuario
         guard currentUserId != targetUserId else {
             let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No puedes dejar de seguirte a ti mismo"])
-            print("❌ Error: Mismo usuario")
             completion(error)
             return
         }
@@ -2128,23 +1923,19 @@ class FirestoreService: ObservableObject {
         // LIMPIAR CACHE ANTES DE VERIFICAR
         let cacheKey = "\(currentUserId)_\(targetUserId)"
         followingCache.removeValue(forKey: cacheKey)
-        print("🧹 Cache limpiado para: \(cacheKey)")
         
         // Verificar primero si realmente está siguiendo (SIN CACHE)
         db.collection("users").document(currentUserId).collection("following").document(targetUserId).getDocument { [weak self] snapshot, error in
             guard let self = self else { return }
             
             if let error = error {
-                print("❌ Error verificando estado inicial: \(error.localizedDescription)")
                 completion(error)
                 return
             }
             
             let isCurrentlyFollowing = snapshot?.exists == true
-            print("🔍 ¿Está siguiendo actualmente? \(isCurrentlyFollowing)")
             
             if !isCurrentlyFollowing {
-                print("⚠️ El usuario ya no está siguiendo a este usuario")
                 completion(nil)
                 return
             }
@@ -2156,9 +1947,6 @@ class FirestoreService: ObservableObject {
             let followingRef = self.db.collection("users").document(currentUserId).collection("following").document(targetUserId)
             let followerRef = self.db.collection("users").document(targetUserId).collection("followers").document(currentUserId)
             
-            print("📝 Eliminando documentos:")
-            print("   - Following: users/\(currentUserId)/following/\(targetUserId)")
-            print("   - Follower: users/\(targetUserId)/followers/\(currentUserId)")
             
             // Añadir operaciones de borrado al batch
             batch.deleteDocument(followingRef)
@@ -2167,26 +1955,20 @@ class FirestoreService: ObservableObject {
             // Ejecutar batch
             batch.commit { error in
                 if let error = error {
-                    print("❌ Error al dejar de seguir: \(error.localizedDescription)")
                     completion(error)
                 } else {
-                    print("✅ Batch commit exitoso")
                     
                     // LIMPIAR CACHE DESPUÉS DEL UNFOLLOW EXITOSO
                     self.followingCache.removeValue(forKey: cacheKey)
-                    print("🧹 Cache limpiado post-unfollow")
                     
                     // VERIFICACIÓN POST-UNFOLLOW CON DELAY (sin cache)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.db.collection("users").document(currentUserId).collection("following").document(targetUserId).getDocument { snapshot, error in
                             if let error = error {
-                                print("❌ Error en verificación post-unfollow: \(error)")
                             } else {
                                 let stillFollowing = snapshot?.exists == true
-                                print("🔍 Verificación post-unfollow (directa) - ¿Sigue siguiendo? \(stillFollowing)")
                                 
                                 if stillFollowing {
-                                    print("🚨 CRÍTICO: El unfollow no se aplicó en Firestore")
                                     // Intentar force unfollow
                                     self.forceUnfollow(currentUserId: currentUserId, targetUserId: targetUserId) { forceError in
                                         if let forceError = forceError {
@@ -2196,7 +1978,6 @@ class FirestoreService: ObservableObject {
                                         }
                                     }
                                 } else {
-                                    print("✅ Unfollow verificado correctamente")
                                     completion(nil)
                                 }
                             }
@@ -2244,7 +2025,6 @@ class FirestoreService: ObservableObject {
         
         // Verificar cache primero
         if let cachedResult = followingCache[cacheKey] {
-            print("📱 Cache hit para \(cacheKey): \(cachedResult)")
             completion(cachedResult)
             return
         }
@@ -2257,17 +2037,14 @@ class FirestoreService: ObservableObject {
     func invalidateFollowingCache(currentUserId: String, targetUserId: String) {
         let cacheKey = "\(currentUserId)_\(targetUserId)"
         followingCache.removeValue(forKey: cacheKey)
-        print("🧹 Cache invalidado para: \(cacheKey)")
     }
 
     func clearFollowingCache() {
         followingCache.removeAll()
-        print("🧹 Cache de following limpiado completamente")
     }
 
     // MARK: - FUNCIÓN FORCE UNFOLLOW (para casos extremos)
     func forceUnfollow(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        print("🚨 FORZANDO UNFOLLOW - MODO AGRESIVO")
         
         let group = DispatchGroup()
         var errors: [Error] = []
@@ -2276,10 +2053,7 @@ class FirestoreService: ObservableObject {
         group.enter()
         db.collection("users").document(currentUserId).collection("following").document(targetUserId).delete { error in
             if let error = error {
-                print("❌ Error borrando following: \(error)")
                 errors.append(error)
-            } else {
-                print("✅ Following borrado")
             }
             group.leave()
         }
@@ -2288,10 +2062,7 @@ class FirestoreService: ObservableObject {
         group.enter()
         db.collection("users").document(targetUserId).collection("followers").document(currentUserId).delete { error in
             if let error = error {
-                print("❌ Error borrando follower: \(error)")
                 errors.append(error)
-            } else {
-                print("✅ Follower borrado")
             }
             group.leave()
         }
@@ -2307,15 +2078,9 @@ class FirestoreService: ObservableObject {
             if let firstError = errors.first {
                 completion(firstError)
             } else {
-                print("✅ Force unfollow completado")
-                
                 // Verificación final
                 self.isFollowing(currentUserId: currentUserId, targetUserId: targetUserId) { stillFollowing in
-                    if stillFollowing {
-                        print("🚨 CRÍTICO: Force unfollow falló - el usuario sigue siguiendo")
-                    } else {
-                        print("✅ Force unfollow exitoso - ya no está siguiendo")
-                    }
+                    // Verification completed
                 }
                 
                 completion(nil)
@@ -2430,15 +2195,12 @@ class FirestoreService: ObservableObject {
 
     // MARK: - RESTO DE FUNCIONES SIN CAMBIOS
     func updateBio(userId: String, bio: String, completion: @escaping (Error?) -> Void) {
-        print("Actualizando bio para usuario: \(userId)")
         self.db.collection("users").document(userId).updateData([
             "bio": bio
         ]) { error in
             if let error = error {
-                print("Error al actualizar bio: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Bio actualizada con éxito")
                 completion(nil)
             }
         }
@@ -2447,54 +2209,25 @@ class FirestoreService: ObservableObject {
 
 
     func blockUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        print("Usuario \(currentUserId) bloqueando a \(targetUserId)")
-        
         self.db.collection("users").document(currentUserId).updateData([
             "blockedUsers": FieldValue.arrayUnion([targetUserId])
         ]) { error in
             if let error = error {
-                print("Error al bloquear usuario: \(error.localizedDescription)")
                 completion(error)
                 return
             }
-
-            print("Usuario \(targetUserId) bloqueado con éxito por \(currentUserId)")
             
             // Limpiar cache antes de unfollows
             self.invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
             self.invalidateFollowingCache(currentUserId: targetUserId, targetUserId: currentUserId)
             
             self.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
-                if let error = error {
-                    print("Error al eliminar relación de seguimiento: \(error.localizedDescription)")
-                }
                 self.unfollowUser(currentUserId: targetUserId, targetUserId: currentUserId) { error in
-                    if let error = error {
-                        print("Error al eliminar relación de seguimiento inversa: \(error.localizedDescription)")
-                    }
-                    
                     ChatService().deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: targetUserId) { error in
-                        if let error = error {
-                            print("Error al eliminar conversaciones: \(error.localizedDescription)")
-                        }
-                        
                         self.deleteNotificationsBetweenUsers(recipientId: currentUserId, senderId: targetUserId) { error in
-                            if let error = error {
-                                print("Error al eliminar notificaciones de \(currentUserId): \(error.localizedDescription)")
-                            }
                             self.deleteNotificationsBetweenUsers(recipientId: targetUserId, senderId: currentUserId) { error in
-                                if let error = error {
-                                    print("Error al eliminar notificaciones de \(targetUserId): \(error.localizedDescription)")
-                                }
-                                
                                 self.deleteVisitsBetweenUsers(userId: currentUserId, visitorId: targetUserId) { error in
-                                    if let error = error {
-                                        print("Error al eliminar visitas de \(currentUserId): \(error.localizedDescription)")
-                                    }
                                     self.deleteVisitsBetweenUsers(userId: targetUserId, visitorId: currentUserId) { error in
-                                        if let error = error {
-                                            print("Error al eliminar visitas de \(targetUserId): \(error.localizedDescription)")
-                                        }
                                         completion(nil)
                                     }
                                 }
@@ -2507,8 +2240,6 @@ class FirestoreService: ObservableObject {
     }
 
     func unblockUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        print("Usuario \(currentUserId) desbloqueando a \(targetUserId)")
-        
         // Limpiar cache al desbloquear
         invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
         invalidateFollowingCache(currentUserId: targetUserId, targetUserId: currentUserId)
@@ -2517,10 +2248,8 @@ class FirestoreService: ObservableObject {
             "blockedUsers": FieldValue.arrayRemove([targetUserId])
         ]) { error in
             if let error = error {
-                print("Error al desbloquear usuario: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Usuario \(targetUserId) desbloqueado con éxito por \(currentUserId)")
                 completion(nil)
             }
         }
@@ -2560,7 +2289,6 @@ class FirestoreService: ObservableObject {
     func checkActiveHours(user: AppUser, completion: @escaping (Result<Bool, Error>) -> Void) {
         guard let startHour = user.activeHoursStart, let endHour = user.activeHoursEnd,
               !startHour.isEmpty, !endHour.isEmpty else {
-            print("No hay horario activo definido para \(user.id), permitiendo mensaje")
             completion(.success(true))
             return
         }
@@ -2571,7 +2299,6 @@ class FirestoreService: ObservableObject {
 
         guard let startDate = dateFormatter.date(from: startHour),
               let endDate = dateFormatter.date(from: endHour) else {
-            print("Formato de hora inválido para \(user.id): \(startHour)-\(endHour)")
             completion(.success(true)) // Permitir si el formato es inválido
             return
         }
@@ -2593,7 +2320,6 @@ class FirestoreService: ObservableObject {
             isWithinHours = currentMinutes >= startMinutes || currentMinutes <= endMinutes
         }
 
-        print("Horario activo para \(user.id): \(startHour)-\(endHour), dentro del horario: \(isWithinHours)")
         completion(.success(isWithinHours))
     }
 
@@ -2601,26 +2327,20 @@ class FirestoreService: ObservableObject {
         db.collection("users").document(userId).updateData([
             "notificationPreferences": preferences
         ]) { error in
-            if let error = error {
-                print("Error updating notification preferences: \(error)")
-            }
             completion(error)
         }
     }
 
     private func deleteNotificationsBetweenUsers(recipientId: String, senderId: String, completion: @escaping (Error?) -> Void) {
-        print("Eliminando notificaciones de \(senderId) para \(recipientId)")
         self.db.collection("users").document(recipientId).collection("notifications")
             .whereField("senderId", isEqualTo: senderId)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al buscar notificaciones: \(error.localizedDescription)")
                     completion(error)
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No se encontraron notificaciones")
                     completion(nil)
                     return
                 }
@@ -2632,10 +2352,8 @@ class FirestoreService: ObservableObject {
 
                 batch.commit { error in
                     if let error = error {
-                        print("Error al eliminar notificaciones: \(error.localizedDescription)")
                         completion(error)
                     } else {
-                        print("Notificaciones eliminadas con éxito")
                         completion(nil)
                     }
                 }
@@ -2643,47 +2361,37 @@ class FirestoreService: ObservableObject {
     }
 
     private func deleteVisitsBetweenUsers(userId: String, visitorId: String, completion: @escaping (Error?) -> Void) {
-        print("Eliminando visitas de \(visitorId) para \(userId)")
         self.db.collection("users").document(userId).collection("visits").document(visitorId).delete { error in
             if let error = error {
-                print("Error al eliminar visita: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Visita eliminada con éxito")
                 completion(nil)
             }
         }
     }
 
     func updateActiveHours(userId: String, startHour: String?, endHour: String?, completion: @escaping (Error?) -> Void) {
-        print("Actualizando horario de actividad para usuario \(userId): \(startHour ?? "nil") - \(endHour ?? "nil")")
         self.db.collection("users").document(userId).updateData([
             "activeHoursStart": startHour as Any,
             "activeHoursEnd": endHour as Any
         ]) { error in
             if let error = error {
-                print("Error al actualizar horario de actividad: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Horario de actividad actualizado con éxito")
                 completion(nil)
             }
         }
     }
 
     func canViewContent(currentUserId: String, targetUserId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
-        print("Verificando si \(currentUserId) puede ver el contenido de \(targetUserId)")
-
         self.fetchUserProfile(userId: targetUserId) { [weak self] result in
             guard let self = self else {
-                print("Instancia liberada antes de completar la verificación de contenido")
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"])))
                 return
             }
             switch result {
             case .success(let targetUser):
                 if targetUser.blockedUsers.contains(currentUserId) {
-                    print("El usuario \(targetUserId) ha bloqueado a \(currentUserId)")
                     completion(.success(false))
                     return
                 }
@@ -2692,13 +2400,11 @@ class FirestoreService: ObservableObject {
                     switch result {
                     case .success(let currentUser):
                         if currentUser.blockedUsers.contains(targetUserId) {
-                            print("El usuario \(currentUserId) ha bloqueado a \(targetUserId)")
                             completion(.success(false))
                             return
                         }
 
                         if !targetUser.isPrivate {
-                            print("El perfil de \(targetUserId) es público")
                             completion(.success(true))
                             return
                         }
@@ -2728,7 +2434,6 @@ class FirestoreService: ObservableObject {
             case .success(let user):
                 // Verificar preferencias de notificación
                 guard user.notificationPreferences?[type.rawValue] ?? true else {
-                    print("Notificación de tipo \(type.rawValue) desactivada para \(recipientId)")
                     completion(nil)
                     return
                 }
@@ -2749,7 +2454,6 @@ class FirestoreService: ObservableObject {
                     completion(error)
                 }
             case .failure(let error):
-                print("Error fetching user profile: \(error)")
                 completion(error)
             }
         }
@@ -2785,7 +2489,6 @@ class FirestoreService: ObservableObject {
             .limit(to: 50)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error al obtener notificaciones: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
@@ -2837,10 +2540,8 @@ class FirestoreService: ObservableObject {
 
             do {
                 let moment = try document.data(as: Moment.self)
-
                 completion(.success(moment))
             } catch {
-                print("Error al decodificar momento: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
@@ -2932,7 +2633,7 @@ class FirestoreService: ObservableObject {
                 case .success(let moments):
                     allMoments.append(contentsOf: moments)
                 case .failure(let error):
-                    print("Error al obtener momentos de \(userId): \(error.localizedDescription)")
+                    break
                 }
                 group.leave()
             }
@@ -3004,28 +2705,22 @@ extension FirestoreService {
     
     // ✅ NUEVA FUNCIÓN: addCommentReaction (similar a addReaction pero para comentarios)
     func addCommentReaction(to momentId: String, commentId: String, reaction: String, userId: String, authorId: String, completion: @escaping (Error?) -> Void) {
-        print("❤️ Toggleando reacción '\(reaction)' en comentario \(commentId)")
-        
         let commentRef = db.collection("users").document(userId).collection("moments").document(momentId).collection("comments").document(commentId)
         
         commentRef.getDocument { snapshot, error in
             if let error = error {
-                print("❌ Error al obtener comentario para reacción: \(error.localizedDescription)")
                 completion(error)
                 return
             }
             
             guard let data = snapshot?.data(),
                   var reactions = data["reactions"] as? [String: [String]] else {
-                print("⚠️ No se encontraron datos de reacciones, inicializando...")
                 // Si no hay reacciones, inicializar con estructura vacía
                 let initialReactions = [reaction: [Auth.auth().currentUser?.uid ?? ""]]
                 commentRef.updateData(["reactions": initialReactions]) { error in
                     if let error = error {
-                        print("❌ Error al inicializar reacciones: \(error.localizedDescription)")
                         completion(error)
                     } else {
-                        print("✅ Reacción inicial agregada")
                         // Enviar notificación
                         self.sendCommentReactionNotification(
                             to: authorId,
@@ -3047,11 +2742,9 @@ extension FirestoreService {
             if wasLiked {
                 // Remover reacción
                 reactionUsers.removeAll { $0 == currentUserId }
-                print("👎 Reacción '\(reaction)' removida por \(currentUserId)")
             } else {
                 // Agregar reacción
                 reactionUsers.append(currentUserId)
-                print("👍 Reacción '\(reaction)' agregada por \(currentUserId)")
                 
                 // Enviar notificación solo para nuevas reacciones (no cuando se remueve)
                 if authorId != currentUserId {
@@ -3076,10 +2769,8 @@ extension FirestoreService {
             
             commentRef.updateData(updateData) { error in
                 if let error = error {
-                    print("❌ Error al actualizar reacciones del comentario: \(error.localizedDescription)")
                     completion(error)
                 } else {
-                    print("✅ Reacciones del comentario actualizadas exitosamente")
                     completion(nil)
                 }
             }
@@ -3101,10 +2792,11 @@ extension FirestoreService {
                     momentId: momentId,
                     commentId: commentId
                 )
-                print("📱 Notificación de reacción '\(reaction)' enviada de \(user.username) a \(recipientId)")
+                // Notificación enviada
                 
             case .failure(let error):
-                print("❌ Error al obtener usuario para notificación: \(error.localizedDescription)")
+                // Error silencioso
+                break
             }
         }
     }
@@ -3142,7 +2834,6 @@ extension FirestoreService {
         
         commentRef.getDocument { snapshot, error in
             if let error = error {
-                print("Error verificando reacción: \(error.localizedDescription)")
                 completion(false)
                 return
             }
@@ -3179,8 +2870,6 @@ extension FirestoreService {
         allowSharing: Bool = true,
         completion: @escaping (String?, Error?) -> Void
     ) {
-        print("🎯 Creando momento con visibilidad: \(audienceSetting)")
-        
         // Map AudienceSetting to ContentAudience
         let contentAudience: ContentAudience
         switch audienceSetting {
@@ -3272,9 +2961,7 @@ extension FirestoreService {
                             authorId: userId,
                             allowedUsers: customViewers
                         ) { error in
-                            if let error = error {
-                                print("⚠️ Error guardando audiencia personalizada: \(error)")
-                            }
+                            // Error silencioso
                         }
                     }
                     
@@ -3284,28 +2971,16 @@ extension FirestoreService {
                         .collection("moments")
                         .addDocument(data: momentData) { error in
                             if let error = error {
-                                print("❌ Error al crear momento: \(error.localizedDescription)")
                                 completion(nil, error)
                             } else {
-                                print("✅ Momento creado exitosamente con:")
-                                print("   - Audiencia: \(contentAudience.rawValue)")
-                                print("   - ID: \(ref!.documentID)")
-                                if let videoRes = videoResolution {
-                                    print("   - Video: \(videoRes)")
-                                }
-                                if let thumbUrl = thumbnailUrl {
-                                    print("   - Thumbnail: \(thumbUrl)")
-                                }
                                 completion(ref!.documentID, nil)
                             }
                         }
                 } catch {
-                    print("❌ Error al codificar momento: \(error.localizedDescription)")
                     completion(nil, error)
                 }
                 
             case .failure(let error):
-                print("❌ Error al obtener el usuario para crear momento: \(error.localizedDescription)")
                 completion(nil, error)
             }
         }
@@ -3419,9 +3094,7 @@ extension FirestoreService {
                             authorId: userId,
                             allowedUsers: customViewers
                         ) { error in
-                            if let error = error {
-                                print("⚠️ Error guardando audiencia personalizada: \(error)")
-                            }
+                            // Error silencioso
                         }
                     }
 
@@ -3430,20 +3103,16 @@ extension FirestoreService {
                         .collection("stories").document(storyId)
                         .setData(storyData) { error in
                             if let error = error {
-                                print("❌ Error al crear historia: \(error.localizedDescription)")
                                 completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
                             } else {
-                                print("✅ Historia creada exitosamente con audiencia: \(audienceSetting.rawValue), ID: \(storyId)")
                                 completion(storyId, nil) // 🔥 DEVOLVER EL ID REAL
                             }
                         }
                 } catch {
-                    print("❌ Error al codificar historia: \(error.localizedDescription)")
                     completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
                 }
 
             case .failure(let error):
-                print("❌ Error al obtener el usuario para crear historia: \(error.localizedDescription)")
                 completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
             }
         }
@@ -3568,8 +3237,6 @@ extension FirestoreService {
         allowSharing: Bool = true,
         completion: @escaping (String?, Error?) -> Void
     ) {
-        print("🎯 Creando momento con lista personalizada: \(customListId)")
-        
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
                 completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
@@ -3651,24 +3318,16 @@ extension FirestoreService {
                         .collection("moments")
                         .addDocument(data: momentData) { error in
                             if let error = error {
-                                print("❌ Error al crear momento con lista: \(error.localizedDescription)")
                                 completion(nil, error)
                             } else {
-                                print("✅ Momento creado exitosamente con lista personalizada")
-                                print("   - ID: \(ref!.documentID)")
-                                if let videoRes = videoResolution {
-                                    print("   - Video: \(videoRes)")
-                                }
                                 completion(ref!.documentID, nil)
                             }
                         }
                 } catch {
-                    print("❌ Error al codificar momento: \(error.localizedDescription)")
                     completion(nil, error)
                 }
                 
             case .failure(let error):
-                print("❌ Error al obtener el usuario: \(error.localizedDescription)")
                 completion(nil, error)
             }
         }
@@ -3688,8 +3347,6 @@ extension FirestoreService {
         backgroundFrameURL: String? = nil, // ✅ AÑADIDO: URL del frame de fondo
         completion: @escaping (String?, Error?) -> Void // 🔥 ACTUALIZADO: Ahora devuelve String? para el storyId
     ) {
-        print("🎯 Creando historia con lista personalizada: \(customListId)")
-        
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
                 completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
@@ -3760,20 +3417,16 @@ extension FirestoreService {
                         .collection("stories").document(storyId)
                         .setData(storyData) { error in
                             if let error = error {
-                                print("❌ Error al crear historia con lista: \(error.localizedDescription)")
                                 completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
                             } else {
-                                print("✅ Historia creada exitosamente con lista personalizada, ID: \(storyId)")
                                 completion(storyId, nil) // 🔥 DEVOLVER EL ID REAL
                             }
                         }
                 } catch {
-                    print("❌ Error al codificar historia: \(error.localizedDescription)")
                     completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
                 }
 
             case .failure(let error):
-                print("❌ Error al obtener el usuario: \(error.localizedDescription)")
                 completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
             }
         }

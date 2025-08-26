@@ -103,7 +103,6 @@ class AnalyticsService: ObservableObject {
     
     func trackFeatureUsage(_ featureName: String) {
         guard let userId = Auth.auth().currentUser?.uid, !userId.isEmpty else {
-            print("Error: Invalid or missing userId")
             return
         }
         
@@ -113,7 +112,6 @@ class AnalyticsService: ObservableObject {
         let dateString = dateFormatter.string(from: today)
         
         guard !dateString.isEmpty else {
-            print("Error: Invalid dateString")
             return
         }
         
@@ -121,7 +119,6 @@ class AnalyticsService: ObservableObject {
         
         featureRef.getDocument { snapshot, error in
             if let error = error {
-                print("Error fetching feature usage: \(error)")
                 return
             }
             var data = snapshot?.data() ?? [:]
@@ -131,7 +128,6 @@ class AnalyticsService: ObservableObject {
             
             featureRef.setData(data, merge: true) { error in
                 if let error = error {
-                    print("Error updating feature usage: \(error)")
                 }
             }
         }

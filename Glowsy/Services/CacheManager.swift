@@ -44,7 +44,6 @@ class CacheManager: ObservableObject {
     @objc private func checkCacheOnAppActivation() {
         let currentSize = getCurrentCacheSize()
         if currentSize > warningThreshold {
-            print("⚠️ Cache en \(currentSize / 1024 / 1024) MB, verificando si necesita limpieza")
             if currentSize > maxCacheSize {
                 performIntelligentCleanup()
             }
@@ -77,15 +76,12 @@ class CacheManager: ObservableObject {
         let currentSize = getCurrentCacheSize()
         
         if currentSize > maxCacheSize {
-            print("🧹 Cache supera 150MB (\(currentSize / 1024 / 1024) MB), iniciando limpieza inteligente")
             
             // ✅ LIMPIEZA INTELIGENTE: Solo borrar lo más antiguo y menos usado
             cleanupOldCache()
             cleanupUnusedCache()
             
-            print("✅ Limpieza inteligente completada")
         } else {
-            print("✅ Cache en buen tamaño: \(currentSize / 1024 / 1024) MB")
         }
         
         userDefaults.set(Date(), forKey: lastCleanupKey)
@@ -153,11 +149,9 @@ class CacheManager: ObservableObject {
             }
             
             if totalSize > 0 {
-                print("🧹 Archivos temporales limpiados: \(totalSize / 1024 / 1024) MB liberados")
             }
             
         } catch {
-            print("⚠️ Error limpiando archivos temporales: \(error)")
         }
     }
     
@@ -174,22 +168,18 @@ class CacheManager: ObservableObject {
     
     // ✅ MÉTODO PÚBLICO: Limpieza manual si es necesario
     func forceCleanup() {
-        print("🧹 Limpieza manual de cache iniciada")
         cleanupOldCache()
         cleanupUnusedCache()
         userDefaults.set(Date(), forKey: lastCleanupKey)
-        print("✅ Limpieza manual completada")
     }
     
     /// Limpia archivos temporales cuando la app va a background
     @objc private func cleanupOnBackground() {
-        print("🌙 App va a background, limpiando archivos temporales...")
         cleanupTemporaryFiles()
     }
     
     /// Limpia archivos temporales cuando la app se cierra
     @objc private func cleanupOnTermination() {
-        print("💀 App se va a cerrar, limpiando archivos temporales...")
         cleanupTemporaryFiles()
     }
 }

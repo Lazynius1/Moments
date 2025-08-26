@@ -371,8 +371,8 @@ struct ActionSubCardView: View {
                 DispatchQueue.main.async {
                     self.isSaved = saved
                 }
-            case .failure(let error):
-                print("Error checking if moment is saved: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -382,7 +382,6 @@ struct ActionSubCardView: View {
         // Usar toggleSaveMoment en lugar de saveMoment/removeSavedMoment
         firestoreService.toggleSaveMoment(userId: userId, momentId: momentId) { error in
             if let error = error {
-                print("Error toggling save: \(error.localizedDescription)")
             } else {
                 DispatchQueue.main.async {
                     self.isSaved.toggle() // Actualizar estado local

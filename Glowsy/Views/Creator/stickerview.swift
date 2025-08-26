@@ -1034,7 +1034,6 @@ struct StickerPickerView: View {
                     self.isLoadingGiphy = false
                 }
             } catch {
-                print("Error decoding Trending Stickers: \(error)")
                 DispatchQueue.main.async {
                     self.isLoadingGiphy = false
                 }
@@ -1061,7 +1060,6 @@ struct StickerPickerView: View {
                     self.isLoadingGiphy = false
                 }
             } catch {
-                print("Error searching Trending Stickers: \(error)")
                 DispatchQueue.main.async {
                     self.isLoadingGiphy = false
                 }
@@ -1246,7 +1244,6 @@ struct StickerPickerView: View {
                     createWeatherStickerWithData(weather)
                 }
             } catch {
-                print("❌ Error obteniendo clima: \(error)")
                 // ✅ FALLBACK: Crear sticker con placeholder
                 await MainActor.run {
                     createWeatherStickerWithPlaceholder()
@@ -1702,7 +1699,6 @@ struct StickerPickerView: View {
     // MARK: - Generar sticker con placeholder (cuando no se encuentra usuario)
     private func generateMentionStickerWithPlaceholder(_ username: String) {
         // ✅ No crear sticker si no se encuentra el usuario
-        print("⚠️ Usuario no encontrado: @\(username) - No se creará sticker de mención")
     }
 
     // MARK: - Función principal para generar el sticker (ESTILO INSTAGRAM)
@@ -2416,7 +2412,6 @@ struct SmartLocationInputView: View {
                 self.isLoadingNearby = false
                 
                 guard let response = response else {
-                    print("Error searching nearby: \(error?.localizedDescription ?? "Unknown")")
                     return
                 }
                 
@@ -2470,7 +2465,6 @@ struct SmartLocationInputView: View {
                 self.isSearching = false
                 
                 guard let response = response else {
-                    print("Error searching places: \(error?.localizedDescription ?? "Unknown")")
                     self.searchResults = []
                     return
                 }
@@ -2564,7 +2558,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location error: \(error.localizedDescription)")
     }
     
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
@@ -2774,7 +2767,6 @@ struct ModernMentionInputView: View {
                             return user1.username < user2.username
                         }
                 case .failure(let error):
-                    print("Error searching users: \(error)")
                     self.searchResults = []
                 }
                 self.isSearching = false
@@ -3617,7 +3609,6 @@ extension StickerPickerView {
                     content: "Te mencionó en una historia"
                 )
                 
-                print("📧 Notificación de mención enviada a @\(username) para historia \(storyId)")
             }
         }
     }

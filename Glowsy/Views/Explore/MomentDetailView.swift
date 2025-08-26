@@ -255,7 +255,6 @@ struct MomentDetailView: View {
                     HStack(spacing: 4) {
                         Button(action: {
                             if !moment.authorId.isEmpty {
-                                print("🔍 Navegando al perfil del usuario: \(moment.authorId)")
                                 navigateToProfile = true
                             }
                         }) {
@@ -353,85 +352,162 @@ struct MomentDetailView: View {
         .padding(.top, 20)
     }
     
+    // ✅ NUEVO: Computed property para mediaItems (consistente con otras vistas)
+    private var mediaItems: [MediaItem] {
+        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
+        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
+            return mediaItems
+        }
+        
+        // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
+        var items: [MediaItem] = []
+        if let imagePath = moment.imagePath, !imagePath.isEmpty {
+            items.append(MediaItem(type: .image, url: imagePath))
+        }
+        if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
+            items.append(MediaItem(type: .video, url: videoUrl))
+        }
+        return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
+    }
+    
+    // ✅ NUEVO: Estado para carrusel
+    @State private var currentImageIndex = 0
+    
+    // ✅ NUEVO: Función para colores de indicadores multicolores
+    private func getIndicatorColor(for index: Int) -> Color {
+        let colors: [Color] = [
+            Color(hex: "#5b2c6f"), // Púrpura
+            Color(hex: "#5b2c6f"), // Azul
+            Color(hex: "#40dfcf"), // Turquesa
+            Color(hex: "#ff6b6b"), // Rojo coral
+            Color(hex: "#4ecdc4"), // Verde azulado
+            Color(hex: "#45b7d1"), // Azul claro
+            Color(hex: "#96ceb4"), // Verde menta
+            Color(hex: "#feca57")  // Amarillo
+        ]
+        
+        return colors[index % colors.count]
+    }
+    
     private var momentImageView: some View {
-        Group {
-            if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
-                // ✅ NUEVO: Manejo de video usando ModernVideoPlayer del feed
-                ModernVideoPlayer(
-                    url: videoUrl,
-                    aspectRatio: detectedAspectRatio,
-                    videoId: moment.id ?? "detail_\(UUID().uuidString)"
-                )
-                .frame(height: cardHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 10)
-                .clipped()
-                .onAppear {
-                    // ✅ Detectar aspect ratio del video
-                    detectVideoAspectRatio(from: videoUrl)
-                }
-            } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-                KFImage(url)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: cardHeight)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
-                            )
-                    }
-                    .onSuccess { result in
-                        let imageSize = result.image.size
-                        let ratio = imageSize.width / imageSize.height
-                        
-                        DispatchQueue.main.async {
-                            if ratio > 0 && ratio.isFinite {
-                                self.detectedAspectRatio = ratio
-                                self.classifyAspectRatio(ratio)
-                            }
+        ZStack {
+            // ✅ NUEVO: EnhancedCarouselView para múltiples archivos
+            EnhancedCarouselView(
+                mediaItems: mediaItems,
+                currentIndex: $currentImageIndex,
+                aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
+                allMoments: [moment], // Solo el momento actual
+                currentMoment: moment // El momento actual
+            )
+            .frame(height: cardHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 10)
+            .onAppear {
+                detectAspectRatio()
+            }
+            
+            // ✅ NUEVO: Indicadores de media múltiple mejorados
+            if mediaItems.count > 1 {
+                VStack {
+                    HStack(spacing: 8) {
+                        ForEach(0..<mediaItems.count, id: \.self) { index in
+                            Capsule()
+                                .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
+                                .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
+                                .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
+                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                         }
                     }
-                    .onFailure { error in
-                        print("Error loading moment image: \(error)")
+                    .padding(.top, 20)
+                    Spacer()
+                }
+            }
+        }
+    }
+    
+    // ✅ NUEVO: Función para detectar aspect ratio (igual que ModernMomentDetailView)
+    private func detectAspectRatio() {
+        // ✅ PRIMERO: Intentar usar aspect ratio guardado en el momento
+        if let savedAspectRatio = moment.aspectRatio {
+            let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
+            
+            DispatchQueue.main.async {
+                // ✅ Validar que el valor sea finito y positivo
+                let ratioValue = aspectRatioFromDB.value
+                if ratioValue > 0 && ratioValue.isFinite {
+                    self.detectedAspectRatio = ratioValue
+                } else {
+                    self.detectedAspectRatio = 1.0 // Fallback a square
+                }
+                
+                // Clasificar el tipo con ratios exactos
+                switch aspectRatioFromDB {
+                case .landscape:
+                    self.aspectRatioType = .landscape
+                case .portrait:
+                    self.aspectRatioType = .portrait
+                case .square:
+                    self.aspectRatioType = .square
+                case .nineBySixteen:
+                    self.aspectRatioType = .reels // ✅ CORREGIDO: Usar reels para 9:16
+                }
+            }
+            return
+        }
+        
+        // ✅ FALLBACK: Si no hay aspect ratio guardado, detectar de la imagen
+        guard let firstItem = mediaItems.first, !firstItem.url.isEmpty else {
+            DispatchQueue.main.async {
+                self.detectedAspectRatio = 0.8 // Fallback a 4:5
+                self.aspectRatioType = .portrait
+            }
+            return
+        }
+        
+        if firstItem.type == .image {
+            KFImage(URL(string: firstItem.url))
+                .onSuccess { result in
+                    let imageSize = result.image.size
+                    let ratio = imageSize.width / imageSize.height
+                    
+                    DispatchQueue.main.async {
+                        // ✅ Validar ratio calculado
+                        if ratio > 0 && ratio.isFinite {
+                            self.detectedAspectRatio = ratio
+                            self.classifyAspectRatio(ratio)
+                        } else {
+                            self.detectedAspectRatio = 1.0
+                            self.aspectRatioType = .square
+                        }
                     }
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: cardHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 10)
-                    .clipped()
-            } else {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: cardHeight)
-                    .overlay(
-                        Image(systemName: "photo.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.white.opacity(0.6))
-                    )
+                }
+                .onFailure { error in
+                    DispatchQueue.main.async {
+                        self.detectedAspectRatio = 0.8 // Fallback a 4:5
+                        self.aspectRatioType = .portrait
+                    }
+                }
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 1, height: 1) // ✅ Frame mínimo para que funcione
+        } else if firstItem.type == .video {
+            // Para videos, usar el aspect ratio detectado
+            if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
+                classifyAspectRatio(detectedAspectRatio)
+            } else if !firstItem.url.isEmpty {
+                // Si no se ha detectado, detectarlo ahora
+                detectVideoAspectRatio(from: firstItem.url)
             }
         }
     }
@@ -730,7 +806,6 @@ struct MomentDetailView: View {
                     }
                 }
             } catch {
-                print("❌ Error detectando aspect ratio del video: \(error)")
                 // Usar ratio por defecto
                 await MainActor.run {
                     self.detectedAspectRatio = 1.0
@@ -756,9 +831,7 @@ struct MomentDetailView: View {
             content: newContent
         ) { error in
             if let error = error {
-                print("Error al actualizar momento: \(error)")
             } else {
-                print("Momento actualizado exitosamente")
             }
         }
     }
@@ -777,9 +850,7 @@ struct MomentDetailView: View {
                 self.isDeleting = false
                 
                 if let error = error {
-                    print("Error al eliminar momento: \(error)")
                 } else {
-                    print("Momento eliminado exitosamente")
                     self.dismiss()
                 }
             }
@@ -1105,7 +1176,6 @@ struct VerticalReactionButton: View {
                         self.totalReactionCount -= 1
                     }
                 }
-                print("Error adding reaction: \(error)")
             }
         }
     }
@@ -1137,7 +1207,6 @@ struct VerticalReactionButton: View {
                         self.totalReactionCount += 1
                     }
                 }
-                print("Error removing reaction: \(error)")
             }
         }
     }
@@ -1161,7 +1230,6 @@ struct ProfiileImageView: View {
                             )
                     }
                     .onFailure { error in
-                        print("Error loading profile image: \(error)")
                     }
                     .resizable()
                     .scaledToFill()
@@ -1482,8 +1550,8 @@ class MomentDetailViewModel: ObservableObject {
                 switch result {
                 case .success(let isSaved):
                     self?.isSaved = isSaved
-                case .failure(let error):
-                    print("Error checking saved status: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -1540,8 +1608,8 @@ class MomentDetailViewModel: ObservableObject {
                 case .success(let profile):
                     self?.authorProfile = profile
                     self?.checkIfFollowing()
-                case .failure(let error):
-                    print("Error loading author profile: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -1554,8 +1622,8 @@ class MomentDetailViewModel: ObservableObject {
                 switch result {
                 case .success(let connections):
                     self?.isFollowing = connections.contains { $0.userId == targetUserId }
-                case .failure(let error):
-                    print("Error checking follow status: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }

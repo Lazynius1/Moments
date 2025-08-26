@@ -33,7 +33,6 @@ struct DeactivatedAccountView: View {
             Text(errorMessage)
         }
         .onChange(of: authService.isVerifyingAccount) { newValue in
-            print("🔄 DeactivatedAccountView - isVerifyingAccount cambió a: \(newValue)")
             if !newValue && isReactivating {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isReactivating = false
@@ -41,7 +40,6 @@ struct DeactivatedAccountView: View {
             }
         }
         .onChange(of: authService.authState) { newState in
-            print("🔄 DeactivatedAccountView - authState cambió a: \(newState)")
             if newState == .authenticated {
                 isReactivating = false
             }
@@ -50,25 +48,18 @@ struct DeactivatedAccountView: View {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
                 isVisible = true
             }
-            print("🔄 DeactivatedAccountView apareció")
-            print("   - isVerifyingAccount: \(authService.isVerifyingAccount)")
-            print("   - authState: \(authService.authState)")
-            print("   - isAccountDeactivated: \(authService.isAccountDeactivated)")
         }
     }
     
     private func reactivateAccount() {
-        print("🔄 Iniciando reactivación de cuenta")
         isReactivating = true
         
         authService.reactivateAccount { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("✅ Reactivación exitosa - esperando cambio de estado")
                     break
                 case .failure(let error):
-                    print("❌ Error en reactivación: \(error.localizedDescription)")
                     isReactivating = false
                     errorMessage = error.localizedDescription
                     showError = true

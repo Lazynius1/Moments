@@ -1237,7 +1237,6 @@ class ArchiveViewModel: ObservableObject {
                     self?.isLoading = false
                     
                     if let error = error {
-                        print("Error loading archived stories: \(error.localizedDescription)")
                         return
                     }
                     
@@ -1270,7 +1269,6 @@ class ArchiveViewModel: ObservableObject {
         
         if !recentImageUrls.isEmpty {
             let prefetcher = ImagePrefetcher(urls: recentImageUrls) { skippedResources, failedResources, completedResources in
-                print("📸 Precarga de archivo completada: \(completedResources.count) imágenes")
             }
             prefetcher.start()
         }
@@ -1305,7 +1303,6 @@ class StoryStatsViewModel: ObservableObject {
                 defer { group.leave() }
                 
                 if let error = error {
-                    print("Error fetching viewers: \(error.localizedDescription)")
                     return
                 }
                 
@@ -1342,7 +1339,6 @@ class StoryStatsViewModel: ObservableObject {
                 defer { group.leave() }
                 
                 if let error = error {
-                    print("Error fetching reactions: \(error.localizedDescription)")
                     return
                 }
                 

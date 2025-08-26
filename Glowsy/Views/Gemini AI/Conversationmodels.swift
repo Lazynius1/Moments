@@ -132,10 +132,6 @@ struct SavedChatMessage: Identifiable, Codable {
               let text = dictionary["text"] as? String,
               let isUser = dictionary["isUser"] as? Bool else {
             
-            print("❌ Error parseando SavedChatMessage:")
-            print("  - id: \(dictionary["id"] ?? "nil")")
-            print("  - text: \(dictionary["text"] ?? "nil")")
-            print("  - isUser: \(dictionary["isUser"] ?? "nil")")
             return nil
         }
         
@@ -146,14 +142,9 @@ struct SavedChatMessage: Identifiable, Codable {
     
     // Convertir a ChatMessage
     func toChatMessage() -> ChatMessage {
-        print("🔧 DEBUG toChatMessage: Convirtiendo mensaje")
-        print("🔧   - text: \(text.prefix(30))...")
-        print("🔧   - isUser: \(isUser)")
         
         let chatMessage = ChatMessage(text: text, isUser: isUser, isHistorical: true)
         
-        print("🔧   - RESULTADO isHistorical: \(chatMessage.isHistorical)")
-        print("🔧   - RESULTADO id: \(chatMessage.id)")
         
         return chatMessage
     }

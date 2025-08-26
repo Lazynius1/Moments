@@ -18,21 +18,18 @@ class UserCacheService: ObservableObject {
         if let cachedUser = userCache[userId],
            let lastFetch = lastFetchTimes[userId],
            Date().timeIntervalSince(lastFetch) < cacheExpirationTime {
-            print("✅ Usuario \(userId) desde cache")
             completion(cachedUser)
             return
         }
         
         // 2. ✅ Si ya hay una petición pendiente, añadir callback
         if pendingFetches[userId] != nil {
-            print("⏳ Añadiendo callback para usuario \(userId) (ya en proceso)")
             pendingFetches[userId]?.append(completion)
             return
         }
         
         // 3. ✅ Iniciar nueva petición
         pendingFetches[userId] = [completion]
-        print("🔄 Obteniendo usuario \(userId) desde Firestore")
         
         // ✅ Usar una referencia fuerte para evitar liberación
         let firestoreService = FirestoreService()
@@ -55,7 +52,6 @@ class UserCacheService: ObservableObject {
                 case .success(let user):
                     self.userCache[userId] = user
                     self.lastFetchTimes[userId] = Date()
-                    print("✅ Usuario \(userId) obtenido y guardado en cache")
                     
                     // ✅ Ejecutar todos los callbacks
                     for callback in callbacks {
@@ -63,7 +59,6 @@ class UserCacheService: ObservableObject {
                     }
                     
                 case .failure(let error):
-                    print("❌ Error obteniendo usuario \(userId): \(error.localizedDescription)")
                     
                     // ✅ Ejecutar callbacks con cache antiguo si existe
                     let cachedUser = self.userCache[userId]

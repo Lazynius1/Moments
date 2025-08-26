@@ -279,7 +279,8 @@ struct StoryEditingView: View {
                                 .clipShape(Circle())
                         }
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.top, 30) // ✅ BAJAR ICONOS DE LA PARTE SUPERIOR
                     
                     Spacer()
                     
@@ -334,7 +335,8 @@ struct StoryEditingView: View {
                         }
                         .disabled(isPublishing || isLoadingUserSettings)
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.bottom, 30) // ✅ SUBIR ICONOS DE LA PARTE INFERIOR
                 }
             }
             .navigationDestination(for: String.self) { userId in
@@ -429,7 +431,6 @@ struct StoryEditingView: View {
         // ✅ Pausar cualquier audio que esté reproduciéndose
         try? AVAudioSession.sharedInstance().setActive(false)
         
-        print("🧹 Video y audio limpiados al cerrar StoryEditingView")
     }
     
     // ✅ NUEVAS FUNCIONES AUXILIARES
@@ -524,10 +525,8 @@ struct StoryEditingView: View {
     }
     
     private func handleProfileNavigation(userId: String) {
-        print("🚀 Navegando al perfil del usuario: \(userId)")
         
         if let currentUserId = Auth.auth().currentUser?.uid, currentUserId == userId {
-            print("❌ No se puede navegar al propio perfil desde aquí")
             return
         }
         
@@ -538,7 +537,6 @@ struct StoryEditingView: View {
     }
     
     private func handleLocationNavigation(locationName: String, coordinate: CLLocationCoordinate2D?) {
-        print("🗺️ Navegando a ubicación: \(locationName)")
         
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
@@ -772,9 +770,6 @@ struct StoryEditingView: View {
         guard let userId = Auth.auth().currentUser?.uid,
               let media = selectedMediaItems.first else { return }
         
-        print("🚀 === PUBLICACIÓN DE HISTORIA EN BACKGROUND ===")
-        print("📱 Contenido: \(storyText)")
-        print("👥 Audiencia: \(storyAudience)")
         
         // 🔥 RENDERIZAR IMAGEN FINAL CON OVERLAYS
         let finalRenderedImage = renderStoryWithOverlays()
@@ -815,8 +810,6 @@ struct StoryEditingView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 self.showCreatorView = false
                 
-                print("✅ Historia agregada a la cola - pantalla cerrada")
-                print("📊 El usuario verá el progreso en el header del feed")
                 
                 // 🎉 Feedback háptico de éxito
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -839,7 +832,6 @@ struct StoryEditingView: View {
             }
         } else {
             // ❌ Error: No se pudo agregar historia al servicio
-            print("❌ Error: No se pudo agregar historia al servicio")
             
             // Feedback háptico de error
             let notificationFeedback = UINotificationFeedbackGenerator()
@@ -859,7 +851,6 @@ struct StoryEditingView: View {
         drawingImage = nil
         selectedTextStyle = .modern
         
-        print("🧹 Formulario de historia limpiado para próximo uso")
     }
     
     // ✅ ENVIAR NOTIFICACIONES DE MENCIONES DESPUÉS DE PUBLICAR HISTORIA
@@ -868,7 +859,6 @@ struct StoryEditingView: View {
         let mentionStickers = stickerData.filter { $0.type == .mention }
         
         if !mentionStickers.isEmpty {
-            print("📧 Enviando notificaciones de menciones para \(mentionStickers.count) stickers")
             
             // ✅ Usar la función estática de StickerPickerView
             StickerPickerView.sendMentionNotificationsForStory(
@@ -1022,7 +1012,6 @@ class PlayerUIView: UIView {
         // ✅ Remover observadores
         NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
         
-        print("🧹 PlayerUIView limpiado")
     }
     
     deinit {

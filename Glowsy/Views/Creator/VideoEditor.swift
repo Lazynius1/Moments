@@ -939,7 +939,6 @@ struct SocialVideoEditorView: View {
                     self.trimEndTime = self.duration
                 }
             } catch {
-                print("Error loading duration: \(error)")
             }
         }
         
@@ -1205,7 +1204,6 @@ struct SocialVideoEditorView: View {
             return
         }
         
-        print("🎥 Procesando \(videoItems.count) videos...")
         
         let group = DispatchGroup()
         var allSuccess = true
@@ -1240,11 +1238,9 @@ struct SocialVideoEditorView: View {
                         
                         processedCount += 1
                         self.processingProgress = Double(processedCount) / Double(videoItems.count)
-                        print("✅ Video \(processedCount)/\(videoItems.count) procesado")
                     }
                     
                 case .failure(let error):
-                    print("❌ Error procesando video: \(error)")
                     allSuccess = false
                 }
             }
@@ -1255,7 +1251,6 @@ struct SocialVideoEditorView: View {
             self.processingMessage = "Finalizando..."
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                print(allSuccess ? "✅ Todos los videos procesados" : "⚠️ Algunos videos fallaron")
                 completion(allSuccess)
             }
         }
@@ -1285,18 +1280,14 @@ struct SocialVideoEditorView: View {
                     height: abs(transformedSize.height)
                 )
                 
-                print("🔍 Video original: \(Int(currentSize.width))x\(Int(currentSize.height))")
                 
                 // PASO 2: Calcular resolución objetivo
                 let targetSize = calculateOptimalSize(currentSize: currentSize, targetFormat: format)
                 let needsCompression = shouldCompress(currentSize: currentSize, targetSize: targetSize)
                 
-                print("🎯 Resolución objetivo: \(Int(targetSize.width))x\(Int(targetSize.height))")
-                print("📦 Necesita compresión: \(needsCompression)")
                 
                 // PASO 3: Generar thumbnail PRIMERO
                 let (thumbnailURL, thumbnailImage) = try await generateThumbnail(from: asset, targetSize: targetSize)
-                print("🖼️ Thumbnail generado")
                 
                 // PASO 4: Comprimir video si es necesario
                 let finalVideoURL: URL
@@ -1306,10 +1297,8 @@ struct SocialVideoEditorView: View {
                         targetSize: targetSize,
                         targetBitrate: format.targetBitrate
                     )
-                    print("🗜️ Video comprimido")
                 } else {
                     finalVideoURL = videoURL
-                    print("✅ Video mantenido original")
                 }
                 
                 // PASO 5: Obtener datos finales
@@ -1364,7 +1353,6 @@ struct SocialVideoEditorView: View {
         
         try jpegData.write(to: thumbnailURL)
         
-        print("🖼️ Thumbnail generado: \(Int(thumbnailSize.width))x\(Int(thumbnailSize.height)) para formato \(selectedFormat.displayName)")
         
         return (thumbnailURL, uiImage)
     }
@@ -1442,7 +1430,6 @@ struct SocialVideoEditorView: View {
         let needsRescaling = abs(actualSize.width - targetSize.width) > 10 || abs(actualSize.height - targetSize.height) > 10
         
         if needsRescaling {
-            print("🔄 Reescalando video de \(Int(actualSize.width))x\(Int(actualSize.height)) a \(Int(targetSize.width))x\(Int(targetSize.height))")
             
             // Calcular escala para ajustar al target manteniendo aspect ratio
             let scaleX = targetSize.width / actualSize.width
@@ -1461,7 +1448,6 @@ struct SocialVideoEditorView: View {
             
             transformer.setTransform(finalTransform, at: .zero)
         } else {
-            print("✅ Manteniendo tamaño original, solo aplicando rotación")
             // Solo aplicar la rotación/orientación original, sin escalado
             transformer.setTransform(preferredTransform, at: .zero)
         }
@@ -1479,7 +1465,6 @@ struct SocialVideoEditorView: View {
         exportSession.shouldOptimizeForNetworkUse = true
         exportSession.videoComposition = videoComposition
         
-        print("🎬 Comprimiendo a \(Int(targetSize.width))x\(Int(targetSize.height)) con HighestQuality")
         
         // USAR PROGRESO REAL DEL EXPORT SESSION
         return try await withCheckedThrowingContinuation { continuation in
@@ -1500,7 +1485,6 @@ struct SocialVideoEditorView: View {
                         continuation.resume(returning: outputURL)
                     case .failed:
                         let error = exportSession.error ?? ProcessingError.compressionFailed
-                        print("❌ Export falló: \(error.localizedDescription)")
                         continuation.resume(throwing: error)
                     case .cancelled:
                         continuation.resume(throwing: ProcessingError.compressionCancelled)
@@ -1520,11 +1504,9 @@ struct SocialVideoEditorView: View {
         let targetAspectRatio = targetSize.width / targetSize.height
         let tolerance: CGFloat = 0.1
         
-        print("📐 Aspect ratios - Actual: \(String(format: "%.3f", currentAspectRatio)), Objetivo: \(String(format: "%.3f", targetAspectRatio))")
         
         // ✅ SI EL ASPECT RATIO YA ES CORRECTO, SOLO REDUCIR RESOLUCIÓN SI ES NECESARIO
         if abs(currentAspectRatio - targetAspectRatio) < tolerance {
-            print("✅ Aspect ratio correcto, preservando contenido")
             
             // Determinar dimensión máxima según formato
             let maxDimension: CGFloat = targetFormat == .landscape ? 1920 : 1080
@@ -1533,17 +1515,14 @@ struct SocialVideoEditorView: View {
             if max(currentSize.width, currentSize.height) > maxDimension * 1.2 {
                 return calculateOptimalSizePreservingRatio(currentSize: currentSize, maxDimension: maxDimension)
             } else {
-                print("✅ Resolución ya es adecuada, no comprimir")
                 return currentSize // ✅ MANTENER TAMAÑO ORIGINAL
             }
         }
         
-        print("🔄 Aspect ratio diferente, ajustando al formato objetivo")
         
         // ✅ SI EL ASPECT RATIO ES DIFERENTE, AJUSTAR PERO INTENTAR PRESERVAR CONTENIDO
         if abs(currentAspectRatio - targetAspectRatio) > 0.3 {
             // Diferencia muy grande: mantener aspect ratio original pero limitar resolución
-            print("⚠️ Diferencia muy grande en aspect ratio, preservando original")
             let maxDimension: CGFloat = 1080
             return calculateOptimalSizePreservingRatio(currentSize: currentSize, maxDimension: maxDimension)
         }
@@ -1572,7 +1551,6 @@ struct SocialVideoEditorView: View {
     private func shouldCompress(currentSize: CGSize, targetSize: CGSize) -> Bool {
         // ✅ NO COMPRIMIR si el tamaño objetivo es igual al actual (preservación)
         if currentSize == targetSize {
-            print("✅ Tamaños idénticos, no comprimir")
             return false
         }
         
@@ -1582,8 +1560,6 @@ struct SocialVideoEditorView: View {
         let pixelRatio = currentPixels / targetPixels
         
         let shouldCompress = pixelRatio > 1.2 // Comprimir si tiene 20% más píxeles
-        print("📊 Píxeles - Actual: \(Int(currentPixels)), Objetivo: \(Int(targetPixels)), Ratio: \(String(format: "%.2f", pixelRatio))")
-        print("🤔 ¿Comprimir? \(shouldCompress)")
         
         return shouldCompress
     }
@@ -1602,23 +1578,13 @@ struct SocialVideoEditorView: View {
                     hasEdits: true // Marcar que el video ha sido editado
                 )
                 
-                print("✅ Video configurado:")
-                print("  - ID: \(selectedMediaItems[index].id)")
-                print("  - Formato: \(selectedFormat.displayName)")
-                print("  - Velocidad: \(playbackSpeed.rawValue)")
-                print("  - Recorte: \(formatTime(trimStartTime)) - \(formatTime(trimEndTime))")
-                print("  - Audio: \(volume > 0 ? "Activado" : "Silenciado")")
-                print("  - Has Edits: \(selectedMediaItems[index].hasEdits)")
                 
                 if let videoURL = selectedMediaItems[index].videoURL {
-                    print("  - Video URL: \(videoURL.lastPathComponent)")
                 }
                 
                 // Los datos de thumbnail, duración, etc. ya están guardados en el ProcessedMedia
                 // desde el proceso de compresión anterior
                 if let videoInfo = selectedMediaItems[index].videoInfo {
-                    print("  - Duración: \(String(format: "%.1f", videoInfo.duration))s")
-                    print("  - Tamaño: \(String(format: "%.1f", Double(videoInfo.fileSize)/1024.0/1024.0)) MB")
                 }
             }
         }

@@ -41,7 +41,6 @@ class RealLoginActivityService: NSObject, ObservableObject {
             .limit(to: 1)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
-                    print("Error fetching current session: \(error)")
                     completion(nil)
                     return
                 }
@@ -313,7 +312,6 @@ extension RealLoginActivityService: CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location error: \(error.localizedDescription)")
         currentLocationString = "Error al obtener ubicación"
     }
     

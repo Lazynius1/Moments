@@ -12,8 +12,8 @@ struct TrendingHashtagsSection: View {
         if !hashtags.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
                 sectionHeader(
-                    title: "🔥 Trending",
-                    subtitle: "Hashtags populares ahora"
+                    title: NSLocalizedString("trending.hashtags.title", comment: "Trending hashtags title"),
+                    subtitle: NSLocalizedString("trending.hashtags.subtitle", comment: "Trending hashtags subtitle")
                 )
                 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -123,8 +123,8 @@ struct TrendingLocationsSection: View {
         if !locations.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
                 sectionHeader(
-                    title: "📍 Lugares populares",
-                    subtitle: "Donde está pasando todo"
+                    title: NSLocalizedString("trending.locations.title", comment: "Trending locations title"),
+                    subtitle: NSLocalizedString("trending.locations.subtitle", comment: "Trending locations subtitle")
                 )
                 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -192,11 +192,11 @@ struct TrendingLocationCard: View {
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
                         
-                        Text("\(location.momentCount) momentos")
+                        Text("\(location.momentCount) \(NSLocalizedString("trending.locations.moments", comment: "Moments label"))")
                             .font(.custom("Poppins-Regular", size: 11))
                             .foregroundColor(.secondary)
                         
-                        Text("\(location.uniqueUsers) usuarios")
+                        Text("\(location.uniqueUsers) \(NSLocalizedString("trending.locations.users", comment: "Users label"))")
                             .font(.custom("Poppins-Regular", size: 11))
                             .foregroundColor(.secondary)
                     }
@@ -277,7 +277,6 @@ struct TrendingMomentCard: View {
                                 )
                         }
                         .onFailure { error in
-                            print("Error loading trending moment image: \(error)")
                         }
                         .resizable()
                         .scaledToFill()

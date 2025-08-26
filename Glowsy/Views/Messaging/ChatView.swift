@@ -390,10 +390,6 @@ struct GlassmorphicChatView: View {
     
     // ✅ REFACTORIZADO: Acciones al desaparecer
     private func onDisappearActions() {
-        print("🔍 ChatView disappeared!")
-        print("🔍 Conversation ID: \(viewModel.conversation.id ?? "nil")")
-        print("🔍 Messages sent this session: \(viewModel.messagesSentThisSession)")
-        print("🔍 Current messages count: \(viewModel.messages.count)")
         
         AnalyticsService.shared.trackInteraction("chat_closed", details: [
             "conversationId": viewModel.conversation.id,
@@ -524,16 +520,12 @@ struct GlassmorphicChatView: View {
     
     private func handleCameraCapture(data: Data, mediaType: EnhancedCameraPickerView.MediaType, isEphemeral: Bool) {
         guard let conversationId = viewModel.conversation.id else {
-            print("❌ No conversation ID for camera capture")
             return
         }
         
         // ✅ AGREGAR ESTA LÍNEA DE DEBUG:
-        print("📸 DEBUG: Camera capture - mediaType: \(mediaType), isEphemeral: \(isEphemeral)")
         
         if isEphemeral {
-            // ✅ AGREGAR ESTE PRINT:
-            print("📸 Sending VIEW-ONCE message")
             viewModel.sendViewOnceMessage(data: data, mediaType: mediaType)
             
             AnalyticsService.shared.trackInteraction("view_once_message_sent", details: [
@@ -541,8 +533,6 @@ struct GlassmorphicChatView: View {
                 "conversationId": conversationId
             ])
         } else {
-            // ✅ AGREGAR ESTE PRINT:
-            print("📸 Sending NORMAL message")
             if mediaType == .image {
                 viewModel.sendImageMessage(data)
             } else {
@@ -617,7 +607,6 @@ extension GlassmorphicChatView {
         if let sharedMomentData = message.sharedMomentData,
            let momentId = sharedMomentData["momentId"] as? String {
             
-            print("Navigate to moment: \(momentId)")
             
             // ✅ CORREGIDO: Obtener el authorId del momento compartido o usar el senderId como fallback
             let authorId = sharedMomentData["momentAuthorId"] as? String ?? message.senderId
@@ -631,16 +620,13 @@ extension GlassmorphicChatView {
                             var moment = try document.data(as: Moment.self)
                             moment.id = document.documentID
                             
-                            print("Momento obtenido: \(momentId)")
                             self.selectedMoment = moment
                             self.showingMomentDetail = true
                             
                         } catch {
-                            print("❌ Error decodificando momento: \(error.localizedDescription)")
                             self.showingMomentError = true
                         }
                     } else {
-                        print("❌ Error obteniendo momento: \(error?.localizedDescription ?? "Unknown error")")
                         self.showingMomentError = true
                     }
                 }
@@ -1091,9 +1077,7 @@ struct GlassmorphicMessageBubble: View {
     private func markAsViewed() {
         ChatService().markEphemeralAsViewed(conversationId: message.conversationId, messageId: message.id) { error in
             if let error = error {
-                print("Error marking ephemeral as viewed: \(error.localizedDescription)")
             } else {
-                print("Marked ephemeral message \(message.id) as viewed in conversation \(message.conversationId)")
             }
         }
     }
@@ -1113,9 +1097,7 @@ struct GlassmorphicMessageBubble: View {
             viewerId: currentUserId
         ) { error in
             if let error = error {
-                print("❌ Error marking view-once as viewed: \(error.localizedDescription)")
             } else {
-                print("✅ View-once message marked as viewed")
                 
                 // ✅ ACTUALIZAR EL ESTADO LOCAL INMEDIATAMENTE
                 DispatchQueue.main.async {
@@ -1985,9 +1967,7 @@ class InstagramChatViewModel: EnhancedChatViewModel {
         // Use the enhanced delete method from ChatService
         chatService.deleteMessageWithCleanup(conversationId: message.conversationId, messageId: message.id) { error in
             if let error = error {
-                print("❌ Error deleting message with cleanup: \(error.localizedDescription)")
             } else {
-                print("✅ Message deleted successfully with cleanup")
             }
         }
         
@@ -2007,9 +1987,11 @@ class InstagramChatViewModel: EnhancedChatViewModel {
         ) { result in
             switch result {
             case .success(let message):
-                print("Image message sent successfully: \(message.id)")
+                // Image message sent successfully
+                break
             case .failure(let error):
-                print("Error sending image: \(error.localizedDescription)")
+                // Handle error if needed
+                break
             }
         }
     }
@@ -2025,9 +2007,11 @@ class InstagramChatViewModel: EnhancedChatViewModel {
         ) { result in
             switch result {
             case .success(let message):
-                print("Audio message sent successfully: \(message.id)")
+                // Audio message sent successfully
+                break
             case .failure(let error):
-                print("Error sending audio: \(error.localizedDescription)")
+                // Handle error if needed
+                break
             }
         }
     }
@@ -2035,12 +2019,10 @@ class InstagramChatViewModel: EnhancedChatViewModel {
     // ✅ NUEVA función para enviar mensajes view-once
     func sendViewOnceMessage(data: Data, mediaType: EnhancedCameraPickerView.MediaType) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            print("❌ No valid conversation ID for view-once message")
             error = "No se puede enviar el mensaje: ID de conversación no válido"
             return
         }
         
-        print("📸 Sending view-once \(mediaType) message")
         
         let trackingType = mediaType == .image ? "view_once_image" : "view_once_video"
         AnalyticsService.shared.trackInteraction("view_once_message_sent", details: [
@@ -2057,9 +2039,9 @@ class InstagramChatViewModel: EnhancedChatViewModel {
             DispatchQueue.main.async {
                 switch result {
                 case .success(_):
-                    print("✅ View-once message sent successfully")
+                    // View once message sent successfully
+                    break
                 case .failure(let error):
-                    print("❌ Error sending view-once message: \(error.localizedDescription)")
                     self?.error = "Error al enviar mensaje: \(error.localizedDescription)"
                 }
             }
@@ -2080,9 +2062,11 @@ class InstagramChatViewModel: EnhancedChatViewModel {
         ) { result in
             switch result {
             case .success(let message):
-                print("Video message sent successfully: \(message.id)")
+                // Video message sent successfully
+                break
             case .failure(let error):
-                print("Error sending video: \(error.localizedDescription)")
+                // Handle error if needed
+                break
             }
         }
     }

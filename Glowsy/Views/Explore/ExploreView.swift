@@ -889,7 +889,6 @@ struct MomentCard: View {
                         )
                 }
                 .onFailure { error in
-                    print("Error loading moment image: \(error)")
                 }
                 .resizable()
                 .scaledToFill()
@@ -1005,7 +1004,6 @@ struct ProfileImageeView: View {
                             )
                     }
                     .onFailure { error in
-                        print("Error loading profile image: \(error)")
                     }
                     .resizable()
                     .scaledToFill()
@@ -1149,7 +1147,6 @@ class ExploreViewModel: ObservableObject {
                 self.loadUsersAndMoments()
                 
             case .failure(let error):
-                print("❌ Error al cargar perfil: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.isLoading = false
                     self.errorMessage = "Error al cargar tu perfil: \(error.localizedDescription)"
@@ -1240,7 +1237,6 @@ class ExploreViewModel: ObservableObject {
             .limit(to: 30)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ [Explore] Error obteniendo usuarios populares: \(error)")
                     completion([])
                     return
                 }
@@ -1283,7 +1279,6 @@ class ExploreViewModel: ObservableObject {
             case .failure(let error):
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    print("❌ [Explore] Error al cargar momentos: \(error.localizedDescription)")
                     self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
                 }
             }
@@ -1358,8 +1353,8 @@ class ExploreViewModel: ObservableObject {
             
                     self?.updateButtonStatesForAllUsers()
                 }
-            case .failure(let error):
-                print("⚠️ No se pudieron cargar las conexiones (opcional): \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
         
@@ -1373,8 +1368,8 @@ class ExploreViewModel: ObservableObject {
             
                     self?.updateButtonStatesForAllUsers()
                 }
-            case .failure(let error):
-                print("⚠️ No se pudieron cargar las notificaciones (opcional): \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -1399,8 +1394,8 @@ class ExploreViewModel: ObservableObject {
                     DispatchQueue.main.async {
                         self?.authorProfiles[userId] = userProfile
                     }
-                case .failure(let error):
-                    print("Error al cargar perfil del autor \(userId): \(error.localizedDescription)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -1575,7 +1570,6 @@ extension ExploreViewModel {
                     
                 case .failure(let error):
                     self?.trendingError = "Error cargando trending: \(error.localizedDescription)"
-                    print("❌ [ExploreVM] Error: \(error)")
                 }
             }
         }

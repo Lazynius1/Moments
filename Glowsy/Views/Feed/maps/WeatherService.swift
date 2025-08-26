@@ -108,7 +108,6 @@ class WeatherService: ObservableObject {
         // Verificar cache primero
         let cacheKey = generateCacheKey(for: coordinate)
         if let cachedEntry = cache[cacheKey], !cachedEntry.isExpired {
-            print("☀️ [WeatherService] Usando datos del cache para: \(coordinate)")
             DispatchQueue.main.async {
                 self.currentWeather = cachedEntry.data
             }
@@ -118,7 +117,6 @@ class WeatherService: ObservableObject {
         // Rate limiting
         try await enforceRateLimit()
         
-        print("🌤️ [WeatherService] Solicitando datos del clima para: \(coordinate)")
         
         DispatchQueue.main.async {
             self.isLoading = true
@@ -168,7 +166,6 @@ class WeatherService: ObservableObject {
             }
             
             incrementRequestCount()
-            print("✅ [WeatherService] Datos del clima obtenidos: \(weatherData.condition.displayName)")
             
             return weatherData
             
@@ -180,7 +177,6 @@ class WeatherService: ObservableObject {
                 self.isLoading = false
             }
             
-            print("❌ [WeatherService] Error obteniendo clima: \(weatherError.localizedDescription)")
             throw weatherError
         }
     }
@@ -189,14 +185,12 @@ class WeatherService: ObservableObject {
         do {
             return try await getWeather(for: coordinate)
         } catch {
-            print("⚠️ [WeatherService] Fallo silencioso del clima: \(error.localizedDescription)")
             return nil
         }
     }
     
     func clearCache() {
         cache.removeAll()
-        print("🗑️ [WeatherService] Cache limpiado")
     }
     
     func getCacheStatus() -> (count: Int, oldestEntry: Date?) {
@@ -232,7 +226,6 @@ class WeatherService: ObservableObject {
         let timeSinceLastRequest = now.timeIntervalSince(lastRequestTime)
         if timeSinceLastRequest < minRequestInterval {
             let waitTime = minRequestInterval - timeSinceLastRequest
-            print("⏳ [WeatherService] Rate limit: esperando \(waitTime)s")
             try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
         }
         
@@ -241,7 +234,6 @@ class WeatherService: ObservableObject {
     
     private func incrementRequestCount() {
         dailyRequestCount += 1
-        print("📊 [WeatherService] Requests hoy: \(dailyRequestCount)/\(maxDailyRequests)")
     }
     
     // ✅ MAPEO CORREGIDO CON PARÁMETROS SEPARADOS
@@ -376,7 +368,6 @@ class WeatherService: ObservableObject {
         }
         
         if !expiredKeys.isEmpty {
-            print("🧹 [WeatherService] Limpiadas \(expiredKeys.count) entradas expiradas del cache")
         }
     }
     
@@ -388,7 +379,6 @@ class WeatherService: ObservableObject {
             cache.removeValue(forKey: key)
         }
         
-        print("🧹 [WeatherService] Limpiadas \(entriesToRemove.count) entradas antiguas del cache")
     }
 }
 

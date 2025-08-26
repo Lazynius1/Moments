@@ -18,7 +18,6 @@ struct GlowsyApp: App {
 
     init() {
         FirebaseApp.configure()
-        print("Firebase inicializado")
 
         let settings = FirestoreSettings()
         // ✅ LÍMITE FIREBASE: 100MB máximo para cache persistente
@@ -26,7 +25,6 @@ struct GlowsyApp: App {
             sizeBytes: NSNumber(value: 100 * 1024 * 1024) // 100MB max para Firebase
         )
         Firestore.firestore().settings = settings
-        print("Firestore configurado con cacheSettings: \(settings.cacheSettings)")
 
         // AdMob y caches se inicializan después del primer frame
     }
@@ -38,7 +36,6 @@ struct GlowsyApp: App {
                     SplashScreenView()
                         .onAppear {
                             // Permisos de ubicación pospuestos hasta uso real
-                            print("🚀 Servicios inicializados durante SplashScreen")
                             
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                 withAnimation(.easeOut(duration: 0.3)) {
@@ -51,7 +48,6 @@ struct GlowsyApp: App {
                         .environmentObject(ephemeralCleanupManager)
                         .environmentObject(MessageRequestService())
                         .onAppear {
-                            print("🚀 Sistema de limpieza de mensajes efímeros iniciado")
                             
                             // Post-launch initializations (una sola vez)
                             if !didPostLaunchInit {
@@ -65,13 +61,11 @@ struct GlowsyApp: App {
                                     let diskCapacity = 150 * 1024 * 1024  // ✅ AJUSTADO: 150MB (más conservador)
                                     let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
                                     URLCache.shared = cache
-                                    print("URLCache configurado: \(memoryCapacity / 1024 / 1024) MB en memoria, \(diskCapacity / 1024 / 1024) MB en disco")
                                     
                                     let kingfisherCache = KingfisherManager.shared.cache
                                     kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
                                     kingfisherCache.diskStorage.config.sizeLimit = 150 * 1024 * 1024  // ✅ AJUSTADO: 150MB (más conservador)
                                     kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(1)  // ✅ MÁS AGRESIVO: 1 día en lugar de 3
-                                    print("Kingfisher configurado: 20 MB en memoria, 150 MB en disco, caducidad de 1 día")
                                 }
                             }
                             
@@ -80,11 +74,9 @@ struct GlowsyApp: App {
                                 if user != nil {
                                     // Usuario logueado - configurar badge service
                                     NotificationBadgeService.shared.setupListeners()
-                                    print("🔔 Auth: Usuario logueado, configurando NotificationBadgeService")
                                 } else {
                                     // Usuario deslogueado - limpiar todo
                                     NotificationBadgeService.shared.cleanup()
-                                    print("🧹 Auth: Usuario deslogueado, limpiando NotificationBadgeService")
                                 }
                             }
                         }
@@ -92,32 +84,26 @@ struct GlowsyApp: App {
                             // ✅ Limpiar el listener de autenticación cuando la escena desaparezca
                             if let handle = authListenerHandle {
                                 Auth.auth().removeStateDidChangeListener(handle)
-                                print("🧹 Auth: Listener de autenticación removido")
                             }
                         }
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                             AnalyticsService.shared.applicationDidBecomeActive()
-                            print("📊 Sesión de analytics iniciada")
                         }
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                             AnalyticsService.shared.applicationWillResignActive()
-                            print("📊 Sesión de analytics finalizada")
                         }
                         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
                             if let momentId = notification.object as? String {
-                                print("🔔 Navegar a momento desde notificación: \(momentId)")
                             }
                         }
                         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToProfile"))) { notification in
                             if let userId = notification.object as? String {
-                                print("🔔 Navegar a perfil desde notificación: \(userId)")
                                 // En lugar de mostrar sheet, enviar a TabBarView para manejar
                                 NotificationCenter.default.post(name: NSNotification.Name("ShowUserProfile"), object: userId)
                             }
                         }
                         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
                             if let conversationId = notification.object as? String {
-                                print("🔔 Navegar a conversación desde notificación: \(conversationId)")
                             }
                         }
 

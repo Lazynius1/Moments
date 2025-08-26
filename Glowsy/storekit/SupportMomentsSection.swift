@@ -729,26 +729,22 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
         productRequest?.delegate = self
         productRequest?.start()
         
-        print("🛒 Cargando productos: \(productIds)")
     }
     
     // MARK: - Compra de suscripción REAL
     func purchaseSubscription(completion: @escaping (Bool) -> Void) {
         // Buscar el producto de suscripción
         guard let subscriptionProduct = products.first(where: { $0.productIdentifier == "com.moments.plus.monthly" }) else {
-            print("❌ Producto de suscripción no encontrado")
             completion(false)
             return
         }
         
         // Verificar si se pueden hacer compras
         guard SKPaymentQueue.canMakePayments() else {
-            print("❌ No se pueden hacer compras en este dispositivo")
             completion(false)
             return
         }
         
-        print("🛒 Iniciando compra de suscripción: \(subscriptionProduct.localizedTitle)")
         
         // Guardar el completion para usarlo cuando termine la compra
         purchaseCompletion = completion
@@ -761,26 +757,22 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
     // MARK: - Compra de badge REAL
     func purchaseBadge(_ badge: Badge, completion: @escaping (Bool) -> Void) {
         guard let userId = Auth.auth().currentUser?.uid else {
-            print("❌ No hay userId para comprar badge")
             completion(false)
             return
         }
         
         // Buscar el producto del badge
         guard let badgeProduct = products.first(where: { $0.productIdentifier == badge.productId }) else {
-            print("❌ Producto de badge no encontrado: \(badge.productId)")
             completion(false)
             return
         }
         
         // Verificar si se pueden hacer compras
         guard SKPaymentQueue.canMakePayments() else {
-            print("❌ No se pueden hacer compras en este dispositivo")
             completion(false)
             return
         }
         
-        print("🛒 Iniciando compra de badge: \(badge.name) para user: \(userId)")
         
         // Guardar el completion para usarlo cuando termine la compra
         purchaseCompletion = completion
@@ -797,7 +789,6 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
         // Primero obtener badges actuales
         db.collection("users").document(userId).getDocument { document, error in
             if let error = error {
-                print("❌ Error obteniendo usuario: \(error)")
                 completion(false)
                 return
             }
@@ -814,7 +805,6 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
                         let userBadge = try decoder.decode(UserBadge.self, from: badgeDict)
                         currentBadges.append(userBadge)
                     } catch {
-                        print("⚠️ Error decodificando badge: \(error)")
                     }
                 }
             }
@@ -832,15 +822,12 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
                     "updatedAt": FieldValue.serverTimestamp()
                 ]) { error in
                     if let error = error {
-                        print("❌ Error actualizando badges: \(error)")
                         completion(false)
                     } else {
-                        print("✅ Badge guardado exitosamente en Firestore")
                         completion(true)
                     }
                 }
             } catch {
-                print("❌ Error encoding badge: \(error)")
                 completion(false)
             }
         }
@@ -868,15 +855,12 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
                 "updatedAt": FieldValue.serverTimestamp()
             ]) { error in
                 if let error = error {
-                    print("❌ Error actualizando suscripción: \(error)")
                     completion(false)
                 } else {
-                    print("✅ Suscripción Plus guardada exitosamente")
                     completion(true)
                 }
             }
         } catch {
-            print("❌ Error encoding suscripción: \(error)")
             completion(false)
         }
     }
@@ -887,13 +871,10 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
             self.products = response.products
             self.isLoading = false
             
-            print("✅ Productos cargados:")
             for product in response.products {
-                print("  - \(product.productIdentifier): \(product.localizedTitle) - \(product.localizedPrice)")
             }
             
             if !response.invalidProductIdentifiers.isEmpty {
-                print("⚠️ Productos inválidos: \(response.invalidProductIdentifiers)")
             }
         }
     }
@@ -903,17 +884,14 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
         for transaction in transactions {
             switch transaction.transactionState {
             case .purchased:
-                print("✅ Compra exitosa: \(transaction.payment.productIdentifier)")
                 handleSuccessfulPurchase(transaction: transaction)
                 SKPaymentQueue.default().finishTransaction(transaction)
                 
             case .restored:
-                print("✅ Compra restaurada: \(transaction.payment.productIdentifier)")
                 handleSuccessfulPurchase(transaction: transaction)
                 SKPaymentQueue.default().finishTransaction(transaction)
                 
             case .failed:
-                print("❌ Compra falló: \(transaction.error?.localizedDescription ?? "Error desconocido")")
                 SKPaymentQueue.default().finishTransaction(transaction)
                 DispatchQueue.main.async {
                     self.purchaseCompletion?(false)
@@ -921,11 +899,12 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
                 }
                 
             case .deferred:
-                print("⏳ Compra deferida (esperando aprobación parental)")
                 // No terminar la transacción, esperar
+                break
                 
             case .purchasing:
-                print("🛒 Procesando compra...")
+                // Transaction is being processed
+                break
                 
             @unknown default:
                 break
@@ -936,7 +915,6 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
     // MARK: - Manejar compra exitosa
     private func handleSuccessfulPurchase(transaction: SKPaymentTransaction) {
         guard let userId = Auth.auth().currentUser?.uid else {
-            print("❌ No hay usuario autenticado")
             DispatchQueue.main.async {
                 self.purchaseCompletion?(false)
                 self.purchaseCompletion = nil
@@ -972,7 +950,6 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
                     }
                 }
             } else {
-                print("❌ Badge no encontrado para producto: \(productId)")
                 DispatchQueue.main.async {
                     self.purchaseCompletion?(false)
                     self.purchaseCompletion = nil
@@ -983,7 +960,6 @@ class StoreManager: NSObject, ObservableObject, SKProductsRequestDelegate, SKPay
     
     // MARK: - Restaurar compras
     func restorePurchases() {
-        print("🔄 Restaurando compras...")
         SKPaymentQueue.default().restoreCompletedTransactions()
     }
 }

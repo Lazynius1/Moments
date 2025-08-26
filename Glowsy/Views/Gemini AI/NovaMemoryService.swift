@@ -3,6 +3,55 @@ import FirebaseFirestore
 import FirebaseVertexAI
 import FirebaseAuth
 
+// MARK: - 🔥 NUEVAS ESTRUCTURAS DE DATOS PARA ANÁLISIS DE CONVERSACIÓN
+
+// 🎯 Nivel de engagement en la conversación
+enum EngagementLevel {
+    case low
+    case medium
+    case high
+    
+    var description: String {
+        switch self {
+        case .low: return "Bajo"
+        case .medium: return "Medio"
+        case .high: return "Alto"
+        }
+    }
+}
+
+// 📊 Métricas de engagement de la conversación
+struct ConversationEngagement {
+    let level: EngagementLevel
+    let userParticipation: Double      // 0.0 - 1.0
+    let topicConsistency: Double       // 0.0 - 1.0
+    
+    var isEngaged: Bool {
+        return level == .high || userParticipation > 0.5
+    }
+}
+
+// 🎭 Patrones de comunicación del usuario
+struct CommunicationPatterns {
+    var averageMessageLength: Double = 0.0
+    var prefersLongMessages: Bool = false
+    var usesEmojis: Bool = false
+    var emojiFrequency: Double = 0.0
+    var isFormal: Bool = false
+    var asksQuestions: Bool = false
+    var questionFrequency: Double = 0.0
+}
+
+// 🔍 Extensión para detectar emojis
+extension Character {
+    var isEmoji: Bool {
+        if let firstScalar = unicodeScalars.first, firstScalar.properties.isEmoji {
+            return (firstScalar.value >= 0x238C || unicodeScalars.count > 1)
+        }
+        return false
+    }
+}
+
 class NovaMemoryService {
     private let db = Firestore.firestore()
     private let vertexAI = VertexAI.vertexAI()
@@ -60,9 +109,35 @@ class NovaMemoryService {
     func saveMemory(_ memory: NovaMemory, completion: @escaping (Result<Void, Error>) -> Void) {
         LogConfig.log("💾 Guardando memoria mejorada: \(memory.facts.count) hechos", category: "Memory")
         
+        // 🔍 DEBUG: Verificar estructura de datos antes de enviar
+        LogConfig.log("🔍 DEBUG - Estructura de memoria:", category: "Memory")
+        LogConfig.log("  - ID: \(memory.id)", category: "Memory")
+        LogConfig.log("  - UserID: \(memory.userId)", category: "Memory")
+        LogConfig.log("  - Facts count: \(memory.facts.count)", category: "Memory")
+        LogConfig.log("  - Last updated: \(memory.lastUpdated)", category: "Memory")
+        LogConfig.log("  - Created at: \(memory.createdAt)", category: "Memory")
+        
+        // 🔍 DEBUG: Verificar si los datos son válidos según las reglas
+        if let firstFact = memory.facts.first {
+            LogConfig.log("🔍 DEBUG - Primer hecho:", category: "Memory")
+            LogConfig.log("  - Content: \(firstFact.content)", category: "Memory")
+            LogConfig.log("  - Type: \(firstFact.type)", category: "Memory")
+            LogConfig.log("  - Importance: \(firstFact.importance)", category: "Memory")
+        }
+        
         userMemoryCollection(for: memory.userId).document("memory").setData(memory.dictionary) { error in
             if let error = error {
                 LogConfig.log("❌ Error guardando memoria: \(error.localizedDescription)", category: "Memory")
+                
+                // 🔍 DEBUG: Información adicional del error
+                if let nsError = error as NSError? {
+                    LogConfig.log("🔍 DEBUG - Código de error: \(nsError.code)", category: "Memory")
+                    LogConfig.log("🔍 DEBUG - Dominio: \(nsError.domain)", category: "Memory")
+                    if let userInfo = nsError.userInfo as? [String: Any] {
+                        LogConfig.log("🔍 DEBUG - UserInfo: \(userInfo)", category: "Memory")
+                    }
+                }
+                
                 completion(.failure(error))
             } else {
                 LogConfig.log("✅ Memoria guardada exitosamente", category: "Memory")
@@ -371,6 +446,168 @@ class NovaMemoryService {
                 
             case .failure(let error):
                 completion(.failure(error))
+            }
+        }
+    }
+    
+    // MARK: - 🔥 NUEVAS FUNCIONES DE ANÁLISIS DE FLUJO DE CONVERSACIÓN
+    
+    // 🎯 Análisis de engagement y participación del usuario
+    func analyzeConversationEngagement(_ messages: [ChatMessage]) -> ConversationEngagement {
+        guard messages.count >= 3 else {
+            return ConversationEngagement(level: .low, userParticipation: 0.0, topicConsistency: 0.0)
+        }
+        
+        let userMessages = messages.filter { $0.isUser }
+        let totalMessages = messages.count
+        
+        // Calcular participación del usuario
+        let userParticipation = Double(userMessages.count) / Double(totalMessages)
+        
+        // Calcular consistencia de temas
+        let topicConsistency = calculateTopicConsistency(messages)
+        
+        // Determinar nivel de engagement
+        let engagementLevel: EngagementLevel
+        if userParticipation > 0.6 && topicConsistency > 0.7 {
+            engagementLevel = .high
+        } else if userParticipation > 0.4 && topicConsistency > 0.5 {
+            engagementLevel = .medium
+        } else {
+            engagementLevel = .low
+        }
+        
+        return ConversationEngagement(
+            level: engagementLevel,
+            userParticipation: userParticipation,
+            topicConsistency: topicConsistency
+        )
+    }
+    
+    // 🔍 Calcular consistencia de temas en la conversación
+    private func calculateTopicConsistency(_ messages: [ChatMessage]) -> Double {
+        guard messages.count >= 2 else { return 0.0 }
+        
+        var topicChanges = 0
+        let userMessages = messages.filter { $0.isUser }
+        
+        for i in 1..<userMessages.count {
+            let previousMessage = userMessages[i-1].text.lowercased()
+            let currentMessage = userMessages[i].text.lowercased()
+            
+            // Detectar cambios de tema
+            if isTopicChange(previousMessage, currentMessage) {
+                topicChanges += 1
+            }
+        }
+        
+        let totalTransitions = max(userMessages.count - 1, 1)
+        return 1.0 - (Double(topicChanges) / Double(totalTransitions))
+    }
+    
+    // 🔄 Detectar si hay cambio de tema entre dos mensajes
+    private func isTopicChange(_ message1: String, _ message2: String) -> Bool {
+        let topicKeywords = [
+            "trabajo", "estudio", "hobby", "familia", "amigos", "viaje", "música", "deporte",
+            "tecnología", "arte", "cocina", "libros", "películas", "juegos", "salud", "finanzas"
+        ]
+        
+        let message1Topics = topicKeywords.filter { message1.contains($0) }
+        let message2Topics = topicKeywords.filter { message2.contains($0) }
+        
+        // Si no hay temas en común, es un cambio de tema
+        return message1Topics.isEmpty || message2Topics.isEmpty || Set(message1Topics).isDisjoint(with: Set(message2Topics))
+    }
+    
+    // 🎭 Análisis de patrones de comunicación del usuario
+    func analyzeCommunicationPatterns(_ messages: [ChatMessage]) -> CommunicationPatterns {
+        let userMessages = messages.filter { $0.isUser }
+        
+        var patterns = CommunicationPatterns()
+        
+        // Analizar longitud de mensajes
+        let messageLengths = userMessages.map { $0.text.count }
+        patterns.averageMessageLength = Double(messageLengths.reduce(0, +)) / Double(messageLengths.count)
+        patterns.prefersLongMessages = patterns.averageMessageLength > 50
+        
+        // Analizar uso de emojis
+        let emojiCount = userMessages.filter { $0.text.contains { $0.isEmoji } }.count
+        patterns.usesEmojis = emojiCount > 0
+        patterns.emojiFrequency = Double(emojiCount) / Double(userMessages.count)
+        
+        // Analizar formalidad
+        let formalWords = ["usted", "por favor", "gracias", "disculpe", "permíteme"]
+        let formalCount = userMessages.filter { message in
+            formalWords.contains { message.text.lowercased().contains($0) }
+        }.count
+        patterns.isFormal = Double(formalCount) / Double(userMessages.count) > 0.3
+        
+        // Analizar preguntas
+        let questionCount = userMessages.filter { $0.text.contains("?") || $0.text.contains("¿") }.count
+        patterns.asksQuestions = questionCount > 0
+        patterns.questionFrequency = Double(questionCount) / Double(userMessages.count)
+        
+        return patterns
+    }
+    
+    // 🧠 Aprendizaje automático de preferencias de conversación
+    func learnConversationPreferences(_ messages: [ChatMessage], userId: String) {
+        let patterns = analyzeCommunicationPatterns(messages)
+        let engagement = analyzeConversationEngagement(messages)
+        
+        var newPreferences: [NovaFact] = []
+        
+        // Aprender preferencias de estilo
+        if patterns.isFormal {
+            newPreferences.append(NovaFact(
+                content: "Prefiere comunicación formal y respetuosa",
+                type: .preference,
+                importance: 4
+            ))
+        }
+        
+        if patterns.usesEmojis && patterns.emojiFrequency > 0.5 {
+            newPreferences.append(NovaFact(
+                content: "Le gusta usar emojis y comunicación visual",
+                type: .preference,
+                importance: 3
+            ))
+        }
+        
+        if patterns.prefersLongMessages {
+            newPreferences.append(NovaFact(
+                content: "Prefiere conversaciones detalladas y extensas",
+                type: .preference,
+                importance: 4
+            ))
+        }
+        
+        if patterns.asksQuestions && patterns.questionFrequency > 0.4 {
+            newPreferences.append(NovaFact(
+                content: "Es curioso y hace muchas preguntas",
+                type: .preference,
+                importance: 3
+            ))
+        }
+        
+        // Aprender preferencias de engagement
+        if engagement.level == .high {
+            newPreferences.append(NovaFact(
+                content: "Se involucra mucho en las conversaciones",
+                type: .preference,
+                importance: 4
+            ))
+        }
+        
+        // Guardar nuevas preferencias si existen
+        if !newPreferences.isEmpty {
+            updateMemoryWithFacts(newPreferences, userId: userId) { result in
+                switch result {
+                case .success:
+                    LogConfig.log("✅ Nuevas preferencias de conversación aprendidas: \(newPreferences.count)", category: "Learning")
+                case .failure(let error):
+                    LogConfig.log("❌ Error guardando preferencias aprendidas: \(error.localizedDescription)", category: "Learning")
+                }
             }
         }
     }

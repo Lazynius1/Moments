@@ -123,7 +123,6 @@ class BackgroundMomentUploadService: ObservableObject {
         
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
         
-        print("📤 === INICIANDO UPLOAD CON PAUSA DE LISTENERS ===")
         feedViewModel?.pauseListenersForUpload()
         
         // Crear momento temporal
@@ -154,13 +153,11 @@ class BackgroundMomentUploadService: ObservableObject {
             await self.processUpload(uploadingMoment)
         }
         
-        print("✅ Momento agregado al feed con progreso")
         return uploadingMoment
     }
     
     // MARK: - 🔄 PROCESAMIENTO COMPLETO
     private func processUpload(_ uploadingMoment: UploadingMoment) async {
-        print("🔄 Procesando upload: \(uploadingMoment.tempId)")
         
         do {
             // PASO 1: Upload archivos (0% - 70%)
@@ -176,12 +173,10 @@ class BackgroundMomentUploadService: ObservableObject {
             // PASO 3: Completado (90% - 100%)
             await updateProgress(uploadingMoment, progress: 1.0, status: .completed)
             
-            print("✅ Upload completado: \(momentId)")
             
             // ✅ NUEVO: Reanudar listeners con delay para evitar conflictos
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 self.feedViewModel?.resumeListenersAfterUpload()
-                print("▶️ Listeners reanudados después de upload exitoso")
             }
             
             // PASO 4: Moderar en background silencioso
@@ -199,13 +194,11 @@ class BackgroundMomentUploadService: ObservableObject {
             }
             
         } catch {
-            print("❌ Error en upload: \(error)")
             await updateProgress(uploadingMoment, progress: 0.0, status: .failed, error: error.localizedDescription)
             
             // ✅ NUEVO: Reanudar listeners incluso si falló
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self.feedViewModel?.resumeListenersAfterUpload()
-                print("▶️ Listeners reanudados después de error")
             }
         }
         
@@ -217,12 +210,10 @@ class BackgroundMomentUploadService: ObservableObject {
     // ✅ FUNCIÓN NUEVA: Configurar referencia al FeedViewModel
     func setFeedViewModel(_ feedViewModel: FeedViewModel) {
         self.feedViewModel = feedViewModel
-        print("🔗 FeedViewModel configurado en UploadService")
     }
     
     // MARK: - 📁 UPLOAD DE ARCHIVOS
     private func uploadMediaFiles(_ uploadingMoment: UploadingMoment) async throws -> [MediaItem] {
-        print("📁 Subiendo \(uploadingMoment.mediaItems.count) archivos...")
         
         var uploadedItems: [MediaItem] = []
         let storageService = StorageService() // Asume que StorageService está definido
@@ -254,7 +245,6 @@ class BackgroundMomentUploadService: ObservableObject {
             await updateProgress(uploadingMoment, progress: fileProgress)
         }
         
-        print("✅ Archivos subidos: \(uploadedItems.count)")
         return uploadedItems
     }
     
@@ -324,8 +314,6 @@ class BackgroundMomentUploadService: ObservableObject {
         uploadingMoment: UploadingMoment,
         mediaUrls: [MediaItem]
     ) async {
-        print("🛡️ === MODERACIÓN SILENCIOSA INICIADA ===")
-        print("📱 Momento real ID: \(momentId)")
         
         for mediaUrl in mediaUrls {
             await withCheckedContinuation { continuation in
@@ -338,10 +326,10 @@ class BackgroundMomentUploadService: ObservableObject {
                 ) { result in
                     switch result {
                     case .approved:
-                        print("✅ Media aprobado: \(mediaUrl.url)")
+                        // Content approved - no action needed
+                        break
                         
                     case .deleted(let reason, let category):
-                        print("🚨 Contenido moderado - ocultando: \(reason)")
                         DispatchQueue.main.async {
                             if let index = self.uploadingMoments.firstIndex(where: { $0.id == uploadingMoment.id }) {
                                 self.uploadingMoments[index].status = .moderated
@@ -349,10 +337,12 @@ class BackgroundMomentUploadService: ObservableObject {
                         }
                         
                     case .warning(let reason, let category):
-                        print("⚠️ Media con advertencia: \(reason)")
+                        // Content has warning - no action needed
+                        break
                         
                     case .error(let errorMessage):
-                        print("❌ Error moderando: \(errorMessage)")
+                        // Technical error - no action needed
+                        break
                     }
                     
                     continuation.resume()
@@ -360,7 +350,6 @@ class BackgroundMomentUploadService: ObservableObject {
             }
         }
         
-        print("✅ Moderación silenciosa completada")
     }
     
     // MARK: - 🔄 HELPERS

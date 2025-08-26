@@ -14,7 +14,6 @@ struct ModernShareBottomSheet: View {
     @Binding var isPresented: Bool
     @State private var showMainShare = false
     @State private var showStoryCreator = false
-    @State private var showCollectionPicker = false
     
     var body: some View {
         ZStack {
@@ -87,16 +86,6 @@ struct ModernShareBottomSheet: View {
                         }
                         
                         ShareActionButton(
-                            icon: "bookmark.fill",
-                            title: "Guardar en colección",
-                            subtitle: "Guardar para más tarde",
-                            iconColor: .orange,
-                            isPrimary: false
-                        ) {
-                            showCollectionPicker = true
-                        }
-                        
-                        ShareActionButton(
                             icon: "square.and.arrow.up",
                             title: "Compartir fuera de la app",
                             subtitle: "Enviar enlace externo",
@@ -164,9 +153,6 @@ struct ModernShareBottomSheet: View {
         }
         .sheet(isPresented: $showStoryCreator) {
             AddToStoryView(moment: moment)
-        }
-        .sheet(isPresented: $showCollectionPicker) {
-            CollectionPickerView(moment: moment)
         }
     }
     
@@ -560,7 +546,6 @@ struct ModernShareSheet: View {
                         self.isLoading = false
                     }
                 case .failure(let error):
-                    print("Error loading conversations: \(error)")
                     self.isLoading = false
                 }
             }
@@ -602,9 +587,11 @@ struct ModernShareSheet: View {
                     DispatchQueue.main.async {
                         switch result {
                         case .success(_):
-                            print("Moment shared successfully to \(userId)")
+                            // Message sent successfully
+                            break
                         case .failure(let error):
-                            print("Error sharing moment: \(error)")
+                            // Handle error if needed
+                            break
                         }
                     }
                 }
@@ -897,61 +884,7 @@ struct AddToStoryView: View {
     }
 }
 
-// MARK: - Collection Picker View
-struct CollectionPickerView: View {
-    let moment: Moment
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(hex: "0A0A0F"),
-                        Color(hex: "1A1A2E")
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-                
-                VStack(spacing: 24) {
-                    Image(systemName: "bookmark.circle.fill")
-                        .font(.system(size: 64))
-                        .foregroundColor(.orange)
-                    
-                    VStack(spacing: 12) {
-                        Text("share.comingSoon")
-                            .font(.custom("Poppins-SemiBold", size: 24))
-                            .foregroundColor(.white)
-                        
-                        Text("share.comingSoon.description")
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                    }
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("share.saveToCollection")
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.white)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("share.cancel", comment: "Cancel")) {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                    .font(.custom("Poppins-Medium", size: 16))
-                }
-            }
-        }
-        .preferredColorScheme(.dark)
-    }
-}
+
 
 // MARK: - ✅ Shared Moment Message Bubble (Actualizado)
 struct SharedMomentMessageBubble: View {
@@ -1471,7 +1404,6 @@ struct VideoThumbnailView: View {
                 if let cgImage = cgImage {
                     self.thumbnailImage = UIImage(cgImage: cgImage)
                 } else {
-                    print("❌ Error generando thumbnail: \(error?.localizedDescription ?? "Unknown error")")
                 }
             }
         }

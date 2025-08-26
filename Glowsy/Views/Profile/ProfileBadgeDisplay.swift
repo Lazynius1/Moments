@@ -565,13 +565,11 @@ struct BadgeToggleCard: View {
                         }
                     }
                     
-                    print("✅ Badge visibility updated to: \(currentIsVisible)")
                 } else {
                     // ❌ NUEVO: Revertir cambios si falla
                     withAnimation(.easeInOut(duration: 0.2)) {
                         currentIsVisible = badge.isVisible
                     }
-                    print("❌ Failed to update badge visibility")
                 }
             }
         }
@@ -726,13 +724,12 @@ struct PlusBadgeToggleCard: View {
                         }
                     }
                     
-                    print("✅ Badge Plus visibility updated to: \(currentShowPlusBadge)")
+
                 } else {
                     // ❌ NUEVO: Revertir cambios si falla
                     withAnimation(.easeInOut(duration: 0.2)) {
                         currentShowPlusBadge = user.showPlusBadge
                     }
-                    print("❌ Failed to update Plus badge visibility")
                 }
             }
         }

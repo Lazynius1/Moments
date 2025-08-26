@@ -213,7 +213,6 @@ struct ModernMomentDetailView: View {
                                 }
                             },
                             onHashtagTap: { hashtag in
-                                print("🔍 Hashtag tocado en detalle: #\(hashtag)")
                                 selectedHashtag = "#\(hashtag)"
                                 showExploreWithHashtag = true
                             }
@@ -234,7 +233,6 @@ struct ModernMomentDetailView: View {
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     proxy.scrollTo(initialIndex, anchor: .center)
-                    print("📍 Scrolled to moment: \(initialIndex)")
                 }
             }
         }
@@ -251,9 +249,7 @@ struct ModernMomentDetailView: View {
             content: newContent
         ) { error in
             if let error = error {
-                print("Error al actualizar momento: \(error)")
             } else {
-                print("Momento actualizado exitosamente")
             }
         }
     }
@@ -341,6 +337,22 @@ struct ModernDetailMomentCard: View {
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @State private var currentImageIndex = 0
+    
+    // ✅ NUEVO: Función para colores de indicadores multicolores
+    private func getIndicatorColor(for index: Int) -> Color {
+        let colors: [Color] = [
+            Color(hex: "#5b2c6f"), // Púrpura
+            Color(hex: "#007bff"), // Azul
+            Color(hex: "#40dfcf"), // Turquesa
+            Color(hex: "#ff6b6b"), // Rojo coral
+            Color(hex: "#4ecdc4"), // Verde azulado
+            Color(hex: "#45b7d1"), // Azul claro
+            Color(hex: "#96ceb4"), // Verde menta
+            Color(hex: "#feca57")  // Amarillo
+        ]
+        
+        return colors[index % colors.count]
+    }
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var isSaved: Bool = false
     @State private var isSaveLoading: Bool = false
@@ -383,6 +395,12 @@ struct ModernDetailMomentCard: View {
     }
 
     private var mediaItems: [MediaItem] {
+        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
+        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
+            return mediaItems
+        }
+        
+        // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
         var items: [MediaItem] = []
         if let imagePath = moment.imagePath, !imagePath.isEmpty {
             items.append(MediaItem(type: .image, url: imagePath))
@@ -456,15 +474,16 @@ struct ModernDetailMomentCard: View {
                             detectAspectRatio()
                         }
                         
-                        // Indicadores de media múltiple...
+                        // Indicadores de media múltiple mejorados...
                         if mediaItems.count > 1 {
                             VStack {
                                 HStack(spacing: 8) {
                                     ForEach(0..<mediaItems.count, id: \.self) { index in
                                         Capsule()
-                                            .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.5))
-                                            .frame(width: currentImageIndex == index ? 25 : 8, height: 4)
+                                            .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
+                                            .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
                                             .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
+                                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                                     }
                                 }
                                 .padding(.top, 20)
@@ -679,8 +698,8 @@ struct ModernDetailMomentCard: View {
                 DispatchQueue.main.async {
                     self.isSaved = saved
                 }
-            case .failure(let error):
-                print("Error checking save status: \(error)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -936,7 +955,6 @@ struct DetailHashtagText: View {
             .environment(\.openURL, OpenURLAction { url in
                 // ✅ Manejar taps en hashtags a través de URLs personalizadas
                 if url.scheme == "hashtag", let hashtag = url.host {
-                    print("🔍 DEBUG: Hashtag específico tocado en detalle: \(hashtag)")
                     onHashtagTap(hashtag)
                     return .handled
                 }

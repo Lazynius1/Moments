@@ -59,7 +59,6 @@ struct ViewOnceMessageBubble: View {
     private func openViewOnceMessage() {
         // ✅ Solo se puede abrir si NO ha sido visto
         guard !message.isViewed else {
-            print("⚠️ View-once message already viewed, cannot open")
             return
         }
         
@@ -378,9 +377,7 @@ struct ViewOnceFullScreenView: View {
             messageId: message.id
         ) { error in
             if let error = error {
-                print("❌ Error deleting view-once message: \(error.localizedDescription)")
             } else {
-                print("✅ View-once message deleted successfully")
             }
         }
     }

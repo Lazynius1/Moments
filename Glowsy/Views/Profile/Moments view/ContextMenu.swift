@@ -117,9 +117,7 @@ struct ModernMomentContextMenu: View {
             content: newContent
         ) { error in
             if let error = error {
-                print("Error al actualizar momento: \(error)")
             } else {
-                print("Momento actualizado exitosamente")
             }
         }
     }
@@ -137,9 +135,7 @@ struct ModernMomentContextMenu: View {
                 self.isDeleting = false
                 
                 if let error = error {
-                    print("Error al eliminar momento: \(error)")
                 } else {
-                    print("Momento eliminado exitosamente")
                 }
             }
         }

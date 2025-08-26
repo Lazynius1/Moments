@@ -20,7 +20,6 @@ class NotificationBadgeService: ObservableObject {
     func setupListeners() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        print("🔔 BadgeService: Configurando listeners para: \(userId)")
         
         // 1. Listener para notificaciones generales
         setupNotificationListener(userId: userId)
@@ -39,12 +38,10 @@ class NotificationBadgeService: ObservableObject {
             .whereField("isPending", isEqualTo: true)
             .addSnapshotListener { [weak self] snapshot, error in
                 if let error = error {
-                    print("❌ BadgeService: Error listener notificaciones: \(error)")
                     return
                 }
                 
                 let count = snapshot?.documents.count ?? 0
-                print("🔔 BadgeService: Notificaciones no leídas: \(count)")
                 
                 DispatchQueue.main.async {
                     self?.unreadNotificationsCount = count
@@ -109,9 +106,6 @@ class NotificationBadgeService: ObservableObject {
     private func updateAppBadge() {
         let totalBadge = unreadNotificationsCount + unreadMessagesCount
         
-        print("🔔 BadgeService: Actualizando badge app: \(totalBadge)")
-        print("  - Notificaciones: \(unreadNotificationsCount)")
-        print("  - Mensajes: \(unreadMessagesCount)")
         
         DispatchQueue.main.async {
             UIApplication.shared.applicationIconBadgeNumber = totalBadge

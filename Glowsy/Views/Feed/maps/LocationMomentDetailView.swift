@@ -460,9 +460,7 @@ struct LocationMomentDetailView: View {
             content: newContent
         ) { error in
             if let error = error {
-                print("Error al actualizar momento: \(error)")
             } else {
-                print("Momento actualizado exitosamente")
                 // ✅ Actualizar el momento en el array local
                 if let index = locationMoments.firstIndex(where: { $0.id == moment.id }) {
                     // TODO: Actualizar el array de momentos si es necesario
@@ -486,9 +484,7 @@ struct LocationMomentDetailView: View {
                 self.isDeleting = false
                 
                 if let error = error {
-                    print("Error al eliminar momento: \(error)")
                 } else {
-                    print("Momento eliminado exitosamente")
                     // ✅ Cerrar la vista si se elimina el momento actual
                     if let index = locationMoments.firstIndex(where: { $0.id == moment.id }) {
                         if index == currentIndex {
@@ -530,7 +526,6 @@ struct LocationMomentDetailView: View {
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         .onChange(of: currentIndex) { newIndex in
-            print("📍 Cambiado a momento: \(newIndex)")
         }
     }
     
@@ -548,8 +543,8 @@ struct LocationMomentDetailView: View {
                     DispatchQueue.main.async {
                         self.savedStates[momentId] = saved
                     }
-                case .failure(let error):
-                    print("Error checking save status: \(error)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -563,7 +558,6 @@ struct LocationMomentDetailView: View {
             .collection("comments")
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ Error cargando comentarios: \(error)")
                     return
                 }
                 
@@ -591,7 +585,6 @@ struct LocationMomentDetailView: View {
                     withAnimation {
                         self.savedStates[momentId] = !(self.savedStates[momentId] ?? false)
                     }
-                    print("Error toggling save: \(error)")
                 }
             }
         }
@@ -698,60 +691,87 @@ struct LocationMomentCard: View {
         .padding(.top, 20)
     }
     
+    // ✅ NUEVO: Computed property para mediaItems (consistente con otras vistas)
+    private var mediaItems: [MediaItem] {
+        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
+        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
+            return mediaItems
+        }
+        
+        // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
+        var items: [MediaItem] = []
+        if let imagePath = moment.imagePath, !imagePath.isEmpty {
+            items.append(MediaItem(type: .image, url: imagePath))
+        }
+        if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
+            items.append(MediaItem(type: .video, url: videoUrl))
+        }
+        return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
+    }
+    
+    // ✅ NUEVO: Estado para carrusel
+    @State private var currentImageIndex = 0
+    
+    // ✅ NUEVO: Función para colores de indicadores multicolores
+    private func getIndicatorColor(for index: Int) -> Color {
+        let colors: [Color] = [
+            Color(hex: "#5b2c6f"), // Púrpura
+            Color(hex: "#007bff"), // Azul
+            Color(hex: "#40dfcf"), // Turquesa
+            Color(hex: "#ff6b6b"), // Rojo coral
+            Color(hex: "#4ecdc4"), // Verde azulado
+            Color(hex: "#45b7d1"), // Azul claro
+            Color(hex: "#96ceb4"), // Verde menta
+            Color(hex: "#feca57")  // Amarillo
+        ]
+        
+        return colors[index % colors.count]
+    }
+    
     // ✅ Imagen principal con aspect ratio dinámico
     private var locationMomentImageView: some View {
-        Group {
-            if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-                KFImage(url)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: cardHeight)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
-                            )
-                    }
-                    .onSuccess { result in
-                        let imageSize = result.image.size
-                        let ratio = imageSize.width / imageSize.height
-                        
-                        DispatchQueue.main.async {
-                            if ratio > 0 && ratio.isFinite {
-                                self.detectedAspectRatio = ratio
-                                self.classifyAspectRatio(ratio)
-                            }
+        ZStack {
+            // ✅ NUEVO: EnhancedCarouselView para múltiples archivos
+            EnhancedCarouselView(
+                mediaItems: mediaItems,
+                currentIndex: $currentImageIndex,
+                aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
+                allMoments: [moment], // Solo el momento actual
+                currentMoment: moment // El momento actual
+            )
+            .frame(height: cardHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 10)
+            .onAppear {
+                detectAspectRatio()
+            }
+            
+            // ✅ NUEVO: Indicadores de media múltiple mejorados
+            if mediaItems.count > 1 {
+                VStack {
+                    HStack(spacing: 8) {
+                        ForEach(0..<mediaItems.count, id: \.self) { index in
+                            Capsule()
+                                .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
+                                .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
+                                .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
+                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                         }
                     }
-                    .onFailure { error in
-                        print("Error loading moment image: \(error)")
-                    }
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: cardHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 10)
-                    .clipped()
-            } else {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: cardHeight)
-                    .overlay(
-                        Image(systemName: "photo.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.white.opacity(0.6))
-                    )
+                    .padding(.top, 20)
+                    Spacer()
+                }
             }
         }
     }
@@ -891,6 +911,25 @@ struct LocationMomentCard: View {
         }
         .padding(.top, 24)
         .padding(.bottom, 40)
+    }
+    
+    // ✅ NUEVO: Función para detectar aspect ratio
+    private func detectAspectRatio() {
+        // Si ya tenemos mediaItems, detectar del primero
+        if let firstItem = mediaItems.first {
+            switch firstItem.type {
+            case .image:
+                // Para imágenes, usar el aspect ratio detectado
+                if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
+                    classifyAspectRatio(detectedAspectRatio)
+                }
+            case .video:
+                // Para videos, usar el aspect ratio detectado
+                if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
+                    classifyAspectRatio(detectedAspectRatio)
+                }
+            }
+        }
     }
     
     // ✅ Clasificar aspect ratio

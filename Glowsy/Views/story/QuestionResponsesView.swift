@@ -143,7 +143,6 @@ struct QuestionResponsesView: View {
                                 )
                                 return response
                             } catch {
-                                print("❌ Error parsing response: \(error)")
                                 return nil
                             }
                         }

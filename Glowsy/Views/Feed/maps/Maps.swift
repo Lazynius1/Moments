@@ -873,7 +873,6 @@ extension LocationMapView {
     func loadWeatherData(for coordinate: CLLocationCoordinate2D) {
         // ✅ PREVENIR múltiples llamadas al clima si ya tenemos datos
         guard currentWeather == nil else {
-            print("☀️ Ya tenemos datos del clima, omitiendo nueva solicitud")
             return
         }
         

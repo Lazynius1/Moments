@@ -56,11 +56,9 @@ class StorageService {
         metadata.contentType = "image/jpeg"
         metadata.customMetadata = ["type": "profile_picture"] // Marcar como foto de perfil
         
-        print("📷 Subiendo foto de perfil: \(imageData.count / 1024)KB (ya recortada)")
         
         profileRef.putData(imageData, metadata: metadata) { metadata, error in
             if let error = error {
-                print("❌ Error uploading profile image: \(error.localizedDescription)")
                 completion(.failure(StorageError.uploadFailed))
                 return
             }
@@ -68,12 +66,10 @@ class StorageService {
             // Retrieve download URL
             profileRef.downloadURL { url, error in
                 if let error = error {
-                    print("❌ Error retrieving download URL: \(error.localizedDescription)")
                     completion(.failure(StorageError.urlRetrievalFailed))
                     return
                 }
                 if let downloadURL = url?.absoluteString {
-                    print("✅ Profile image uploaded successfully: \(downloadURL)")
                     completion(.success(downloadURL))
                 } else {
                     completion(.failure(StorageError.urlRetrievalFailed))
@@ -108,7 +104,6 @@ class StorageService {
         
         // Obtener la imagen procesada
         guard let processedImage = UIGraphicsGetImageFromCurrentImageContext() else {
-            print("⚠️ Error procesando imagen, usando original")
             return image // Fallback a la imagen original
         }
         
@@ -132,13 +127,11 @@ class StorageService {
     // 🔥 FUNCIÓN ACTUALIZADA: Upload de imagen SIN moderación automática
     private func uploadImageMedia(image: UIImage?, fileName: String, userId: String, completion: @escaping (Result<String, Error>) -> Void) {
         guard let image = image else {
-            print("❌ Error: Imagen es nil")
             completion(.failure(StorageError.invalidData))
             return
         }
         
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            print("❌ Error: No se pudo convertir imagen a data")
             completion(.failure(StorageError.invalidData))
             return
         }
@@ -147,18 +140,15 @@ class StorageService {
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
         
-        print("📸 Subiendo imagen: \(imageData.count / 1024)KB")
         
         imageRef.putData(imageData, metadata: metadata) { _, error in
             if let error = error {
-                print("❌ Error subiendo imagen: \(error)")
                 completion(.failure(StorageError.uploadFailed))
                 return
             }
             
             imageRef.downloadURL { url, error in
                 if let error = error {
-                    print("❌ Error obteniendo URL imagen: \(error)")
                     completion(.failure(StorageError.urlRetrievalFailed))
                     return
                 }
@@ -168,7 +158,6 @@ class StorageService {
                     return
                 }
                 
-                print("✅ Imagen subida: \(downloadURL)")
                 
                 // 🔥 SOLO DEVOLVER ÉXITO - SIN MODERACIÓN AQUÍ
                 completion(.success(downloadURL))
@@ -181,19 +170,13 @@ class StorageService {
     // 🔥 FUNCIÓN ACTUALIZADA: Upload de video SIN moderación automática
     private func uploadVideoMedia(videoURL: URL?, fileName: String, userId: String, completion: @escaping (Result<String, Error>) -> Void) {
         guard let sourceURL = videoURL else {
-            print("❌ Error: VideoURL es nil")
             completion(.failure(StorageError.invalidData))
             return
         }
         
-        print("🎥 Iniciando upload de video SIN MODERACIÓN:")
-        print("  - Source URL: \(sourceURL)")
-        print("  - Es file URL: \(sourceURL.isFileURL)")
-        print("  - Path: \(sourceURL.path)")
         
         // Verificar que el archivo existe
         guard FileManager.default.fileExists(atPath: sourceURL.path) else {
-            print("❌ Error: Archivo de video no existe en \(sourceURL.path)")
             completion(.failure(StorageError.invalidData))
             return
         }
@@ -202,7 +185,6 @@ class StorageService {
         copyVideoToTemp(from: sourceURL) { [weak self] tempResult in
             switch tempResult {
             case .success(let tempURL):
-                print("✅ Video copiado a temp: \(tempURL.lastPathComponent)")
                 
                 // ✅ PASO 2: Subir desde directorio temporal
                 self?.uploadVideoFromTemp(tempURL: tempURL, fileName: fileName, userId: userId) { uploadResult in
@@ -214,7 +196,6 @@ class StorageService {
                 }
                 
             case .failure(let error):
-                print("❌ Error copiando video a temp: \(error)")
                 completion(.failure(error))
             }
         }
@@ -222,14 +203,12 @@ class StorageService {
 
     // ✅ FUNCIÓN: Copiar video a directorio temporal (SIN CAMBIOS)
     private func copyVideoToTemp(from sourceURL: URL, completion: @escaping (Result<URL, Error>) -> Void) {
-        print("📁 Copiando video a directorio temporal...")
         
         // Crear URL temporal única
         let tempDir = FileManager.default.temporaryDirectory
         let tempFileName = "video_\(UUID().uuidString).mov"
         let tempURL = tempDir.appendingPathComponent(tempFileName)
         
-        print("  - Destino: \(tempURL.path)")
         
         // Copiar en background
         DispatchQueue.global(qos: .userInitiated).async {
@@ -243,7 +222,6 @@ class StorageService {
                 let originalAttributes = try FileManager.default.attributesOfItem(atPath: sourceURL.path)
                 let originalSize = originalAttributes[.size] as? Int64 ?? 0
                 
-                print("  - Tamaño original: \(Double(originalSize)/1024.0/1024.0) MB")
                 
                 // Copiar archivo
                 try FileManager.default.copyItem(at: sourceURL, to: tempURL)
@@ -256,14 +234,12 @@ class StorageService {
                 let copiedAttributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
                 let copiedSize = copiedAttributes[.size] as? Int64 ?? 0
                 
-                print("  - ✅ Copiado: \(Double(copiedSize)/1024.0/1024.0) MB")
                 
                 DispatchQueue.main.async {
                     completion(.success(tempURL))
                 }
                 
             } catch {
-                print("  - ❌ Error copiando: \(error)")
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }
@@ -282,9 +258,6 @@ class StorageService {
             "tempFile": tempURL.lastPathComponent
         ]
         
-        print("🔥 Subiendo a Firebase Storage:")
-        print("  - Referencia: videos/\(fileName).mp4")
-        print("  - Archivo temporal: \(tempURL.lastPathComponent)")
         
         // Crear tarea de upload
         let uploadTask = videoRef.putFile(from: tempURL, metadata: metadata)
@@ -293,30 +266,24 @@ class StorageService {
         uploadTask.observe(.progress) { snapshot in
             if let progress = snapshot.progress {
                 let percent = Double(progress.completedUnitCount) / Double(progress.totalUnitCount) * 100
-                print("📈 Progreso: \(Int(percent))% (\(progress.completedUnitCount)/\(progress.totalUnitCount) bytes)")
             }
         }
         
         // Observar éxito
         uploadTask.observe(.success) { snapshot in
-            print("✅ Upload completado exitosamente")
             
             // Obtener URL de descarga
             videoRef.downloadURL { url, error in
                 if let error = error {
-                    print("❌ Error obteniendo download URL: \(error)")
                     completion(.failure(StorageError.urlRetrievalFailed))
                     return
                 }
                 
                 guard let downloadURL = url?.absoluteString else {
-                    print("❌ Error: Download URL es nil")
                     completion(.failure(StorageError.urlRetrievalFailed))
                     return
                 }
                 
-                print("✅ Video subido exitosamente:")
-                print("  - URL: \(downloadURL)")
                 
                 // 🔥 SOLO DEVOLVER ÉXITO - SIN MODERACIÓN AQUÍ
                 completion(.success(downloadURL))
@@ -328,22 +295,21 @@ class StorageService {
         // Observar fallo
         uploadTask.observe(.failure) { snapshot in
             if let error = snapshot.error as NSError? {
-                print("❌ Upload falló:")
-                print("  - Código: \(error.code)")
-                print("  - Dominio: \(error.domain)")
-                print("  - Descripción: \(error.localizedDescription)")
-                print("  - UserInfo: \(error.userInfo)")
                 
                 // Analizar tipo de error
                 switch error.code {
                 case -1:
-                    print("  - Tipo: Error de red general")
+                    // Unknown error
+                    break
                 case -1001:
-                    print("  - Tipo: Timeout")
+                    // Timeout error
+                    break
                 case -1009:
-                    print("  - Tipo: Sin conexión")
+                    // Network connection lost
+                    break
                 default:
-                    print("  - Tipo: Error desconocido")
+                    // Other error
+                    break
                 }
             }
             
@@ -360,20 +326,14 @@ class StorageService {
             do {
                 if FileManager.default.fileExists(atPath: url.path) {
                     try FileManager.default.removeItem(at: url)
-                    print("🗑️ Archivo temporal eliminado: \(url.lastPathComponent)")
                 }
             } catch {
-                print("⚠️ Error eliminando archivo temporal: \(error)")
             }
         }
     }
     
     // MARK: - 🚨 ALERTA DE MODERACIÓN (placeholder)
     private func showModerationAlert(reason: String, category: String) {
-        print("🚨 === ALERTA DE MODERACIÓN ===")
-        print("📱 Razón: \(reason)")
-        print("🏷️ Categoría: \(category)")
-        print("💬 Usuario sería notificado: 'Tu contenido no cumple con nuestras normas'")
         
         let alert = UIAlertController(
             title: "Contenido no permitido",
@@ -393,11 +353,9 @@ class StorageService {
     
     // MARK: - FUNCIÓN: Borrar archivo de Storage
     func deleteMedia(path: String, completion: @escaping (Error?) -> Void) {
-        print("🗑️ Intentando borrar archivo: \(path)")
         
         // Verificar que el path no esté vacío
         guard !path.isEmpty else {
-            print("⚠️ Path vacío, no se puede borrar")
             completion(StorageError.invalidPath)
             return
         }
@@ -414,10 +372,8 @@ class StorageService {
         let fileRef = storage.child(storagePath)
         fileRef.delete { error in
             if let error = error {
-                print("❌ Error al borrar archivo: \(error.localizedDescription)")
                 completion(StorageError.deleteFailed)
             } else {
-                print("✅ Archivo borrado correctamente: \(storagePath)")
                 completion(nil)
             }
         }
@@ -430,7 +386,6 @@ class StorageService {
         
         guard let urlComponents = URLComponents(string: url),
               let pathComponent = urlComponents.path.components(separatedBy: "/o/").last else {
-            print("⚠️ No se pudo extraer path de URL: \(url)")
             return url // Devolver original como fallback
         }
         
@@ -440,21 +395,18 @@ class StorageService {
         // Decodificar URL encoding (%2F -> /)
         let decodedPath = pathWithoutQuery.removingPercentEncoding ?? pathWithoutQuery
         
-        print("🔄 Path extraído: \(decodedPath)")
         return decodedPath
     }
     
     // MARK: - FUNCIÓN AUXILIAR: Borrar imagen de perfil anterior
     func deleteProfileImage(userId: String, oldImagePath: String?, completion: @escaping (Error?) -> Void) {
         guard let oldPath = oldImagePath, !oldPath.isEmpty else {
-            print("🔄 No hay imagen anterior que borrar")
             completion(nil)
             return
         }
         
         // Verificar que sea una imagen de Firebase Storage (no externa)
         guard oldPath.contains("firebasestorage.googleapis.com") || oldPath.hasPrefix("images/") else {
-            print("🔄 Imagen anterior es externa, no se borra: \(oldPath)")
             completion(nil)
             return
         }

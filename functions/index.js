@@ -113,14 +113,18 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     let notificationTitle;
     let notificationBody;
     
-    if (newReactionCount === 1) {
+    // ✅ VALIDAR que username existe y no sea undefined
+    const username = reacterData.username || 'Alguien';
+    const reactionCount = Math.max(1, newReactionCount); // ✅ Evitar números negativos
+    
+    if (reactionCount === 1) {
       // Primera reacción: mostrar usuario específico
-      notificationTitle = `${reacterData.username} reaccionó ${emoji} a tu momento`;
+      notificationTitle = `${username} reaccionó ${emoji} a tu momento`;
       notificationBody = 'Toca para ver tu momento';
     } else {
       // Múltiples reacciones: mostrar conteo
-      notificationTitle = `${reacterData.username} y ${newReactionCount - 1} más reaccionaron a tu momento`;
-      notificationBody = `${newReactionCount} reacciones en total`;
+      notificationTitle = `${username} y ${reactionCount - 1} más reaccionaron a tu momento`;
+      notificationBody = `${reactionCount} reacciones en total`;
     }
     
     const message = {
@@ -160,7 +164,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     
     try {
       await admin.messaging().send(message);
-      console.log(`✅ Notificación enviada: ${reacterData.username} -> ${momentOwnerData.username} (${reaction.reactionType}) - Total: ${newReactionCount}`);
+      console.log(`✅ Notificación enviada: ${username} -> ${momentOwnerData.username} (${reaction.reactionType}) - Total: ${reactionCount}`);
     } catch (error) {
       if (error.code === 'messaging/registration-token-not-registered') {
         await removeInvalidToken(userId, fcmToken);
@@ -170,13 +174,13 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     
     // Crear notificación en Firestore
     await admin.firestore().collection(`users/${userId}/notifications`).add({
-      type: 'like',
+      type: 'reaction', // ✅ CORREGIDO: Para reacciones en momentos
       senderId: reaction.userId,
-      senderUsername: reacterData.username,
+      senderUsername: username, // ✅ Usar username validado
       senderProfileImage: reacterData.profileImagePath || '',
       momentId: momentId,
       reactionType: reaction.reactionType,
-      reactionCount: newReactionCount,
+      reactionCount: reactionCount, // ✅ Usar reactionCount validado
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       isPending: true
     });
@@ -1001,15 +1005,15 @@ exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{mom
     // ✅ ELIMINAR TODAS LAS NOTIFICACIONES EXISTENTES de este momento
     const notificationsSnapshot = await admin.firestore()
       .collection(`users/${userId}/notifications`)
-      .where('type', '==', 'like')
+      .where('type', '==', 'reaction') // ✅ CORREGIDO: Buscar notificaciones de tipo 'reaction'
       .where('momentId', '==', momentId)
       .get();
     
-    // Eliminar todas las notificaciones de like para este momento
+    // Eliminar todas las notificaciones de reacción para este momento
     const deletePromises = notificationsSnapshot.docs.map(doc => doc.ref.delete());
     await Promise.all(deletePromises);
     
-    console.log(`🗑️ Eliminadas ${notificationsSnapshot.size} notificaciones de like para momento ${momentId}`);
+    console.log(`🗑️ Eliminadas ${notificationsSnapshot.size} notificaciones de reacción para momento ${momentId}`);
     
     // ✅ SI QUEDAN REACCIONES, CREAR NUEVA NOTIFICACIÓN AGRUPADA
     const remainingReactionsSnapshot = await admin.firestore()
@@ -1026,7 +1030,7 @@ exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{mom
         
         // Crear nueva notificación agrupada
         await admin.firestore().collection(`users/${userId}/notifications`).add({
-          type: 'like',
+          type: 'reaction', // ✅ CORREGIDO: Para reacciones en momentos
           senderId: firstReaction.userId,
           senderUsername: reacterData.username,
           senderProfileImage: reacterData.profileImagePath || '',

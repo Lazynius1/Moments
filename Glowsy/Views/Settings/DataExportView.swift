@@ -555,7 +555,6 @@ class DataExportViewModel: ObservableObject {
             .getDocuments { [weak self] snapshot, error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("Error checking existing requests: \(error)")
                         return
                     }
                     

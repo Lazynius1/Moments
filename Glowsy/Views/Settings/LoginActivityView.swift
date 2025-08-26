@@ -102,7 +102,7 @@ struct LoginActivityView: View {
                     }
                 }
             }
-            .navigationTitle("Actividad de Inicio")
+            .navigationTitle(NSLocalizedString("loginActivity.navigation.title", comment: "Login activity navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
@@ -191,10 +191,10 @@ struct CurrentSessionCard: View {
             
             if let session = session {
                 VStack(spacing: 8) {
-                    SessionDetailRow(icon: "location", title: "Ubicación", value: session.location)
-                    SessionDetailRow(icon: "iphone", title: "Dispositivo", value: session.device)
-                    SessionDetailRow(icon: "network", title: "IP", value: session.ipAddress)
-                    SessionDetailRow(icon: "clock", title: "Inicio", value: session.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    SessionDetailRow(icon: "location", title: NSLocalizedString("loginActivity.session.location", comment: "Location label"), value: session.location)
+                    SessionDetailRow(icon: "iphone", title: NSLocalizedString("loginActivity.session.device", comment: "Device label"), value: session.device)
+                    SessionDetailRow(icon: "network", title: NSLocalizedString("loginActivity.session.ip", comment: "IP label"), value: session.ipAddress)
+                    SessionDetailRow(icon: "clock", title: NSLocalizedString("loginActivity.session.startTime", comment: "Start time label"), value: session.timestamp.formatted(date: .abbreviated, time: .shortened))
                 }
             } else {
                 HStack {
@@ -229,7 +229,7 @@ struct LoginActivityCard: View {
                     .foregroundColor(activity.isSuccessful ? .green : .red)
                     .font(.system(size: 16))
                 
-                Text(activity.isSuccessful ? "Inicio exitoso" : "Intento fallido")
+                Text(activity.isSuccessful ? NSLocalizedString("loginActivity.status.successful", comment: "Successful login status") : NSLocalizedString("loginActivity.status.failed", comment: "Failed login status"))
                     .font(.custom("Poppins-Medium", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
@@ -242,9 +242,9 @@ struct LoginActivityCard: View {
             
             if activity.isSuccessful {
                 VStack(spacing: 6) {
-                    SessionDetailRow(icon: "location", title: "Ubicación", value: activity.location)
-                    SessionDetailRow(icon: "iphone", title: "Dispositivo", value: activity.device)
-                    SessionDetailRow(icon: "network", title: "IP", value: activity.ipAddress)
+                    SessionDetailRow(icon: "location", title: NSLocalizedString("loginActivity.session.location", comment: "Location label"), value: activity.location)
+                    SessionDetailRow(icon: "iphone", title: NSLocalizedString("loginActivity.session.device", comment: "Device label"), value: activity.device)
+                    SessionDetailRow(icon: "network", title: NSLocalizedString("loginActivity.session.ip", comment: "IP label"), value: activity.ipAddress)
                 }
             } else {
                 HStack {
@@ -252,7 +252,7 @@ struct LoginActivityCard: View {
                         .foregroundColor(.orange)
                         .font(.system(size: 12))
                     
-                    Text(activity.failureReason ?? "Credenciales incorrectas")
+                    Text(activity.failureReason ?? NSLocalizedString("loginActivity.error.credentials", comment: "Default failure reason"))
                         .font(.custom("Poppins-Regular", size: 13))
                         .foregroundColor(.orange)
                 }
@@ -320,27 +320,27 @@ struct SecurityTipsSection: View {
             VStack(spacing: 12) {
                 LoginSecurityTipRow(
                     icon: "checkmark.circle",
-                    text: "Revisa regularmente tu actividad de inicio de sesión"
+                    text: NSLocalizedString("loginActivity.security.tip1", comment: "Security tip 1")
                 )
                 
                 LoginSecurityTipRow(
                     icon: "checkmark.circle",
-                    text: "Cierra sesión en dispositivos que no reconozcas"
+                    text: NSLocalizedString("loginActivity.security.tip2", comment: "Security tip 2")
                 )
                 
                 LoginSecurityTipRow(
                     icon: "checkmark.circle",
-                    text: "Usa autenticación en dos pasos para mayor seguridad"
+                    text: NSLocalizedString("loginActivity.security.tip3", comment: "Security tip 3")
                 )
                 
                 LoginSecurityTipRow(
                     icon: "checkmark.circle",
-                    text: "Cambia tu contraseña si detectas actividad sospechosa"
+                    text: NSLocalizedString("loginActivity.security.tip4", comment: "Security tip 4")
                 )
                 
                 LoginSecurityTipRow(
                     icon: "checkmark.circle",
-                    text: "No inicies sesión desde redes WiFi públicas"
+                    text: NSLocalizedString("loginActivity.security.tip5", comment: "Security tip 5")
                 )
             }
         }
@@ -404,7 +404,7 @@ class LoginActivityViewModel: ObservableObject {
     
     func loadLoginActivity(completion: @escaping () -> Void) {
         guard let userId = Auth.auth().currentUser?.uid else {
-            showErrorAlert("Usuario no autenticado")
+            showErrorAlert(NSLocalizedString("loginActivity.error.notAuthenticated", comment: "User not authenticated error"))
             completion()
             return
         }
@@ -436,7 +436,7 @@ class LoginActivityViewModel: ObservableObject {
     @MainActor
     func refreshLoginActivity() async {
         guard let userId = Auth.auth().currentUser?.uid else {
-            showErrorAlert("Usuario no autenticado")
+            showErrorAlert(NSLocalizedString("loginActivity.error.notAuthenticated", comment: "User not authenticated error"))
             return
         }
         
@@ -465,7 +465,7 @@ class LoginActivityViewModel: ObservableObject {
     
     func logoutAllSessions() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            showErrorAlert("Usuario no autenticado")
+            showErrorAlert(NSLocalizedString("loginActivity.error.notAuthenticated", comment: "User not authenticated error"))
             return
         }
         

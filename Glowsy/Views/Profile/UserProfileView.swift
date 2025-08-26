@@ -65,7 +65,7 @@ struct UserProfileView: View {
     @State private var messageRequestError: String?
     @State private var showingSuccessMessage = false
     @State private var selectedMoment: Moment?
-    @State private var showCircularMenu: Bool = false
+
     @StateObject private var storyViewModel = StoryViewModel()
     @State private var showStoryViewer: Bool = false
     @State private var selectedStoryIndex: Int = 0
@@ -125,13 +125,7 @@ struct UserProfileView: View {
                 let safeAreaTop = geometry.safeAreaInsets.top
                 let safeAreaBottom = geometry.safeAreaInsets.bottom
 
-                ZStack {
-                    contentView(safeAreaTop: safeAreaTop, safeAreaBottom: safeAreaBottom)
-                    
-                    if showCircularMenu {
-                        CircularMenuView(userId: userId, isShowing: $showCircularMenu)
-                    }
-                }
+                contentView(safeAreaTop: safeAreaTop, safeAreaBottom: safeAreaBottom)
             }
         }
         .navigationBarHidden(true)
@@ -223,7 +217,7 @@ struct UserProfileView: View {
                         }
                     },
                     onClose: { showStoryViewer = false },
-                    onProfileTap: { print("Tocaste el perfil") }
+                    onProfileTap: { }
                 )
             }
         }
@@ -251,7 +245,7 @@ struct UserProfileView: View {
                 messagingViewModel.fetchConversations(for: currentUserId)
                 
             } else {
-                print("   - ⚠️ No hay usuario autenticado")
+    
             }
             
             // ✅ Cargar datos del perfil
@@ -284,6 +278,7 @@ struct UserProfileView: View {
                     userProfile: viewModel.userProfile,
                     userId: userId,
                     storyViewModel: storyViewModel,
+                    viewModel: viewModel,
                     followButtonState: viewModel.followButtonState,
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
@@ -294,8 +289,7 @@ struct UserProfileView: View {
                         dismiss()
                     },
                     showStoryViewer: $showStoryViewer,
-                    selectedStoryIndex: $selectedStoryIndex,
-                    showCircularMenu: $showCircularMenu
+                    selectedStoryIndex: $selectedStoryIndex
                 )
             } else {
                 // ✅ CORREGIDO: Vista pública con parámetros correctos
@@ -311,7 +305,6 @@ struct UserProfileView: View {
                     selectedMomentIndex: $selectedMomentIndex,
                     showStoryViewer: $showStoryViewer,
                     selectedStoryIndex: $selectedStoryIndex,
-                    showCircularMenu: $showCircularMenu,
                     navigateToChat: $navigateToChat,
                     targetConversation: $targetConversation,
                     scrollOffset: $scrollOffset,
@@ -363,7 +356,6 @@ struct UserModernPublicProfileView: View {
     @Binding var selectedMomentIndex: Int
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
-    @Binding var showCircularMenu: Bool
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
     @Binding var scrollOffset: CGFloat
@@ -385,7 +377,6 @@ struct UserModernPublicProfileView: View {
                         messagingViewModel: messagingViewModel,
                         showStoryViewer: $showStoryViewer,
                         selectedStoryIndex: $selectedStoryIndex,
-                        showCircularMenu: $showCircularMenu,
                         navigateToChat: $navigateToChat,
                         targetConversation: $targetConversation,
                         showingUserList: $showingUserList,
@@ -518,7 +509,6 @@ struct UserModernProfileHeader: View {
     @EnvironmentObject var authService: AuthService // ✅ NUEVO: Para acceder a badges del usuario visitado
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
-    @Binding var showCircularMenu: Bool
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
     @Binding var showingUserList: UserProfileView.UserListType?
@@ -554,36 +544,14 @@ struct UserModernProfileHeader: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-            // Avatar hero con badges
-            ZStack {
-                // Círculo de fondo con gradiente adaptativo
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                UserProfileColors.accent.opacity(colorScheme == .dark ? 0.25 : 0.15),
-                                UserProfileColors.purple.opacity(colorScheme == .dark ? 0.15 : 0.08),
-                                Color.clear
-                            ]),
-                            center: .center,
-                            startRadius: 45,
-                            endRadius: 85
-                        )
-                    )
-                    .frame(width: 170, height: 170)
-                    .blur(radius: 20)
-                    .offset(y: 5)
-                
-                // Avatar principal con badges
-                UserModernAvatarWithBadges(
-                    userProfile: viewModel.userProfile,
-                    storyViewModel: storyViewModel,
-                    showStoryViewer: $showStoryViewer,
-                    selectedStoryIndex: $selectedStoryIndex,
-                    showCircularMenu: $showCircularMenu,
-                    size: 120
-                )
-            }
+            // Avatar principal con badges (sin círculo de fondo)
+            UserModernAvatarWithBadges(
+                userProfile: viewModel.userProfile,
+                storyViewModel: storyViewModel,
+                showStoryViewer: $showStoryViewer,
+                selectedStoryIndex: $selectedStoryIndex,
+                size: 120
+            )
             
             // Información del usuario con badges
             VStack(spacing: 14) {
@@ -594,7 +562,7 @@ struct UserModernProfileHeader: View {
                         badgeSize: 22,
                         spacing: 6,
                         gradient: LinearGradient(
-                            colors: [UserProfileColors.textPrimary, UserProfileColors.accent.opacity(0.9)],
+                            colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -784,8 +752,6 @@ struct UserModernProfileHeader: View {
             return
         }
         
-        print("📤 Enviando solicitud de mensaje a \(targetUser.username)...")
-        
         messageRequestService.sendMessageRequest(
             to: targetUser.id,
             message: message
@@ -793,13 +759,11 @@ struct UserModernProfileHeader: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("✅ Solicitud de mensaje enviada exitosamente")
                     showingMessageRequestAlert = false
                     messageRequestText = ""
                     messageRequestError = nil
                     showingSuccessMessage = true
                 case .failure(let error):
-                    print("❌ Error enviando solicitud: \(error)")
                     messageRequestError = String(format: NSLocalizedString("messageRequestModal.error.generic", comment: "Generic error"), error.localizedDescription)
                 }
             }
@@ -997,7 +961,6 @@ struct UserModernAvatarWithBadges: View {
     @ObservedObject var storyViewModel: StoryViewModel
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
-    @Binding var showCircularMenu: Bool
     let size: CGFloat
     @Environment(\.colorScheme) var colorScheme
     
@@ -1091,8 +1054,6 @@ struct UserModernAvatarWithBadges: View {
             if hasStory {
                 showStoryViewer = true
                 selectedStoryIndex = 0
-            } else {
-                showCircularMenu.toggle()
             }
         }
     }
@@ -1430,7 +1391,6 @@ struct UserModernAvatar: View {
     @ObservedObject var storyViewModel: StoryViewModel
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
-    @Binding var showCircularMenu: Bool
     let size: CGFloat
     
     private var hasStory: Bool {
@@ -1464,11 +1424,11 @@ struct UserModernAvatar: View {
                                 LinearGradient(
                                     gradient: hasStory ?
                                     Gradient(colors: [.red, .purple, .blue, .pink]) :
-                                    Gradient(colors: [Color(hex: "00A896"), Color.white.opacity(0.5)]),
+                                    Gradient(colors: [Color.clear, Color.clear]), // ✅ QUITADO: Borde verde
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: hasStory ? 3 : 2
+                                lineWidth: hasStory ? 3 : 0 // ✅ QUITADO: Borde cuando no hay story
                             )
                     )
                     .shadow(color: Color(hex: "00A896").opacity(0.2), radius: 15, x: 0, y: 8)
@@ -1485,11 +1445,11 @@ struct UserModernAvatar: View {
                         Circle()
                             .stroke(
                                 LinearGradient(
-                                    colors: [Color(hex: "00A896"), Color.white.opacity(0.5)],
+                                    colors: [Color.clear, Color.clear], // ✅ QUITADO: Borde verde
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 2
+                                lineWidth: 0 // ✅ QUITADO: Borde
                             )
                     )
                     .shadow(color: Color(hex: "00A896").opacity(0.15), radius: 12, x: 0, y: 6)
@@ -1499,8 +1459,6 @@ struct UserModernAvatar: View {
             if hasStory {
                 showStoryViewer = true
                 selectedStoryIndex = 0
-            } else {
-                showCircularMenu.toggle()
             }
         }
     }
@@ -1833,7 +1791,6 @@ struct UserModernMomentThumbnail: View {
     // ✅ NUEVA: Función para cargar thumbnail de video
     private func loadVideoThumbnail(from urlString: String) {
         guard let url = URL(string: urlString) else {
-            print("❌ URL de video inválida: \(urlString)")
             return
         }
         
@@ -1852,10 +1809,8 @@ struct UserModernMomentThumbnail: View {
                 DispatchQueue.main.async {
                     self.videoThumbnail = uiImage
                     self.isLoadingVideoThumbnail = false
-                    print("✅ Thumbnail de video cargado para: \(urlString)")
                 }
             } catch {
-                print("❌ Error generando thumbnail: \(error)")
                 DispatchQueue.main.async {
                     self.isLoadingVideoThumbnail = false
                 }
@@ -2041,11 +1996,12 @@ struct UserModernBlockedView: View {
     }
 }
 
-// MARK: - UserModernPrivateProfileView (sin cambios - ya estaba bien)
+// MARK: - UserModernPrivateProfileView (mejorada con stats reales y card)
 struct UserModernPrivateProfileView: View {
     let userProfile: AppUser?
     let userId: String
     @ObservedObject var storyViewModel: StoryViewModel
+    @ObservedObject var viewModel: UserProfileViewModel // ✅ NUEVO: Para acceder a los datos reales
     let followButtonState: FollowButtonState
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
@@ -2053,97 +2009,230 @@ struct UserModernPrivateProfileView: View {
     let onDismiss: () -> Void
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
-    @Binding var showCircularMenu: Bool
 
     var body: some View {
-        VStack(spacing: 30) {
-            Spacer()
-                .frame(height: safeAreaTop)
-
-            VStack(spacing: 20) {
+        VStack(spacing: 0) {
+            // ✅ HEADER ELEGANTE CON AVATAR
+            VStack(spacing: 24) {
+                Spacer()
+                    .frame(height: safeAreaTop + 20)
+                
+                // Avatar con historias - CENTRADO PERFECTO
                 UserModernAvatar(
                     profileImagePath: userProfile?.profileImagePath,
-                    userId: self.userId, // ✅ NUEVO: Pasar userId
+                    userId: self.userId,
                     storyViewModel: storyViewModel,
                     showStoryViewer: $showStoryViewer,
                     selectedStoryIndex: $selectedStoryIndex,
-                    showCircularMenu: $showCircularMenu,
-                    size: 110
+                    size: 100
                 )
+                .frame(maxWidth: .infinity, alignment: .center)
                 
-                VStack(spacing: 12) {
-                    HStack(spacing: 6) {
-                        Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                            .font(.custom("Poppins-Bold", size: 24))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.white, Color(hex: "00A896").opacity(0.8)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                // ✅ INFO DEL USUARIO MEJORADA - CENTRADA PERFECTAMENTE
+                VStack(spacing: 16) {
+                    // Username con badge - CENTRADO PERFECTO
+                    ZStack {
+                        HStack(spacing: 8) {
+                            Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
+                                .font(.custom("Poppins-Bold", size: 26))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                        
-                        // ✅ INSIGNIA DE VERIFICADO
-                        VerifiedBadgeView(userId: self.userId, size: 20)
+                            
+                            VerifiedBadgeView(userId: self.userId, size: 22)
+                        }
                     }
-                    Text(userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No biography"))
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.gray.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .padding(.horizontal, 40)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    // Bio con mejor estilo - CENTRADA
+                    if let bio = userProfile?.bio, !bio.isEmpty {
+                        Text(bio)
+                            .font(.custom("Poppins-Regular", size: 15))
+                            .foregroundColor(.gray.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(3)
+                            .padding(.horizontal, 32)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
                 
+                // ✅ BOTÓN DE ACCIÓN MEJORADO - CENTRADO PERFECTO
                 Button(action: onFollowAction) {
-                    Text(followButtonText)
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(followButtonColor)
-                        .clipShape(Capsule())
-                        .shadow(color: followButtonColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                    HStack(spacing: 8) {
+                        Image(systemName: followButtonIcon)
+                            .font(.system(size: 16, weight: .medium))
+                        Text(followButtonText)
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 14)
+                    .background(
+                        Capsule()
+                            .fill(followButtonColor)
+                            .shadow(color: followButtonColor.opacity(0.3), radius: 12, x: 0, y: 6)
+                    )
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
                 .disabled(!followButtonState.isActionable)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
             
             Spacer()
+                .frame(height: 40) // ✅ REDUCIDO: Menos espacio para subir la sección
             
+            // ✅ STATS REALES RESPETANDO PRIVACIDAD (como en UserProfile)
             VStack(spacing: 20) {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 80, height: 80)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.yellow.opacity(0.4), lineWidth: 2)
+                // ✅ Layout horizontal único con los 4 stats
+                HStack(spacing: 16) {
+                    // ✅ Momentos (siempre visibles)
+                    StatItem(
+                        icon: "photo.stack.fill", 
+                        value: "\(viewModel.moments.count)", 
+                        label: NSLocalizedString("profile.moments.title", comment: "Moments"), 
+                        color: Color(hex: "00A896")
+                    )
+                    
+                    // ✅ Admiradores (solo si se pueden ver)
+                    if viewModel.visibleConnectionTypes.canViewAdmirers {
+                        StatItem(
+                            icon: "heart.fill", 
+                            value: "\(viewModel.admirers.count)", 
+                            label: NSLocalizedString("profile.stats.admirers", comment: "Admiradores"), 
+                            color: Color(hex: "6B73FF")
                         )
-                    Image(systemName: "lock.circle.fill")
-                        .font(.system(size: 40))
+                    } else {
+                        StatItem(
+                            icon: "heart.fill", 
+                            value: "?", 
+                            label: NSLocalizedString("profile.stats.admirers", comment: "Admiradores"), 
+                            color: Color.gray.opacity(0.6)
+                        )
+                    }
+                    
+                    // ✅ Conexiones (solo si se pueden ver)
+                    if viewModel.visibleConnectionTypes.canViewConnections {
+                        StatItem(
+                            icon: "person.2.fill", 
+                            value: "\(viewModel.connections.count)", 
+                            label: NSLocalizedString("profile.stats.connections", comment: "Conexiones"), 
+                            color: Color(hex: "9B59B6")
+                        )
+                    } else {
+                        StatItem(
+                            icon: "person.2.fill", 
+                            value: "?", 
+                            label: NSLocalizedString("profile.stats.connections", comment: "Conexiones"), 
+                            color: Color.gray.opacity(0.6)
+                        )
+                    }
+                    
+                    // ✅ Conexiones mutuas (solo si se pueden ver)
+                    if viewModel.visibleConnectionTypes.canViewMutualConnections {
+                        StatItem(
+                            icon: "person.2.circle.fill", 
+                            value: "\(viewModel.mutualConnections.count)", 
+                            label: NSLocalizedString("profile.stats.mutuals", comment: "Mutuas"), 
+                            color: Color(hex: "FF6B6B")
+                        )
+                    } else {
+                        StatItem(
+                            icon: "person.2.circle.fill", 
+                            value: "?", 
+                            label: NSLocalizedString("profile.stats.mutuals", comment: "Mutuas"), 
+                            color: Color.gray.opacity(0.6)
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            
+            Spacer()
+                .frame(height: 32)
+            
+            // ✅ SECCIÓN DE PERFIL PRIVADO EN CARD ELEGANTE
+            VStack(spacing: 24) {
+                // Icono de candado moderno
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 70, height: 70)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Color(hex: "FFD700"), Color(hex: "FFA500")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 2
+                                )
+                        )
+                        .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 8)
+                    
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 32, weight: .medium))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [Color.yellow, Color.orange],
+                                colors: [Color(hex: "FFD700"), Color(hex: "FFA500")],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                 }
                 
-                VStack(spacing: 12) {
+                // Mensaje explicativo mejorado
+                VStack(spacing: 16) {
                     Text("userProfile.private.title")
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.white)
-                    Text("userProfile.private.description")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.gray.opacity(0.7))
+                        .font(.custom("Poppins-Bold", size: 20))
+                        .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
+                    
+                    Text("userProfile.private.description")
+                        .font(.custom("Poppins-Regular", size: 15))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .padding(.horizontal, 24)
                 }
             }
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "6B73FF").opacity(0.3)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+            )
+            .padding(.horizontal, 20)
             
             Spacer()
+                .frame(height: safeAreaBottom + 30)
         }
-        .padding(.bottom, safeAreaBottom + 20)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(hex: "00A896").opacity(0.05),
+                    Color(hex: "6B73FF").opacity(0.03)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
     }
     
     private var followButtonText: String {
@@ -2172,6 +2261,50 @@ struct UserModernPrivateProfileView: View {
         case .ownProfile, .blocked:
             return Color.gray.opacity(0.4)
         }
+    }
+    
+    // ✅ NUEVO: Icono para el botón según el estado
+    private var followButtonIcon: String {
+        switch followButtonState {
+        case .ownProfile:
+            return "person.circle.fill"
+        case .blocked:
+            return "slash.circle"
+        case .following:
+            return "checkmark.circle.fill"
+        case .canFollow:
+            return "person.badge.plus"
+        case .canRequestFollow:
+            return "envelope.circle"
+        case .requestPending:
+            return "clock.circle"
+        }
+    }
+}
+
+// MARK: - ✅ COMPONENTE STATS NO TAPEABLE
+struct StatItem: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .medium))
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.custom("Poppins-Bold", size: 20))
+                .foregroundColor(.primary)
+            
+            Text(label)
+                .font(.custom("Poppins-Regular", size: 12))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -2410,7 +2543,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 self.checkContentVisibility(currentUserId: currentUserId)
             case .failure(let error):
                 DispatchQueue.main.async {
-                    print("Error al obtener perfil: \(error.localizedDescription)")
                     self.isLoading = false
                 }
             }
@@ -2449,7 +2581,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 }
             case .failure(let error):
                 hasErrors = true
-                print("Error al actualizar perfil: \(error.localizedDescription)")
             }
             refreshGroup.leave()
         }
@@ -2482,12 +2613,10 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
                     DispatchQueue.main.async {
                         self.moments = filteredMoments
-                        print("🔄 Momentos actualizados con filtrado: \(filteredMoments.count)/\(allMoments.count)")
                     }
                     refreshGroup.leave()
                 }
             case .failure(let error):
-                print("Error al actualizar momentos: \(error.localizedDescription)")
                 hasErrors = true
                 refreshGroup.leave()
             }
@@ -2502,7 +2631,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             if !hasErrors {
                 let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                 impactFeedback.impactOccurred()
-                print("✅ Perfil de usuario actualizado correctamente")
             }
         }
     }
@@ -2524,16 +2652,11 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     
     // ✅ FUNCIÓN CLAVE: Verificar visibilidad de conexiones con configuraciones de privacidad
     private func checkConnectionsVisibility(currentUserId: String) {
-        print("🔍 DEBUG: checkConnectionsVisibility iniciado para userId: \(userId), viewerId: \(currentUserId)")
         privacyService.getVisibleConnectionTypes(viewerId: currentUserId, targetUserId: userId) { [weak self] visibleTypes in
             DispatchQueue.main.async {
                 self?.visibleConnectionTypes = visibleTypes
                 // Para compatibilidad con código existente
                 self?.canViewConnections = visibleTypes.canViewAdmirers || visibleTypes.canViewConnections || visibleTypes.canViewMutualConnections
-                
-                print("✅ Visibilidad de conexiones actualizada:")
-                print("   - canViewConnections (general): \(self?.canViewConnections ?? false)")
-                print("   - visibleConnectionTypes: \(visibleTypes)")
             }
         }
     }
@@ -2542,8 +2665,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     
     // ✅ FUNCIÓN MEJORADA: Fetch conexiones directo con filtrado de privacidad
     private func fetchConnectionsDirect() {
-        print("🔄 Fetching connections for user: \(userId)")
-        
         // ✅ SOLO consultar following si tengo permisos
         if visibleConnectionTypes.canViewConnections {
             firestoreService.db.collection("users").document(userId).collection("following")
@@ -2551,7 +2672,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     guard let self = self else { return }
                     
                     if let error = error {
-                        print("❌ Error fetching following: \(error.localizedDescription)")
                         return
                     }
                     
@@ -2559,14 +2679,11 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         doc.data()["userId"] as? String
                     } ?? []
                     
-                    print("🔍 DEBUG: Following IDs encontrados: \(followingIds.count)")
-                    
                     // Filtrar unfollows recientes
                     let filteredFollowingIds = followingIds.filter { userId in
                         if let unfollowTime = self.lastUnfollowTime[userId] {
                             let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
                             if timeSinceUnfollow < 5.0 {
-                                print("🚫 Filtering out recent unfollow: \(userId)")
                                 return false
                             } else {
                                 self.lastUnfollowTime.removeValue(forKey: userId)
@@ -2583,15 +2700,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                             guard let self = self else { return }
                             
                             if let error = error {
-                                print("❌ Error fetching followers: \(error.localizedDescription)")
                                 return
                             }
                             
                             let followerIds = followersSnapshot?.documents.compactMap { doc in
                                 doc.data()["userId"] as? String
                             } ?? []
-                            
-                            print("🔍 DEBUG: Follower IDs encontrados: \(followerIds.count)")
                             
                             // Categorizar conexiones respetando privacidad
                             self.categorizeConnectionsWithPrivacy(
@@ -2600,7 +2714,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                             )
                         }
                 } else {
-                    print("🚫 Skipping followers fetch - canViewAdmirers = false")
                     // Categorizar conexiones sin followers
                     self.categorizeConnectionsWithPrivacy(
                         followingIds: filteredFollowingIds,
@@ -2609,7 +2722,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 }
             }
         } else {
-            print("🚫 Skipping following fetch - canViewConnections = false")
             // Categorizar conexiones sin following
             self.categorizeConnectionsWithPrivacy(
                 followingIds: [],
@@ -2627,11 +2739,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         let connectionIds = followingSet.subtracting(mutualIds)
         let admirerIds = followersSet.subtracting(mutualIds)
         
-        print("📊 Categorizing connections with privacy:")
-        print("   - Total mutual: \(mutualIds.count)")
-        print("   - Total connections: \(connectionIds.count)")
-        print("   - Total admirers: \(admirerIds.count)")
-        
         let fetchGroup = DispatchGroup()
         
         // ✅ SOLO cargar si tengo permisos específicos
@@ -2640,14 +2747,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             self.fetchUsersInBatches(userIds: Array(mutualIds)) { [weak self] users in
                 DispatchQueue.main.async {
                     self?.mutualConnections = users
-                    print("✅ Mutual connections reloaded: \(users.count)")
                 }
                 fetchGroup.leave()
             }
         } else {
             DispatchQueue.main.async {
                 self.mutualConnections = []
-                print("🚫 Mutual connections hidden by privacy settings")
             }
         }
         
@@ -2656,14 +2761,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             self.fetchUsersInBatches(userIds: Array(connectionIds)) { [weak self] users in
                 DispatchQueue.main.async {
                     self?.connections = users
-                    print("✅ Connections reloaded: \(users.count)")
                 }
                 fetchGroup.leave()
             }
         } else {
             DispatchQueue.main.async {
                 self.connections = []
-                print("🚫 Connections hidden by privacy settings")
             }
         }
         
@@ -2672,14 +2775,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             self.fetchUsersInBatches(userIds: Array(admirerIds)) { [weak self] users in
                 DispatchQueue.main.async {
                     self?.admirers = users
-                    print("✅ Admirers reloaded: \(users.count)")
                 }
                 fetchGroup.leave()
             }
         } else {
             DispatchQueue.main.async {
                 self.admirers = []
-                print("🚫 Admirers hidden by privacy settings")
             }
         }
         
@@ -2712,7 +2813,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 case .success(let users):
                     allUsers.append(contentsOf: users)
                 case .failure(let error):
-                    print("Error al obtener usuarios en lote: \(error.localizedDescription)")
+                    break
                 }
             }
         }
@@ -2724,29 +2825,22 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     
     func fetchMoments() {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            print("❌ No current user ID for filtering moments")
             return
         }
-        
-        print("🔍 Fetching moments for profile \(userId) viewed by \(currentUserId)")
         
         firestoreService.fetchMoments(for: userId) { [weak self] result in
             guard let self = self else { return }
             
             switch result {
             case .success(let allMoments):
-                print("📱 Obtenidos \(allMoments.count) momentos sin filtrar")
-                
                 // ✅ FILTRAR momentos por audiencia usando PrivacyService
                 self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
                     DispatchQueue.main.async {
                         self.moments = filteredMoments
-                        print("✅ Momentos filtrados: \(filteredMoments.count)/\(allMoments.count) visibles para \(currentUserId)")
                     }
                 }
                 
             case .failure(let error):
-                print("❌ Error fetching moments: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.moments = []
                 }
@@ -2758,8 +2852,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         let group = DispatchGroup()
         var visibleMoments: [Moment] = []
         let syncQueue = DispatchQueue(label: "profile.moments.filter")
-        
-        print("🔍 Filtrando \(moments.count) momentos del perfil para viewer: \(viewerId)")
         
         for moment in moments {
             group.enter()
@@ -2779,7 +2871,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 visibleMoments.contains { $0.id == moment.id }
             }
             
-            print("📊 Filtrado de perfil completado: \(orderedVisibleMoments.count)/\(moments.count) momentos visibles")
             completion(orderedVisibleMoments)
         }
     }
@@ -2788,8 +2879,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         let group = DispatchGroup()
         var visibleStories: [Story] = []
         let syncQueue = DispatchQueue(label: "profile.stories.filter")
-        
-        print("🔍 Filtrando \(stories.count) historias del perfil para viewer: \(viewerId)")
         
         for story in stories {
             group.enter()
@@ -2809,7 +2898,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 visibleStories.contains { $0.id == story.id }
             }
             
-            print("📊 Filtrado de historias completado: \(orderedVisibleStories.count)/\(stories.count) historias visibles")
             completion(orderedVisibleStories)
         }
     }
@@ -2828,26 +2916,19 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     func registerVisit() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentUserId != userId else {
-            print("⚠️ No se puede registrar visita del usuario actual a su propio perfil")
             return
         }
         
         
         // ✅ UNA SOLA LÍNEA - Todo se maneja en FirestoreService
         firestoreService.registerVisit(visitorId: currentUserId, to: userId) { error in
-            if let error = error {
-                print("❌ Error al registrar visita: \(error.localizedDescription)")
-            } else {
-                print("✅ Visita registrada exitosamente")
-            }
+            // Silently handle error
         }
     }
 
     // ✅ FUNCIÓN CORREGIDA: Follow user con actualización inmediata de UI
     func followUser(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid, let userProfile = self.userProfile else { return }
-        
-        print("🤝 Following user: \(userId)")
         
         // Limpiar unfollow reciente si existe
         recentUnfollows.remove(userId)
@@ -2858,11 +2939,9 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     if let error = error {
-                        print("Error al enviar solicitud: \(error.localizedDescription)")
                         return
                     }
                     self.followButtonState = .requestPending
-                    print("Solicitud de seguimiento enviada")
                 }
             }
         } else {
@@ -2870,11 +2949,9 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     if let error = error {
-                        print("Error al seguir usuario: \(error.localizedDescription)")
                         return
                     }
                     
-                    print("✅ Follow successful, updating UI")
                     self.followButtonState = .following
                     self.isFollowing = true
                     
@@ -2884,7 +2961,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         let user = self.admirers.remove(at: admirerIndex)
                         if self.visibleConnectionTypes.canViewMutualConnections {
                             self.mutualConnections.append(user)
-                            print("📊 Moved from admirers to mutual connections")
                         }
                     } else if self.visibleConnectionTypes.canViewConnections {
                         // Obtener usuario y agregarlo a conexiones si puedo verlas
@@ -2893,7 +2969,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                                 DispatchQueue.main.async {
                                     if self?.visibleConnectionTypes.canViewConnections == true {
                                         self?.connections.append(user)
-                                        print("📊 Added to connections")
                                     }
                                 }
                             }
@@ -2908,8 +2983,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     func unfollowUser(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        print("💔 Unfollowing user: \(userId)")
-        
         // Marcar como unfollow reciente
         recentUnfollows.insert(userId)
         lastUnfollowTime[userId] = Date()
@@ -2917,14 +2990,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
             if let error = error {
-                print("❌ Error unfollowing user: \(error.localizedDescription)")
                 // Limpiar cache de unfollow si falló
                 self.recentUnfollows.remove(userId)
                 self.lastUnfollowTime.removeValue(forKey: userId)
                 return
             }
             
-            print("✅ Unfollow successful, updating UI")
             DispatchQueue.main.async {
                 self.followButtonState = .canFollow
                 self.isFollowing = false
@@ -2935,12 +3006,10 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     let user = self.mutualConnections.remove(at: mutualIndex)
                     if self.visibleConnectionTypes.canViewAdmirers {
                         self.admirers.append(user)
-                        print("📊 Moved from mutual to admirers")
                     }
                 } else if self.visibleConnectionTypes.canViewConnections,
                           let connectionIndex = self.connections.firstIndex(where: { $0.id == userId }) {
                     self.connections.remove(at: connectionIndex)
-                    print("📊 Removed from connections")
                 }
             }
         }
@@ -2964,7 +3033,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         firestoreService.checkIfBlocked(currentUserId: currentUserId, targetUserId: userId) { [weak self] isBlockedByCurrentUser, isCurrentUserBlocked, error in
             guard let self = self else { return }
             if let error = error {
-                print("Error al verificar bloqueos: \(error.localizedDescription)")
                 return
             }
             DispatchQueue.main.async {
@@ -2979,7 +3047,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         firestoreService.blockUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
             if let error = error {
-                print("Error al bloquear usuario: \(error.localizedDescription)")
                 return
             }
             DispatchQueue.main.async {
@@ -2995,7 +3062,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         firestoreService.unblockUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
             if let error = error {
-                print("Error al desbloquear usuario: \(error.localizedDescription)")
                 return
             }
             DispatchQueue.main.async {
@@ -3046,22 +3112,13 @@ struct UserExpandableContentView: View {
                         isExpanded.toggle()
                     }
                 }) {
-                    HStack(spacing: 4) {
-                        Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
-                            .font(.custom("Poppins-SemiBold", size: 12))
-                            .foregroundColor(.white)
-                        
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
+                        .font(.custom("Poppins-Medium", size: 13))
+                        .foregroundColor(UserProfileColors.accent)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(UserProfileColors.accent.opacity(0.1))
+                        .clipShape(Capsule())
                 }
                 .scaleEffect(isExpanded ? 1.0 : 0.95)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
@@ -3090,7 +3147,6 @@ struct UserHashtagText: View {
             .environment(\.openURL, OpenURLAction { url in
                 // ✅ Manejar taps en hashtags a través de URLs personalizadas
                 if url.scheme == "hashtag", let hashtag = url.host {
-                    print("🔍 DEBUG: Hashtag específico tocado en UserProfile: \(hashtag)")
                     onHashtagTap(hashtag)
                     return .handled
                 }

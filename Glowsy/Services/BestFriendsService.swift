@@ -16,10 +16,8 @@ class BestFriendsService {
             "bestFriends": FieldValue.arrayUnion([friendId])
         ]) { error in
             if let error = error {
-                print("Error al agregar mejor amigo: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Mejor amigo \(friendId) añadido para usuario \(currentUserId)")
                 completion(nil)
             }
         }
@@ -32,10 +30,8 @@ class BestFriendsService {
             "bestFriends": FieldValue.arrayRemove([friendId])
         ]) { error in
             if let error = error {
-                print("Error al eliminar mejor amigo: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Mejor amigo \(friendId) eliminado para usuario \(currentUserId)")
                 completion(nil)
             }
         }

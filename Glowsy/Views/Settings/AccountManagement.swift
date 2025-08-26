@@ -127,13 +127,10 @@ struct AccountManagementSection: View {
             switch result {
             case .success:
                 DispatchQueue.main.async {
-                    print("✅ Cuenta eliminada exitosamente")
                     self.isProcessing = false
                     self.showDeleteVerification = false
                 }
             case .failure(let error):
-                print("❌ Eliminación normal falló: \(error.localizedDescription)")
-                print("🔄 Intentando eliminación rápida...")
                 
                 // Si falla, intentar eliminación rápida
                 accountService.deleteAccountFast(user: user, password: password) { fastResult in
@@ -143,9 +140,9 @@ struct AccountManagementSection: View {
                         
                         switch fastResult {
                         case .success:
-                            print("✅ Cuenta eliminada con método rápido")
+                            // Account deleted successfully
+                            break
                         case .failure(let fastError):
-                            print("❌ Error en eliminación rápida: \(fastError.localizedDescription)")
                             self.errorMessage = "Error eliminando cuenta: \(fastError.localizedDescription)"
                             self.showError = true
                         }
@@ -419,7 +416,6 @@ class AccountManagementService {
     
     // MARK: - Delete Account
     func deleteAccount(user: User, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        print("🗑️ Iniciando eliminación de cuenta para: \(user.email ?? "email desconocido")")
         
         // Re-authenticate user first
         guard let email = user.email else {
@@ -432,12 +428,10 @@ class AccountManagementService {
         
         user.reauthenticate(with: credential) { [weak self] _, error in
             if let error = error {
-                print("❌ Error reautenticando usuario: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
-            print("✅ Usuario reautenticado exitosamente")
             // Proceed with account deletion
             self?.performAccountDeletion(user: user, completion: completion)
         }
@@ -445,14 +439,12 @@ class AccountManagementService {
     
     private func performAccountDeletion(user: User, completion: @escaping (Result<Void, Error>) -> Void) {
         let userId = user.uid
-        print("🗑️ Iniciando eliminación de datos para userId: \(userId)")
         
         // Primero obtener los datos del usuario para eliminar también el username
         let userRef = db.collection("users").document(userId)
         
         userRef.getDocument { [weak self] document, error in
             if let error = error {
-                print("❌ Error obteniendo datos del usuario: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
@@ -460,51 +452,39 @@ class AccountManagementService {
             guard let document = document, document.exists,
                   let userData = document.data(),
                   let username = userData["username"] as? String else {
-                print("⚠️ No se pudo obtener el username del usuario, continuando con eliminación básica")
                 self?.deleteUserDocumentAndAuth(user: user, completion: completion)
                 return
             }
             
-            print("📝 Username encontrado: \(username)")
             
             // Crear batch para eliminar tanto el usuario como el username
             let batch = self?.db.batch()
             
             // Eliminar documento del usuario
             batch?.deleteDocument(userRef)
-            print("   - Añadido al batch: eliminar documento de usuario")
             
             // Eliminar documento del username
             let usernameRef = self?.db.collection("usernames").document(username.lowercased())
             if let usernameRef = usernameRef {
                 batch?.deleteDocument(usernameRef)
-                print("   - Añadido al batch: eliminar documento de username")
             }
             
             // Ejecutar batch
             batch?.commit { error in
                 if let error = error {
-                    print("❌ Error ejecutando batch de eliminación: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
-                print("✅ Batch de eliminación ejecutado exitosamente")
-                print("✅ Documento del usuario eliminado")
-                print("✅ Documento del username eliminado")
                 
                 // Limpiar datos relacionados en background
                 self?.cleanupUserData(userId: userId, username: username) {
-                    print("🔥 Procediendo a eliminar cuenta de Firebase Auth...")
                     
                     // Ahora eliminar la cuenta de Firebase Auth
                     user.delete { error in
                         if let error = error {
-                            print("❌ Error eliminando cuenta de Auth: \(error.localizedDescription)")
                             completion(.failure(error))
                         } else {
-                            print("✅ Cuenta de Auth eliminada exitosamente")
-                            print("🎉 Eliminación de cuenta completada completamente")
                             completion(.success(()))
                         }
                     }
@@ -517,25 +497,18 @@ class AccountManagementService {
         let userId = user.uid
         let userRef = db.collection("users").document(userId)
         
-        print("📝 Eliminando solo documento del usuario (username no encontrado)...")
         userRef.delete { error in
             if let error = error {
-                print("❌ Error eliminando documento del usuario: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
-            print("✅ Documento del usuario eliminado")
-            print("🔥 Procediendo a eliminar cuenta de Firebase Auth...")
             
             // Now delete Firebase Auth account
             user.delete { error in
                 if let error = error {
-                    print("❌ Error eliminando cuenta de Auth: \(error.localizedDescription)")
                     completion(.failure(error))
                 } else {
-                    print("✅ Cuenta de Auth eliminada exitosamente")
-                    print("🎉 Eliminación de cuenta completada")
                     completion(.success(()))
                 }
             }
@@ -544,7 +517,6 @@ class AccountManagementService {
     
     // MARK: - Versión alternativa más agresiva si la anterior falla
     func deleteAccountFast(user: User, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        print("🗑️ Eliminación RÁPIDA para: \(user.email ?? "email desconocido")")
         
         guard let email = user.email else {
             let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener el email del usuario"])
@@ -556,20 +528,16 @@ class AccountManagementService {
         
         user.reauthenticate(with: credential) { _, error in
             if let error = error {
-                print("❌ Error reautenticando: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
-            print("✅ Reautenticado - Eliminando Auth directamente...")
             
             // Eliminar cuenta de Auth inmediatamente sin limpiar Firestore
             user.delete { error in
                 if let error = error {
-                    print("❌ Error eliminando Auth: \(error.localizedDescription)")
                     completion(.failure(error))
                 } else {
-                    print("✅ Cuenta eliminada exitosamente (modo rápido)")
                     completion(.success(()))
                 }
             }
@@ -596,7 +564,6 @@ class AccountManagementService {
     
     // MARK: - Limpieza Completa de Datos del Usuario
     private func cleanupUserData(userId: String, username: String, completion: @escaping () -> Void) {
-        print("🧹 Iniciando limpieza completa de datos para usuario: \(userId)")
         
         // Ejecutar limpieza en background para no bloquear la UI
         DispatchQueue.global(qos: .background).async {
@@ -687,27 +654,23 @@ class AccountManagementService {
             }
             
             group.notify(queue: .main) {
-                print("✅ Limpieza completa finalizada")
                 completion()
             }
         }
     }
     
     private func cleanupConversations(userId: String, completion: @escaping () -> Void) {
-        print("💬 Limpiando conversaciones...")
         
         // Obtener conversaciones donde participa el usuario
         db.collection("conversations")
             .whereField("participants", arrayContains: userId)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ Error obteniendo conversaciones: \(error.localizedDescription)")
                     completion()
                     return
                 }
                 
                 guard let documents = snapshot?.documents else {
-                    print("✅ No hay conversaciones para limpiar")
                     completion()
                     return
                 }
@@ -722,9 +685,7 @@ class AccountManagementService {
                 
                 batch.commit { error in
                     if let error = error {
-                        print("❌ Error eliminando conversaciones: \(error.localizedDescription)")
                     } else {
-                        print("✅ \(conversationCount) conversaciones eliminadas")
                     }
                     completion()
                 }
@@ -732,7 +693,6 @@ class AccountManagementService {
     }
     
     private func cleanupFollows(userId: String, completion: @escaping () -> Void) {
-        print("👥 Limpiando seguimientos...")
         
         let group = DispatchGroup()
         var totalCleaned = 0
@@ -767,13 +727,11 @@ class AccountManagementService {
         }
         
         group.notify(queue: .main) {
-            print("✅ \(totalCleaned) seguimientos eliminados")
             completion()
         }
     }
     
     private func cleanupContent(userId: String, completion: @escaping () -> Void) {
-        print("📸 Limpiando contenido...")
         
         let group = DispatchGroup()
         var totalCleaned = 0
@@ -807,13 +765,11 @@ class AccountManagementService {
         }
         
         group.notify(queue: .main) {
-            print("✅ \(totalCleaned) elementos de contenido eliminados")
             completion()
         }
     }
     
     private func cleanupNotifications(userId: String, completion: @escaping () -> Void) {
-        print("🔔 Limpiando notificaciones...")
         
         // Limpiar notificaciones del usuario
         db.collection("users").document(userId).collection("notifications").getDocuments { snapshot, error in
@@ -829,7 +785,6 @@ class AccountManagementService {
     }
     
     private func cleanupMentions(userId: String, username: String, completion: @escaping () -> Void) {
-        print("📝 Limpiando menciones...")
         
         // Buscar comentarios que mencionen al usuario eliminado
         db.collectionGroup("comments")
@@ -849,7 +804,6 @@ class AccountManagementService {
     // MARK: - Limpieza de Colecciones Adicionales
     
     private func cleanupCustomAudience(userId: String, completion: @escaping () -> Void) {
-        print("🎯 Limpiando customaudience...")
         
         db.collection("customaudience")
             .whereField("userId", isEqualTo: userId)
@@ -866,7 +820,6 @@ class AccountManagementService {
     }
     
     private func cleanupDailyStats(userId: String, completion: @escaping () -> Void) {
-        print("📊 Limpiando dailystats...")
         
         db.collection("dailystats")
             .whereField("userId", isEqualTo: userId)
@@ -883,7 +836,6 @@ class AccountManagementService {
     }
     
     private func cleanupEvents(userId: String, completion: @escaping () -> Void) {
-        print("📈 Limpiando events...")
         
         db.collection("events")
             .whereField("userId", isEqualTo: userId)
@@ -900,7 +852,6 @@ class AccountManagementService {
     }
     
     private func cleanupFeatureUsage(userId: String, completion: @escaping () -> Void) {
-        print("🔧 Limpiando featureusage...")
         
         db.collection("featureusage")
             .whereField("userId", isEqualTo: userId)
@@ -917,7 +868,6 @@ class AccountManagementService {
     }
     
     private func cleanupLoginActivity(userId: String, completion: @escaping () -> Void) {
-        print("🔐 Limpiando loginactivity...")
         
         db.collection("loginactivity")
             .whereField("userId", isEqualTo: userId)
@@ -934,7 +884,6 @@ class AccountManagementService {
     }
     
     private func cleanupNovaMemory(userId: String, completion: @escaping () -> Void) {
-        print("🧠 Limpiando novamemory...")
         
         db.collection("novamemory")
             .whereField("userId", isEqualTo: userId)
@@ -951,7 +900,6 @@ class AccountManagementService {
     }
     
     private func cleanupSessions(userId: String, completion: @escaping () -> Void) {
-        print("💻 Limpiando sessions...")
         
         db.collection("sessions")
             .whereField("userId", isEqualTo: userId)
@@ -968,7 +916,6 @@ class AccountManagementService {
     }
     
     private func cleanupVisitorSummaries(userId: String, completion: @escaping () -> Void) {
-        print("👥 Limpiando visitorsummaries...")
         
         db.collection("visitorsummaries")
             .whereField("userId", isEqualTo: userId)
@@ -985,7 +932,6 @@ class AccountManagementService {
     }
     
     private func cleanupVisits(userId: String, completion: @escaping () -> Void) {
-        print("👁️ Limpiando visits...")
         
         db.collection("visits")
             .whereField("userId", isEqualTo: userId)

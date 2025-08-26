@@ -537,12 +537,10 @@ class VisitsViewModel: ObservableObject {
     
     func fetchVisits() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            print("❌ No hay usuario autenticado")
             self.isLoading = false
             return
         }
 
-        print("🔍 Cargando visitas para usuario: \(userId)")
         
         listener?.remove()
         listener = Firestore.firestore()
@@ -555,7 +553,6 @@ class VisitsViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 if let error = error {
-                    print("❌ Error al cargar visitas: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         self.isLoading = false
                     }
@@ -563,7 +560,6 @@ class VisitsViewModel: ObservableObject {
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("📭 No hay documentos de visitas")
                     DispatchQueue.main.async {
                         self.groupedVisits = []
                         self.isLoading = false
@@ -571,7 +567,6 @@ class VisitsViewModel: ObservableObject {
                     return
                 }
                 
-                print("📊 Encontrados \(documents.count) documentos de visitas")
 
                 // Decodificar visitas
                 let visits = documents.compactMap { doc -> Visit? in
@@ -579,16 +574,13 @@ class VisitsViewModel: ObservableObject {
                         let visit = try doc.data(as: Visit.self)
                         return visit
                     } catch {
-                        print("❌ Error al decodificar visita \(doc.documentID): \(error.localizedDescription)")
                         return nil
                     }
                 }
                 
-                print("✅ Total de visitas válidas: \(visits.count)")
 
                 // Obtener visitantes únicos
                 let uniqueVisitorIds = Array(Set(visits.map { $0.visitorId }))
-                print("👥 Visitantes únicos: \(uniqueVisitorIds.count)")
 
                 guard !uniqueVisitorIds.isEmpty else {
                     DispatchQueue.main.async {
@@ -603,7 +595,6 @@ class VisitsViewModel: ObservableObject {
                 self.firestoreService.fetchUsers(userIds: uniqueVisitorIds) { result in
                     switch result {
                     case .success(let users):
-                        print("👤 Usuarios obtenidos: \(users.count)")
                         let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
 
                         // ✅ NUEVA LÓGICA: Agrupar visitas por usuario
@@ -618,7 +609,6 @@ class VisitsViewModel: ObservableObject {
                         // Crear GroupedVisit para cada usuario
                         let groupedVisits = groupedByUser.compactMap { (userId, userVisits) -> GroupedVisit? in
                             guard let user = userDict[userId] else {
-                                print("⚠️ Usuario no encontrado para userId: \(userId)")
                                 return nil
                             }
                             
@@ -631,14 +621,12 @@ class VisitsViewModel: ObservableObject {
                         DispatchQueue.main.async {
                             self.groupedVisits = sortedGroupedVisits
                             self.isLoading = false
-                            print("✅ Vista actualizada con \(sortedGroupedVisits.count) grupos de visitas")
                             
                             // Analizar stalkers
                             self.analyzeStalkers(allVisits: visits, userDict: userDict)
                         }
                         
                     case .failure(let error):
-                        print("❌ Error al cargar usuarios: \(error.localizedDescription)")
                         DispatchQueue.main.async {
                             self.groupedVisits = []
                             self.isLoading = false

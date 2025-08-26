@@ -21,7 +21,6 @@ class AudioRecordingManager: ObservableObject {
             try recordingSession?.setCategory(.playAndRecord, mode: .default)
             try recordingSession?.setActive(true)
         } catch {
-            print("Error setting up audio session: \(error.localizedDescription)")
         }
     }
     
@@ -42,9 +41,7 @@ class AudioRecordingManager: ObservableObject {
         do {
             audioRecorder = try AVAudioRecorder(url: audioFilename, settings: settings)
             audioRecorder?.record()
-            print("Started recording audio - HIGH QUALITY")
         } catch {
-            print("Error starting audio recording: \(error.localizedDescription)")
         }
     }
     
@@ -56,9 +53,7 @@ class AudioRecordingManager: ObservableObject {
         do {
             let audioData = try Data(contentsOf: audioFilename)
             completion(audioData)
-            print("Audio recording stopped and data retrieved")
         } catch {
-            print("Error retrieving audio data: \(error.localizedDescription)")
             completion(nil)
         }
         

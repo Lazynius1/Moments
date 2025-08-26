@@ -62,11 +62,9 @@ class OnlineStatusService: ObservableObject {
     // MARK: - Public Methods
     func setStatus(_ status: OnlineStatus) {
         guard let userId = Auth.auth().currentUser?.uid else { 
-            print("❌ Error: Usuario no autenticado")
             return 
         }
         
-        print("🎯 Intentando cambiar estado a: \(status.displayName)")
         
         // ✅ MEJORADO: Cancelar timers automáticos si es un cambio manual
         awayTimer?.invalidate()
@@ -86,20 +84,15 @@ class OnlineStatusService: ObservableObject {
             "lastSeen": FieldValue.serverTimestamp()
         ]
         
-        print("📝 Datos a enviar: \(data)")
         
         db.collection("users").document(userId).updateData(data) { error in
             if let error = error {
-                print("❌ Error actualizando estado en línea: \(error.localizedDescription)")
                 // ✅ NUEVO: Revertir estado local si hay error
                 DispatchQueue.main.async {
                     self.currentUserStatus = .offline
                     self.isOnline = false
                 }
             } else {
-                print("✅ Estado en línea actualizado exitosamente: \(status.displayName)")
-                print("✅ Usuario ID: \(userId)")
-                print("✅ Estado guardado: \(status.rawValue)")
             }
         }
     }
@@ -122,9 +115,7 @@ class OnlineStatusService: ObservableObject {
         
         db.collection("users").document(userId).updateData(data) { error in
             if let error = error {
-                print("Error actualizando estado de conversación: \(error.localizedDescription)")
             } else {
-                print("Estado de conversación actualizado: \(status.displayName)")
             }
         }
     }
@@ -156,7 +147,6 @@ class OnlineStatusService: ObservableObject {
         return db.collection("users").document(userId)
             .addSnapshotListener { documentSnapshot, error in
                 guard let document = documentSnapshot else {
-                    print("Error observando estado del usuario: \(error?.localizedDescription ?? "Unknown error")")
                     return
                 }
                 
@@ -184,9 +174,7 @@ class OnlineStatusService: ObservableObject {
         
         db.collection("users").document(userId).updateData(data) { error in
             if let error = error {
-                print("❌ Error actualizando estado online: \(error.localizedDescription)")
             } else {
-                print("✅ Estado online actualizado correctamente")
             }
         }
     }
@@ -200,9 +188,7 @@ class OnlineStatusService: ObservableObject {
         
         db.collection("users").document(userId).updateData(data) { error in
             if let error = error {
-                print("❌ Error actualizando lastSeen: \(error.localizedDescription)")
             } else {
-                print("✅ LastSeen actualizado correctamente")
             }
         }
     }
@@ -211,11 +197,9 @@ class OnlineStatusService: ObservableObject {
     private func syncStatusWithFirestore() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        print("🔄 Sincronizando estado local con Firestore...")
         
         db.collection("users").document(userId).getDocument { [weak self] document, error in
             if let error = error {
-                print("❌ Error obteniendo estado de Firestore: \(error.localizedDescription)")
                 return
             }
             
@@ -223,90 +207,76 @@ class OnlineStatusService: ObservableObject {
                   let data = document.data(),
                   let statusString = data["onlineStatus"] as? String,
                   let status = OnlineStatus(rawValue: statusString) else {
-                print("⚠️ No se encontró estado en Firestore, usando estado por defecto")
                 return
             }
             
             DispatchQueue.main.async {
                 self?.currentUserStatus = status
                 self?.isOnline = status == .online
-                print("✅ Estado sincronizado desde Firestore: \(status.displayName)")
-                print("✅ Estado local actualizado: \(self?.currentUserStatus.displayName ?? "nil")")
             }
         }
     }
     
     // MARK: - Utility Methods
     func formatLastSeen(_ date: Date?) -> String {
-        guard let date = date else { return "Desconocido" }
+        guard let date = date else { return NSLocalizedString("onlineStatus.unknown", comment: "Unknown status") }
         
         let now = Date()
         let timeInterval = now.timeIntervalSince(date)
         
         if timeInterval < 60 {
-            return "Ahora"
+            return NSLocalizedString("onlineStatus.now", comment: "Now status")
         } else if timeInterval < 3600 {
             let minutes = Int(timeInterval / 60)
-            return "Hace \(minutes) min"
+            return String(format: NSLocalizedString("onlineStatus.minutesAgo", comment: "Minutes ago format"), minutes)
         } else if timeInterval < 86400 {
             let hours = Int(timeInterval / 3600)
-            return "Hace \(hours)h"
+            return String(format: NSLocalizedString("onlineStatus.hoursAgo", comment: "Hours ago format"), hours)
         } else {
             let days = Int(timeInterval / 86400)
-            return "Hace \(days)d"
+            return String(format: NSLocalizedString("onlineStatus.daysAgo", comment: "Days ago format"), days)
         }
     }
     
     // ✅ NUEVO: Manejar cuando la app entra en background
     private func handleAppDidEnterBackground() {
-        print("📱 App en background - Estado actual: \(currentUserStatus.displayName)")
         
         // ✅ LÓGICA INTELIGENTE: Solo guardar estado anterior si es online o away
         if currentUserStatus == .online || currentUserStatus == .away {
             previousOnlineStatus = currentUserStatus
-            print("📱 Guardando estado anterior para restauración: \(currentUserStatus.displayName)")
             
             // Programar cambios automáticos según el estado actual
             if currentUserStatus == .online {
                 // En línea: 10 min → away, 30 min → offline (PRODUCCIÓN)
                 awayTimer = Timer.scheduledTimer(withTimeInterval: 600, repeats: false) { [weak self] _ in
-                    print("📱 Timer away ejecutado - cambiando a Ausente")
                     self?.setStatus(.away)
                     
                     // ✅ NUEVO: Programar el siguiente cambio DESPUÉS de cambiar a away
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1200) {
-                        print("📱 Timer offline ejecutado - cambiando a Desconectado")
                         self?.setStatus(.offline)
                     }
                 }
-                print("📱 Programado: online → away (10 min) → offline (30 min) - PRODUCCIÓN")
                 
             } else if currentUserStatus == .away {
                 // Ausente: 20 min → offline (PRODUCCIÓN)
                 offlineTimer = Timer.scheduledTimer(withTimeInterval: 1200, repeats: false) { [weak self] _ in
-                    print("📱 Timer offline ejecutado - cambiando a Desconectado")
                     self?.setStatus(.offline)
                 }
-                print("📱 Programado: away → offline (20 min) - PRODUCCIÓN")
                 
             } else if currentUserStatus == .busy {
                 // Ocupado: 10 min → offline (directo) - PRODUCCIÓN
                 offlineTimer = Timer.scheduledTimer(withTimeInterval: 600, repeats: false) { [weak self] _ in
-                    print("📱 Timer offline ejecutado - cambiando a Desconectado")
                     self?.setStatus(.offline)
                 }
-                print("📱 Programado: busy → offline (10 min, directo) - PRODUCCIÓN")
             }
             
         } else {
             // Si el estado es desconectado o invisible, no hacer nada
-            print("📱 Estado \(currentUserStatus.displayName) - No se programa cambio automático")
         }
     }
     
     // ✅ NUEVO: Manejar cuando la app vuelve al foreground
     private func handleAppWillEnterForeground() {
-        print("📱 App en foreground")
         
         // Cancelar timers automáticos
         awayTimer?.invalidate()
@@ -319,13 +289,10 @@ class OnlineStatusService: ObservableObject {
             // Solo restaurar si el estado anterior era online o away
             if previousStatus == .online || previousStatus == .away {
                 setStatus(previousStatus)
-                print("📱 Restaurando estado anterior: \(previousStatus.displayName)")
             } else {
-                print("📱 No se restaura estado anterior: \(previousStatus.displayName)")
             }
             previousOnlineStatus = nil // Limpiar después de restaurar
         } else {
-            print("📱 No hay estado anterior para restaurar")
         }
     }
     
@@ -337,9 +304,9 @@ class OnlineStatusService: ObservableObject {
     // ✅ NUEVO: Método para obtener información del próximo cambio automático
     func getNextAutoChangeInfo() -> (nextStatus: OnlineStatus, timeRemaining: String)? {
         if awayTimer != nil {
-            return (.away, "10 min")
+            return (.away, NSLocalizedString("onlineStatus.autoChange.away", comment: "Auto change to away time"))
         } else if offlineTimer != nil {
-            return (.offline, "30 min")
+            return (.offline, NSLocalizedString("onlineStatus.autoChange.offline", comment: "Auto change to offline time"))
         }
         return nil
     }

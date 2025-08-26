@@ -30,16 +30,28 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Views/Profile/rules.txt,
 			);
 			target = 0D4FD1B82DB27BFE00CA6DB1 /* Moments Social */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		36A9CB892E57EC080094E310 /* Exceptions for "Glowsy" folder in "Compile Sources" phase from "Moments Social" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 0D4FD1B52DB27BFE00CA6DB1 /* Sources */;
+			membershipExceptions = (
+				Views/Profile/rules.txt,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0D4FD1BB2DB27BFE00CA6DB1 /* Glowsy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				367984D62DE3A7BD006A5C5D /* Exceptions for "Glowsy" folder in "Moments Social" target */,
+				36A9CB892E57EC080094E310 /* Exceptions for "Glowsy" folder in "Compile Sources" phase from "Moments Social" target */,
 			);
 			path = Glowsy;
 			sourceTree = "<group>";

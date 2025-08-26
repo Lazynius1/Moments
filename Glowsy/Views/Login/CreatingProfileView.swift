@@ -46,7 +46,6 @@ struct CreatingProfileView: View {
             let minimumDuration: TimeInterval = 6.0
             
             DispatchQueue.main.asyncAfter(deadline: .now() + minimumDuration) {
-                print("⏰ CreatingProfileView: Tiempo mínimo completado")
                 onAnimationComplete?()
             }
         }
@@ -404,7 +403,6 @@ class CreatingProfileViewModel: ObservableObject {
                     self.progress = CGFloat(i + 1) / CGFloat(self.steps.count)
                 }
                 
-                print("🎬 CreatingProfileView: Paso \(i + 1)/\(self.steps.count) - \(self.steps[i])")
             }
         }
     }

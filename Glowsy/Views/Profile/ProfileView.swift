@@ -207,11 +207,9 @@ struct ProfileView: View {
                             showingBlockConfirmation: $showingBlockConfirmation,
                             onReportStory: {
                                 // Para historias propias, no aplica reporte
-                                print("No se puede reportar tu propia historia")
                             },
                             onBlockUser: {
                                 // Para historias propias, no aplica bloqueo
-                                print("No se puede bloquear a ti mismo")
                             },
                             onNext: {
                                 if selectedStoryIndex + 1 < stories.count {
@@ -226,7 +224,9 @@ struct ProfileView: View {
                                 }
                             },
                             onClose: { showStoryViewer = false },
-                            onProfileTap: { print("Tocaste el perfil") }
+                            onProfileTap: {
+                                // Para historias propias, no aplica navegación de perfil
+                            }
                         )
                     }
                 }
@@ -704,7 +704,7 @@ struct ModernProfileHeader: View {
                         badgeSize: 20,
                         spacing: 6,
                         gradient: LinearGradient(
-                            colors: [ProfileColors.textPrimary, ProfileColors.accent.opacity(0.8)],
+                            colors: [Color(hex: "00A896"), Color(hex: "6B73FF")], // ✅ MISMO GRADIENTE QUE USERPROFILEVIEW
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -767,24 +767,24 @@ struct ModernProfileHeader: View {
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 
-                // Botón de tema del perfil (solo si tiene badges)
-                if let currentUser = authService.currentUser, currentUser.canChangeProfileTheme {
-                    Button(action: {
-                        showingThemeSelector = true
-                    }) {
-                        Image(systemName: "paintbrush.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(ProfileColors.textPrimary)
-                            .frame(width: 44, height: 44)
-                            .background(ProfileColors.materialBackground)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(ProfileColors.borderColor, lineWidth: 1)
-                            )
-                            .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
-                    }
-                }
+                // ✅ TEMPORALMENTE OCULTO: Botón de tema del perfil (solo si tiene badges)
+                // if let currentUser = authService.currentUser, currentUser.canChangeProfileTheme {
+                //     Button(action: {
+                //         showingThemeSelector = true
+                //     }) {
+                //         Image(systemName: "paintbrush.fill")
+                //         .font(.system(size: 18))
+                //         .foregroundColor(ProfileColors.textPrimary)
+                //         .frame(width: 44, height: 44)
+                //         .background(ProfileColors.materialBackground)
+                //         .clipShape(Circle())
+                //         .overlay(
+                //         Circle()
+                //         .stroke(ProfileColors.borderColor, lineWidth: 1)
+                //         )
+                //         .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
+                //     }
+                // }
                 
                 Button(action: { isShowingSettings = true }) {
                     Image(systemName: "gearshape.fill")
@@ -834,7 +834,7 @@ struct ModernProfileHeader: View {
         }.resume()
     }
     
-    // Border inteligente del avatar adaptativo
+    // Border inteligente del avatar adaptativo (SIN BORDE VERDE)
     @ViewBuilder
     private func avatarBorderOverlay() -> some View {
         let currentUser = authService.currentUser
@@ -846,11 +846,11 @@ struct ModernProfileHeader: View {
                     Gradient(colors: [.red, .purple, .blue, .pink]) :
                     (currentUser?.isPlusSubscriber == true && currentUser?.showPlusBadge == true ?
                      Gradient(colors: [Color(hex: "FFD700"), Color(hex: "FFA500")]) :
-                     Gradient(colors: [ProfileColors.accent, ProfileColors.borderColor])),
+                     Gradient(colors: [Color.clear, Color.clear])), // ✅ QUITADO: Borde verde
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
-                lineWidth: storyViewModel.hasActiveStory ? 3 : (currentUser?.isPlusSubscriber == true && currentUser?.showPlusBadge == true ? 3 : 2)
+                lineWidth: storyViewModel.hasActiveStory ? 3 : (currentUser?.isPlusSubscriber == true && currentUser?.showPlusBadge == true ? 3 : 0) // ✅ QUITADO: Borde cuando no hay story o Plus
             )
     }
 }
@@ -1230,7 +1230,7 @@ struct ModernMomentThumbnail: View {
                         .font(.system(size: 16))
                         .foregroundColor(.gray.opacity(0.6))
                     
-                    Text(moment.content.isEmpty ? "Sin contenido" : String(moment.content.prefix(12)))
+                    Text(moment.content.isEmpty ? NSLocalizedString("profile.content.empty", comment: "No content text") : String(moment.content.prefix(12)))
                         .font(.custom("Poppins-Regular", size: 8))
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
@@ -1261,7 +1261,6 @@ struct ModernMomentThumbnail: View {
     // ✅ NUEVA: Función para cargar thumbnail de video
     private func loadVideoThumbnail(from urlString: String) {
         guard let url = URL(string: urlString) else {
-            print("❌ URL de video inválida: \(urlString)")
             return
         }
         
@@ -1280,10 +1279,8 @@ struct ModernMomentThumbnail: View {
                 DispatchQueue.main.async {
                     self.videoThumbnail = uiImage
                     self.isLoadingVideoThumbnail = false
-                    print("✅ Thumbnail de video cargado para: \(urlString)")
                 }
             } catch {
-                print("❌ Error generando thumbnail: \(error)")
                 DispatchQueue.main.async {
                     self.isLoadingVideoThumbnail = false
                 }
@@ -1505,7 +1502,7 @@ struct ExpandableBioView: View {
                         isExpanded.toggle()
                     }
                 }) {
-                    Text(isExpanded ? "ver menos" : "ver más")
+                    Text(isExpanded ? NSLocalizedString("profile.content.seeLess", comment: "See less text") : NSLocalizedString("profile.content.seeMore", comment: "See more text"))
                         .font(.custom("Poppins-Medium", size: 13))
                         .foregroundColor(ProfileColors.accent)
                         .padding(.horizontal, 12)
@@ -1625,8 +1622,8 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 switch result {
                 case .success(let users):
                     allUsers.append(contentsOf: users)
-                case .failure(let error):
-                    print("Error al obtener usuarios en lote: \(error.localizedDescription)")
+                case .failure(_):
+                    break
                 }
             }
         }
@@ -1660,7 +1657,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     
     // ✅ NUEVA FUNCIÓN: Fetch conexiones con verificación directa
     private func fetchConnections(userId: String) {
-        print("🔄 Fetching connections for user: \(userId)")
         
         // Primero obtener following directamente de Firestore
         firestoreService.db.collection("users").document(userId).collection("following")
@@ -1668,7 +1664,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 guard let self = self else { return }
                 
                 if let error = error {
-                    print("❌ Error fetching following: \(error.localizedDescription)")
                     self.errorMessage = "Error al cargar conexiones: \(error.localizedDescription)"
                     self.isLoading = false
                     return
@@ -1678,7 +1673,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     doc.data()["userId"] as? String
                 } ?? []
                 
-                print("📊 Following IDs from Firestore: \(followingIds)")
                 
                 // Filtrar unfollows recientes
                 let filteredFollowingIds = followingIds.filter { userId in
@@ -1686,7 +1680,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                         // Si el unfollow fue hace menos de 5 segundos, no incluir
                         let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
                         if timeSinceUnfollow < 5.0 {
-                            print("🚫 Filtering out recent unfollow: \(userId)")
                             return false
                         } else {
                             // Limpiar el cache después de 5 segundos
@@ -1697,7 +1690,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     return true
                 }
                 
-                print("📊 Filtered Following IDs: \(filteredFollowingIds)")
                 
                 // Luego obtener followers
                 self.firestoreService.db.collection("users").document(userId).collection("followers")
@@ -1705,7 +1697,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                         guard let self = self else { return }
                         
                         if let error = error {
-                            print("❌ Error fetching followers: \(error.localizedDescription)")
                             self.errorMessage = "Error al cargar admiradores: \(error.localizedDescription)"
                             self.isLoading = false
                             return
@@ -1715,7 +1706,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                             doc.data()["userId"] as? String
                         } ?? []
                         
-                        print("📊 Follower IDs from Firestore: \(followerIds)")
                         
                         // Categorizar conexiones con IDs filtrados
                         self.categorizeConnections(
@@ -1735,10 +1725,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         let connectionIds = followingSet.subtracting(mutualIds)
         let admirerIds = followersSet.subtracting(mutualIds)
         
-        print("📊 Categorized connections:")
-        print("   - Mutual: \(mutualIds)")
-        print("   - Connections: \(connectionIds)")
-        print("   - Admirers: \(admirerIds)")
         
         let fetchGroup = DispatchGroup()
         
@@ -1747,7 +1733,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         self.fetchUsersInBatches(userIds: Array(mutualIds)) { [weak self] users in
             DispatchQueue.main.async {
                 self?.mutualConnections = users
-                print("✅ Mutual connections loaded: \(users.count)")
             }
             fetchGroup.leave()
         }
@@ -1757,7 +1742,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         self.fetchUsersInBatches(userIds: Array(connectionIds)) { [weak self] users in
             DispatchQueue.main.async {
                 self?.connections = users
-                print("✅ Connections loaded: \(users.count)")
             }
             fetchGroup.leave()
         }
@@ -1767,7 +1751,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         self.fetchUsersInBatches(userIds: Array(admirerIds)) { [weak self] users in
             DispatchQueue.main.async {
                 self?.admirers = users
-                print("✅ Admirers loaded: \(users.count)")
                 self?.isLoading = false
             }
             fetchGroup.leave()
@@ -1893,7 +1876,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             if !hasErrors {
                 let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                 impactFeedback.impactOccurred()
-                print("✅ Perfil actualizado correctamente")
             }
         }
     }
@@ -1905,7 +1887,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             return
         }
 
-        print("🤝 Following user: \(userId)")
         
         // Limpiar unfollow reciente si existe
         recentUnfollows.remove(userId)
@@ -1914,12 +1895,10 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         self.firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
             if let error = error {
-                print("❌ Error following user: \(error.localizedDescription)")
                 self.errorMessage = "Error al seguir usuario: \(error.localizedDescription)"
                 return
             }
             
-            print("✅ Follow successful, updating UI")
 
             // Actualizar UI inmediatamente
             DispatchQueue.main.async {
@@ -1927,7 +1906,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     let user = self.admirers[admirerIndex]
                     self.admirers.remove(at: admirerIndex)
                     self.mutualConnections.append(user)
-                    print("📊 Moved from admirers to mutual connections")
                 } else {
                     // Obtener usuario y agregarlo a conexiones
                     self.firestoreService.fetchUser(userId: userId) { [weak self] result in
@@ -1935,7 +1913,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                         case .success(let user):
                             DispatchQueue.main.async {
                                 self?.connections.append(user)
-                                print("📊 Added to connections")
                             }
                         case .failure(let error):
                             self?.errorMessage = "Error al actualizar conexiones: \(error.localizedDescription)"
@@ -1953,7 +1930,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             return
         }
 
-        print("💔 Unfollowing user: \(userId)")
         
         // ✅ MARCAR COMO UNFOLLOW RECIENTE
         recentUnfollows.insert(userId)
@@ -1962,7 +1938,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         self.firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
             if let error = error {
-                print("❌ Error unfollowing user: \(error.localizedDescription)")
                 self.errorMessage = "Error al dejar de seguir usuario: \(error.localizedDescription)"
                 
                 // Limpiar cache de unfollow si falló
@@ -1971,7 +1946,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 return
             }
             
-            print("✅ Unfollow successful, updating UI")
 
             // Actualizar UI inmediatamente
             DispatchQueue.main.async {
@@ -1979,10 +1953,8 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     let user = self.mutualConnections[mutualIndex]
                     self.mutualConnections.remove(at: mutualIndex)
                     self.admirers.append(user)
-                    print("📊 Moved from mutual to admirers")
                 } else if let connectionIndex = self.connections.firstIndex(where: { $0.id == userId }) {
                     self.connections.remove(at: connectionIndex)
-                    print("📊 Removed from connections")
                 }
             }
         }
@@ -1996,7 +1968,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         }
         
         firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: userId) { isFollowing in
-            print("🔍 Verification - Following \(userId): \(isFollowing)")
             completion(isFollowing)
         }
     }
@@ -2013,7 +1984,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 guard let data = try await item.loadTransferable(type: Data.self),
                       let uiImage = UIImage(data: data) else {
                     DispatchQueue.main.async {
-                        self.errorMessage = "Error al cargar la imagen"
+                        self.errorMessage = NSLocalizedString("profile.error.loadingImage", comment: "Error loading image")
                     }
                     return
                 }

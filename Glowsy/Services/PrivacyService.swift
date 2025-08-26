@@ -22,7 +22,6 @@ class PrivacyService {
         // 2. Verificar bloqueos primero (en ambas direcciones)
         checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
             if isBlocked {
-                print("🚫 Momento filtrado: hay bloqueos entre \(viewerId) y \(moment.authorId)")
                 completion(false)
                 return
             }
@@ -30,7 +29,6 @@ class PrivacyService {
             // 3. Verificar si sigo al autor del momento
             self?.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: moment.authorId) { isFollowing in
                 if !isFollowing {
-                    print("❌ Momento filtrado: \(viewerId) no sigue a \(moment.authorId)")
                     completion(false)
                     return
                 }
@@ -43,19 +41,15 @@ class PrivacyService {
                         if settings.isPrivate {
                             self?.firestoreService.isFollowing(currentUserId: moment.authorId, targetUserId: viewerId) { authorFollowsBack in
                                 if authorFollowsBack {
-                                    print("✅ Momento mostrado: perfil privado con seguimiento mutuo")
                                     completion(true)
                                 } else {
-                                    print("❌ Momento filtrado: perfil privado sin seguimiento mutuo")
                                     completion(false)
                                 }
                             }
                         } else {
-                            print("✅ Momento mostrado: perfil público y lo sigo")
                             completion(true)
                         }
                     case .failure(let error):
-                        print("❌ Error obteniendo configuración de privacidad: \(error.localizedDescription)")
                         completion(false)
                     }
                 }
@@ -66,13 +60,11 @@ class PrivacyService {
     func fetchPrivacySettings(userId: String, completion: @escaping (Result<(isPrivate: Bool, showMutualConnections: Bool, showFollowing: Bool, showAdmirers: Bool), Error>) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
-                print("Error fetching privacy settings: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
 
             guard let document = snapshot, document.exists, let data = document.data() else {
-                print("User document not found for userId: \(userId)")
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User document not found"])))
                 return
             }
@@ -103,17 +95,14 @@ class PrivacyService {
         }
 
         guard !updateData.isEmpty else {
-            print("No privacy settings to update")
             completion(nil)
             return
         }
 
         db.collection("users").document(userId).updateData(updateData) { error in
             if let error = error {
-                print("Error updating privacy settings: \(error.localizedDescription)")
                 completion(error)
             } else {
-                print("Privacy settings updated successfully")
                 completion(nil)
             }
         }
@@ -152,7 +141,6 @@ class PrivacyService {
                     }
                     
                 case .failure(let error):
-                    print("Error checking privacy settings: \(error)")
                     completion(false)
                 }
             }
@@ -170,15 +158,10 @@ class PrivacyService {
         fetchPrivacySettings(userId: targetUserId) { [weak self] result in
             switch result {
             case .success(let settings):
-                print("🔍 Privacy settings for \(targetUserId):")
-                print("   - isPrivate: \(settings.isPrivate)")
-                print("   - showMutualConnections: \(settings.showMutualConnections)")
-                print("   - showFollowing: \(settings.showFollowing)")
                 
                 // Verificar si está bloqueado (en ambas direcciones)
                 self?.checkMutualBlocks(viewerId: viewerId, targetUserId: targetUserId) { isBlocked in
                     if isBlocked {
-                        print("🚫 Conexiones ocultas: hay bloqueos")
                         completion(.success((canViewMutualConnections: false, canViewFollowing: false, canViewAdmirers: false)))
                         return
                     }
@@ -190,10 +173,6 @@ class PrivacyService {
                     
                     // Si el perfil es público
                     if !settings.isPrivate {
-                        print("🌍 Perfil público - aplicando configuraciones:")
-                        print("   - Puede ver mutuas: \(settings.showMutualConnections)")
-                        print("   - Puede ver siguiendo: \(settings.showFollowing)")
-                        print("   - Puede ver admiradores: \(settings.showAdmirers)")
                         completion(.success((
                             canViewMutualConnections: settings.showMutualConnections,
                             canViewFollowing: settings.showFollowing,
@@ -205,17 +184,12 @@ class PrivacyService {
                     // Si el perfil es privado, verificar si es seguidor
                     self?.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: targetUserId) { isFollowing in
                         if isFollowing {
-                            print("🔒 Perfil privado pero lo sigue - aplicando configuraciones:")
-                            print("   - Puede ver mutuas: \(settings.showMutualConnections)")
-                            print("   - Puede ver siguiendo: \(settings.showFollowing)")
-                            print("   - Puede ver admiradores: \(settings.showAdmirers)")
                             completion(.success((
                                 canViewMutualConnections: settings.showMutualConnections,
                                 canViewFollowing: settings.showFollowing,
                                 canViewAdmirers: settings.showAdmirers
                             )))
                         } else {
-                            print("🔒 Perfil privado y no lo sigue - sin acceso a conexiones")
                             completion(.success((canViewMutualConnections: false, canViewFollowing: false, canViewAdmirers: false)))
                         }
                     }
@@ -239,15 +213,10 @@ class PrivacyService {
                     canViewMutualConnections: permissions.canViewMutualConnections
                 )
                 
-                print("📊 Tipos de conexiones visibles para \(viewerId) viendo a \(targetUserId):")
-                print("   - Admirers (seguidores): \(visibleTypes.canViewAdmirers)")
-                print("   - Connections (siguiendo): \(visibleTypes.canViewConnections)")
-                print("   - Mutual: \(visibleTypes.canViewMutualConnections)")
                 
                 completion(visibleTypes)
             case .failure:
                 // En caso de error, denegar todo acceso
-                print("❌ Error al verificar permisos - denegando acceso a todas las conexiones")
                 completion(VisibleConnectionTypes(
                     canViewAdmirers: false,
                     canViewConnections: false,
@@ -263,7 +232,6 @@ class PrivacyService {
      func checkMutualBlocks(viewerId: String, targetUserId: String, completion: @escaping (Bool) -> Void) {
         firestoreService.checkIfBlocked(currentUserId: viewerId, targetUserId: targetUserId) { isBlockedByViewer, isViewerBlocked, error in
             if let error = error {
-                print("Error verificando bloqueos mutuos: \(error.localizedDescription)")
                 completion(true) // En caso de error, ser conservador y bloquear
                 return
             }
@@ -278,7 +246,6 @@ class PrivacyService {
     private func checkIfBlocked(viewerId: String, targetUserId: String, completion: @escaping (Bool) -> Void) {
         db.collection("users").document(targetUserId).getDocument { snapshot, error in
             if let error = error {
-                print("Error checking if blocked: \(error.localizedDescription)")
                 completion(false)
                 return
             }
@@ -424,7 +391,6 @@ class PrivacyService {
             .limit(to: 1)
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("Error checking pending request: \(error)")
                     completion(false)
                     return
                 }
@@ -446,17 +412,13 @@ class PrivacyService {
             "createdAt": FieldValue.serverTimestamp()
         ]
         
-        print("💾 Guardando audiencia personalizada para moment_\(momentId)")
-        print("📊 Usuarios permitidos: \(allowedUsers)")
         
         db.collection("users").document(authorId)
             .collection("customAudiences")
             .document("moment_\(momentId)")
             .setData(data) { error in
                 if let error = error {
-                    print("❌ Error guardando audiencia personalizada: \(error)")
                 } else {
-                    print("✅ Audiencia personalizada guardada exitosamente")
                 }
                 completion(error)
             }
@@ -475,17 +437,13 @@ class PrivacyService {
             "createdAt": FieldValue.serverTimestamp()
         ]
         
-        print("💾 Guardando audiencia personalizada para story_\(storyId)")
-        print("📊 Usuarios permitidos: \(allowedUsers)")
         
         db.collection("users").document(authorId)
             .collection("customAudiences")
             .document("story_\(storyId)")
             .setData(data) { error in
                 if let error = error {
-                    print("❌ Error guardando audiencia personalizada: \(error)")
                 } else {
-                    print("✅ Audiencia personalizada guardada exitosamente")
                 }
                 completion(error)
             }
@@ -493,26 +451,21 @@ class PrivacyService {
     
     // ✅ FUNCIÓN DE DEBUG: Verificar audiencias personalizadas
     func debugCustomAudiences(authorId: String) {
-        print("🔍 Debug: Verificando audiencias personalizadas para \(authorId)")
         
         db.collection("users").document(authorId)
             .collection("customAudiences")
             .getDocuments { snapshot, error in
                 if let error = error {
-                    print("❌ Error obteniendo audiencias: \(error)")
                     return
                 }
                 
                 guard let documents = snapshot?.documents else {
-                    print("📭 No se encontraron audiencias personalizadas")
                     return
                 }
                 
-                print("📊 Audiencias encontradas: \(documents.count)")
                 for document in documents {
                     let data = document.data()
                     let allowedUsers = data["allowedUsers"] as? [String] ?? []
-                    print("   - \(document.documentID): \(allowedUsers)")
                 }
             }
     }
@@ -608,7 +561,6 @@ extension PrivacyService {
     private func checkIfBestFriend(userId: String, friendId: String, completion: @escaping (Bool) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
-                print("Error checking best friends: \(error)")
                 completion(false)
                 return
             }
@@ -625,7 +577,6 @@ extension PrivacyService {
     
     // ✅ FUNCIÓN CORREGIDA: Verificar audiencia personalizada
     private func checkCustomAudience(contentType: String, contentId: String, authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
-        print("🎯 Verificando audiencia personalizada para \(contentType)_\(contentId)")
         
         db.collection("users").document(authorId)
             .collection("customAudiences")
@@ -651,7 +602,6 @@ extension PrivacyService {
     private func checkStoryVisibilitySettings(authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
         db.collection("users").document(authorId).getDocument { snapshot, error in
             if let error = error {
-                print("Error checking story visibility: \(error)")
                 completion(false)
                 return
             }
@@ -1191,7 +1141,6 @@ extension PrivacyService {
                 completion(false)
                 
             default:
-                print("❓ [Explore] Audiencia desconocida: \(audience)")
                 completion(false)
             }
         }
@@ -1220,7 +1169,6 @@ extension PrivacyService {
                 }
                 
             case .failure(let error):
-                print("❌ [Explore] Error verificando configuración de privacidad: \(error)")
                 completion(false)
             }
         }

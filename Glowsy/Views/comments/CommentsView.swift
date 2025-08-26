@@ -22,14 +22,14 @@ struct CommentsView: View {
             viewModel.fetchComments(momentId: moment.id, userId: moment.authorId)
         }
         .alert(isPresented: $viewModel.showError) {
-            Alert(title: Text("Error"), message: Text(viewModel.errorMessage ?? "Error desconocido"), dismissButton: .default(Text("OK")))
+            Alert(title: Text(NSLocalizedString("comments.error.title", comment: "Error title")), message: Text(viewModel.errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error")), dismissButton: .default(Text(NSLocalizedString("comments.error.ok", comment: "OK button"))))
         }
     }
 
     // Encabezado
     private var headerView: some View {
         HStack {
-            Text("Comentarios")
+            Text(NSLocalizedString("comments.title", comment: "Comments title"))
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.primary)
             Spacer()
@@ -110,7 +110,7 @@ struct CommentsView: View {
     private func commentContextMenu(for comment: Comment) -> some View {
         if comment.authorId == Auth.auth().currentUser?.uid || moment.authorId == Auth.auth().currentUser?.uid {
             Button(action: { viewModel.startEditing(comment: comment) }) {
-                Label("Editar", systemImage: "pencil")
+                Label(NSLocalizedString("comments.actions.edit", comment: "Edit comment"), systemImage: "pencil")
             }
             .disabled(moment.authorId != comment.authorId && comment.authorId != Auth.auth().currentUser?.uid)
             Button(action: {
@@ -122,7 +122,7 @@ struct CommentsView: View {
                     )
                 }
             }) {
-                Label("Eliminar", systemImage: "trash")
+                Label(NSLocalizedString("comments.actions.delete", comment: "Delete comment"), systemImage: "trash")
                     .foregroundColor(.red)
             }
         }
@@ -131,7 +131,7 @@ struct CommentsView: View {
     // Campo para añadir comentario
     private var addCommentView: some View {
         HStack {
-            TextField("Añade un comentario...", text: $viewModel.newComment)
+            TextField(NSLocalizedString("comments.add.placeholder", comment: "Add comment placeholder"), text: $viewModel.newComment)
                 .font(.system(size: 16))
                 .padding(.vertical, 10)
                 .padding(.horizontal, 16)
@@ -151,7 +151,7 @@ struct CommentsView: View {
                     viewModel.newComment = ""
                 }
             }) {
-                Text("Publicar")
+                Text(NSLocalizedString("comments.actions.publish", comment: "Publish comment"))
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(viewModel.newComment.isEmpty ? .gray : (colorScheme == .dark ? .yellow : .blue))
                     .padding(.horizontal, 16)
@@ -193,7 +193,7 @@ struct CommentRow: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.primary)
                     if let updatedAt = comment.updatedAt, abs(updatedAt.timeIntervalSince(comment.timestamp)) > 1 {
-                        Text("(editado)")
+                        Text(NSLocalizedString("comments.edited", comment: "Edited comment indicator"))
                             .font(.system(size: 12))
                             .foregroundColor(.gray.opacity(0.6))
                     }
@@ -204,7 +204,7 @@ struct CommentRow: View {
                 }
 
                 if isEditing {
-                    TextField("Editar comentario...", text: $editedContent)
+                    TextField(NSLocalizedString("comments.actions.editPlaceholder", comment: "Edit comment placeholder"), text: $editedContent)
                         .font(.system(size: 14))
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
@@ -213,13 +213,13 @@ struct CommentRow: View {
                                 .fill(Color(.systemGray6))
                         )
                     HStack {
-                        Button("Cancelar") {
+                        Button(NSLocalizedString("comments.actions.cancel", comment: "Cancel edit")) {
                             onCancelEdit()
                         }
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.gray)
                         Spacer()
-                        Button("Guardar") {
+                        Button(NSLocalizedString("comments.actions.save", comment: "Save edit")) {
                             onSaveEdit()
                         }
                         .font(.system(size: 14, weight: .semibold))

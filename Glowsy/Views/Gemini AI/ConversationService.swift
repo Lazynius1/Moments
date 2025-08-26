@@ -54,12 +54,10 @@ class ConversationService: ObservableObject {
                 return results.sorted { $0.lastUpdated > $1.lastUpdated }
             }
             
-            print("✅ Loaded and decrypted \(titles.count) conversation titles")
             return titles
             
         } catch {
             lastError = "Error loading conversations: \(error.localizedDescription)"
-            print("❌ Error loading conversation titles: \(error)")
             return []
         }
     }
@@ -131,12 +129,10 @@ class ConversationService: ObservableObject {
                 conversation: savedConversation
             )
             
-            print("✅ Conversation saved successfully with ID: \(conversationId)")
             return conversationId
             
         } catch {
             lastError = "Error saving conversation: \(error.localizedDescription)"
-            print("❌ Error saving conversation: \(error)")
             return nil
         }
     }
@@ -203,7 +199,6 @@ class ConversationService: ObservableObject {
             guard document.exists,
                   let data = document.data(),
                   let savedConversation = SavedConversation(dictionary: data) else {
-                print("❌ Existing conversation not found: \(conversationId)")
                 return false
             }
             
@@ -235,12 +230,10 @@ class ConversationService: ObservableObject {
                 conversation: updatedConversation
             )
             
-            print("✅ Conversation updated successfully")
             return true
             
         } catch {
             lastError = "Error updating conversation: \(error.localizedDescription)"
-            print("❌ Error updating conversation: \(error)")
             return false
         }
     }
@@ -266,7 +259,6 @@ class ConversationService: ObservableObject {
     
     // MARK: - 📖 ASYNC: Cargar conversación completa
     func loadConversation(_ conversationId: String, for userId: String) async -> [ChatMessage] {
-        print("🔍 Loading conversation from Firestore: \(conversationId)")
         
         isLoading = true
         defer { isLoading = false }
@@ -277,28 +269,23 @@ class ConversationService: ObservableObject {
             guard document.exists,
                   let data = document.data(),
                   let savedConversation = SavedConversation(dictionary: data) else {
-                print("❌ Conversation document not found: \(conversationId)")
                 return []
             }
             
             // Verify user ownership
             guard savedConversation.userId == userId else {
-                print("❌ Conversation doesn't belong to current user")
                 return []
             }
             
-            print("📄 Conversation found: \(savedConversation.messages.count) messages")
             
             // 🔐 Decrypt messages in parallel
             let decryptedMessages = await withTaskGroup(of: (Int, ChatMessage?).self, returning: [ChatMessage].self) { group in
                 
                 for (index, savedMessage) in savedConversation.messages.enumerated() {
                     group.addTask {
-                        print("🔓 Decrypting message: \(savedMessage.id)")
                         
                         let decryptedText = await self.encryptionService.decryptGeminiData(savedMessage.text, for: userId) ?? savedMessage.text
                         
-                        print("📝 Decrypted text: \(decryptedText.prefix(50))...")
                         
                         let message = ChatMessage(
                             text: decryptedText,
@@ -321,12 +308,10 @@ class ConversationService: ObservableObject {
                 return results.sorted { $0.0 < $1.0 }.map { $0.1 }
             }
             
-            print("✅ \(decryptedMessages.count) messages decrypted successfully")
             return decryptedMessages
             
         } catch {
             lastError = "Error loading conversation: \(error.localizedDescription)"
-            print("❌ Error loading conversation: \(error)")
             return []
         }
     }
@@ -344,7 +329,6 @@ class ConversationService: ObservableObject {
                   let data = document.data(),
                   let title = ConversationTitle(dictionary: data),
                   title.userId == userId else {
-                print("❌ Conversation not found or access denied")
                 return false
             }
             
@@ -361,12 +345,10 @@ class ConversationService: ObservableObject {
             
             try await batch.commit()
             
-            print("✅ Conversation deleted successfully")
             return true
             
         } catch {
             lastError = "Error deleting conversation: \(error.localizedDescription)"
-            print("❌ Error deleting conversation: \(error)")
             return false
         }
     }
@@ -401,11 +383,9 @@ class ConversationService: ObservableObject {
             // Ensure title isn't too long
             let finalTitle = title.count > 50 ? String(title.prefix(47)) + "..." : title
             
-            print("🎯 Generated title: \(finalTitle)")
             return finalTitle
             
         } catch {
-            print("❌ Error generating title: \(error.localizedDescription)")
             return "Conversación \(DateFormatter.shortTime.string(from: Date()))"
         }
     }
@@ -421,7 +401,6 @@ class ConversationService: ObservableObject {
             
             let documents = snapshot.documents
             guard documents.count > keepLast else {
-                print("📊 No cleanup needed. Current conversations: \(documents.count)")
                 return true
             }
             
@@ -440,12 +419,10 @@ class ConversationService: ObservableObject {
             
             try await batch.commit()
             
-            print("✅ Cleanup completed. Deleted \(documentsToDelete.count) old conversations")
             return true
             
         } catch {
             lastError = "Error during cleanup: \(error.localizedDescription)"
-            print("❌ Error cleaning up conversations: \(error)")
             return false
         }
     }
@@ -474,7 +451,6 @@ class ConversationService: ObservableObject {
             )
             
         } catch {
-            print("❌ Error getting statistics: \(error)")
             return ConversationStatistics(
                 totalConversations: 0,
                 totalMessages: 0,
@@ -486,7 +462,6 @@ class ConversationService: ObservableObject {
     
     // MARK: - 🔄 PRELOAD: Optimize Performance
     func preloadRecentConversations(for userId: String) async {
-        print("🚀 Preloading recent conversations for better performance...")
         
         do {
             let snapshot = try await conversationTitlesCollection
@@ -500,10 +475,8 @@ class ConversationService: ObservableObject {
             // Preload encryption keys for these conversations
             await encryptionService.preloadConversationKeys(for: conversationIds)
             
-            print("✅ Preloaded keys for \(conversationIds.count) recent conversations")
             
         } catch {
-            print("❌ Error preloading conversations: \(error)")
         }
     }
 }

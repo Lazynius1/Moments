@@ -339,7 +339,6 @@ struct ReelVideoView: View {
                                         content: video.moment.content,
                                         colorScheme: .dark,
                                         onHashtagTap: { hashtag in
-                                            print("Hashtag tapped in reel: #\(hashtag)")
                                         }
                                     )
                                     .lineLimit(4)
@@ -699,10 +698,8 @@ struct ReelVideoView: View {
         ) { error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("❌ Error al eliminar momento: \(error.localizedDescription)")
                     // Aquí podrías mostrar un alert de error
                 } else {
-                    print("✅ Momento eliminado exitosamente")
                     // Cerrar el reels viewer
                     onClose()
                 }
@@ -735,9 +732,7 @@ struct ReelVideoView: View {
             authorId: video.moment.authorId
         ) { error in
             if let error = error {
-                print("Error adding feel reaction: \(error)")
             } else {
-                print("✅ Feel reaction added via double tap")
             }
         }
         
@@ -948,7 +943,6 @@ struct EnhancedReelReactionButton: View {
                         self.reactionCount -= 1
                     }
                 }
-                print("Error adding reaction: \(error)")
             }
         }
     }
@@ -978,7 +972,6 @@ struct EnhancedReelReactionButton: View {
                         self.reactionCount += 1
                     }
                 }
-                print("Error removing reaction: \(error)")
             }
         }
     }
@@ -1099,7 +1092,6 @@ class ReelVideoPlayerManager: ObservableObject {
         // Limpiar player anterior si existe
         cleanup()
         
-        print("🎬 Configurando reproductor para: \(url)")
         
         // Crear player item con configuración optimizada
         let asset = AVURLAsset(url: url, options: [
@@ -1178,7 +1170,6 @@ class ReelVideoPlayerManager: ObservableObject {
             try audioSession.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers, .allowBluetooth])
             try audioSession.setActive(true)
         } catch {
-            print("❌ Error configurando sesión de audio: \(error)")
         }
     }
     
@@ -1191,15 +1182,12 @@ class ReelVideoPlayerManager: ObservableObject {
             .sink { [weak self] status in
                 switch status {
                 case .readyToPlay:
-                    print("✅ Video listo para reproducir")
                     self?.isLoaded = true
                     self?.isBuffering = false
                     self?.play()
                 case .failed:
-                    print("❌ Error cargando video: \(playerItem.error?.localizedDescription ?? "Unknown")")
                     self?.isBuffering = false
                 case .unknown:
-                    print("🔄 Estado de video desconocido")
                     self?.isBuffering = true
                 @unknown default:
                     break
@@ -1291,7 +1279,6 @@ class ReelVideoPlayerManager: ObservableObject {
     }
     
     func cleanup() {
-        print("🧹 Limpiando reproductor...")
         
         // Pausar antes de limpiar
         player?.pause()

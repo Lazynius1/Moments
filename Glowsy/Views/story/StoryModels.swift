@@ -28,6 +28,7 @@ class StoryViewModel: ObservableObject {
     // ✅ PRELOADING: Configuración
     private let maxPreloadedStories = 3 // Máximo 3 historias precargadas
     
+
     // MARK: - Obtener historias para un usuario específico
     func fetchStoriesForSpecificUser(userId: String, viewerId: String) {
         guard !userId.isEmpty else {
@@ -143,7 +144,6 @@ class StoryViewModel: ObservableObject {
                     self.fetchStoriesForUsers(userIds: connectionIds, viewerId: userId)
                     self.checkActiveStories(userId: userId)
                 case .failure(let error):
-                    print("❌ Error al obtener usuarios seguidos: \(error.localizedDescription)")
                     // Fallback: solo cargar tus historias
                     self.fetchStoriesForUsers(userIds: [userId], viewerId: userId)
                     self.checkActiveStories(userId: userId)
@@ -172,7 +172,6 @@ class StoryViewModel: ObservableObject {
                     }
                     
                     if let error = error {
-                        print("❌ Error fetching stories for \(userId): \(error.localizedDescription)")
                         group.leave()
                         return
                     }
@@ -203,7 +202,6 @@ class StoryViewModel: ObservableObject {
                             // La verificación se hará después de forma asíncrona
                             return story
                         } catch {
-                            print("❌ Error parseando historia: \(error)")
                             return nil
                         }
                     } ?? []
@@ -282,7 +280,6 @@ class StoryViewModel: ObservableObject {
         let urlsToPrefetchLimited = Array(urlsToPrefetch.prefix(10))
         if !urlsToPrefetchLimited.isEmpty {
             let prefetcher = ImagePrefetcher(urls: urlsToPrefetchLimited) { skippedResources, failedResources, completedResources in
-                print("Precarga de imágenes completada: \(completedResources.count) imágenes")
             }
             prefetcher.start()
         }
@@ -294,7 +291,6 @@ class StoryViewModel: ObservableObject {
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
                 if let error = error {
-                    print("Error checking active stories: \(error.localizedDescription)")
                     self.hasActiveStory = false
                     return
                 }
@@ -310,12 +306,10 @@ class StoryViewModel: ObservableObject {
             return
         }
         
-        print("Sending story message to \(userId)")
         
         // First, get or create conversation
         getOrCreateConversation(between: currentUserId, and: userId) { [weak self] conversationId, error in
             guard let self = self, let conversationId = conversationId, error == nil else {
-                print("Error getting conversation: \(error?.localizedDescription ?? "Unknown error")")
                 completion(false)
                 return
             }
@@ -323,25 +317,21 @@ class StoryViewModel: ObservableObject {
             // Fetch the story to include its media data
             firestoreService.db.collection("users").document(userId).collection("stories").document(storyId).getDocument { (snapshot: DocumentSnapshot?, error: Error?) in
                 if let error = error {
-                    print("Error fetching story: \(error.localizedDescription)")
                     completion(false)
                     return
                 }
                 
                 guard let snapshot = snapshot, snapshot.exists else {
-                    print("Story document does not exist for storyId: \(storyId)")
                     completion(false)
                     return
                 }
                 
                 let storyData = snapshot.data() ?? [:]
-                print("Story data: \(storyData)")
                 
                 // Extract mediaUrl and type from mediaItem
                 guard let mediaItem = storyData["mediaItem"] as? [String: Any],
                       let storyMediaUrl = mediaItem["url"] as? String,
                       let storyMediaType = mediaItem["type"] as? String else {
-                    print("Missing mediaItem.url or mediaItem.type in story data for storyId: \(storyId)")
                     completion(false)
                     return
                 }
@@ -362,10 +352,8 @@ class StoryViewModel: ObservableObject {
                 ) { result in
                     switch result {
                     case .success(_):
-                        print("Story text reply sent successfully")
                         completion(true)
                     case .failure(let error):
-                        print("Error sending story text reply: \(error.localizedDescription)")
                         completion(false)
                     }
                 }
@@ -376,16 +364,13 @@ class StoryViewModel: ObservableObject {
 
     func sendEphemeralMoment(to userId: String, storyId: String, image: UIImage, completion: @escaping (Bool) -> Void) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            print("No authenticated user")
             completion(false)
             return
         }
         
-        print("Sending ephemeral moment to \(userId) for story \(storyId)")
         
         // Convert UIImage to Data
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            print("Failed to convert image to data")
             completion(false)
             return
         }
@@ -393,25 +378,21 @@ class StoryViewModel: ObservableObject {
         // Fetch the story to include its media
         firestoreService.db.collection("users").document(userId).collection("stories").document(storyId).getDocument { [weak self] (snapshot: DocumentSnapshot?, error: Error?) in
             if let error = error {
-                print("Error fetching story: \(error.localizedDescription)")
                 completion(false)
                 return
             }
             
             guard let snapshot = snapshot, snapshot.exists else {
-                print("Story document does not exist for storyId: \(storyId)")
                 completion(false)
                 return
             }
             
             let storyData = snapshot.data() ?? [:]
-            print("Story data: \(storyData)")
             
             // Extract mediaUrl and type from mediaItem
             guard let mediaItem = storyData["mediaItem"] as? [String: Any],
                   let storyMediaUrl = mediaItem["url"] as? String,
                   let storyMediaType = mediaItem["type"] as? String else {
-                print("Missing mediaItem.url or mediaItem.type in story data for storyId: \(storyId)")
                 completion(false)
                 return
             }
@@ -421,7 +402,6 @@ class StoryViewModel: ObservableObject {
                 switch result {
                 case .success(let canSend):
                     guard canSend else {
-                        print("Cannot send message to \(userId)")
                         completion(false)
                         return
                     }
@@ -429,7 +409,6 @@ class StoryViewModel: ObservableObject {
                     // Get or create conversation
                     self?.getOrCreateConversation(between: currentUserId, and: userId) { [weak self] conversationId, error in
                         guard let self = self, let conversationId = conversationId, error == nil else {
-                            print("Error getting conversation: \(error?.localizedDescription ?? "Unknown error")")
                             completion(false)
                             return
                         }
@@ -452,22 +431,18 @@ class StoryViewModel: ObservableObject {
                                 ) { ephemeralResult in
                                     switch ephemeralResult {
                                     case .success(_):
-                                        print("Ephemeral moment sent successfully to conversation \(conversationId)")
                                         completion(true)
                                     case .failure(let error):
-                                        print("Error sending ephemeral message: \(error.localizedDescription)")
                                         completion(false)
                                     }
                                 }
                             case .failure(let error):
-                                print("Error uploading ephemeral image: \(error.localizedDescription)")
                                 completion(false)
                             }
                         }
                     }
                     
                 case .failure(let error):
-                    print("Error checking send permission: \(error.localizedDescription)")
                     completion(false)
                 }
             }
@@ -481,7 +456,6 @@ class StoryViewModel: ObservableObject {
             .order(by: "timestamp", descending: true)
             .addSnapshotListener { [weak self] snapshot, error in
                 if let error = error {
-                    print("Error fetching reactions: \(error.localizedDescription)")
                     return
                 }
                 
@@ -507,7 +481,6 @@ class StoryViewModel: ObservableObject {
             .order(by: "timestamp", descending: true)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
-                    print("Error fetching viewers: \(error.localizedDescription)")
                     completion([])
                     return
                 }
@@ -553,11 +526,10 @@ class StoryViewModel: ObservableObject {
                 self.firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
                     .collection("viewers").document(currentUserId).setData(viewerData) { error in
                         if let error = error {
-                            print("Error marking story as viewed: \(error.localizedDescription)")
                         }
                     }
-            case .failure(let error):
-                print("Error fetching user profile: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -668,11 +640,9 @@ class StoryViewModel: ObservableObject {
     // MARK: - Private Helpers
     
     private func getOrCreateConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
-        print("Checking for conversation between \(senderId) and \(receiverId)")
         
         // Validate inputs
         guard !senderId.isEmpty, !receiverId.isEmpty else {
-            print("Invalid senderId or receiverId")
             completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid user IDs"]))
             return
         }
@@ -681,18 +651,15 @@ class StoryViewModel: ObservableObject {
             .whereField("participants", arrayContains: senderId)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
-                    print("Error searching conversation: \(error.localizedDescription)")
                     completion(nil, error)
                     return
                 }
                 
                 guard let documents = snapshot?.documents else {
-                    print("No conversations found for \(senderId), creating new one")
                     self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
                     return
                 }
                 
-                print("Found \(documents.count) conversation documents")
                 
                 // Find conversation with both participants
                 let conversation = documents.first { doc in
@@ -702,10 +669,8 @@ class StoryViewModel: ObservableObject {
                 
                 if let conversation = conversation {
                     let conversationId = conversation.documentID
-                    print("Found existing conversation: \(conversationId)")
                     completion(conversationId, nil)
                 } else {
-                    print("No matching conversation found, creating new one")
                     self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
                 }
             }
@@ -715,7 +680,6 @@ class StoryViewModel: ObservableObject {
     
     func sendReaction(to userId: String, storyId: String, reaction: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        print("Sending reaction \(reaction) to story \(storyId)")
         
         // 1. Guardar la reacción en la historia
         let reactionData: [String: Any] = [
@@ -727,7 +691,6 @@ class StoryViewModel: ObservableObject {
         firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
             .collection("reactions").addDocument(data: reactionData) { [weak self] error in
                 if let error = error {
-                    print("Error sending reaction: \(error.localizedDescription)")
                 } else {
                     // Update local reactions
                     self?.fetchReactions(for: userId, storyId: storyId)
@@ -767,14 +730,12 @@ class StoryViewModel: ObservableObject {
                 
                 self.firestoreService.createNotification(notification: notification, for: storyAuthorId) { error in
                     if let error = error {
-                        print("Error sending story reaction notification: \(error.localizedDescription)")
                     } else {
-                        print("Story reaction notification sent successfully")
                     }
                 }
                 
-            case .failure(let error):
-                print("Error fetching sender profile for notification: \(error.localizedDescription)")
+            case .failure(_):
+                break
             }
         }
     }
@@ -804,16 +765,13 @@ class StoryViewModel: ObservableObject {
                 
                 conversationRef?.setData(conversationData) { error in
                     if let error = error {
-                        print("Error creating conversation: \(error.localizedDescription)")
                         completion(nil, error)
                     } else {
-                        print("Conversation created with ID: \(conversationId)")
                         completion(conversationId, nil)
                     }
                 }
                 
             case .failure(let error):
-                print("Error fetching receiver profile: \(error.localizedDescription)")
                 completion(nil, error)
             }
         }
@@ -869,7 +827,6 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         if let currentURL = uiViewController.player?.currentItem?.asset as? AVURLAsset,
            currentURL.url != url {
             // URL cambió, recrear player
-            print("🎬 [VIDEO] URL cambió, recreando player")
             
             // ✅ CLEANUP AUDIO DEL PLAYER ANTERIOR
             uiViewController.player?.pause()
@@ -890,12 +847,10 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         if isPlaying && !playerIsPlaying {
             // ✅ Solo reproducir si no está reproduciéndose
             if let player = uiViewController.player, player.currentItem != nil {
-                print("🎬 [VIDEO] Reproduciendo")
                 player.play()
             }
         } else if !isPlaying && playerIsPlaying {
             // ✅ Solo pausar si está reproduciéndose
-            print("🎬 [VIDEO] Pausando")
             uiViewController.player?.pause()
             uiViewController.player?.isMuted = true
         }
@@ -928,11 +883,9 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             if parent.isHorizontalVideo {
                 // 📱 HORIZONTAL: Mostrar completo con barras
                 controller.videoGravity = .resizeAspect
-                print("🎬 [VIDEO] Gravity: .resizeAspect (horizontal - mostrar completo)")
             } else {
                 // 📱 VERTICAL: Llenar pantalla (fullscreen)
                 controller.videoGravity = .resizeAspectFill
-                print("🎬 [VIDEO] Gravity: .resizeAspectFill (vertical - fullscreen)")
             }
         }
         
@@ -976,7 +929,6 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         
         deinit {
             // ✅ CLEANUP COMPLETO
-            print("🎬 [VIDEO] GlassmorphicStoryVideoPlayer deinit - limpiando")
             if let observer = timeObserver {
                 player?.removeTimeObserver(observer)
             }
@@ -990,7 +942,6 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             do {
                 try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             } catch {
-                print("⚠️ [AUDIO] Error limpiando sesión en deinit: \(error)")
             }
         }
     }
@@ -1162,9 +1113,7 @@ struct GlassmorphicStoryViewer: View {
             cleanupAudioSession()
         }
         .onChange(of: story.id) { oldStoryId, newStoryId in
-            print("🔄 [STORY] story.id cambió: \(oldStoryId ?? "nil") → \(newStoryId ?? "nil")")
             if oldStoryId != newStoryId {
-                print("🔄 [STORY] Ejecutando handleStoryChange")
                 // ✅ RESET PROGRESO INMEDIATAMENTE
                 progress = 0.0
                 handleStoryChange()
@@ -1972,7 +1921,6 @@ struct GlassmorphicStoryViewer: View {
                 guard let data = try await photo.loadTransferable(type: Data.self),
                       let uiImage = UIImage(data: data),
                       let storyId = story.id else {
-                    print("Error loading ephemeral image")
                     return
                 }
                 
@@ -1986,7 +1934,6 @@ struct GlassmorphicStoryViewer: View {
                     }
                 }
             } catch {
-                print("Error processing ephemeral image: \(error.localizedDescription)")
             }
         }
     }
@@ -2032,7 +1979,6 @@ struct GlassmorphicStoryViewer: View {
                         try? FileManager.default.removeItem(at: tempURL)
                     }
                 } catch {
-                    print("Error saving media: \(error.localizedDescription)")
                 }
             }
         }
@@ -2055,7 +2001,6 @@ struct GlassmorphicStoryViewer: View {
     // MARK: - Story Playback
     
     private func prepareAndStartStory() {
-        print("🎬 [STORY] Preparando historia: \(story.id ?? "unknown")")
         
         // ✅ SIMPLIFICADO: Solo reset de estado
         progress = 0.0
@@ -2076,7 +2021,6 @@ struct GlassmorphicStoryViewer: View {
     }
     
     private func stopAndCleanupStory() {
-        print("🛑 [STORY] Limpiando historia anterior")
         
         // ✅ SIMPLIFICADO: Solo pausar y limpiar timer
         isPaused = true
@@ -2090,11 +2034,9 @@ struct GlassmorphicStoryViewer: View {
     
     // ✅ NUEVA FUNCIÓN: Limpiar sesión de audio
     private func cleanupAudioSession() {
-        print("🔇 [AUDIO] Limpiando sesión de audio")
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
-            print("⚠️ [AUDIO] Error limpiando sesión: \(error)")
         }
     }
 
@@ -2125,18 +2067,15 @@ struct GlassmorphicStoryViewer: View {
     
     // ✅ SIMPLIFICADO: Solo cambiar estado
     private func pauseStory() {
-        print("⏸️ [STORY] Pausando historia")
         isPaused = true
         imageTimer?.invalidate()
     }
 
     private func resumeStory() {
         guard !showQuickActions && !isKeyboardVisible && !isDragging else {
-            print("⏸️ [STORY] No reanudando - overlay activo")
             return
         }
         
-        print("▶️ [STORY] Reanudando historia")
         isPaused = false
         
         // ✅ SOLO REINICIAR TIMER PARA IMÁGENES
@@ -2148,7 +2087,6 @@ struct GlassmorphicStoryViewer: View {
     // MARK: - Helpers
     
     private func handleStoryChange() {
-        print("🔄 [STORY] Cambiando de historia")
         
         // ✅ SIMPLIFICADO: Cleanup inmediato
         stopAndCleanupStory()
@@ -2157,7 +2095,6 @@ struct GlassmorphicStoryViewer: View {
         progress = 0.0
         currentStoryId = story.id
         
-        print("🔄 [STORY] Progress reset a 0.0 para historia: \(story.id ?? "unknown")")
         
         // ✅ SIMPLIFICADO: Sin delay, transición inmediata
         prepareAndStartStory()
@@ -3143,10 +3080,8 @@ extension StoryViewModel {
     
     /// Fetch stories específicamente para UserProfile con filtrado de privacidad
     func fetchStoriesForUserProfile(userId: String, viewerId: String) {
-        print("🎯 Obteniendo historias de perfil para: '\(userId)' (viewer: '\(viewerId)')")
         
         guard !userId.isEmpty && !viewerId.isEmpty else {
-            print("❌ ERROR: IDs vacíos en fetchStoriesForUserProfile")
             DispatchQueue.main.async {
                 self.stories = [:]
             }
@@ -3161,7 +3096,6 @@ extension StoryViewModel {
                 guard let self = self else { return }
                 
                 if let error = error {
-                    print("❌ Error fetching profile stories: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         self.stories = [:]
                     }
@@ -3192,7 +3126,6 @@ extension StoryViewModel {
                     return try? Firestore.Decoder().decode(Story.self, from: data)
                 } ?? []
 
-                print("📊 Historias de perfil encontradas: \(userStories.count)")
                 
                 if userStories.isEmpty {
                     DispatchQueue.main.async {
@@ -3213,7 +3146,6 @@ extension StoryViewModel {
         let syncQueue = DispatchQueue(label: "profile.stories.filter")
         // ✅ Usar la instancia existente de la clase en lugar de crear una nueva
         
-        print("🔍 Filtrando \(stories.count) historias del perfil para viewer: \(viewerId)")
         
         for story in stories {
             group.enter()
@@ -3233,7 +3165,6 @@ extension StoryViewModel {
                 visibleStories.contains { $0.id == story.id }
             }
             
-            print("📊 Historias de perfil filtradas: \(orderedVisibleStories.count)/\(stories.count)")
             
             if !orderedVisibleStories.isEmpty {
                 self.stories = [userId: orderedVisibleStories]
@@ -3542,7 +3473,6 @@ struct InteractivePollSticker: View {
             .collection("stories").document(storyId)
             .collection("pollVotes").getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents else { 
-                    print("📊 No se encontraron votos para poll")
                     return 
                 }
                 
@@ -3557,7 +3487,6 @@ struct InteractivePollSticker: View {
                 DispatchQueue.main.async {
                     voteCounts = counts
                     totalVotes = counts.values.reduce(0, +)
-                    print("📊 Votos cargados: \(counts), Total: \(totalVotes)")
                 }
             }
     }
@@ -3967,7 +3896,6 @@ struct StoryStickerView: View {
             .collection("pollVotes").document(currentUserId)
             .getDocument { snapshot, error in
                 if let snapshot = snapshot, snapshot.exists {
-                    print("📊 Usuario ya votó en este poll")
                     return
                 }
                 
@@ -3988,10 +3916,8 @@ struct StoryStickerView: View {
                                 // Actualizar votos localmente
                                 voteCounts[option, default: 0] += 1
                                 totalVotes += 1
-                                print("✅ Voto guardado: Opción \(option)")
                             }
                         } else {
-                            print("❌ Error guardando voto: \(error?.localizedDescription ?? "")")
                         }
                     }
             }
@@ -4264,7 +4190,6 @@ struct QuestionResponseInputView: View {
                                 onResponseSubmitted(count)
                             }
                     } else {
-                        print("❌ Error enviando respuesta: \(error?.localizedDescription ?? "")")
                     }
                 }
             }
@@ -4325,11 +4250,8 @@ struct InteractiveLocationSticker: View {
             }
         }
         .onAppear {
-            print("🗺️ InteractiveLocationSticker - locationName: \(locationName)")
             if let coord = coordinate {
-                print("🗺️ InteractiveLocationSticker - coordinate: lat: \(coord.latitude), lon: \(coord.longitude)")
             } else {
-                print("🗺️ InteractiveLocationSticker - coordinate: nil")
             }
         }
     }
@@ -4384,7 +4306,6 @@ struct InteractiveHashtagSticker: View {
             }
         }
         .onAppear {
-            print("🏷️ InteractiveHashtagSticker - hashtag: #\(hashtag)")
         }
     }
 }

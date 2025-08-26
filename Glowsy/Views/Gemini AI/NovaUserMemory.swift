@@ -277,25 +277,59 @@ struct NovaMemory: Identifiable {
     private func extractNameFromPreference(_ preference: String?) -> String? {
         guard let pref = preference?.lowercased() else { return nil }
         
-        // Patrones comunes para detectar nombres
+        // 🎯 PATRONES PRINCIPALES (con regex)
         let patterns = [
+            // FORMAS DIRECTAS
             "llámame ([a-záéíóúñ]+)",
             "dime ([a-záéíóúñ]+)",
+            "mi nombre es ([a-záéíóúñ]+)",
+            "me llamo ([a-záéíóúñ]+)",
+            "soy ([a-záéíóúñ]+)",
+            
+            // FORMAS INDIRECTAS
             "prefiero que me digas ([a-záéíóúñ]+)",
-            "mi nombre es ([a-záéíóúñ]+)"
+            "prefiere que le llamen ([a-záéíóúñ]+)",
+            "puedes decirme ([a-záéíóúñ]+)",
+            "me gusta que me digan ([a-záéíóúñ]+)",
+            "me dicen ([a-záéíóúñ]+)",
+            
+            // FORMAS CASUALES
+            "([a-záéíóúñ]+) está bien",
+            "([a-záéíóúñ]+) sin más",
+            "([a-záéíóúñ]+) es mi nombre",
+            "([a-záéíóúñ]+), para servirte"
         ]
         
+        // 🔍 INTENTAR PATRONES REGEX PRIMERO
         for pattern in patterns {
             if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
                 let range = NSRange(pref.startIndex..<pref.endIndex, in: pref)
                 if let match = regex.firstMatch(in: pref, options: [], range: range) {
                     if let nameRange = Range(match.range(at: 1), in: pref) {
-                        return String(pref[nameRange]).capitalized
+                        let extractedName = String(pref[nameRange]).capitalized
+                        LogConfig.log("🎯 Nombre extraído con regex: \(extractedName)", category: "Memory")
+                        return extractedName
                     }
                 }
             }
         }
         
+        // 🧠 FALLBACK INTELIGENTE: Buscar palabras que parezcan nombres
+        let words = pref.components(separatedBy: .whitespacesAndNewlines)
+        for word in words {
+            let cleanWord = word.trimmingCharacters(in: .punctuationCharacters)
+            
+            // ✅ CRITERIOS PARA UN NOMBRE VÁLIDO:
+            if cleanWord.count >= 2 && cleanWord.count <= 20 && // Longitud razonable
+               cleanWord.range(of: "^[a-záéíóúñ]+$", options: .regularExpression) != nil && // Solo letras
+               !["mi", "me", "es", "está", "bien", "sin", "más", "para", "servirte", "prefiero", "gusta", "dicen", "llamen", "llamó", "nombre"].contains(cleanWord.lowercased()) { // No palabras comunes
+                
+                LogConfig.log("🎯 Nombre extraído con fallback inteligente: \(cleanWord.capitalized)", category: "Memory")
+                return cleanWord.capitalized
+            }
+        }
+        
+        LogConfig.log("❌ No se pudo extraer nombre de: \(pref)", category: "Memory")
         return nil
     }
     

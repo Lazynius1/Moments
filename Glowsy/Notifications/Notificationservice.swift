@@ -69,7 +69,6 @@ class NotificationService: ObservableObject {
             self?.sendPushNotification(notification, to: userId)
             
             // Enviar analítica si tienes AnalyticsService
-            print("📊 Comment notification sent from \(fromUserId) to \(userId)")
         }
     }
     
@@ -89,7 +88,6 @@ class NotificationService: ObservableObject {
             self?.saveNotification(notification, for: userId)
             self?.sendPushNotification(notification, to: userId)
             
-            print("📊 Comment reply notification sent from \(fromUserId) to \(userId)")
         }
     }
     
@@ -98,18 +96,18 @@ class NotificationService: ObservableObject {
         
         fetchUserProfile(userId: fromUserId) { [weak self] fromUser in
             let notification = Notification(
-                type: .like, // Usar el tipo existente para likes
+                type: .like, // ✅ CORRECTO: Para likes en comentarios (no en momentos)
                 senderId: fromUserId,
                 senderUsername: fromUser?.username ?? "Usuario",
                 timestamp: Date(),
                 isPending: true,
-                momentId: momentId
+                momentId: momentId,
+                commentId: commentId // ✅ Agregar commentId para identificar el comentario
             )
             
             self?.saveNotification(notification, for: userId)
             self?.sendPushNotification(notification, to: userId)
             
-            print("📊 Comment like notification sent from \(fromUserId) to \(userId)")
         }
     }
     
@@ -163,7 +161,6 @@ class NotificationService: ObservableObject {
             self?.saveNotification(notification, for: userId)
             self?.sendPushNotification(notification, to: userId)
             
-            print("📧 Mention notification sent from \(fromUserId) to \(userId) in \(contentType)")
         }
     }
     
@@ -242,7 +239,6 @@ class NotificationService: ObservableObject {
     private func sendPushNotification(_ notification: Notification, to userId: String) {
         // ✅ Cloud Functions maneja automáticamente las notificaciones push FCM
         // Solo guardamos en Firestore y Cloud Functions se encarga del resto
-        print("📧 Notificación guardada en Firestore - Cloud Functions enviará FCM automáticamente")
     }
     
     private func fetchUserProfile(userId: String, completion: @escaping (User?) -> Void) {
@@ -274,6 +270,8 @@ class NotificationService: ObservableObject {
             return "📧 Te mencionaron"
         case .like:
             return "❤️ Le gustó tu contenido"
+        case .reaction:
+            return "✨ Reaccionó a tu momento"
         case .newFollower:
             return "👥 Nuevo seguidor"
         case .followRequest:
@@ -295,6 +293,8 @@ class NotificationService: ObservableObject {
             return "\(notification.senderUsername) te mencionó"
         case .like:
             return "\(notification.senderUsername) le dio me gusta a tu momento"
+        case .reaction:
+            return "\(notification.senderUsername) reaccionó a tu momento"
         case .newFollower:
             return "\(notification.senderUsername) comenzó a seguirte"
         case .followRequest:
@@ -343,7 +343,6 @@ extension NotificationService {
     func sendModerationNotification(to userId: String, title: String, message: String, contentType: String, contentId: String) {
         // Implementar envío de notificación push
         // Esta función debería conectar con tu servicio de notificaciones push
-        print("📱 Enviando notificación de moderación: \(title) - \(message)")
         
         // Guardar notificación en Firestore para mostrar en la app
         let notificationData: [String: Any] = [
@@ -361,9 +360,7 @@ extension NotificationService {
             .collection("notifications")
             .addDocument(data: notificationData) { error in
                 if let error = error {
-                    print("❌ Error guardando notificación: \(error)")
                 } else {
-                    print("✅ Notificación de moderación guardada")
                 }
             }
     }
@@ -473,12 +470,25 @@ extension NotificationService {
         type: NotificationType,
         contentId: String
     ) {
-        // Verificar preferencias de notificación del usuario
+        // ✅ Verificar preferencias de notificación del usuario
         FirestoreService().fetchUser(userId: userId) { result in
             if case .success(let user) = result,
                user.notificationPreferences?[type.rawValue] ?? true {
-                // Enviar notificación
-                // ... código de envío ...
+                // ✅ Enviar notificación
+                self.fetchUserProfile(userId: authorId) { authorUser in
+                    let notification = Notification(
+                        type: type,
+                        senderId: authorId,
+                        senderUsername: authorUser?.username ?? "Usuario",
+                        timestamp: Date(),
+                        isPending: true,
+                        momentId: type == .comment || type == .reaction ? contentId : nil,
+                        storyId: type == .storyReaction ? contentId : nil
+                    )
+                    
+                    self.saveNotification(notification, for: userId)
+                    // ✅ Cloud Functions maneja automáticamente las notificaciones push
+                }
             }
         }
     }

@@ -806,13 +806,11 @@ class BackgroundExportManager: ObservableObject {
                             self.sendCompletionEmail(userId: userId, downloadURL: downloadURL)
                             
                         case .failure(let error):
-                            print("Upload failed: \(error)")
                             self.exportService.updateExportRequestProgress(requestId: requestId, progress: 0.0, status: "failed")
                         }
                     }
                     
                 case .failure(let error):
-                    print("Export generation failed: \(error)")
                     self.exportService.updateExportRequestProgress(requestId: requestId, progress: 0.0, status: "failed")
                 }
             }
@@ -821,7 +819,6 @@ class BackgroundExportManager: ObservableObject {
     
     private func sendCompletionEmail(userId: String, downloadURL: String) {
         // In production, this would trigger a Cloud Function to send an email
-        print("Export ready for user \(userId): \(downloadURL)")
         
         // Create a notification in Firestore
         let notificationData: [String: Any] = [
