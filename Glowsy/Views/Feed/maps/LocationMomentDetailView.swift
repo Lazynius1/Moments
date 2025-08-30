@@ -52,7 +52,8 @@ struct LocationMomentDetailView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
+        print(".")
+        return GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
             

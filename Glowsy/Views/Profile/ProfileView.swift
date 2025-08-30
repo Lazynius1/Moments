@@ -1025,24 +1025,7 @@ struct ModernInterestsView: View {
     }
 
     private func interestEmoji(for interest: String) -> String {
-        switch interest.lowercased() {
-        case "gamer": return "🎮"
-        case "league of legends": return "🏹"
-        case "bcn": return "🏠"
-        case "kpop": return "🎵"
-        case "fotografía": return "📸"
-        case "cine": return "🎬"
-        case "música": return "🎶"
-        case "tecnología": return "💻"
-        case "moda": return "👗"
-        case "arte": return "🎨"
-        case "deportes": return "⚽"
-        case "viajes": return "✈️"
-        case "cocina": return "👨‍🍳"
-        case "lectura": return "📚"
-        case "anime": return "🍜"
-        default: return "✨"
-        }
+        return InterestEmojiHelper.emoji(for: interest)
     }
 }
 
@@ -1116,7 +1099,9 @@ struct ModernMomentThumbnail: View {
                 }
                 
                 // ✅ MANTENER: Contador de likes
-                if let likeCount = moment.reactions["heart"]?.count, likeCount > 0 {
+                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                if let likeCount = moment.reactions["heart"]?.count, likeCount > 0,
+                   (moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts) {
                     HStack(spacing: 3) {
                         Image(systemName: "heart.fill")
                             .foregroundColor(.red)

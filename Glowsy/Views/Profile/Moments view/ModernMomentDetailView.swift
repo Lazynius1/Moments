@@ -745,7 +745,11 @@ struct ModernDetailActionButtons: View {
             
             VStack(spacing: 14) {
                 // ✅ Reaction Button
-                EpicReactionButton(moment: moment)
+                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                EpicReactionButton(
+                    moment: moment,
+                    showCount: moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts
+                )
                     .environmentObject(firestoreService)
                 
                 // ✅ Comment button mejorado
@@ -760,8 +764,8 @@ struct ModernDetailActionButtons: View {
                                         .stroke(
                                             LinearGradient(
                                                 colors: commentCount > 0 ?
-                                                [Color.blue.opacity(0.7), Color.purple.opacity(0.7)] :
-                                                [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.4)],
+                                                [Color(hex: "00A896").opacity(0.7), Color(hex: "6B73FF").opacity(0.7)] :
+                                                [Color.white.opacity(0.4), Color.white.opacity(0.4)],   
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -776,7 +780,7 @@ struct ModernDetailActionButtons: View {
                                     LinearGradient(
                                         colors: commentCount > 0 ?
                                         [Color.blue, Color.purple] :
-                                        [Color.white.opacity(0.9), Color(hex: "00A896")],
+                                        [Color.white.opacity(0.9), Color.white],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
@@ -805,7 +809,7 @@ struct ModernDetailActionButtons: View {
                                         LinearGradient(
                                             colors: isSaved ?
                                             [Color.yellow.opacity(0.7), Color.orange.opacity(0.7)] :
-                                            [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.4)],
+                                            [Color.white.opacity(0.4), Color.white.opacity(0.4)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -818,7 +822,7 @@ struct ModernDetailActionButtons: View {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle())
                                 .scaleEffect(0.9)
-                                .tint(Color(hex: "00A896"))
+                                .tint(.white)
                         } else {
                             Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                                 .font(.system(size: 24, weight: .medium))
@@ -826,7 +830,7 @@ struct ModernDetailActionButtons: View {
                                     LinearGradient(
                                         colors: isSaved ?
                                         [Color.yellow, Color.orange] :
-                                        [Color.white.opacity(0.9), Color(hex: "00A896")],
+                                        [Color.white.opacity(0.9), Color.white],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )

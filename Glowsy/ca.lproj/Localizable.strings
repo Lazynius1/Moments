@@ -1103,6 +1103,7 @@
 "storyContextMenu.report.subtitle" = "Contingut\ninapropiat";
 "storyContextMenu.block" = "Bloquejar";
 "storyContextMenu.block.subtitle" = "No veure més\ncontingut";
+"storyContextMenu.scrollReactions" = "Desplaça't per a més reaccions";
 
 /* User Activity View */
 "userActivity.summary.title" = "Resum d'Activitat";
@@ -1329,3 +1330,152 @@
 "tabBar.nova" = "Nova";
 "tabBar.explore" = "Explorar";
 "tabBar.profile" = "Perfil";
+
+/* Edit Moment View */
+"editMoment.cancel" = "Cancel·lar";
+"editMoment.title" = "Editar moment";
+"editMoment.save" = "Desar";
+"editMoment.description" = "Descripció";
+"editMoment.saving" = "Desant canvis...";
+
+/* Interests */
+"interest.escritura" = "Escriptura";
+"interest.cine" = "Cinema";
+"interest.libros" = "Llibres";
+"interest.teatro" = "Teatre";
+"interest.meditacion" = "Meditació";
+"interest.naturaleza" = "Natura";
+"interest.fotografia" = "Fotografia";
+"interest.moda" = "Moda";
+"interest.emprendimiento" = "Emprenedoria";
+"interest.yoga" = "Ioga";
+"interest.historia" = "Història";
+"interest.cafe" = "Cafè";
+"interest.fitness" = "Fitness";
+"interest.musica" = "Música";
+"interest.gaming" = "Gaming";
+"interest.tecnologia" = "Tecnologia";
+"interest.viajar" = "Viatjar";
+"interest.astronomia" = "Astronomia";
+"interest.podcasts" = "Podcasts";
+"interest.deportes" = "Esports";
+"interest.cocina" = "Cuina";
+"interest.mascotas" = "Mascotes";
+"interest.diseno" = "Disseny";
+"interest.baile" = "Ball";
+"interest.programacion" = "Programació";
+"interest.kpop" = "Kpop";
+
+/* Report System */
+"report.title" = "Reportar %@";
+"report.subtitle" = "¿Per què reportes aquest %@?";
+"report.additionalDetails" = "Detalls addicionals (opcional)";
+"report.detailsPlaceholder" = "Descriu el problema (opcional)...";
+"report.sendButton" = "Enviar Report";
+"report.success.title" = "Report Enviat";
+"report.success.message" = "Gràcies per ajudar-nos a mantenir la comunitat segura. Revisarem el teu report aviat.";
+
+/* Report Categories */
+"report.category.dislike.title" = "No m'agrada";
+"report.category.dislike.subtitle" = "Aquest contingut no és rellevant per a mi";
+"report.category.bullying.title" = "Bullying o contacte no desitjat";
+"report.category.bullying.subtitle" = "Assetjament, amenaces o contacte no desitjat";
+"report.category.selfHarm.title" = "Suïcidi, autolesió o trastorns alimentaris";
+"report.category.selfHarm.subtitle" = "Contingut que promou autolesions";
+"report.category.violence.title" = "Violència, odi o explotació";
+"report.category.violence.subtitle" = "Contingut violent o ofensiu";
+"report.category.restrictedSales.title" = "Venda o promoció d'articles restringits";
+"report.category.restrictedSales.subtitle" = "Venda de drogues, armes o altres articles";
+"report.category.nudity.title" = "Nuesa o activitat sexual";
+"report.category.nudity.subtitle" = "Contingut sexual o nuesa";
+"report.category.scams.title" = "Estafes, fraus o spam";
+"report.category.scams.subtitle" = "Spam, estafes o contingut fraudulent";
+"report.category.falseInfo.title" = "Informació falsa";
+"report.category.falseInfo.subtitle" = "Notícies falses o informació enganyosa";
+"report.category.intellectualProperty.title" = "Propietat intel·lectual";
+"report.category.intellectualProperty.subtitle" = "Ús no autoritzat del meu contingut";
+
+/* Appeal System */
+"appeal.title" = "Apel·lar Suspensió";
+"appeal.subtitle" = "Explica'ns la teva situació i revisarem el teu cas detalladament";
+"appeal.contactEmail" = "Email de contacte";
+"appeal.suspensionReason" = "Motiu de suspensió";
+"appeal.yourAppeal" = "La teva apel·lació";
+"appeal.additionalInfo" = "Informació addicional (opcional)";
+"appeal.requirements" = "Requisits";
+"appeal.submitButton" = "Enviar Apel·lació";
+"appeal.success.title" = "¡Apel·lació Enviada!";
+"appeal.nextSteps" = "Pròxims passos:";
+"appeal.understood" = "Entès";
+
+/* Appeal Form Fields */
+"appeal.field.placeholder" = "Escriu aquí...";
+"appeal.field.error" = "Aquest camp és requerit";
+"appeal.field.characterCount" = "%d/2000";
+"appeal.field.contactEmail.placeholder" = "El teu email per a contacte";
+"appeal.field.appealMessage.placeholder" = "Explica la teva situació detalladament...";
+"appeal.field.additionalInfo.placeholder" = "Informació addicional que consideris rellevant...";
+
+/* Appeal Status */
+"appeal.status.title" = "Les meves Apel·lacions";
+"appeal.status.ticket" = "Ticket #%@";
+"appeal.status.submitted" = "Enviat";
+"appeal.status.reason" = "Motiu: %@";
+"appeal.status.estimatedResponse" = "Resposta estimada: %@";
+"appeal.status.moderatorNotes" = "Nota del moderador: %@";
+"appeal.status.progress" = "Progrés";
+"appeal.status.percentage" = "%d%%";
+"appeal.status.noAppeals.title" = "No hi ha apel·lacions";
+"appeal.status.noAppeals.description" = "No tens apel·lacions registrades al teu compte";
+"appeal.status.loading" = "Carregant apel·lacions...";
+
+/* Appeal Details */
+"appeal.detail.information" = "Informació";
+"appeal.detail.suspensionReason" = "Motiu de suspensió";
+"appeal.detail.estimatedTime" = "Temps estimat";
+"appeal.detail.moderatorNotes" = "Notes del moderador";
+"appeal.detail.nextSteps" = "Pròxims passos";
+"appeal.detail.yourMessage" = "El teu missatge";
+"appeal.detail.additionalInfo" = "Informació addicional";
+
+/* Appeal Success Info */
+"appeal.success.ticketNumber" = "Número de Ticket";
+"appeal.success.estimatedResponse" = "Temps Estimat de Resposta";
+"appeal.success.priority" = "Prioritat Assignada";
+
+/* Appeal Errors */
+"appeal.error.title" = "Error";
+"appeal.error.unknown" = "Error desconegut";
+"appeal.error.userInfo" = "No s'ha pogut obtenir la informació de l'usuari";
+"appeal.error.submit" = "Error en enviar apel·lació";
+"appeal.error.unexpected" = "Error inesperat";
+"appeal.error.ok" = "D'acord";
+
+/* Appeal Actions */
+"appeal.action.provideInfo" = "Proporcionar Info";
+"appeal.action.reactivateAccount" = "Reactivar Compte";
+
+/* Appeal Detail */
+"appeal.detail.title" = "Detall d'Apel·lació";
+"appeal.detail.close" = "Tancar";
+
+/* Maps */
+"maps.location.moments" = "%d moments";
+"maps.bottomSheet.moments" = "%d moments";
+"maps.bottomSheet.loading.moments" = "Carregant moments...";
+"maps.bottomSheet.loading.filtering" = "Filtrant per privadesa";
+"maps.bottomSheet.empty.title" = "No hi ha moments en aquest lloc 🥲";
+"maps.bottomSheet.empty.subtitle" = "Sigues el primer a compartir un moment aquí";
+"maps.loading.location" = "Carregant ubicació";
+"maps.error.locationLoadFailed" = "No s'ha pogut carregar la ubicació";
+"maps.error.retry" = "Reintentar";
+"maps.error.configurePermissions" = "Configurar permisos";
+
+/* Weather Conditions */
+"weather.condition.clear" = "Descobert";
+"weather.condition.partlyCloudy" = "Parcialment ennuvolat";
+"weather.condition.cloudy" = "Ennuvolat";
+"weather.condition.rain" = "Pluja";
+"weather.condition.snow" = "Neu";
+"weather.condition.thunderstorm" = "Tempesta";
+"weather.condition.unknown" = "Desconegut";

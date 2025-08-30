@@ -601,7 +601,7 @@ struct MomentDetailView: View {
                 if viewModel.comments.count > 0 {
                     Text("(\(viewModel.comments.count))")
                         .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(
@@ -621,10 +621,10 @@ struct MomentDetailView: View {
                     showingCommentsSheet = true
                 }
                 .font(.custom("Poppins-SemiBold", size: 14))
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color(hex: "00A896").opacity(0.1))
+                .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
                 .clipShape(Capsule())
             }
             .padding(.horizontal, 20)
@@ -638,12 +638,12 @@ struct MomentDetailView: View {
                             .frame(width: 60, height: 60)
                             .overlay(
                                 Circle()
-                                    .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1.5)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
                             )
                         
                         Image(systemName: "bubble.left")
                             .font(.system(size: 24))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     
                     VStack(spacing: 8) {
@@ -661,18 +661,18 @@ struct MomentDetailView: View {
                         showingCommentsSheet = true
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(
                         LinearGradient(
-                            colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                            colors: [Color.blue, Color.purple, Color.pink],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .clipShape(Capsule())
-                    .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 6, x: 0, y: 3)
+                    .shadow(color: Color.white.opacity(0.3), radius: 6, x: 0, y: 3)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
@@ -683,7 +683,7 @@ struct MomentDetailView: View {
                             RoundedRectangle(cornerRadius: 20)
                                 .stroke(
                                     LinearGradient(
-                                        colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
+                                        colors: [Color.white.opacity(0.2), Color.white.opacity(0.3)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -922,6 +922,7 @@ struct ExploreModernFollowButton: View {
 
 struct InlineCommentRow: View {
     let comment: Comment
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -940,7 +941,7 @@ struct InlineCommentRow: View {
                     HStack(spacing: 3) {
                         Text(comment.username)
                             .font(.custom("Poppins-SemiBold", size: 13))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         // ✅ INSIGNIA DE VERIFICADO
                         VerifiedBadgeView(userId: comment.authorId, size: 10)
@@ -958,7 +959,7 @@ struct InlineCommentRow: View {
                 // Contenido del comentario
                 Text(comment.content)
                     .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                     .multilineTextAlignment(.leading)
                     .lineLimit(3)
                 
@@ -1005,6 +1006,7 @@ struct VerticalReactionButton: View {
     @State private var hasReacted: Bool = false
     @State private var showReactionPicker = false
     
+    @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject private var firestoreService: FirestoreService
     
     var body: some View {
@@ -1111,10 +1113,11 @@ struct VerticalReactionButton: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hasReacted)
                 
                 // Contador de reacciones
-                if totalReactionCount > 0 {
+                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                if totalReactionCount > 0 && (moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts) {
                     Text("\(totalReactionCount)")
                         .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 }
             }
         }
@@ -1252,6 +1255,7 @@ struct ProfiileImageView: View {
 // Estados de carga (reutilizar los existentes)
 struct MomentLoadingStateView: View {
     @State private var rotationAngle: Double = 0
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(spacing: 16) {
@@ -1278,7 +1282,7 @@ struct MomentLoadingStateView: View {
             VStack(spacing: 6) {
                 Text("momentDetail.loading")
                     .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text("momentDetail.loadingTime")
                     .font(.custom("Poppins-Regular", size: 12))
@@ -1293,6 +1297,7 @@ struct MomentLoadingStateView: View {
 struct MomentErrorStateView: View {
     let message: String
     let onClose: () -> Void
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(spacing: 16) {
@@ -1313,7 +1318,7 @@ struct MomentErrorStateView: View {
             VStack(spacing: 8) {
                 Text("momentDetail.error.title")
                     .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text(message)
                     .font(.custom("Poppins-Regular", size: 14))
@@ -1327,7 +1332,7 @@ struct MomentErrorStateView: View {
                         Text("momentDetail.close")
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(

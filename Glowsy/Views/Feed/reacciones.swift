@@ -24,46 +24,29 @@ enum ReactionType: String, CaseIterable {
     
     var icon: String {
         switch self {
-        case .vibe: return "water.waves"
-        case .fire: return "flame"
-        case .real: return "checkmark.seal"
-        case .mood: return "face.smiling"
-        case .glow: return "star"
-        case .feel: return "heart.fill"
+        case .vibe: return "✌🏻"
+        case .fire: return "🔥"
+        case .real: return "✅"
+        case .mood: return "😊"
+        case .glow: return "✨"
+        case .feel: return "❤️"
         // ✨ NUEVAS REACCIONES
-        case .love: return "heart.circle.fill"
-        case .wow: return "face.dashed" // Mantener
-        case .laugh: return "face.smiling.inverse"
-        case .cry: return "cloud.rain.fill" // Cambiado: icono de lluvia más visible
-        case .respect: return "hand.raised.fill"
-        case .power: return "bolt.fill"
-        case .genius: return "brain.head.profile" // Cambiado: cerebro en lugar de bombilla
-        case .creative: return "paintbrush.fill"
-        case .chill: return "leaf.fill"
-        case .hype: return "party.popper.fill"
+        case .love: return "💕"
+        case .wow: return "😮"
+        case .laugh: return "😂"
+        case .cry: return "😢"
+        case .respect: return "🙏🏻"
+        case .power: return "⚡"
+        case .genius: return "🧠"
+        case .creative: return "🎨"
+        case .chill: return "😌"
+        case .hype: return "🎉"
         }
     }
     
     var filledIcon: String {
-        switch self {
-        case .vibe: return "water.waves.slash"
-        case .fire: return "flame.fill"
-        case .real: return "checkmark.seal.fill"
-        case .mood: return "face.smiling.fill"
-        case .glow: return "star.fill"
-        case .feel: return "heart.fill"
-        // ✨ NUEVAS REACCIONES
-        case .love: return "heart.circle.fill"
-        case .wow: return "face.dashed.fill" // Mantener
-        case .laugh: return "face.smiling.inverse"
-        case .cry: return "cloud.rain.fill" // Cambiado: icono de lluvia más visible
-        case .respect: return "hand.raised.fill"
-        case .power: return "bolt.fill"
-        case .genius: return "brain.head.profile" // Cambiado: cerebro en lugar de bombilla
-        case .creative: return "paintbrush.fill"
-        case .chill: return "leaf.fill"
-        case .hype: return "party.popper.fill"
-        }
+        // Para emojis, usamos el mismo emoji ya que no tienen versión "filled"
+        return icon
     }
     
     var color: Color {
@@ -199,13 +182,17 @@ struct ModernReactionButton: View {
                         )
                         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     
-                    Image(systemName: hasReacted ? (currentReaction?.filledIcon ?? "heart.fill") : "heart")
-                        .font(.system(size: 22, weight: .medium))
+                    Text(hasReacted ? (currentReaction?.filledIcon ?? "❤️") : "♡")
+                        .font(.system(size: 24, weight: .medium))
                         .foregroundStyle(
+                            hasReacted ? 
                             LinearGradient(
-                                colors: hasReacted ?
-                                [currentReaction?.color ?? .red, currentReaction?.color.opacity(0.8) ?? .pink] :
-                                [Color.white.opacity(0.8), Color(hex: "00A896")],
+                                colors: [currentReaction?.color ?? .red, currentReaction?.color.opacity(0.7) ?? .pink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ) :
+                            LinearGradient(
+                                colors: [Color.blue, Color.purple, Color.pink],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -379,8 +366,8 @@ struct ReactionPickerView: View {
                                         )
                                         .shadow(color: reaction.color.opacity(0.4), radius: 6, x: 0, y: 3)
                                     
-                                    Image(systemName: reaction.filledIcon)
-                                        .font(.system(size: 20, weight: .bold))
+                                    Text(reaction.filledIcon)
+                                        .font(.system(size: 22, weight: .bold))
                                         .foregroundStyle(
                                             LinearGradient(
                                                 colors: [reaction.color, reaction.color.opacity(0.7)],

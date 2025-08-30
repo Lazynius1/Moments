@@ -1105,6 +1105,7 @@
 "storyContextMenu.report.subtitle" = "Inappropriate\ncontent";
 "storyContextMenu.block" = "Block";
 "storyContextMenu.block.subtitle" = "Don't see\nmore content";
+"storyContextMenu.scrollReactions" = "Scroll for more reactions";
 
 /* User Activity View */
 "userActivity.summary.title" = "Activity Summary";
@@ -1331,3 +1332,152 @@
 "tabBar.nova" = "Nova";
 "tabBar.explore" = "Explore";
 "tabBar.profile" = "Profile";
+
+/* Edit Moment View */
+"editMoment.cancel" = "Cancel";
+"editMoment.title" = "Edit moment";
+"editMoment.save" = "Save";
+"editMoment.description" = "Description";
+"editMoment.saving" = "Saving changes...";
+
+/* Interests */
+"interest.escritura" = "Writing";
+"interest.cine" = "Movies";
+"interest.libros" = "Books";
+"interest.teatro" = "Theater";
+"interest.meditacion" = "Meditation";
+"interest.naturaleza" = "Nature";
+"interest.fotografia" = "Photography";
+"interest.moda" = "Fashion";
+"interest.emprendimiento" = "Entrepreneurship";
+"interest.yoga" = "Yoga";
+"interest.historia" = "History";
+"interest.cafe" = "Coffee";
+"interest.fitness" = "Fitness";
+"interest.musica" = "Music";
+"interest.gaming" = "Gaming";
+"interest.tecnologia" = "Technology";
+"interest.viajar" = "Travel";
+"interest.astronomia" = "Astronomy";
+"interest.podcasts" = "Podcasts";
+"interest.deportes" = "Sports";
+"interest.cocina" = "Cooking";
+"interest.mascotas" = "Pets";
+"interest.diseno" = "Design";
+"interest.baile" = "Dance";
+"interest.programacion" = "Programming";
+"interest.kpop" = "Kpop";
+
+/* Report System */
+"report.title" = "Report %@";
+"report.subtitle" = "Why are you reporting this %@?";
+"report.additionalDetails" = "Additional details (optional)";
+"report.detailsPlaceholder" = "Describe the problem (optional)...";
+"report.sendButton" = "Send Report";
+"report.success.title" = "Report Sent";
+"report.success.message" = "Thank you for helping us keep the community safe. We will review your report soon.";
+
+/* Report Categories */
+"report.category.dislike.title" = "I don't like it";
+"report.category.dislike.subtitle" = "This content is not relevant to me";
+"report.category.bullying.title" = "Bullying or unwanted contact";
+"report.category.bullying.subtitle" = "Harassment, threats or unwanted contact";
+"report.category.selfHarm.title" = "Suicide, self-harm or eating disorders";
+"report.category.selfHarm.subtitle" = "Content that promotes self-harm";
+"report.category.violence.title" = "Violence, hate or exploitation";
+"report.category.violence.subtitle" = "Violent or offensive content";
+"report.category.restrictedSales.title" = "Sale or promotion of restricted items";
+"report.category.restrictedSales.subtitle" = "Sale of drugs, weapons or other items";
+"report.category.nudity.title" = "Nudity or sexual activity";
+"report.category.nudity.subtitle" = "Sexual content or nudity";
+"report.category.scams.title" = "Scams, fraud or spam";
+"report.category.scams.subtitle" = "Spam, scams or fraudulent content";
+"report.category.falseInfo.title" = "False information";
+"report.category.falseInfo.subtitle" = "Fake news or misleading information";
+"report.category.intellectualProperty.title" = "Intellectual property";
+"report.category.intellectualProperty.subtitle" = "Unauthorized use of my content";
+
+/* Appeal System */
+"appeal.title" = "Appeal Suspension";
+"appeal.subtitle" = "Tell us about your situation and we will review your case in detail";
+"appeal.contactEmail" = "Contact email";
+"appeal.suspensionReason" = "Suspension reason";
+"appeal.yourAppeal" = "Your appeal";
+"appeal.additionalInfo" = "Additional information (optional)";
+"appeal.requirements" = "Requirements";
+"appeal.submitButton" = "Submit Appeal";
+"appeal.success.title" = "Appeal Sent!";
+"appeal.nextSteps" = "Next steps:";
+"appeal.understood" = "Understood";
+
+/* Appeal Form Fields */
+"appeal.field.placeholder" = "Write here...";
+"appeal.field.error" = "This field is required";
+"appeal.field.characterCount" = "%d/2000";
+"appeal.field.contactEmail.placeholder" = "Your email for contact";
+"appeal.field.appealMessage.placeholder" = "Explain your situation in detail...";
+"appeal.field.additionalInfo.placeholder" = "Additional information you consider relevant...";
+
+/* Appeal Status */
+"appeal.status.title" = "My Appeals";
+"appeal.status.ticket" = "Ticket #%@";
+"appeal.status.submitted" = "Submitted";
+"appeal.status.reason" = "Reason: %@";
+"appeal.status.estimatedResponse" = "Estimated response: %@";
+"appeal.status.moderatorNotes" = "Moderator notes: %@";
+"appeal.status.progress" = "Progress";
+"appeal.status.percentage" = "%d%%";
+"appeal.status.noAppeals.title" = "No appeals";
+"appeal.status.noAppeals.description" = "You don't have any appeals registered in your account";
+"appeal.status.loading" = "Loading appeals...";
+
+/* Appeal Details */
+"appeal.detail.information" = "Information";
+"appeal.detail.suspensionReason" = "Suspension reason";
+"appeal.detail.estimatedTime" = "Estimated time";
+"appeal.detail.moderatorNotes" = "Moderator notes";
+"appeal.detail.nextSteps" = "Next steps";
+"appeal.detail.yourMessage" = "Your message";
+"appeal.detail.additionalInfo" = "Additional information";
+
+/* Appeal Success Info */
+"appeal.success.ticketNumber" = "Ticket Number";
+"appeal.success.estimatedResponse" = "Estimated Response Time";
+"appeal.success.priority" = "Assigned Priority";
+
+/* Appeal Errors */
+"appeal.error.title" = "Error";
+"appeal.error.unknown" = "Unknown error";
+"appeal.error.userInfo" = "Could not get user information";
+"appeal.error.submit" = "Error submitting appeal";
+"appeal.error.unexpected" = "Unexpected error";
+"appeal.error.ok" = "OK";
+
+/* Appeal Actions */
+"appeal.action.provideInfo" = "Provide Info";
+"appeal.action.reactivateAccount" = "Reactivate Account";
+
+/* Appeal Detail */
+"appeal.detail.title" = "Appeal Detail";
+"appeal.detail.close" = "Close";
+
+/* Maps */
+"maps.location.moments" = "%d moments";
+"maps.bottomSheet.moments" = "%d moments";
+"maps.bottomSheet.loading.moments" = "Loading moments...";
+"maps.bottomSheet.loading.filtering" = "Filtering by privacy";
+"maps.bottomSheet.empty.title" = "No moments in this place 🥲";
+"maps.bottomSheet.empty.subtitle" = "Be the first to share a moment here";
+"maps.loading.location" = "Loading location";
+"maps.error.locationLoadFailed" = "Could not load location";
+"maps.error.retry" = "Retry";
+"maps.error.configurePermissions" = "Configure permissions";
+
+/* Weather Conditions */
+"weather.condition.clear" = "Clear";
+"weather.condition.partlyCloudy" = "Partly cloudy";
+"weather.condition.cloudy" = "Cloudy";
+"weather.condition.rain" = "Rain";
+"weather.condition.snow" = "Snow";
+"weather.condition.thunderstorm" = "Thunderstorm";
+"weather.condition.unknown" = "Unknown";

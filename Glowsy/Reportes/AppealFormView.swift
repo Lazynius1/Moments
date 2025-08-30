@@ -50,7 +50,7 @@ struct AppealFormView: View {
                 .foregroundColor(.white)
                 .font(.system(size: 16, weight: .medium)),
                 
-                trailing: Button("Enviar") {
+                trailing: Button(NSLocalizedString("appeal.submitButton", comment: "Submit appeal button")) {
                     submitAppeal()
                 }
                 .foregroundColor(canSubmit ? .white : .gray)
@@ -68,7 +68,7 @@ struct AppealFormView: View {
             Alert(
                 title: Text(alertTitle),
                 message: Text(alertMessage),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text(NSLocalizedString("appeal.error.ok", comment: "OK button for error alerts")))
             )
         }
     }
@@ -95,14 +95,14 @@ struct AppealFormView: View {
             // Email field
             AppealEmailField(
                 email: $contactEmail,
-                title: "Email de contacto",
+                title: NSLocalizedString("appeal.contactEmail", comment: "Contact email field title"),
                 placeholder: "tu@email.com"
-            )
+                )
             
             // Suspension info (read-only)
             if let reason = suspensionReason {
                 AppealInfoCard(
-                    title: "Motivo de suspensión",
+                    title: NSLocalizedString("appeal.suspensionReason", comment: "Suspension reason field title"),
                     content: reason,
                     icon: "exclamationmark.triangle.fill",
                     color: .orange
@@ -114,14 +114,14 @@ struct AppealFormView: View {
                 message: $appealMessage,
                 characterCount: $characterCount,
                 messageError: $messageError,
-                title: "Tu apelación",
+                title: NSLocalizedString("appeal.yourAppeal", comment: "Your appeal field title"),
                 placeholder: "Explica por qué consideras que la suspensión es incorrecta. Sé específico y proporciona contexto sobre la situación."
             )
             
             // Additional info (optional)
             AppealOptionalField(
                 text: $additionalInfo,
-                title: "Información adicional (opcional)",
+                title: NSLocalizedString("appeal.additionalInfo", comment: "Additional info field title"),
                 placeholder: "Cualquier información extra que consideres relevante..."
             )
             
@@ -213,7 +213,7 @@ struct AppealFormView: View {
     
     private func submitAppeal() {
         guard let userId = authService.currentFirebaseUser?.uid else {
-            showError(title: "Error", message: "No se pudo obtener la información del usuario")
+                            showError(title: NSLocalizedString("appeal.error.title", comment: "Error title"), message: NSLocalizedString("appeal.error.userInfo", comment: "Could not get user info"))
             return
         }
         
@@ -236,19 +236,19 @@ struct AppealFormView: View {
                             showSuccessView = true
                         }
                     } else {
-                        showError(title: "Error", message: response.message ?? "Error desconocido")
+                        showError(title: NSLocalizedString("appeal.error.title", comment: "Error title"), message: response.message ?? NSLocalizedString("appeal.error.unknown", comment: "Unknown error"))
                     }
                 }
                 
             } catch let error as AppealError {
                 await MainActor.run {
                     isLoading = false
-                    showError(title: "Error al enviar apelación", message: error.localizedDescription)
+                    showError(title: NSLocalizedString("appeal.error.submit", comment: "Error submitting appeal"), message: error.localizedDescription)
                 }
             } catch {
                 await MainActor.run {
                     isLoading = false
-                    showError(title: "Error inesperado", message: error.localizedDescription)
+                    showError(title: NSLocalizedString("appeal.error.unexpected", comment: "Unexpected error"), message: error.localizedDescription)
                 }
             }
         }
@@ -293,12 +293,12 @@ struct AppealFormHeader: View {
             }
             
             VStack(spacing: 12) {
-                Text("Apelar Suspensión")
+                Text(NSLocalizedString("appeal.title", comment: "Appeal title"))
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
                 
-                Text("Explícanos tu situación y revisaremos tu caso detalladamente")
+                Text(NSLocalizedString("appeal.subtitle", comment: "Appeal subtitle"))
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
@@ -381,7 +381,7 @@ struct AppealMessageField: View {
                 
                 Spacer()
                 
-                Text("\(characterCount)/2000")
+                Text(String(format: NSLocalizedString("appeal.field.characterCount", comment: "Character count format"), characterCount))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(characterCount < 50 ? .orange : characterCount > 2000 ? .red : .white.opacity(0.6))
             }
@@ -546,7 +546,7 @@ struct AppealRequirements: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue.opacity(0.8))
                 
-                Text("Requisitos")
+                Text(NSLocalizedString("appeal.requirements", comment: "Requirements title"))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
             }
@@ -649,7 +649,7 @@ struct AppealSuccessView: View {
             // Success content
             VStack(spacing: 24) {
                 VStack(spacing: 16) {
-                    Text("¡Apelación Enviada!")
+                    Text(NSLocalizedString("appeal.success.title", comment: "Appeal success title"))
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
@@ -664,7 +664,7 @@ struct AppealSuccessView: View {
                 if let ticketNumber = result.ticketNumber {
                     VStack(spacing: 20) {
                         AppealInfoCard(
-                            title: "Número de Ticket",
+                            title: NSLocalizedString("appeal.success.ticketNumber", comment: "Ticket number title"),
                             content: ticketNumber,
                             icon: "ticket.fill",
                             color: .purple
@@ -672,7 +672,7 @@ struct AppealSuccessView: View {
                         
                         if let responseTime = result.estimatedResponseTime {
                             AppealInfoCard(
-                                title: "Tiempo Estimado de Respuesta",
+                                title: NSLocalizedString("appeal.success.estimatedResponse", comment: "Estimated response time title"),
                                 content: responseTime,
                                 icon: "clock.fill",
                                 color: .blue
@@ -681,7 +681,7 @@ struct AppealSuccessView: View {
                         
                         if let priority = result.priority {
                             AppealInfoCard(
-                                title: "Prioridad Asignada",
+                                title: NSLocalizedString("appeal.success.priority", comment: "Assigned priority title"),
                                 content: priority.capitalized,
                                 icon: "flag.fill",
                                 color: priorityColor(for: priority)
@@ -698,7 +698,7 @@ struct AppealSuccessView: View {
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.green.opacity(0.8))
                             
-                            Text("Próximos pasos:")
+                            Text(NSLocalizedString("appeal.nextSteps", comment: "Next steps label"))
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.white)
                         }
@@ -741,7 +741,7 @@ struct AppealSuccessView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 18, weight: .medium))
                     
-                    Text("Entendido")
+                    Text(NSLocalizedString("appeal.understood", comment: "Understood button"))
                         .font(.system(size: 18, weight: .semibold))
                 }
                 .foregroundColor(.white)

@@ -1335,7 +1335,11 @@ struct ModernSavedDetailActionButtons: View {
             
             VStack(spacing: 14) {
                 // ✅ Reaction Button
-                EpicReactionButton(moment: moment)
+                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                EpicReactionButton(
+                    moment: moment,
+                    showCount: moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts
+                )
                     .environmentObject(firestoreService)
                 
                 // ✅ Comment button

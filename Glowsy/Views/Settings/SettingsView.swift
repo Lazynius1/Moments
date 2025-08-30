@@ -1229,7 +1229,7 @@ struct HelpSection: View {
                 subtitle: NSLocalizedString("settings.sections.helpCenter.subtitle", comment: "Get answers to your questions"),
                 isExternal: true,
                 action: {
-                    if let url = URL(string: "https://example.com/support") {
+                    if let url = URL(string: "https://momentsapp.app/help") {
                         UIApplication.shared.open(url)
                     }
                 }
@@ -1241,7 +1241,7 @@ struct HelpSection: View {
                 subtitle: NSLocalizedString("settings.sections.reportProblem.subtitle", comment: "Let us know if something isn't working"),
                 isExternal: true,
                 action: {
-                    if let url = URL(string: "https://example.com/report") {
+                    if let url = URL(string: "https://momentsapp.app/report") {
                         UIApplication.shared.open(url)
                     }
                 }
@@ -1253,7 +1253,7 @@ struct HelpSection: View {
                 subtitle: "",
                 isExternal: true,
                 action: {
-                    if let url = URL(string: "https://example.com/terms") {
+                    if let url = URL(string: "https://momentsapp.app/terms") {
                         UIApplication.shared.open(url)
                     }
                 }
@@ -1265,7 +1265,7 @@ struct HelpSection: View {
                 subtitle: "",
                 isExternal: true,
                 action: {
-                    if let url = URL(string: "https://example.com/privacy") {
+                    if let url = URL(string: "https://momentsapp.app/privacy") {
                         UIApplication.shared.open(url)
                     }
                 }

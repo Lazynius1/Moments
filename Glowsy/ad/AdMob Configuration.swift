@@ -12,8 +12,8 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     static let appId = "ca-app-pub-7805678909278568~7091658934" // ✅ App ID real de Glowsy
     static let nativeAdUnitId = "ca-app-pub-7805678909278568/9925436334"
 
-    // Para testing (usar en desarrollo)
-    static let testNativeAdUnitId = "ca-app-pub-3940256099942544/3986624511"
+    // Para testing (usar en desarrollo) - DESACTIVADO PARA PRODUCCIÓN
+    // static let testNativeAdUnitId = "ca-app-pub-3940256099942544/3986624511"
 
     // ✅ CORREGIDO: Variable de instancia en lugar de static
     private var preloadedNativeAd: NativeAd?
@@ -35,22 +35,22 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
         // ✅ NUEVA API: MobileAds.shared.requestConfiguration
         let requestConfiguration = MobileAds.shared.requestConfiguration
 
-        // Ejemplo: configurar para testing
-        #if DEBUG
-        requestConfiguration.testDeviceIdentifiers = ["b75dd22029c3da38e5f235d014e906c9937689a8b9e510a98ce4e76ad3cf40bd"] // Reemplaza con tu ID de dispositivo de prueba
-        #endif
+        // Ejemplo: configurar para testing - DESACTIVADO PARA PRODUCCIÓN
+        // #if DEBUG
+        // requestConfiguration.testDeviceIdentifiers = ["b75dd22029c3da38e5f235d014e906c9937689a8b9e510a98ce4e76ad3cf40bd"] // Reemplaza con tu ID de dispositivo de prueba
+        // #endif
 
         // Aquí puedes añadir más configuraciones si es necesario, como para SKAdNetwork
         // MobileAds.shared.requestConfiguration.skAdNetworkConfigurations = ...
     }
 
-    // Función para obtener el ID correcto según el entorno
+    // Función para obtener el ID correcto según el entorno - SIEMPRE PRODUCCIÓN
     static func getNativeAdUnitId() -> String {
-        #if DEBUG
-        return testNativeAdUnitId
-        #else
+        // #if DEBUG
+        // return testNativeAdUnitId
+        // #else
         return nativeAdUnitId
-        #endif
+        // #endif
     }
 
     // MARK: - App Tracking Transparency (ATT)

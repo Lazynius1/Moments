@@ -2576,7 +2576,11 @@ struct ModernActionButtons: View {
             
             VStack(spacing: 12) {
                 // ✅ REACCIONES: Siempre mostrar el botón, pero controlar el contador
-                EpicReactionButton(moment: moment, showCount: !moment.hideLikeCounts)
+                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                EpicReactionButton(
+                    moment: moment, 
+                    showCount: moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts
+                )
                     .environmentObject(firestoreService)
                 
                 // ✅ COMENTARIOS: Solo mostrar si están habilitados
@@ -2589,16 +2593,16 @@ struct ModernActionButtons: View {
                                     .frame(width: 50, height: 50)
                                     .overlay(
                                         Circle()
-                                            .stroke(
+                                             .stroke(
                                                 LinearGradient(
                                                     colors: commentCount > 0 ?
-                                                    [Color.blue.opacity(0.6), Color.purple.opacity(0.6)] :
-                                                    [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.3)],
+                                                    [Color.white.opacity(0.6), Color.white.opacity(0.6)] :
+                                                    [Color.white.opacity(0.3), Color.white.opacity(0.3)],
                                                     startPoint: .topLeading,
                                                     endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 1.5
-                                            )
+                                        ),
+                                        lineWidth: 1.5
+                                    )
                                     )
                                     .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                                 
@@ -2608,7 +2612,7 @@ struct ModernActionButtons: View {
                                         LinearGradient(
                                             colors: commentCount > 0 ?
                                             [Color.blue, Color.purple] :
-                                            [Color.white.opacity(0.8), Color(hex: "00A896")],
+                                            [Color.white.opacity(0.8), Color.white],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -2640,7 +2644,7 @@ struct ModernActionButtons: View {
                                             LinearGradient(
                                                 colors: isSaved ?
                                                 [Color.yellow.opacity(0.6), Color.orange.opacity(0.6)] :
-                                                [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.3)],
+                                                [Color.white.opacity(0.3), Color.white.opacity(0.3)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -2653,7 +2657,7 @@ struct ModernActionButtons: View {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle())
                                     .scaleEffect(0.8)
-                                    .tint(Color(hex: "00A896"))
+                                    .tint(.white)
                             } else {
                                 Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                                     .font(.system(size: 22, weight: .medium))
@@ -2661,7 +2665,7 @@ struct ModernActionButtons: View {
                                         LinearGradient(
                                             colors: isSaved ?
                                             [Color.yellow, Color.orange] :
-                                            [Color.white.opacity(0.8), Color(hex: "00A896")],
+                                            [Color.white.opacity(0.8), Color.white],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
