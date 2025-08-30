@@ -50,19 +50,19 @@ enum WeatherCondition: String, CaseIterable {
     var displayName: String {
         switch self {
         case .clear:
-            return "Despejado"
+            return NSLocalizedString("weather.condition.clear", comment: "Clear weather condition")
         case .partlyCloudy:
-            return "Parcialmente nublado"
+            return NSLocalizedString("weather.condition.partlyCloudy", comment: "Partly cloudy weather condition")
         case .cloudy:
-            return "Nublado"
+            return NSLocalizedString("weather.condition.cloudy", comment: "Cloudy weather condition")
         case .rain:
-            return "Lluvia"
+            return NSLocalizedString("weather.condition.rain", comment: "Rain weather condition")
         case .snow:
-            return "Nieve"
+            return NSLocalizedString("weather.condition.snow", comment: "Snow weather condition")
         case .thunderstorm:
-            return "Tormenta"
+            return NSLocalizedString("weather.condition.thunderstorm", comment: "Thunderstorm weather condition")
         case .unknown:
-            return "Desconocido"
+            return NSLocalizedString("weather.condition.unknown", comment: "Unknown weather condition")
         }
     }
 }

@@ -352,10 +352,12 @@ struct ReelVideoView: View {
                             // Right side actions - más elegantes
                             VStack(spacing: 20) {
                                 // Reacciones
-                                if !video.moment.hideLikeCounts {
-                                    EpicReactionButton(moment: video.moment)
-                                        .environmentObject(firestoreService)
-                                }
+                                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                                EpicReactionButton(
+                                    moment: video.moment,
+                                    showCount: video.moment.authorId == Auth.auth().currentUser?.uid || !video.moment.hideLikeCounts
+                                )
+                                    .environmentObject(firestoreService)
                                 
                                 // Comentarios
                                 if !video.moment.disableComments {

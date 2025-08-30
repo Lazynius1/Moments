@@ -6,6 +6,7 @@ struct EditMomentView: View {
     let onSave: (String) -> Void
     
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isSaving = false
     
     var body: some View {
@@ -13,20 +14,20 @@ struct EditMomentView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("editMoment.cancel", comment: "Cancel button in edit moment view")) {
                         dismiss()
                     }
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                     
                     Spacer()
                     
-                    Text("Editar momento")
+                    Text(NSLocalizedString("editMoment.title", comment: "Title for edit moment view"))
                         .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
-                    Button("Guardar") {
+                    Button(NSLocalizedString("editMoment.save", comment: "Save button in edit moment view")) {
                         saveChanges()
                     }
                     .foregroundColor(editedContent != moment.content ? Color(hex: "00A896") : .gray)
@@ -34,10 +35,10 @@ struct EditMomentView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(.ultraThinMaterial)
+                .background(colorScheme == .dark ? .ultraThinMaterial : .regularMaterial)
                 
                 Divider()
-                    .background(Color.white.opacity(0.1))
+                    .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
                 
                 // Contenido principal
                 VStack(spacing: 20) {
@@ -63,24 +64,24 @@ struct EditMomentView: View {
                     
                     // Editor de texto
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Descripción")
+                        Text(NSLocalizedString("editMoment.description", comment: "Description label in edit moment view"))
                             .font(.custom("Poppins-SemiBold", size: 16))
-                            .foregroundColor(.white.opacity(0.9))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                         
                         TextEditor(text: $editedContent)
                             .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                             .background(Color.clear)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
-                            .background(.ultraThinMaterial)
+                            .background(colorScheme == .dark ? .ultraThinMaterial : .regularMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(
                                         LinearGradient(
                                             colors: [
-                                                Color.white.opacity(0.2),
+                                                colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2),
                                                 Color(hex: "00A896").opacity(0.3)
                                             ],
                                             startPoint: .topLeading,
@@ -123,7 +124,7 @@ struct EditMomentView: View {
                                 .scaleEffect(1.2)
                                 .tint(Color(hex: "00A896"))
                             
-                            Text("Guardando cambios...")
+                            Text(NSLocalizedString("editMoment.saving", comment: "Saving changes text in edit moment view"))
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(.white)
                         }

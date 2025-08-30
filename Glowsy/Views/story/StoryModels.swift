@@ -993,7 +993,7 @@ struct GlassmorphicStoryViewer: View {
     @State private var lastZoomScale: CGFloat = 1.0
 
     private let defaultStoryDuration: Double = 10.0
-    private let reactions: [String] = ["❤️", "😂", "😮", "😢", "😡", "👏"]
+    private let reactions: [String] = ["✌🏻", "🔥", "✅", "😊", "✨", "❤️", "💕", "😮", "😂", "😢", "🙏🏻", "⚡", "🧠", "🎨", "😌", "🎉"]
 
     private let firestoreService = FirestoreService()
     
@@ -1092,9 +1092,9 @@ struct GlassmorphicStoryViewer: View {
         .background(Color.black)
         .offset(y: dragOffset)
         .scaleEffect(zoomScale)
+        .gesture(longPressGesture)  // ✅ PRIORIDAD AL LONG PRESS
         .gesture(dragGesture)
         .gesture(pinchGesture)
-        .gesture(longPressGesture)
         .onAppear {
             prepareAndStartStory()
             setupKeyboardNotifications() // Setup keyboard observers
@@ -1139,6 +1139,28 @@ struct GlassmorphicStoryViewer: View {
         }
         .onChange(of: selectedPhoto) { newPhoto in
             handleEphemeralPhoto(newPhoto)
+        }
+        // ✅ NUEVO: onChange para showReactions en nivel principal
+        .onChange(of: showReactions) { isOpen in
+            if isOpen {
+                pauseStory() // ✅ Pausar historia cuando se abren reacciones
+            } else {
+                // ✅ Reanudar historia cuando se cierran reacciones
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    resumeStory()
+                }
+            }
+        }
+        // ✅ NUEVO: onChange para showEphemeralPicker en nivel principal
+        .onChange(of: showEphemeralPicker) { isOpen in
+            if isOpen {
+                pauseStory() // ✅ Pausar historia cuando se abre selector de fotos
+            } else {
+                // ✅ Reanudar historia cuando se cierra selector de fotos
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    resumeStory()
+                }
+            }
         }
         // ✅ AGREGAR AQUÍ: Nuevos onChange handlers para pausar historias
         .onChange(of: showingReportSheet) { oldValue, newValue in
@@ -1474,35 +1496,49 @@ struct GlassmorphicStoryViewer: View {
         VStack(spacing: 12) {
             // ✅ REACCIONES: Solo mostrar si el autor las permite
             if showReactions && authorAllowsReactions {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(reactions, id: \.self) { reaction in
-                            Button(action: {
-                                sendReaction(reaction)
-                            }) {
-                                Text(reaction)
-                                    .font(.system(size: 35))
-                                    .frame(width: 56, height: 56)
-                                    .background(
-                                        Color.black.opacity(0.5)
-                                            .background(.ultraThinMaterial)
-                                            .environment(\.colorScheme, .dark)
-                                    )
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-                                    )
-                            }
-                            .scaleEffect(showReactions ? 1.0 : 0.5)
-                            .animation(
-                                .spring(response: 0.3)
-                                    .delay(Double(reactions.firstIndex(of: reaction) ?? 0) * 0.05),
-                                value: showReactions
-                            )
-                        }
+                VStack(spacing: 8) {
+                    // Indicador de scroll
+                    HStack {
+                        Spacer()
+                        Text(NSLocalizedString("storyContextMenu.scrollReactions", comment: "Scroll for more reactions"))
+                            .font(.custom("Poppins-Regular", size: 10))
+                            .foregroundColor(.white.opacity(0.7))
+                        Spacer()
                     }
-                    .padding(.horizontal, 20)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 16) {
+                            ForEach(reactions, id: \.self) { reaction in
+                                Button(action: {
+                                    sendReaction(reaction)
+                                }) {
+                                    Text(reaction)
+                                        .font(.system(size: 32))
+                                        .frame(width: 52, height: 52)
+                                        .background(
+                                            Color.black.opacity(0.4)
+                                                .background(.ultraThinMaterial)
+                                                .environment(\.colorScheme, .dark)
+                                        )
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                        )
+                                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                                }
+                                .scaleEffect(showReactions ? 1.0 : 0.5)
+                                .animation(
+                                    .spring(response: 0.3)
+                                        .delay(Double(reactions.firstIndex(of: reaction) ?? 0) * 0.03),
+                                    value: showReactions
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                    }
+                    .frame(height: 70)
                 }
                 .transition(.asymmetric(
                     insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -1553,6 +1589,16 @@ struct GlassmorphicStoryViewer: View {
                                         .foregroundColor(.white)
                                         .font(.system(size: 18))
                                 }
+                                .onChange(of: showReactions) { isOpen in
+                                    if isOpen {
+                                        pauseStory() // ✅ Pausar historia cuando se abren reacciones
+                                    } else {
+                                        // ✅ Reanudar historia cuando se cierran reacciones
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                            resumeStory()
+                                        }
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -1589,6 +1635,16 @@ struct GlassmorphicStoryViewer: View {
                                     .clipShape(Circle())
                             }
                             .photosPicker(isPresented: $showEphemeralPicker, selection: $selectedPhoto, matching: .images)
+                            .onChange(of: showEphemeralPicker) { isOpen in
+                                if isOpen {
+                                    pauseStory() // ✅ Pausar historia cuando se abre selector de fotos
+                                } else {
+                                    // ✅ Reanudar historia cuando se cierra selector de fotos
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                        resumeStory()
+                                    }
+                                }
+                            }
                         }
                         
                         // ✅ BOTÓN ENVIAR: Solo si hay mensaje Y permite mensajes
@@ -1851,7 +1907,10 @@ struct GlassmorphicStoryViewer: View {
                 pauseStory()
             }
             .onEnded { _ in
-                resumeStory()
+                // ✅ Reanudar con delay para asegurar que se ejecute
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    resumeStory()
+                }
             }
     }
     
@@ -1911,6 +1970,11 @@ struct GlassmorphicStoryViewer: View {
             showReactions = false
         }
         showSuccessAnimation("Reacción enviada")
+        
+        // ✅ Reanudar historia inmediatamente después de enviar reacción
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            resumeStory()
+        }
     }
     
     private func handleEphemeralPhoto(_ photo: PhotosPickerItem?) {
@@ -1931,9 +1995,17 @@ struct GlassmorphicStoryViewer: View {
                 ) { success in
                     if success {
                         showSuccessAnimation("Momento enviado")
+                        // ✅ Reanudar historia después de enviar foto efímera
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            resumeStory()
+                        }
                     }
                 }
             } catch {
+                // ✅ Reanudar historia si hay error
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    resumeStory()
+                }
             }
         }
     }
@@ -2042,16 +2114,15 @@ struct GlassmorphicStoryViewer: View {
 
     
     private func startImageTimer() {
-
-        
-        // Reset progress explícitamente
-        progress = 0.0
+        // ✅ NUNCA resetear progress - siempre continuar desde donde se pausó
         
         let duration = story.duration > 0 ? story.duration : defaultStoryDuration
         imageTimer?.invalidate()
         
         imageTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-            guard !self.isPaused else { return }
+            guard !self.isPaused else { 
+                return 
+            }
             
             self.progress += 0.05 / duration
             
@@ -2068,18 +2139,21 @@ struct GlassmorphicStoryViewer: View {
     // ✅ SIMPLIFICADO: Solo cambiar estado
     private func pauseStory() {
         isPaused = true
+        // ✅ INVALIDAR TIMER para evitar bucle infinito
         imageTimer?.invalidate()
+        imageTimer = nil
     }
 
     private func resumeStory() {
-        guard !showQuickActions && !isKeyboardVisible && !isDragging else {
+        // ✅ SOLO verificar teclado y drag, NO showQuickActions
+        guard !isKeyboardVisible && !isDragging else {
             return
         }
         
         isPaused = false
         
-        // ✅ SOLO REINICIAR TIMER PARA IMÁGENES
-        if story.mediaItem.type == .image && imageTimer == nil {
+        // ✅ SIEMPRE RECREAR TIMER para continuar desde el progreso actual
+        if story.mediaItem.type == .image {
             startImageTimer()
         }
     }

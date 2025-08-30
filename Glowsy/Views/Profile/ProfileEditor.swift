@@ -1423,36 +1423,7 @@ private struct InterestPickerRow: View {
     }
     
     static func interestEmoji(for interest: String) -> String {
-        switch interest.lowercased() {
-        case "música": return "🎵"
-        case "cine": return "🎬"
-        case "deportes": return "⚽"
-        case "viajes": return "✈️"
-        case "fotografía": return "📸"
-        case "arte": return "🎨"
-        case "tecnología": return "💻"
-        case "lectura": return "📚"
-        case "cocina": return "👨‍🍳"
-        case "moda": return "👗"
-        case "gaming": return "🎮"
-        case "fitness": return "💪"
-        case "naturaleza": return "🌿"
-        case "animales": return "🐾"
-        case "baile": return "💃"
-        case "teatro": return "🎭"
-        case "escritura": return "✍️"
-        case "ciencia": return "🔬"
-        case "historia": return "📜"
-        case "idiomas": return "🗣️"
-        case "anime": return "🍜"
-        case "k-pop": return "🎤"
-        case "streaming": return "📺"
-        case "yoga": return "🧘"
-        case "meditación": return "🕯️"
-        case "senderismo": return "🥾"
-        case "ciclismo": return "🚴"
-        default: return "✨"
-        }
+        return InterestEmojiHelper.emoji(for: interest)
     }
 }
 

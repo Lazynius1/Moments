@@ -28,7 +28,7 @@ struct AppealStatusView: View {
                     )
                 }
             }
-            .navigationTitle("Mis Apelaciones")
+            .navigationTitle(NSLocalizedString("appeal.status.title", comment: "My appeals navigation title"))
             .navigationBarTitleDisplayMode(.large)
             .navigationBarItems(
                 trailing: Button(action: fetchAppeals) {
@@ -118,7 +118,7 @@ struct AppealCard: View {
                 // Header con ticket y estado
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Ticket #\(appeal.ticketNumber)")
+                        Text(String(format: NSLocalizedString("appeal.status.ticket", comment: "Ticket number format"), appeal.ticketNumber))
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.primary)  // ✅ Cambio
                         
@@ -146,7 +146,7 @@ struct AppealCard: View {
                                 .font(.system(size: 12))
                                 .foregroundColor(.orange)
                             
-                            Text("Motivo: \(reason)")
+                            Text(String(format: NSLocalizedString("appeal.status.reason", comment: "Suspension reason format"), reason))
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.primary)  // ✅ Cambio
                                 .lineLimit(2)
@@ -158,7 +158,7 @@ struct AppealCard: View {
                             .font(.system(size: 12))
                             .foregroundColor(.blue)
                         
-                        Text("Respuesta estimada: \(appeal.estimatedResponseTime)")
+                        Text(String(format: NSLocalizedString("appeal.status.estimatedResponse", comment: "Estimated response format"), appeal.estimatedResponseTime))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.primary)  // ✅ Cambio
                     }
@@ -169,7 +169,7 @@ struct AppealCard: View {
                                 .font(.system(size: 12))
                                 .foregroundColor(.green)
                             
-                            Text("Nota del moderador: \(moderatorNotes)")
+                            Text(String(format: NSLocalizedString("appeal.status.moderatorNotes", comment: "Moderator notes format"), moderatorNotes))
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.primary)  // ✅ Cambio
                                 .lineLimit(3)
@@ -338,13 +338,13 @@ struct AppealProgressBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Progreso")
+                Text(NSLocalizedString("appeal.status.progress", comment: "Progress label"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondary)  // ✅ Cambio
                 
                 Spacer()
                 
-                Text("\(Int(progress * 100))%")
+                Text(String(format: NSLocalizedString("appeal.status.percentage", comment: "Progress percentage format"), Int(progress * 100)))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.primary)  // ✅ Cambio
             }
@@ -412,8 +412,8 @@ struct AppealActionButton: View {
     
     private var actionButtonText: String {
         switch appeal.status {
-        case "requires_info": return "Proporcionar Info"
-        case "approved": return "Reactivar Cuenta"
+        case "requires_info": return NSLocalizedString("appeal.action.provideInfo", comment: "Provide info button")
+        case "approved": return NSLocalizedString("appeal.action.reactivateAccount", comment: "Reactivate account button")
         default: return ""
         }
     }
@@ -458,11 +458,11 @@ struct EmptyAppealsView: View {
                 .foregroundColor(.secondary)  // ✅ Cambio
             
             VStack(spacing: 12) {
-                Text("No hay apelaciones")
+                Text(NSLocalizedString("appeal.status.noAppeals.title", comment: "No appeals title"))
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.primary)  // ✅ Cambio
                 
-                Text("No tienes apelaciones registradas en tu cuenta")
+                Text(NSLocalizedString("appeal.status.noAppeals.description", comment: "No appeals description"))
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.secondary)  // ✅ Cambio
                     .multilineTextAlignment(.center)
@@ -480,7 +480,7 @@ struct LoadingView: View {
                 .progressViewStyle(CircularProgressViewStyle(tint: .primary))  // ✅ Cambio
                 .scaleEffect(1.5)
             
-            Text("Cargando apelaciones...")
+            Text(NSLocalizedString("appeal.status.loading", comment: "Loading appeals text"))
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.secondary)  // ✅ Cambio
         }
@@ -535,10 +535,10 @@ struct AppealDetailView: View {
                     .padding(.top, 20)
                 }
             }
-            .navigationTitle("Detalle de Apelación")
+            .navigationTitle(NSLocalizedString("appeal.detail.title", comment: "Appeal detail title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
-                leading: Button("Cerrar") {
+                leading: Button(NSLocalizedString("appeal.detail.close", comment: "Close button")) {
                     presentationMode.wrappedValue.dismiss()
                 }
                 .foregroundColor(.primary)

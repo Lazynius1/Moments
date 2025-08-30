@@ -210,7 +210,7 @@ struct ModernCommentsView: View {
                                     LinearGradient(
                                         colors: [
                                             colorScheme == .dark ? Color.white.opacity(0.3) : Color.black.opacity(0.1),
-                                            Color(hex: "00A896").opacity(0.3)
+                                            Color.white.opacity(0.3)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -225,7 +225,7 @@ struct ModernCommentsView: View {
                             LinearGradient(
                                 colors: [
                                     colorScheme == .dark ? Color.white : Color.black,
-                                    Color(hex: "00A896").opacity(0.8)
+                                    Color.white.opacity(0.8)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -243,15 +243,15 @@ struct ModernCommentsView: View {
                     // ✅ NUEVO: Indicador de carga en el header
                     if isLoading {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(0.8)
                     } else if !comments.isEmpty {
                         Text("(\(totalCommentsCount))")
                             .font(.custom("Poppins-Medium", size: 14))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Color(hex: "00A896").opacity(0.2))
+                            .background(Color.white.opacity(0.2))
                             .clipShape(Capsule())
                     }
                 }
@@ -290,7 +290,7 @@ struct ModernCommentsView: View {
                                     LinearGradient(
                                         colors: [
                                             colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1),
-                                            Color(hex: "00A896").opacity(0.2)
+                                            Color.white.opacity(0.2)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -317,7 +317,7 @@ struct ModernCommentsView: View {
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.1), Color(hex: "00A896").opacity(0.2)],
+                        colors: [Color.white.opacity(0.1), Color.white.opacity(0.2)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -335,7 +335,7 @@ struct ModernCommentsView: View {
                 if isLoading {
                     VStack(spacing: 16) {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(1.2)
                         
                         Text("modernComments.loading")
@@ -393,7 +393,7 @@ struct ModernCommentsView: View {
         HStack(spacing: 12) {
             Image(systemName: "arrowshape.turn.up.left.fill")
                 .font(.system(size: 14))
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(.white)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(format: NSLocalizedString("modernComments.replyingTo", comment: "Replying to user"), replyComment.username))
@@ -419,7 +419,7 @@ struct ModernCommentsView: View {
         .background(.ultraThinMaterial)
         .overlay(
             Rectangle()
-                .fill(Color(hex: "00A896").opacity(0.3))
+                .fill(Color.white.opacity(0.3))
                 .frame(height: 2),
             alignment: .top
         )
@@ -431,7 +431,7 @@ struct ModernCommentsView: View {
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.1), Color(hex: "00A896").opacity(0.2)],
+                        colors: [Color.white.opacity(0.1), Color.white.opacity(0.2)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -446,11 +446,11 @@ struct ModernCommentsView: View {
                             HStack {
                                 Image(systemName: "pencil")
                                     .font(.system(size: 12))
-                                    .foregroundColor(Color(hex: "00A896"))
+                                    .foregroundColor(.white)
                                 
                                 Text("modernComments.editing")
                                     .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(Color(hex: "00A896"))
+                                    .foregroundColor(.white)
                                 
                                 Spacer()
                             }
@@ -469,7 +469,7 @@ struct ModernCommentsView: View {
                             RoundedRectangle(cornerRadius: 16)
                                 .stroke(
                                     LinearGradient(
-                                        colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
+                                        colors: [Color.white.opacity(0.2), Color.white.opacity(0.3)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -507,7 +507,7 @@ struct ModernCommentsView: View {
                                             LinearGradient(
                                                 colors: editingCommentContent.isEmpty ?
                                                 [Color.gray.opacity(0.5)] :
-                                                [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                                                [Color.white, Color.white.opacity(0.8)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             )
@@ -546,7 +546,7 @@ struct ModernCommentsView: View {
                                 RoundedRectangle(cornerRadius: 16)
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
+                                            colors: [Color.white.opacity(0.2), Color.white.opacity(0.3)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -568,7 +568,7 @@ struct ModernCommentsView: View {
                                         LinearGradient(
                                             colors: newComment.isEmpty || isLoading ?
                                             [Color.gray.opacity(0.5)] :
-                                            [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                                            [Color.blue, Color.purple, Color.pink],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -994,15 +994,15 @@ struct EnhancedModernCommentRow: View {
                     HStack {
                         Image(systemName: "arrow.turn.down.right")
                             .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(.white)
                         
                         Text(String(format: NSLocalizedString("modernComments.viewMoreReplies", comment: "View more replies"), nestedComments.count))
                             .font(.custom("Poppins-Medium", size: 12))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(.white)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color(hex: "00A896").opacity(0.1))
+                    .background(Color.white.opacity(0.1))
                     .clipShape(Capsule())
                 }
                 .padding(.leading, indentationWidth + 50)
@@ -1022,7 +1022,7 @@ struct EnhancedModernCommentRow: View {
                     Circle()
                         .stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.4)],
+                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.4)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
@@ -1030,7 +1030,7 @@ struct EnhancedModernCommentRow: View {
                         )
                 )
                 .shadow(
-                    color: Color(hex: "00A896").opacity(nestingLevel == 0 ? 0.3 : 0.1),
+                    color: Color.white.opacity(nestingLevel == 0 ? 0.3 : 0.1),
                     radius: nestingLevel == 0 ? 4 : 2,
                     x: 0,
                     y: 2
@@ -1092,7 +1092,7 @@ struct EnhancedModernCommentRow: View {
     private var commentBorder: LinearGradient {
         LinearGradient(
             colors: nestingLevel == 0 ?
-                [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)] :
+                [Color.white.opacity(0.2), Color.white.opacity(0.3)] :
                 [Color.white.opacity(0.1), Color.gray.opacity(0.2)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -1107,7 +1107,7 @@ struct EnhancedModernCommentRow: View {
                 if nestingLevel > 0 {
                     Image(systemName: "arrowshape.turn.up.left")
                         .font(.system(size: 10))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(.white)
                 }
                 
                 HStack(spacing: 3) {
@@ -1162,7 +1162,7 @@ struct EnhancedModernCommentRow: View {
                 Button(action: { showFullContent.toggle() }) {
                     Text(showFullContent ? "Ver menos" : "Ver más")
                         .font(.custom("Poppins-Medium", size: 11))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(.white)
                 }
             }
         }
@@ -1176,7 +1176,7 @@ struct EnhancedModernCommentRow: View {
             .overlay(
                 Text(highlightMentions(in: displayContent))
                     .font(.custom("Poppins-SemiBold", size: nestingLevel == 0 ? 14 : 13))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(.white)
             )
             .allowsHitTesting(false)
     }
@@ -1254,7 +1254,7 @@ struct EnhancedModernCommentRow: View {
                     text: "Responder",
                     count: nil,
                     isActive: false,
-                    activeColor: Color(hex: "00A896")
+                    activeColor: .white
                 ) {
                     onReply(comment)
                 }
@@ -1267,7 +1267,7 @@ struct EnhancedModernCommentRow: View {
                     text: "\(nestedComments.count) respuesta\(nestedComments.count == 1 ? "" : "s")",
                     count: nil,
                     isActive: isExpanded,
-                    activeColor: Color(hex: "00A896")
+                    activeColor: .white
                 ) {
                     if let commentId = comment.id {
                         onToggleExpand(commentId)
@@ -1301,7 +1301,7 @@ struct ModernEmptyCommentsView: View {
                         Circle()
                             .stroke(
                                 LinearGradient(
-                                    colors: [Color(hex: "00A896").opacity(0.4), Color.white.opacity(0.2)],
+                                    colors: [Color.white.opacity(0.4), Color.white.opacity(0.2)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
@@ -1313,7 +1313,7 @@ struct ModernEmptyCommentsView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color(hex: "00A896"), Color.white.opacity(0.7)],
+                            colors: [Color.white, Color.white.opacity(0.7)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )

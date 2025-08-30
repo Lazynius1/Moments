@@ -124,7 +124,7 @@ struct ReportBottomSheet: View {
                 
                 Spacer()
                 
-                Text("Reportar \(contentType.capitalized)")
+                Text(String(format: NSLocalizedString("report.title", comment: "Report title"), contentType.capitalized))
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(adaptiveColors.primary)
                 
@@ -137,7 +137,7 @@ struct ReportBottomSheet: View {
             .padding(.horizontal, 20)
             
             // ✅ Descripción DINÁMICA
-            Text("¿Por qué reportas este \(contentType)?")
+            Text(String(format: NSLocalizedString("report.subtitle", comment: "Report subtitle"), contentType))
                 .font(.custom("Poppins-Regular", size: 15))
                 .foregroundColor(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
@@ -167,7 +167,7 @@ struct ReportBottomSheet: View {
     // MARK: - ✅ Campo de detalles adicionales (sin cambios)
     private var additionalDetailsView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Detalles adicionales (opcional)")
+            Text(NSLocalizedString("report.additionalDetails", comment: "Additional details label"))
                 .font(.custom("Poppins-SemiBold", size: 16))
                 .foregroundColor(adaptiveColors.primary)
                 .padding(.horizontal, 20)
@@ -199,7 +199,7 @@ struct ReportBottomSheet: View {
                         VStack {
                             HStack {
                                 if additionalDetails.isEmpty {
-                                    Text("Describe el problema (opcional)...")
+                                    Text(NSLocalizedString("report.detailsPlaceholder", comment: "Details placeholder text"))
                                         .font(.custom("Poppins-Regular", size: 15))
                                         .foregroundColor(adaptiveColors.tertiary)
                                         .padding(.leading, 20)
@@ -230,7 +230,7 @@ struct ReportBottomSheet: View {
                         Image(systemName: "flag.fill")
                             .font(.system(size: 16, weight: .semibold))
                         
-                        Text("Enviar Reporte")
+                        Text(NSLocalizedString("report.sendButton", comment: "Send report button"))
                             .font(.custom("Poppins-SemiBold", size: 16))
                     }
                 }
@@ -279,11 +279,11 @@ struct ReportBottomSheet: View {
                 .font(.system(size: 50))
                 .foregroundColor(.green)
             
-            Text("Reporte Enviado")
+            Text(NSLocalizedString("report.success.title", comment: "Report success title"))
                 .font(.custom("Poppins-SemiBold", size: 20))
                 .foregroundColor(adaptiveColors.primary)
             
-            Text("Gracias por ayudarnos a mantener la comunidad segura. Revisaremos tu reporte pronto.")
+            Text(NSLocalizedString("report.success.message", comment: "Report success message"))
                 .font(.custom("Poppins-Regular", size: 15))
                 .foregroundColor(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
@@ -424,46 +424,46 @@ enum ReportCategory: String, CaseIterable {
     var title: String {
         switch self {
         case .dislike:
-            return "No me gusta"
+            return NSLocalizedString("report.category.dislike.title", comment: "Dislike category title")
         case .bullying:
-            return "Bullying o contacto no deseado"
+            return NSLocalizedString("report.category.bullying.title", comment: "Bullying category title")
         case .selfHarm:
-            return "Suicidio, autolesión o trastornos alimenticios"
+            return NSLocalizedString("report.category.selfHarm.title", comment: "Self harm category title")
         case .violence:
-            return "Violencia, odio o explotación"
+            return NSLocalizedString("report.category.violence.title", comment: "Violence category title")
         case .restrictedSales:
-            return "Venta o promoción de artículos restringidos"
+            return NSLocalizedString("report.category.restrictedSales.title", comment: "Restricted sales category title")
         case .nudity:
-            return "Desnudos o actividad sexual"
+            return NSLocalizedString("report.category.nudity.title", comment: "Nudity category title")
         case .scams:
-            return "Estafas, fraudes o spam"
+            return NSLocalizedString("report.category.scams.title", comment: "Scams category title")
         case .falseInfo:
-            return "Información falsa"
+            return NSLocalizedString("report.category.falseInfo.title", comment: "False info category title")
         case .intellectualProperty:
-            return "Propiedad intelectual"
+            return NSLocalizedString("report.category.intellectualProperty.title", comment: "Intellectual property category title")
         }
     }
     
     var subtitle: String {
         switch self {
         case .dislike:
-            return "Este contenido no es relevante para mí"
+            return NSLocalizedString("report.category.dislike.subtitle", comment: "Dislike category subtitle")
         case .bullying:
-            return "Acoso, amenazas o contacto no deseado"
+            return NSLocalizedString("report.category.bullying.subtitle", comment: "Bullying category subtitle")
         case .selfHarm:
-            return "Contenido que promueve autolesiones"
+            return NSLocalizedString("report.category.selfHarm.subtitle", comment: "Self harm category subtitle")
         case .violence:
-            return "Contenido violento u ofensivo"
+            return NSLocalizedString("report.category.violence.subtitle", comment: "Violence category subtitle")
         case .restrictedSales:
-            return "Venta de drogas, armas u otros artículos"
+            return NSLocalizedString("report.category.restrictedSales.subtitle", comment: "Restricted sales category subtitle")
         case .nudity:
-            return "Contenido sexual o desnudos"
+            return NSLocalizedString("report.category.nudity.subtitle", comment: "Nudity category subtitle")
         case .scams:
-            return "Spam, estafas o contenido fraudulento"
+            return NSLocalizedString("report.category.scams.subtitle", comment: "Scams category subtitle")
         case .falseInfo:
-            return "Noticias falsas o información engañosa"
+            return NSLocalizedString("report.category.falseInfo.subtitle", comment: "False info category subtitle")
         case .intellectualProperty:
-            return "Uso no autorizado de mi contenido"
+            return NSLocalizedString("report.category.intellectualProperty.subtitle", comment: "Intellectual property category subtitle")
         }
     }
     

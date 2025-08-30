@@ -75,14 +75,18 @@ struct EpicReactionButton: View {
                             x: 0, y: hasReacted ? 4 : 2
                         )
                     
-                    // ✨ Icono con animaciones mega épicas
-                    Image(systemName: hasReacted ? (currentReaction?.filledIcon ?? "heart.fill") : "heart")
-                        .font(.system(size: 22, weight: .heavy))
+                    // ✨ Emoji con animaciones mega épicas
+                    Text(hasReacted ? (currentReaction?.filledIcon ?? "❤️") : "♡")
+                        .font(.system(size: 24, weight: .heavy))
                         .foregroundStyle(
+                            hasReacted ? 
                             LinearGradient(
-                                colors: hasReacted ?
-                                [currentReaction?.color ?? .red, currentReaction?.color.opacity(0.7) ?? .pink] :
-                                [Color.white.opacity(0.8), Color(hex: "00A896")],
+                                colors: [currentReaction?.color ?? .red, currentReaction?.color.opacity(0.7) ?? .pink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ) :
+                            LinearGradient(
+                                colors: [Color.blue, Color.purple, Color.pink],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -439,8 +443,8 @@ struct EpicReactionPickerView: View {
                                         )
                                         .shadow(color: reaction.color.opacity(0.4), radius: 6, x: 0, y: 3)
                                     
-                                    Image(systemName: reaction.filledIcon)
-                                        .font(.system(size: 20, weight: .bold))
+                                    Text(reaction.filledIcon)
+                                        .font(.system(size: 22, weight: .bold))
                                         .foregroundStyle(
                                             LinearGradient(
                                                 colors: [reaction.color, reaction.color.opacity(0.7)],
@@ -730,8 +734,8 @@ struct ReactionsListSheet: View {
                         .fill(group.type.color.opacity(0.2))
                         .frame(width: 32, height: 32)
                     
-                    Image(systemName: group.type.filledIcon)
-                        .font(.system(size: 16, weight: .bold))
+                    Text(group.type.filledIcon)
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(group.type.color)
                 }
                 
@@ -827,8 +831,8 @@ struct ReactionsListSheet: View {
             followButton(for: userId)
             
             // Icono pequeño de la reacción
-            Image(systemName: reactionType.filledIcon)
-                .font(.system(size: 14))
+            Text(reactionType.filledIcon)
+                .font(.system(size: 16))
                 .foregroundColor(reactionType.color)
         }
         .padding(12)

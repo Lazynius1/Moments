@@ -1093,6 +1093,7 @@
 "storyContextMenu.report.subtitle" = "Contenido\ninapropiado";
 "storyContextMenu.block" = "Bloquear";
 "storyContextMenu.block.subtitle" = "No ver más\ncontenido";
+"storyContextMenu.scrollReactions" = "Desliza para más reacciones";
 
 /* User Activity View */
 "userActivity.summary.title" = "Resumen de Actividad";
@@ -1346,3 +1347,152 @@
 "tabBar.nova" = "Nova";
 "tabBar.explore" = "Explorar";
 "tabBar.profile" = "Perfil";
+
+/* Edit Moment View */
+"editMoment.cancel" = "Cancelar";
+"editMoment.title" = "Editar momento";
+"editMoment.save" = "Guardar";
+"editMoment.description" = "Descripción";
+"editMoment.saving" = "Guardando cambios...";
+
+/* Interests */
+"interest.escritura" = "Escritura";
+"interest.cine" = "Cine";
+"interest.libros" = "Libros";
+"interest.teatro" = "Teatro";
+"interest.meditacion" = "Meditación";
+"interest.naturaleza" = "Naturaleza";
+"interest.fotografia" = "Fotografía";
+"interest.moda" = "Moda";
+"interest.emprendimiento" = "Emprendimiento";
+"interest.yoga" = "Yoga";
+"interest.historia" = "Historia";
+"interest.cafe" = "Café";
+"interest.fitness" = "Fitness";
+"interest.musica" = "Música";
+"interest.gaming" = "Gaming";
+"interest.tecnologia" = "Tecnología";
+"interest.viajar" = "Viajar";
+"interest.astronomia" = "Astronomía";
+"interest.podcasts" = "Podcasts";
+"interest.deportes" = "Deportes";
+"interest.cocina" = "Cocina";
+"interest.mascotas" = "Mascotas";
+"interest.diseno" = "Diseño";
+"interest.baile" = "Baile";
+"interest.programacion" = "Programación";
+"interest.kpop" = "Kpop";
+
+/* Report System */
+"report.title" = "Reportar %@";
+"report.subtitle" = "¿Por qué reportas este %@?";
+"report.additionalDetails" = "Detalles adicionales (opcional)";
+"report.detailsPlaceholder" = "Describe el problema (opcional)...";
+"report.sendButton" = "Enviar Reporte";
+"report.success.title" = "Reporte Enviado";
+"report.success.message" = "Gracias por ayudarnos a mantener la comunidad segura. Revisaremos tu reporte pronto.";
+
+/* Report Categories */
+"report.category.dislike.title" = "No me gusta";
+"report.category.dislike.subtitle" = "Este contenido no es relevante para mí";
+"report.category.bullying.title" = "Bullying o contacto no deseado";
+"report.category.bullying.subtitle" = "Acoso, amenazas o contacto no deseado";
+"report.category.selfHarm.title" = "Suicidio, autolesión o trastornos alimenticios";
+"report.category.selfHarm.subtitle" = "Contenido que promueve autolesiones";
+"report.category.violence.title" = "Violencia, odio o explotación";
+"report.category.violence.subtitle" = "Contenido violento u ofensivo";
+"report.category.restrictedSales.title" = "Venta o promoción de artículos restringidos";
+"report.category.restrictedSales.subtitle" = "Venta de drogas, armas u otros artículos";
+"report.category.nudity.title" = "Desnudos o actividad sexual";
+"report.category.nudity.subtitle" = "Contenido sexual o desnudos";
+"report.category.scams.title" = "Estafas, fraudes o spam";
+"report.category.scams.subtitle" = "Spam, estafas o contenido fraudulento";
+"report.category.falseInfo.title" = "Información falsa";
+"report.category.falseInfo.subtitle" = "Noticias falsas o información engañosa";
+"report.category.intellectualProperty.title" = "Propiedad intelectual";
+"report.category.intellectualProperty.subtitle" = "Uso no autorizado de mi contenido";
+
+/* Appeal System */
+"appeal.title" = "Apelar Suspensión";
+"appeal.subtitle" = "Explícanos tu situación y revisaremos tu caso detalladamente";
+"appeal.contactEmail" = "Email de contacto";
+"appeal.suspensionReason" = "Motivo de suspensión";
+"appeal.yourAppeal" = "Tu apelación";
+"appeal.additionalInfo" = "Información adicional (opcional)";
+"appeal.requirements" = "Requisitos";
+"appeal.submitButton" = "Enviar Apelación";
+"appeal.success.title" = "¡Apelación Enviada!";
+"appeal.nextSteps" = "Próximos pasos:";
+"appeal.understood" = "Entendido";
+
+/* Appeal Form Fields */
+"appeal.field.placeholder" = "Escribe aquí...";
+"appeal.field.error" = "Este campo es requerido";
+"appeal.field.characterCount" = "%d/2000";
+"appeal.field.contactEmail.placeholder" = "Tu email para contacto";
+"appeal.field.appealMessage.placeholder" = "Explica tu situación detalladamente...";
+"appeal.field.additionalInfo.placeholder" = "Información adicional que consideres relevante...";
+
+/* Appeal Status */
+"appeal.status.title" = "Mis Apelaciones";
+"appeal.status.ticket" = "Ticket #%@";
+"appeal.status.submitted" = "Enviado";
+"appeal.status.reason" = "Motivo: %@";
+"appeal.status.estimatedResponse" = "Respuesta estimada: %@";
+"appeal.status.moderatorNotes" = "Nota del moderador: %@";
+"appeal.status.progress" = "Progreso";
+"appeal.status.percentage" = "%d%%";
+"appeal.status.noAppeals.title" = "No hay apelaciones";
+"appeal.status.noAppeals.description" = "No tienes apelaciones registradas en tu cuenta";
+"appeal.status.loading" = "Cargando apelaciones...";
+
+/* Appeal Details */
+"appeal.detail.information" = "Información";
+"appeal.detail.suspensionReason" = "Motivo de suspensión";
+"appeal.detail.estimatedTime" = "Tiempo estimado";
+"appeal.detail.moderatorNotes" = "Notas del moderador";
+"appeal.detail.nextSteps" = "Próximos pasos";
+"appeal.detail.yourMessage" = "Tu mensaje";
+"appeal.detail.additionalInfo" = "Información adicional";
+
+/* Appeal Success Info */
+"appeal.success.ticketNumber" = "Número de Ticket";
+"appeal.success.estimatedResponse" = "Tiempo Estimado de Respuesta";
+"appeal.success.priority" = "Prioridad Asignada";
+
+/* Appeal Errors */
+"appeal.error.title" = "Error";
+"appeal.error.unknown" = "Error desconocido";
+"appeal.error.userInfo" = "No se pudo obtener la información del usuario";
+"appeal.error.submit" = "Error al enviar apelación";
+"appeal.error.unexpected" = "Error inesperado";
+"appeal.error.ok" = "OK";
+
+/* Appeal Actions */
+"appeal.action.provideInfo" = "Proporcionar Info";
+"appeal.action.reactivateAccount" = "Reactivar Cuenta";
+
+/* Appeal Detail */
+"appeal.detail.title" = "Detalle de Apelación";
+"appeal.detail.close" = "Cerrar";
+
+/* Maps */
+"maps.location.moments" = "%d momentos";
+"maps.bottomSheet.moments" = "%d momentos";
+"maps.bottomSheet.loading.moments" = "Cargando momentos...";
+"maps.bottomSheet.loading.filtering" = "Filtrando por privacidad";
+"maps.bottomSheet.empty.title" = "No hay momentos en este lugar 🥲";
+"maps.bottomSheet.empty.subtitle" = "Sé el primero en compartir un momento aquí";
+"maps.loading.location" = "Cargando ubicación";
+"maps.error.locationLoadFailed" = "No se pudo cargar la ubicación";
+"maps.error.retry" = "Reintentar";
+"maps.error.configurePermissions" = "Configurar permisos";
+
+/* Weather Conditions */
+"weather.condition.clear" = "Despejado";
+"weather.condition.partlyCloudy" = "Parcialmente nublado";
+"weather.condition.cloudy" = "Nublado";
+"weather.condition.rain" = "Lluvia";
+"weather.condition.snow" = "Nieve";
+"weather.condition.thunderstorm" = "Tormenta";
+"weather.condition.unknown" = "Desconocido";

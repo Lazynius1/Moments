@@ -68,10 +68,16 @@ struct LocationMapView: View {
                     locationName: locationName,
                     colorScheme: colorScheme,
                     onMomentTap: { moment in
-                        if let selectedIndex = locationMoments.firstIndex(where: { $0.id == moment.id }) {
-                            selectedMoment = moment
-                            selectedMomentIndex = selectedIndex
-                            showingDetail = true
+                        // ✅ SOLUCIÓN MÁS ROBUSTA: Usar Task con @MainActor para evitar "Modifying state during view update"
+                        Task { @MainActor in
+                            // ✅ Pequeño delay para asegurar que la vista termine de actualizarse
+                            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 segundos
+                            
+                            if let selectedIndex = locationMoments.firstIndex(where: { $0.id == moment.id }) {
+                                selectedMoment = moment
+                                selectedMomentIndex = selectedIndex
+                                showingDetail = true
+                            }
                         }
                     }
                 )
@@ -129,6 +135,10 @@ struct LocationMapView: View {
                 isPresented: $showingDetail
             )
         }
+        .onChange(of: showingDetail) { _ in
+            // ✅ onChange vacío para mantener la funcionalidad
+        }
+
     }
     
     // ✅ MISMO FONDO QUE TU FEEDVIEW
@@ -208,7 +218,7 @@ struct LocationMapView: View {
                     
                     HStack(spacing: 8) {
                         if !locationMoments.isEmpty {
-                            Text("\(locationMoments.count) fotos")
+                            Text(String(format: NSLocalizedString("maps.location.moments", comment: "Number of moments in location"), locationMoments.count))
                                 .font(.custom("Poppins-Regular", size: 12))
                                 .foregroundColor(adaptiveColors.tertiary)
                         }
@@ -553,7 +563,7 @@ struct LocationMapView: View {
                 }
                 
                 VStack(spacing: 8) {
-                    Text("Cargando ubicación")
+                    Text(NSLocalizedString("maps.loading.location", comment: "Loading location message"))
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(adaptiveColors.primary)
                     
@@ -600,7 +610,7 @@ struct LocationMapView: View {
                 }
                 
                 VStack(spacing: 12) {
-                    Text("No se pudo cargar la ubicación")
+                    Text(NSLocalizedString("maps.error.locationLoadFailed", comment: "Location load failed error message"))
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(adaptiveColors.primary)
                     
@@ -615,7 +625,7 @@ struct LocationMapView: View {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 14, weight: .semibold))
                             
-                            Text("Reintentar")
+                            Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
                                 .font(.custom("Poppins-SemiBold", size: 14))
                         }
                         .foregroundColor(.white)
@@ -652,7 +662,7 @@ struct LocationMapView: View {
                                 UIApplication.shared.open(settingsURL)
                             }
                         }) {
-                            Text("Configurar permisos")
+                            Text(NSLocalizedString("maps.error.configurePermissions", comment: "Configure permissions button text"))
                                 .font(.custom("Poppins-Regular", size: 12))
                                 .foregroundColor(adaptiveColors.accent)
                                 .underline()
@@ -2045,7 +2055,7 @@ struct LocationBottomSheet: View {
                         .multilineTextAlignment(.leading)
                     
                     HStack(spacing: 8) {
-                        Text("\(moments.count) \(moments.count == 1 ? "foto" : "fotos")")
+                        Text(String(format: NSLocalizedString("maps.bottomSheet.moments", comment: "Number of moments in location"), moments.count))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(adaptiveColors.secondary)
                         
@@ -2152,21 +2162,33 @@ struct LocationBottomSheet: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
             ForEach(moments) { moment in
                 Button(action: { onMomentTap(moment) }) {
-                    AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(1, contentMode: .fill)
-                            .clipped()
-                    } placeholder: {
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .aspectRatio(1, contentMode: .fill)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .tint(adaptiveColors.accent)
-                                    .scaleEffect(0.6)
-                            )
+                    // ✅ DETECTAR SI ES VIDEO O IMAGEN
+                    if moment.videoUrl != nil {
+                        // ✅ MOSTRAR THUMBNAIL DE VIDEO
+                        MapsVideoThumbnailView(
+                            moment: moment,
+                            size: CGSize(width: 120, height: 120),
+                            cornerRadius: 6,
+                            colorScheme: colorScheme
+                        )
+                    } else {
+                        // ✅ MOSTRAR IMAGEN NORMAL
+                        AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(1, contentMode: .fill)
+                                .clipped()
+                        } placeholder: {
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .aspectRatio(1, contentMode: .fill)
+                                .overlay(
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                        .tint(adaptiveColors.accent)
+                                        .scaleEffect(0.6)
+                                )
+                        }
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -2217,11 +2239,11 @@ struct LocationBottomSheet: View {
             }
             
             VStack(spacing: 8) {
-                Text("Cargando momentos...")
+                Text(NSLocalizedString("maps.bottomSheet.loading.moments", comment: "Loading moments message"))
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(adaptiveColors.primary)
                 
-                Text("Filtrando por privacidad")
+                Text(NSLocalizedString("maps.bottomSheet.loading.filtering", comment: "Filtering by privacy message"))
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(adaptiveColors.secondary)
             }
@@ -2261,11 +2283,11 @@ struct LocationBottomSheet: View {
             }
             
             VStack(spacing: 12) {
-                Text("No hay fotos en este lugar")
+                Text(NSLocalizedString("maps.bottomSheet.empty.title", comment: "No moments in this location"))
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(adaptiveColors.primary)
                 
-                Text("Sé el primero en compartir un momento aquí")
+                Text(NSLocalizedString("maps.bottomSheet.empty.subtitle", comment: "Be the first to share a moment here"))
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(adaptiveColors.secondary)
                     .multilineTextAlignment(.center)
@@ -2333,6 +2355,80 @@ struct LocationBottomSheet: View {
     }
 }
 
+// ✅ COMPONENTE PARA THUMBNAIL DE VIDEO
+struct MapsVideoThumbnailView: View {
+    let moment: Moment
+    let size: CGSize
+    let cornerRadius: CGFloat
+    let colorScheme: ColorScheme
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    var body: some View {
+        ZStack {
+            // ✅ THUMBNAIL DEL VIDEO
+            AsyncImage(url: URL(string: moment.thumbnailUrl ?? moment.imagePath ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size.width, height: size.height)
+                    .clipped()
+            } placeholder: {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: size.width, height: size.height)
+                    .overlay(
+                        ProgressView()
+                            .tint(adaptiveColors.accent)
+                            .scaleEffect(0.6)
+                    )
+            }
+            
+            // ✅ OVERLAY OSCURO PARA ICONO
+            Rectangle()
+                .fill(.black.opacity(0.3))
+                .frame(width: size.width, height: size.height)
+            
+            // ✅ ICONO DE PLAY
+            Image(systemName: "play.circle.fill")
+                .font(.system(size: size.width * 0.3))
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
+            
+            // ✅ DURACIÓN DEL VIDEO (si está disponible)
+            if let duration = moment.videoDuration {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Text(formatVideoDuration(duration))
+                            .font(.custom("Poppins-Medium", size: 10))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(.black.opacity(0.7))
+                            )
+                            .padding(.trailing, 6)
+                            .padding(.bottom, 6)
+                    }
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+    
+    // ✅ FORMATO DE DURACIÓN
+    private func formatVideoDuration(_ duration: Double) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
 // ✅ ROW PARA VISTA DE LISTA CON GLASSMORPHISM
 struct LocationMomentRow: View {
     let moment: Moment
@@ -2346,33 +2442,55 @@ struct LocationMomentRow: View {
     var body: some View {
         Button(action: { onTap(moment) }) {
             HStack(spacing: 12) {
-                // ✅ IMAGEN CON GLASSMORPHISM
-                AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: adaptiveColors.overlayStroke,
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 60, height: 60)
-                        .overlay(
-                            ProgressView()
-                                .tint(adaptiveColors.accent)
-                                .scaleEffect(0.7)
-                        )
+                // ✅ DETECTAR SI ES VIDEO O IMAGEN
+                if moment.videoUrl != nil {
+                    // ✅ MOSTRAR THUMBNAIL DE VIDEO
+                    MapsVideoThumbnailView(
+                        moment: moment,
+                        size: CGSize(width: 60, height: 60),
+                        cornerRadius: 12,
+                        colorScheme: colorScheme
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                LinearGradient(
+                                    colors: adaptiveColors.overlayStroke,
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                } else {
+                    // ✅ IMAGEN CON GLASSMORPHISM
+                    AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 60, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: adaptiveColors.overlayStroke,
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                ProgressView()
+                                    .tint(adaptiveColors.accent)
+                                    .scaleEffect(0.7)
+                            )
+                    }
                 }
                 
                 // ✅ INFO DEL MOMENTO

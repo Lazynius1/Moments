@@ -290,9 +290,12 @@ struct ActionSubCardView: View {
                     Image(systemName: moment.reactions["heart"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false ? "heart.fill" : "heart")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.white)
-                    Text("\(moment.reactions["heart"]?.count ?? 0)")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
+                    // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                    if moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts {
+                        Text("\(moment.reactions["heart"]?.count ?? 0)")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                    }
                 }
             }
             

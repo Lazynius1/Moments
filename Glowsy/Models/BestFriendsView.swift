@@ -472,7 +472,7 @@ class BestFriendsViewModel: ObservableObject {
                 defer { dispatchGroup.leave() }
                 
                 if let error = error {
-                    print("Error fetching batch: \(error)")
+                    // Error fetching batch
                     return
                 }
                 
