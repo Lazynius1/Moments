@@ -243,15 +243,15 @@ struct ModernCommentsView: View {
                     // ✅ NUEVO: Indicador de carga en el header
                     if isLoading {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                             .scaleEffect(0.8)
                     } else if !comments.isEmpty {
                         Text("(\(totalCommentsCount))")
                             .font(.custom("Poppins-Medium", size: 14))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Color.white.opacity(0.2))
+                            .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
                             .clipShape(Capsule())
                     }
                 }
@@ -335,7 +335,7 @@ struct ModernCommentsView: View {
                 if isLoading {
                     VStack(spacing: 16) {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                             .scaleEffect(1.2)
                         
                         Text("modernComments.loading")
@@ -393,12 +393,12 @@ struct ModernCommentsView: View {
         HStack(spacing: 12) {
             Image(systemName: "arrowshape.turn.up.left.fill")
                 .font(.system(size: 14))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(format: NSLocalizedString("modernComments.replyingTo", comment: "Replying to user"), replyComment.username))
                     .font(.custom("Poppins-Medium", size: 13))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 
                 Text(String(replyComment.content.prefix(50)) + (replyComment.content.count > 50 ? "..." : ""))
                     .font(.custom("Poppins-Regular", size: 11))
@@ -446,11 +446,11 @@ struct ModernCommentsView: View {
                             HStack {
                                 Image(systemName: "pencil")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 Text("modernComments.editing")
                                     .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 Spacer()
                             }
@@ -487,7 +487,7 @@ struct ModernCommentsView: View {
                             }) {
                                 if isLoading {
                                     ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                                         .scaleEffect(0.8)
                                         .frame(width: 36, height: 36)
                                         .background(
@@ -577,7 +577,7 @@ struct ModernCommentsView: View {
                                 
                                 if isLoading {
                                     ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                                         .scaleEffect(0.8)
                                 } else {
                                     Image(systemName: "paperplane.fill")
@@ -994,11 +994,11 @@ struct EnhancedModernCommentRow: View {
                     HStack {
                         Image(systemName: "arrow.turn.down.right")
                             .font(.system(size: 12))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text(String(format: NSLocalizedString("modernComments.viewMoreReplies", comment: "View more replies"), nestedComments.count))
                             .font(.custom("Poppins-Medium", size: 12))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -1107,7 +1107,7 @@ struct EnhancedModernCommentRow: View {
                 if nestingLevel > 0 {
                     Image(systemName: "arrowshape.turn.up.left")
                         .font(.system(size: 10))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 
                 HStack(spacing: 3) {
@@ -1162,7 +1162,7 @@ struct EnhancedModernCommentRow: View {
                 Button(action: { showFullContent.toggle() }) {
                     Text(showFullContent ? "Ver menos" : "Ver más")
                         .font(.custom("Poppins-Medium", size: 11))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
         }
@@ -1176,7 +1176,7 @@ struct EnhancedModernCommentRow: View {
             .overlay(
                 Text(highlightMentions(in: displayContent))
                     .font(.custom("Poppins-SemiBold", size: nestingLevel == 0 ? 14 : 13))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
             )
             .allowsHitTesting(false)
     }
@@ -1254,7 +1254,7 @@ struct EnhancedModernCommentRow: View {
                     text: "Responder",
                     count: nil,
                     isActive: false,
-                    activeColor: .white
+                    activeColor: colorScheme == .dark ? .white : .black
                 ) {
                     onReply(comment)
                 }
@@ -1267,7 +1267,7 @@ struct EnhancedModernCommentRow: View {
                     text: "\(nestedComments.count) respuesta\(nestedComments.count == 1 ? "" : "s")",
                     count: nil,
                     isActive: isExpanded,
-                    activeColor: .white
+                    activeColor: colorScheme == .dark ? .white : .black
                 ) {
                     if let commentId = comment.id {
                         onToggleExpand(commentId)
@@ -1367,18 +1367,18 @@ struct CommentActionButton: View {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 14))
-                    .foregroundColor(isActive ? activeColor : .gray.opacity(0.6))
+                    .foregroundColor(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
                 
                 if !text.isEmpty {
                     Text(text)
                         .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(isActive ? activeColor : .gray.opacity(0.6))
+                        .foregroundColor(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
                 }
                 
                 if let count = count, count > 0 {
                     Text("\(count)")
                         .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(.gray.opacity(0.6))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
             .padding(.horizontal, 8)
@@ -1388,10 +1388,10 @@ struct CommentActionButton: View {
                     if isActive {
                         activeColor.opacity(0.1)
                     } else {
-                        Color.black.opacity(0.3)
+                        (colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.1))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                                    .stroke(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 0.5)
                             )
                     }
                 }

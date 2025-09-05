@@ -1021,10 +1021,29 @@ struct GlassmorphicStoryViewer: View {
         return nil
     }
     
+    // ✅ FUNCIÓN HELPER: Detectar aspect ratio de una imagen
+    static func detectImageAspectRatio(from url: URL) async -> String? {
+        guard let data = try? Data(contentsOf: url),
+              let image = UIImage(data: data) else {
+            return nil
+        }
+        
+        let width = Int(image.size.width)
+        let height = Int(image.size.height)
+        let aspectRatio = "\(width):\(height)"
+        
+        print("🖼️ DETECTADO ASPECT RATIO DE IMAGEN:")
+        print("   - URL: \(url)")
+        print("   - Tamaño: \(width) x \(height)")
+        print("   - Aspect ratio: \(aspectRatio)")
+        
+        return aspectRatio
+    }
+    
     // ✅ FUNCIÓN HELPER: Determinar si un aspect ratio es horizontal
     static func isHorizontalAspectRatio(_ aspectRatio: String?) -> Bool {
-        guard let aspectRatio = aspectRatio else { 
-            return false 
+        guard let aspectRatio = aspectRatio else {
+            return false
         }
         
         let components = aspectRatio.split(separator: ":")
@@ -1759,8 +1778,23 @@ struct GlassmorphicStoryViewer: View {
                             }
                         }
                         .resizable()
-                        .scaledToFill() // Para imágenes SÍ mantener scaledToFill
+                        .aspectRatio(contentMode: {
+                            // ✅ MISMA LÓGICA QUE VIDEOS: Usar aspectRatio del story
+                            let isHorizontal = GlassmorphicStoryViewer.isHorizontalAspectRatio(story.aspectRatio)
+                            return isHorizontal ? .fit : .fill
+                        }())
                         .frame(width: screenSize.width, height: screenSize.height)
+                        .background(
+                            // ✅ FONDO BLUR para imágenes (usando la misma imagen con blur)
+                            KFImage(url)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .blur(radius: 20) // ✅ BLUR INTENSO para fondo
+                                .scaleEffect(1.3) // ✅ ESCALADO PARA EVITAR BORDES
+                                .clipped()
+                        )
+                        .clipped()
                 } else {
                     ZStack {
                         Color.black
@@ -2120,8 +2154,8 @@ struct GlassmorphicStoryViewer: View {
         imageTimer?.invalidate()
         
         imageTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-            guard !self.isPaused else { 
-                return 
+            guard !self.isPaused else {
+                return
             }
             
             self.progress += 0.05 / duration
@@ -3546,8 +3580,8 @@ struct InteractivePollSticker: View {
         Firestore.firestore().collection("users").document(userId)
             .collection("stories").document(storyId)
             .collection("pollVotes").getDocuments { snapshot, error in
-                guard let documents = snapshot?.documents else { 
-                    return 
+                guard let documents = snapshot?.documents else {
+                    return
                 }
                 
                 var counts: [Int: Int] = [0: 0, 1: 0]

@@ -68,6 +68,7 @@ struct SmartNativeAdView: View {
         }
         .sheet(isPresented: $showingATTPreAlert) {
             ATTPreAlertView(isPresented: $showingATTPreAlert)
+                .presentationBackground(.clear)
         }
     }
 
@@ -369,70 +370,106 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
     }
 }
 
-// MARK: - ATT Pre-Alert View (mantener igual)
+// MARK: - ATT Pre-Alert View con Glassmorphism
 struct ATTPreAlertView: View {
     @Binding var isPresented: Bool
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "hand.raised.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 60, height: 60)
-                .foregroundColor(Color(hex: "00A896"))
-
-            Text("Ayúdanos a mostrarte anuncios más relevantes")
-                .font(.custom("Poppins-SemiBold", size: 20))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-                .foregroundColor(.white)
-
-            Text("Para poder seguir ofreciéndote esta aplicación de forma gratuita, necesitamos mostrarte anuncios. Al permitir el seguimiento, nos ayudas a personalizar los anuncios para que sean más interesantes para ti. Si prefieres no permitir el seguimiento, seguirás viendo anuncios pero serán menos relevantes para tus intereses.")
-                .font(.custom("Poppins-Regular", size: 15))
-                .multilineTextAlignment(.center)
-                .foregroundColor(.white.opacity(0.8))
-                .padding(.horizontal)
-
-            Button {
-                isPresented = false
-                // Limpiar la preferencia cuando acepta
-                UserDefaults.standard.removeObject(forKey: "userDeclinedATTAlert")
-                AdMobConfiguration.shared.requestATTAuthorization()
-            } label: {
-                Text("Permitir seguimiento")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity)
-                    .background(Color(hex: "00A896"))
-                    .cornerRadius(15)
-            }
-            .padding(.horizontal)
-
-            Button {
-                isPresented = false
-                // Guardar que el usuario no quiere ver la alerta de nuevo
-                UserDefaults.standard.set(true, forKey: "userDeclinedATTAlert")
-            } label: {
-                Text("No, gracias")
-                    .font(.custom("Poppins-Medium", size: 16))
-                    .foregroundColor(.white.opacity(0.7))
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity)
-                    .cornerRadius(15)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 15)
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+        VStack(spacing: 24) {
+            // Icono con estilo glassmorphism
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "00A896").opacity(0.15))
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "hand.raised.fill")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
             }
-            .padding(.horizontal)
+
+            VStack(spacing: 16) {
+                Text(NSLocalizedString("attPreAlert.title", comment: "ATT Pre-Alert title"))
+                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                VStack(spacing: 12) {
+                    Text(NSLocalizedString("attPreAlert.description", comment: "ATT Pre-Alert description"))
+                        .font(.custom("Poppins-Regular", size: 15))
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    
+                    // Mensaje explicativo sobre la siguiente alerta
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "00A896"))
+                        
+                        Text(NSLocalizedString("attPreAlert.info", comment: "ATT Pre-Alert info message"))
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(hex: "00A896").opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(hex: "00A896").opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                }
+            }
+            .padding(.horizontal, 20)
+
+            VStack(spacing: 12) {
+                // Botón principal - Siempre lleva a la alerta nativa
+                Button {
+                    isPresented = false
+                    // Siempre mostrar la alerta nativa de iOS
+                    AdMobConfiguration.shared.requestATTAuthorization()
+                } label: {
+                    Text(NSLocalizedString("attPreAlert.continueButton", comment: "ATT Pre-Alert continue button"))
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            RoundedRectangle(cornerRadius: 25)
+                                .fill(Color(hex: "00A896"))
+                        )
+                }
+            }
+            .padding(.horizontal, 20)
         }
-        .padding(25)
+        .padding(.vertical, 30)
         .background(
-            RoundedRectangle(cornerRadius: 25)
-                .fill(Color(hex: "282C34"))
-                .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.3),
+                                    Color(hex: "00A896").opacity(0.4)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
         )
+        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .padding(.horizontal, 20)
     }
 }
@@ -527,11 +564,15 @@ struct IntegratedAdLoadingView: View {
 // MARK: - ✅ NUEVO: Anuncio nativo integrado al feed
 struct IntegratedNativeAdView: View {
     let nativeAd: NativeAd
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header con avatar y info
-            HStack(spacing: 12) {
+        Button(action: {
+            // El SDK maneja automáticamente los clicks cuando las vistas están registradas
+        }) {
+            VStack(spacing: 0) {
+                // Header con avatar y info
+                HStack(spacing: 12) {
                 // Avatar del anunciante
                 if let icon = nativeAd.icon {
                     AsyncImage(url: URL(string: icon.imageURL?.absoluteString ?? "")) { image in
@@ -580,12 +621,20 @@ struct IntegratedNativeAdView: View {
             
             // Media del anuncio
             IntegratedAdMediaView(nativeAd: nativeAd)
-                .frame(height: 400) // ✅ Tamaño fijo más grande para Google
+                .frame(height: 400) // ✅ Requerido por Google AdMob para monetización
             
             // Footer con botón de acción
             HStack {
                 Button(action: {
-                    // Acción del botón
+                    // Abrir el enlace del anunciante
+                    if let storeURL = nativeAd.store {
+                        if let url = URL(string: storeURL) {
+                            UIApplication.shared.open(url)
+                        }
+                    } else if let advertiser = nativeAd.advertiser {
+                        // Si no hay store URL, intentar con el nombre del anunciante
+                        print("Anunciante: \(advertiser)")
+                    }
                 }) {
                     Text(nativeAd.callToAction ?? "Más información")
                         .font(.custom("Poppins-SemiBold", size: 14))
@@ -606,10 +655,13 @@ struct IntegratedNativeAdView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            }
+            .background(Color(.systemBackground))
+            .cornerRadius(20) // ✅ Mismo radio que los momentos
+            .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8) // ✅ Sombra adaptativa
+            .padding(.horizontal, 16)
         }
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .padding(.horizontal, 16)
+        .buttonStyle(PlainButtonStyle()) // Evitar estilos de botón por defecto
     }
 }
 
@@ -625,12 +677,13 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
         mediaView.backgroundColor = UIColor.systemGray6
-        mediaView.layer.cornerRadius = 8
+        mediaView.layer.cornerRadius = 16 // ✅ Mismo radio que los momentos
         mediaView.clipsToBounds = true
         mediaView.mediaContent = nativeAd.mediaContent
         
         // ✅ CRÍTICO: Registrar el MediaView con el NativeAd para que Google lo detecte
-        nativeAd.register(mediaView, clickableAssetViews: [:], nonclickableAssetViews: [:])
+        // Para anuncios nativos, necesitamos registrar el MediaView como clickable
+        nativeAd.register(mediaView, clickableAssetViews: [.imageAsset: mediaView], nonclickableAssetViews: [:])
         
         
         // Configurar video si existe
@@ -650,8 +703,12 @@ struct IntegratedAdMediaView: UIViewRepresentable {
             mediaView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
             
             // ✅ CRÍTICO: GARANTIZAR TAMAÑO MÍNIMO requerido por Google
-            mediaView.heightAnchor.constraint(equalToConstant: 400), // Tamaño fijo más grande para Google
-            mediaView.widthAnchor.constraint(greaterThanOrEqualToConstant: 150)   // Mínimo 150px, pero flexible
+            mediaView.heightAnchor.constraint(equalToConstant: 400), // Requerido por Google AdMob para monetización
+            mediaView.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),   // Mínimo 150px, pero flexible
+            
+            // ✅ CRÍTICO: TAMAÑO MÍNIMO DEL CONTENEDOR para que Google lo detecte correctamente
+            containerView.heightAnchor.constraint(equalToConstant: 400),
+            containerView.widthAnchor.constraint(greaterThanOrEqualToConstant: 150)
         ])
         
         

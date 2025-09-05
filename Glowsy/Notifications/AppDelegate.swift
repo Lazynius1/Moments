@@ -17,17 +17,17 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // ✅ NUEVO: Configurar badge service
         NotificationBadgeService.shared.setupListeners()
         
-        // ✅ SOLICITAR PERMISOS Y REGISTRAR para notificaciones remotas
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            if let error = error {
-            }
-            if granted {
-                DispatchQueue.main.async {
-                    application.registerForRemoteNotifications()
-                }
-            } else {
-            }
-        }
+        // ✅ PERMISOS DE NOTIFICACIONES MOVIDOS AL FEED
+        // UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+        //     if let error = error {
+        //     }
+        //     if granted {
+        //         DispatchQueue.main.async {
+        //             application.registerForRemoteNotifications()
+        //         }
+        //     } else {
+        //     }
+        // }
         
         return true
     }

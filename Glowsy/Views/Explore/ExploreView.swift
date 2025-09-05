@@ -15,6 +15,7 @@ struct ExploreView: View {
     @State private var selectedUser: AppUser?
     @State private var scrollOffset: CGFloat = 0
     @State private var showTrendingView = false
+    @State private var showSuggestedUsersView = false
     let initialSearchQuery: String?
     
     init(initialSearchQuery: String? = nil) {
@@ -68,6 +69,13 @@ struct ExploreView: View {
             }
             .fullScreenCover(isPresented: $showTrendingView) {
                 TrendingView()
+            }
+            .sheet(isPresented: $showSuggestedUsersView) {
+                SuggestedUsersView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .interactiveDismissDisabled(false)
+                    .presentationBackground(.clear)
             }
         }
     }
@@ -228,6 +236,9 @@ struct ExploreView: View {
                 onUserTap: { user in
                     selectedUser = user
                     viewModel.checkCanViewContent(for: user.id) { _ in }
+                },
+                onShowMore: {
+                    showSuggestedUsersView = true
                 }
             )
             .padding(.horizontal, 12)
@@ -485,6 +496,7 @@ struct SuggestedUsersSection: View {
     let userButtonStates: [String: FollowButtonState]
     let onFollowUser: (String) -> Void
     let onUserTap: (AppUser) -> Void
+    let onShowMore: () -> Void
     
     var body: some View {
         if !users.isEmpty {
@@ -502,8 +514,8 @@ struct SuggestedUsersSection: View {
                     
                     Spacer()
                     
-                    Button("Ver más") {
-                        // Acción para ver más usuarios
+                    Button("explore.suggestedUsers.seeMore") {
+                        onShowMore()
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(Color(hex: "667eea"))
@@ -1220,7 +1232,7 @@ class ExploreViewModel: ObservableObject {
             }
             
             DispatchQueue.main.async {
-                self.suggestedUsers = Array(sortedUsers.prefix(15))
+                self.suggestedUsers = Array(sortedUsers.prefix(10))
         
             }
             

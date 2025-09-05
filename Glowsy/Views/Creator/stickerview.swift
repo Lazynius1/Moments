@@ -2126,6 +2126,32 @@ struct SmartLocationInputView: View {
                         .foregroundColor(.white)
                     
                     Spacer()
+                    
+                    // Botón de actualizar ubicación
+                    if locationManager.authorizationStatus == .authorizedWhenInUse || 
+                       locationManager.authorizationStatus == .authorizedAlways {
+                        Button(action: {
+                            refreshLocationAndPlaces()
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Actualizar")
+                            }
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.white.opacity(0.2))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        .disabled(isLoadingNearby)
+                    }
                 }
                 
                 // Barra de búsqueda inteligente
@@ -2251,6 +2277,10 @@ struct SmartLocationInputView: View {
             if status == .authorizedWhenInUse || status == .authorizedAlways {
                 requestLocationAndSearch()
             }
+        }
+        .onDisappear {
+            // Limpiar memoria al cerrar la vista
+            cleanupMemory()
         }
     }
     
@@ -2393,49 +2423,105 @@ struct SmartLocationInputView: View {
         locationManager.requestLocation()
     }
     
+    private func refreshLocationAndPlaces() {
+        // Recargar ubicación y lugares cercanos
+        isLoadingNearby = true
+        locationManager.requestLocation()
+        
+        // Si ya tenemos ubicación, recargar lugares cercanos inmediatamente
+        if let currentLocation = locationManager.location {
+            userLocation = currentLocation
+            searchNearbyPlaces()
+        }
+    }
+    
     private func searchNearbyPlaces() {
         guard let userLocation = userLocation else { return }
         
         isLoadingNearby = true
         
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = "restaurants cafes shops"
-        request.region = MKCoordinateRegion(
-            center: userLocation.coordinate,
-            latitudinalMeters: 2000, // 2km radius
-            longitudinalMeters: 2000
-        )
+        // Búsqueda más específica para lugares útiles (como en LocationPickerView)
+        let searchQueries = [
+            "restaurantes",
+            "cafés",
+            "tiendas",
+            "parques",
+            "museos",
+            "hoteles",
+            "farmacias",
+            "bancos",
+            "estaciones de metro",
+            "bibliotecas"
+        ]
         
-        let search = MKLocalSearch(request: request)
-        search.start { response, error in
-            DispatchQueue.main.async {
-                self.isLoadingNearby = false
+        var allPlaces: [LocationResult] = []
+        let group = DispatchGroup()
+        
+        // Limitar a 4 búsquedas simultáneas para reducir memoria
+        for query in searchQueries.prefix(4) {
+            group.enter()
+            
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            request.region = MKCoordinateRegion(
+                center: userLocation.coordinate,
+                latitudinalMeters: 1500, // Reducir radio a 1.5km
+                longitudinalMeters: 1500
+            )
+            request.resultTypes = .pointOfInterest
+            
+            let search = MKLocalSearch(request: request)
+            search.start { response, error in
+                defer { group.leave() }
                 
-                guard let response = response else {
-                    return
+                if let response = response {
+                    let places: [LocationResult] = response.mapItems.prefix(2).compactMap { item in // Máximo 2 por categoría
+                        guard let name = item.name else { return nil }
+                        
+                        let distance = userLocation.distance(from: CLLocation(
+                            latitude: item.placemark.coordinate.latitude,
+                            longitude: item.placemark.coordinate.longitude
+                        ))
+                        
+                        let fullAddress = formatAddress(item.placemark)
+                        let fullName = "\(name), \(fullAddress)"
+                        
+                        return LocationResult(
+                            displayName: name,
+                            fullName: fullName,
+                            address: fullAddress,
+                            distance: distance,
+                            category: item.pointOfInterestCategory?.rawValue ?? "place",
+                            coordinate: item.placemark.coordinate
+                        )
+                    }
+                    
+                    DispatchQueue.main.async {
+                        allPlaces.append(contentsOf: places)
+                    }
                 }
-                
-                self.nearbyPlaces = response.mapItems.prefix(10).compactMap { item in
-                    guard let name = item.name else { return nil }
-                    
-                    let distance = userLocation.distance(from: CLLocation(
-                        latitude: item.placemark.coordinate.latitude,
-                        longitude: item.placemark.coordinate.longitude
-                    ))
-                    
-                    let fullAddress = formatAddress(item.placemark)
-                    let fullName = "\(name), \(fullAddress)"
-                    
-                    return LocationResult(
-                        displayName: name, // ✅ SOLO EL NOMBRE DEL LUGAR
-                        fullName: fullName, // ✅ NOMBRE COMPLETO PARA PRECISIÓN
-                        address: fullAddress,
-                        distance: distance,
-                        category: item.pointOfInterestCategory?.rawValue ?? "place",
-                        coordinate: item.placemark.coordinate
-                    )
-                }.sorted { $0.distance ?? 0 < $1.distance ?? 0 }
             }
+        }
+        
+        group.notify(queue: .main) {
+            // Filtrar duplicados manualmente y ordenar por distancia
+            var uniquePlaces: [LocationResult] = []
+            var seenCoordinates: Set<String> = []
+            
+            for place in allPlaces {
+                let coordinateKey = "\(place.coordinate.latitude),\(place.coordinate.longitude)"
+                if !seenCoordinates.contains(coordinateKey) {
+                    seenCoordinates.insert(coordinateKey)
+                    uniquePlaces.append(place)
+                }
+            }
+            
+            let sortedPlaces = uniquePlaces.sorted { $0.distance ?? 0 < $1.distance ?? 0 }
+            self.nearbyPlaces = Array(sortedPlaces.prefix(12)) // 12 lugares totales
+            self.isLoadingNearby = false
+            
+            // Limpiar memoria
+            allPlaces.removeAll()
         }
     }
     
@@ -2454,8 +2540,8 @@ struct SmartLocationInputView: View {
         if let userLocation = userLocation {
             request.region = MKCoordinateRegion(
                 center: userLocation.coordinate,
-                latitudinalMeters: 10000, // 10km radius for search
-                longitudinalMeters: 10000
+                latitudinalMeters: 5000, // Reducir radio a 5km para ahorrar memoria
+                longitudinalMeters: 5000
             )
         }
         
@@ -2469,7 +2555,8 @@ struct SmartLocationInputView: View {
                     return
                 }
                 
-                self.searchResults = response.mapItems.prefix(15).compactMap { item in
+                // Ordenamiento inteligente por relevancia y distancia
+                let sortedResults: [LocationResult] = response.mapItems.prefix(15).compactMap { item in
                     guard let name = item.name else { return nil }
                     
                     let distance = self.userLocation?.distance(from: CLLocation(
@@ -2481,16 +2568,47 @@ struct SmartLocationInputView: View {
                     let fullName = "\(name), \(fullAddress)"
                     
                     return LocationResult(
-                        displayName: name, // ✅ SOLO EL NOMBRE DEL LUGAR
-                        fullName: fullName, // ✅ NOMBRE COMPLETO PARA PRECISIÓN
+                        displayName: name,
+                        fullName: fullName,
                         address: fullAddress,
                         distance: distance,
                         category: item.pointOfInterestCategory?.rawValue ?? "place",
                         coordinate: item.placemark.coordinate
                     )
-                }.sorted { ($0.distance ?? Double.greatestFiniteMagnitude) < ($1.distance ?? Double.greatestFiniteMagnitude) }
+                }.sorted { item1, item2 in
+                    // Priorizar lugares con nombre
+                    let hasName1 = !item1.displayName.isEmpty
+                    let hasName2 = !item2.displayName.isEmpty
+                    
+                    if hasName1 != hasName2 {
+                        return hasName1
+                    }
+                    
+                    // Si ambos tienen nombre, priorizar por tipo (POI primero)
+                    if hasName1 && hasName2 {
+                        let isPOI1 = item1.category != "place"
+                        let isPOI2 = item2.category != "place"
+                        if isPOI1 != isPOI2 {
+                            return isPOI1
+                        }
+                    }
+                    
+                    // Finalmente, ordenar por distancia
+                    return (item1.distance ?? Double.greatestFiniteMagnitude) < (item2.distance ?? Double.greatestFiniteMagnitude)
+                }
+                
+                self.searchResults = sortedResults
             }
         }
+    }
+    
+    private func cleanupMemory() {
+        // Limpiar arrays para liberar memoria
+        nearbyPlaces.removeAll()
+        searchResults.removeAll()
+        searchText = ""
+        isSearching = false
+        isLoadingNearby = false
     }
     
     private func formatAddress(_ placemark: CLPlacemark) -> String {

@@ -87,9 +87,22 @@ struct LocationMapView: View {
                 VStack {
                     HStack {
                         Spacer()
-                        WeatherIndicatorView(weather: weather, colorScheme: colorScheme)
-                            .padding(.trailing, 20)
-                            .padding(.top, 100) // Debajo del header
+                        VStack(spacing: 4) {
+                            WeatherIndicatorView(weather: weather, colorScheme: colorScheme)
+                            
+                            // ✅ ATRIBUCIÓN DE APPLE WEATHER (REQUERIDA)
+                            HStack(spacing: 4) {
+                                Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
+                                    .font(.custom("Poppins-Regular", size: 9))
+                                    .foregroundColor(.secondary)
+                                
+                                Link(NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"), destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
+                                    .font(.custom("Poppins-Medium", size: 9))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.top, 100) // Debajo del header
                     }
                     Spacer()
                 }

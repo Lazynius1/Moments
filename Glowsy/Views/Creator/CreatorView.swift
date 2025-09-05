@@ -3414,16 +3414,25 @@ struct LocationPickerView: View {
     @Binding var selectedLocation: CLLocationCoordinate2D?
     @Binding var locationName: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     
     @State private var searchText = ""
     @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 41.3874, longitude: 2.1686), // Barcelona
+        center: CLLocationCoordinate2D(latitude: 41.3874, longitude: 2.1686), // Barcelona por defecto
         span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
     )
     @State private var searchResults: [MKMapItem] = []
     @State private var isSearching = false
     @State private var showingNearbyPlaces = true
     @State private var nearbyPlaces: [MKMapItem] = []
+    @State private var isRequestingLocation = false
+    @State private var locationError: String?
+    
+    @StateObject private var locationManager = LocationUtilities.shared
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
     
     var body: some View {
         NavigationView {
@@ -3431,11 +3440,11 @@ struct LocationPickerView: View {
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
+                        .foregroundColor(adaptiveColors.secondary)
                     
                     TextField("Buscar ubicación...", text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
-                        .foregroundColor(.white)
+                        .foregroundColor(adaptiveColors.primary)
                         .onSubmit {
                             searchLocation()
                         }
@@ -3446,12 +3455,14 @@ struct LocationPickerView: View {
                             showingNearbyPlaces = true
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
+                                .foregroundColor(adaptiveColors.secondary)
                         }
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.2))
+                .background(
+                    colorScheme == .dark ? Color.gray.opacity(0.2) : Color.gray.opacity(0.1)
+                )
                 .cornerRadius(10)
                 .padding()
                 
@@ -3469,11 +3480,34 @@ struct LocationPickerView: View {
                         requestCurrentLocation()
                     }) {
                         HStack {
-                            Image(systemName: "location.fill")
+                            if isRequestingLocation {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.blue)
+                            } else {
+                                Image(systemName: "location.fill")
+                            }
                             Text("creator.location.useCurrent")
                         }
                         .foregroundColor(.blue)
                         .padding(.vertical, 8)
+                    }
+                    .disabled(isRequestingLocation)
+                    
+                    // Botón para actualizar ubicación si ya tenemos permisos
+                    if locationManager.authorizationStatus == .authorizedWhenInUse || 
+                       locationManager.authorizationStatus == .authorizedAlways {
+                        Button(action: {
+                            updateCurrentLocationAndNearbyPlaces()
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Actualizar")
+                            }
+                            .foregroundColor(.green)
+                            .padding(.vertical, 8)
+                        }
+                        .disabled(isRequestingLocation)
                     }
                     
                     Spacer()
@@ -3481,13 +3515,27 @@ struct LocationPickerView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
                 
+                // Error message
+                if let error = locationError {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
+                
                 // Places list
                 if isSearching {
                     Spacer()
                     ProgressView()
-                        .tint(.white)
+                        .tint(adaptiveColors.accent)
                     Text("creator.searching")
-                        .foregroundColor(.gray)
+                        .foregroundColor(adaptiveColors.secondary)
                         .padding(.top, 8)
                     Spacer()
                 } else {
@@ -3496,7 +3544,7 @@ struct LocationPickerView: View {
                             if showingNearbyPlaces {
                                 Text("creator.location.nearby")
                                     .font(.headline)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(adaptiveColors.primary)
                                     .padding(.horizontal)
                                     .padding(.top, 20)
                                     .padding(.bottom, 10)
@@ -3511,7 +3559,17 @@ struct LocationPickerView: View {
                     }
                 }
             }
-            .background(Color.black)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        colorScheme == .dark ? Color.black : Color.white,
+                        colorScheme == .dark ? Color(hex: "1a1a2e").opacity(0.9) : Color.gray.opacity(0.1),
+                        colorScheme == .dark ? Color(hex: "16213e").opacity(0.8) : Color.gray.opacity(0.05)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .navigationTitle("Añadir ubicación")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -3519,7 +3577,7 @@ struct LocationPickerView: View {
                     Button("Cancelar") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(adaptiveColors.primary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -3531,11 +3589,35 @@ struct LocationPickerView: View {
                     .disabled(selectedLocation == nil)
                 }
             }
-            .toolbarBackground(Color.black, for: .navigationBar)
+            .toolbarBackground(
+                colorScheme == .dark ? Color.black : Color.white,
+                for: .navigationBar
+            )
             .toolbarBackground(.visible, for: .navigationBar)
         }
         .onAppear {
             loadNearbyPlaces()
+        }
+        .onReceive(locationManager.$currentLocation) { location in
+            if let location = location, isRequestingLocation {
+                let coordinate = location.coordinate
+                selectedLocation = coordinate
+                
+                // Usar geocoding inverso para obtener el nombre real de la ubicación
+                getLocationNameFromCoordinates(coordinate)
+                
+                withAnimation {
+                    region.center = coordinate
+                }
+                isRequestingLocation = false
+                loadNearbyPlaces() // Recargar lugares cercanos con nueva ubicación
+            }
+        }
+        .onReceive(locationManager.$authorizationStatus) { status in
+            if status == .denied || status == .restricted {
+                locationError = "Permisos de ubicación denegados. Ve a Ajustes > Privacidad > Ubicación"
+                isRequestingLocation = false
+            }
         }
     }
     
@@ -3545,9 +3627,17 @@ struct LocationPickerView: View {
         isSearching = true
         showingNearbyPlaces = false
         
+        // Usar ubicación del usuario si está disponible, si no usar la región del mapa
+        let searchRegion = locationManager.currentLocation != nil ? 
+            MKCoordinateRegion(
+                center: locationManager.currentLocation!.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+            ) : region
+        
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = searchText
-        request.region = region
+        request.region = searchRegion
+        request.resultTypes = [.pointOfInterest, .address] // Incluir direcciones y POIs
         
         let search = MKLocalSearch(request: request)
         search.start { response, error in
@@ -3555,7 +3645,29 @@ struct LocationPickerView: View {
                 isSearching = false
                 
                 if let response = response {
-                    searchResults = response.mapItems
+                    // Ordenar resultados por relevancia y distancia
+                    let sortedResults = response.mapItems.sorted { item1, item2 in
+                        // Priorizar lugares con nombre
+                        let hasName1 = item1.name != nil && !item1.name!.isEmpty
+                        let hasName2 = item2.name != nil && !item2.name!.isEmpty
+                        
+                        if hasName1 != hasName2 {
+                            return hasName1
+                        }
+                        
+                        // Si ambos tienen nombre, priorizar por tipo (POI primero)
+                        if hasName1 && hasName2 {
+                            let isPOI1 = item1.pointOfInterestCategory != nil
+                            let isPOI2 = item2.pointOfInterestCategory != nil
+                            if isPOI1 != isPOI2 {
+                                return isPOI1
+                            }
+                        }
+                        
+                        return true
+                    }
+                    
+                    searchResults = sortedResults
                 } else {
                     searchResults = []
                 }
@@ -3564,32 +3676,168 @@ struct LocationPickerView: View {
     }
     
     private func loadNearbyPlaces() {
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = "Places"
-        request.region = region
+        // Priorizar ubicación del usuario, luego ubicación seleccionada, luego región por defecto
+        let centerCoordinate: CLLocationCoordinate2D
         
-        let search = MKLocalSearch(request: request)
-        search.start { response, error in
-            if let response = response {
-                DispatchQueue.main.async {
-                    nearbyPlaces = Array(response.mapItems.prefix(10))
+        if let currentLocation = locationManager.currentLocation {
+            centerCoordinate = currentLocation.coordinate
+        } else if let selectedLocation = selectedLocation {
+            centerCoordinate = selectedLocation
+        } else {
+            centerCoordinate = region.center
+        }
+        
+        let searchRegion = MKCoordinateRegion(
+            center: centerCoordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        )
+        
+        // Búsqueda más específica para lugares útiles
+        let searchQueries = [
+            "restaurantes",
+            "cafés",
+            "tiendas",
+            "parques",
+            "museos",
+            "hoteles",
+            "farmacias",
+            "bancos",
+            "estaciones de metro",
+            "bibliotecas"
+        ]
+        
+        var allPlaces: [MKMapItem] = []
+        let group = DispatchGroup()
+        
+        for query in searchQueries.prefix(5) { // Solo usar los primeros 5 para no sobrecargar
+            group.enter()
+            
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            request.region = searchRegion
+            request.resultTypes = .pointOfInterest
+            
+            let search = MKLocalSearch(request: request)
+            search.start { response, error in
+                defer { group.leave() }
+                
+                if let response = response {
+                    DispatchQueue.main.async {
+                        allPlaces.append(contentsOf: response.mapItems.prefix(3)) // Máximo 3 por categoría
+                    }
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            // Filtrar duplicados y ordenar por distancia
+            let uniquePlaces = Array(Set(allPlaces)).prefix(15)
+            self.nearbyPlaces = Array(uniquePlaces)
+        }
+    }
+    
+    private func requestCurrentLocation() {
+        isRequestingLocation = true
+        locationError = nil
+        
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            locationManager.requestLocationPermission()
+        case .denied, .restricted:
+            locationError = "Permisos de ubicación denegados. Ve a Ajustes > Privacidad > Ubicación"
+            isRequestingLocation = false
+        case .authorizedWhenInUse, .authorizedAlways:
+            if let currentLocation = locationManager.currentLocation {
+                let coordinate = currentLocation.coordinate
+                selectedLocation = coordinate
+                
+                // Usar geocoding inverso para obtener el nombre real de la ubicación
+                getLocationNameFromCoordinates(coordinate)
+                
+                withAnimation {
+                    region.center = coordinate
+                }
+                isRequestingLocation = false
+            } else {
+                // Si no hay ubicación actual, solicitar una nueva
+                locationManager.requestLocationPermission()
+            }
+        @unknown default:
+            locationError = "Estado de permisos desconocido"
+            isRequestingLocation = false
+        }
+    }
+    
+    private func getLocationNameFromCoordinates(_ coordinate: CLLocationCoordinate2D) {
+        let geocoder = CLGeocoder()
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        
+        geocoder.reverseGeocodeLocation(location) { placemarks, error in
+            DispatchQueue.main.async {
+                if let placemark = placemarks?.first {
+                    // Generar nombre limpio y conciso (estilo Instagram)
+                    self.locationName = self.generateCleanLocationName(from: placemark)
+                } else {
+                    self.locationName = "Ubicación actual"
                 }
             }
         }
     }
     
-    private func requestCurrentLocation() {
-        // In real implementation, request location permission and get current location
-        let currentCoordinate = CLLocationCoordinate2D(
-            latitude: 41.3874,
-            longitude: 2.1686
-        )
+    private func generateCleanLocationName(from placemark: CLPlacemark) -> String {
+        // Priorizar el nombre del lugar si existe
+        if let name = placemark.name, !name.isEmpty {
+            // Si es un lugar específico, usar solo el nombre + ciudad
+            if let locality = placemark.locality, !locality.isEmpty {
+                return "\(name), \(locality)"
+            }
+            return name
+        }
         
-        selectedLocation = currentCoordinate
-        locationName = "Mi ubicación actual"
+        // Si no hay nombre específico, usar calle + ciudad
+        if let thoroughfare = placemark.thoroughfare, !thoroughfare.isEmpty {
+            if let locality = placemark.locality, !locality.isEmpty {
+                return "\(thoroughfare), \(locality)"
+            }
+            return thoroughfare
+        }
         
-        withAnimation {
-            region.center = currentCoordinate
+        // Fallback a ciudad
+        if let locality = placemark.locality, !locality.isEmpty {
+            return locality
+        }
+        
+        if let administrativeArea = placemark.administrativeArea, !administrativeArea.isEmpty {
+            return administrativeArea
+        }
+        
+        return "Ubicación actual"
+    }
+    
+    private func updateCurrentLocationAndNearbyPlaces() {
+        isRequestingLocation = true
+        locationError = nil
+        
+        // Solicitar nueva ubicación
+        locationManager.requestLocationPermission()
+        
+        // También actualizar la región del mapa si tenemos ubicación actual
+        if let currentLocation = locationManager.currentLocation {
+            let coordinate = currentLocation.coordinate
+            
+            // Actualizar la región del mapa
+            withAnimation {
+                region.center = coordinate
+            }
+            
+            // Actualizar la ubicación seleccionada si no hay ninguna
+            if selectedLocation == nil {
+                selectedLocation = coordinate
+                getLocationNameFromCoordinates(coordinate)
+            }
+            
+            // Recargar lugares cercanos con la nueva ubicación
+            loadNearbyPlaces()
         }
     }
     
@@ -3611,25 +3859,112 @@ struct LocationAnnotation: Identifiable {
 struct LocationRow: View {
     let place: MKMapItem
     let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    private var categoryIcon: String {
+        guard let category = place.pointOfInterestCategory else { return "mappin" }
+        
+        switch category {
+        case .restaurant: return "fork.knife"
+        case .cafe: return "cup.and.saucer"
+        case .store: return "bag"
+        case .park: return "tree"
+        case .museum: return "building.columns"
+        case .hotel: return "bed.double"
+        case .pharmacy: return "cross.case"
+        case .bank: return "building.columns"
+        case .school: return "graduationcap"
+        case .hospital: return "cross.case"
+        case .gasStation: return "fuelpump"
+        case .airport: return "airplane"
+        case .beach: return "beach.umbrella"
+        case .theater: return "theatermasks"
+        case .stadium: return "sportscourt"
+        case .university: return "building.columns"
+        case .library: return "books.vertical"
+        case .postOffice: return "envelope"
+        case .police: return "shield"
+        case .fireStation: return "flame"
+        default: return "mappin"
+        }
+    }
+    
+    private var categoryName: String {
+        guard let category = place.pointOfInterestCategory else { return "Lugar" }
+        
+        switch category {
+        case .restaurant: return "Restaurante"
+        case .cafe: return "Café"
+        case .store: return "Tienda"
+        case .park: return "Parque"
+        case .museum: return "Museo"
+        case .hotel: return "Hotel"
+        case .pharmacy: return "Farmacia"
+        case .bank: return "Banco"
+        case .school: return "Escuela"
+        case .hospital: return "Hospital"
+        case .gasStation: return "Gasolinera"
+        case .airport: return "Aeropuerto"
+        case .beach: return "Playa"
+        case .theater: return "Teatro"
+        case .stadium: return "Estadio"
+        case .university: return "Universidad"
+        case .library: return "Biblioteca"
+        case .postOffice: return "Oficina de Correos"
+        case .police: return "Policía"
+        case .fireStation: return "Bomberos"
+        default: return "Lugar"
+        }
+    }
     
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(place.name ?? "Ubicación sin nombre")
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
+            HStack(spacing: 12) {
+                // Icono de categoría
+                Image(systemName: categoryIcon)
+                    .font(.title2)
+                    .foregroundColor(adaptiveColors.accent)
+                    .frame(width: 30)
                 
-                if let address = place.placemark.title {
-                    Text(address)
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(place.name ?? "Ubicación sin nombre")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(adaptiveColors.primary)
+                    
+                    HStack {
+                        Text(categoryName)
+                            .font(.caption)
+                            .foregroundColor(adaptiveColors.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(adaptiveColors.accent.opacity(0.2))
+                            .cornerRadius(8)
+                        
+                        if let address = place.placemark.title {
+                            Text(address)
+                                .font(.caption)
+                                .foregroundColor(adaptiveColors.secondary)
+                        }
+                    }
                 }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(adaptiveColors.secondary)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         Divider()
-            .background(Color.gray.opacity(0.3))
+            .background(
+                colorScheme == .dark ? Color.gray.opacity(0.3) : Color.gray.opacity(0.2)
+            )
     }
 }
 

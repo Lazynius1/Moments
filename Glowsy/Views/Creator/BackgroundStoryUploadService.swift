@@ -24,6 +24,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let customListId: String?
     let selectedListName: String?
     let createdAt: Date
+    let finalRenderedImage: UIImage? // ✅ NUEVA: Imagen renderizada final para detectar aspect ratio
     
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
@@ -44,7 +45,8 @@ class UploadingStory: ObservableObject, Identifiable {
         audienceSetting: ContentAudience,
         customViewers: [String]?,
         customListId: String?,
-        selectedListName: String?
+        selectedListName: String?,
+        finalRenderedImage: UIImage? = nil // ✅ NUEVO: Parámetro opcional
     ) {
         self.tempId = "temp_story_\(UUID().uuidString)"
         self.userId = userId
@@ -58,6 +60,7 @@ class UploadingStory: ObservableObject, Identifiable {
         self.customViewers = customViewers
         self.customListId = customListId
         self.selectedListName = selectedListName
+        self.finalRenderedImage = finalRenderedImage // ✅ NUEVO: Asignar la imagen renderizada
         self.createdAt = Date()
         
         // Configurar thumbnail
@@ -125,7 +128,8 @@ class BackgroundStoryUploadService: ObservableObject {
             audienceSetting: audienceSetting,
             customViewers: customViewers,
             customListId: customListId,
-            selectedListName: selectedListName
+            selectedListName: selectedListName,
+            finalRenderedImage: finalRenderedImage // ✅ NUEVO: Pasar la imagen renderizada
         )
         
         // Mostrar en el header inmediatamente
@@ -431,6 +435,19 @@ class BackgroundStoryUploadService: ObservableObject {
             if let aspectRatio = aspectRatio,
                GlassmorphicStoryViewer.isHorizontalAspectRatio(aspectRatio) {
                 backgroundFrameURL = await extractBackgroundFrame(from: videoURL)
+            }
+        } else if uploadingStory.mediaItem.type == .image {
+            // ✅ DETECTAR ASPECT RATIO PARA IMÁGENES
+            if let finalRenderedImage = uploadingStory.finalRenderedImage {
+                // Usar la imagen renderizada final para obtener el aspect ratio real
+                let width = Int(finalRenderedImage.size.width)
+                let height = Int(finalRenderedImage.size.height)
+                aspectRatio = "\(width):\(height)"
+                
+                print("🖼️ ASPECT RATIO DETECTADO PARA IMAGEN:")
+                print("   - Tamaño: \(width) x \(height)")
+                print("   - Aspect ratio: \(aspectRatio ?? "nil")")
+                print("   - ¿Es horizontal? \(GlassmorphicStoryViewer.isHorizontalAspectRatio(aspectRatio))")
             }
         }
         

@@ -104,6 +104,7 @@ struct FeedView: View {
     @State private var selectedUserId: String = ""
     // ✅ NUEVO: Cache básico para optimización
     @State private var cachedStories: [String: Bool] = [:]
+    @State private var cachedUnseenStories: [String: Bool] = [:]
     @State private var cachedStoriesTimestamp: Date = Date()
     @State private var hasLoadedInitialData = false
     // ✅ NUEVO: Mapa global
@@ -1263,6 +1264,7 @@ struct FeedView: View {
 
         hasLoadedInitialData = false
         cachedStories.removeAll()
+        cachedUnseenStories.removeAll()
         cachedStoriesTimestamp = Date()
         loadInitialData()
     }
@@ -1292,7 +1294,8 @@ struct FeedView: View {
                         // Agregar historias de otros desde cache
                         for followingId in followingIds {
                             if let hasStory = self.cachedStories[followingId], hasStory {
-                                finalUsers.append((userId: followingId, hasStory: true, hasUnseenStory: true))
+                                let hasUnseenStory = self.cachedUnseenStories[followingId] ?? true // Default a true si no está en cache
+                                finalUsers.append((userId: followingId, hasStory: true, hasUnseenStory: hasUnseenStory))
                             }
                         }
                         
@@ -1313,6 +1316,7 @@ struct FeedView: View {
                             syncQueue.async {
                                 // ✅ NUEVO: Guardar en cache
                                 self.cachedStories[userIdToCheck] = hasStory
+                                self.cachedUnseenStories[userIdToCheck] = hasUnseen
                                 
                                 if userIdToCheck == userId {
                                     // ✅ NUEVO: Tu historia va por separado
@@ -1358,6 +1362,10 @@ struct FeedView: View {
                     // ✅ CORREGIDO: Fallback también debe verificar tu historia
                     self.checkUserStories(userId: userId, currentUserId: userId) { hasStory, hasUnseen in
                         DispatchQueue.main.async {
+                            // Guardar en cache también en fallback
+                            self.cachedStories[userId] = hasStory
+                            self.cachedUnseenStories[userId] = hasUnseen
+                            
                             self.storyUsers = [(userId: userId, hasStory: hasStory, hasUnseenStory: false)]
                             self.isLoadingStories = false
                             continuation.resume()
@@ -1917,18 +1925,7 @@ struct ModernPostCardView: View {
                     .frame(height: max(cardHeight, 200))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 8)
+                    .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
                     .onAppear {
                         detectAspectRatio()
                     }

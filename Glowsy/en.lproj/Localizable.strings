@@ -2,6 +2,16 @@
 "global.seeMore" = "see more";
 "global.seeLess" = "see less";
 
+/* ATT Pre-Alert */
+"attPreAlert.title" = "Information about ads";
+"attPreAlert.description" = "This application shows ads to stay free. Next, you can choose whether you want ads to be personalized for you.";
+"attPreAlert.info" = "A system alert will appear where you can decide your preferences";
+"attPreAlert.continueButton" = "Continue";
+
+/* Weather Attribution */
+"weather.attribution.text" = "Data from";
+"weather.attribution.link" = "Weather by ";
+
 /* ProfileView */
 "profile.defaultUsername" = "User";
 "profile.bio.placeholder" = "Add a bio to tell people about yourself.";
@@ -1481,3 +1491,21 @@
 "weather.condition.snow" = "Snow";
 "weather.condition.thunderstorm" = "Thunderstorm";
 "weather.condition.unknown" = "Unknown";
+
+/* Suggested Users */
+"explore.suggestedUsers.title" = "People you might be interested in";
+"explore.suggestedUsers.seeMore" = "See more";
+"explore.suggestedUsers.count" = "%d people";
+"explore.suggestedUsers.loading" = "Loading users...";
+"explore.suggestedUsers.empty" = "No suggested users";
+"explore.suggestedUsers.emptyDescription" = "Try refreshing the page";
+"explore.suggestedUsers.loadingMore" = "Loading more...";
+"explore.suggestedUsers.commonInterests" = "%d common interests";
+
+/* Follow Button States */
+"followButton.follow" = "Follow";
+"followButton.unfollow" = "Unfollow";
+"followButton.pending" = "Pending";
+"followButton.request" = "Request";
+"followButton.ownProfile" = "Your profile";
+"followButton.blocked" = "Blocked";

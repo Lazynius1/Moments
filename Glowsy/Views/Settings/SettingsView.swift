@@ -242,7 +242,7 @@ struct SettingsView: View {
                     endTime: $endTime
                 )
             }
-            .fullScreenCover(isPresented: $isShowingAdvancedAccountManagement) {
+            .sheet(isPresented: $isShowingAdvancedAccountManagement) {
                 AdvancedAccountManagementView()
             }
             .navigationViewStyle(StackNavigationViewStyle()) // Forzar navegación por stack
@@ -538,8 +538,7 @@ struct AdvancedAccountManagementView: View {
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
             Form {
@@ -619,7 +618,6 @@ struct AdvancedAccountManagementView: View {
                     }
                 }
             }
-        }
         }
     }
 }
