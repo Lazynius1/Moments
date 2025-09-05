@@ -237,17 +237,6 @@ struct MomentDetailView: View {
                     AsyncProfileImageView(userId: moment.authorId)
                         .frame(width: 45, height: 45)
                         .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.5)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1.5
-                                )
-                        )
                 }
                 .buttonStyle(PlainButtonStyle())
                 
@@ -401,18 +390,7 @@ struct MomentDetailView: View {
             )
             .frame(height: cardHeight)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 10)
+            .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
             .onAppear {
                 detectAspectRatio()
             }

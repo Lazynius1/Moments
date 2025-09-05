@@ -2,6 +2,16 @@
 "global.seeMore" = "veure més";
 "global.seeLess" = "veure menys";
 
+/* ATT Pre-Alert */
+"attPreAlert.title" = "Informació sobre anuncis";
+"attPreAlert.description" = "Aquesta aplicació mostra anuncis per mantenir-se gratuïta. A continuació podràs triar si vols que els anuncis siguin personalitzats per a tu.";
+"attPreAlert.info" = "Apareixerà una alerta del sistema on podràs decidir les teves preferències";
+"attPreAlert.continueButton" = "Continuar";
+
+/* Weather Attribution */
+"weather.attribution.text" = "Dades de";
+"weather.attribution.link" = "Weather by ";
+
 /* ProfileView */
 "profile.defaultUsername" = "Usuari";
 "profile.bio.placeholder" = "Afegeix una bio per explicar a la gent sobre tu.";
@@ -1479,3 +1489,21 @@
 "weather.condition.snow" = "Neu";
 "weather.condition.thunderstorm" = "Tempesta";
 "weather.condition.unknown" = "Desconegut";
+
+/* Suggested Users */
+"explore.suggestedUsers.title" = "Persones que et podrien interessar";
+"explore.suggestedUsers.seeMore" = "Veure més";
+"explore.suggestedUsers.count" = "%d persones";
+"explore.suggestedUsers.loading" = "Carregant usuaris...";
+"explore.suggestedUsers.empty" = "No hi ha usuaris suggerits";
+"explore.suggestedUsers.emptyDescription" = "Prova d'actualitzar la pàgina";
+"explore.suggestedUsers.loadingMore" = "Carregant més...";
+"explore.suggestedUsers.commonInterests" = "%d interessos en comú";
+
+/* Follow Button States */
+"followButton.follow" = "Seguir";
+"followButton.unfollow" = "Deixar de seguir";
+"followButton.pending" = "Pendent";
+"followButton.request" = "Sol·licitar";
+"followButton.ownProfile" = "El teu perfil";
+"followButton.blocked" = "Bloquejat";

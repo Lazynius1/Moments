@@ -32,52 +32,56 @@ struct EditableImageView: View {
                     .blur(radius: 20)
                     .scaleEffect(1.1) // Ligeramente más grande para evitar bordes
                 
-                // ✅ Imagen editable en primer plano
+                // ✅ Imagen editable en primer plano (COMENTADO - disponible para futuro)
                 Image(uiImage: image)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .scaleEffect(scale)
-                    .offset(offset)
-                    .rotationEffect(rotation)
-                    .gesture(
-                        SimultaneousGesture(
-                            SimultaneousGesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        let delta = value / lastScale
-                                        lastScale = value
-                                        scale = min(max(scale * delta, 0.5), 3.0)
-                                    }
-                                    .onEnded { _ in
-                                        lastScale = 1.0
-                                    },
-                                DragGesture()
-                                    .onChanged { value in
-                                        let delta = CGSize(
-                                            width: value.translation.width - lastOffset.width,
-                                            height: value.translation.height - lastOffset.height
-                                        )
-                                        lastOffset = value.translation
-                                        offset = CGSize(
-                                            width: offset.width + delta.width,
-                                            height: offset.height + delta.height
-                                        )
-                                    }
-                                    .onEnded { _ in
-                                        lastOffset = .zero
-                                    }
-                            ),
-                            RotationGesture()
-                                .onChanged { angle in
-                                    let delta = angle - lastRotation
-                                    lastRotation = angle
-                                    rotation += delta
-                                }
-                                .onEnded { _ in
-                                    lastRotation = .zero
-                                }
-                        )
-                    )
+                    .aspectRatio(contentMode: {
+                        let imageRatio = image.size.width / image.size.height
+                        let isHorizontal = imageRatio > 1.0
+                        return isHorizontal ? .fit : .fill
+                    }())
+                    // .scaleEffect(scale)           // COMENTADO: Zoom manual
+                    // .offset(offset)              // COMENTADO: Movimiento manual
+                    // .rotationEffect(rotation)    // COMENTADO: Rotación manual
+                    // .gesture(                    // COMENTADO: Gestos de transformación
+                    //     SimultaneousGesture(
+                    //         SimultaneousGesture(
+                    //             MagnificationGesture()
+                    //                 .onChanged { value in
+                    //                     let delta = value / lastScale
+                    //                     lastScale = value
+                    //                     scale = min(max(scale * delta, 0.5), 3.0)
+                    //                 }
+                    //                 .onEnded { _ in
+                    //                     lastScale = 1.0
+                    //                 },
+                    //             DragGesture()
+                    //                 .onChanged { value in
+                    //                     let delta = CGSize(
+                    //                         width: value.translation.width - lastOffset.width,
+                    //                         height: value.translation.height - lastOffset.height
+                    //                     )
+                    //                     lastOffset = value.translation
+                    //                     offset = CGSize(
+                    //                         width: offset.width + delta.width,
+                    //                         height: offset.height + delta.height
+                    //                     )
+                    //                 }
+                    //                 .onEnded { _ in
+                    //                     lastOffset = .zero
+                    //                 }
+                    //         ),
+                    //         RotationGesture()
+                    //             .onChanged { angle in
+                    //                 let delta = angle - lastRotation
+                    //                 lastRotation = angle
+                    //                 rotation += delta
+                    //             }
+                    //             .onEnded { _ in
+                    //                 lastRotation = .zero
+                    //             }
+                    //     )
+                    // )
             }
         }
     }
@@ -587,8 +591,9 @@ struct StoryEditingView: View {
             scaleFactorX = originalSize.width / screenSize.width
             scaleFactorY = originalSize.height / screenSize.height
         } else {
-            // ✅ Para imágenes, usar la imagen directamente
-            baseImage = firstMedia.image
+            // ✅ Para imágenes, usar la imagen optimizada
+            let optimizedImage = optimizeImageForStory(firstMedia.image)
+            baseImage = optimizedImage
             originalSize = baseImage.size
             scaleFactorX = originalSize.width / screenSize.width
             scaleFactorY = originalSize.height / screenSize.height
@@ -920,6 +925,50 @@ struct StoryEditingView: View {
         DispatchQueue.main.async {
             self.forceUpdate.toggle()
         }
+    }
+}
+
+// MARK: - Image Optimization Extensions
+extension StoryEditingView {
+    
+    // ✅ FUNCIÓN: Optimizar imagen para historias
+    private func optimizeImageForStory(_ image: UIImage) -> UIImage {
+        // ✅ PASO 1: Normalizar orientación
+        let normalizedImage = image.normalized()
+        
+        // ✅ PASO 2: Comprimir a JPEG
+        guard let compressedData = normalizedImage.jpegData(compressionQuality: 0.9) else {
+            return normalizedImage
+        }
+        
+        // ✅ PASO 3: Redimensionar si es muy grande (>8MB)
+        if compressedData.count > 8 * 1024 * 1024 { // 8MB
+            let maxDimension: CGFloat = 3072
+            let resizedImage = calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
+            return resizedImage
+        }
+        
+        return normalizedImage
+    }
+    
+    // ✅ FUNCIÓN: Calcular tamaño óptimo para redimensionar
+    private func calculateOptimalSize(for image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let originalSize = image.size
+        let widthRatio = maxDimension / originalSize.width
+        let heightRatio = maxDimension / originalSize.height
+        let scale = min(widthRatio, heightRatio)
+        
+        let newWidth = originalSize.width * scale
+        let newHeight = originalSize.height * scale
+        let newSize = CGSize(width: newWidth, height: newHeight)
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resizedImage = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        // ✅ Normalizar orientación después del redimensionamiento
+        return resizedImage.normalized()
     }
 }
 

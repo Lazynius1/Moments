@@ -287,9 +287,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         if user.isVerified {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(.blue)
+                            VerifiedBadge(size: 14)
                         }
                     }
                     

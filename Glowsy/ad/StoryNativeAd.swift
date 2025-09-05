@@ -325,6 +325,10 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
         DispatchQueue.main.async {
             mediaView.mediaContent = nativeAd.mediaContent
             
+            // ✅ CRÍTICO: Registrar el MediaView con el NativeAd para que Google lo detecte
+            // Para anuncios nativos, necesitamos registrar el MediaView como clickable
+            nativeAd.register(mediaView, clickableAssetViews: [.imageAsset: mediaView], nonclickableAssetViews: [:])
+            
             if nativeAd.mediaContent.hasVideoContent {
                 let videoController = nativeAd.mediaContent.videoController
                 videoController.delegate = context.coordinator
@@ -884,6 +888,10 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
         mediaView.layer.cornerRadius = 16
         mediaView.clipsToBounds = true
         mediaView.mediaContent = nativeAd.mediaContent
+        
+        // ✅ CRÍTICO: Registrar el MediaView con el NativeAd para que Google lo detecte
+        // Para anuncios nativos, necesitamos registrar el MediaView como clickable
+        nativeAd.register(mediaView, clickableAssetViews: [.imageAsset: mediaView], nonclickableAssetViews: [:])
         
         // Configurar video si existe
         if nativeAd.mediaContent.hasVideoContent {

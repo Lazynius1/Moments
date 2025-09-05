@@ -5,13 +5,13 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-7805678909278568~7091658934</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Esta app necesita acceso al micrófono para enviar mensajes de voz y grabar tus historias</string>
+	<string>NSMicrophoneUsageDescription</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Esta app necesita acceso a la cámara para enviar fotos, subir momentos e historias.</string>
+	<string>NSCameraUsageDescription</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Moments necesita acceso a tu ubicación para registrar actividad de seguridad y prevenir accesos no autorizados a tu cuenta.</string>
+	<string>NSLocationWhenInUseUsageDescription</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Tu privacidad es importante para nosotros. Usamos tus datos para ofrecerte anuncios personalizados y mejorar tu experiencia.</string>
+	<string>NSUserTrackingUsageDescription</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>SKAdNetworkItems</key>
@@ -227,5 +227,9 @@
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	
+	<!-- Encryption Declaration -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
