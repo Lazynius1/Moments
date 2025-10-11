@@ -5,11 +5,8 @@ struct NovaPersona {
     
     // MARK: - 🌍 DETECCIÓN DE IDIOMA
     static var currentLanguage: String {
-        if #available(iOS 16.0, *) {
-            return Locale.current.language.languageCode?.identifier ?? "en"
-        } else {
-            return Locale.current.languageCode ?? "en"
-        }
+        // Usar preferencia persistida si existe, si no, fallback al sistema
+        return NovaLanguageService.preferredLanguageCode()
     }
     
     // MARK: - 🌍 PROMPTS MULTILINGÜES
@@ -149,6 +146,206 @@ struct NovaPersona {
         - USA EMOJIS segons el seu estil preferit
         """
     ]
+
+    // MARK: - Utilidades de idioma
+    private static func currentLangEnum() -> NovaLanguage {
+        return NovaLanguage(rawValue: currentLanguage) ?? .en
+    }
+
+    private struct LocalizedLabels {
+        let personalizationHeader: String
+        let userInfoHeader: String
+        let userFactsHeader: String
+        let criticalNote: String
+        let contextDetected: String
+        let emotionalState: String
+        let conversationFlow: String
+        let usePreferredName: String
+        // Vibe
+        let goodMood: String
+        let goodMoodFun: String
+        let goodMoodFormal: String
+        let goodMoodCasual: String
+        let needsHelp: String
+        let helpFormal: String
+        let helpCasual: String
+        let grateful: String
+        let gratefulFun: String
+        let gratefulNeutral: String
+        let greeting: String
+        let greetingFormal: String
+        let greetingCasual: String
+        let bored: String
+        let boredFun: String
+        let boredNeutral: String
+        let neutral: String
+        let neutralFormal: String
+        let neutralFun: String
+        let neutralCasual: String
+        let neutralUnknown: String
+        // Context types
+        let contextTypeInfo: String
+        let contextTypeReason: String
+        let contextTypeTime: String
+        let contextTypeLocation: String
+        let intentHelp: String
+        let intentOpinion: String
+        let intentSuggestion: String
+        // Emotions
+        let emotionPositive: String
+        let emotionSupport: String
+        let emotionFrustrated: String
+        let emotionAnxious: String
+        let emotionBored: String
+        // Flow
+        let flowContinue: String
+        let flowChange: String
+        let flowResume: String
+        let flowSummary: String
+        
+        init(lang: NovaLanguage) {
+            switch lang {
+            case .es:
+                personalizationHeader = "PERSONALIZACIÓN ESPECÍFICA PARA ESTE USUARIO:"
+                userInfoHeader = "INFORMACIÓN DEL USUARIO (no tuya):"
+                userFactsHeader = "HECHOS QUE SABES SOBRE EL USUARIO:"
+                criticalNote = "Esta información es SOBRE el usuario, no sobre ti (Nova). Cuando uses estos hechos, di 'Trabajas en...', 'Tienes mascotas...', NO 'Soy programador' o 'Tengo mascotas'."
+                contextDetected = "CONTEXTO DETECTADO"
+                emotionalState = "ESTADO EMOCIONAL"
+                conversationFlow = "FLUJO DE CONVERSACIÓN"
+                usePreferredName = "IMPORTANTE: Llámale"
+                goodMood = "El usuario está de buen humor y relajado."
+                goodMoodFun = "Puedes ser más divertida y hacer bromas."
+                goodMoodFormal = "Mantén un tono amigable pero no demasiado informal."
+                goodMoodCasual = "Puedes ser casual y hasta hacer alguna broma ligera."
+                needsHelp = "El usuario necesita ayuda."
+                helpFormal = "Sé profesional pero comprensiva."
+                helpCasual = "Sé útil pero mantén un tono amigable y comprensivo."
+                grateful = "El usuario está contento/agradecido."
+                gratefulFun = "Puedes ser entusiasta y celebrar con él."
+                gratefulNeutral = "Puedes ser cálida y positiva."
+                greeting = "Saludo casual."
+                greetingFormal = "Responde amigablemente pero con cierta formalidad."
+                greetingCasual = "Responde de manera amigable y relajada."
+                bored = "El usuario está aburrido."
+                boredFun = "Sé creativa y divertida con las sugerencias."
+                boredNeutral = "Puedes ser más creativa y sugerir cosas interesantes."
+                neutral = "Tono neutral."
+                neutralFormal = "Mantén un tono profesional pero amigable."
+                neutralFun = "Puedes ser divertida y usar humor apropiado."
+                neutralCasual = "Sé natural y relajada."
+                neutralUnknown = "Adapta tu personalidad según el contenido."
+                contextTypeInfo = "Tipo: Consulta informativa"
+                contextTypeReason = "Tipo: Consulta de razones"
+                contextTypeTime = "Tipo: Consulta temporal"
+                contextTypeLocation = "Tipo: Consulta de ubicación"
+                intentHelp = "Intención: Solicitud de ayuda"
+                intentOpinion = "Intención: Solicitud de opinión"
+                intentSuggestion = "Intención: Solicitud de sugerencias"
+                emotionPositive = "Estado: Emocionado/Positivo"
+                emotionSupport = "Estado: Necesita apoyo emocional"
+                emotionFrustrated = "Estado: Frustrado - Sé empática"
+                emotionAnxious = "Estado: Ansioso - Sé calmante"
+                emotionBored = "Estado: Aburrido - Sé estimulante"
+                flowContinue = "Flujo: Continuando tema anterior"
+                flowChange = "Flujo: Cambio de tema"
+                flowResume = "Flujo: Retomando tema anterior"
+                flowSummary = "Flujo: Resumen/Conclusión"
+            case .en:
+                personalizationHeader = "SPECIFIC PERSONALIZATION FOR THIS USER:"
+                userInfoHeader = "USER INFORMATION (not yours):"
+                userFactsHeader = "FACTS YOU KNOW ABOUT THE USER:"
+                criticalNote = "This information is ABOUT the user, not about you (Nova). When using these facts, say 'You work at...', 'You have pets...', NOT 'I'm a developer' or 'I have pets'."
+                contextDetected = "DETECTED CONTEXT"
+                emotionalState = "EMOTIONAL STATE"
+                conversationFlow = "CONVERSATION FLOW"
+                usePreferredName = "IMPORTANT: Call them"
+                goodMood = "The user is in a good mood and relaxed."
+                goodMoodFun = "You can be more playful and make jokes."
+                goodMoodFormal = "Keep a friendly tone but not too informal."
+                goodMoodCasual = "You can be casual and even make a light joke."
+                needsHelp = "The user needs help."
+                helpFormal = "Be professional but understanding."
+                helpCasual = "Be helpful while keeping a friendly and empathetic tone."
+                grateful = "The user is happy/grateful."
+                gratefulFun = "You can be enthusiastic and celebrate with them."
+                gratefulNeutral = "You can be warm and positive."
+                greeting = "Casual greeting."
+                greetingFormal = "Respond in a friendly way but with some formality."
+                greetingCasual = "Respond in a friendly and relaxed way."
+                bored = "The user is bored."
+                boredFun = "Be creative and fun with suggestions."
+                boredNeutral = "You can be more creative and suggest interesting things."
+                neutral = "Neutral tone."
+                neutralFormal = "Maintain a professional but friendly tone."
+                neutralFun = "You can be fun and use appropriate humor."
+                neutralCasual = "Be natural and relaxed."
+                neutralUnknown = "Adapt your personality according to the content."
+                contextTypeInfo = "Type: Informative query"
+                contextTypeReason = "Type: Reason-seeking query"
+                contextTypeTime = "Type: Temporal query"
+                contextTypeLocation = "Type: Location query"
+                intentHelp = "Intent: Request for help"
+                intentOpinion = "Intent: Request for opinion"
+                intentSuggestion = "Intent: Request for suggestions"
+                emotionPositive = "State: Excited/Positive"
+                emotionSupport = "State: Needs emotional support"
+                emotionFrustrated = "State: Frustrated - Be empathetic"
+                emotionAnxious = "State: Anxious - Be calming"
+                emotionBored = "State: Bored - Be stimulating"
+                flowContinue = "Flow: Continuing previous topic"
+                flowChange = "Flow: Topic change"
+                flowResume = "Flow: Resuming previous topic"
+                flowSummary = "Flow: Summary/Conclusion"
+            case .ca:
+                personalizationHeader = "PERSONALITZACIÓ ESPECÍFICA PER A AQUEST USUARI:"
+                userInfoHeader = "INFORMACIÓ DE L'USUARI (no teva):"
+                userFactsHeader = "FETS QUE SAPS SOBRE L'USUARI:"
+                criticalNote = "Aquesta informació és SOBRE l'usuari, no sobre tu (Nova). Quan utilitzis aquests fets, digues 'Treballes a...', 'Tens mascotes...', NO 'Sóc programador' o 'Tinc mascotes'."
+                contextDetected = "CONTEXT DETECTAT"
+                emotionalState = "ESTAT EMOCIONAL"
+                conversationFlow = "FLUX DE CONVERSA"
+                usePreferredName = "IMPORTANT: Digues-li"
+                goodMood = "L'usuari està de bon humor i relaxat."
+                goodMoodFun = "Pots ser més divertida i fer bromes."
+                goodMoodFormal = "Mantén un to amigable però no massa informal."
+                goodMoodCasual = "Pots ser casual i fins i tot fer alguna broma lleugera."
+                needsHelp = "L'usuari necessita ajuda."
+                helpFormal = "Sigues professional però comprensiva."
+                helpCasual = "Sigues útil però mantén un to amigable i comprensiu."
+                grateful = "L'usuari està content/agrait."
+                gratefulFun = "Pots ser entusiasta i celebrar amb ell/ella."
+                gratefulNeutral = "Pots ser càlida i positiva."
+                greeting = "Salutació casual."
+                greetingFormal = "Respon de manera amigable però amb certa formalitat."
+                greetingCasual = "Respon de manera amigable i relaxada."
+                bored = "L'usuari està avorrit."
+                boredFun = "Sigues creativa i divertida amb les suggerències."
+                boredNeutral = "Pots ser més creativa i suggerir coses interessants."
+                neutral = "To neutral."
+                neutralFormal = "Mantén un to professional però amigable."
+                neutralFun = "Pots ser divertida i usar humor apropiat."
+                neutralCasual = "Sigues natural i relaxada."
+                neutralUnknown = "Adapta la teva personalitat segons el contingut."
+                contextTypeInfo = "Tipus: Consulta informativa"
+                contextTypeReason = "Tipus: Consulta de raons"
+                contextTypeTime = "Tipus: Consulta temporal"
+                contextTypeLocation = "Tipus: Consulta d'ubicació"
+                intentHelp = "Intenció: Sol·licitud d'ajuda"
+                intentOpinion = "Intenció: Sol·licitud d'opinió"
+                intentSuggestion = "Intenció: Sol·licitud de suggerències"
+                emotionPositive = "Estat: Emocionat/Positiu"
+                emotionSupport = "Estat: Necessita suport emocional"
+                emotionFrustrated = "Estat: Frustrat - Sigues empàtica"
+                emotionAnxious = "Estat: Ansiós - Sigues calmant"
+                emotionBored = "Estat: Avorrit - Sigues estimulant"
+                flowContinue = "Flux: Continuant tema anterior"
+                flowChange = "Flux: Canvi de tema"
+                flowResume = "Flux: Reprenent tema anterior"
+                flowSummary = "Flux: Resum/Conclusions"
+            }
+        }
+    }
     
     // MARK: - ✨ Prompt Principal Mejorado con Personalización
     static var corePrompt: String {
@@ -158,22 +355,24 @@ struct NovaPersona {
     // MARK: - 🧠 Prompt Contextual Personalizado
     static func getPersonalizedPrompt(userContext: String, memoryContext: String = "", personalization: NovaMemory? = nil) -> String {
         var prompt = corePrompt
+        let lang = currentLangEnum()
+        let L = LocalizedLabels(lang: lang)
         
         // 🎯 AÑADIR PERSONALIZACIÓN ESPECÍFICA
         if let memory = personalization {
             let personalPrefs = extractPersonalizationFromMemory(memory)
             if !personalPrefs.isEmpty {
-                prompt += "\n\n🎭 PERSONALIZACIÓN ESPECÍFICA PARA ESTE USUARIO:\n\(personalPrefs)"
+                prompt += "\n\n🎭 \(L.personalizationHeader)\n\(personalPrefs)"
             }
         }
         
         if !userContext.isEmpty {
-            prompt += "\n\n📋 INFORMACIÓN DEL USUARIO (no tuya):\n\(userContext)"
+            prompt += "\n\n📋 \(L.userInfoHeader)\n\(userContext)"
         }
         
         if !memoryContext.isEmpty {
-            prompt += "\n\n🧠 HECHOS QUE SABES SOBRE EL USUARIO:\n\(memoryContext)"
-            prompt += "\n\n⚠️ CRÍTICO: Esta información es SOBRE el usuario, no sobre ti (Nova). Cuando uses estos hechos, di 'Trabajas en...', 'Tienes mascotas...', NO 'Soy programador' o 'Tengo mascotas'."
+            prompt += "\n\n🧠 \(L.userFactsHeader)\n\(memoryContext)"
+            prompt += "\n\n⚠️ \(L.criticalNote)"
         }
         
         return prompt
@@ -233,6 +432,8 @@ struct NovaPersona {
     static func analyzeUserVibeWithPersonalization(_ input: String, memory: NovaMemory? = nil) -> String {
         let lowercased = input.lowercased()
         var analysis = ""
+        let lang = currentLangEnum()
+        let L = LocalizedLabels(lang: lang)
         
         // 🎯 Considerar preferencias de comunicación del usuario
         let userCommunicationStyle = extractCommunicationStyle(from: memory)
@@ -244,79 +445,79 @@ struct NovaPersona {
         
         // 🎭 Detectar señales emocionales básicas con contexto
         if lowercased.contains("jaja") || lowercased.contains("lol") || lowercased.contains("😂") || lowercased.contains("🤣") || lowercased.contains("xd") {
-            analysis = "El usuario está de buen humor y relajado."
+            analysis = L.goodMood
             if userCommunicationStyle == .fun {
-                analysis += " Puedes ser más divertida y hacer bromas."
+                analysis += " " + L.goodMoodFun
             } else if userCommunicationStyle == .formal {
-                analysis += " Mantén un tono amigable pero no demasiado informal."
+                analysis += " " + L.goodMoodFormal
             } else {
-                analysis += " Puedes ser casual y hasta hacer alguna broma ligera."
+                analysis += " " + L.goodMoodCasual
             }
         }
         else if lowercased.contains("help") || lowercased.contains("ayuda") || lowercased.contains("problema") {
-            analysis = "El usuario necesita ayuda."
+            analysis = L.needsHelp
             if userCommunicationStyle == .formal {
-                analysis += " Sé profesional pero comprensiva."
+                analysis += " " + L.helpFormal
             } else {
-                analysis += " Sé útil pero mantén un tono amigable y comprensivo."
+                analysis += " " + L.helpCasual
             }
         }
         else if lowercased.contains("gracias") || lowercased.contains("genial") || lowercased.contains("perfecto") {
-            analysis = "El usuario está contento/agradecido."
+            analysis = L.grateful
             if userCommunicationStyle == .fun {
-                analysis += " Puedes ser entusiasta y celebrar con él."
+                analysis += " " + L.gratefulFun
             } else {
-                analysis += " Puedes ser cálida y positiva."
+                analysis += " " + L.gratefulNeutral
             }
         }
         else if lowercased.contains("qué tal") || lowercased.contains("hola") || lowercased.contains("hey") {
-            analysis = "Saludo casual."
+            analysis = L.greeting
             if userCommunicationStyle == .formal {
-                analysis += " Responde amigablemente pero con cierta formalidad."
+                analysis += " " + L.greetingFormal
             } else {
-                analysis += " Responde de manera amigable y relajada."
+                analysis += " " + L.greetingCasual
             }
         }
         else if lowercased.contains("aburrido") || lowercased.contains("random") {
-            analysis = "El usuario está aburrido."
+            analysis = L.bored
             if userCommunicationStyle == .fun {
-                analysis += " Sé creativa y divertida con las sugerencias."
+                analysis += " " + L.boredFun
             } else {
-                analysis += " Puedes ser más creativa y sugerir cosas interesantes."
+                analysis += " " + L.boredNeutral
             }
         }
         else {
-            analysis = "Tono neutral."
+            analysis = L.neutral
             switch userCommunicationStyle {
             case .formal:
-                analysis += " Mantén un tono profesional pero amigable."
+                analysis += " " + L.neutralFormal
             case .fun:
-                analysis += " Puedes ser divertida y usar humor apropiado."
+                analysis += " " + L.neutralFun
             case .casual:
-                analysis += " Sé natural y relajada."
+                analysis += " " + L.neutralCasual
             case .unknown:
-                analysis += " Adapta tu personalidad según el contenido."
+                analysis += " " + L.neutralUnknown
             }
         }
         
         // 🔥 NUEVO: Añadir análisis de contexto inteligente
         if !contextAnalysis.isEmpty {
-            analysis += "\n\n🎯 CONTEXTO DETECTADO:\n\(contextAnalysis)"
+            analysis += "\n\n🎯 \(L.contextDetected):\n\(contextAnalysis)"
         }
         
         // 🔥 NUEVO: Añadir estado emocional
         if !emotionalState.isEmpty {
-            analysis += "\n\n😊 ESTADO EMOCIONAL:\n\(emotionalState)"
+            analysis += "\n\n😊 \(L.emotionalState):\n\(emotionalState)"
         }
         
         // 🔥 NUEVO: Añadir flujo de conversación
         if !conversationFlow.isEmpty {
-            analysis += "\n\n🔄 FLUJO DE CONVERSACIÓN:\n\(conversationFlow)"
+            analysis += "\n\n🔄 \(L.conversationFlow):\n\(conversationFlow)"
         }
         
         // 🎯 Añadir información del nombre preferido si existe
         if let memory = memory, let preferredName = memory.preferredName {
-            analysis += "\n\n⭐ IMPORTANTE: Llámale '\(preferredName)' en lugar de su username."
+            analysis += "\n\n⭐ \(L.usePreferredName) '\(preferredName)'."
         }
         
         return analysis
@@ -328,35 +529,36 @@ struct NovaPersona {
     private static func analyzeConversationContext(_ input: String) -> String {
         let lowercased = input.lowercased()
         var context = ""
+        let L = LocalizedLabels(lang: currentLangEnum())
         
         // Detectar tipo de consulta
         if lowercased.contains("cómo") || lowercased.contains("como") || lowercased.contains("qué") || lowercased.contains("que") {
-            context += "• Tipo: Consulta informativa\n"
+            context += "• \(L.contextTypeInfo)\n"
         }
         
         if lowercased.contains("por qué") || lowercased.contains("porque") || lowercased.contains("razón") || lowercased.contains("motivo") {
-            context += "• Tipo: Consulta de razones\n"
+            context += "• \(L.contextTypeReason)\n"
         }
         
         if lowercased.contains("cuándo") || lowercased.contains("cuando") || lowercased.contains("hora") || lowercased.contains("día") || lowercased.contains("dia") {
-            context += "• Tipo: Consulta temporal\n"
+            context += "• \(L.contextTypeTime)\n"
         }
         
         if lowercased.contains("dónde") || lowercased.contains("donde") || lowercased.contains("lugar") || lowercased.contains("sitio") {
-            context += "• Tipo: Consulta de ubicación\n"
+            context += "• \(L.contextTypeLocation)\n"
         }
         
         // Detectar intención
         if lowercased.contains("ayuda") || lowercased.contains("ayúdame") || lowercased.contains("ayudame") {
-            context += "• Intención: Solicitud de ayuda\n"
+            context += "• \(L.intentHelp)\n"
         }
         
         if lowercased.contains("opini") || lowercased.contains("qué piensas") || lowercased.contains("que piensas") {
-            context += "• Intención: Solicitud de opinión\n"
+            context += "• \(L.intentOpinion)\n"
         }
         
         if lowercased.contains("suger") || lowercased.contains("recomend") || lowercased.contains("idea") {
-            context += "• Intención: Solicitud de sugerencias\n"
+            context += "• \(L.intentSuggestion)\n"
         }
         
         return context
@@ -366,26 +568,27 @@ struct NovaPersona {
     private static func detectEmotionalState(_ input: String) -> String {
         let lowercased = input.lowercased()
         var emotion = ""
+        let L = LocalizedLabels(lang: currentLangEnum())
         
         // Emociones positivas
         if lowercased.contains("feliz") || lowercased.contains("contento") || lowercased.contains("emocionado") || lowercased.contains("genial") {
-            emotion += "• Estado: Emocionado/Positivo\n"
+            emotion += "• \(L.emotionPositive)\n"
         }
         
         if lowercased.contains("triste") || lowercased.contains("deprimido") || lowercased.contains("mal") || lowercased.contains("cansado") {
-            emotion += "• Estado: Necesita apoyo emocional\n"
+            emotion += "• \(L.emotionSupport)\n"
         }
         
         if lowercased.contains("enfadado") || lowercased.contains("molesto") || lowercased.contains("frustrado") || lowercased.contains("irritado") {
-            emotion += "• Estado: Frustrado - Sé empática\n"
+            emotion += "• \(L.emotionFrustrated)\n"
         }
         
         if lowercased.contains("nervioso") || lowercased.contains("ansioso") || lowercased.contains("preocupado") || lowercased.contains("estresado") {
-            emotion += "• Estado: Ansioso - Sé calmante\n"
+            emotion += "• \(L.emotionAnxious)\n"
         }
         
         if lowercased.contains("aburrido") || lowercased.contains("monótono") || lowercased.contains("rutinario") {
-            emotion += "• Estado: Aburrido - Sé estimulante\n"
+            emotion += "• \(L.emotionBored)\n"
         }
         
         return emotion
@@ -395,22 +598,23 @@ struct NovaPersona {
     private static func analyzeConversationFlow(_ input: String) -> String {
         let lowercased = input.lowercased()
         var flow = ""
+        let L = LocalizedLabels(lang: currentLangEnum())
         
         // Detectar continuidad
         if lowercased.contains("además") || lowercased.contains("también") || lowercased.contains("tambien") || lowercased.contains("por otro lado") {
-            flow += "• Flujo: Continuando tema anterior\n"
+            flow += "• \(L.flowContinue)\n"
         }
         
         if lowercased.contains("cambiemos") || lowercased.contains("otra cosa") || lowercased.contains("diferente") || lowercased.contains("nuevo tema") {
-            flow += "• Flujo: Cambio de tema\n"
+            flow += "• \(L.flowChange)\n"
         }
         
         if lowercased.contains("volvamos") || lowercased.contains("retomemos") || lowercased.contains("antes hablábamos") || lowercased.contains("antes hablabamos") {
-            flow += "• Flujo: Retomando tema anterior\n"
+            flow += "• \(L.flowResume)\n"
         }
         
         if lowercased.contains("resumiendo") || lowercased.contains("en resumen") || lowercased.contains("conclusión") || lowercased.contains("conclusion") {
-            flow += "• Flujo: Resumen/Conclusión\n"
+            flow += "• \(L.flowSummary)\n"
         }
         
         return flow
@@ -549,6 +753,18 @@ struct NovaPersona {
             return .setCommunicationStyle(.fun)
         }
         
+        // Detectar comandos de idioma
+        let languageTriggers = [
+            (patterns: ["háblame en español", "hablame en español", "en español", "cambia el idioma a español"], lang: NovaLanguage.es),
+            (patterns: ["háblame en ingles", "hablame en ingles", "en ingles", "en inglés", "cambia el idioma a ingles", "cambia el idioma a inglés", "speak in english"], lang: NovaLanguage.en),
+            (patterns: ["háblame en catalán", "hablame en catalan", "en catalán", "en catalan", "cambia el idioma a catalán", "cambia el idioma a catalan"], lang: NovaLanguage.ca)
+        ]
+        for trigger in languageTriggers {
+            if trigger.patterns.contains(where: { lowercased.contains($0) }) {
+                return .setLanguage(trigger.lang)
+            }
+        }
+        
         return nil
     }
 }
@@ -573,6 +789,7 @@ enum CommunicationStyle {
 enum PersonalizationCommand {
     case setPreferredName(String)
     case setCommunicationStyle(CommunicationStyle)
+    case setLanguage(NovaLanguage)
     
     var description: String {
         switch self {
@@ -580,6 +797,8 @@ enum PersonalizationCommand {
             return "Establecer nombre preferido: \(name)"
         case .setCommunicationStyle(let style):
             return "Establecer estilo de comunicación: \(style.description)"
+        case .setLanguage(let lang):
+            return "Establecer idioma: \(lang.rawValue)"
         }
     }
 }

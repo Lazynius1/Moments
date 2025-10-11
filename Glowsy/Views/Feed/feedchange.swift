@@ -342,7 +342,7 @@ struct SegmentedFeedToggle: View {
         HStack(spacing: 4) {
             ForEach(FeedType.allCases, id: \.self) { feedType in
                 Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    withAnimation(.interpolatingSpring(stiffness: 200, damping: 25)) {
                         selectedFeedType = feedType
                     }
                     
@@ -356,17 +356,34 @@ struct SegmentedFeedToggle: View {
                         Text(feedType.title)
                             .font(.custom("Poppins-SemiBold", size: 12))
                     }
-                    .foregroundColor(selectedFeedType == feedType ? .white : .white.opacity(0.6))
+                    .foregroundColor(selectedFeedType == feedType ? .white : Color.primary.opacity(0.7))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
-                        Capsule()
-                            .fill(selectedFeedType == feedType ?
-                                  Color(hex: "00A896").opacity(0.3) :
-                                  Color.clear)
+                        Group {
+                            if selectedFeedType == feedType {
+                                if #available(iOS 26.0, *) {
+                                    Capsule()
+                                        .fill(Color(hex: "00A896"))
+                                        .glassEffect(.regular, in: Capsule())
+                                } else {
+                                    Capsule()
+                                        .fill(Color(hex: "00A896"))
+                                        .overlay(
+                                            Capsule()
+                                                .fill(.ultraThinMaterial)
+                                                .opacity(0.4)
+                                        )
+                                }
+                            } else {
+                                Capsule()
+                                    .fill(Color.clear)
+                            }
+                        }
                     )
                 }
                 .scaleEffect(selectedFeedType == feedType ? 1.0 : 0.95)
+                .animation(.interpolatingSpring(stiffness: 200, damping: 25), value: selectedFeedType)
             }
         }
         .padding(4)
@@ -375,11 +392,7 @@ struct SegmentedFeedToggle: View {
         .overlay(
             Capsule()
                 .stroke(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
+                    Color.primary.opacity(0.1),
                     lineWidth: 1
                 )
         )

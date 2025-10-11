@@ -404,6 +404,11 @@ struct CreatorView: View {
     @State private var locationName: String = ""
     @State private var responseSticker: StickerItem? = nil
     
+    // 🔗 NUEVO: Variables para contexto de cadena
+    @State private var pendingChainId: String? = nil
+    @State private var pendingChainTitle: String? = nil
+    @State private var pendingChainPosition: Int? = nil
+    
     enum CreatorFlow {
         case typeSelection
         case mediaSelection
@@ -469,7 +474,10 @@ struct CreatorView: View {
                     selectedMediaItems: $selectedMediaItems,
                     currentFlow: $currentFlow,
                     showCreatorView: $showCreatorView,
-                    initialSticker: responseSticker
+                    initialSticker: responseSticker,
+                    initialChainId: pendingChainId,
+                    initialChainTitle: pendingChainTitle,
+                    initialChainPosition: pendingChainPosition
                 )
             }
         }
@@ -484,6 +492,7 @@ struct CreatorView: View {
         }
         .onAppear {
             setupResponseStickerListener()
+            setupContinueChainListener()
             
             // ✅ AGREGAR STICKER INICIAL SI EXISTE
             if let initialSticker = initialSticker {
@@ -495,6 +504,7 @@ struct CreatorView: View {
         }
         .onDisappear {
             removeResponseStickerListener()
+            removeContinueChainListener()
             
             // ✅ Limpiar video y audio cuando se cierra CreatorView
             cleanupVideoAndAudio()
@@ -519,6 +529,88 @@ struct CreatorView: View {
             self,
             name: NSNotification.Name("AddResponseStickerToCreator"),
             object: nil
+        )
+    }
+    
+    // MARK: - Continue Chain Handling
+    private func setupContinueChainListener() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ContinueStoryChain"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            if let userInfo = notification.userInfo,
+               let chainId = userInfo["chainId"] as? String,
+               let chainTitle = userInfo["chainTitle"] as? String,
+               let chainPosition = userInfo["chainPosition"] as? Int {
+                continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
+            }
+        }
+        
+        // 🔗 NUEVO: Listener para configurar tipo de contenido
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("SetContentType"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            if let userInfo = notification.userInfo,
+               let contentTypeString = userInfo["contentType"] as? String {
+                if contentTypeString == "story" {
+                    contentType = .story
+                    currentFlow = .storyCamera  // ✅ MANTENER: Ir a cámara para seleccionar medios
+                    isCreatingStory = true
+                }
+            }
+        }
+        
+        // 🔗 NUEVO: Listener para guardar contexto de cadena
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("SetChainContext"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            if let userInfo = notification.userInfo,
+               let chainId = userInfo["chainId"] as? String,
+               let chainTitle = userInfo["chainTitle"] as? String,
+               let chainPosition = userInfo["chainPosition"] as? Int {
+                pendingChainId = chainId
+                pendingChainTitle = chainTitle
+                pendingChainPosition = chainPosition
+            }
+        }
+    }
+    
+    private func removeContinueChainListener() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSNotification.Name("ContinueStoryChain"),
+            object: nil
+        )
+        
+        // 🔗 NUEVO: Limpiar listener de tipo de contenido
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSNotification.Name("SetContentType"),
+            object: nil
+        )
+    }
+    
+    private func continueStoryChain(chainId: String, chainTitle: String, chainPosition: Int) {
+        // Configurar para continuar cadena
+        contentType = .story
+        currentFlow = .storyCamera
+        isCreatingStory = true
+        
+        // Pasar datos de cadena al StoryEditingView
+        // Esto se manejará en el StoryEditingView cuando se abra
+        NotificationCenter.default.post(
+            name: NSNotification.Name("SetChainContext"),
+            object: nil,
+            userInfo: [
+                "chainId": chainId,
+                "chainTitle": chainTitle,
+                "chainPosition": chainPosition
+            ]
         )
     }
     
@@ -1949,11 +2041,11 @@ struct CaptionAndDetailsView: View {
         
         var title: String {
             switch self {
-            case .everyone: return "Todos"
-            case .mutuals: return "Mutuos"
-            case .admirers: return "Admiradores"
-            case .bestFriends: return "Mejores amigos"
-            case .custom: return "Personalizado"
+            case .everyone: return NSLocalizedString("audience.type.everyone", comment: "Everyone audience type")
+            case .mutuals: return NSLocalizedString("audience.type.connections", comment: "Connections audience type")
+            case .admirers: return NSLocalizedString("audience.type.connections", comment: "Connections audience type (admirers maps to connections)")
+            case .bestFriends: return NSLocalizedString("audience.type.bestFriends", comment: "Best friends audience type")
+            case .custom: return NSLocalizedString("audience.type.custom", comment: "Custom audience type")
             }
         }
         
@@ -2216,9 +2308,9 @@ struct CaptionAndDetailsView: View {
         
         isPublishing = true
         
-        let disableComments = UserDefaults.standard.bool(forKey: "disableComments")
-        let hideLikeCounts = UserDefaults.standard.bool(forKey: "hideLikeCounts")
-        let allowSharing = UserDefaults.standard.bool(forKey: "allowSharing")
+        let disableComments = UserDefaults.standard.object(forKey: "disableComments") as? Bool ?? false
+        let hideLikeCounts = UserDefaults.standard.object(forKey: "hideLikeCounts") as? Bool ?? false
+        let allowSharing = UserDefaults.standard.object(forKey: "allowSharing") as? Bool ?? true
         
         
         // Detectar aspect ratio del primer media item
@@ -4028,7 +4120,7 @@ struct AdvancedSettingsView: View {
                     .foregroundColor(adaptiveColors.secondary)) {
                     Toggle(isOn: $hideLikeCounts) {
                         VStack(alignment: .leading, spacing: 4) {
-                                                    Text("creator.visualization.hideReactions")
+                            Text("creator.visualization.hideReactions")
                             .font(.custom("Poppins-Medium", size: 16))
                             .foregroundColor(adaptiveColors.primary)
                         Text("creator.visualization.hideReactions.description")
@@ -4042,7 +4134,7 @@ struct AdvancedSettingsView: View {
             .listStyle(InsetGroupedListStyle())
             .scrollContentBackground(.hidden)
         }
-        .navigationTitle("Configuración avanzada")
+        .navigationTitle(NSLocalizedString("creator.advancedSettings.title", comment: "Advanced Settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(colorScheme, for: .navigationBar)
     }

@@ -13,6 +13,67 @@ class FirestoreService: ObservableObject {
         self.db.enableNetwork()
     }
     
+    // 🔗 HELPER: Calcular fecha de expiración para historias
+    private func calculateStoryExpirationDate(isChain: Bool = false, chainId: String? = nil) -> Date {
+        if isChain, let chainId = chainId {
+            // Para historias de cadenas, usar la misma fecha de expiración que la parte 1
+            return calculateChainExpirationDate(chainId: chainId)
+        } else {
+            // Para historias normales, 24 horas
+            return Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
+        }
+    }
+    
+    // 🔗 HELPER: Calcular fecha de expiración de una cadena (basada en createdAt de storyChains)
+    private func calculateChainExpirationDate(chainId: String) -> Date {
+        // Usar fecha actual + 48h para subir inmediatamente
+        let currentExpiration = Calendar.current.date(byAdding: .hour, value: 48, to: Date()) ?? Date()
+        
+        // En background, actualizar con la fecha correcta de la cadena
+        Task {
+            await updateChainExpirationInBackground(chainId: chainId)
+        }
+        
+        return currentExpiration
+    }
+    
+    // 🔗 HELPER: Actualizar fecha de expiración de todas las partes de la cadena en background
+    private func updateChainExpirationInBackground(chainId: String) async {
+        do {
+            // Obtener fecha de creación de la cadena
+            let chainDoc = try await db.collection("storyChains")
+                .document(chainId)
+                .getDocument()
+            
+            guard let data = chainDoc.data(),
+                  let createdAt = data["createdAt"] as? Timestamp else {
+                return
+            }
+            
+            // Calcular fecha correcta (48h desde creación de la cadena)
+            let createdAtDate = createdAt.dateValue()
+            let correctExpiration = Calendar.current.date(byAdding: .hour, value: 48, to: createdAtDate) ?? Date()
+            
+            // Buscar todas las partes de la cadena
+            let storiesSnapshot = try await db.collectionGroup("stories")
+                .whereField("chainId", isEqualTo: chainId)
+                .getDocuments()
+            
+            // Actualizar todas las partes con la fecha correcta
+            let batch = db.batch()
+            for doc in storiesSnapshot.documents {
+                batch.updateData([
+                    "expirationDate": Timestamp(date: correctExpiration)
+                ], forDocument: doc.reference)
+            }
+            
+            try await batch.commit()
+            
+        } catch {
+            // Error updating chain expiration
+        }
+    }
+    
     func updateMoment(userId: String, momentId: String, content: String, completion: @escaping (Error?) -> Void) {
         let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
         
@@ -824,7 +885,7 @@ class FirestoreService: ObservableObject {
         }
     }
 
-    func createStory(userId: String,mediaItem: MediaItem,audience: String? = nil,text: String? = nil,textPosition: CGPoint? = nil,textStyle: String? = nil,stickers: [StickerData]? = nil,drawingData: Data? = nil,
+    func createStory(userId: String,mediaItem: MediaItem,audience: String? = nil,text: String? = nil,textPosition: CGPoint? = nil,textStyle: String? = nil,stickers: [StickerData]? = nil,drawingData: Data? = nil,chainId: String? = nil,chainPosition: Int? = nil,chainTitle: String? = nil,
     completion: @escaping (Error?) -> Void
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
@@ -835,7 +896,8 @@ class FirestoreService: ObservableObject {
 
             switch result {
             case .success(let user):
-                let expirationDate = Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
+                let isChain = chainId != nil
+                let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
                 let duration = mediaItem.type == .video ? 60.0 : 10.0
                 let storyId = UUID().uuidString
 
@@ -853,7 +915,10 @@ class FirestoreService: ObservableObject {
                     textPosition: textPosition,
                     textStyle: textStyle,
                     stickers: stickers,
-                    drawingData: drawingData
+                    drawingData: drawingData,
+                    chainId: chainId, // 🔗 AÑADIDO: ID de la cadena
+                    chainPosition: chainPosition, // 🔗 AÑADIDO: Posición en la cadena
+                    chainTitle: chainTitle // 🔗 AÑADIDO: Título de la cadena
                 )
 
                 do {
@@ -2999,6 +3064,9 @@ extension FirestoreService {
         drawingData: Data? = nil,
         aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio del video
         backgroundFrameURL: String? = nil, // ✅ AÑADIDO: URL del frame de fondo
+        chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
+        chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
+        chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
         completion: @escaping (String?, Error?) -> Void // 🔥 ACTUALIZADO: Ahora devuelve String? para el storyId
     ) {
 
@@ -3010,7 +3078,8 @@ extension FirestoreService {
 
             switch result {
             case .success(let user):
-                let expirationDate = Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
+                let isChain = chainId != nil
+                let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
                 let duration = mediaItem.type == .video ? 60.0 : 10.0
                 let storyId = UUID().uuidString // 🔥 GENERAR ID ÚNICO
 
@@ -3031,7 +3100,10 @@ extension FirestoreService {
                     stickers: stickers,
                     drawingData: drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Aspect ratio del video
-                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: URL del frame de fondo
+                    backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: URL del frame de fondo
+                    chainId: chainId, // 🔗 AÑADIDO: ID de la cadena
+                    chainPosition: chainPosition, // 🔗 AÑADIDO: Posición en la cadena
+                    chainTitle: chainTitle // 🔗 AÑADIDO: Título de la cadena
                 )
 
                 do {
@@ -3345,6 +3417,9 @@ extension FirestoreService {
         drawingData: Data? = nil,
         aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio del video
         backgroundFrameURL: String? = nil, // ✅ AÑADIDO: URL del frame de fondo
+        chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
+        chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
+        chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
         completion: @escaping (String?, Error?) -> Void // 🔥 ACTUALIZADO: Ahora devuelve String? para el storyId
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
@@ -3355,7 +3430,8 @@ extension FirestoreService {
 
             switch result {
             case .success(let user):
-                let expirationDate = Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
+                let isChain = chainId != nil
+                let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
                 let duration = mediaItem.type == .video ? 60.0 : 10.0
                 let storyId = UUID().uuidString // 🔥 GENERAR ID ÚNICO
 
@@ -3376,7 +3452,10 @@ extension FirestoreService {
                     stickers: stickers,
                     drawingData: drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Aspect ratio del video
-                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: URL del frame de fondo
+                    backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: URL del frame de fondo
+                    chainId: chainId, // 🔗 AÑADIDO: ID de la cadena
+                    chainPosition: chainPosition, // 🔗 AÑADIDO: Posición en la cadena
+                    chainTitle: chainTitle // 🔗 AÑADIDO: Título de la cadena
                 )
 
                 do {

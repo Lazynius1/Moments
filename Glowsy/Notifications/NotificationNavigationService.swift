@@ -11,6 +11,7 @@ class NotificationNavigationService: ObservableObject {
         case profile(String)                   // Ir a perfil de usuario
         case conversation(String)              // Ir a conversación específica
         case story(String)                     // Ir a historia específica
+        case storyChain(String, String)        // 🔗 Ir a cadena de historias (chainId, chainTitle)
         case followRequests(String)            // Ir a solicitudes de seguimiento
         case notifications(String?)            // Ir a notificaciones (con filtro opcional)
         // ✅ ELIMINADO: groupedReactions - Ya no necesario con agrupación nativa
@@ -69,6 +70,13 @@ class NotificationNavigationService: ObservableObject {
                 pendingNavigation = .profile(userId)
             }
             
+        // 🔗 STORY CHAINS: Notificación cuando alguien continúa una cadena
+        case "story_chain_continued":
+            if let chainId = userInfo["chainId"] as? String,
+               let chainTitle = userInfo["chainTitle"] as? String {
+                pendingNavigation = .storyChain(chainId, chainTitle)
+            }
+            
         // ✅ CASO LEGACY: Para notificaciones antiguas de tipo 'like'
         case "like":
             if let momentId = userInfo["momentId"] as? String {
@@ -105,6 +113,8 @@ extension NotificationNavigationService.PendingNavigation {
             return "conversación(\(id))"
         case .story(let id):
             return "historia(\(id))"
+        case .storyChain(let chainId, let chainTitle):
+            return "cadena(\(chainId), \(chainTitle))"  // 🔗 AÑADIDO
         case .followRequests(let id):
             return "solicitudes(\(id))"
         case .notifications(let filter):
@@ -119,6 +129,7 @@ extension NotificationNavigationService.PendingNavigation {
         case .profile: return "profile"
         case .conversation: return "chat"
         case .story: return "story"
+        case .storyChain: return "story_chain"  // 🔗 AÑADIDO
         case .followRequests: return "social"
         case .notifications: return "notifications"
         }

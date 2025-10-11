@@ -169,12 +169,22 @@ struct NovaMemory: Identifiable {
             return ""
         }
         
-        var context = "INFORMACIÓN SOBRE EL USUARIO:\n\n"
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let labels: (userInfo: String, prefs: String, personal: String, work: String, interests: String, rules: String, rule1: String, rule2: String, rule3: String, rule4: String)
+        switch lang {
+        case .es:
+            labels = ("INFORMACIÓN SOBRE EL USUARIO:", "⚙️ PREFERENCIAS:", "👤 PERSONAL:", "💼 TRABAJO/ESTUDIOS:", "❤️ INTERESES:", "INSTRUCCIONES IMPORTANTES:", "- Usa esta información naturalmente, sin mencionar que la \"recuerdas\"", "- Si hay un nombre preferido, úsalo SIEMPRE en lugar del username", "- Aplica las preferencias de comunicación automáticamente", "- Esta información es SOBRE el usuario, no sobre ti (Nova)")
+        case .en:
+            labels = ("USER INFORMATION:", "⚙️ PREFERENCES:", "👤 PERSONAL:", "💼 WORK/STUDIES:", "❤️ INTERESTS:", "IMPORTANT INSTRUCTIONS:", "- Use this information naturally, without mentioning that you \"remember\" it", "- If there's a preferred name, ALWAYS use it instead of the username", "- Apply communication preferences automatically", "- This information is ABOUT the user, not about you (Nova)")
+        case .ca:
+            labels = ("INFORMACIÓ SOBRE L'USUARI:", "⚙️ PREFERÈNCIES:", "👤 PERSONAL:", "💼 FEINA/ESTUDIS:", "❤️ INTERESSOS:", "INSTRUCCIONS IMPORTANTS:", "- Utilitza aquesta informació de manera natural, sense esmentar que la \"recordes\"", "- Si hi ha un nom preferit, fes-lo servir SEMPRE en lloc del username", "- Aplica les preferències de comunicació automàticament", "- Aquesta informació és SOBRE l'usuari, no sobre tu (Nova)")
+        }
+        var context = "\(labels.userInfo)\n\n"
         
         // 🎯 PREFERENCIAS PRIMERO (muy importante)
         let preferences = facts.filter { $0.type == .preference }
         if !preferences.isEmpty {
-            context += "⚙️ PREFERENCIAS:\n"
+            context += "\(labels.prefs)\n"
             for pref in preferences.sorted(by: { $0.timestamp > $1.timestamp }) {
                 context += "- \(pref.content)\n"
             }
@@ -184,7 +194,7 @@ struct NovaMemory: Identifiable {
         // 👤 INFORMACIÓN PERSONAL
         let personalFacts = facts.filter { $0.type == .personal }
         if !personalFacts.isEmpty {
-            context += "👤 PERSONAL:\n"
+            context += "\(labels.personal)\n"
             for fact in personalFacts.prefix(3) {
                 context += "- \(fact.content)\n"
             }
@@ -194,7 +204,7 @@ struct NovaMemory: Identifiable {
         // 💼 INFORMACIÓN PROFESIONAL
         let professionalFacts = facts.filter { $0.type == .professional }
         if !professionalFacts.isEmpty {
-            context += "💼 TRABAJO/ESTUDIOS:\n"
+            context += "\(labels.work)\n"
             for fact in professionalFacts.prefix(3) {
                 context += "- \(fact.content)\n"
             }
@@ -204,7 +214,7 @@ struct NovaMemory: Identifiable {
         // ❤️ INTERESES
         let interestFacts = facts.filter { $0.type == .interest }
         if !interestFacts.isEmpty {
-            context += "❤️ INTERESES:\n"
+            context += "\(labels.interests)\n"
             for fact in interestFacts.prefix(2) {
                 context += "- \(fact.content)\n"
             }
@@ -212,11 +222,11 @@ struct NovaMemory: Identifiable {
         }
         
         context += """
-        INSTRUCCIONES IMPORTANTES:
-        - Usa esta información naturalmente, sin mencionar que la "recuerdas"
-        - Si hay un nombre preferido, úsalo SIEMPRE en lugar del username
-        - Aplica las preferencias de comunicación automáticamente
-        - Esta información es SOBRE el usuario, no sobre ti (Nova)
+        \(labels.rules)
+        \(labels.rule1)
+        \(labels.rule2)
+        \(labels.rule3)
+        \(labels.rule4)
         """
         
         return context
@@ -277,28 +287,56 @@ struct NovaMemory: Identifiable {
     private func extractNameFromPreference(_ preference: String?) -> String? {
         guard let pref = preference?.lowercased() else { return nil }
         
-        // 🎯 PATRONES PRINCIPALES (con regex)
-        let patterns = [
-            // FORMAS DIRECTAS
-            "llámame ([a-záéíóúñ]+)",
-            "dime ([a-záéíóúñ]+)",
-            "mi nombre es ([a-záéíóúñ]+)",
-            "me llamo ([a-záéíóúñ]+)",
-            "soy ([a-záéíóúñ]+)",
-            
-            // FORMAS INDIRECTAS
-            "prefiero que me digas ([a-záéíóúñ]+)",
-            "prefiere que le llamen ([a-záéíóúñ]+)",
-            "puedes decirme ([a-záéíóúñ]+)",
-            "me gusta que me digan ([a-záéíóúñ]+)",
-            "me dicen ([a-záéíóúñ]+)",
-            
-            // FORMAS CASUALES
-            "([a-záéíóúñ]+) está bien",
-            "([a-záéíóúñ]+) sin más",
-            "([a-záéíóúñ]+) es mi nombre",
-            "([a-záéíóúñ]+), para servirte"
+        // 🎯 PATRONES MULTILINGÜES (ES/EN/CA)
+        let spanishPatterns = [
+            // Directas
+            "llámame ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "llamame ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "dime ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "mi nombre es ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "me llamo ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "soy ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            // Indirectas
+            "prefiero que me digas ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "prefiere que le llamen ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "puedes decirme ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "me gusta que me digan ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            "me dicen ([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1})",
+            // Casuales
+            "([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1}) está bien",
+            "([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1}) sin más",
+            "([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1}) es mi nombre",
+            "([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+){0,1}), para servirte"
         ]
+        let englishPatterns = [
+            // Direct
+            "call me ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})",
+            "my name is ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})",
+            "i am ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})",
+            "i'm ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})",
+            // Indirect
+            "you can call me ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})",
+            "people call me ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})",
+            "i like being called ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})",
+            // Casual
+            "([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1}) is fine",
+            "just ([a-zA-Z\\-']+(?:\\s+[a-zA-Z\\-']+){0,1})"
+        ]
+        let catalanPatterns = [
+            // Directes
+            "digues-me ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})",
+            "digue'm ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})",
+            "em dic ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})",
+            "sóc ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})",
+            // Indirectes
+            "pots dir-me ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})",
+            "m'agrada que em diguin ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})",
+            "em diuen ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})",
+            // Informals
+            "([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1}) està bé",
+            "només ([a-zàèéíïòóúüç'-]+(?:\\s+[a-zàèéíïòóúüç'-]+){0,1})"
+        ]
+        let patterns = spanishPatterns + englishPatterns + catalanPatterns
         
         // 🔍 INTENTAR PATRONES REGEX PRIMERO
         for pattern in patterns {
@@ -321,8 +359,15 @@ struct NovaMemory: Identifiable {
             
             // ✅ CRITERIOS PARA UN NOMBRE VÁLIDO:
             if cleanWord.count >= 2 && cleanWord.count <= 20 && // Longitud razonable
-               cleanWord.range(of: "^[a-záéíóúñ]+$", options: .regularExpression) != nil && // Solo letras
-               !["mi", "me", "es", "está", "bien", "sin", "más", "para", "servirte", "prefiero", "gusta", "dicen", "llamen", "llamó", "nombre"].contains(cleanWord.lowercased()) { // No palabras comunes
+               cleanWord.range(of: "^[a-zA-Zàèéíïòóúüçáéíóúñ'-]+$", options: .regularExpression) != nil && // Solo letras (ES/EN/CA)
+               ![ // Stopwords comunes ES/EN/CA
+                 // ES
+                 "mi","me","es","está","esta","bien","sin","más","mas","para","servirte","prefiero","gusta","dicen","llamen","llamó","llamo","nombre","soy",
+                 // EN
+                 "my","name","is","i","am","i'm","just","call","me","you","can","people","like","being","called","it's",
+                 // CA
+                 "em","dic","sóc","soc","és","es","nom","només","està","be","bé","pots","dir-me","digue'm","digues-me","m'agrada","que","em","diuen"
+               ].contains(cleanWord.lowercased()) {
                 
                 LogConfig.log("🎯 Nombre extraído con fallback inteligente: \(cleanWord.capitalized)", category: "Memory")
                 return cleanWord.capitalized

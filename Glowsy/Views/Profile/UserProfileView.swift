@@ -83,6 +83,9 @@ struct UserProfileView: View {
     // ✅ NUEVOS: Estados para navegación al explorer
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag: Bool = false
+    
+    // ✅ NUEVO: Estado para mostrar imagen de perfil ampliada
+    @State private var showProfileImageFullscreen: Bool = false
 
     init(userId: String) {
         self.userId = userId
@@ -167,6 +170,15 @@ struct UserProfileView: View {
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
+        }
+        .sheet(isPresented: $showProfileImageFullscreen) {
+            ProfileImageViewer(
+                profileImagePath: viewModel.userProfile?.profileImagePath,
+                username: viewModel.userProfile?.username ?? "Usuario"
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(.clear)
         }
         .fullScreenCover(isPresented: $navigateToChat) {
             if let conversation = targetConversation {
@@ -312,6 +324,7 @@ struct UserProfileView: View {
                     messageRequestText: $messageRequestText,
                     messageRequestError: $messageRequestError,
                     showingSuccessMessage: $showingSuccessMessage,
+                    showProfileImageFullscreen: $showProfileImageFullscreen,
                     onFollowAction: {
                         handleFollowAction()
                     },
@@ -363,6 +376,7 @@ struct UserModernPublicProfileView: View {
     @Binding var messageRequestText: String
     @Binding var messageRequestError: String?
     @Binding var showingSuccessMessage: Bool
+    @Binding var showProfileImageFullscreen: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
 
@@ -384,6 +398,7 @@ struct UserModernPublicProfileView: View {
                         messageRequestText: $messageRequestText,
                         messageRequestError: $messageRequestError,
                         showingSuccessMessage: $showingSuccessMessage,
+                        showProfileImageFullscreen: $showProfileImageFullscreen,
                         onFollowAction: onFollowAction,
                         onDismiss: onDismiss
                     )
@@ -516,6 +531,7 @@ struct UserModernProfileHeader: View {
     @Binding var messageRequestText: String
     @Binding var messageRequestError: String?
     @Binding var showingSuccessMessage: Bool
+    @Binding var showProfileImageFullscreen: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void // ✅ NUEVO: Para el botón de atrás
     @Environment(\.colorScheme) var colorScheme
@@ -550,6 +566,10 @@ struct UserModernProfileHeader: View {
                 storyViewModel: storyViewModel,
                 showStoryViewer: $showStoryViewer,
                 selectedStoryIndex: $selectedStoryIndex,
+                showProfileImageFullscreen: Binding<Bool>(
+                    get: { self.showProfileImageFullscreen },
+                    set: { self.showProfileImageFullscreen = $0 }
+                ),
                 size: 120
             )
             
@@ -961,6 +981,7 @@ struct UserModernAvatarWithBadges: View {
     @ObservedObject var storyViewModel: StoryViewModel
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
+    @Binding var showProfileImageFullscreen: Bool
     let size: CGFloat
     @Environment(\.colorScheme) var colorScheme
     
@@ -972,7 +993,10 @@ struct UserModernAvatarWithBadges: View {
     var body: some View {
         ZStack {
             // Avatar principal
-            if let profileImagePath = userProfile?.profileImagePath, let url = URL(string: profileImagePath) {
+            Button(action: {
+                showProfileImageFullscreen = true
+            }) {
+                if let profileImagePath = userProfile?.profileImagePath, let url = URL(string: profileImagePath) {
                 KFImage(url)
                     .placeholder {
                         Circle()
@@ -1003,7 +1027,9 @@ struct UserModernAvatarWithBadges: View {
                     )
                     .overlay(avatarBorderOverlay())
                     .shadow(color: UserProfileColors.shadowColor, radius: 12, x: 0, y: 6)
+                }
             }
+            .buttonStyle(PlainButtonStyle())
             
             // ✅ NUEVO: Badge principal en esquina superior derecha
             if let primaryBadge = userProfile?.primaryBadge {
@@ -1068,11 +1094,11 @@ struct UserModernAvatarWithBadges: View {
                     Gradient(colors: [.red, .purple, .blue, .pink]) :
                     (userProfile?.isPlusSubscriber == true && userProfile?.showPlusBadge == true ?
                      Gradient(colors: [Color(hex: "FFD700"), Color(hex: "FFA500")]) :
-                     Gradient(colors: [UserProfileColors.accent, UserProfileColors.borderColor])),
+                     Gradient(colors: [Color.clear, Color.clear])), // ✅ QUITADO: Borde verde
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
-                lineWidth: hasStory ? 3 : (userProfile?.isPlusSubscriber == true && userProfile?.showPlusBadge == true ? 3 : 2)
+                lineWidth: hasStory ? 3 : (userProfile?.isPlusSubscriber == true && userProfile?.showPlusBadge == true ? 3 : 0) // ✅ QUITADO: Borde cuando no hay story o Plus
             )
     }
 }
@@ -3171,6 +3197,95 @@ struct UserHashtagText: View {
         }
         
         return attributed
+    }
+}
+
+// MARK: - ProfileImageViewer
+struct ProfileImageViewer: View {
+    let profileImagePath: String?
+    let username: String
+    @Environment(\.dismiss) var dismiss
+    @State private var dragOffset: CGSize = .zero
+    @State private var scale: CGFloat = 1.0
+    
+    var body: some View {
+        ZStack {
+            // Fondo con material translúcido
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea()
+                .opacity(0.95 - abs(dragOffset.height) / 1000.0)
+            
+            VStack {
+                Spacer()
+                
+                // Imagen de perfil
+                if let profileImagePath = profileImagePath, let url = URL(string: profileImagePath) {
+                    KFImage(url)
+                        .placeholder {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 300, height: 300)
+                                .overlay(
+                                    Image(systemName: "person.circle.fill")
+                                        .font(.system(size: 120))
+                                        .foregroundColor(.gray.opacity(0.6))
+                                )
+                        }
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                        .clipShape(Circle())
+                        .scaleEffect(scale)
+                        .offset(dragOffset)
+                        .gesture(
+                            SimultaneousGesture(
+                                // Gesture de zoom
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        scale = max(0.5, min(3.0, value))
+                                    },
+                                // Gesture de arrastre
+                                DragGesture()
+                                    .onChanged { value in
+                                        dragOffset = value.translation
+                                    }
+                                    .onEnded { value in
+                                        // Si se arrastra hacia abajo lo suficiente, cerrar
+                                        if value.translation.height > 100 {
+                                            dismiss()
+                                        } else {
+                                            withAnimation(.spring()) {
+                                                dragOffset = .zero
+                                            }
+                                        }
+                                    }
+                            )
+                        )
+                } else {
+                    // Placeholder si no hay imagen
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 300, height: 300)
+                        .overlay(
+                            VStack(spacing: 16) {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 120))
+                                    .foregroundColor(.secondary)
+                                Text(username)
+                                    .font(.custom("Poppins-SemiBold", size: 18))
+                                    .foregroundColor(.primary)
+                            }
+                        )
+                        .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+                }
+                
+                Spacer()
+            }
+        }
+        .onTapGesture {
+            dismiss()
+        }
     }
 }
 

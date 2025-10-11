@@ -14,7 +14,8 @@ struct TabBarView: View {
 
     var body: some View {
         if authService.isLoggedIn {
-            VStack(spacing: 0) {
+            ZStack {
+                // Contenido principal que se extiende detrás del TabBar
                 ZStack {
                     switch selectedTab {
                     case 0:
@@ -34,24 +35,27 @@ struct TabBarView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                CustomTabBar(selectedTab: $selectedTab)
-                    .background(
-                        (colorScheme == .dark ?
-                         Color.black.opacity(0.95) :
-                         Color.white.opacity(0.95))
-                            .edgesIgnoringSafeArea(.bottom)
-                            .blur(radius: 10)
-                            .overlay(
-                                Rectangle()
-                                    .frame(height: 1)
-                                    .foregroundColor(
-                                        colorScheme == .dark ?
-                                        Color.gray.opacity(0.3) :
-                                        Color.gray.opacity(0.2)
-                                    ),
-                                alignment: .top
-                            )
-                    )
+                // TabBar pegado abajo pero con transparencia
+                VStack {
+                    Spacer()
+                    
+                    CustomTabBar(selectedTab: $selectedTab)
+                        .background(
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .edgesIgnoringSafeArea(.bottom)
+                                .overlay(
+                                    Rectangle()
+                                        .frame(height: 0.5)
+                                        .foregroundColor(
+                                            colorScheme == .dark ?
+                                            Color.white.opacity(0.1) :
+                                            Color.black.opacity(0.1)
+                                        ),
+                                    alignment: .top
+                                )
+                        )
+                }
             }
             .environmentObject(authService)
             .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -104,6 +108,53 @@ struct TabBarView: View {
                     }
                 }
             }
+            // 🔗 Manejar navegación a Story Chain
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowStoryChain"))) { notification in
+                if let userInfo = notification.userInfo,
+                   let chainId = userInfo["chainId"] as? String,
+                   let chainTitle = userInfo["chainTitle"] as? String {
+                    selectedTab = 0 // Ir al feed
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("NavigateToStoryChainInFeed"), 
+                            object: nil,
+                            userInfo: ["chainId": chainId, "chainTitle": chainTitle]
+                        )
+                    }
+                }
+            }
+            // 🔗 Manejar apertura de Creator para continuar cadena
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenCreatorForChain"))) { notification in
+                if let userInfo = notification.userInfo,
+                   let chainId = userInfo["chainId"] as? String,
+                   let chainTitle = userInfo["chainTitle"] as? String,
+                   let chainPosition = userInfo["chainPosition"] as? Int {
+                    // Abrir CreatorView
+                    showCreatorView = true
+                    isCreatingStory = true
+                    
+                    // Enviar contexto de cadena al CreatorView
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        // Configurar modo historia
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("SetContentType"),
+                            object: nil,
+                            userInfo: ["contentType": "story"]
+                        )
+                        
+                        // Enviar contexto de cadena
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("SetChainContext"),
+                            object: nil,
+                            userInfo: [
+                                "chainId": chainId,
+                                "chainTitle": chainTitle,
+                                "chainPosition": chainPosition
+                            ]
+                        )
+                    }
+                }
+            }
             .fullScreenCover(isPresented: $showCreatorView) {
                 CreatorView(isCreatingStory: $isCreatingStory, showCreatorView: $showCreatorView, initialSticker: nil)
             }
@@ -132,6 +183,14 @@ struct TabBarView: View {
         case .story(let storyId):
             selectedTab = 0
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToStory"), object: storyId)
+            
+        case .storyChain(let chainId, let chainTitle):
+            selectedTab = 0
+            NotificationCenter.default.post(
+                name: NSNotification.Name("NavigateToStoryChain"), 
+                object: nil,
+                userInfo: ["chainId": chainId, "chainTitle": chainTitle]
+            )
             
         case .followRequests(let requestId):
             selectedTab = 4
@@ -166,7 +225,7 @@ struct CustomTabBar: View {
     }
     
     private var inactiveColor: Color {
-        colorScheme == .dark ? .gray : .gray
+        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)
     }
     
     private var gradientColors: [Color] {
@@ -201,23 +260,22 @@ struct CustomTabBar: View {
                 selectedTab = 2
             }) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 10)
                         .fill(LinearGradient(
                             colors: gradientColors,
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ))
-                        .frame(width: 50, height: 36)
+                        .frame(width: 44, height: 32)
                         .shadow(
                             color: gradientColors[0].opacity(0.3),
-                            radius: 8,
+                            radius: 6,
                             x: 0,
-                            y: 4
+                            y: 3
                         )
                     
                     Image(systemName: "plus")
-                        .font(.title3)
-                        .fontWeight(.bold)
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.white)
                 }
             }
@@ -244,8 +302,8 @@ struct CustomTabBar: View {
                 selectedTab = 4
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 2)
     }
 }
 
@@ -260,9 +318,9 @@ struct TabBarItem: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 22, weight: isSelected ? .semibold : .medium))
+                    .font(.system(size: 18, weight: isSelected ? .semibold : .medium))
                     .foregroundColor(isSelected ? activeColor : inactiveColor)
                 
                 Text(title)

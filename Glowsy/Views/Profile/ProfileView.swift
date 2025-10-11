@@ -63,7 +63,6 @@ struct ProfileView: View {
     @State private var errorMessage: String?
     @State private var showStoryViewer: Bool = false
     @State private var selectedStoryIndex: Int = 0
-    @State private var showCircularMenu: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var showMomentDetail = false
     @State private var selectedMomentIndex = 0
@@ -124,7 +123,6 @@ struct ProfileView: View {
                         showingUserList: $showingUserList,
                         showStoryViewer: $showStoryViewer,
                         selectedStoryIndex: $selectedStoryIndex,
-                        showCircularMenu: $showCircularMenu,
                         selectedPhoto: $selectedPhoto,
                         scrollOffset: $scrollOffset,
                         showMomentDetail: $showMomentDetail,
@@ -132,9 +130,6 @@ struct ProfileView: View {
                         showingThemeSelector: $showingThemeSelector
                     )
 
-                    if showCircularMenu {
-                        CircularMenuView(userId: Auth.auth().currentUser?.uid ?? "", isShowing: $showCircularMenu)
-                    }
                 }
                 .navigationBarHidden(true)
                 .ignoresSafeArea(.all, edges: .all)
@@ -345,7 +340,6 @@ struct ModernProfileContentView: View {
     @Binding var showingUserList: ProfileView.UserListType?
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
-    @Binding var showCircularMenu: Bool
     @Binding var selectedPhoto: PhotosPickerItem?
     @Binding var scrollOffset: CGFloat
     @Binding var showMomentDetail: Bool
@@ -373,7 +367,6 @@ struct ModernProfileContentView: View {
                             newBio: $newBio,
                             showStoryViewer: $showStoryViewer,
                             selectedStoryIndex: $selectedStoryIndex,
-                            showCircularMenu: $showCircularMenu,
                             showingThemeSelector: $showingThemeSelector
                         )
                         .padding(.top, safeAreaTop + 10)
@@ -577,7 +570,6 @@ struct ModernProfileHeader: View {
     @Binding var newBio: String
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
-    @Binding var showCircularMenu: Bool
     @Binding var showingThemeSelector: Bool
     @Environment(\.colorScheme) var colorScheme
     @State private var profileImage: UIImage?
@@ -690,8 +682,6 @@ struct ModernProfileHeader: View {
                 if storyViewModel.hasActiveStory, let userId = Auth.auth().currentUser?.uid {
                     showStoryViewer = true
                     selectedStoryIndex = 0
-                } else {
-                    showCircularMenu.toggle()
                 }
             }
             

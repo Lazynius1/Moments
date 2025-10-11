@@ -25,6 +25,9 @@ class UploadingStory: ObservableObject, Identifiable {
     let selectedListName: String?
     let createdAt: Date
     let finalRenderedImage: UIImage? // ✅ NUEVA: Imagen renderizada final para detectar aspect ratio
+    let chainId: String? // 🔗 AÑADIDO: ID de la cadena
+    let chainPosition: Int? // 🔗 AÑADIDO: Posición en la cadena
+    let chainTitle: String? // 🔗 AÑADIDO: Título de la cadena
     
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
@@ -46,7 +49,10 @@ class UploadingStory: ObservableObject, Identifiable {
         customViewers: [String]?,
         customListId: String?,
         selectedListName: String?,
-        finalRenderedImage: UIImage? = nil // ✅ NUEVO: Parámetro opcional
+        finalRenderedImage: UIImage? = nil, // ✅ NUEVO: Parámetro opcional
+        chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
+        chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
+        chainTitle: String? = nil // 🔗 AÑADIDO: Título de la cadena
     ) {
         self.tempId = "temp_story_\(UUID().uuidString)"
         self.userId = userId
@@ -61,6 +67,9 @@ class UploadingStory: ObservableObject, Identifiable {
         self.customListId = customListId
         self.selectedListName = selectedListName
         self.finalRenderedImage = finalRenderedImage // ✅ NUEVO: Asignar la imagen renderizada
+        self.chainId = chainId // 🔗 AÑADIDO: Asignar ID de la cadena
+        self.chainPosition = chainPosition // 🔗 AÑADIDO: Asignar posición en la cadena
+        self.chainTitle = chainTitle // 🔗 AÑADIDO: Asignar título de la cadena
         self.createdAt = Date()
         
         // Configurar thumbnail
@@ -89,7 +98,10 @@ class BackgroundStoryUploadService: ObservableObject {
         customViewers: [String]?,
         customListId: String?,
         selectedListName: String?,
-        finalRenderedImage: UIImage? = nil // Para historias con overlays renderizados
+        finalRenderedImage: UIImage? = nil, // Para historias con overlays renderizados
+        chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
+        chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
+        chainTitle: String? = nil // 🔗 AÑADIDO: Título de la cadena
     ) -> UploadingStory? {
         
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
@@ -103,17 +115,25 @@ class BackgroundStoryUploadService: ObservableObject {
         // 🔥 PREPARAR MEDIA ITEM (con imagen renderizada si existe)
         let finalMediaItem: ProcessedMedia
         if let finalImage = finalRenderedImage {
-            // Crear nuevo ProcessedMedia con la imagen renderizada
+            // ✅ OPTIMIZAR IMAGEN RENDERIZADA para historias
+            let optimizedImage = optimizeImageForStory(finalImage)
             finalMediaItem = ProcessedMedia(
                 id: mediaItem.id,
-                image: finalImage,
+                image: optimizedImage,
                 videoURL: mediaItem.videoURL, // 🔥 videoURL va antes que type
                 type: mediaItem.type,
                 aspectRatio: mediaItem.aspectRatio
             )
         } else {
-            // Usar el mediaItem original
-            finalMediaItem = mediaItem
+            // ✅ OPTIMIZAR IMAGEN ORIGINAL para historias
+            let optimizedImage = optimizeImageForStory(mediaItem.image)
+            finalMediaItem = ProcessedMedia(
+                id: mediaItem.id,
+                image: optimizedImage,
+                videoURL: mediaItem.videoURL,
+                type: mediaItem.type,
+                aspectRatio: mediaItem.aspectRatio
+            )
         }
         
         // Crear historia temporal
@@ -129,7 +149,10 @@ class BackgroundStoryUploadService: ObservableObject {
             customViewers: customViewers,
             customListId: customListId,
             selectedListName: selectedListName,
-            finalRenderedImage: finalRenderedImage // ✅ NUEVO: Pasar la imagen renderizada
+            finalRenderedImage: finalRenderedImage, // ✅ NUEVO: Pasar la imagen renderizada
+            chainId: chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
+            chainPosition: chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
+            chainTitle: chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
         )
         
         // Mostrar en el header inmediatamente
@@ -443,11 +466,6 @@ class BackgroundStoryUploadService: ObservableObject {
                 let width = Int(finalRenderedImage.size.width)
                 let height = Int(finalRenderedImage.size.height)
                 aspectRatio = "\(width):\(height)"
-                
-                print("🖼️ ASPECT RATIO DETECTADO PARA IMAGEN:")
-                print("   - Tamaño: \(width) x \(height)")
-                print("   - Aspect ratio: \(aspectRatio ?? "nil")")
-                print("   - ¿Es horizontal? \(GlassmorphicStoryViewer.isHorizontalAspectRatio(aspectRatio))")
             }
         }
         
@@ -470,7 +488,10 @@ class BackgroundStoryUploadService: ObservableObject {
                     stickers: uploadingStory.stickerData?.compactMap { StickerData.from($0) },
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
-                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: Pasar URL del frame de fondo
+                    backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
+                    chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
+                    chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
+                    chainTitle: uploadingStory.chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -493,7 +514,10 @@ class BackgroundStoryUploadService: ObservableObject {
                     stickers: uploadingStory.stickerData?.compactMap { StickerData.from($0) },
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
-                    backgroundFrameURL: backgroundFrameURL // ✅ AÑADIDO: Pasar URL del frame de fondo
+                    backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
+                    chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
+                    chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
+                    chainTitle: uploadingStory.chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -710,7 +734,10 @@ extension BackgroundStoryUploadService {
         customViewers: [String],
         customListId: String?,
         selectedListName: String?,
-        finalRenderedImage: UIImage? = nil
+        finalRenderedImage: UIImage? = nil,
+        chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
+        chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
+        chainTitle: String? = nil // 🔗 AÑADIDO: Título de la cadena
     ) -> Bool {
         
         let uploadingStory = uploadStory(
@@ -724,9 +751,52 @@ extension BackgroundStoryUploadService {
             customViewers: customViewers.isEmpty ? nil : customViewers,
             customListId: customListId,
             selectedListName: selectedListName,
-            finalRenderedImage: finalRenderedImage
+            finalRenderedImage: finalRenderedImage,
+            chainId: chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
+            chainPosition: chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
+            chainTitle: chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
         )
         
         return uploadingStory != nil
+    }
+    
+    // ✅ FUNCIÓN: Optimizar imagen para historias
+    private func optimizeImageForStory(_ image: UIImage) -> UIImage {
+        // ✅ PASO 1: Normalizar orientación
+        let normalizedImage = image.normalized()
+        
+        // ✅ PASO 2: Comprimir a JPEG
+        guard let compressedData = normalizedImage.jpegData(compressionQuality: 0.9) else {
+            return normalizedImage
+        }
+        
+        // ✅ PASO 3: Redimensionar si es muy grande (>8MB)
+        if compressedData.count > 8 * 1024 * 1024 { // 8MB
+            let maxDimension: CGFloat = 3072
+            let resizedImage = calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
+            return resizedImage
+        }
+        
+        return normalizedImage
+    }
+    
+    // ✅ FUNCIÓN: Calcular tamaño óptimo para redimensionar
+    private func calculateOptimalSize(for image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let originalSize = image.size
+        let widthRatio = maxDimension / originalSize.width
+        let heightRatio = maxDimension / originalSize.height
+        let scale = min(widthRatio, heightRatio)
+        
+        let newWidth = originalSize.width * scale
+        let newHeight = originalSize.height * scale
+        let newSize = CGSize(width: newWidth, height: newHeight)
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resizedImage = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        // ✅ Normalizar orientación después del redimensionamiento
+        return resizedImage.normalized()
     }
 }

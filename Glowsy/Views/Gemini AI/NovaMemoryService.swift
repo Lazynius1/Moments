@@ -12,10 +12,17 @@ enum EngagementLevel {
     case high
     
     var description: String {
-        switch self {
-        case .low: return "Bajo"
-        case .medium: return "Medio"
-        case .high: return "Alto"
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch (self, lang) {
+        case (.low, .es): return "Bajo"
+        case (.medium, .es): return "Medio"
+        case (.high, .es): return "Alto"
+        case (.low, .en): return "Low"
+        case (.medium, .en): return "Medium"
+        case (.high, .en): return "High"
+        case (.low, .ca): return "Baix"
+        case (.medium, .ca): return "Mitjà"
+        case (.high, .ca): return "Alt"
         }
     }
 }
@@ -65,6 +72,120 @@ class NovaMemoryService {
     // MARK: - 📁 Colección de Firestore (sin cambios)
     private func userMemoryCollection(for userId: String) -> CollectionReference {
         return db.collection("users").document(userId).collection("novaMemory")
+    }
+
+    // MARK: - Prompts multilingües
+    private func categorizationPrompt(for conversationText: String, lang: NovaLanguage) -> String {
+        switch lang {
+        case .es:
+            return """
+            Analiza esta conversación y extrae hechos importantes sobre el usuario, categorizándolos:
+            
+            CATEGORÍAS Y EJEMPLOS:
+            🔸 PREFERENCE: Preferencias de comunicación, nombres, estilos
+               - "Llámame Pepito" → "Prefiere que le llamen Pepito"
+               - "Háblame de forma casual" → "Prefiere comunicación casual"
+               - "No me gusta el tono formal" → "Prefiere tono informal"
+            
+            🔸 PERSONAL: Información personal permanente
+               - "Vivo en Madrid" → "Vive en Madrid"
+               - "Tengo 25 años" → "Tiene 25 años"
+               - "Tengo un perro" → "Tiene un perro"
+            
+            🔸 PROFESSIONAL: Trabajo, estudios, carrera
+               - "Soy desarrollador" → "Trabaja como desarrollador"
+               - "Estudio medicina" → "Estudia medicina"
+               - "Trabajo en Google" → "Trabaja en Google"
+            
+            🔸 INTEREST: Hobbies, gustos, aficiones
+               - "Me encanta el fútbol" → "Le gusta el fútbol"
+               - "Soy fan de Marvel" → "Es fan de Marvel"
+            
+            FORMATO DE RESPUESTA:
+            PREFERENCE: [hecho si existe]
+            PERSONAL: [hecho si existe]
+            PROFESSIONAL: [hecho si existe]
+            INTEREST: [hecho si existe]
+            
+            Si no hay hechos de una categoría, escribe "NINGUNO".
+            Máximo 2 hechos por categoría.
+            
+            CONVERSACIÓN:
+            \(conversationText)
+            """
+        case .en:
+            return """
+            Analyze this conversation and extract important facts about the user, categorizing them:
+            
+            CATEGORIES AND EXAMPLES:
+            🔸 PREFERENCE: Communication preferences, names, styles
+               - "Call me Joey" → "Prefers to be called Joey"
+               - "Talk to me casually" → "Prefers casual communication"
+               - "I don't like formal tone" → "Prefers informal tone"
+            
+            🔸 PERSONAL: Permanent personal information
+               - "I live in Madrid" → "Lives in Madrid"
+               - "I'm 25" → "Is 25 years old"
+               - "I have a dog" → "Has a dog"
+            
+            🔸 PROFESSIONAL: Job, studies, career
+               - "I'm a developer" → "Works as a developer"
+               - "I study medicine" → "Studies medicine"
+               - "I work at Google" → "Works at Google"
+            
+            🔸 INTEREST: Hobbies, likes, passions
+               - "I love football" → "Likes football"
+               - "I'm a Marvel fan" → "Is a Marvel fan"
+            
+            RESPONSE FORMAT:
+            PREFERENCE: [fact if any]
+            PERSONAL: [fact if any]
+            PROFESSIONAL: [fact if any]
+            INTEREST: [fact if any]
+            
+            If no facts exist for a category, write "NONE".
+            Maximum 2 facts per category.
+            
+            CONVERSATION:
+            \(conversationText)
+            """
+        case .ca:
+            return """
+            Analitza aquesta conversa i extreu fets importants sobre l'usuari, categoritzant-los:
+            
+            CATEGORIES I EXEMPLES:
+            🔸 PREFERENCE: Preferències de comunicació, noms, estils
+               - "Digues-me Pep" → "Prefereix que li diguin Pep"
+               - "Parla'm de forma casual" → "Prefereix comunicació casual"
+               - "No m'agrada el to formal" → "Prefereix to informal"
+            
+            🔸 PERSONAL: Informació personal permanent
+               - "Visc a Madrid" → "Viu a Madrid"
+               - "Tinc 25 anys" → "Té 25 anys"
+               - "Tinc un gos" → "Té un gos"
+            
+            🔸 PROFESSIONAL: Feina, estudis, carrera
+               - "Sóc desenvolupador" → "Treballa com a desenvolupador"
+               - "Estudio medicina" → "Estudia medicina"
+               - "Treballo a Google" → "Treballa a Google"
+            
+            🔸 INTEREST: Aficions, gustos, passions
+               - "M'encanta el futbol" → "Li agrada el futbol"
+               - "Sóc fan de Marvel" → "És fan de Marvel"
+            
+            FORMAT DE RESPOSTA:
+            PREFERENCE: [fet si existeix]
+            PERSONAL: [fet si existeix]
+            PROFESSIONAL: [fet si existeix]
+            INTEREST: [fet si existeix]
+            
+            Si no hi ha fets d'una categoria, escriu "CAP".
+            Màxim 2 fets per categoria.
+            
+            CONVERSA:
+            \(conversationText)
+            """
+        }
     }
     
     // MARK: - 💾 Cargar/Guardar Memoria (actualizados para nueva estructura)
@@ -186,8 +307,11 @@ class NovaMemoryService {
         
         // Preparar conversación para análisis con IA
         let recentMessages = Array(messages.suffix(8))
+        let langForLabels = NovaLanguageService.getPreferredLanguage() ?? .es
+        let userLabel: String = { switch langForLabels { case .es: return "Usuario"; case .en: return "User"; case .ca: return "Usuari" } }()
+        let assistantLabel = "Nova"
         let conversationText = recentMessages.map { message in
-            "\(message.isUser ? "Usuario" : "Nova"): \(message.text)"
+            "\(message.isUser ? userLabel : assistantLabel): \(message.text)"
         }.joined(separator: "\n")
         
         // Pre-filtrar conversaciones casuales
@@ -198,42 +322,9 @@ class NovaMemoryService {
             return
         }
         
-        // PROMPT MEJORADO para categorización automática
-        let prompt = """
-        Analiza esta conversación y extrae hechos importantes sobre el usuario, categorizándolos:
-        
-        CATEGORÍAS Y EJEMPLOS:
-        🔸 PREFERENCE: Preferencias de comunicación, nombres, estilos
-           - "Llámame Pepito" → "Prefiere que le llamen Pepito"
-           - "Háblame de forma casual" → "Prefiere comunicación casual"
-           - "No me gusta el tono formal" → "Prefiere tono informal"
-        
-        🔸 PERSONAL: Información personal permanente
-           - "Vivo en Madrid" → "Vive en Madrid"
-           - "Tengo 25 años" → "Tiene 25 años"
-           - "Tengo un perro" → "Tiene un perro"
-        
-        🔸 PROFESSIONAL: Trabajo, estudios, carrera
-           - "Soy desarrollador" → "Trabaja como desarrollador"
-           - "Estudio medicina" → "Estudia medicina"
-           - "Trabajo en Google" → "Trabaja en Google"
-        
-        🔸 INTEREST: Hobbies, gustos, aficiones
-           - "Me encanta el fútbol" → "Le gusta el fútbol"
-           - "Soy fan de Marvel" → "Es fan de Marvel"
-        
-        FORMATO DE RESPUESTA:
-        PREFERENCE: [hecho si existe]
-        PERSONAL: [hecho si existe]
-        PROFESSIONAL: [hecho si existe]
-        INTEREST: [hecho si existe]
-        
-        Si no hay hechos de una categoría, escribe "NINGUNO".
-        Máximo 2 hechos por categoría.
-        
-        CONVERSACIÓN:
-        \(conversationText)
-        """
+        // PROMPT MEJORADO para categorización automática (multilingüe)
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let prompt = categorizationPrompt(for: conversationText, lang: lang)
         
         Task {
             do {
@@ -277,11 +368,11 @@ class NovaMemoryService {
         ]
         
         let stylePatterns = [
-            "háblame (de forma |)casual": "Prefiere comunicación casual",
-            "háblame (de forma |)formal": "Prefiere comunicación formal",
-            "sé más (divertido|gracioso)": "Prefiere tono divertido",
-            "no seas tan (formal|serio)": "Prefiere tono informal",
-            "tutéame": "Prefiere tuteo"
+            "háblame (de forma |)casual": localizedPreference("style.casual"),
+            "háblame (de forma |)formal": localizedPreference("style.formal"),
+            "sé más (divertido|gracioso)": localizedPreference("style.fun"),
+            "no seas tan (formal|serio)": localizedPreference("style.informal"),
+            "tutéame": localizedPreference("style.tuteo")
         ]
         
         // Buscar en mensajes del usuario
@@ -296,7 +387,7 @@ class NovaMemoryService {
                         if let nameRange = Range(match.range(at: 1), in: text) {
                             let name = String(text[nameRange]).capitalized
                             let preference = NovaFact(
-                                content: "Prefiere que le llamen \(name)",
+                                content: localizedPreferenceName(name),
                                 type: .preference,
                                 importance: 5
                             )
@@ -341,36 +432,41 @@ class NovaMemoryService {
             if trimmed.hasPrefix("PREFERENCE:") {
                 currentCategory = .preference
                 let content = trimmed.replacingOccurrences(of: "PREFERENCE:", with: "").trimmingCharacters(in: .whitespaces)
-                if !content.isEmpty && !content.uppercased().contains("NINGUNO") {
+                if !content.isEmpty && !isNoneToken(content) {
                     facts.append(NovaFact(content: content, type: .preference, importance: 5))
                 }
             } else if trimmed.hasPrefix("PERSONAL:") {
                 currentCategory = .personal
                 let content = trimmed.replacingOccurrences(of: "PERSONAL:", with: "").trimmingCharacters(in: .whitespaces)
-                if !content.isEmpty && !content.uppercased().contains("NINGUNO") {
+                if !content.isEmpty && !isNoneToken(content) {
                     facts.append(NovaFact(content: content, type: .personal, importance: 4))
                 }
             } else if trimmed.hasPrefix("PROFESSIONAL:") {
                 currentCategory = .professional
                 let content = trimmed.replacingOccurrences(of: "PROFESSIONAL:", with: "").trimmingCharacters(in: .whitespaces)
-                if !content.isEmpty && !content.uppercased().contains("NINGUNO") {
+                if !content.isEmpty && !isNoneToken(content) {
                     facts.append(NovaFact(content: content, type: .professional, importance: 3))
                 }
             } else if trimmed.hasPrefix("INTEREST:") {
                 currentCategory = .interest
                 let content = trimmed.replacingOccurrences(of: "INTEREST:", with: "").trimmingCharacters(in: .whitespaces)
-                if !content.isEmpty && !content.uppercased().contains("NINGUNO") {
+                if !content.isEmpty && !isNoneToken(content) {
                     facts.append(NovaFact(content: content, type: .interest, importance: 2))
                 }
             } else if !trimmed.isEmpty && currentCategory != nil {
                 // Línea adicional para la categoría actual
-                if !trimmed.uppercased().contains("NINGUNO") && trimmed.count > 10 {
+                if !isNoneToken(trimmed) && trimmed.count > 10 {
                     facts.append(NovaFact(content: trimmed, type: currentCategory!, importance: currentCategory!.priority))
                 }
             }
         }
         
         return Array(facts.prefix(6)) // Máximo 6 hechos por conversación
+    }
+
+    private func isNoneToken(_ text: String) -> Bool {
+        let upper = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return upper.contains("NINGUNO") || upper.contains("NONE") || upper.contains("CAP")
     }
     
     // MARK: - 🔄 MIGRACIÓN DE MEMORIA ANTIGUA
@@ -406,23 +502,31 @@ class NovaMemoryService {
     private func categorizeOldFact(_ fact: String) -> NovaFactType {
         let lowercased = fact.lowercased()
         
-        // Detectar preferencias
-        if lowercased.contains("prefiere") || lowercased.contains("llama") || lowercased.contains("gusta que") {
+        // Detectar preferencias (ES/EN/CA)
+        if lowercased.contains("prefiere") || lowercased.contains("llama") || lowercased.contains("gusta que") ||
+           lowercased.contains("prefers") || lowercased.contains("call me") || lowercased.contains("likes being called") ||
+           lowercased.contains("prefereix") || lowercased.contains("digues-me") || lowercased.contains("m'agrada que") {
             return .preference
         }
         
-        // Detectar información profesional
-        if lowercased.contains("trabaja") || lowercased.contains("estudia") || lowercased.contains("empresa") {
+        // Detectar información profesional (ES/EN/CA)
+        if lowercased.contains("trabaja") || lowercased.contains("estudia") || lowercased.contains("empresa") ||
+           lowercased.contains("works") || lowercased.contains("study") || lowercased.contains("company") ||
+           lowercased.contains("treballa") || lowercased.contains("estudia") || lowercased.contains("empresa") {
             return .professional
         }
         
-        // Detectar información personal
-        if lowercased.contains("vive") || lowercased.contains("tiene") || lowercased.contains("edad") {
+        // Detectar información personal (ES/EN/CA)
+        if lowercased.contains("vive") || lowercased.contains("tiene") || lowercased.contains("edad") ||
+           lowercased.contains("lives") || lowercased.contains("age") || lowercased.contains("have") ||
+           lowercased.contains("viu") || lowercased.contains("té") || lowercased.contains("edat") {
             return .personal
         }
         
-        // Detectar intereses
-        if lowercased.contains("le gusta") || lowercased.contains("aficionado") || lowercased.contains("hobby") {
+        // Detectar intereses (ES/EN/CA)
+        if lowercased.contains("le gusta") || lowercased.contains("aficionado") || lowercased.contains("hobby") ||
+           lowercased.contains("likes") || lowercased.contains("fan") || lowercased.contains("hobby") ||
+           lowercased.contains("li agrada") || lowercased.contains("aficionat") {
             return .interest
         }
         
@@ -507,10 +611,12 @@ class NovaMemoryService {
     
     // 🔄 Detectar si hay cambio de tema entre dos mensajes
     private func isTopicChange(_ message1: String, _ message2: String) -> Bool {
-        let topicKeywords = [
-            "trabajo", "estudio", "hobby", "familia", "amigos", "viaje", "música", "deporte",
-            "tecnología", "arte", "cocina", "libros", "películas", "juegos", "salud", "finanzas"
-        ]
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let topicKeywordsES = ["trabajo","estudio","hobby","familia","amigos","viaje","música","deporte","tecnología","arte","cocina","libros","películas","juegos","salud","finanzas"]
+        let topicKeywordsEN = ["work","study","hobby","family","friends","trip","travel","music","sport","technology","art","cooking","books","movies","games","health","finance","finances"]
+        let topicKeywordsCA = ["feina","estudi","hobby","família","amics","viatge","música","esport","tecnologia","art","cuina","llibres","pel·lícules","jocs","salut","finances"]
+        let topicKeywords: [String]
+        switch lang { case .es: topicKeywords = topicKeywordsES; case .en: topicKeywords = topicKeywordsEN; case .ca: topicKeywords = topicKeywordsCA }
         
         let message1Topics = topicKeywords.filter { message1.contains($0) }
         let message2Topics = topicKeywords.filter { message2.contains($0) }
@@ -535,8 +641,13 @@ class NovaMemoryService {
         patterns.usesEmojis = emojiCount > 0
         patterns.emojiFrequency = Double(emojiCount) / Double(userMessages.count)
         
-        // Analizar formalidad
-        let formalWords = ["usted", "por favor", "gracias", "disculpe", "permíteme"]
+        // Analizar formalidad (ES/EN/CA)
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let formalWordsES = ["usted","por favor","gracias","disculpe","permíteme","permiteme"]
+        let formalWordsEN = ["sir","please","thank you","excuse me","pardon","would you"]
+        let formalWordsCA = ["vostè","si us plau","gràcies","disculpi","permeti"]
+        let formalWords: [String]
+        switch lang { case .es: formalWords = formalWordsES; case .en: formalWords = formalWordsEN; case .ca: formalWords = formalWordsCA }
         let formalCount = userMessages.filter { message in
             formalWords.contains { message.text.lowercased().contains($0) }
         }.count
@@ -560,7 +671,7 @@ class NovaMemoryService {
         // Aprender preferencias de estilo
         if patterns.isFormal {
             newPreferences.append(NovaFact(
-                content: "Prefiere comunicación formal y respetuosa",
+                content: localizedLearning("pref.formal_respectful"),
                 type: .preference,
                 importance: 4
             ))
@@ -568,7 +679,7 @@ class NovaMemoryService {
         
         if patterns.usesEmojis && patterns.emojiFrequency > 0.5 {
             newPreferences.append(NovaFact(
-                content: "Le gusta usar emojis y comunicación visual",
+                content: localizedLearning("pref.emojis"),
                 type: .preference,
                 importance: 3
             ))
@@ -576,7 +687,7 @@ class NovaMemoryService {
         
         if patterns.prefersLongMessages {
             newPreferences.append(NovaFact(
-                content: "Prefiere conversaciones detalladas y extensas",
+                content: localizedLearning("pref.long_conversations"),
                 type: .preference,
                 importance: 4
             ))
@@ -584,7 +695,7 @@ class NovaMemoryService {
         
         if patterns.asksQuestions && patterns.questionFrequency > 0.4 {
             newPreferences.append(NovaFact(
-                content: "Es curioso y hace muchas preguntas",
+                content: localizedLearning("pref.curiosity_questions"),
                 type: .preference,
                 importance: 3
             ))
@@ -593,7 +704,7 @@ class NovaMemoryService {
         // Aprender preferencias de engagement
         if engagement.level == .high {
             newPreferences.append(NovaFact(
-                content: "Se involucra mucho en las conversaciones",
+                content: localizedLearning("pref.high_engagement"),
                 type: .preference,
                 importance: 4
             ))
@@ -614,16 +725,16 @@ class NovaMemoryService {
     
     // MARK: - 🔧 Métodos Auxiliares (sin cambios significativos)
     private func isConversationCasual(_ text: String) -> Bool {
-        let casualIndicators = [
-            "hola", "qué tal", "cómo estás", "buenos días", "gracias",
-            "de nada", "adiós", "hasta luego", "perfecto", "genial",
-            "ok", "vale", "claro", "entiendo", "jaja", "jeje"
-        ]
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let casualES = ["hola","qué tal","como estas","cómo estás","buenos días","gracias","de nada","adiós","hasta luego","perfecto","genial","ok","vale","claro","entiendo","jaja","jeje"]
+        let casualEN = ["hi","hello","what's up","how are you","good morning","thanks","thank you","you're welcome","bye","see you","perfect","great","ok","sure","got it","haha","lol"]
+        let casualCA = ["hola","què tal","com estàs","bon dia","gràcies","de res","adéu","fins després","perfecte","genial","ok","d'acord","entenc","jaja","jeje"]
+        let casualIndicators: [String]
+        switch lang { case .es: casualIndicators = casualES; case .en: casualIndicators = casualEN; case .ca: casualIndicators = casualCA }
         
         let lowercaseText = text.lowercased()
         let casualWords = casualIndicators.filter { lowercaseText.contains($0) }.count
-        let totalWords = text.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }.count
+        let totalWords = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
         
         return totalWords > 0 && Double(casualWords) / Double(totalWords) > 0.4
     }
@@ -652,5 +763,59 @@ class NovaMemoryService {
     
     var isCurrentlyProcessing: Bool {
         return isProcessingMemory
+    }
+
+    // Localización helpers (no logs)
+    private func localizedPreference(_ key: String) -> String {
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch (key, lang) {
+        case ("style.casual", .es): return "Prefiere comunicación casual"
+        case ("style.casual", .en): return "Prefers casual communication"
+        case ("style.casual", .ca): return "Prefereix comunicació casual"
+        case ("style.formal", .es): return "Prefiere comunicación formal"
+        case ("style.formal", .en): return "Prefers formal communication"
+        case ("style.formal", .ca): return "Prefereix comunicació formal"
+        case ("style.fun", .es): return "Prefiere tono divertido"
+        case ("style.fun", .en): return "Prefers a fun tone"
+        case ("style.fun", .ca): return "Prefereix un to divertit"
+        case ("style.informal", .es): return "Prefiere tono informal"
+        case ("style.informal", .en): return "Prefers an informal tone"
+        case ("style.informal", .ca): return "Prefereix un to informal"
+        case ("style.tuteo", .es): return "Prefiere tuteo"
+        case ("style.tuteo", .en): return "Prefers informal address"
+        case ("style.tuteo", .ca): return "Prefereix tracte informal"
+        default: return key
+        }
+    }
+
+    private func localizedPreferenceName(_ name: String) -> String {
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch lang {
+        case .es: return "Prefiere que le llamen \(name)"
+        case .en: return "Prefers to be called \(name)"
+        case .ca: return "Prefereix que li diguin \(name)"
+        }
+    }
+
+    private func localizedLearning(_ key: String) -> String {
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch (key, lang) {
+        case ("pref.formal_respectful", .es): return "Prefiere comunicación formal y respetuosa"
+        case ("pref.formal_respectful", .en): return "Prefers formal and respectful communication"
+        case ("pref.formal_respectful", .ca): return "Prefereix comunicació formal i respectuosa"
+        case ("pref.emojis", .es): return "Le gusta usar emojis y comunicación visual"
+        case ("pref.emojis", .en): return "Likes using emojis and visual communication"
+        case ("pref.emojis", .ca): return "Li agrada usar emojis i comunicació visual"
+        case ("pref.long_conversations", .es): return "Prefiere conversaciones detalladas y extensas"
+        case ("pref.long_conversations", .en): return "Prefers detailed and extensive conversations"
+        case ("pref.long_conversations", .ca): return "Prefereix converses detallades i extenses"
+        case ("pref.curiosity_questions", .es): return "Es curioso y hace muchas preguntas"
+        case ("pref.curiosity_questions", .en): return "Is curious and asks many questions"
+        case ("pref.curiosity_questions", .ca): return "És curiós i fa moltes preguntes"
+        case ("pref.high_engagement", .es): return "Se involucra mucho en las conversaciones"
+        case ("pref.high_engagement", .en): return "Is highly engaged in conversations"
+        case ("pref.high_engagement", .ca): return "S'involucra molt en les converses"
+        default: return key
+        }
     }
 }

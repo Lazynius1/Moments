@@ -6,6 +6,8 @@ struct SuggestedUsersView: View {
     @StateObject private var viewModel = SuggestedUsersViewModel()
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @State private var navigateToProfile: Bool = false
+    @State private var selectedUserId: String = ""
     
     var body: some View {
         VStack(spacing: 0) {
@@ -36,6 +38,14 @@ struct SuggestedUsersView: View {
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onAppear {
             viewModel.loadInitialUsers()
+        }
+        .sheet(isPresented: $navigateToProfile) {
+            if !selectedUserId.isEmpty {
+                UserProfileView(userId: selectedUserId)
+            } else {
+                Text("Error: Usuario no válido")
+                    .foregroundColor(.red)
+            }
         }
     }
     
@@ -94,7 +104,12 @@ struct SuggestedUsersView: View {
                                 commonInterests: Set(user.interests).intersection(Set(viewModel.currentUserInterests)).count,
                                 buttonState: viewModel.userButtonStates[user.id] ?? .canFollow,
                                 onFollow: { viewModel.followUser(user.id) },
-                                onTap: { viewModel.navigateToProfile(user) }
+                                onTap: { 
+                                    if !user.id.isEmpty {
+                                        selectedUserId = user.id
+                                        navigateToProfile = true
+                                    }
+                                }
                             )
                         }
                         
@@ -398,7 +413,6 @@ class SuggestedUsersViewModel: ObservableObject {
                 }
                 
                 if let error = error {
-                    print("Error loading suggested users: \(error)")
                     return
                 }
                 
@@ -453,7 +467,6 @@ class SuggestedUsersViewModel: ObservableObject {
                 }
                 
                 if let error = error {
-                    print("Error loading more users: \(error)")
                     return
                 }
                 
@@ -518,10 +531,6 @@ class SuggestedUsersViewModel: ObservableObject {
         }
     }
     
-    func navigateToProfile(_ user: AppUser) {
-        // Implementar navegación al perfil
-        print("Navigate to profile: \(user.username)")
-    }
     
     private func checkUserButtonState(for userId: String) {
         guard let currentUserId = currentUserId else { return }

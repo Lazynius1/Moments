@@ -269,6 +269,7 @@ exports.cleanOldNotifications = onSchedule(
   }
 });
 
+
 // 💬 COMENTARIOS EN MOMENTOS
 exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{momentId}/comments/{commentId}', async (event) => {
   const snap = event.data;
@@ -1046,5 +1047,213 @@ exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{mom
     
   } catch (error) {
     console.error('❌ Error handling moment reaction removal:', error);
+  }
+});
+
+// 🔗 STORY CHAINS: Crear entrada de cadena cuando se publica la primera parte
+exports.onStoryChainCreated = onDocumentCreated('users/{userId}/stories/{storyId}', async (event) => {
+  const snap = event.data;
+  const { userId, storyId } = event.params;
+  const story = snap.data();
+  
+  try {
+    // Solo procesar si es la primera parte de una cadena
+    if (!story.chainId || !story.chainPosition || story.chainPosition !== 1) {
+      return null;
+    }
+    
+    console.log(`🔗 Creando entrada de cadena: ${story.chainId} - ${story.chainTitle}`);
+    
+    // Crear entrada en la colección storyChains
+    await admin.firestore().collection('storyChains').doc(story.chainId).set({
+      id: story.chainId,
+      title: story.chainTitle || '',
+      createdBy: userId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      partCount: 1,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastPartBy: story.authorId,
+      lastPartUsername: story.username,
+      isExpired: false
+    });
+    
+    console.log(`✅ Entrada de cadena creada: ${story.chainId}`);
+    
+  } catch (error) {
+    console.error('❌ Error creando entrada de cadena:', error);
+  }
+});
+
+// 🔗 STORY CHAINS: Notificación cuando alguien continúa una cadena
+exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{storyId}', async (event) => {
+  const snap = event.data;
+  const { userId, storyId } = event.params;
+  const story = snap.data();
+  
+  try {
+    // Solo procesar si es parte de una cadena y no es la primera parte
+    if (!story.chainId || !story.chainPosition || story.chainPosition <= 1) {
+      return null;
+    }
+    
+    // No notificar si el usuario se continúa a sí mismo
+    if (story.authorId === userId) {
+      return null;
+    }
+    
+    // Obtener datos del usuario que continuó la cadena y del creador original
+    const [continuerDoc, chainCreatorDoc] = await Promise.all([
+      admin.firestore().doc(`users/${story.authorId}`).get(),
+      admin.firestore().doc(`users/${userId}`).get()
+    ]);
+    
+    if (!continuerDoc.exists || !chainCreatorDoc.exists) {
+      console.warn('⚠️ Documento no encontrado para Story Chain');
+      return null;
+    }
+    
+    const continuerData = continuerDoc.data();
+    const chainCreatorData = chainCreatorDoc.data();
+    
+    // Validar datos requeridos
+    if (!validateUserData(continuerData) || !validateUserData(chainCreatorData)) {
+      console.warn('⚠️ Datos de usuario incompletos para Story Chain');
+      return null;
+    }
+    
+    // Verificar que ambas cuentas estén activas
+    if (!continuerData.isActive || !chainCreatorData.isActive) {
+      return null;
+    }
+    
+    // Obtener FCM token del creador de la cadena
+    const fcmToken = chainCreatorData.fcmToken;
+    if (!fcmToken) return null;
+    
+    // Limpiar URL de imagen
+    const cleanImageUrl = continuerData.profileImagePath
+      ? continuerData.profileImagePath.replace(':443', '')
+      : null;
+    
+    // ✅ Idempotencia por story chain
+    const storyRef = admin.firestore().doc(`users/${userId}/stories/${storyId}`);
+    const alreadyProcessed = await admin.firestore().runTransaction(async (tx) => {
+      const storySnap = await tx.get(storyRef);
+      if (!storySnap.exists) return true;
+      if (storySnap.get('chainNotificationProcessed') === true) return true;
+      tx.update(storyRef, { chainNotificationProcessed: true });
+      return false;
+    });
+    if (alreadyProcessed) return null;
+    
+    // Obtener todas las historias de la cadena para contar partes
+    const chainStoriesSnapshot = await admin.firestore()
+      .collectionGroup('stories')
+      .where('chainId', '==', story.chainId)
+      .orderBy('chainPosition')
+      .get();
+    
+    const totalParts = chainStoriesSnapshot.size;
+    
+    // ✅ TÍTULO DINÁMICO basado en número de partes
+    let notificationTitle, notificationBody;
+    
+    const username = continuerData.username || 'Alguien';
+    const chainTitle = story.chainTitle || 'historia';
+    
+    if (totalParts === 2) {
+      // Segunda parte: mostrar usuario específico
+      notificationTitle = `${username} continuó tu cadena "${chainTitle}"`;
+      notificationBody = 'Toca para ver la nueva parte';
+    } else {
+      // Múltiples partes: mostrar conteo
+      notificationTitle = `${username} agregó la parte ${story.chainPosition} a "${chainTitle}"`;
+      notificationBody = `${totalParts} partes en total`;
+    }
+    
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: notificationTitle,
+        body: notificationBody,
+        image: cleanImageUrl
+      },
+      data: {
+        type: 'story_chain_continued',
+        chainId: story.chainId,
+        storyId: storyId,
+        chainTitle: story.chainTitle || '',
+        chainPosition: story.chainPosition.toString(),
+        totalParts: totalParts.toString(),
+        continuerId: story.authorId,
+        chainCreatorId: userId,
+        targetType: 'story_chain',
+        targetId: story.chainId,
+        senderUsername: continuerData.username,
+        senderProfileImage: continuerData.profileImagePath || ''
+      },
+      apns: {
+        payload: {
+          aps: {
+            badge: 1,
+            sound: 'default',
+            'mutable-content': 1,
+            // ✅ CLAVE: Thread-ID para agrupación nativa iOS
+            'thread-id': `story_chain_${story.chainId}`,
+            // ✅ NUEVO: Summary args para agrupación inteligente
+            'summary-arg': continuerData.username,
+            'summary-arg-count': totalParts
+          }
+        }
+      }
+    };
+    
+    try {
+      await admin.messaging().send(message);
+      console.log(`✅ Notificación de Story Chain enviada: ${username} -> ${chainCreatorData.username} (${story.chainTitle}) - Parte ${story.chainPosition}/${totalParts}`);
+    } catch (error) {
+      if (error.code === 'messaging/registration-token-not-registered') {
+        await removeInvalidToken(userId, fcmToken);
+      }
+      throw error;
+    }
+    
+    // Crear notificación en Firestore
+    await admin.firestore().collection(`users/${userId}/notifications`).add({
+      type: 'storyChainContinued',
+      senderId: story.authorId,
+      senderUsername: continuerData.username,
+      senderProfileImage: continuerData.profileImagePath || '',
+      chainId: story.chainId,
+      chainTitle: story.chainTitle || '',
+      storyId: storyId,
+      chainPosition: story.chainPosition,
+      totalParts: totalParts,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      isPending: true
+    });
+    
+    // ✅ ACTUALIZAR METADATOS DE LA CADENA
+    try {
+      const chainRef = admin.firestore().doc(`storyChains/${story.chainId}`);
+      await chainRef.set({
+        id: story.chainId,
+        title: story.chainTitle || '',
+        createdBy: userId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        partCount: totalParts,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        lastPartBy: story.authorId,
+        lastPartUsername: continuerData.username
+      }, { merge: true });
+      
+      console.log(`✅ Metadatos de cadena actualizados: ${story.chainId} - ${totalParts} partes`);
+    } catch (chainError) {
+      console.warn('⚠️ Error actualizando metadatos de cadena:', chainError);
+      // No fallar la notificación por esto
+    }
+    
+  } catch (error) {
+    console.error('❌ Error sending story chain notification:', error);
   }
 });

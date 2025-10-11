@@ -106,6 +106,18 @@ struct GlowsyApp: App {
                             if let conversationId = notification.object as? String {
                             }
                         }
+                        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryChain"))) { notification in
+                            if let userInfo = notification.userInfo,
+                               let chainId = userInfo["chainId"] as? String,
+                               let chainTitle = userInfo["chainTitle"] as? String {
+                                // Enviar a TabBarView para manejar la navegación a Story Chain
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("ShowStoryChain"), 
+                                    object: nil,
+                                    userInfo: ["chainId": chainId, "chainTitle": chainTitle]
+                                )
+                            }
+                        }
 
                         .transition(.opacity.combined(with: .scale))
                 }

@@ -440,6 +440,9 @@ struct Story: Identifiable, Codable {
     let drawingData: Data?
     let aspectRatio: String? // ✅ AÑADIDO: Aspect ratio del video/imagen
     let backgroundFrameURL: String? // ✅ AÑADIDO: URL del frame de fondo para videos horizontales
+    let chainId: String? // 🔗 AÑADIDO: ID de la cadena de historias
+    let chainPosition: Int? // 🔗 AÑADIDO: Posición en la cadena (1, 2, 3...)
+    let chainTitle: String? // 🔗 AÑADIDO: Título de la cadena
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -459,6 +462,9 @@ struct Story: Identifiable, Codable {
         case drawingData
         case aspectRatio // ✅ AÑADIDO: Clave de codificación
         case backgroundFrameURL // ✅ AÑADIDO: Clave de codificación
+        case chainId // 🔗 AÑADIDO: Clave de codificación
+        case chainPosition // 🔗 AÑADIDO: Clave de codificación
+        case chainTitle // 🔗 AÑADIDO: Clave de codificación
         
         // Claves antiguas para compatibilidad al leer
         case imagePath
@@ -481,7 +487,10 @@ struct Story: Identifiable, Codable {
          stickers: [StickerData]? = nil,
          drawingData: Data? = nil,
          aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio
-         backgroundFrameURL: String? = nil) { // ✅ AÑADIDO: URL del frame de fondo
+         backgroundFrameURL: String? = nil, // ✅ AÑADIDO: URL del frame de fondo
+         chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
+         chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
+         chainTitle: String? = nil) { // 🔗 AÑADIDO: Título de la cadena
         self.id = id
         self.authorId = authorId
         self.username = username
@@ -499,6 +508,9 @@ struct Story: Identifiable, Codable {
         self.drawingData = drawingData
         self.aspectRatio = aspectRatio // ✅ AÑADIDO: Asignar aspect ratio
         self.backgroundFrameURL = backgroundFrameURL // ✅ AÑADIDO: Asignar URL del frame de fondo
+        self.chainId = chainId // 🔗 AÑADIDO: Asignar ID de la cadena
+        self.chainPosition = chainPosition // 🔗 AÑADIDO: Asignar posición en la cadena
+        self.chainTitle = chainTitle // 🔗 AÑADIDO: Asignar título de la cadena
     }
 
     init(from decoder: Decoder) throws {
@@ -527,6 +539,9 @@ struct Story: Identifiable, Codable {
         self.drawingData = try container.decodeIfPresent(Data.self, forKey: .drawingData)
         self.aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio) // ✅ AÑADIDO: Decodificar aspect ratio
         self.backgroundFrameURL = try container.decodeIfPresent(String.self, forKey: .backgroundFrameURL) // ✅ AÑADIDO: Decodificar URL del frame de fondo
+        self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId) // 🔗 AÑADIDO: Decodificar ID de la cadena
+        self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition) // 🔗 AÑADIDO: Decodificar posición en la cadena
+        self.chainTitle = try container.decodeIfPresent(String.self, forKey: .chainTitle) // 🔗 AÑADIDO: Decodificar título de la cadena
         
         if let mediaItem = try? container.decodeIfPresent(MediaItem.self, forKey: .mediaItem) {
             self.mediaItem = mediaItem
@@ -563,6 +578,9 @@ struct Story: Identifiable, Codable {
         try container.encodeIfPresent(drawingData, forKey: .drawingData)
         try container.encodeIfPresent(aspectRatio, forKey: .aspectRatio) // ✅ AÑADIDO: Codificar aspect ratio
         try container.encodeIfPresent(backgroundFrameURL, forKey: .backgroundFrameURL) // ✅ AÑADIDO: Codificar URL del frame de fondo
+        try container.encodeIfPresent(chainId, forKey: .chainId) // 🔗 AÑADIDO: Codificar ID de la cadena
+        try container.encodeIfPresent(chainPosition, forKey: .chainPosition) // 🔗 AÑADIDO: Codificar posición en la cadena
+        try container.encodeIfPresent(chainTitle, forKey: .chainTitle) // 🔗 AÑADIDO: Codificar título de la cadena
         
         // Mantener compatibilidad
         try container.encodeIfPresent(mediaItem.type == .image ? mediaItem.url : nil, forKey: .imagePath)
