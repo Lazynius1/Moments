@@ -1,3 +1,37 @@
+"storyEditor.customAudience.single" = "%d persona";
+"storyEditor.customAudience.multiple" = "%d persones";
+"storyEditor.loadingSettings" = "Carregant...";
+"storyEditor.savedToGallery" = "Història desada a la teva galeria";
+"storyEditor.error.publishStart" = "No s'ha pogut iniciar la pujada de la història";
+
+/* Story Chains */
+"storyChains.createChain" = "Crear Cadena";
+"storyChains.chain" = "Cadena";
+"storyChains.chainTitle" = "Títol de la cadena";
+"storyChains.chainTitlePlaceholder" = "Introdueix el títol de la cadena";
+"storyChains.continuing" = "Continuant: %@";
+"storyChains.continueStory" = "Continuar Història";
+"storyChains.viewChain" = "Veure Cadena";
+"storyChains.part" = "Part %d de '%@'";
+"storyChains.loading" = "Carregant cadena...";
+"storyChains.notFound" = "No s'han trobat històries en aquesta cadena";
+"storyChains.parts" = "%d/%d parts";
+"storyChains.expired" = "• Expirada";
+"storyChains.chainLimit" = "Límit de Cadena";
+"storyChains.error.validation" = "Error validant la cadena: %@";
+"storyChains.ok" = "OK";
+"storyChains.video" = "Vídeo";
+"storyChains.photo" = "Foto";
+"storyChains.error.loadingStats" = "Error carregant estadístiques de cadena: %@";
+"storyChains.example.title" = "El Meu Dia en 5 Fotos";
+"storyChains.error.maxPartsReached" = "Aquesta cadena ha arribat al màxim de %d parts";
+"storyChains.error.chainExpired" = "Aquesta cadena ha expirat (48 hores)";
+"storyChains.error.tooSoonBetweenParts" = "Has d'esperar almenys %d minuts entre parts";
+"storyChains.error.chainNotFound" = "Cadena no trobada";
+"storyChains.error.userNotAuthorized" = "No tens permisos per continuar aquesta cadena";
+"storyChains.error.invalidChainData" = "Dades de cadena invàlides";
+"storyChains.time.expired" = "Expirada";
+"nova.poweredBy" = "Powered by Google Gemini";
 /* Global */
 "global.seeMore" = "veure més";
 "global.seeLess" = "veure menys";
@@ -308,6 +342,10 @@
 "nova.quickSuggestions" = "Suggeriments Ràpids";
 "nova.typing" = "Nova està escrivint...";
 
+/* Nova Language Selection */
+"nova.select_language_title" = "Tria el teu idioma";
+"nova.select_language_cancel" = "Cancel·lar";
+
 /* Nova Welcome Section */
 "nova.welcome.interests.title" = "Els teus interessos";
 "nova.welcome.interests.empty" = "Cap configurat";
@@ -406,6 +444,7 @@
 "creator.interactions.disableComments.description" = "Ningú podrà comentar en aquest moment";
 "creator.interactions.allowSharing" = "Permetre desar";
 "creator.interactions.allowSharing.description" = "Altres poden desar el teu moment";
+"creator.advancedSettings.title" = "Configuració avançada";
 "creator.visualization.title" = "Visualització";
 "creator.visualization.hideReactions" = "Amagar comptador de reaccions";
 "creator.visualization.hideReactions.description" = "El botó de reaccions seguirà visible, però sense mostrar el número";

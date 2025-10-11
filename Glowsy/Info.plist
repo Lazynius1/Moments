@@ -5,13 +5,13 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-7805678909278568~7091658934</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>NSMicrophoneUsageDescription</string>
+	<string>Permite usar el micrófono para grabar audio en tus historias.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>NSCameraUsageDescription</string>
+	<string>Permite usar la cámara para hacer fotos y vídeos y compartirlos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>NSLocationWhenInUseUsageDescription</string>
+	<string>Permite usar tu ubicación para etiquetar publicaciones y mostrar contenido cercano.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>NSUserTrackingUsageDescription</string>
+	<string>Permite el seguimiento para personalizar anuncios. Nos ayuda a mantener la app gratuita.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>SKAdNetworkItems</key>
@@ -227,8 +227,6 @@
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
-	
-	<!-- Encryption Declaration -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

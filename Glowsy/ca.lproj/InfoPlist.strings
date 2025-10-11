@@ -1,18 +1,4 @@
-/* 
-  InfoPlist.strings
-  Glowsy
-
-  Created by Álvaro on 2024.
-*/
-
-/* ATT Usage Description */
-"NSUserTrackingUsageDescription" = "Aquesta app mostra anuncis per mantenir-se gratuïta. Pots personalitzar la teva experiència d'anuncis segons les teves preferències.";
-
-/* Camera Usage Description */
-"NSCameraUsageDescription" = "Aquesta app necessita accés a la càmera per enviar fotos, pujar moments i històries.";
-
-/* Microphone Usage Description */
-"NSMicrophoneUsageDescription" = "Aquesta app necessita accés al micròfon per enviar missatges de veu i gravar les teves històries";
-
-/* Location Usage Description */
-"NSLocationWhenInUseUsageDescription" = "Moments necessita accés a la ubicació per mostrar la ubicació en els teus moments i històries.";
+"NSCameraUsageDescription" = "Permet usar la càmera per fer fotos i vídeos i compartir-los.";
+"NSMicrophoneUsageDescription" = "Permet usar el micròfon per gravar àudio a les teves històries.";
+"NSLocationWhenInUseUsageDescription" = "Permet usar la teva ubicació per etiquetar publicacions i mostrar contingut proper.";
+"NSUserTrackingUsageDescription" = "Permet el seguiment per personalitzar anuncis. Ens ajuda a mantenir l'app gratuïta.";

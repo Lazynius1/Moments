@@ -329,17 +329,18 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Glowsy/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Moments;
+				INFOPLIST_KEY_CFBundleDisplayName = "Moments Social";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Esta app necesita acceso a la cámara para enviar fotos, subir momentos e historias.";
+				INFOPLIST_KEY_NSCameraUsageDescription = NSCameraUsageDescription;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Necesitamos tu ubicación para mostrarte contenido cercano y etiquetar tus momentos.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Moments necesita acceso a tu ubicación para registrar actividad de seguridad y prevenir accesos no autorizados a tu cuenta.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Esta app necesita acceso al micrófono para enviar mensajes de voz y grabar tus historias";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = NSLocationWhenInUseUsageDescription;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = NSMicrophoneUsageDescription;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Para guardar fotos y videos editados en tu galería";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Esta app necesita acceso a tu galería para seleccionar fotos y videos para tus historias y momentos.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Tu privacidad es importante para nosotros. Usamos tus datos para ofrecerte anuncios personalizados y mejorar tu experiencia.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = NSUserTrackingUsageDescription;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -351,7 +352,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -379,17 +380,18 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Glowsy/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Moments;
+				INFOPLIST_KEY_CFBundleDisplayName = "Moments Social";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Esta app necesita acceso a la cámara para enviar fotos, subir momentos e historias.";
+				INFOPLIST_KEY_NSCameraUsageDescription = NSCameraUsageDescription;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Necesitamos tu ubicación para mostrarte contenido cercano y etiquetar tus momentos.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Moments necesita acceso a tu ubicación para registrar actividad de seguridad y prevenir accesos no autorizados a tu cuenta.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Esta app necesita acceso al micrófono para enviar mensajes de voz y grabar tus historias";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = NSLocationWhenInUseUsageDescription;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = NSMicrophoneUsageDescription;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Para guardar fotos y videos editados en tu galería";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Esta app necesita acceso a tu galería para seleccionar fotos y videos para tus historias y momentos.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Tu privacidad es importante para nosotros. Usamos tus datos para ofrecerte anuncios personalizados y mejorar tu experiencia.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = NSUserTrackingUsageDescription;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -401,7 +403,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

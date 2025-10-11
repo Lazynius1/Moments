@@ -57,6 +57,7 @@ struct GeminiView: View {
     @State private var keyboardHeight: CGFloat = 0
     @State private var showConversationHistory = false
     @State private var isKeyboardVisible = false
+    @State private var showLanguageSheet = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -181,7 +182,7 @@ struct GeminiView: View {
                     .clipShape(RoundedRectangle(cornerRadius: keyboardHeight > 0 ? 0 : 16))
                     .shadow(color: ModernGeminiColors.shadowColor, radius: keyboardHeight > 0 ? 0 : 10, x: 0, y: keyboardHeight > 0 ? 0 : -5)
                     // ⭐ POSICIONAMIENTO FIJO EN LA PARTE INFERIOR
-                    .offset(y: -keyboardHeight + safeAreaBottom) // Ajuste el cálculo aquí. offset.y: 0 es la parte inferior.
+                    .offset(y: -keyboardHeight + safeAreaBottom - 80) // Resta altura del TabBar (80px)
                     .animation(.easeInOut(duration: 0.3), value: keyboardHeight) // Solo este animation aquí
                 }
                 // ✅ Eliminado el animation global en VStack para no interferir con el teclado
@@ -228,9 +229,19 @@ struct GeminiView: View {
         .navigationBarHidden(true)
         .onAppear {
             viewModel.fetchUserData()
+            if NovaLanguageService.getPreferredLanguage() == nil {
+                showLanguageSheet = true
+            }
         }
         // ✅ Mantener solo las animaciones de overlay aquí
         .animation(.easeInOut(duration: 0.3), value: showConversationHistory)
+        .sheet(isPresented: $showLanguageSheet) {
+            LanguageSelectionSheet { selected in
+                NovaLanguageService.setPreferredLanguage(selected)
+                showLanguageSheet = false
+            }
+            .presentationDetents([.fraction(0.35)])
+        }
     }
 }
 
@@ -1130,6 +1141,12 @@ struct EnhancedGeminiHeader: View {
                                 endPoint: .trailing
                             )
                         )
+                    Text("·")
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(ModernGeminiColors.textTertiary)
+                    Link(NSLocalizedString("nova.poweredBy", comment: "Powered by Google Gemini credit"), destination: URL(string: "https://ai.google.dev/")!)
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(ModernGeminiColors.textTertiary)
                     
                     // Indicador sutil de progreso del easter egg
                     if logoTapCount > 0 && logoTapCount < 7 {
@@ -1876,9 +1893,9 @@ struct ChatMessage: Identifiable, Equatable {
     }
 
     static func ==(lhs: ChatMessage, rhs: ChatMessage) -> Bool {
-        return lhs.id == rhs.id && 
-               lhs.text == rhs.text && 
-               lhs.isUser == rhs.isUser && 
+        return lhs.id == rhs.id &&
+               lhs.text == rhs.text &&
+               lhs.isUser == rhs.isUser &&
                lhs.isHistorical == rhs.isHistorical
     }
 }
@@ -1907,6 +1924,26 @@ class GeminiViewModel: ObservableObject {
     private let memoryService = NovaMemoryService()
     @Published var userMemory: NovaMemory?
     @Published var hasMemoryLoaded = false
+    // Detectar idioma del input del usuario (heurística ligera)
+    private func detectInputLanguage(_ text: String) -> NovaLanguage? {
+        let lower = text.lowercased()
+        // Señales de catalán
+        let caSignals = ["què", "gràcies", "adéu", "ben", "perquè", "noi", "noia"]
+        if caSignals.contains(where: { lower.contains($0) }) || lower.contains("à") || lower.contains("è") || lower.contains("ò") {
+            return .ca
+        }
+        // Señales de inglés
+        let enSignals = ["the ", "and ", "what", "how ", "please", "thank you", "you're", "you are"]
+        if enSignals.contains(where: { lower.contains($0) }) {
+            return .en
+        }
+        // Señales de español
+        let esSignals = ["qué", "como", "cómo", "gracias", "hola", "por favor", "adiós", "porque"]
+        if esSignals.contains(where: { lower.contains($0) }) || lower.contains("ñ") || lower.contains("á") || lower.contains("é") || lower.contains("í") || lower.contains("ó") || lower.contains("ú") {
+            return .es
+        }
+        return nil
+    }
     
     // ✅ NUEVO: Variables para controlar logs y conexiones
     private var memoryProcessingTimer: Timer?
@@ -2274,20 +2311,35 @@ class GeminiViewModel: ObservableObject {
     func sendMessage() {
         // ✅ VALIDACIONES BÁSICAS
         guard !inputText.isEmpty else {
-            responseText = "Por favor, escribe un mensaje."
+            let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+            switch lang {
+            case .es: responseText = "Por favor, escribe un mensaje."
+            case .en: responseText = "Please, write a message."
+            case .ca: responseText = "Si us plau, escriu un missatge."
+            }
             conversationHistory.append(ChatMessage(text: responseText, isUser: false))
             return
         }
 
         guard let userId = Auth.auth().currentUser?.uid, let userData = userData else {
-            responseText = "Error: No se pudieron cargar los datos del usuario. Por favor, intenta de nuevo."
+            let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+            switch lang {
+            case .es: responseText = "Error: No se pudieron cargar los datos del usuario. Por favor, intenta de nuevo."
+            case .en: responseText = "Error: Could not load user data. Please try again."
+            case .ca: responseText = "Error: No s'han pogut carregar les dades de l'usuari. Si us plau, torna-ho a provar."
+            }
             conversationHistory.append(ChatMessage(text: responseText, isUser: false))
             return
         }
         
         // ✅ NUEVO: Asegurar que la memoria esté cargada antes de enviar
         guard hasMemoryLoaded else {
-            responseText = "Cargando tu memoria personalizada... Por favor, espera un momento."
+            let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+            switch lang {
+            case .es: responseText = "Cargando tu memoria personalizada... Por favor, espera un momento."
+            case .en: responseText = "Loading your personalized memory... Please wait a moment."
+            case .ca: responseText = "Carregant la teva memòria personalitzada... Si us plau, espera un moment."
+            }
             conversationHistory.append(ChatMessage(text: responseText, isUser: false))
             return
         }
@@ -2330,54 +2382,157 @@ class GeminiViewModel: ObservableObject {
         let engagement = memoryService.analyzeConversationEngagement(conversationHistory)
         let patterns = memoryService.analyzeCommunicationPatterns(conversationHistory)
         
-        let finalPrompt = """
-        \(fullPrompt)
+        let lang = detectInputLanguage(currentInput) ?? (NovaLanguageService.getPreferredLanguage() ?? .es)
+        let finalPrompt: String
+        switch lang {
+        case .es:
+            finalPrompt = """
+            \(fullPrompt)
 
-        🎭 ANÁLISIS DE PERSONALIDAD PARA ESTA RESPUESTA:
-        \(vibeAnalysis)
+            🗣️ Responde exclusivamente en Español.
 
-        🔥 NUEVO: ANÁLISIS INTELIGENTE DE LA CONVERSACIÓN:
-        - Nivel de engagement: \(engagement.level.description)
-        - Participación del usuario: \(String(format: "%.1f", engagement.userParticipation * 100))%
-        - Consistencia de temas: \(String(format: "%.1f", engagement.topicConsistency * 100))%
-        - Patrón de comunicación: \(patterns.isFormal ? "Formal" : "Casual")
-        - Uso de emojis: \(patterns.usesEmojis ? "Sí" : "No")
-        - Frecuencia de preguntas: \(String(format: "%.1f", patterns.questionFrequency * 100))%
+            🎭 ANÁLISIS DE PERSONALIDAD PARA ESTA RESPUESTA:
+            \(vibeAnalysis)
 
-        🎯 ADAPTACIÓN INTELIGENTE:
-        \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
+            🔥 ANÁLISIS INTELIGENTE DE LA CONVERSACIÓN:
+            - Nivel de engagement: \(engagement.level.description)
+            - Participación del usuario: \(String(format: "%.1f", engagement.userParticipation * 100))%
+            - Consistencia de temas: \(String(format: "%.1f", engagement.topicConsistency * 100))%
+            - Patrón de comunicación: \(patterns.isFormal ? "Formal" : "Casual")
+            - Uso de emojis: \(patterns.usesEmojis ? "Sí" : "No")
+            - Frecuencia de preguntas: \(String(format: "%.1f", patterns.questionFrequency * 100))%
 
-        HISTORIAL RECIENTE:
-        \(conversationContext)
+            🎯 ADAPTACIÓN INTELIGENTE:
+            \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
 
-        CONSULTA ACTUAL: \(currentInput)
+            HISTORIAL RECIENTE:
+            \(conversationContext)
 
-        CONTEXTO ESPECÍFICO:
-        - Usuario actual: \(displayName) (es UN USUARIO de la app, NO el creador)
-        - Creador de la app: Álvaro (persona diferente al usuario actual)  
-        - Momento: \(getCurrentTimeContext())
-        - Intereses: \(userData.interests.prefix(3).joined(separator: ", "))
+            CONSULTA ACTUAL: \(currentInput)
 
-        ⚠️ CRÍTICO PERSONALIZACIÓN: 
-        - Si conoces el nombre preferido, úsalo SIEMPRE en lugar del username
-        - Aplica las preferencias de comunicación automáticamente
-        - Si preguntan sobre el creador, menciona "Álvaro", nunca "\(userData.username)"
-        - ADAPTA tu respuesta según el análisis de engagement y patrones arriba
-        
-        🚫 REGLA IMPORTANTE - NO SEAS PESADO CON INTERESES:
-        - NO menciones los intereses del usuario en CADA respuesta
-        - Solo usa intereses cuando sea RELEVANTE para la pregunta específica
-        - NO fuerces sugerencias basadas en intereses si el usuario no las pide
-        - Sé natural y conversacional, no un catálogo de recomendaciones
-        - Los intereses son contexto, NO el tema principal de cada conversación
-        """
+            CONTEXTO ESPECÍFICO:
+            - Usuario actual: \(displayName) (es UN USUARIO de la app, NO el creador)
+            - Creador de la app: Álvaro (persona diferente al usuario actual)  
+            - Momento: \(getCurrentTimeContext())
+            - Intereses: \(userData.interests.prefix(3).joined(separator: ", "))
+
+            ⚠️ CRÍTICO PERSONALIZACIÓN: 
+            - Si conoces el nombre preferido, úsalo SIEMPRE en lugar del username
+            - Aplica las preferencias de comunicación automáticamente
+            - Si preguntan sobre el creador, menciona "Álvaro", nunca "\(userData.username)"
+            - ADAPTA tu respuesta según el análisis de engagement y patrones arriba
+            
+            🚫 REGLA IMPORTANTE - NO SEAS PESADO CON INTERESES:
+            - NO menciones los intereses del usuario en CADA respuesta
+            - Solo usa intereses cuando sea RELEVANTE para la pregunta específica
+            - NO fuerces sugerencias basadas en intereses si el usuario no las pide
+            - Sé natural y conversacional, no un catálogo de recomendaciones
+            - Los intereses son contexto, NO el tema principal de cada conversación
+            """
+        case .en:
+            finalPrompt = """
+            \(fullPrompt)
+
+            🗣️ Respond exclusively in English.
+
+            🎭 PERSONALITY ANALYSIS FOR THIS RESPONSE:
+            \(vibeAnalysis)
+
+            🔥 INTELLIGENT CONVERSATION ANALYSIS:
+            - Engagement level: \(engagement.level.description)
+            - User participation: \(String(format: "%.1f", engagement.userParticipation * 100))%
+            - Topic consistency: \(String(format: "%.1f", engagement.topicConsistency * 100))%
+            - Communication pattern: \(patterns.isFormal ? "Formal" : "Casual")
+            - Emoji usage: \(patterns.usesEmojis ? "Yes" : "No")
+            - Question frequency: \(String(format: "%.1f", patterns.questionFrequency * 100))%
+
+            🎯 INTELLIGENT ADAPTATION:
+            \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
+
+            RECENT HISTORY:
+            \(conversationContext)
+
+            CURRENT QUERY: \(currentInput)
+
+            SPECIFIC CONTEXT:
+            - Current user: \(displayName) (is a USER of the app, NOT the creator)
+            - App creator: Álvaro (different person than the current user)
+            - Time: \(getCurrentTimeContext())
+            - Interests: \(userData.interests.prefix(3).joined(separator: ", "))
+
+            ⚠️ CRITICAL PERSONALIZATION:
+            - If you know the preferred name, ALWAYS use it instead of the username
+            - Apply communication preferences automatically
+            - If they ask about the creator, mention "Álvaro", never "\(userData.username)"
+            - ADAPT your response according to the engagement and pattern analysis above
+            
+            🚫 IMPORTANT RULE - DON'T OVERUSE INTERESTS:
+            - Do NOT mention the user's interests in EVERY response
+            - Only use interests when RELEVANT to the specific question
+            - Do NOT force suggestions based on interests if not asked
+            - Be natural and conversational, not a catalog of recommendations
+            - Interests are context, NOT the main topic of every conversation
+            """
+        case .ca:
+            finalPrompt = """
+            \(fullPrompt)
+
+            🗣️ Respon exclusivament en Català.
+
+            🎭 ANÀLISI DE PERSONALITAT PER A AQUESTA RESPOSTA:
+            \(vibeAnalysis)
+
+            🔥 ANÀLISI INTEL·LIGENT DE LA CONVERSA:
+            - Nivell d'enganxament: \(engagement.level.description)
+            - Participació de l'usuari: \(String(format: "%.1f", engagement.userParticipation * 100))%
+            - Consistència de temes: \(String(format: "%.1f", engagement.topicConsistency * 100))%
+            - Patró de comunicació: \(patterns.isFormal ? "Formal" : "Casual")
+            - Ús d'emojis: \(patterns.usesEmojis ? "Sí" : "No")
+            - Freqüència de preguntes: \(String(format: "%.1f", patterns.questionFrequency * 100))%
+
+            🎯 ADAPTACIÓ INTEL·LIGENT:
+            \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
+
+            HISTORIAL RECENT:
+            \(conversationContext)
+
+            CONSULTA ACTUAL: \(currentInput)
+
+            CONTEXT ESPECÍFIC:
+            - Usuari actual: \(displayName) (és UN USUARI de l'app, NO el creador)
+            - Creador de l'app: Álvaro (persona diferent de l'usuari actual)
+            - Moment: \(getCurrentTimeContext())
+            - Interessos: \(userData.interests.prefix(3).joined(separator: ", "))
+
+            ⚠️ CRÍTIC DE PERSONALITZACIÓ:
+            - Si coneixes el nom preferit, fes-lo servir SEMPRE en lloc del username
+            - Aplica les preferències de comunicació automàticament
+            - Si pregunten sobre el creador, esmenta "Álvaro", mai "\(userData.username)"
+            - ADAPTA la teva resposta segons l'anàlisi d'enganxament i patrons de dalt
+            
+            🚫 REGLA IMPORTANT - NO ABUSIS DELS INTERESSOS:
+            - NO mencionis els interessos de l'usuari a CADA resposta
+            - Utilitza interessos només quan sigui RELLEVANT per a la pregunta específica
+            - NO forcis suggeriments basats en interessos si l'usuari no ho demana
+            - Sigues natural i conversacional, no un catàleg de recomanacions
+            - Els interessos són context, NO el tema principal de cada conversa
+            """
+        }
 
         // ✅ TASK CON MANEJO ROBUSTO DE ERRORES
         Task { @MainActor in
             do {
                 // ✅ GENERAR CONTENIDO CON RETRY LOGIC
                 let response = try await generateContentWithRetry(prompt: finalPrompt, maxRetries: 2)
-                let responseText = response.text ?? "No pude generar una respuesta. ¿Puedes reformular tu pregunta?"
+                let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+                let fallback: String = {
+                    switch lang {
+                    case .es: return "No pude generar una respuesta. ¿Puedes reformular tu pregunta?"
+                    case .en: return "I couldn't generate a response. Could you rephrase your question?"
+                    case .ca: return "No he pogut generar una resposta. Pots reformular la teva pregunta?"
+                    }
+                }()
+                let responseText = response.text ?? fallback
                 
                 // 🎯 VALIDAR PERSONALIZACIÓN EN LA RESPUESTA
                 let validatedResponse = NovaPersona.validatePersonalization(
@@ -2603,29 +2758,78 @@ class GeminiViewModel: ObservableObject {
     }
     
     private func buildSimpleContext() -> String {
-        guard let userData = userData else { return "Usuario sin datos específicos" }
-        
-        return """
-        PERFIL DEL USUARIO:
-        - Nombre preferido: \(userMemory?.preferredName ?? userData.username)
-        - Username en la app: \(userData.username)
-        - Intereses: \(userData.interests.joined(separator: ", "))
-        - Bio: \(userData.bio ?? "No especificada")
-        - Conexiones: \(mutualConnections.count)
-        - Visitas al perfil: \(profileVisits.count)
-        
-        CONEXIONES MUTUAS:
-        \(mutualConnections.isEmpty ? "No hay conexiones mutuas" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-        
-        VISITANTES DEL PERFIL:
-        \(profileVisits.isEmpty ? "No hay visitas registradas" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-        
-        ACTIVIDAD:
-        - Momentos publicados: \(recentMoments.count)
-        - Última actividad: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "No disponible")
-        
-        IMPORTANTE: El usuario "\(userData.username)" es UN USUARIO de la app. Álvaro es el creador (persona diferente).
-        """
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        guard let userData = userData else {
+            switch lang { case .es: return "Usuario sin datos específicos"; case .en: return "User without specific data"; case .ca: return "Usuari sense dades específiques" }
+        }
+        switch lang {
+        case .es:
+            return """
+            PERFIL DEL USUARIO:
+            - Nombre preferido: \(userMemory?.preferredName ?? userData.username)
+            - Username en la app: \(userData.username)
+            - Intereses: \(userData.interests.joined(separator: ", "))
+            - Bio: \(userData.bio ?? "No especificada")
+            - Conexiones: \(mutualConnections.count)
+            - Visitas al perfil: \(profileVisits.count)
+            
+            CONEXIONES MUTUAS:
+            \(mutualConnections.isEmpty ? "No hay conexiones mutuas" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+            
+            VISITANTES DEL PERFIL:
+            \(profileVisits.isEmpty ? "No hay visitas registradas" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+            
+            ACTIVIDAD:
+            - Momentos publicados: \(recentMoments.count)
+            - Última actividad: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "No disponible")
+            
+            IMPORTANTE: El usuario "\(userData.username)" es UN USUARIO de la app. Álvaro es el creador (persona diferente).
+            """
+        case .en:
+            return """
+            USER PROFILE:
+            - Preferred name: \(userMemory?.preferredName ?? userData.username)
+            - App username: \(userData.username)
+            - Interests: \(userData.interests.joined(separator: ", "))
+            - Bio: \(userData.bio ?? "Not specified")
+            - Connections: \(mutualConnections.count)
+            - Profile visits: \(profileVisits.count)
+            
+            MUTUAL CONNECTIONS:
+            \(mutualConnections.isEmpty ? "No mutual connections" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+            
+            PROFILE VISITORS:
+            \(profileVisits.isEmpty ? "No recorded visits" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+            
+            ACTIVITY:
+            - Moments posted: \(recentMoments.count)
+            - Last activity: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "Not available")
+            
+            IMPORTANT: The user "\(userData.username)" is a USER of the app. Álvaro is the creator (different person).
+            """
+        case .ca:
+            return """
+            PERFIL DE L'USUARI:
+            - Nom preferit: \(userMemory?.preferredName ?? userData.username)
+            - Nom d'usuari a l'app: \(userData.username)
+            - Interessos: \(userData.interests.joined(separator: ", "))
+            - Bio: \(userData.bio ?? "No especificada")
+            - Connexions: \(mutualConnections.count)
+            - Visites al perfil: \(profileVisits.count)
+            
+            CONNEXIONS MÚTUES:
+            \(mutualConnections.isEmpty ? "No hi ha connexions mútues" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+            
+            VISITANTS DEL PERFIL:
+            \(profileVisits.isEmpty ? "No hi ha visites registrades" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+            
+            ACTIVITAT:
+            - Moments publicats: \(recentMoments.count)
+            - Última activitat: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "No disponible")
+            
+            IMPORTANT: L'usuari "\(userData.username)" és UN USUARI de l'app. Álvaro és el creador (persona diferent).
+            """
+        }
     }
 
     // MARK: - 🔧 FUNCIÓN DE MEMORIA SEGURA MEJORADA
@@ -2678,26 +2882,76 @@ class GeminiViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 if let error = error {
-                    self.responseText = """
-                    ## ❌ Error al Crear Momento
-                    
-                    No pude crear el momento: \(error.localizedDescription)
-                    
-                    **¿Te ayudo con algo más?**
-                    """
+                    let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+                    switch lang {
+                    case .es:
+                        self.responseText = """
+                        ## ❌ Error al Crear Momento
+                        
+                        No pude crear el momento: \(error.localizedDescription)
+                        
+                        **¿Te ayudo con algo más?**
+                        """
+                    case .en:
+                        self.responseText = """
+                        ## ❌ Error Creating Moment
+                        
+                        I couldn't create the moment: \(error.localizedDescription)
+                        
+                        **Want help with something else?**
+                        """
+                    case .ca:
+                        self.responseText = """
+                        ## ❌ Error en Crear Moment
+                        
+                        No he pogut crear el moment: \(error.localizedDescription)
+                        
+                        **Vols ajuda amb alguna altra cosa?**
+                        """
+                    }
                 } else {
-                    self.responseText = """
-                    ## ✅ Momento Creado
-                    
-                    **Contenido:** "\(content)"
-                    
-                    Tu momento ha sido publicado exitosamente. 
-                    
-                    **¿Te gustaría:**
-                    • Crear otro momento
-                    • Ver consejos para contenido viral
-                    • Optimizar tu perfil
-                    """
+                    let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+                    switch lang {
+                    case .es:
+                        self.responseText = """
+                        ## ✅ Momento Creado
+                        
+                        **Contenido:** "\(content)"
+                        
+                        Tu momento ha sido publicado exitosamente. 
+                        
+                        **¿Te gustaría:**
+                        • Crear otro momento
+                        • Ver consejos para contenido viral
+                        • Optimizar tu perfil
+                        """
+                    case .en:
+                        self.responseText = """
+                        ## ✅ Moment Created
+                        
+                        **Content:** "\(content)"
+                        
+                        Your moment has been published successfully.
+                        
+                        **Would you like to:**
+                        • Create another moment
+                        • See tips for viral content
+                        • Optimize your profile
+                        """
+                    case .ca:
+                        self.responseText = """
+                        ## ✅ Moment Creat
+                        
+                        **Contingut:** "\(content)"
+                        
+                        El teu moment s'ha publicat correctament.
+                        
+                        **T'agradaria:**
+                        • Crear un altre moment
+                        • Veure consells per a contingut viral
+                        • Optimitzar el teu perfil
+                        """
+                    }
                 }
                 
                 self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
@@ -2710,22 +2964,57 @@ class GeminiViewModel: ObservableObject {
     }
     
     private func handleConnectionSuggestionsCommand() {
-        let recommendations = suggestedUsers.isEmpty ?
-        "No tengo sugerencias específicas en este momento." :
-        suggestedUsers.map { $0.username }.joined(separator: ", ")
-        
-        responseText = """
-        ## 🤝 Sugerencias de Conexión
-        
-        **Usuarios recomendados:** \(recommendations)
-        
-        ## 💡 Tips para conectar mejor:
-        • Revisa perfiles con intereses similares
-        • Comenta en momentos que te interesen
-        • Comparte contenido auténtico y personal
-        
-        **¿Te ayudo con estrategias específicas de networking?**
-        """
+        let langConn = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch langConn {
+        case .es:
+            let recommendations = suggestedUsers.isEmpty ?
+            "No tengo sugerencias específicas en este momento." :
+            suggestedUsers.map { $0.username }.joined(separator: ", ")
+            responseText = """
+            ## 🤝 Sugerencias de Conexión
+            
+            **Usuarios recomendados:** \(recommendations)
+            
+            ## 💡 Tips para conectar mejor:
+            • Revisa perfiles con intereses similares
+            • Comenta en momentos que te interesen
+            • Comparte contenido auténtico y personal
+            
+            **¿Te ayudo con estrategias específicas de networking?**
+            """
+        case .en:
+            let recommendations = suggestedUsers.isEmpty ?
+            "I don't have specific suggestions right now." :
+            suggestedUsers.map { $0.username }.joined(separator: ", ")
+            responseText = """
+            ## 🤝 Connection Suggestions
+            
+            **Recommended users:** \(recommendations)
+            
+            ## 💡 Tips to connect better:
+            • Check profiles with similar interests
+            • Comment on moments you find interesting
+            • Share authentic, personal content
+            
+            **Want specific networking strategies?**
+            """
+        case .ca:
+            let recommendations = suggestedUsers.isEmpty ?
+            "No tinc suggeriments específics en aquest moment." :
+            suggestedUsers.map { $0.username }.joined(separator: ", ")
+            responseText = """
+            ## 🤝 Suggeriments de Connexió
+            
+            **Usuaris recomanats:** \(recommendations)
+            
+            ## 💡 Consells per connectar millor:
+            • Revisa perfils amb interessos similars
+            • Comenta en moments que t'interessin
+            • Comparteix contingut autèntic i personal
+            
+            **Vols estratègies de networking específiques?**
+            """
+        }
         
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
         Task {
@@ -2738,24 +3027,67 @@ class GeminiViewModel: ObservableObject {
         let currentBio = userData.bio ?? "Sin biografía"
         let userInterests = userData.interests.joined(separator: ", ")
         
-        let prompt = """
-        Eres Nova, experta en perfiles de redes sociales. 
-        
-        TAREA: Mejora esta biografía para que sea más atractiva y efectiva.
-        
-        BIO ACTUAL: "\(currentBio)"
-        INTERESES: \(userInterests)
-        NOMBRE: \(userData.username)
-        
-        REQUISITOS:
-        - Máximo 150 caracteres
-        - Incluye personalidad e intereses
-        - Usa emojis estratégicamente (máximo 3)
-        - Que sea memorable y auténtica
-        - Optimizada para generar conexiones
-        
-        Responde SOLO con la nueva biografía, sin explicaciones adicionales.
-        """
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let prompt: String
+        switch lang {
+        case .es:
+            prompt = """
+            Eres Nova, experta en perfiles de redes sociales. 
+            
+            TAREA: Mejora esta biografía para que sea más atractiva y efectiva.
+            
+            BIO ACTUAL: "\(currentBio)"
+            INTERESES: \(userInterests)
+            NOMBRE: \(userData.username)
+            
+            REQUISITOS:
+            - Máximo 150 caracteres
+            - Incluye personalidad e intereses
+            - Usa emojis estratégicamente (máximo 3)
+            - Que sea memorable y auténtica
+            - Optimizada para generar conexiones
+            
+            Responde SOLO con la nueva biografía, sin explicaciones adicionales.
+            """
+        case .en:
+            prompt = """
+            You are Nova, an expert in social media profiles.
+            
+            TASK: Improve this bio to make it more attractive and effective.
+            
+            CURRENT BIO: "\(currentBio)"
+            INTERESTS: \(userInterests)
+            NAME: \(userData.username)
+            
+            REQUIREMENTS:
+            - Maximum 150 characters
+            - Include personality and interests
+            - Use emojis strategically (max 3)
+            - Memorable and authentic
+            - Optimized to generate connections
+            
+            Respond ONLY with the new bio, no additional explanations.
+            """
+        case .ca:
+            prompt = """
+            Ets Nova, experta en perfils de xarxes socials.
+            
+            TASCA: Millora aquesta biografia perquè sigui més atractiva i efectiva.
+            
+            BIO ACTUAL: "\(currentBio)"
+            INTERESSOS: \(userInterests)
+            NOM: \(userData.username)
+            
+            REQUISITS:
+            - Màxim 150 caràcters
+            - Inclou personalitat i interessos
+            - Usa emojis estratègicament (màxim 3)
+            - Que sigui memorable i autèntica
+            - Optimitzada per generar connexions
+            
+            Respon NOMÉS amb la nova biografia, sense explicacions addicionals.
+            """
+        }
         
         isLoading = true
         inputText = ""
@@ -2834,22 +3166,60 @@ class GeminiViewModel: ObservableObject {
     private func handleProfileAnalysisCommand(userData: AppUser) {
         let profileCompleteness = calculateProfileCompleteness(userData)
         
-        responseText = """
-        ## 📊 Análisis de tu Perfil
-        
-        **Completitud:** \(profileCompleteness)%
-        
-        ## 🎯 Fortalezas:
-        \(getProfileStrengths(userData))
-        
-        ## 🔧 Áreas de mejora:
-        \(getProfileImprovements(userData))
-        
-        ## 🚀 Recomendaciones personalizadas:
-        \(getPersonalizedRecommendations(userData))
-        
-        **¿Te ayudo a implementar alguna de estas mejoras?**
-        """
+        let langProfile = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch langProfile {
+        case .es:
+            responseText = """
+            ## 📊 Análisis de tu Perfil
+            
+            **Completitud:** \(profileCompleteness)%
+            
+            ## 🎯 Fortalezas:
+            \(getProfileStrengths(userData))
+            
+            ## 🔧 Áreas de mejora:
+            \(getProfileImprovements(userData))
+            
+            ## 🚀 Recomendaciones personalizadas:
+            \(getPersonalizedRecommendations(userData))
+            
+            **¿Te ayudo a implementar alguna de estas mejoras?**
+            """
+        case .en:
+            responseText = """
+            ## 📊 Your Profile Analysis
+            
+            **Completeness:** \(profileCompleteness)%
+            
+            ## 🎯 Strengths:
+            \(getProfileStrengths(userData))
+            
+            ## 🔧 Areas for improvement:
+            \(getProfileImprovements(userData))
+            
+            ## 🚀 Personalized recommendations:
+            \(getPersonalizedRecommendations(userData))
+            
+            **Want help implementing any of these improvements?**
+            """
+        case .ca:
+            responseText = """
+            ## 📊 Anàlisi del teu Perfil
+            
+            **Completitud:** \(profileCompleteness)%
+            
+            ## 🎯 Fortaleses:
+            \(getProfileStrengths(userData))
+            
+            ## 🔧 Àrees de millora:
+            \(getProfileImprovements(userData))
+            
+            ## 🚀 Recomanacions personalitzades:
+            \(getPersonalizedRecommendations(userData))
+            
+            **Vols ajuda per implementar alguna d'aquestes millores?**
+            """
+        }
         
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
         Task {
@@ -2862,22 +3232,60 @@ class GeminiViewModel: ObservableObject {
         let interests = userData.interests
         let suggestions = generateContentSuggestions(based: interests)
         
-        responseText = """
-        ## 🎨 Ideas de Contenido Personalizadas
-        
-        Basado en tus intereses: \(interests.prefix(3).joined(separator: ", "))
-        
-        ## 💡 Sugerencias para esta semana:
-        \(suggestions)
-        
-        ## 📈 Tips para engagement:
-        • Publica en horarios de mayor actividad (7-9 PM)
-        • Usa preguntas para generar comentarios
-        • Comparte historias personales auténticas
-        • Incluye calls-to-action sutiles
-        
-        **¿Te ayudo a desarrollar alguna de estas ideas específicamente?**
-        """
+        let langContent = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch langContent {
+        case .es:
+            responseText = """
+            ## 🎨 Ideas de Contenido Personalizadas
+            
+            Basado en tus intereses: \(interests.prefix(3).joined(separator: ", "))
+            
+            ## 💡 Sugerencias para esta semana:
+            \(suggestions)
+            
+            ## 📈 Tips para engagement:
+            • Publica en horarios de mayor actividad (7-9 PM)
+            • Usa preguntas para generar comentarios
+            • Comparte historias personales auténticas
+            • Incluye calls-to-action sutiles
+            
+            **¿Te ayudo a desarrollar alguna de estas ideas específicamente?**
+            """
+        case .en:
+            responseText = """
+            ## 🎨 Personalized Content Ideas
+            
+            Based on your interests: \(interests.prefix(3).joined(separator: ", "))
+            
+            ## 💡 Suggestions for this week:
+            \(suggestions)
+            
+            ## 📈 Tips for engagement:
+            • Post during peak hours (7-9 PM)
+            • Use questions to spark comments
+            • Share authentic personal stories
+            • Include subtle calls-to-action
+            
+            **Want help developing any of these ideas specifically?**
+            """
+        case .ca:
+            responseText = """
+            ## 🎨 Idees de Contingut Personalitzades
+            
+            Basat en els teus interessos: \(interests.prefix(3).joined(separator: ", "))
+            
+            ## 💡 Suggeriments per a aquesta setmana:
+            \(suggestions)
+            
+            ## 📈 Consells per a l'engagement:
+            • Publica en hores de més activitat (7-9 PM)
+            • Usa preguntes per generar comentaris
+            • Comparteix històries personals autèntiques
+            • Inclou crides a l'acció subtils
+            
+            **Vols ajuda per desenvolupar alguna d'aquestes idees en concret?**
+            """
+        }
         
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
         Task {
@@ -2905,40 +3313,61 @@ class GeminiViewModel: ObservableObject {
     }
     
     private func buildEnhancedContext() -> String {
-        guard let userData = userData else { return "Usuario sin datos específicos" }
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        guard let userData = userData else {
+            switch lang {
+            case .es: return "Usuario sin datos específicos"
+            case .en: return "User without specific data"
+            case .ca: return "Usuari sense dades específiques"
+            }
+        }
+        
+        let labels: (profileHeader: String, username: String, interests: String, bio: String, connections: String, visits: String, mutualsHeader: String, noMutuals: String, visitorsHeader: String, noVisitors: String, activityHeader: String, moments: String, lastActivity: String, convoHeader: String, messages: String, lastInteraction: String, reminderHeader: String, reminder1: String, reminder2: String, reminder3: String, notAvailable: String, convoStart: String)
+        switch lang {
+        case .es:
+            labels = ("PERFIL DEL USUARIO ACTUAL (NO ES EL CREADOR DE LA APP):", "- Nombre de usuario en la app:", "- Intereses del usuario:", "- Bio del usuario:", "- Conexiones del usuario:", "- Visitas al perfil:", "CONEXIONES MUTUAS:", "No hay conexiones mutuas", "VISITANTES DEL PERFIL:", "No hay visitas registradas", "ACTIVIDAD DEL USUARIO:", "- Momentos publicados:", "- Última actividad:", "CONTEXTO DE ESTA CONVERSACIÓN:", "- Mensajes en la sesión:", "- Última interacción:", "RECORDATORIO CRÍTICO PARA NOVA:", "- El usuario \"\(userData.username)\" es UN USUARIO más de la app", "- Álvaro es el creador de Moments (persona diferente al usuario actual)", "- NO confundas estos roles bajo ninguna circunstancia", "No disponible", "Inicio de conversación")
+        case .en:
+            labels = ("CURRENT USER PROFILE (NOT THE APP CREATOR):", "- App username:", "- User interests:", "- User bio:", "- User connections:", "- Profile visits:", "MUTUAL CONNECTIONS:", "No mutual connections", "PROFILE VISITORS:", "No recorded visits", "USER ACTIVITY:", "- Moments posted:", "- Last activity:", "CONTEXT OF THIS CONVERSATION:", "- Messages in session:", "- Last interaction:", "CRITICAL REMINDER FOR NOVA:", "- The user \"\(userData.username)\" is a USER of the app", "- Álvaro is the creator of Moments (different person than the current user)", "- Do NOT confuse these roles under any circumstance", "Not available", "Conversation start")
+        case .ca:
+            labels = ("PERFIL DE L'USUARI ACTUAL (NO ÉS EL CREADOR DE L'APP):", "- Nom d'usuari a l'app:", "- Interessos de l'usuari:", "- Bio de l'usuari:", "- Connexions de l'usuari:", "- Visites al perfil:", "CONNEXIONS MÚTUES:", "No hi ha connexions mútues", "VISITANTS DEL PERFIL:", "No hi ha visites registrades", "ACTIVITAT DE L'USUARI:", "- Moments publicats:", "- Última activitat:", "CONTEXT D'AQUESTA CONVERSA:", "- Missatges a la sessió:", "- Última interacció:", "RECORDATORI CRÍTIC PER A NOVA:", "- L'usuari \"\(userData.username)\" és UN USUARI de l'app", "- Álvaro és el creador de Moments (persona diferent de l'usuari actual)", "- NO confonguis aquests rols sota cap circumstància", "No disponible", "Inici de conversa")
+        }
         
         var context = """
-        PERFIL DEL USUARIO ACTUAL (NO ES EL CREADOR DE LA APP):
-        - Nombre de usuario en la app: \(userData.username)
-        - Intereses del usuario: \(userData.interests.joined(separator: ", "))
-        - Bio del usuario: \(userData.bio ?? "No especificada")
-        - Conexiones del usuario: \(mutualConnections.count)
-        - Visitas al perfil: \(profileVisits.count)
+        \(labels.profileHeader)
+        \(labels.username) \(userData.username)
+        \(labels.interests) \(userData.interests.joined(separator: ", "))
+        \(labels.bio) \(userData.bio ?? labels.notAvailable)
+        \(labels.connections) \(mutualConnections.count)
+        \(labels.visits) \(profileVisits.count)
         
-        CONEXIONES MUTUAS:
-        \(mutualConnections.isEmpty ? "No hay conexiones mutuas" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+        \(labels.mutualsHeader)
+        \(mutualConnections.isEmpty ? labels.noMutuals : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
         
-        VISITANTES DEL PERFIL:
-        \(profileVisits.isEmpty ? "No hay visitas registradas" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
+        \(labels.visitorsHeader)
+        \(profileVisits.isEmpty ? labels.noVisitors : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
         
-        ACTIVIDAD DEL USUARIO:
-        - Momentos publicados: \(recentMoments.count)
-        - Última actividad: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "No disponible")
+        \(labels.activityHeader)
+        \(labels.moments) \(recentMoments.count)
+        \(labels.lastActivity) \(recentMoments.first?.timestamp.timeAgoDisplay() ?? labels.notAvailable)
         
-        CONTEXTO DE ESTA CONVERSACIÓN:
-        - Mensajes en la sesión: \(conversationHistory.count)
-        - Última interacción: \(conversationHistory.last?.timestamp.timeAgoDisplay() ?? "Inicio de conversación")
+        \(labels.convoHeader)
+        \(labels.messages) \(conversationHistory.count)
+        \(labels.lastInteraction) \(conversationHistory.last?.timestamp.timeAgoDisplay() ?? labels.convoStart)
         
-        RECORDATORIO CRÍTICO PARA NOVA:
-        - El usuario "\(userData.username)" es UN USUARIO más de la app
-        - Álvaro es el creador de Moments (persona diferente al usuario actual)
-        - NO confundas estos roles bajo ninguna circunstancia
+        \(labels.reminderHeader)
+        \(labels.reminder1)
+        \(labels.reminder2)
+        \(labels.reminder3)
         """
         
         // Integrar memoria silenciosamente
         if let userMemory = userMemory, !userMemory.isEmpty {
             context += "\n\n" + userMemory.contextString
-            context += "\n\nIMPORTANTE: Usa esta información naturalmente, sin mencionar que la 'recuerdas'."
+            switch lang {
+            case .es: context += "\n\nIMPORTANTE: Usa esta información naturalmente, sin mencionar que la 'recuerdas'."
+            case .en: context += "\n\nIMPORTANT: Use this information naturally, without mentioning that you 'remember' it."
+            case .ca: context += "\n\nIMPORTANT: Fes servir aquesta informació de manera natural, sense esmentar que la 'recordes'."
+            }
         }
         
         return context
@@ -2977,8 +3406,17 @@ class GeminiViewModel: ObservableObject {
         }
         
         // Agregar call-to-action si no tiene
-        if !enhanced.contains("?") && !enhanced.lowercased().contains("ayudo") {
-            enhanced += "\n\n¿Te ayudo con algo más específico sobre este tema?"
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let ctaES = "¿Te ayudo con algo más específico sobre este tema?"
+        let ctaEN = "Want help with something more specific about this topic?"
+        let ctaCA = "Vols ajuda amb alguna cosa més específica sobre aquest tema?"
+        let alreadyContainsCTA = enhanced.lowercased().contains("ayudo") || enhanced.lowercased().contains("help") || enhanced.lowercased().contains("ajuda")
+        if !enhanced.contains("?") && !alreadyContainsCTA {
+            switch lang {
+            case .es: enhanced += "\n\n" + ctaES
+            case .en: enhanced += "\n\n" + ctaEN
+            case .ca: enhanced += "\n\n" + ctaCA
+            }
         }
         
         return enhanced
@@ -2988,11 +3426,24 @@ class GeminiViewModel: ObservableObject {
         let sentences = response.components(separatedBy: ". ")
         
         if sentences.count >= 3 {
-            var structured = "## 🎯 Respuesta:\n"
+            let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+            var structured: String = {
+                switch lang {
+                case .es: return "## 🎯 Respuesta:\n"
+                case .en: return "## 🎯 Answer:\n"
+                case .ca: return "## 🎯 Resposta:\n"
+                }
+            }()
             structured += sentences.prefix(2).joined(separator: ". ") + ".\n\n"
             
             if sentences.count > 2 {
-                structured += "## 💡 Detalles adicionales:\n"
+                structured += {
+                    switch lang {
+                    case .es: return "## 💡 Detalles adicionales:\n"
+                    case .en: return "## 💡 Additional details:\n"
+                    case .ca: return "## 💡 Detalls addicionals:\n"
+                    }
+                }()
                 let remainingSentences = Array(sentences.dropFirst(2))
                 for (index, sentence) in remainingSentences.enumerated() {
                     if !sentence.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -3296,6 +3747,15 @@ extension GeminiViewModel {
             case .unknown:
                 responseText = "Perfecto \(userName), he notado tu preferencia."
             }
+        case .setLanguage(let lang):
+            NovaLanguageService.setPreferredLanguage(lang)
+            responseText = {
+                switch lang {
+                case .es: return "Listo. A partir de ahora te hablaré en Español."
+                case .en: return "Done. I will speak in English from now on."
+                case .ca: return "Fet. A partir d'ara et parlaré en Català."
+                }
+            }()
         }
         
         let userMessage = ChatMessage(text: inputText, isUser: true)

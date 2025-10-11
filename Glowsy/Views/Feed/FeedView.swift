@@ -102,6 +102,10 @@ struct FeedView: View {
     @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
+    // 🔗 STORY CHAINS: Variables para navegación
+    @State private var showStoryChain = false
+    @State private var selectedChainId: String = ""
+    @State private var selectedChainTitle: String = ""
     // ✅ NUEVO: Cache básico para optimización
     @State private var cachedStories: [String: Bool] = [:]
     @State private var cachedUnseenStories: [String: Bool] = [:]
@@ -401,6 +405,16 @@ struct FeedView: View {
                 showUserProfile = true
             }
         }
+        // 🔗 STORY CHAINS: Listener para navegación a cadenas
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryChainInFeed"))) { notification in
+            if let userInfo = notification.userInfo,
+               let chainId = userInfo["chainId"] as? String,
+               let chainTitle = userInfo["chainTitle"] as? String {
+                selectedChainId = chainId
+                selectedChainTitle = chainTitle
+                showStoryChain = true
+            }
+        }
 
         .onChange(of: badgeService.unreadNotificationsCount) { count in
 
@@ -411,6 +425,7 @@ struct FeedView: View {
                 UserProfileView(userId: selectedUserId)
             }
         }
+        // 🔗 STORY CHAINS: Eliminado en Feed; centralizado en StoryModels
     }
     
     private func setupServiceConnections() {
@@ -2575,7 +2590,7 @@ struct ModernActionButtons: View {
                 // ✅ REACCIONES: Siempre mostrar el botón, pero controlar el contador
                 // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
                 EpicReactionButton(
-                    moment: moment, 
+                    moment: moment,
                     showCount: moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts
                 )
                     .environmentObject(firestoreService)

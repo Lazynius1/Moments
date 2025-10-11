@@ -357,28 +357,70 @@ class ConversationService: ObservableObject {
     private func generateConversationTitle(from messages: [ChatMessage]) async -> String {
         // Take first messages for analysis
         let messagesToAnalyze = Array(messages.prefix(4))
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         let conversationText = messagesToAnalyze.map { message in
-            "\(message.isUser ? "Usuario" : "Asistente"): \(message.text)"
+            "\(message.isUser ? (lang == .en ? "User" : lang == .ca ? "Usuari" : "Usuario") : (lang == .en ? "Assistant" : lang == .ca ? "Assistent" : "Asistente")): \(message.text)"
         }.joined(separator: "\n")
         
-        let prompt = """
-        Basándote en esta conversación, genera un título breve y descriptivo (máximo 6 palabras) que capture el tema principal. El título debe ser casual y amigable, como si fuera una nota personal. Algunos ejemplos de estilo:
-        
-        - "Consejos de estudio para exámenes"
-        - "Charla sobre intereses musicales"
-        - "Ayuda con escritura creativa"
-        - "Terapia express con IA"
-        - "Planificación de fin de semana"
-        
-        Conversación:
-        \(conversationText)
-        
-        Responde SOLO con el título, sin comillas ni explicaciones adicionales.
-        """
+        let prompt: String
+        switch lang {
+        case .es:
+            prompt = """
+            Basándote en esta conversación, genera un título breve y descriptivo (máximo 6 palabras) que capture el tema principal. El título debe ser casual y amigable, como si fuera una nota personal. Algunos ejemplos de estilo:
+            
+            - "Consejos de estudio para exámenes"
+            - "Charla sobre intereses musicales"
+            - "Ayuda con escritura creativa"
+            - "Terapia express con IA"
+            - "Planificación de fin de semana"
+            
+            Conversación:
+            \(conversationText)
+            
+            Responde SOLO con el título, sin comillas ni explicaciones adicionales.
+            """
+        case .en:
+            prompt = """
+            Based on this conversation, generate a short, descriptive title (max 6 words) that captures the main topic. The title should be casual and friendly, like a personal note. Style examples:
+            
+            - "Study tips for exams"
+            - "Chat about music interests"
+            - "Help with creative writing"
+            - "Express therapy with AI"
+            - "Weekend planning"
+            
+            Conversation:
+            \(conversationText)
+            
+            Respond ONLY with the title, without quotes or additional explanations.
+            """
+        case .ca:
+            prompt = """
+            Basant-te en aquesta conversa, genera un títol breu i descriptiu (màxim 6 paraules) que capti el tema principal. El títol ha de ser casual i amigable, com una nota personal. Exemples d'estil:
+            
+            - "Consells d'estudi per a exàmens"
+            - "Xerrada sobre interessos musicals"
+            - "Ajuda amb escriptura creativa"
+            - "Teràpia exprés amb IA"
+            - "Planificació de cap de setmana"
+            
+            Conversa:
+            \(conversationText)
+            
+            Respon NOMÉS amb el títol, sense cometes ni explicacions addicionals.
+            """
+        }
         
         do {
             let response = try await model.generateContent(prompt)
-            let title = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Conversación \(DateFormatter.shortTime.string(from: Date()))"
+            let fallbackTitle: String = {
+                switch lang {
+                case .es: return "Conversación \(DateFormatter.shortTime.string(from: Date()))"
+                case .en: return "Conversation \(DateFormatter.shortTime.string(from: Date()))"
+                case .ca: return "Conversa \(DateFormatter.shortTime.string(from: Date()))"
+                }
+            }()
+            let title = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? fallbackTitle
             
             // Ensure title isn't too long
             let finalTitle = title.count > 50 ? String(title.prefix(47)) + "..." : title
@@ -386,7 +428,11 @@ class ConversationService: ObservableObject {
             return finalTitle
             
         } catch {
-            return "Conversación \(DateFormatter.shortTime.string(from: Date()))"
+            switch lang {
+            case .es: return "Conversación \(DateFormatter.shortTime.string(from: Date()))"
+            case .en: return "Conversation \(DateFormatter.shortTime.string(from: Date()))"
+            case .ca: return "Conversa \(DateFormatter.shortTime.string(from: Date()))"
+            }
         }
     }
     

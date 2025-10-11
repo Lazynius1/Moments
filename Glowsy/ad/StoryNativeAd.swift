@@ -234,51 +234,8 @@ struct StoryAdContentViewWithMediaView: View {
                 
                 Spacer()
                 
-                VStack(spacing: 16) {
-                    if let headline = nativeAd.headline {
-                        Text(headline)
-                            .font(.custom("Poppins-Bold", size: 24))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 2)
-                            .lineLimit(2)
-                    }
-                    
-                    if let body = nativeAd.body {
-                        Text(body)
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.white.opacity(0.95))
-                            .multilineTextAlignment(.center)
-                            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
-                            .lineLimit(3)
-                    }
-                    
-                    if let callToAction = nativeAd.callToAction {
-                        Button(action: {}) {
-                            Text(callToAction)
-                                .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 32)
-                                .padding(.vertical, 14)
-                                .background(
-                                    LinearGradient(
-                                        colors: [Color(hex: "00A896"), Color(hex: "02C39A")],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .clipShape(Capsule())
-                                .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 5)
-                                .overlay(
-                                    Capsule()
-                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 50)
+                // Los elementos del anuncio ahora se muestran solo desde UIKit (StoryAdMediaViewRepresentable)
+                // para cumplir con las reglas de Google AdMob sin duplicación
             }
             
             storyTouchAreas
@@ -317,43 +274,158 @@ struct StoryAdContentViewWithMediaView: View {
 struct StoryAdMediaViewRepresentable: UIViewRepresentable {
     let nativeAd: NativeAd
     
-    func makeUIView(context: Context) -> MediaView {
+    func makeUIView(context: Context) -> NativeAdView {
+        let nativeAdView = NativeAdView()
+        nativeAdView.nativeAd = nativeAd
+        
+        // MediaView
         let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
         mediaView.backgroundColor = .black
+        mediaView.mediaContent = nativeAd.mediaContent
+        mediaView.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.mediaView = mediaView
         
-        DispatchQueue.main.async {
-            mediaView.mediaContent = nativeAd.mediaContent
-            
-            // ✅ CRÍTICO: Registrar el MediaView con el NativeAd para que Google lo detecte
-            // Para anuncios nativos, necesitamos registrar el MediaView como clickable
-            nativeAd.register(mediaView, clickableAssetViews: [.imageAsset: mediaView], nonclickableAssetViews: [:])
-            
-            if nativeAd.mediaContent.hasVideoContent {
-                let videoController = nativeAd.mediaContent.videoController
-                videoController.delegate = context.coordinator
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    videoController.isMuted = false
-                }
-            }
+        // Ad Attribution personalizado (REQUERIDO por Google)
+        let adAttributionView = UIView()
+        adAttributionView.backgroundColor = UIColor.black.withAlphaComponent(0.8)
+        adAttributionView.layer.cornerRadius = 3
+        adAttributionView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let adAttributionLabel = UILabel()
+        adAttributionLabel.text = "Ad"
+        adAttributionLabel.font = UIFont(name: "Poppins-Bold", size: 12) ?? UIFont.boldSystemFont(ofSize: 12)
+        adAttributionLabel.textColor = .white
+        adAttributionLabel.textAlignment = .center
+        adAttributionLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        adAttributionView.addSubview(adAttributionLabel)
+        
+        // AdChoices (REQUERIDO por Google)
+        let adChoicesView = AdChoicesView()
+        adChoicesView.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.adChoicesView = adChoicesView
+        
+        // Headline
+        let headlineLabel = UILabel()
+        headlineLabel.text = nativeAd.headline
+        headlineLabel.numberOfLines = 0
+        headlineLabel.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.headlineView = headlineLabel
+        
+        // Body
+        let bodyLabel = UILabel()
+        bodyLabel.text = nativeAd.body
+        bodyLabel.numberOfLines = 0
+        bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.bodyView = bodyLabel
+        
+        // ✅ QUITADO: CTA Button - No necesario, el tapping general funciona
+        // let callToActionButton = UIButton(type: .system)
+        // callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
+        // callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
+        // callToActionButton.setTitleColor(.white, for: .normal)
+        // callToActionButton.backgroundColor = UIColor(red: 0, green: 0.66, blue: 0.59, alpha: 1)
+        // callToActionButton.layer.cornerRadius = 16
+        // callToActionButton.translatesAutoresizingMaskIntoConstraints = false
+        // nativeAdView.callToActionView = callToActionButton
+        
+        // Icon
+        let iconView = UIImageView()
+        if let iconImage = nativeAd.icon?.image {
+            iconView.image = iconImage
         }
+        iconView.contentMode = .scaleAspectFit
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.iconView = iconView
         
-        return mediaView
-    }
-    
-    func updateUIView(_ uiView: MediaView, context: Context) {
-        guard uiView.mediaContent != nativeAd.mediaContent else { return }
+        // Advertiser
+        let advertiserLabel = UILabel()
+        advertiserLabel.text = nativeAd.advertiser ?? "Anunciante"
+        advertiserLabel.font = UIFont(name: "Poppins-SemiBold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
+        advertiserLabel.textColor = .white.withAlphaComponent(0.8)
+        advertiserLabel.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.advertiserView = advertiserLabel
         
-        DispatchQueue.main.async {
-            uiView.mediaContent = nativeAd.mediaContent
+        if nativeAd.mediaContent.hasVideoContent {
+            let videoController = nativeAd.mediaContent.videoController
+            videoController.delegate = context.coordinator
             
-            if nativeAd.mediaContent.hasVideoContent {
-                let videoController = nativeAd.mediaContent.videoController
-                videoController.delegate = context.coordinator
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 videoController.isMuted = false
             }
         }
+        
+        // Agregar TODOS los elementos como subvistas de nativeAdView
+        nativeAdView.addSubview(mediaView)
+        nativeAdView.addSubview(headlineLabel)
+        nativeAdView.addSubview(bodyLabel)
+        // nativeAdView.addSubview(callToActionButton) // ✅ QUITADO: CTA Button
+        nativeAdView.addSubview(iconView)
+        nativeAdView.addSubview(advertiserLabel)
+        nativeAdView.addSubview(adChoicesView)
+        nativeAdView.addSubview(adAttributionView)
+        
+        // Constraints - Layout vertical DENTRO del NativeAdView (como FeedNativeAd)
+        NSLayoutConstraint.activate([
+            // MediaView - parte superior (más grande para parecer historia)
+            mediaView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 8),
+            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            mediaView.heightAnchor.constraint(equalToConstant: 500), // Más alto para parecer historia
+            
+            // Ad Attribution - debajo del media (sin superposición)
+            adAttributionView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
+            adAttributionView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            adAttributionView.widthAnchor.constraint(equalToConstant: 25),
+            adAttributionView.heightAnchor.constraint(equalToConstant: 18),
+            
+            // Ad Attribution Label constraints
+            adAttributionLabel.centerXAnchor.constraint(equalTo: adAttributionView.centerXAnchor),
+            adAttributionLabel.centerYAnchor.constraint(equalTo: adAttributionView.centerYAnchor),
+            
+            // AdChoices - debajo del media (sin superposición)
+            adChoicesView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
+            adChoicesView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            
+            // ✅ HÍBRIDO: Texto en horizontal, video en vertical - SIN SUPERPOSICIONES
+            // Headline - debajo de los elementos de atribución
+            headlineLabel.topAnchor.constraint(equalTo: adAttributionView.bottomAnchor, constant: 12),
+            headlineLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            headlineLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            headlineLabel.heightAnchor.constraint(equalToConstant: 30),
+            
+            // Body - debajo del headline, horizontal
+            bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 4),
+            bodyLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            bodyLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            bodyLabel.heightAnchor.constraint(equalToConstant: 25),
+            
+            // Icon - debajo del body, horizontal (no superpuesto)
+            iconView.topAnchor.constraint(equalTo: bodyLabel.bottomAnchor, constant: 8),
+            iconView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            iconView.heightAnchor.constraint(equalToConstant: 40),
+            iconView.widthAnchor.constraint(equalToConstant: 40),
+            
+            // Advertiser - debajo del icono
+            advertiserLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 8),
+            advertiserLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            advertiserLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            advertiserLabel.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
+            
+            // ✅ QUITADO: CTA Button constraints - No necesario, el tapping general funciona
+            // callToActionButton.topAnchor.constraint(equalTo: advertiserLabel.bottomAnchor, constant: 16),
+            // callToActionButton.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            // callToActionButton.heightAnchor.constraint(equalToConstant: 44),
+            // callToActionButton.widthAnchor.constraint(equalToConstant: 150),
+            // callToActionButton.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
+        ])
+        
+        return nativeAdView
+    }
+    
+    func updateUIView(_ uiView: NativeAdView, context: Context) {
+        // Actualizar si es necesario
     }
     
     func makeCoordinator() -> Coordinator {
@@ -642,7 +714,7 @@ class StoryNativeAdManager: NSObject, ObservableObject {
         )
 
         adLoader?.delegate = self
-        let request = GoogleMobileAds.Request()
+        let request = AdMobConfiguration.shared.createAdRequest()
         adLoader?.load(request)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
@@ -878,20 +950,80 @@ struct IntegratedStoryAdView: View {
 struct IntegratedStoryMediaView: UIViewRepresentable {
     let nativeAd: NativeAd
     
-    func makeUIView(context: Context) -> UIView {
-        let containerView = UIView()
-        containerView.backgroundColor = .clear
+    func makeUIView(context: Context) -> NativeAdView {
+        let nativeAdView = NativeAdView()
+        nativeAdView.nativeAd = nativeAd
         
+        // MediaView
         let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
         mediaView.backgroundColor = UIColor.systemGray6
         mediaView.layer.cornerRadius = 16
         mediaView.clipsToBounds = true
         mediaView.mediaContent = nativeAd.mediaContent
+        mediaView.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.mediaView = mediaView
         
-        // ✅ CRÍTICO: Registrar el MediaView con el NativeAd para que Google lo detecte
-        // Para anuncios nativos, necesitamos registrar el MediaView como clickable
-        nativeAd.register(mediaView, clickableAssetViews: [.imageAsset: mediaView], nonclickableAssetViews: [:])
+        // Ad Attribution personalizado (REQUERIDO por Google)
+        let adAttributionView = UIView()
+        adAttributionView.backgroundColor = UIColor.black.withAlphaComponent(0.8)
+        adAttributionView.layer.cornerRadius = 3
+        adAttributionView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let adAttributionLabel = UILabel()
+        adAttributionLabel.text = "Ad"
+        adAttributionLabel.font = UIFont(name: "Poppins-Bold", size: 12) ?? UIFont.boldSystemFont(ofSize: 12)
+        adAttributionLabel.textColor = .white
+        adAttributionLabel.textAlignment = .center
+        adAttributionLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        adAttributionView.addSubview(adAttributionLabel)
+        
+        // AdChoices (REQUERIDO por Google)
+        let adChoicesView = AdChoicesView()
+        adChoicesView.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.adChoicesView = adChoicesView
+        
+        // Headline
+        let headlineLabel = UILabel()
+        headlineLabel.text = nativeAd.headline
+        headlineLabel.numberOfLines = 0
+        headlineLabel.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.headlineView = headlineLabel
+        
+        // Body
+        let bodyLabel = UILabel()
+        bodyLabel.text = nativeAd.body
+        bodyLabel.numberOfLines = 0
+        bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.bodyView = bodyLabel
+        
+        // ✅ QUITADO: CTA Button - No necesario, el tapping general funciona
+        // let callToActionButton = UIButton(type: .system)
+        // callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
+        // callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
+        // callToActionButton.setTitleColor(.white, for: .normal)
+        // callToActionButton.backgroundColor = UIColor(red: 0, green: 0.66, blue: 0.59, alpha: 1)
+        // callToActionButton.layer.cornerRadius = 16
+        // callToActionButton.translatesAutoresizingMaskIntoConstraints = false
+        // nativeAdView.callToActionView = callToActionButton
+        
+        // Icon
+        let iconView = UIImageView()
+        if let iconImage = nativeAd.icon?.image {
+            iconView.image = iconImage
+        }
+        iconView.contentMode = .scaleAspectFit
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.iconView = iconView
+        
+        // Advertiser
+        let advertiserLabel = UILabel()
+        advertiserLabel.text = nativeAd.advertiser ?? "Anunciante"
+        advertiserLabel.font = UIFont(name: "Poppins-SemiBold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
+        advertiserLabel.textColor = .white.withAlphaComponent(0.8)
+        advertiserLabel.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.advertiserView = advertiserLabel
         
         // Configurar video si existe
         if nativeAd.mediaContent.hasVideoContent {
@@ -901,20 +1033,75 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
             videoController.play()
         }
         
-        containerView.addSubview(mediaView)
-        mediaView.translatesAutoresizingMaskIntoConstraints = false
+        // Agregar TODOS los elementos como subvistas de nativeAdView
+        nativeAdView.addSubview(mediaView)
+        nativeAdView.addSubview(headlineLabel)
+        nativeAdView.addSubview(bodyLabel)
+        // nativeAdView.addSubview(callToActionButton) // ✅ QUITADO: CTA Button
+        nativeAdView.addSubview(iconView)
+        nativeAdView.addSubview(advertiserLabel)
+        nativeAdView.addSubview(adChoicesView)
+        nativeAdView.addSubview(adAttributionView)
         
+        // Constraints - Layout vertical DENTRO del NativeAdView (como FeedNativeAd)
         NSLayoutConstraint.activate([
-            mediaView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            mediaView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            mediaView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            mediaView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+            // MediaView - parte superior (más grande para parecer historia)
+            mediaView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 8),
+            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            mediaView.heightAnchor.constraint(equalToConstant: 500), // Más alto para parecer historia
+            
+            // Ad Attribution - debajo del media (sin superposición)
+            adAttributionView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
+            adAttributionView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            adAttributionView.widthAnchor.constraint(equalToConstant: 25),
+            adAttributionView.heightAnchor.constraint(equalToConstant: 18),
+            
+            // Ad Attribution Label constraints
+            adAttributionLabel.centerXAnchor.constraint(equalTo: adAttributionView.centerXAnchor),
+            adAttributionLabel.centerYAnchor.constraint(equalTo: adAttributionView.centerYAnchor),
+            
+            // AdChoices - debajo del media (sin superposición)
+            adChoicesView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
+            adChoicesView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            
+            // ✅ HÍBRIDO: Texto en horizontal, video en vertical - SIN SUPERPOSICIONES
+            // Headline - debajo de los elementos de atribución
+            headlineLabel.topAnchor.constraint(equalTo: adAttributionView.bottomAnchor, constant: 12),
+            headlineLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            headlineLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            headlineLabel.heightAnchor.constraint(equalToConstant: 30),
+            
+            // Body - debajo del headline, horizontal
+            bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 4),
+            bodyLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            bodyLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            bodyLabel.heightAnchor.constraint(equalToConstant: 25),
+            
+            // Icon - debajo del body, horizontal (no superpuesto)
+            iconView.topAnchor.constraint(equalTo: bodyLabel.bottomAnchor, constant: 8),
+            iconView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            iconView.heightAnchor.constraint(equalToConstant: 40),
+            iconView.widthAnchor.constraint(equalToConstant: 40),
+            
+            // Advertiser - debajo del icono
+            advertiserLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 8),
+            advertiserLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            advertiserLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            advertiserLabel.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
+            
+            // ✅ QUITADO: CTA Button constraints - No necesario, el tapping general funciona
+            // callToActionButton.topAnchor.constraint(equalTo: advertiserLabel.bottomAnchor, constant: 16),
+            // callToActionButton.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            // callToActionButton.heightAnchor.constraint(equalToConstant: 44),
+            // callToActionButton.widthAnchor.constraint(equalToConstant: 150),
+            // callToActionButton.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
         ])
         
-        return containerView
+        return nativeAdView
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {
+    func updateUIView(_ uiView: NativeAdView, context: Context) {
         // Actualizar si es necesario
     }
     

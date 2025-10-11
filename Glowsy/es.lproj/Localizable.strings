@@ -1,3 +1,37 @@
+"storyEditor.customAudience.single" = "%d persona";
+"storyEditor.customAudience.multiple" = "%d personas";
+"storyEditor.loadingSettings" = "Cargando...";
+"storyEditor.savedToGallery" = "Historia guardada en tu galería";
+"storyEditor.error.publishStart" = "Error al iniciar la subida de historia";
+
+/* Story Chains */
+"storyChains.createChain" = "Crear Cadena";
+"storyChains.chain" = "Cadena";
+"storyChains.chainTitle" = "Título de la cadena";
+"storyChains.chainTitlePlaceholder" = "Introduce el título de la cadena";
+"storyChains.continuing" = "Continuando: %@";
+"storyChains.continueStory" = "Continuar Historia";
+"storyChains.viewChain" = "Ver Cadena";
+"storyChains.part" = "Parte %d de '%@'";
+"storyChains.loading" = "Cargando cadena...";
+"storyChains.notFound" = "No se encontraron historias en esta cadena";
+"storyChains.parts" = "%d/%d partes";
+"storyChains.expired" = "• Expirada";
+"storyChains.chainLimit" = "Límite de Cadena";
+"storyChains.error.validation" = "Error al validar la cadena: %@";
+"storyChains.ok" = "OK";
+"storyChains.video" = "Video";
+"storyChains.photo" = "Foto";
+"storyChains.error.loadingStats" = "Error cargando estadísticas de cadena: %@";
+"storyChains.example.title" = "Mi Día en 5 Fotos";
+"storyChains.error.maxPartsReached" = "Esta cadena ha alcanzado el máximo de %d partes";
+"storyChains.error.chainExpired" = "Esta cadena ha expirado (48 horas)";
+"storyChains.error.tooSoonBetweenParts" = "Debes esperar al menos %d minutos entre partes";
+"storyChains.error.chainNotFound" = "Cadena no encontrada";
+"storyChains.error.userNotAuthorized" = "No tienes permisos para continuar esta cadena";
+"storyChains.error.invalidChainData" = "Datos de cadena inválidos";
+"storyChains.time.expired" = "Expirada";
+"nova.poweredBy" = "Powered by Google Gemini";
 /* Global */
 "global.seeMore" = "ver más";
 "global.seeLess" = "ver menos";
@@ -308,6 +342,10 @@
 "nova.quickSuggestions" = "Sugerencias Rápidas";
 "nova.typing" = "Nova está escribiendo...";
 
+/* Nova Language Selection */
+"nova.select_language_title" = "Elige tu idioma";
+"nova.select_language_cancel" = "Cancelar";
+
 /* Nova Welcome Section */
 "nova.welcome.interests.title" = "Tus Intereses";
 "nova.welcome.interests.empty" = "Ninguno configurado";
@@ -406,6 +444,7 @@
 "creator.interactions.disableComments.description" = "Nadie podrá comentar en este momento";
 "creator.interactions.allowSharing" = "Permitir guardar";
 "creator.interactions.allowSharing.description" = "Otros pueden guardar tu momento";
+"creator.advancedSettings.title" = "Configuración avanzada";
 "creator.visualization.title" = "Visualización";
 "creator.visualization.hideReactions" = "Ocultar contador de reacciones";
 "creator.visualization.hideReactions.description" = "El botón de reacciones seguirá visible, pero sin mostrar el número";

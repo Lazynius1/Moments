@@ -17,8 +17,8 @@ extension AdMobConfiguration {
                 options.mediaAspectRatio = .portrait
                 
             case .feed:
-                // ✅ Flexible - AdMob decide el mejor formato
-                options.mediaAspectRatio = .any
+                // ✅ Portrait - Para que se vea vertical como los posts del feed
+                options.mediaAspectRatio = .portrait
                 
             case .banner:
                 // ✅ Horizontal - Para banners

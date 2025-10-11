@@ -991,6 +991,13 @@ struct GlassmorphicStoryViewer: View {
     // ✅ SOLO ZOOM - Estados para pinch to zoom
     @State private var zoomScale: CGFloat = 1.0
     @State private var lastZoomScale: CGFloat = 1.0
+    // 🔗 STORY CHAINS - Variables para cadenas de historias
+    @State private var showChainView: Bool = false
+    @State private var selectedChainId: String = ""
+    @State private var selectedChainTitle: String = ""
+    @State private var chainStories: [Story] = [] // Todas las historias de la cadena
+    @State private var currentChainIndex: Int = 0 // Índice actual en la cadena
+    @State private var isLoadingChainStories: Bool = false
 
     private let defaultStoryDuration: Double = 10.0
     private let reactions: [String] = ["✌🏻", "🔥", "✅", "😊", "✨", "❤️", "💕", "😮", "😂", "😢", "🙏🏻", "⚡", "🧠", "🎨", "😌", "🎉"]
@@ -1114,6 +1121,21 @@ struct GlassmorphicStoryViewer: View {
         .gesture(longPressGesture)  // ✅ PRIORIDAD AL LONG PRESS
         .gesture(dragGesture)
         .gesture(pinchGesture)
+        .gesture(horizontalSwipeGesture)  // 🔗 STORY CHAINS: Gesto horizontal
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    // Quitar foco del TextField al tocar fuera
+                    if isTextFieldFocused {
+                        isTextFieldFocused = false
+                    }
+                }
+        )
+        .safeAreaInset(edge: .bottom) {
+            if isKeyboardVisible {
+                Color.clear.frame(height: keyboardHeight)
+            }
+        }
         .onAppear {
             prepareAndStartStory()
             setupKeyboardNotifications() // Setup keyboard observers
@@ -1124,6 +1146,11 @@ struct GlassmorphicStoryViewer: View {
             
             // ✅ PRELOAD: Precargar siguiente historia
             preloadNextStory()
+            
+            // 🔗 STORY CHAINS: Cargar historias de la cadena si es parte de una
+            if story.chainId != nil {
+                loadChainStories()
+            }
         }
         .onDisappear {
             stopAndCleanupStory()
@@ -1224,6 +1251,24 @@ struct GlassmorphicStoryViewer: View {
         }) {
             if !selectedUserId.isEmpty {
                 UserProfileView(userId: selectedUserId)
+            }
+        }
+        .sheet(isPresented: $showChainView, onDismiss: {
+            // ✅ Reanudar la historia cuando se cierra el sheet de cadena
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                resumeStory()
+            }
+        }) {
+            StoryChainView(
+                chainId: selectedChainId,
+                chainTitle: selectedChainTitle
+            )
+            .background(Color.clear)
+        }
+        .onChange(of: showChainView) { isOpen in
+            if isOpen {
+                // ✅ Pausar la historia al abrir el sheet de cadena
+                pauseStory()
             }
         }
         .onChange(of: showUserProfile) { oldValue, newValue in
@@ -1681,7 +1726,6 @@ struct GlassmorphicStoryViewer: View {
                             .transition(.scale.combined(with: .opacity))
                         }
                     }
-                    .offset(y: isKeyboardVisible ? -max(keyboardHeight - 100, 0) : 0)
                     .animation(.easeInOut(duration: 0.3), value: keyboardHeight)
                     
                 } else {
@@ -1707,6 +1751,128 @@ struct GlassmorphicStoryViewer: View {
                             )
                     )
                 }
+            }
+            
+            // 🔗 STORY CHAINS: Botones para cadenas de historias
+            if let chainId = story.chainId, let chainTitle = story.chainTitle, let chainPosition = story.chainPosition {
+                VStack(spacing: 8) {
+                    // Banner de información de la cadena
+                    HStack {
+                        Spacer()
+                        
+                        HStack {
+                            Image(systemName: "link")
+                                .foregroundColor(.blue)
+                                .font(.caption)
+                            
+                            Text(String(format: NSLocalizedString("storyChains.part", comment: "Part"), chainPosition, chainTitle))
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            ZStack {
+                                Color.white.opacity(0.1)
+                                    .background(.ultraThinMaterial)
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        
+                        Spacer()
+                    }
+                    
+                    // Botones de acción
+                    HStack(spacing: 12) {
+                        // Botón para ver cadena completa
+                        Button(action: {
+                            showChainView(chainId: chainId, chainTitle: chainTitle)
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "list.bullet")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 14))
+                                
+                                Text(NSLocalizedString("storyChains.viewChain", comment: "View Chain"))
+                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                ZStack {
+                                    Color.white.opacity(0.1)
+                                        .background(.ultraThinMaterial)
+                                }
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                        }
+                        
+                        // Botón principal para continuar
+                        Button(action: {
+                            continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 16))
+                                
+                                Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
+                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(
+                                ZStack {
+                                    // Fondo glassmorphism con gradiente azul, púrpura y rosa
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                    .background(.ultraThinMaterial)
+                                }
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 25))
+                            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.bottom, 8)
+                .padding(.vertical, 16)
+            .background(
+                ZStack {
+                    // Fondo glassmorphism con esquinas uniformes
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color.white.opacity(0.1))
+                        .background(.ultraThinMaterial)
+                    
+                    // Borde glassmorphism con esquinas uniformes
+                    RoundedRectangle(cornerRadius: 30)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                }
+            )
             }
         }
         .padding(.horizontal, 16)
@@ -1852,7 +2018,8 @@ struct GlassmorphicStoryViewer: View {
                         onNext()
                     }
             }
-            .frame(height: geometry.size.height * 0.85) // Limit height to avoid bottom area
+            .frame(height: geometry.size.height * 0.5) // ✅ MUY REDUCIDO: Solo área central
+            .offset(y: 150) // ✅ MUY AUMENTADO: Muy abajo para evitar completamente el header
         }
     }
     
@@ -1948,6 +2115,25 @@ struct GlassmorphicStoryViewer: View {
             }
     }
     
+    // 🔗 STORY CHAINS: Gesto de deslizamiento horizontal para navegar entre partes
+    private var horizontalSwipeGesture: some Gesture {
+        DragGesture()
+            .onEnded { value in
+                // Solo procesar si es parte de una cadena
+                guard let chainId = story.chainId, !chainStories.isEmpty else { return }
+                
+                let threshold: CGFloat = 50
+                
+                if value.translation.width > threshold {
+                    // Deslizar hacia la derecha - ir a parte anterior
+                    goToPreviousChainPart()
+                } else if value.translation.width < -threshold {
+                    // Deslizar hacia la izquierda - ir a parte siguiente
+                    goToNextChainPart()
+                }
+            }
+    }
+    
     // ✅ ZOOM: Gesto de pinch to zoom
     private var pinchGesture: some Gesture {
         MagnificationGesture()
@@ -1969,6 +2155,84 @@ struct GlassmorphicStoryViewer: View {
     }
     
     // MARK: - Actions
+    
+    // 🔗 STORY CHAINS: Navegar a la siguiente parte de la cadena
+    private func goToNextChainPart() {
+        guard currentChainIndex < chainStories.count - 1 else { return }
+        
+        let nextIndex = currentChainIndex + 1
+        let nextStory = chainStories[nextIndex]
+        
+        // Actualizar el índice actual
+        currentChainIndex = nextIndex
+        
+        // Notificar al padre para cambiar la historia
+        NotificationCenter.default.post(
+            name: NSNotification.Name("NavigateToChainStory"),
+            object: nil,
+            userInfo: [
+                "storyId": nextStory.id ?? "",
+                "chainIndex": nextIndex
+            ]
+        )
+    }
+    
+    // 🔗 STORY CHAINS: Navegar a la parte anterior de la cadena
+    private func goToPreviousChainPart() {
+        guard currentChainIndex > 0 else { return }
+        
+        let previousIndex = currentChainIndex - 1
+        let previousStory = chainStories[previousIndex]
+        
+        // Actualizar el índice actual
+        currentChainIndex = previousIndex
+        
+        // Notificar al padre para cambiar la historia
+        NotificationCenter.default.post(
+            name: NSNotification.Name("NavigateToChainStory"),
+            object: nil,
+            userInfo: [
+                "storyId": previousStory.id ?? "",
+                "chainIndex": previousIndex
+            ]
+        )
+    }
+    
+    // 🔗 STORY CHAINS: Cargar todas las historias de la cadena
+    private func loadChainStories() {
+        guard let chainId = story.chainId else { return }
+        
+        isLoadingChainStories = true
+        
+        Task {
+            do {
+                let storiesSnapshot = try await firestoreService.db
+                    .collectionGroup("stories")
+                    .whereField("chainId", isEqualTo: chainId)
+                    .order(by: "chainPosition")
+                    .getDocuments()
+                
+                let stories = storiesSnapshot.documents.compactMap { doc in
+                    try? doc.data(as: Story.self)
+                }
+                
+                await MainActor.run {
+                    chainStories = stories
+                    
+                    // Encontrar el índice de la historia actual
+                    if let currentStoryId = story.id {
+                        currentChainIndex = stories.firstIndex { $0.id == currentStoryId } ?? 0
+                    }
+                    
+                    isLoadingChainStories = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoadingChainStories = false
+                }
+            }
+        }
+    }
     
     private func sendMessage() {
         guard !messageText.isEmpty, let storyId = story.id else { return }
@@ -2238,6 +2502,30 @@ struct GlassmorphicStoryViewer: View {
                 }
             }
         }
+    }
+    
+    // 🔗 FUNCIÓN: Continuar cadena de historias
+    private func continueStoryChain(chainId: String, chainTitle: String, chainPosition: Int) {
+        // Cerrar la vista actual
+        dismiss()
+        
+        // Notificar al TabBarView para abrir CreatorView
+        NotificationCenter.default.post(
+            name: NSNotification.Name("OpenCreatorForChain"),
+            object: nil,
+            userInfo: [
+                "chainId": chainId,
+                "chainTitle": chainTitle,
+                "chainPosition": chainPosition
+            ]
+        )
+    }
+    
+    // 🔗 FUNCIÓN: Mostrar vista de cadena completa
+    private func showChainView(chainId: String, chainTitle: String) {
+        selectedChainId = chainId
+        selectedChainTitle = chainTitle
+        showChainView = true
     }
 }
 

@@ -1,3 +1,37 @@
+"storyEditor.customAudience.single" = "%d person";
+"storyEditor.customAudience.multiple" = "%d people";
+"storyEditor.loadingSettings" = "Loading...";
+"storyEditor.savedToGallery" = "Story saved to your gallery";
+"storyEditor.error.publishStart" = "Couldn't start story upload";
+
+/* Story Chains */
+"storyChains.createChain" = "Create Chain";
+"storyChains.chain" = "Chain";
+"storyChains.chainTitle" = "Chain title";
+"storyChains.chainTitlePlaceholder" = "Enter the chain title";
+"storyChains.continuing" = "Continuing: %@";
+"storyChains.continueStory" = "Continue Story";
+"storyChains.viewChain" = "View Chain";
+"storyChains.part" = "Part %d of '%@'";
+"storyChains.loading" = "Loading chain...";
+"storyChains.notFound" = "No stories found in this chain";
+"storyChains.parts" = "%d/%d parts";
+"storyChains.expired" = "• Expired";
+"storyChains.chainLimit" = "Chain Limit";
+"storyChains.error.validation" = "Error validating chain: %@";
+"storyChains.ok" = "OK";
+"storyChains.video" = "Video";
+"storyChains.photo" = "Photo";
+"storyChains.error.loadingStats" = "Error loading chain statistics: %@";
+"storyChains.example.title" = "My Day in 5 Photos";
+"storyChains.error.maxPartsReached" = "This chain has reached the maximum of %d parts";
+"storyChains.error.chainExpired" = "This chain has expired (48 hours)";
+"storyChains.error.tooSoonBetweenParts" = "You must wait at least %d minutes between parts";
+"storyChains.error.chainNotFound" = "Chain not found";
+"storyChains.error.userNotAuthorized" = "You don't have permission to continue this chain";
+"storyChains.error.invalidChainData" = "Invalid chain data";
+"storyChains.time.expired" = "Expired";
+"nova.poweredBy" = "Powered by Google Gemini";
 /* Global */
 "global.seeMore" = "see more";
 "global.seeLess" = "see less";
@@ -308,6 +342,10 @@
 "nova.quickSuggestions" = "Quick Suggestions";
 "nova.typing" = "Nova is typing...";
 
+/* Nova Language Selection */
+"nova.select_language_title" = "Choose your language";
+"nova.select_language_cancel" = "Cancel";
+
 /* Nova Welcome Section */
 "nova.welcome.interests.title" = "Your Interests";
 "nova.welcome.interests.empty" = "None configured";
@@ -406,6 +444,7 @@
 "creator.interactions.disableComments.description" = "No one will be able to comment on this moment";
 "creator.interactions.allowSharing" = "Allow saving";
 "creator.interactions.allowSharing.description" = "Others can save your moment";
+"creator.advancedSettings.title" = "Advanced Settings";
 "creator.visualization.title" = "Visualization";
 "creator.visualization.hideReactions" = "Hide reaction count";
 "creator.visualization.hideReactions.description" = "The reaction button will remain visible, but without showing the number";

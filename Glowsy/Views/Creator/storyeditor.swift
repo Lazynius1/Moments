@@ -93,6 +93,11 @@ struct StoryEditingView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     let initialSticker: StickerItem?
+    
+    // 🔗 NUEVO: Parámetros de cadena
+    let initialChainId: String?
+    let initialChainTitle: String?
+    let initialChainPosition: Int?
     @State private var alertMessage = ""
     @State private var showAlert = false
     @State private var storyText = ""
@@ -130,6 +135,15 @@ struct StoryEditingView: View {
     @State private var showingLocationMap = false
     @State private var selectedLocationName = ""
     @State private var selectedCoordinate: CLLocationCoordinate2D?
+    
+    // 🔗 NUEVAS VARIABLES para Story Chains
+    @State private var isCreatingChain = false
+    @State private var chainTitle = ""
+    @State private var chainId: String? = nil
+    @State private var chainPosition: Int? = nil
+    @State private var isContinuingChain = false
+    @State private var originalChainTitle = ""
+    @FocusState private var isChainTitleFocused: Bool
 
     enum TextStyle {
         case modern, classic, neon, typewriter, bold
@@ -216,7 +230,6 @@ struct StoryEditingView: View {
                 )
                 .id(forceUpdate) // ✅ FORZAR RECONSTRUCCIÓN CUANDO CAMBIE
 
-                
                 // Controls
                 VStack {
                     // Top bar
@@ -234,23 +247,28 @@ struct StoryEditingView: View {
                         
                         Spacer()
                         
-                        // Media type indicator
-                        if let firstMedia = selectedMediaItems.first {
-                            HStack(spacing: 8) {
-                                Image(systemName: firstMedia.type == .video ? "video.fill" : "photo.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.white)
-                                
-                                if firstMedia.type == .video {
-                                    Text("storyEditor.video")
-                                        .font(.caption)
-                                        .foregroundColor(.white)
+                        // 🔗 Toggle Crear Cadena
+                        if !isContinuingChain {
+                            Button(action: {
+                                isCreatingChain.toggle()
+                            }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: isCreatingChain ? "link" : "link")
+                                        .foregroundColor(isCreatingChain ? .blue : .white)
+                                    
+                                    Text(isCreatingChain ? NSLocalizedString("storyChains.createChain", comment: "Create Chain") : NSLocalizedString("storyChains.chain", comment: "Chain"))
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(isCreatingChain ? .blue : .white)
                                 }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(isCreatingChain ? Color.blue.opacity(0.2) : Color.black.opacity(0.3))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1)
+                                )
+                                .clipShape(Capsule())
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Capsule())
                         }
                         
                         Spacer()
@@ -286,6 +304,8 @@ struct StoryEditingView: View {
                     .padding(.horizontal)
                     .padding(.top, 30) // ✅ BAJAR ICONOS DE LA PARTE SUPERIOR
                     
+                    // (Título de cadena movido a input inferior)
+                    
                     Spacer()
                     
                     // Video controls
@@ -310,7 +330,7 @@ struct StoryEditingView: View {
                                     Image(systemName: getAudienceIcon())
                                 }
                                 
-                                Text(isLoadingUserSettings ? "Cargando..." : getAudienceText())
+                                Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
                                     .font(.system(size: 14, weight: .medium))
                             }
                             .foregroundColor(.white)
@@ -340,23 +360,65 @@ struct StoryEditingView: View {
                         .disabled(isPublishing || isLoadingUserSettings)
                     }
                     .padding(.horizontal)
-                    .padding(.bottom, 30) // ✅ SUBIR ICONOS DE LA PARTE INFERIOR
+                    .padding(.bottom, isCreatingChain ? 110 : 30) // ✅ Evitar solaparse con input inferior de cadena
                 }
             }
             .navigationDestination(for: String.self) { userId in
                 UserProfileView(userId: userId)
             }
-            .onAppear {
-                loadUserDefaultAudienceSettings()
-                setupStickerListener()
-                
-                // ✅ AGREGAR STICKER INICIAL SI EXISTE
-                if let initialSticker = initialSticker {
-                    selectedStickers.append(initialSticker)
-                }
+        .onAppear {
+            loadUserDefaultAudienceSettings()
+            setupStickerListener()
+            setupChainContextListener()
+            
+            // ✅ AGREGAR STICKER INICIAL SI EXISTE
+            if let initialSticker = initialSticker {
+                selectedStickers.append(initialSticker)
             }
+            
+            // 🔗 NUEVO: Configurar contexto de cadena si se pasan parámetros
+            if let chainId = initialChainId,
+               let chainTitle = initialChainTitle,
+               let chainPosition = initialChainPosition {
+                setChainContext(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
+            }
+        }
             .onDisappear {
                 removeStickerListener()
+                removeChainContextListener()
+            }
+        }
+        // ✅ Input inferior para título de cadena
+        .safeAreaInset(edge: .bottom) {
+            if isCreatingChain {
+                HStack(spacing: 12) {
+                    Image(systemName: "link")
+                        .foregroundColor(.blue)
+                        .padding(10)
+                        .background(Color.white.opacity(0.12))
+                        .clipShape(Circle())
+                    
+                    TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .foregroundColor(.white)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 12)
+                        .background(Color.black.opacity(0.28))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .focused($isChainTitleFocused)
+                    
+                    Button(action: { isChainTitleFocused = false }) {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(Color.white.opacity(0.12))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+                .background(.ultraThinMaterial)
             }
         }
         // ✅ SHEET ACTUALIZADO para selector de audiencia mejorado
@@ -450,7 +512,12 @@ struct StoryEditingView: View {
             if let listName = selectedListName {
                 return listName
             } else if !customSelectedUsers.isEmpty {
-                return "\(customSelectedUsers.count) personas"
+                let count = customSelectedUsers.count
+                if count == 1 {
+                    return String(format: NSLocalizedString("storyEditor.customAudience.single", comment: "1 person"), count)
+                } else {
+                    return String(format: NSLocalizedString("storyEditor.customAudience.multiple", comment: "%d people"), count)
+                }
             }
         }
         return storyAudience.title
@@ -560,7 +627,7 @@ struct StoryEditingView: View {
             }
         }
         
-        alertMessage = "Historia guardada en tu galería"
+        alertMessage = NSLocalizedString("storyEditor.savedToGallery", comment: "Story saved to gallery")
         showAlert = true
     }
     
@@ -775,6 +842,32 @@ struct StoryEditingView: View {
         guard let userId = Auth.auth().currentUser?.uid,
               let media = selectedMediaItems.first else { return }
         
+        // 🔗 VALIDAR LÍMITES DE STORY CHAINS
+        Task {
+            do {
+                if isCreatingChain {
+                    // Validar título de nueva cadena
+                    try StoryChainLimitsService.shared.validateChainTitle(chainTitle)
+                } else if isContinuingChain, let existingChainId = chainId {
+                    // Validar que se puede continuar la cadena
+                    try await StoryChainLimitsService.shared.canContinueChain(chainId: existingChainId, userId: userId)
+                }
+                
+                // Continuar con la publicación
+                await MainActor.run {
+                    publishStoryAfterValidation()
+                }
+            } catch {
+                await MainActor.run {
+                    handleChainLimitError(error)
+                }
+            }
+        }
+    }
+    
+    private func publishStoryAfterValidation() {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let media = selectedMediaItems.first else { return }
         
         // 🔥 RENDERIZAR IMAGEN FINAL CON OVERLAYS
         let finalRenderedImage = renderStoryWithOverlays()
@@ -785,15 +878,33 @@ struct StoryEditingView: View {
         // 🔥 PREPARAR DRAWING DATA
         let drawingData = drawingImage?.pngData()
         
-        // 🔥 CONVERTIR storyAudience (CaptionAndDetailsView.AudienceSetting) a ContentAudience
-        let contentAudience: ContentAudience
-        switch storyAudience {
-        case .everyone: contentAudience = .everyone
-        case .mutuals: contentAudience = .connections
-        case .admirers: contentAudience = .connections
-        case .bestFriends: contentAudience = .bestFriends
-        case .custom: contentAudience = selectedListId != nil ? .customList : .custom
+        // 🔗 MANEJAR STORY CHAINS
+        var finalChainId: String? = nil
+        var finalChainPosition: Int? = nil
+        var finalChainTitle: String? = nil
+        
+        if isCreatingChain && !chainTitle.isEmpty {
+            // Crear nueva cadena
+            finalChainId = UUID().uuidString
+            finalChainPosition = 1
+            finalChainTitle = chainTitle
+        } else if isContinuingChain, let existingChainId = chainId {
+            // Continuar cadena existente
+            finalChainId = existingChainId
+            finalChainPosition = (chainPosition ?? 0) + 1
+            finalChainTitle = originalChainTitle
         }
+        
+        // 🔥 CONVERTIR storyAudience (CaptionAndDetailsView.AudienceSetting) a ContentAudience (sin forzar)
+        let contentAudience: ContentAudience = {
+            switch storyAudience {
+            case .everyone: return .everyone
+            case .mutuals: return .connections
+            case .admirers: return .connections
+            case .bestFriends: return .bestFriends
+            case .custom: return selectedListId != nil ? .customList : .custom
+            }
+        }()
         
         // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
         let success = BackgroundStoryUploadService.shared.publishStoryInBackground(
@@ -807,7 +918,10 @@ struct StoryEditingView: View {
             customViewers: customSelectedUsers,
             customListId: selectedListId,
             selectedListName: selectedListName,
-            finalRenderedImage: finalRenderedImage
+            finalRenderedImage: finalRenderedImage,
+            chainId: finalChainId, // 🔗 AÑADIDO: Pasar ID de la cadena
+            chainPosition: finalChainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
+            chainTitle: finalChainTitle // 🔗 AÑADIDO: Pasar título de la cadena
         )
         
         if success {
@@ -843,7 +957,7 @@ struct StoryEditingView: View {
             notificationFeedback.notificationOccurred(.error)
             
             // Mostrar error
-            alertMessage = "Error al iniciar la subida de historia"
+            alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
             showAlert = true
         }
     }
@@ -856,6 +970,28 @@ struct StoryEditingView: View {
         drawingImage = nil
         selectedTextStyle = .modern
         
+    }
+    
+    // 🔗 MANEJAR ERRORES DE LÍMITES DE STORY CHAINS
+    private func handleChainLimitError(_ error: Error) {
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.error)
+        
+        if let chainError = error as? StoryChainLimitError {
+            alertMessage = chainError.localizedDescription
+        } else {
+            alertMessage = String(format: NSLocalizedString("storyChains.error.validation", comment: "Error validating chain"), error.localizedDescription)
+        }
+        
+        showAlert = true
+        
+        // Limpiar estado de cadena si hay error
+        if isContinuingChain {
+            isContinuingChain = false
+            chainId = nil
+            chainPosition = nil
+            originalChainTitle = ""
+        }
     }
     
     // ✅ ENVIAR NOTIFICACIONES DE MENCIONES DESPUÉS DE PUBLICAR HISTORIA
@@ -911,6 +1047,41 @@ struct StoryEditingView: View {
             name: NSNotification.Name("AddStickerToStoryEditor"),
             object: nil
         )
+    }
+    
+    // MARK: - Chain Context Handling
+    private func setupChainContextListener() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("SetChainContext"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            if let userInfo = notification.userInfo,
+               let chainId = userInfo["chainId"] as? String,
+               let chainTitle = userInfo["chainTitle"] as? String,
+               let chainPosition = userInfo["chainPosition"] as? Int {
+                setChainContext(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
+            }
+        }
+    }
+    
+    private func removeChainContextListener() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSNotification.Name("SetChainContext"),
+            object: nil
+        )
+    }
+    
+    private func setChainContext(chainId: String, chainTitle: String, chainPosition: Int) {
+        // Configurar variables de cadena
+        self.chainId = chainId
+        self.chainTitle = chainTitle
+        self.chainPosition = chainPosition
+        self.isContinuingChain = true
+        self.originalChainTitle = chainTitle
+        
+        // Mantener audiencia seleccionada por el usuario (no forzar)
     }
     
     private func addStickerToStory(_ sticker: StickerItem) {

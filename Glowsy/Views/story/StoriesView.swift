@@ -22,6 +22,11 @@ struct StoriesView: View {
     @State private var adStoryCount: Int = 1
     @State private var adStoryIndex: Int = 0
     @State private var totalStoriesViewed: Int = 0
+    
+    // 🔗 STORY CHAINS: Variables para navegación entre partes
+    @State private var chainStories: [Story] = []
+    @State private var currentChainIndex: Int = 0
+    @State private var isInChainMode: Bool = false
 
 
     @Binding var startWithUserId: String?
@@ -38,6 +43,15 @@ struct StoriesView: View {
             set: { _ in }
         )
         self.shouldIncludeConnections = false
+    }
+    
+    // 🔗 STORY CHAINS: Inicializador para cadenas de historias
+    init(chainStories: [Story], startAtIndex: Int = 0) {
+        self._startWithUserId = .constant(nil)
+        self.shouldIncludeConnections = false
+        self._chainStories = State(initialValue: chainStories)
+        self._currentChainIndex = State(initialValue: startAtIndex)
+        self._isInChainMode = State(initialValue: true)
     }
 
     var body: some View {
@@ -169,11 +183,23 @@ struct StoriesView: View {
             preloadAdOnAppear()
         }
         .onReceive(storyViewModel.$stories) { stories in
-            updateUserIds(from: stories)
+            // 🔗 STORY CHAINS: Solo actualizar si NO estamos en modo cadena
+            if !isInChainMode {
+                updateUserIds(from: stories)
+            }
         }
         .onChange(of: startWithUserId) { newUserId in
-            if let userId = newUserId, !userId.isEmpty {
+            // 🔗 STORY CHAINS: Solo cargar si NO estamos en modo cadena
+            if !isInChainMode, let userId = newUserId, !userId.isEmpty {
                 loadStories()
+            }
+        }
+        // 🔗 STORY CHAINS: Listener para navegación entre partes
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToChainStory"))) { notification in
+            if let userInfo = notification.userInfo,
+               let storyId = userInfo["storyId"] as? String,
+               let chainIndex = userInfo["chainIndex"] as? Int {
+                navigateToChainStory(storyId: storyId, chainIndex: chainIndex)
             }
         }
         .sheet(isPresented: $showingReportSheet) {
@@ -224,6 +250,29 @@ struct StoriesView: View {
             }
         }
         
+        // 🔗 STORY CHAINS: Si estamos en modo cadena, navegar entre partes
+        if isInChainMode && !chainStories.isEmpty {
+            if currentChainIndex < chainStories.count - 1 {
+                // Hay más partes en la cadena
+                currentChainIndex += 1
+                let nextStory = chainStories[currentChainIndex]
+                
+                // Buscar la historia en las historias cargadas
+                for (userId, stories) in storyViewModel.stories {
+                    if let storyIndex = stories.firstIndex(where: { $0.id == nextStory.id }) {
+                        currentUserIndex = userIds.firstIndex(of: userId) ?? currentUserIndex
+                        currentStoryIndex = storyIndex
+                        return
+                    }
+                }
+            } else {
+                // Fin de la cadena, salir del modo cadena
+                isInChainMode = false
+                chainStories = []
+                currentChainIndex = 0
+            }
+        }
+        
         // ✅ AGREGAR DELAY PARA ASEGURAR CLEANUP DEL VIDEO ANTERIOR
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.moveToNextStoryOrUser()
@@ -268,6 +317,26 @@ struct StoriesView: View {
 
     // Cargar historias
     private func loadStories() {
+        // 🔗 STORY CHAINS: Si estamos en modo cadena, usar las historias de la cadena
+        if isInChainMode && !chainStories.isEmpty {
+            // Crear un diccionario de historias agrupadas por usuario para compatibilidad
+            var storiesByUser: [String: [Story]] = [:]
+            for story in chainStories {
+                if storiesByUser[story.authorId] == nil {
+                    storiesByUser[story.authorId] = []
+                }
+                storiesByUser[story.authorId]?.append(story)
+            }
+            
+            // Actualizar el viewModel con las historias de la cadena
+            storyViewModel.stories = storiesByUser
+            userIds = Array(storiesByUser.keys)
+            currentUserIndex = 0
+            currentStoryIndex = currentChainIndex
+            isLoading = false
+            return
+        }
+        
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             isLoading = false
             errorMessage = NSLocalizedString("stories.error.notAuthenticated", comment: "User not authenticated error")
@@ -388,6 +457,53 @@ struct StoriesView: View {
         
         // Si todas están vistas, empezar desde el principio
         return 0
+    }
+    
+    // 🔗 STORY CHAINS: Navegar a una historia específica de la cadena
+    private func navigateToChainStory(storyId: String, chainIndex: Int) {
+        // Buscar la historia en todas las historias cargadas
+        for (userId, stories) in storyViewModel.stories {
+            if let storyIndex = stories.firstIndex(where: { $0.id == storyId }) {
+                // Encontrar el usuario y actualizar índices
+                if let userIndex = userIds.firstIndex(of: userId) {
+                    currentUserIndex = userIndex
+                    currentStoryIndex = storyIndex
+                    currentChainIndex = chainIndex
+                    isInChainMode = true
+                    
+                    // Cargar todas las historias de la cadena si no están cargadas
+                    if chainStories.isEmpty {
+                        loadChainStories(for: stories[storyIndex])
+                    }
+                    return
+                }
+            }
+        }
+    }
+    
+    // 🔗 STORY CHAINS: Cargar todas las historias de una cadena
+    private func loadChainStories(for story: Story) {
+        guard let chainId = story.chainId else { return }
+        
+        Task {
+            do {
+                let storiesSnapshot = try await firestoreService.db
+                    .collectionGroup("stories")
+                    .whereField("chainId", isEqualTo: chainId)
+                    .order(by: "chainPosition")
+                    .getDocuments()
+                
+                let stories = storiesSnapshot.documents.compactMap { doc in
+                    try? doc.data(as: Story.self)
+                }
+                
+                await MainActor.run {
+                    chainStories = stories
+                }
+            } catch {
+                // Error loading chain stories
+            }
+        }
     }
 }
 

@@ -1,11 +1,11 @@
 import Foundation
 import GoogleMobileAds
 import SwiftUI
-import AppTrackingTransparency // Importar el framework para ATT
-import AdSupport // Necesario para acceder al IDFA
+import AppTrackingTransparency
+import AdSupport
 
 // MARK: - AdMob Configuration
-class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDelegate
+class AdMobConfiguration: NSObject {
     static let shared = AdMobConfiguration()
 
     // IDs de AdMob
@@ -15,7 +15,6 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     // Para testing (usar en desarrollo) - DESACTIVADO PARA PRODUCCIÓN
     // static let testNativeAdUnitId = "ca-app-pub-3940256099942544/3986624511"
 
-    // ✅ CORREGIDO: Variable de instancia en lugar de static
     private var preloadedNativeAd: NativeAd?
 
     private override init() {
@@ -23,110 +22,97 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
     }
 
     func initialize() {
-        // ✅ NUEVA API: MobileAds.shared.start() en lugar de GADMobileAds
         MobileAds.shared.start { status in
         }
-
-        // Configurar solicitudes de consentimiento si es necesario
         configureRequestConfiguration()
     }
 
     private func configureRequestConfiguration() {
-        // ✅ NUEVA API: MobileAds.shared.requestConfiguration
         let requestConfiguration = MobileAds.shared.requestConfiguration
 
         // Ejemplo: configurar para testing - DESACTIVADO PARA PRODUCCIÓN
         // #if DEBUG
-        // requestConfiguration.testDeviceIdentifiers = ["b75dd22029c3da38e5f235d014e906c9937689a8b9e510a98ce4e76ad3cf40bd"] // Reemplaza con tu ID de dispositivo de prueba
+        // requestConfiguration.testDeviceIdentifiers = ["1a116ffb808808d4257e0cc3d44d4d1f"]
         // #endif
-
-        // Aquí puedes añadir más configuraciones si es necesario, como para SKAdNetwork
-        // MobileAds.shared.requestConfiguration.skAdNetworkConfigurations = ...
     }
 
-    // Función para obtener el ID correcto según el entorno - SIEMPRE PRODUCCIÓN
     static func getNativeAdUnitId() -> String {
-        // #if DEBUG
-        // return testNativeAdUnitId
-        // #else
         return nativeAdUnitId
-        // #endif
     }
 
     // MARK: - App Tracking Transparency (ATT)
 
-    /// Solicita el permiso de seguimiento al usuario.
     func requestATTAuthorization() {
         if #available(iOS 14, *) {
             ATTrackingManager.requestTrackingAuthorization { status in
                 DispatchQueue.main.async {
+                    // Track ATT decision in analytics
+                    self.trackATTDecision(status: status)
+                    
                     switch status {
                     case .authorized:
-                        // Configurar anuncios personalizados
                         self.configureAdPersonalization(enabled: true)
-                    case .denied:
-                        // Configurar anuncios no personalizados
-                        self.configureAdPersonalization(enabled: false)
-                    case .notDetermined:
-                        // Configuración por defecto
-                        self.configureAdPersonalization(enabled: false)
-                    case .restricted:
-                        // Configurar anuncios no personalizados
-                        self.configureAdPersonalization(enabled: false)
-                    @unknown default:
-                        // Configuración por defecto
+                    default:
                         self.configureAdPersonalization(enabled: false)
                     }
                 }
             }
         } else {
-            // Manejar versiones anteriores de iOS si es necesario
-            // Configuración por defecto para versiones anteriores
             configureAdPersonalization(enabled: false)
         }
     }
     
-    /// Configura la personalización de anuncios según el consentimiento del usuario
+    private func trackATTDecision(status: ATTrackingManager.AuthorizationStatus) {
+        let statusString: String
+        switch status {
+        case .authorized:
+            statusString = "authorized"
+        case .denied:
+            statusString = "denied"
+        case .restricted:
+            statusString = "restricted"
+        case .notDetermined:
+            statusString = "notDetermined"
+        @unknown default:
+            statusString = "unknown"
+        }
+        
+        // Track in analytics
+        AnalyticsService.shared.trackInteraction("att_decision", details: [
+            "status": statusString,
+            "timestamp": Date().timeIntervalSince1970
+        ])
+        
+        // Also save to UserDefaults for quick access
+        UserDefaults.standard.set(statusString, forKey: "attAuthorizationStatus")
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "attDecisionTimestamp")
+    }
+    
     private func configureAdPersonalization(enabled: Bool) {
-        if enabled {
-            // Usuario aceptó seguimiento - anuncios personalizados
-            // Las opciones por defecto de Google ya incluyen personalización
-        } else {
-            // Usuario no aceptó seguimiento - anuncios no personalizados
-            // Configurar opciones para anuncios menos personalizados
+        if !enabled {
             configureNonPersonalizedAds()
         }
     }
     
-    /// Configura opciones para anuncios no personalizados
     private func configureNonPersonalizedAds() {
-        // Nota: En iOS, las opciones de no personalización se manejan principalmente
-        // a través del consentimiento de ATT, pero podemos configurar algunas opciones adicionales
+        // Configurar para anuncios no personalizados cuando el usuario rechaza tracking
+        // AdMob automáticamente sirve anuncios contextuales en lugar de personalizados
     }
     
-    /// Obtiene el estado actual de personalización de anuncios
     func getAdPersonalizationStatus() -> (isPersonalized: Bool, reason: String) {
         if #available(iOS 14, *) {
             let status = ATTrackingManager.trackingAuthorizationStatus
-            let userDeclined = UserDefaults.standard.bool(forKey: "userDeclinedATTAlert")
+            let hasSeen = UserDefaults.standard.bool(forKey: "hasSeenATTPreAlert")
             
             switch status {
             case .authorized:
-                if userDeclined {
-                    return (false, "Usuario rechazó la alerta de consentimiento")
-                } else {
-                    return (true, "Usuario autorizó seguimiento")
-                }
+                return (true, "Usuario autorizó seguimiento")
             case .denied:
                 return (false, "Usuario denegó seguimiento")
             case .restricted:
                 return (false, "Seguimiento restringido")
             case .notDetermined:
-                if userDeclined {
-                    return (false, "Usuario rechazó la alerta de consentimiento")
-                } else {
-                    return (true, "Usuario no ha decidido aún")
-                }
+                return (hasSeen ? false : true, hasSeen ? "Alerta vista pero no decidida" : "Usuario no ha decidido aún")
             @unknown default:
                 return (false, "Estado desconocido")
             }
@@ -134,70 +120,86 @@ class AdMobConfiguration: NSObject { // Heredar de NSObject para GADAdLoaderDele
             return (false, "iOS anterior a 14.5")
         }
     }
-
-    // MARK: - ✅ FUNCIONES DE PRECARGA CORREGIDAS
-
-    /// ✅ MEJORADA: Función de precarga con mejor logging
-    func preloadNativeAd() {
+    
+    func getATTDecisionInfo() -> (status: String, timestamp: Date?, hasDecided: Bool) {
+        let status = UserDefaults.standard.string(forKey: "attAuthorizationStatus") ?? "notDetermined"
+        let timestamp = UserDefaults.standard.double(forKey: "attDecisionTimestamp")
+        let decisionDate = timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
         
+        return (
+            status: status,
+            timestamp: decisionDate,
+            hasDecided: status != "notDetermined"
+        )
+    }
+
+    // MARK: - Preload Functions
+
+    func preloadNativeAd() {
         let adUnitID = AdMobConfiguration.getNativeAdUnitId()
         let mediaOptions = NativeAdMediaAdLoaderOptions()
-        mediaOptions.mediaAspectRatio = .any // Usar .any como funciona en el feed
+        mediaOptions.mediaAspectRatio = .any
+        
+        guard let rootViewController = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first?.windows
+            .first(where: { $0.isKeyWindow })?.rootViewController else {
+            return
+        }
         
         let adLoader = AdLoader(
             adUnitID: adUnitID,
-            rootViewController: nil,
+            rootViewController: rootViewController,
             adTypes: [.native],
             options: [mediaOptions]
         )
         
-        let request = GoogleMobileAds.Request()
-        
-        // Usar el delegate existente de AdMobConfiguration
+        let request = createAdRequest()
         adLoader.delegate = self
         adLoader.load(request)
-        
     }
 
-    /// ✅ CORREGIDA: Función que faltaba
     func setPreloadedNativeAd(_ ad: NativeAd) {
         self.preloadedNativeAd = ad
     }
 
-    /// Retorna el anuncio nativo precargado si está disponible.
     func getPreloadedNativeAd() -> NativeAd? {
-        let ad = preloadedNativeAd
-        return ad
+        return preloadedNativeAd
     }
 
-    /// Limpia el anuncio nativo precargado.
     func clearPreloadedNativeAd() {
         preloadedNativeAd = nil
     }
 
-    private func createNativeAdOptions() -> NativeAdMediaAdLoaderOptions {
+    func createNativeAdOptions() -> NativeAdMediaAdLoaderOptions {
         let options = NativeAdMediaAdLoaderOptions()
-        options.mediaAspectRatio = .landscape
+        options.mediaAspectRatio = .any
         
-        // Configurar opciones según el consentimiento del usuario
         if #available(iOS 14, *) {
             let status = ATTrackingManager.trackingAuthorizationStatus
-            let userDeclined = UserDefaults.standard.bool(forKey: "userDeclinedATTAlert")
-            
-            if status == .denied || userDeclined {
-                // Usuario no aceptó seguimiento - configurar para anuncios menos personalizados
-                // En iOS, esto se maneja principalmente a través del consentimiento ATT
-                // pero podemos configurar algunas opciones adicionales si es necesario
-            } else {
-                // Usuario aceptó seguimiento o no ha decidido - anuncios personalizados
+            if status != .authorized {
+                // Configuraciones no personalizadas
             }
         }
         
         return options
     }
+    
+    func createAdRequest() -> GoogleMobileAds.Request {
+        let request = GoogleMobileAds.Request()
+        
+        if #available(iOS 14, *) {
+            let status = ATTrackingManager.trackingAuthorizationStatus
+            if status != .authorized {
+                // Configurar para anuncios no personalizados
+                // AdMob automáticamente detecta el estado de ATT y sirve anuncios contextuales
+            }
+        }
+        
+        return request
+    }
 }
 
-// MARK: - ✅ DELEGATES CORREGIDOS PARA PRECARGA
 extension AdMobConfiguration: AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         DispatchQueue.main.async {
@@ -208,14 +210,13 @@ extension AdMobConfiguration: AdLoaderDelegate {
 
 extension AdMobConfiguration: NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        
         DispatchQueue.main.async {
             self.preloadedNativeAd = nativeAd
         }
     }
 }
 
-// MARK: - Native Ad Manager (SIN CAMBIOS)
+// MARK: - Native Ad Manager
 class NativeAdManager: NSObject, ObservableObject {
     @Published var nativeAd: NativeAd?
     @Published var isLoading = false
@@ -230,12 +231,11 @@ class NativeAdManager: NSObject, ObservableObject {
     func loadAd() {
         guard !isLoading else { return }
 
-        // Intentar usar un anuncio precargado si está disponible
         if let preloadedAd = AdMobConfiguration.shared.getPreloadedNativeAd() {
             self.nativeAd = preloadedAd
             self.isLoading = false
             self.hasError = false
-            AdMobConfiguration.shared.clearPreloadedNativeAd() // Limpiar después de usar
+            AdMobConfiguration.shared.clearPreloadedNativeAd()
             return
         }
 
@@ -248,24 +248,16 @@ class NativeAdManager: NSObject, ObservableObject {
             adUnitID: adUnitID,
             rootViewController: nil,
             adTypes: [.native],
-            options: [createNativeAdOptions()]
+            options: [AdMobConfiguration.shared.createNativeAdOptions()]
         )
 
         adLoader?.delegate = self
 
-        let request = GoogleMobileAds.Request()
+        let request = AdMobConfiguration.shared.createAdRequest()
         adLoader?.load(request)
-
-    }
-
-    private func createNativeAdOptions() -> NativeAdMediaAdLoaderOptions {
-        let options = NativeAdMediaAdLoaderOptions()
-        options.mediaAspectRatio = .landscape
-        return options
     }
 }
 
-// MARK: - AdLoaderDelegate para NativeAdManager
 extension NativeAdManager: AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         DispatchQueue.main.async {
@@ -275,7 +267,6 @@ extension NativeAdManager: AdLoaderDelegate {
     }
 }
 
-// MARK: - NativeAdLoaderDelegate para NativeAdManager
 extension NativeAdManager: NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
         DispatchQueue.main.async {
@@ -286,7 +277,7 @@ extension NativeAdManager: NativeAdLoaderDelegate {
     }
 }
 
-// MARK: - Plus Ad Manager (SIN CAMBIOS)
+// MARK: - Plus Ad Manager
 class PlusAdManager: ObservableObject {
     @Published var shouldShowAds = true
     @Published var isPlus = false
@@ -298,26 +289,20 @@ class PlusAdManager: ObservableObject {
         updateAdDisplayStatus()
     }
 
-    /// Actualiza el estado de visualización de anuncios
     func updateAdDisplayStatus() {
         guard let authService = authService,
               let currentUser = authService.currentUser else {
-            // Si no hay usuario, mostrar anuncios
             shouldShowAds = true
             isPlus = false
             return
         }
 
-        // Verificar si el usuario es Plus y tiene suscripción activa
-        let hasActivePlus = currentUser.isPlusSubscriber &&
-                           currentUser.hasActivePlusSubscription
+        let hasActivePlus = currentUser.isPlusSubscriber && currentUser.hasActivePlusSubscription
 
         isPlus = hasActivePlus
         shouldShowAds = !hasActivePlus
-
     }
 
-    /// Función para usar cuando el estado del usuario cambie
     func refreshAdStatus() {
         updateAdDisplayStatus()
     }
