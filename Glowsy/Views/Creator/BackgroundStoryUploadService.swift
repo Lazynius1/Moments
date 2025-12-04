@@ -5,6 +5,7 @@ import FirebaseFirestore
 import SwiftUI
 import AVFoundation
 import FirebaseStorage
+import ActivityKit
 
 // ✅ Importar para usar StickerPickerView.sendMentionNotificationsForStory
 
@@ -28,6 +29,11 @@ class UploadingStory: ObservableObject, Identifiable {
     let chainId: String? // 🔗 AÑADIDO: ID de la cadena
     let chainPosition: Int? // 🔗 AÑADIDO: Posición en la cadena
     let chainTitle: String? // 🔗 AÑADIDO: Título de la cadena
+    let allowOthersToContinue: Bool? // 🔗 AÑADIDO: Si otros pueden continuar la cadena
+    let continuationAudience: ContentAudience? // 🔗 AÑADIDO: Audiencia que puede continuar
+    let continuationCustomViewers: [String]? // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
+    let continuationCustomListId: String? // 🔗 AÑADIDO: Lista específica que puede continuar
+    let continuationCustomListName: String? // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
@@ -52,7 +58,12 @@ class UploadingStory: ObservableObject, Identifiable {
         finalRenderedImage: UIImage? = nil, // ✅ NUEVO: Parámetro opcional
         chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
         chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
-        chainTitle: String? = nil // 🔗 AÑADIDO: Título de la cadena
+        chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
+        allowOthersToContinue: Bool? = nil, // 🔗 AÑADIDO: Si otros pueden continuar la cadena
+        continuationAudience: ContentAudience? = nil, // 🔗 AÑADIDO: Audiencia que puede continuar
+        continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
+        continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
+        continuationCustomListName: String? = nil // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     ) {
         self.tempId = "temp_story_\(UUID().uuidString)"
         self.userId = userId
@@ -70,6 +81,11 @@ class UploadingStory: ObservableObject, Identifiable {
         self.chainId = chainId // 🔗 AÑADIDO: Asignar ID de la cadena
         self.chainPosition = chainPosition // 🔗 AÑADIDO: Asignar posición en la cadena
         self.chainTitle = chainTitle // 🔗 AÑADIDO: Asignar título de la cadena
+        self.allowOthersToContinue = allowOthersToContinue // 🔗 AÑADIDO: Asignar si otros pueden continuar
+        self.continuationAudience = continuationAudience // 🔗 AÑADIDO: Asignar audiencia que puede continuar
+        self.continuationCustomViewers = continuationCustomViewers // 🔗 AÑADIDO: Asignar usuarios específicos
+        self.continuationCustomListId = continuationCustomListId // 🔗 AÑADIDO: Asignar lista específica
+        self.continuationCustomListName = continuationCustomListName // 🔗 AÑADIDO: Asignar nombre de lista
         self.createdAt = Date()
         
         // Configurar thumbnail
@@ -83,6 +99,10 @@ class BackgroundStoryUploadService: ObservableObject {
     
     @Published var uploadingStory: UploadingStory? // Solo una historia a la vez
     @Published var isProcessing = false
+    
+    // ✅ NUEVO: Live Activity para Dynamic Island
+    @available(iOS 16.1, *)
+    private var liveActivity: Activity<StoryUploadActivityAttributes>?
     
     private init() {}
     
@@ -101,7 +121,12 @@ class BackgroundStoryUploadService: ObservableObject {
         finalRenderedImage: UIImage? = nil, // Para historias con overlays renderizados
         chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
         chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
-        chainTitle: String? = nil // 🔗 AÑADIDO: Título de la cadena
+        chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
+        allowOthersToContinue: Bool? = nil, // 🔗 AÑADIDO: Si otros pueden continuar la cadena
+        continuationAudience: ContentAudience? = nil, // 🔗 AÑADIDO: Audiencia que puede continuar
+        continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
+        continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
+        continuationCustomListName: String? = nil // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     ) -> UploadingStory? {
         
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
@@ -152,13 +177,25 @@ class BackgroundStoryUploadService: ObservableObject {
             finalRenderedImage: finalRenderedImage, // ✅ NUEVO: Pasar la imagen renderizada
             chainId: chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
             chainPosition: chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-            chainTitle: chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
+            chainTitle: chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
+            allowOthersToContinue: allowOthersToContinue, // 🔗 AÑADIDO: Pasar si otros pueden continuar
+            continuationAudience: continuationAudience, // 🔗 AÑADIDO: Pasar audiencia que puede continuar
+            continuationCustomViewers: continuationCustomViewers, // 🔗 AÑADIDO: Pasar usuarios específicos
+            continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
+            continuationCustomListName: continuationCustomListName // 🔗 AÑADIDO: Pasar nombre de lista
         )
         
         // Mostrar en el header inmediatamente
         DispatchQueue.main.async {
             self.uploadingStory = uploadingStory
             self.isProcessing = true
+        }
+        
+        // ✅ NUEVO: Iniciar Live Activity para Dynamic Island
+        if #available(iOS 16.1, *) {
+            Task { @MainActor in
+                await startLiveActivity(for: uploadingStory)
+            }
         }
         
         // Procesar en background
@@ -191,6 +228,14 @@ class BackgroundStoryUploadService: ObservableObject {
             // PASO 4: Completado (90% - 100%)
             await updateProgress(uploadingStory, progress: 1.0, status: .completed)
             
+            // ✅ NUEVO: Actualizar Live Activity a estado "completed" y esperar unos segundos antes de cerrar
+            if #available(iOS 16.1, *) {
+                // Actualizar primero el estado a "completed" y esperar a que se complete
+                await updateLiveActivityAsync(progress: 1.0, status: "completed")
+                // Esperar 3 segundos para mostrar el emoji antes de cerrar
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
+                await endLiveActivityAsync()
+            }
             
             // PASO 5: Moderar en background silencioso
             Task.detached(priority: .background) {
@@ -245,6 +290,13 @@ class BackgroundStoryUploadService: ObservableObject {
             
         } catch {
             await updateProgress(uploadingStory, progress: 0.0, status: .failed, error: error.localizedDescription)
+            
+            // ✅ NUEVO: Finalizar Live Activity en caso de error
+            if #available(iOS 16.1, *) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    self.endLiveActivity()
+                }
+            }
         }
         
         await MainActor.run {
@@ -491,7 +543,12 @@ class BackgroundStoryUploadService: ObservableObject {
                     backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
                     chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
                     chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-                    chainTitle: uploadingStory.chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
+                    chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
+                    allowOthersToContinue: uploadingStory.allowOthersToContinue, // 🔗 AÑADIDO: Configuración de continuación
+                    continuationAudience: uploadingStory.continuationAudience, // 🔗 AÑADIDO: Audiencia de continuación
+                    continuationCustomViewers: uploadingStory.continuationCustomViewers, // 🔗 AÑADIDO: Usuarios específicos de continuación
+                    continuationCustomListId: uploadingStory.continuationCustomListId, // 🔗 AÑADIDO: Lista específica de continuación
+                    continuationCustomListName: uploadingStory.continuationCustomListName // 🔗 AÑADIDO: Nombre de lista de continuación
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -517,7 +574,12 @@ class BackgroundStoryUploadService: ObservableObject {
                     backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
                     chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
                     chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-                    chainTitle: uploadingStory.chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
+                    chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
+                    allowOthersToContinue: uploadingStory.allowOthersToContinue, // 🔗 AÑADIDO: Configuración de continuación
+                    continuationAudience: uploadingStory.continuationAudience, // 🔗 AÑADIDO: Audiencia de continuación
+                    continuationCustomViewers: uploadingStory.continuationCustomViewers, // 🔗 AÑADIDO: Usuarios específicos de continuación
+                    continuationCustomListId: uploadingStory.continuationCustomListId, // 🔗 AÑADIDO: Lista específica de continuación
+                    continuationCustomListName: uploadingStory.continuationCustomListName // 🔗 AÑADIDO: Nombre de lista de continuación
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -737,7 +799,12 @@ extension BackgroundStoryUploadService {
         finalRenderedImage: UIImage? = nil,
         chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
         chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
-        chainTitle: String? = nil // 🔗 AÑADIDO: Título de la cadena
+        chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
+        allowOthersToContinue: Bool? = nil, // 🔗 AÑADIDO: Si otros pueden continuar la cadena
+        continuationAudience: ContentAudience? = nil, // 🔗 AÑADIDO: Audiencia que puede continuar
+        continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
+        continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
+        continuationCustomListName: String? = nil // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     ) -> Bool {
         
         let uploadingStory = uploadStory(
@@ -754,7 +821,12 @@ extension BackgroundStoryUploadService {
             finalRenderedImage: finalRenderedImage,
             chainId: chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
             chainPosition: chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-            chainTitle: chainTitle // 🔗 AÑADIDO: Pasar título de la cadena
+            chainTitle: chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
+            allowOthersToContinue: allowOthersToContinue, // 🔗 AÑADIDO: Pasar si otros pueden continuar
+            continuationAudience: continuationAudience, // 🔗 AÑADIDO: Pasar audiencia que puede continuar
+            continuationCustomViewers: continuationCustomViewers, // 🔗 AÑADIDO: Pasar usuarios específicos
+            continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
+            continuationCustomListName: continuationCustomListName // 🔗 AÑADIDO: Pasar nombre de lista
         )
         
         return uploadingStory != nil
@@ -798,5 +870,130 @@ extension BackgroundStoryUploadService {
         
         // ✅ Normalizar orientación después del redimensionamiento
         return resizedImage.normalized()
+    }
+    
+    // MARK: - 📱 LIVE ACTIVITIES PARA DYNAMIC ISLAND
+    
+    @available(iOS 16.1, *)
+    private func startLiveActivity(for uploadingStory: UploadingStory) async {
+        let attributes = StoryUploadActivityAttributes(
+            storyId: uploadingStory.tempId,
+            mediaType: uploadingStory.mediaItem.type == .video ? "video" : "image"
+        )
+        
+        let initialContentState = StoryUploadActivityAttributes.ContentState(
+            progress: 0.0,
+            status: "uploading"
+        )
+        
+        do {
+            let activity = try Activity<StoryUploadActivityAttributes>.request(
+                attributes: attributes,
+                contentState: initialContentState,
+                pushType: nil
+            )
+            await MainActor.run {
+                liveActivity = activity
+            }
+        } catch {
+        }
+    }
+    
+    @available(iOS 16.1, *)
+    private func updateLiveActivity(progress: Double, status: String) {
+        guard let activity = liveActivity else {
+            return
+        }
+        
+        let updatedState = StoryUploadActivityAttributes.ContentState(
+            progress: progress,
+            status: status
+        )
+        
+        Task {
+            do {
+                await activity.update(using: updatedState)
+            } catch {
+            }
+        }
+    }
+    
+    @available(iOS 16.1, *)
+    private func updateLiveActivityAsync(progress: Double, status: String) async {
+        guard let activity = liveActivity else {
+            return
+        }
+        
+        let updatedState = StoryUploadActivityAttributes.ContentState(
+            progress: progress,
+            status: status
+        )
+        
+        do {
+            await activity.update(using: updatedState)
+        } catch {
+        }
+    }
+    
+    @available(iOS 16.1, *)
+    private func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+        
+        let finalState = StoryUploadActivityAttributes.ContentState(
+            progress: 1.0,
+            status: "completed"
+        )
+        
+        Task {
+            await activity.end(using: finalState, dismissalPolicy: .immediate)
+            liveActivity = nil
+        }
+    }
+    
+    @available(iOS 16.1, *)
+    private func endLiveActivityAsync() async {
+        guard let activity = liveActivity else { return }
+        
+        // No necesitamos actualizar el estado aquí porque ya lo hicimos antes
+        // Solo cerramos la Live Activity después de que se haya mostrado el emoji
+        await activity.end(dismissalPolicy: .immediate)
+        await MainActor.run {
+            liveActivity = nil
+        }
+    }
+    
+    // ✅ NUEVO: Función helper para actualizar progreso (si no existe)
+    private func updateProgress(_ uploadingStory: UploadingStory, progress: Double, status: UploadStatus? = nil, error: String? = nil) async {
+        await MainActor.run {
+            uploadingStory.uploadProgress = progress
+            if let status = status {
+                uploadingStory.status = status
+            }
+            if let error = error {
+                uploadingStory.errorMessage = error
+            }
+        }
+        
+        // ✅ NUEVO: Actualizar Live Activity
+        if #available(iOS 16.1, *) {
+            let statusString: String
+            if let status = status {
+                switch status {
+                case .uploading:
+                    statusString = "uploading"
+                case .processing:
+                    statusString = "processing"
+                case .completed:
+                    statusString = "completed"
+                case .failed:
+                    statusString = "failed"
+                case .moderated:
+                    statusString = "processing" // Tratar moderated como processing para la Live Activity
+                }
+            } else {
+                statusString = progress < 0.7 ? "uploading" : "processing"
+            }
+            updateLiveActivity(progress: progress, status: statusString)
+        }
     }
 }

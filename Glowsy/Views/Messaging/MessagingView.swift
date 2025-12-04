@@ -4,6 +4,7 @@ import FirebaseFirestore
 import FirebaseStorage
 import Kingfisher
 import Combine
+import WidgetKit
 
 // MARK: - Glassmorphic Components
 struct GlassmorphicBackground: View {
@@ -302,6 +303,11 @@ struct MessagingView: View {
         messageRequestService.getPendingRequestCount(for: userId) { count in
             DispatchQueue.main.async {
                 self.pendingRequestCount = count
+                
+                // ✅ Widget: Guardar conteo de solicitudes de mensaje pendientes
+                let widgetDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
+                widgetDefaults?.set(count, forKey: "widget_pending_message_requests")
+                WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
             }
         }
     }
@@ -931,6 +937,8 @@ struct GlassmorphicConversationRow: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var hasStory: Bool = false
     @State private var hasUnseenStory: Bool = false
+    @State private var storyCount: Int = 0
+    @State private var storyViewedStatus: [Bool] = []
     
     // ✅ NUEVO: Estados para navegación
     @State private var showingUserProfile = false
@@ -958,8 +966,16 @@ struct GlassmorphicConversationRow: View {
                         .frame(width: 56, height: 56)
                         .clipShape(Circle())
                         .overlay(
-                            Circle()
-                                .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 0)
+                            StorySegmentedRing(
+                                storyCount: storyCount,
+                                hasStory: hasStory,
+                                hasUnseenStory: hasUnseenStory,
+                                storyViewedStatus: storyViewedStatus,
+                                isOwnStory: false,
+                                colorScheme: colorScheme,
+                                ringSize: 56,
+                                lineWidth: 2.5
+                            )
                         )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -1045,33 +1061,6 @@ struct GlassmorphicConversationRow: View {
         }
     }
     
-    private var storyRingGradient: LinearGradient {
-        if hasUnseenStory {
-            // ✅ HISTORIA NO VISTA: Gradiente azul → morado → rosa
-            return LinearGradient(
-                colors: [Color.blue, Color.purple, Color.pink],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else if hasStory {
-            // ✅ HISTORIA YA VISTA: Gris según el tema
-            return LinearGradient(
-                colors: colorScheme == .dark ?
-                [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
-                [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            // ✅ SIN HISTORIAS: Sin anillo (transparente)
-            return LinearGradient(
-                colors: [Color.clear],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-    }
-    
     // ✅ ACTUALIZADO: Función para verificar historias del usuario (con filtrado de privacidad como en reels)
     private func checkUserStories() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
@@ -1105,14 +1094,31 @@ struct GlassmorphicConversationRow: View {
                 
                 // ✅ FILTRADO DE PRIVACIDAD: Solo contar historias que se pueden ver
                 let group = DispatchGroup()
-                var visibleStories: [Story] = []
+                var visibleStories: [(story: Story, wasViewed: Bool)] = []
+                let syncQueue = DispatchQueue(label: "story.visibility.check")
                 
                 for story in stories {
                     group.enter()
                     // ✅ USAR PRIVACY SERVICE como en reels
                     self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
                         if canView {
-                            visibleStories.append(story)
+                            if let storyId = story.id {
+                                group.enter()
+                                Firestore.firestore().collection("users").document(story.authorId)
+                                    .collection("stories").document(storyId)
+                                    .collection("viewers").document(currentUserId)
+                                    .getDocument { viewerDoc, _ in
+                                        let wasViewed = viewerDoc?.exists == true
+                                        syncQueue.async {
+                                            visibleStories.append((story: story, wasViewed: wasViewed))
+                                        }
+                                        group.leave()
+                                    }
+                            } else {
+                                syncQueue.async {
+                                    visibleStories.append((story: story, wasViewed: false))
+                                }
+                            }
                         }
                         group.leave()
                     }
@@ -1121,31 +1127,22 @@ struct GlassmorphicConversationRow: View {
                 group.notify(queue: .main) {
                     if !visibleStories.isEmpty {
                         self.hasStory = true
-                        
-                        // ✅ VERIFICAR SI HAY HISTORIAS NO VISTAS (solo de las visibles)
-                        var hasUnseenVisible = false
-                        let viewGroup = DispatchGroup()
-                        
-                        for story in visibleStories {
-                            viewGroup.enter()
-                            Firestore.firestore().collection("users").document(story.authorId)
-                                .collection("stories").document(story.id ?? "")
-                                .collection("viewers").document(currentUserId)
-                                .getDocument { viewerDoc, _ in
-                                    let wasViewed = viewerDoc?.exists == true
-                                    if !wasViewed {
-                                        hasUnseenVisible = true
-                                    }
-                                    viewGroup.leave()
-                                }
+                        let storyCount = visibleStories.count
+                        // Ordenar por timestamp y extraer el estado de visto
+                        let sortedStories = visibleStories.sorted { story1, story2 in
+                            (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
                         }
+                        let viewedStatus = sortedStories.map { $0.wasViewed }
+                        let hasUnseenVisible = viewedStatus.contains(false)
                         
-                        viewGroup.notify(queue: .main) {
-                            self.hasUnseenStory = hasUnseenVisible
-                        }
+                        self.storyCount = storyCount
+                        self.storyViewedStatus = viewedStatus
+                        self.hasUnseenStory = hasUnseenVisible
                     } else {
                         self.hasStory = false
                         self.hasUnseenStory = false
+                        self.storyCount = 0
+                        self.storyViewedStatus = []
                     }
                 }
             }

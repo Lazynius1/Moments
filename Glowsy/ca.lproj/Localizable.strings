@@ -9,8 +9,28 @@
 "storyChains.chain" = "Cadena";
 "storyChains.chainTitle" = "Títol de la cadena";
 "storyChains.chainTitlePlaceholder" = "Introdueix el títol de la cadena";
+"storyChains.configurationTitle" = "Configuració de Cadena";
+"storyChains.visibilityInfo" = "Les cadenes d'històries són visibles per a tots els usuaris. Aquí pots configurar qui pot continuar la teva cadena.";
+"storyChains.allowOthersToggle" = "Permetre que altres continuïn aquesta cadena?";
+"storyChains.allowOthersDescription" = "Si està desactivat, només tu podràs afegir parts a aquesta cadena.";
+"storyChains.continuationAudience" = "Qui pot continuar aquesta cadena?";
+"storyChains.shareChain" = "Compartir Cadena";
+"storyChains.cancel" = "Cancel·lar";
 "storyChains.continuing" = "Continuant: %@";
 "storyChains.continueStory" = "Continuar Història";
+"storyChains.continuationAudience.title" = "Qui pot continuar aquesta cadena?";
+"storyChains.continuationAudience.navigationTitle" = "Audiència de Continuació";
+
+/* Audience Types */
+"audience.everyone" = "Tothom";
+"audience.connections" = "Conexions mútues";
+"audience.bestFriends" = "Millors Amics";
+"audience.custom" = "Personalitzat";
+"audience.customList" = "Llista Personalitzada";
+
+/* Common Actions */
+"common.cancel" = "Cancel·lar";
+"common.done" = "Fet";
 "storyChains.viewChain" = "Veure Cadena";
 "storyChains.part" = "Part %d de '%@'";
 "storyChains.loading" = "Carregant cadena...";
@@ -120,6 +140,9 @@
 "creator.story.title" = "Història";
 "creator.story.subtitle" = "Comparteix moments que desapareixen";
 "creator.gallery.permission" = "Necessitem accés a la teva galeria per seleccionar fotos i vídeos";
+"creator.permissions.instructions.title" = "Per atorgar permisos:";
+"creator.permissions.instructions.path" = "Ves a Configuració > Privadesa > Fotos";
+"creator.permissions.openSettings" = "Obrir Configuració";
 "creator.newMoment" = "Nou moment";
 "creator.next" = "Següent";
 "creator.edit" = "Editar";
@@ -578,6 +601,16 @@
 "profileEditor.interests.empty.title" = "No has seleccionat interessos";
 "profileEditor.interests.empty.subtitle" = "Toca 'Editar' per afegir els teus interessos";
 "profileEditor.interests.select.title" = "Selecciona fins a 5 interessos";
+"profileEditor.cancel" = "Cancel·lar";
+"profileEditor.save" = "Desar";
+"profileEditor.next" = "Següent";
+"profileEditor.allowAccess" = "Permetre accés";
+"profileEditor.retry" = "Tornar a intentar";
+"profileEditor.addInterests" = "Afegir interessos";
+"profileEditor.done" = "Fet";
+"profileEditor.section.basic" = "Perfil";
+"profileEditor.section.interests" = "Interessos";
+"profileEditor.interests.navigationTitle" = "Interessos";
 
 /* Audience Selection */
 "audience.selection.title" = "Seleccionar Audiència";
@@ -1546,3 +1579,27 @@
 "followButton.request" = "Sol·licitar";
 "followButton.ownProfile" = "El teu perfil";
 "followButton.blocked" = "Bloquejat";
+
+/* Live Activities */
+"liveActivity.uploadingStory" = "Pujant història";
+"liveActivity.uploading" = "Pujant...";
+"liveActivity.processing" = "Processant...";
+"liveActivity.completed" = "Completat";
+"liveActivity.error" = "Error";
+
+/* Widget */
+"widget.createStory.title" = "Pujar història";
+"widget.createStory.subtitle" = "Toca per crear a Moments";
+"widget.metrics.visits" = "Visites";
+"widget.metrics.messages" = "Missatges";
+"widget.metrics.notifications" = "Notifs";
+"widget.visits.singular" = "Avui 1 persona ha visitat el teu perfil";
+"widget.visits.plural" = "Avui %d persones han visitat el teu perfil";
+"widget.messages.singular" = "Tens 1 missatge sense llegir";
+"widget.messages.plural" = "Tens %d missatges sense llegir";
+"widget.notifications.singular" = "Tens 1 notificació nova";
+"widget.notifications.plural" = "Tens %d notificacions noves";
+"widget.stories.singular" = "1 història nova";
+"widget.stories.plural" = "%d històries noves";
+"widget.messageRequests.singular" = "1 sol·licitud de missatge pendent";
+"widget.messageRequests.plural" = "%d sol·licituds de missatge pendents";

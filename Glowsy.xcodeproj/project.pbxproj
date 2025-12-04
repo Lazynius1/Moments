@@ -16,13 +16,44 @@
 		36748B7F2DE112DD0094D43D /* FirebaseVertexAI in Frameworks */ = {isa = PBXBuildFile; productRef = 36748B7E2DE112DD0094D43D /* FirebaseVertexAI */; };
 		368B7D842DE79DC6001D7971 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 368B7D832DE79DC6001D7971 /* FirebaseMessaging */; };
 		369D7AC82DE9EACD005F30AB /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 369D7AC72DE9EACD005F30AB /* Kingfisher */; };
+		36BDF3FF2ED7DD7800683AB4 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 36BDF3FE2ED7DD7800683AB4 /* WidgetKit.framework */; };
+		36BDF4012ED7DD7800683AB4 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 36BDF4002ED7DD7800683AB4 /* SwiftUI.framework */; };
+		36BDF4122ED7DD7B00683AB4 /* GlowsyWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D372E0A18F400901FD0 /* ZIPFoundation */; };
 		36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		36BDF4102ED7DD7B00683AB4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0D4FD1B12DB27BFE00CA6DB1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 36BDF3FB2ED7DD7800683AB4;
+			remoteInfo = GlowsyWidgetExtensionExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		36BDF4172ED7DD7B00683AB4 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				36BDF4122ED7DD7B00683AB4 /* GlowsyWidgetExtensionExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		0D4FD1B92DB27BFE00CA6DB1 /* Moments Social.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Moments Social.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		368B7D822DE792C2001D7971 /* Moments.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Moments.entitlements; sourceTree = "<group>"; };
+		36AD0CE62EE1D97100C4FC30 /* GlowsyWidgetExtensionExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlowsyWidgetExtensionExtension.entitlements; sourceTree = "<group>"; };
+		36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlowsyWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		36BDF3FE2ED7DD7800683AB4 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		36BDF4002ED7DD7800683AB4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -33,6 +64,13 @@
 			);
 			target = 0D4FD1B82DB27BFE00CA6DB1 /* Moments Social */;
 		};
+		36BDF4162ED7DD7B00683AB4 /* Exceptions for "GlowsyWidgetExtension" folder in "GlowsyWidgetExtensionExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 36BDF3FB2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -42,6 +80,14 @@
 				367984D62DE3A7BD006A5C5D /* Exceptions for "Glowsy" folder in "Moments Social" target */,
 			);
 			path = Glowsy;
+			sourceTree = "<group>";
+		};
+		36BDF4022ED7DD7800683AB4 /* GlowsyWidgetExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				36BDF4162ED7DD7B00683AB4 /* Exceptions for "GlowsyWidgetExtension" folder in "GlowsyWidgetExtensionExtension" target */,
+			);
+			path = GlowsyWidgetExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -65,14 +111,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		36BDF3F92ED7DD7800683AB4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				36BDF4012ED7DD7800683AB4 /* SwiftUI.framework in Frameworks */,
+				36BDF3FF2ED7DD7800683AB4 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0D4FD1B02DB27BFE00CA6DB1 = {
 			isa = PBXGroup;
 			children = (
+				36AD0CE62EE1D97100C4FC30 /* GlowsyWidgetExtensionExtension.entitlements */,
 				368B7D822DE792C2001D7971 /* Moments.entitlements */,
 				0D4FD1BB2DB27BFE00CA6DB1 /* Glowsy */,
+				36BDF4022ED7DD7800683AB4 /* GlowsyWidgetExtension */,
+				36BDF3FD2ED7DD7800683AB4 /* Frameworks */,
 				0D4FD1BA2DB27BFE00CA6DB1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -81,8 +139,18 @@
 			isa = PBXGroup;
 			children = (
 				0D4FD1B92DB27BFE00CA6DB1 /* Moments Social.app */,
+				36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		36BDF3FD2ED7DD7800683AB4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				36BDF3FE2ED7DD7800683AB4 /* WidgetKit.framework */,
+				36BDF4002ED7DD7800683AB4 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -95,10 +163,12 @@
 				0D4FD1B52DB27BFE00CA6DB1 /* Sources */,
 				0D4FD1B62DB27BFE00CA6DB1 /* Frameworks */,
 				0D4FD1B72DB27BFE00CA6DB1 /* Resources */,
+				36BDF4172ED7DD7B00683AB4 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				36BDF4112ED7DD7B00683AB4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0D4FD1BB2DB27BFE00CA6DB1 /* Glowsy */,
@@ -121,6 +191,28 @@
 			productReference = 0D4FD1B92DB27BFE00CA6DB1 /* Moments Social.app */;
 			productType = "com.apple.product-type.application";
 		};
+		36BDF3FB2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 36BDF4132ED7DD7B00683AB4 /* Build configuration list for PBXNativeTarget "GlowsyWidgetExtensionExtension" */;
+			buildPhases = (
+				36BDF3F82ED7DD7800683AB4 /* Sources */,
+				36BDF3F92ED7DD7800683AB4 /* Frameworks */,
+				36BDF3FA2ED7DD7800683AB4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				36BDF4022ED7DD7800683AB4 /* GlowsyWidgetExtension */,
+			);
+			name = GlowsyWidgetExtensionExtension;
+			packageProductDependencies = (
+			);
+			productName = GlowsyWidgetExtensionExtension;
+			productReference = 36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -131,11 +223,14 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastSwiftUpdateCheck = 1630;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					0D4FD1B82DB27BFE00CA6DB1 = {
 						CreatedOnToolsVersion = 16.3;
+					};
+					36BDF3FB2ED7DD7800683AB4 = {
+						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
@@ -163,12 +258,20 @@
 			projectRoot = "";
 			targets = (
 				0D4FD1B82DB27BFE00CA6DB1 /* Moments Social */,
+				36BDF3FB2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		0D4FD1B72DB27BFE00CA6DB1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		36BDF3FA2ED7DD7800683AB4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -185,7 +288,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		36BDF3F82ED7DD7800683AB4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		36BDF4112ED7DD7B00683AB4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 36BDF3FB2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension */;
+			targetProxy = 36BDF4102ED7DD7B00683AB4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0D4FD1C22DB27C0000CA6DB1 /* Debug */ = {
@@ -352,7 +470,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -403,7 +521,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -414,6 +532,73 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		36BDF4142ED7DD7B00683AB4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = GlowsyWidgetExtensionExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T7NTUGU3C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GlowsyWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = GlowsyWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		36BDF4152ED7DD7B00683AB4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = GlowsyWidgetExtensionExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T7NTUGU3C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GlowsyWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = GlowsyWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -434,6 +619,15 @@
 			buildConfigurations = (
 				0D4FD1C52DB27C0000CA6DB1 /* Debug */,
 				0D4FD1C62DB27C0000CA6DB1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		36BDF4132ED7DD7B00683AB4 /* Build configuration list for PBXNativeTarget "GlowsyWidgetExtensionExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				36BDF4142ED7DD7B00683AB4 /* Debug */,
+				36BDF4152ED7DD7B00683AB4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

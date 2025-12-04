@@ -412,7 +412,8 @@ struct StoryChainGridItemView: View {
                     case .success(let image):
                         image
                             .resizable()
-                            .scaledToFill()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                             .clipped()
                     case .failure(_):

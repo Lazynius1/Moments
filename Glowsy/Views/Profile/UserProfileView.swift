@@ -989,6 +989,29 @@ struct UserModernAvatarWithBadges: View {
         guard let userId = userProfile?.id else { return false }
         return !(storyViewModel.stories[userId]?.isEmpty ?? true)
     }
+    
+    private var storyCount: Int {
+        guard let userId = userProfile?.id else { return 0 }
+        return storyViewModel.stories[userId]?.count ?? 0
+    }
+    
+    private var storyViewedStatus: [Bool] {
+        guard let userId = userProfile?.id,
+              let currentUserId = Auth.auth().currentUser?.uid,
+              let userStories = storyViewModel.stories[userId] else {
+            return []
+        }
+        
+        return userStories.map { story in
+            guard let storyId = story.id else { return false }
+            let viewers = storyViewModel.storyViewers[storyId] ?? []
+            return viewers.contains { $0.userId == currentUserId }
+        }
+    }
+    
+    private var isOwnStory: Bool {
+        return userProfile?.id == Auth.auth().currentUser?.uid
+    }
 
     var body: some View {
         ZStack {
@@ -1087,19 +1110,28 @@ struct UserModernAvatarWithBadges: View {
     // Border inteligente del avatar adaptativo
     @ViewBuilder
     private func avatarBorderOverlay() -> some View {
-        Circle()
-            .stroke(
-                LinearGradient(
-                    gradient: hasStory ?
-                    Gradient(colors: [.red, .purple, .blue, .pink]) :
-                    (userProfile?.isPlusSubscriber == true && userProfile?.showPlusBadge == true ?
-                     Gradient(colors: [Color(hex: "FFD700"), Color(hex: "FFA500")]) :
-                     Gradient(colors: [Color.clear, Color.clear])), // ✅ QUITADO: Borde verde
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: hasStory ? 3 : (userProfile?.isPlusSubscriber == true && userProfile?.showPlusBadge == true ? 3 : 0) // ✅ QUITADO: Borde cuando no hay story o Plus
+        if hasStory {
+            StorySegmentedRing(
+                storyCount: storyCount,
+                hasStory: hasStory,
+                hasUnseenStory: !storyViewedStatus.allSatisfy { $0 },
+                storyViewedStatus: storyViewedStatus,
+                isOwnStory: isOwnStory,
+                colorScheme: colorScheme,
+                ringSize: size,
+                lineWidth: 3
             )
+        } else if userProfile?.isPlusSubscriber == true && userProfile?.showPlusBadge == true {
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color(hex: "FFD700"), Color(hex: "FFA500")]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 3
+                )
+        }
     }
 }
 
@@ -1418,10 +1450,32 @@ struct UserModernAvatar: View {
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
     let size: CGFloat
+    @Environment(\.colorScheme) var colorScheme
     
     private var hasStory: Bool {
         // ✅ CORREGIDO: Usar userId en lugar de profileImagePath
         return !(storyViewModel.stories[userId]?.isEmpty ?? true)
+    }
+    
+    private var storyCount: Int {
+        return storyViewModel.stories[userId]?.count ?? 0
+    }
+    
+    private var storyViewedStatus: [Bool] {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let userStories = storyViewModel.stories[userId] else {
+            return []
+        }
+        
+        return userStories.map { story in
+            guard let storyId = story.id else { return false }
+            let viewers = storyViewModel.storyViewers[storyId] ?? []
+            return viewers.contains { $0.userId == currentUserId }
+        }
+    }
+    
+    private var isOwnStory: Bool {
+        return userId == Auth.auth().currentUser?.uid
     }
 
     var body: some View {
@@ -1445,17 +1499,16 @@ struct UserModernAvatar: View {
                     .clipShape(Circle()) // ✅ CLAVE: Clip después del frame
                     .contentShape(Circle()) // ✅ CLAVE: ContentShape para touch
                     .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    gradient: hasStory ?
-                                    Gradient(colors: [.red, .purple, .blue, .pink]) :
-                                    Gradient(colors: [Color.clear, Color.clear]), // ✅ QUITADO: Borde verde
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: hasStory ? 3 : 0 // ✅ QUITADO: Borde cuando no hay story
-                            )
+                        StorySegmentedRing(
+                            storyCount: storyCount,
+                            hasStory: hasStory,
+                            hasUnseenStory: !storyViewedStatus.allSatisfy { $0 },
+                            storyViewedStatus: storyViewedStatus,
+                            isOwnStory: isOwnStory,
+                            colorScheme: colorScheme,
+                            ringSize: size,
+                            lineWidth: 3
+                        )
                     )
                     .shadow(color: Color(hex: "00A896").opacity(0.2), radius: 15, x: 0, y: 8)
             } else {

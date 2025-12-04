@@ -535,7 +535,7 @@ enum FollowButtonState {
 extension PrivacyService {
     
     // MARK: - Verificar conexión mutua
-    private func checkMutualConnection(user1: String, user2: String, completion: @escaping (Bool) -> Void) {
+    func checkMutualConnection(user1: String, user2: String, completion: @escaping (Bool) -> Void) {
         let group = DispatchGroup()
         var user1FollowsUser2 = false
         var user2FollowsUser1 = false
@@ -558,7 +558,7 @@ extension PrivacyService {
     }
     
     // MARK: - Verificar si es mejor amigo
-    private func checkIfBestFriend(userId: String, friendId: String, completion: @escaping (Bool) -> Void) {
+    func checkIfBestFriend(userId: String, friendId: String, completion: @escaping (Bool) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
                 completion(false)

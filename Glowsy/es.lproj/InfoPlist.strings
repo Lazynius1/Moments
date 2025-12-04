@@ -1,4 +1,4 @@
 "NSCameraUsageDescription" = "Permite usar la cámara para hacer fotos y vídeos y compartirlos.";
 "NSMicrophoneUsageDescription" = "Permite usar el micrófono para grabar audio en tus historias.";
 "NSLocationWhenInUseUsageDescription" = "Permite usar tu ubicación para etiquetar publicaciones y mostrar contenido cercano.";
-"NSUserTrackingUsageDescription" = "Moments utiliza tu identificador (IDFA) para rastrear tu actividad en apps y sitios de otras empresas con el fin de personalizar anuncios y medir su rendimiento.";
+"NSUserTrackingUsageDescription" = "Permite el seguimiento para personalizar anuncios. Nos ayuda a mantener la app gratuita.";

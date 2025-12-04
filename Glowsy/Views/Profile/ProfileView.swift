@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import FirebaseAuth
+import WidgetKit
 import FirebaseStorage
 import Kingfisher
 import CoreMotion
@@ -243,6 +244,9 @@ struct ProfileView: View {
                             viewModel.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
                         }
                     }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileVisits"))) { _ in
+                    showingUserList = .visits
                 }
             }
         }
@@ -574,6 +578,25 @@ struct ModernProfileHeader: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var profileImage: UIImage?
     @State private var isLoadingImage = false
+    
+    private var storyCount: Int {
+        guard let userId = Auth.auth().currentUser?.uid else { return 0 }
+        return storyViewModel.stories[userId]?.count ?? 0
+    }
+    
+    private var storyViewedStatus: [Bool] {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let userStories = storyViewModel.stories[userId] else {
+            return []
+        }
+        
+        // Para historias propias, siempre están "vistas" (iluminadas)
+        return userStories.map { _ in true }
+    }
+    
+    private var isOwnStory: Bool {
+        return true // Siempre es el perfil propio
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -829,19 +852,28 @@ struct ModernProfileHeader: View {
     private func avatarBorderOverlay() -> some View {
         let currentUser = authService.currentUser
         
-        Circle()
-            .stroke(
-                LinearGradient(
-                    gradient: storyViewModel.hasActiveStory ?
-                    Gradient(colors: [.red, .purple, .blue, .pink]) :
-                    (currentUser?.isPlusSubscriber == true && currentUser?.showPlusBadge == true ?
-                     Gradient(colors: [Color(hex: "FFD700"), Color(hex: "FFA500")]) :
-                     Gradient(colors: [Color.clear, Color.clear])), // ✅ QUITADO: Borde verde
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: storyViewModel.hasActiveStory ? 3 : (currentUser?.isPlusSubscriber == true && currentUser?.showPlusBadge == true ? 3 : 0) // ✅ QUITADO: Borde cuando no hay story o Plus
+        if storyViewModel.hasActiveStory {
+            StorySegmentedRing(
+                storyCount: storyCount,
+                hasStory: storyViewModel.hasActiveStory,
+                hasUnseenStory: false, // Propias siempre iluminadas
+                storyViewedStatus: storyViewedStatus,
+                isOwnStory: isOwnStory,
+                colorScheme: colorScheme,
+                ringSize: 110,
+                lineWidth: 3
             )
+        } else if currentUser?.isPlusSubscriber == true && currentUser?.showPlusBadge == true {
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color(hex: "FFD700"), Color(hex: "FFA500")]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 3
+                )
+        }
     }
 }
 
@@ -1571,6 +1603,8 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
     private let firestoreService = FirestoreService()
     private let storageService = StorageService()
+    // ✅ UserDefaults compartido con el widget (App Group "group.com.glowsyapp")
+    private let widgetUserDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
     
     // ✅ NUEVO: Cache local para tracking de unfollows recientes
     private var recentUnfollows: Set<String> = []
@@ -1752,6 +1786,17 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                             timestamps[visit.visitorId]?.append(visit.timestamp)
                         }
                         self.visitTimestamps = timestamps
+                        
+                         // 🔄 Actualizar contador de visitas de hoy para el widget
+                         let calendar = Calendar.current
+                         let today = calendar.startOfDay(for: Date())
+                         let todayCount = visits.filter { visit in
+                             let visitDay = calendar.startOfDay(for: visit.timestamp)
+                             return visitDay == today
+                         }.count
+                         
+                         self.widgetUserDefaults?.set(todayCount, forKey: "widget_profile_visits_today")
+                         WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
                     }
                 }
             case .failure(let error):

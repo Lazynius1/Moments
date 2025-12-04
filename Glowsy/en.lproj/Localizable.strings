@@ -9,8 +9,28 @@
 "storyChains.chain" = "Chain";
 "storyChains.chainTitle" = "Chain title";
 "storyChains.chainTitlePlaceholder" = "Enter the chain title";
+"storyChains.configurationTitle" = "Chain Configuration";
+"storyChains.visibilityInfo" = "Story chains are visible to all users. Here you can configure who can continue your chain.";
+"storyChains.allowOthersToggle" = "Allow others to continue this chain?";
+"storyChains.allowOthersDescription" = "If disabled, only you will be able to add parts to this chain.";
+"storyChains.continuationAudience" = "Who can continue this chain?";
+"storyChains.shareChain" = "Share Chain";
+"storyChains.cancel" = "Cancel";
 "storyChains.continuing" = "Continuing: %@";
 "storyChains.continueStory" = "Continue Story";
+"storyChains.continuationAudience.title" = "Who can continue this chain?";
+"storyChains.continuationAudience.navigationTitle" = "Continuation Audience";
+
+/* Audience Types */
+"audience.everyone" = "Everyone";
+"audience.connections" = "Mutual connections";
+"audience.bestFriends" = "Best Friends";
+"audience.custom" = "Custom";
+"audience.customList" = "Custom List";
+
+/* Common Actions */
+"common.cancel" = "Cancel";
+"common.done" = "Done";
 "storyChains.viewChain" = "View Chain";
 "storyChains.part" = "Part %d of '%@'";
 "storyChains.loading" = "Loading chain...";
@@ -120,6 +140,9 @@
 "creator.story.title" = "Story";
 "creator.story.subtitle" = "Share moments that disappear";
 "creator.gallery.permission" = "We need access to your gallery to select photos and videos";
+"creator.permissions.instructions.title" = "To grant permissions:";
+"creator.permissions.instructions.path" = "Go to Settings > Privacy > Photos";
+"creator.permissions.openSettings" = "Open Settings";
 "creator.newMoment" = "New moment";
 "creator.next" = "Next";
 "creator.edit" = "Edit";
@@ -578,6 +601,16 @@
 "profileEditor.interests.empty.title" = "You haven't selected interests";
 "profileEditor.interests.empty.subtitle" = "Tap 'Edit' to add your interests";
 "profileEditor.interests.select.title" = "Select up to 5 interests";
+"profileEditor.cancel" = "Cancel";
+"profileEditor.save" = "Save";
+"profileEditor.next" = "Next";
+"profileEditor.allowAccess" = "Allow access";
+"profileEditor.retry" = "Retry";
+"profileEditor.addInterests" = "Add interests";
+"profileEditor.done" = "Done";
+"profileEditor.section.basic" = "Profile";
+"profileEditor.section.interests" = "Interests";
+"profileEditor.interests.navigationTitle" = "Interests";
 
 /* Audience Selection */
 "audience.selection.title" = "Select Audience";
@@ -1548,3 +1581,27 @@
 "followButton.request" = "Request";
 "followButton.ownProfile" = "Your profile";
 "followButton.blocked" = "Blocked";
+
+/* Live Activities */
+"liveActivity.uploadingStory" = "Uploading story";
+"liveActivity.uploading" = "Uploading...";
+"liveActivity.processing" = "Processing...";
+"liveActivity.completed" = "Completed";
+"liveActivity.error" = "Error";
+
+/* Widget */
+"widget.createStory.title" = "Upload story";
+"widget.createStory.subtitle" = "Tap to create in Moments";
+"widget.metrics.visits" = "Visits";
+"widget.metrics.messages" = "Messages";
+"widget.metrics.notifications" = "Notifs";
+"widget.visits.singular" = "1 person visited your profile today";
+"widget.visits.plural" = "%d people visited your profile today";
+"widget.messages.singular" = "You have 1 unread message";
+"widget.messages.plural" = "You have %d unread messages";
+"widget.notifications.singular" = "You have 1 new notification";
+"widget.notifications.plural" = "You have %d new notifications";
+"widget.stories.singular" = "1 new story";
+"widget.stories.plural" = "%d new stories";
+"widget.messageRequests.singular" = "1 pending message request";
+"widget.messageRequests.plural" = "%d pending message requests";

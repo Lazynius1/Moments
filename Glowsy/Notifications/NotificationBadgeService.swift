@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import WidgetKit
 import FirebaseAuth
 import FirebaseFirestore
 
@@ -8,6 +9,10 @@ class NotificationBadgeService: ObservableObject {
     
     @Published var unreadNotificationsCount: Int = 0
     @Published var unreadMessagesCount: Int = 0
+    
+    // ✅ UserDefaults compartido para el widget (configura este App Group en Xcode)
+    // Asegúrate de crear/activar el App Group "group.com.glowsyapp"
+    private let widgetUserDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
     
     private var notificationListener: ListenerRegistration?
     private var messageListener: ListenerRegistration?
@@ -44,8 +49,12 @@ class NotificationBadgeService: ObservableObject {
                 let count = snapshot?.documents.count ?? 0
                 
                 DispatchQueue.main.async {
-                    self?.unreadNotificationsCount = count
-                    self?.updateAppBadge()
+                    guard let self = self else { return }
+                    self.unreadNotificationsCount = count
+                    // 🔄 Sincronizar con widget
+                    self.widgetUserDefaults?.set(count, forKey: "widget_unread_notifications")
+                    self.updateAppBadge()
+                    WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
                 }
             }
     }
@@ -95,8 +104,14 @@ class NotificationBadgeService: ObservableObject {
                 }
                 
                 group.notify(queue: .main) {
-                    self?.unreadMessagesCount = unreadConversations
-                    self?.updateAppBadge()
+                    guard let self = self else { return }
+                    self.unreadMessagesCount = unreadConversations
+                    
+                    // 🔄 Sincronizar con widget
+                    self.widgetUserDefaults?.set(unreadConversations, forKey: "widget_unread_messages")
+                    
+                    self.updateAppBadge()
+                    WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
                 }
             }
     }
@@ -115,13 +130,17 @@ class NotificationBadgeService: ObservableObject {
     // ✅ LIMPIAR notificaciones (llamado desde NotificationsView)
     func clearNotificationBadge() {
         unreadNotificationsCount = 0
+        widgetUserDefaults?.set(0, forKey: "widget_unread_notifications")
         updateAppBadge()
+        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
     }
     
     // ✅ LIMPIAR mensajes (llamado desde MessagingView)
     func clearMessageBadge() {
         unreadMessagesCount = 0
+        widgetUserDefaults?.set(0, forKey: "widget_unread_messages")
         updateAppBadge()
+        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
     }
     
     // ✅ LIMPIAR badge completo de la app

@@ -116,6 +116,8 @@ struct ReelVideoView: View {
     @State private var navigateToProfile = false
     @State private var hasStory = false
     @State private var hasUnseenStory = false
+    @State private var storyCount: Int = 0
+    @State private var storyViewedStatus: [Bool] = []
     @State private var showingStories = false
     @State private var storiesUserId: String = ""
     
@@ -258,8 +260,16 @@ struct ReelVideoView: View {
                                         .frame(width: 40, height: 40)
                                         .clipShape(Circle())
                                         .overlay(
-                                            Circle()
-                                                .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 0)
+                                            StorySegmentedRing(
+                                                storyCount: storyCount,
+                                                hasStory: hasStory,
+                                                hasUnseenStory: hasUnseenStory,
+                                                storyViewedStatus: storyViewedStatus,
+                                                isOwnStory: video.moment.authorId == Auth.auth().currentUser?.uid,
+                                                colorScheme: colorScheme,
+                                                ringSize: 40,
+                                                lineWidth: 2.5
+                                            )
                                         )
                                         .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
                                 }
@@ -577,34 +587,6 @@ struct ReelVideoView: View {
     
     // MARK: - Funciones auxiliares
     
-    // ✅ NUEVO: Gradiente para anillo de historias (igual que en el feed)
-    private var storyRingGradient: LinearGradient {
-        if hasUnseenStory {
-            // ✅ HISTORIA NO VISTA: Gradiente azul → morado → rosa
-            return LinearGradient(
-                colors: [Color.blue, Color.purple, Color.pink],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else if hasStory {
-            // ✅ HISTORIA YA VISTA: Gris según el tema
-            return LinearGradient(
-                colors: colorScheme == .dark ?
-                [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
-                [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            // ✅ SIN HISTORIAS: Sin anillo (transparente)
-            return LinearGradient(
-                colors: [Color.clear],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-    }
-    
     // ✅ NUEVO: Función para verificar historias del usuario (con filtrado de privacidad como en el feed)
     private func checkUserStories() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
@@ -638,15 +620,31 @@ struct ReelVideoView: View {
                 
                 // ✅ FILTRADO DE PRIVACIDAD: Solo contar historias que se pueden ver
                 let group = DispatchGroup()
-                var visibleStories: [Story] = []
-                var hasUnseen = false
+                var visibleStories: [(story: Story, wasViewed: Bool)] = []
+                let syncQueue = DispatchQueue(label: "story.visibility.check")
                 
                 for story in stories {
                     group.enter()
                     // ✅ USAR PRIVACY SERVICE como en el feed
                     self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
                         if canView {
-                            visibleStories.append(story)
+                            if let storyId = story.id {
+                                group.enter()
+                                self.firestoreService.db.collection("users").document(story.authorId)
+                                    .collection("stories").document(storyId)
+                                    .collection("viewers").document(currentUserId)
+                                    .getDocument { viewerDoc, _ in
+                                        let wasViewed = viewerDoc?.exists == true
+                                        syncQueue.async {
+                                            visibleStories.append((story: story, wasViewed: wasViewed))
+                                        }
+                                        group.leave()
+                                    }
+                            } else {
+                                syncQueue.async {
+                                    visibleStories.append((story: story, wasViewed: false))
+                                }
+                            }
                         }
                         group.leave()
                     }
@@ -655,31 +653,22 @@ struct ReelVideoView: View {
                 group.notify(queue: .main) {
                     if !visibleStories.isEmpty {
                         self.hasStory = true
-                        
-                        // ✅ VERIFICAR SI HAY HISTORIAS NO VISTAS (solo de las visibles)
-                        var hasUnseenVisible = false
-                        let viewGroup = DispatchGroup()
-                        
-                        for story in visibleStories {
-                            viewGroup.enter()
-                            self.firestoreService.db.collection("users").document(story.authorId)
-                                .collection("stories").document(story.id ?? "")
-                                .collection("viewers").document(currentUserId)
-                                .getDocument { viewerDoc, _ in
-                                    let wasViewed = viewerDoc?.exists == true
-                                    if !wasViewed {
-                                        hasUnseenVisible = true
-                                    }
-                                    viewGroup.leave()
-                                }
+                        let storyCount = visibleStories.count
+                        // Ordenar por timestamp y extraer el estado de visto
+                        let sortedStories = visibleStories.sorted { story1, story2 in
+                            (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
                         }
+                        let viewedStatus = sortedStories.map { $0.wasViewed }
+                        let hasUnseenVisible = viewedStatus.contains(false)
                         
-                        viewGroup.notify(queue: .main) {
-                            self.hasUnseenStory = hasUnseenVisible
-                        }
+                        self.storyCount = storyCount
+                        self.storyViewedStatus = viewedStatus
+                        self.hasUnseenStory = hasUnseenVisible
                     } else {
                         self.hasStory = false
                         self.hasUnseenStory = false
+                        self.storyCount = 0
+                        self.storyViewedStatus = []
                     }
                 }
             }

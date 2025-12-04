@@ -3067,6 +3067,11 @@ extension FirestoreService {
         chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
         chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
         chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
+        allowOthersToContinue: Bool? = nil, // 🔗 AÑADIDO: Si otros pueden continuar la cadena
+        continuationAudience: ContentAudience? = nil, // 🔗 AÑADIDO: Audiencia que puede continuar
+        continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
+        continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
+        continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
         completion: @escaping (String?, Error?) -> Void // 🔥 ACTUALIZADO: Ahora devuelve String? para el storyId
     ) {
 
@@ -3156,6 +3161,25 @@ extension FirestoreService {
                             }
                             
                             return stickerData
+                        }
+                    }
+                    
+                    // 🔗 AÑADIR CAMPOS DE CONFIGURACIÓN DE CONTINUACIÓN DE CADENAS
+                    if let chainId = chainId {
+                        if let allowOthersToContinue = allowOthersToContinue {
+                            storyData["allowOthersToContinue"] = allowOthersToContinue
+                        }
+                        if let continuationAudience = continuationAudience {
+                            storyData["continuationAudience"] = continuationAudience.rawValue
+                        }
+                        if let continuationCustomViewers = continuationCustomViewers {
+                            storyData["continuationCustomViewers"] = continuationCustomViewers
+                        }
+                        if let continuationCustomListId = continuationCustomListId {
+                            storyData["continuationCustomListId"] = continuationCustomListId
+                        }
+                        if let continuationCustomListName = continuationCustomListName {
+                            storyData["continuationCustomListName"] = continuationCustomListName
                         }
                     }
                     
@@ -3420,6 +3444,11 @@ extension FirestoreService {
         chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
         chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
         chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
+        allowOthersToContinue: Bool? = nil, // 🔗 AÑADIDO: Si otros pueden continuar la cadena
+        continuationAudience: ContentAudience? = nil, // 🔗 AÑADIDO: Audiencia que puede continuar
+        continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
+        continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
+        continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
         completion: @escaping (String?, Error?) -> Void // 🔥 ACTUALIZADO: Ahora devuelve String? para el storyId
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
@@ -3488,6 +3517,25 @@ extension FirestoreService {
                             }
                             
                             return stickerData
+                        }
+                    }
+                    
+                    // 🔗 AÑADIR CAMPOS DE CONFIGURACIÓN DE CONTINUACIÓN DE CADENAS
+                    if let chainId = chainId {
+                        if let allowOthersToContinue = allowOthersToContinue {
+                            storyData["allowOthersToContinue"] = allowOthersToContinue
+                        }
+                        if let continuationAudience = continuationAudience {
+                            storyData["continuationAudience"] = continuationAudience.rawValue
+                        }
+                        if let continuationCustomViewers = continuationCustomViewers {
+                            storyData["continuationCustomViewers"] = continuationCustomViewers
+                        }
+                        if let continuationCustomListId = continuationCustomListId {
+                            storyData["continuationCustomListId"] = continuationCustomListId
+                        }
+                        if let continuationCustomListName = continuationCustomListName {
+                            storyData["continuationCustomListName"] = continuationCustomListName
                         }
                     }
 
@@ -3669,6 +3717,7 @@ extension FirestoreService {
         
         return interests
     }
+    
 }
 
 

@@ -394,9 +394,17 @@ struct CreatorView: View {
     @Binding var isCreatingStory: Bool
     @Binding var showCreatorView: Bool
     let initialSticker: StickerItem? // ✅ NUEVO: Sticker inicial
+    let openInStoryMode: Bool // ✅ NUEVO: Abrir directamente en modo historia
     
     @State private var currentFlow: CreatorFlow = .typeSelection
     @State private var contentType: ContentType = .moment
+    
+    init(isCreatingStory: Binding<Bool>, showCreatorView: Binding<Bool>, initialSticker: StickerItem? = nil, openInStoryMode: Bool = false) {
+        self._isCreatingStory = isCreatingStory
+        self._showCreatorView = showCreatorView
+        self.initialSticker = initialSticker
+        self.openInStoryMode = openInStoryMode
+    }
     @State private var selectedMediaItems: [ProcessedMedia] = []
     @State private var captionText: String = ""
     @State private var taggedUsers: [String] = []
@@ -500,6 +508,9 @@ struct CreatorView: View {
                 contentType = .story
                 currentFlow = .storyEditing
                 isCreatingStory = true
+            } else if openInStoryMode {
+                // ✅ Abrir directamente en modo historia (desde widget)
+                contentType = .story
             }
         }
         .onDisappear {
@@ -761,7 +772,7 @@ struct MediaSelectionView: View {
     @State private var selectedAssetIDs: [String] = []
     @State private var isLoadingLibrary = true
     @State private var showingCamera = false
-    @State private var showPermissionDenied = false
+    @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     
     // ✅ Estados para manejo de álbumes
     @State private var availableAlbums: [AlbumInfo] = []
@@ -796,12 +807,6 @@ struct MediaSelectionView: View {
                 selectedMediaItems.append(media)
                 currentFlow = .mediaEditing
             }
-        }
-        .alert("Permisos necesarios", isPresented: $showPermissionDenied) {
-            Button("Configuración", action: openSettings)
-            Button("Cancelar", role: .cancel) { }
-        } message: {
-                            Text("creator.gallery.permission")
         }
     }
     
@@ -972,6 +977,8 @@ struct MediaSelectionView: View {
             // Grid de fotos
             if isLoadingLibrary {
                 loadingView
+            } else if authorizationStatus == .denied || authorizationStatus == .restricted {
+                permissionDeniedView
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 2, pinnedViews: []) {
@@ -1022,20 +1029,25 @@ struct MediaSelectionView: View {
     // MARK: - Funciones
     
     private func requestPhotoLibraryAccess() {
-        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-            DispatchQueue.main.async {
-                switch status {
-                case .authorized, .limited:
-                    loadAvailableAlbums()
-                    loadMediaFromLibrary()
-                case .denied, .restricted:
-                    showPermissionDenied = true
-                case .notDetermined:
-                    break
-                @unknown default:
-                    break
+        authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        
+        if authorizationStatus == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                DispatchQueue.main.async {
+                    authorizationStatus = status
+                    if status == .authorized || status == .limited {
+                        loadAvailableAlbums()
+                        loadMediaFromLibrary()
+                    } else {
+                        isLoadingLibrary = false
+                    }
                 }
             }
+        } else if authorizationStatus == .authorized || authorizationStatus == .limited {
+            loadAvailableAlbums()
+            loadMediaFromLibrary()
+        } else {
+            isLoadingLibrary = false
         }
     }
     
@@ -1508,10 +1520,51 @@ struct MediaSelectionView: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
     
-    private func openSettings() {
-        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(settingsURL)
+    // MARK: - Permission Denied View (con instrucciones opcionales)
+    private var permissionDeniedView: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "photo.on.rectangle")
+                .font(.system(size: 60))
+                .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.6))
+            
+            Text("creator.gallery.permission")
+                .font(.custom("Poppins-Medium", size: 16))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            // ✅ Instrucciones opcionales para el usuario
+            VStack(spacing: 12) {
+                Text("creator.permissions.instructions.title")
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                Text("creator.permissions.instructions.path")
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                
+                Button("creator.permissions.openSettings") {
+                    if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(settingsUrl)
+                    }
+                }
+                .font(.custom("Poppins-SemiBold", size: 14))
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 10)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(Capsule())
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(colorScheme == .dark ? Color.black : Color.white)
     }
 }
 
@@ -4145,20 +4198,36 @@ struct AdvancedSettingsView: View {
 struct StoryGalleryPicker: View {
     let onSelect: (ProcessedMedia) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     
     @State private var selectedImage: UIImage?
     @State private var selectedVideoURL: URL?
     @State private var showingMediaPicker = false
     @State private var showingVideoLengthAlert = false
     @State private var videoDuration: Double = 0
+    @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     
     var body: some View {
         // ✅ Vista invisible que abre directamente la galería
         Color.clear
             .onAppear {
-                // ✅ Abrir automáticamente la galería al aparecer
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    showingMediaPicker = true
+                // ✅ Verificar permisos antes de abrir el picker
+                checkPhotoLibraryPermission()
+                
+                // ✅ Abrir el picker si el estado inicial permite (authorized, limited, o notDetermined)
+                // PHPickerViewController funciona incluso sin permisos, pero es mejor verificar
+                if authorizationStatus == .authorized || authorizationStatus == .limited || authorizationStatus == .notDetermined {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        showingMediaPicker = true
+                    }
+                }
+            }
+            .onChange(of: authorizationStatus) { newStatus in
+                // ✅ Abrir el picker cuando cambie el estado a autorizado o limitado
+                if (newStatus == .authorized || newStatus == .limited) && !showingMediaPicker {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        showingMediaPicker = true
+                    }
                 }
             }
             .sheet(isPresented: $showingMediaPicker) {
@@ -4231,6 +4300,84 @@ struct StoryGalleryPicker: View {
             } message: {
                 Text(String(format: NSLocalizedString("creator.video.length.warning", comment: "Video length warning"), String(format: "%.0f", videoDuration)))
             }
+            .overlay(
+                // ✅ Mostrar mensaje si el permiso está denegado
+                Group {
+                    if authorizationStatus == .denied || authorizationStatus == .restricted {
+                        permissionDeniedOverlay
+                    }
+                }
+            )
+    }
+    
+    // MARK: - Helper Functions
+    private func checkPhotoLibraryPermission() {
+        authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        
+        // Si el estado es notDetermined, solicitar permiso
+        if authorizationStatus == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                DispatchQueue.main.async {
+                    authorizationStatus = status
+                }
+            }
+        }
+    }
+    
+    // MARK: - Permission Denied Overlay (con instrucciones opcionales)
+    private var permissionDeniedOverlay: some View {
+        ZStack {
+            (colorScheme == .dark ? Color.black : Color.white).opacity(0.95)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Image(systemName: "photo.on.rectangle")
+                    .font(.system(size: 60))
+                    .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.6))
+                
+                Text("creator.gallery.permission")
+                    .font(.custom("Poppins-Medium", size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                
+                // ✅ Instrucciones opcionales para el usuario
+                VStack(spacing: 12) {
+                    Text("creator.permissions.instructions.title")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                    Text("creator.permissions.instructions.path")
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                    
+                    Button("creator.permissions.openSettings") {
+                        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(settingsUrl)
+                        }
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(Capsule())
+                }
+                
+                Button("Cerrar") {
+                    dismiss()
+                }
+                .font(.custom("Poppins-Medium", size: 14))
+                .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
+            }
+        }
     }
 }
 

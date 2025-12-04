@@ -1,0 +1,17 @@
+/* Widget */
+"widget.createStory.title" = "Upload story";
+"widget.createStory.subtitle" = "Tap to create in Moments";
+"widget.metrics.visits" = "Visits";
+"widget.metrics.messages" = "Messages";
+"widget.metrics.notifications" = "Notifs";
+"widget.visits.singular" = "1 person visited your profile today";
+"widget.visits.plural" = "%d people visited your profile today";
+"widget.messages.singular" = "You have 1 unread message";
+"widget.messages.plural" = "You have %d unread messages";
+"widget.notifications.singular" = "You have 1 new notification";
+"widget.notifications.plural" = "You have %d new notifications";
+"widget.stories.singular" = "1 new story";
+"widget.stories.plural" = "%d new stories";
+"widget.messageRequests.singular" = "1 pending message request";
+"widget.messageRequests.plural" = "%d pending message requests";
+

@@ -1,0 +1,17 @@
+/* Widget */
+"widget.createStory.title" = "Pujar història";
+"widget.createStory.subtitle" = "Toca per crear a Moments";
+"widget.metrics.visits" = "Visites";
+"widget.metrics.messages" = "Missatges";
+"widget.metrics.notifications" = "Notifs";
+"widget.visits.singular" = "Avui 1 persona ha visitat el teu perfil";
+"widget.visits.plural" = "Avui %d persones han visitat el teu perfil";
+"widget.messages.singular" = "Tens 1 missatge sense llegir";
+"widget.messages.plural" = "Tens %d missatges sense llegir";
+"widget.notifications.singular" = "Tens 1 notificació nova";
+"widget.notifications.plural" = "Tens %d notificacions noves";
+"widget.stories.singular" = "1 història nova";
+"widget.stories.plural" = "%d històries noves";
+"widget.messageRequests.singular" = "1 sol·licitud de missatge pendent";
+"widget.messageRequests.plural" = "%d sol·licituds de missatge pendents";
+

@@ -1,0 +1,17 @@
+/* Widget */
+"widget.createStory.title" = "Subir historia";
+"widget.createStory.subtitle" = "Toca para crear en Moments";
+"widget.metrics.visits" = "Visitas";
+"widget.metrics.messages" = "Mensajes";
+"widget.metrics.notifications" = "Notifs";
+"widget.visits.singular" = "Hoy 1 persona ha visitado tu perfil";
+"widget.visits.plural" = "Hoy %d personas han visitado tu perfil";
+"widget.messages.singular" = "Tienes 1 mensaje sin leer";
+"widget.messages.plural" = "Tienes %d mensajes sin leer";
+"widget.notifications.singular" = "Tienes 1 notificación nueva";
+"widget.notifications.plural" = "Tienes %d notificaciones nuevas";
+"widget.stories.singular" = "1 historia nueva";
+"widget.stories.plural" = "%d historias nuevas";
+"widget.messageRequests.singular" = "1 solicitud de mensaje pendiente";
+"widget.messageRequests.plural" = "%d solicitudes de mensaje pendientes";
+

@@ -26,12 +26,14 @@ class FCMTokenService {
         retryCount[userId] = currentRetries + 1
         
         // ✅ VERIFICAR que APNs token esté configurado
-        if Messaging.messaging().apnsToken == nil {
+        let apnsToken = Messaging.messaging().apnsToken
+        if apnsToken == nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 self.updateFCMToken()
             }
             return
         }
+        
         Messaging.messaging().token { [weak self] token, error in
             if let error = error {
                 // Reintentar después de 5 segundos si falla
@@ -45,6 +47,11 @@ class FCMTokenService {
                 self?.retryCount[userId] = 0
             }
         }
+    }
+    
+    // ✅ MÉTODO PÚBLICO para guardar token directamente (llamado desde AppDelegate)
+    func saveFCMTokenDirectly(token: String, userId: String) {
+        saveFCMToken(token: token, userId: userId)
     }
     
     // ✅ MÉTODO PRIVADO para guardar en Firestore
