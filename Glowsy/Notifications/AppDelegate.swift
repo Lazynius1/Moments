@@ -32,9 +32,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
     
-    // ✅ LOGS DETALLADOS: Registro exitoso de APNs
+    // ✅ Registro exitoso de APNs
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        
         // ✅ PRIMERO: Configurar el token en Firebase Messaging
         Messaging.messaging().apnsToken = deviceToken
         
@@ -44,7 +43,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         }
     }
     
-    // ✅ LOGS DETALLADOS: Registro fallido de APNs
+    // ✅ Registro fallido de APNs
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
     }
 }
@@ -52,9 +51,15 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 // MARK: - MessagingDelegate
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        
-        // ✅ USAR EL SERVICIO CENTRALIZADO mejorado
-        FCMTokenService.shared.updateFCMToken()
+        if let token = fcmToken {
+            // ✅ GUARDAR DIRECTAMENTE el token recibido (más confiable que esperar APNs)
+            if let userId = Auth.auth().currentUser?.uid {
+                FCMTokenService.shared.saveFCMTokenDirectly(token: token, userId: userId)
+            }
+        } else {
+            // ✅ Si no hay token, intentar obtenerlo con el método normal
+            FCMTokenService.shared.updateFCMToken()
+        }
     }
 }
 

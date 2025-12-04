@@ -1,0 +1,614 @@
+import SwiftUI
+
+struct MuteSettingsView: View {
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
+    @StateObject var viewModel = MuteSettingsViewModel()
+    @State var isLoading = true
+    @State var showAddMutedUser = false
+    @State var showAddMutedWord = false
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+            
+            if isLoading {
+                ProgressView("Cargando configuración...")
+                    .progressViewStyle(CircularProgressViewStyle())
+                    .font(.custom("Poppins-Regular", size: 16))
+                    .foregroundColor(.gray)
+            } else {
+                List {
+                    // Muted Users Section
+                    Section {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(NSLocalizedString("muteSettings.mutedAccounts.title", comment: "Muted accounts title"))
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                
+                                Text(NSLocalizedString("muteSettings.mutedAccounts.description", comment: "Muted accounts description"))
+                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: { showAddMutedUser = true }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(Color(hex: "00A896"))
+                                    .font(.system(size: 24))
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        
+                        if viewModel.mutedUsers.isEmpty {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 8) {
+                                    Image(systemName: "person.slash")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.gray)
+                                    
+                                    Text(NSLocalizedString("muteSettings.noMutedUsers", comment: "No muted users"))
+                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 20)
+                        } else {
+                            ForEach(viewModel.mutedUsers) { user in
+                                MutedUserRow(user: user) {
+                                    viewModel.unmuteUser(user.id)
+                                }
+                            }
+                        }
+                        
+                    } header: {
+                        Text("")
+                    }
+                    .listRowBackground(LiistRowBackground())
+                    
+                    // Muted Words Section
+                    Section {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(NSLocalizedString("muteSettings.mutedWords.title", comment: "Muted words title"))
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                
+                                Text(NSLocalizedString("muteSettings.mutedWords.description", comment: "Muted words description"))
+                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: { showAddMutedWord = true }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(Color(hex: "00A896"))
+                                    .font(.system(size: 24))
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        
+                        if viewModel.mutedWords.isEmpty {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 8) {
+                                    Image(systemName: "text.badge.xmark")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.gray)
+                                    
+                                    Text(NSLocalizedString("muteSettings.noMutedWords", comment: "No muted words"))
+                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 20)
+                        } else {
+                            ForEach(Array(viewModel.mutedWords.enumerated()), id: \.offset) { index, word in
+                                MutedWordRow(word: word) {
+                                    viewModel.removeMutedWord(word)
+                                }
+                            }
+                        }
+                        
+                    } header: {
+                        Text("")
+                    }
+                    .listRowBackground(LiistRowBackground())
+                    
+                    // Settings Section
+                    Section {
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                Image(systemName: "gear")
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .font(.system(size: 18))
+                                
+                                Text(NSLocalizedString("muteSettings.configuration.title", comment: "Mute configuration title"))
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                            }
+                            
+                            Toggle(isOn: $viewModel.muteNotifications) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(NSLocalizedString("muteSettings.notifications.title", comment: "Mute notifications title"))
+                                        .font(.custom("Poppins-Medium", size: 15))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    
+                                    Text(NSLocalizedString("muteSettings.notifications.description", comment: "Mute notifications description"))
+                                        .font(.custom("Poppins-Regular", size: 13))
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .tint(Color(hex: "00A896"))
+                            .onChange(of: viewModel.muteNotifications) { _ in
+                                viewModel.saveSettings()
+                            }
+                            
+                            Toggle(isOn: $viewModel.hideFromSearch) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(NSLocalizedString("muteSettings.hideFromSearch.title", comment: "Hide from search title"))
+                                        .font(.custom("Poppins-Medium", size: 15))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    
+                                    Text(NSLocalizedString("muteSettings.hideFromSearch.description", comment: "Hide from search description"))
+                                        .font(.custom("Poppins-Regular", size: 13))
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .tint(Color(hex: "00A896"))
+                            .onChange(of: viewModel.hideFromSearch) { _ in
+                                viewModel.saveSettings()
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        
+                    } header: {
+                        Text(NSLocalizedString("muteSettings.additionalOptions", comment: "Additional options"))
+                    }
+                    .listRowBackground(LiistRowBackground())
+                }
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .navigationTitle(NSLocalizedString("muteSettings.navigation.title", comment: "Mute navigation title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
+                }
+            }
+        }
+        .onAppear {
+            viewModel.loadSettings {
+                isLoading = false
+            }
+        }
+        .sheet(isPresented: $showAddMutedUser) {
+            AddMutedUserView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showAddMutedWord) {
+            AddMutedWordView(viewModel: viewModel)
+        }
+        }
+    }
+}
+
+struct MutedUserRow: View {
+    @Environment(\.colorScheme) var colorScheme
+    let user: AppUser
+    let onUnmute: () -> Void
+    @State var showUnmuteAlert = false
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+            } placeholder: {
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .foregroundColor(.gray)
+                            .font(.system(size: 16))
+                    )
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(user.username)")
+                    .font(.custom("Poppins-Medium", size: 15))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                if let bio = user.bio, !bio.isEmpty {
+                    Text(bio)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            Button(NSLocalizedString("muteSettings.activate", comment: "Activate button")) {
+                showUnmuteAlert = true
+            }
+            .font(.custom("Poppins-Medium", size: 14))
+            .foregroundColor(Color(hex: "00A896"))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(hex: "00A896"), lineWidth: 1)
+            )
+        }
+                .alert(NSLocalizedString("muteSettings.alert.activateUser.title", comment: "Activate user alert title"), isPresented: $showUnmuteAlert) {
+            Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button"), role: .cancel) { }
+            Button(NSLocalizedString("muteSettings.activate", comment: "Activate button"), role: .destructive) {
+                onUnmute()
+            }
+        } message: {
+            Text(String(format: NSLocalizedString("muteSettings.alert.activateUser.message", comment: "Activate user alert message"), user.username))
+        }
+    }
+}
+
+struct MutedWordRow: View {
+    @Environment(\.colorScheme) var colorScheme
+    let word: String
+    let onRemove: () -> Void
+    @State var showRemoveAlert = false
+    
+    var body: some View {
+        HStack {
+            HStack(spacing: 8) {
+                Image(systemName: "text.badge.xmark")
+                    .foregroundColor(.gray)
+                    .font(.system(size: 16))
+                
+                Text(word)
+                    .font(.custom("Poppins-Medium", size: 15))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+            }
+            
+            Spacer()
+            
+            Button(action: { showRemoveAlert = true }) {
+                Image(systemName: "minus.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.system(size: 20))
+            }
+        }
+        .alert(NSLocalizedString("muteSettings.alert.removeWord.title", comment: "Remove word alert title"), isPresented: $showRemoveAlert) {
+            Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button"), role: .cancel) { }
+            Button(NSLocalizedString("muteSettings.remove", comment: "Remove button"), role: .destructive) {
+                onRemove()
+            }
+        } message: {
+            Text(String(format: NSLocalizedString("muteSettings.alert.removeWord.message", comment: "Remove word alert message"), word))
+        }
+    }
+}
+
+struct AddMutedUserView: View {
+    @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) var colorScheme
+    @ObservedObject var viewModel: MuteSettingsViewModel
+    @State var searchText = ""
+    @State var searchResults: [AppUser] = []
+    @State var isSearching = false
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                // Search Bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray)
+                    
+                    TextField(NSLocalizedString("muteSettings.search.placeholder", comment: "Search users placeholder"), text: $searchText)
+                        .font(.custom("Poppins-Regular", size: 16))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .onChange(of: searchText) { newValue in
+                            if !newValue.isEmpty {
+                                searchUsers(query: newValue)
+                            } else {
+                                searchResults = []
+                            }
+                        }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.1))
+                )
+                .padding(.horizontal)
+                
+                if isSearching {
+                    ProgressView(NSLocalizedString("muteSettings.searching", comment: "Searching progress"))
+                        .padding()
+                } else if searchResults.isEmpty && !searchText.isEmpty {
+                    Text(NSLocalizedString("muteSettings.noUsersFound", comment: "No users found"))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.gray)
+                        .padding()
+                } else {
+                    List(searchResults) { user in
+                        HStack(spacing: 12) {
+                            AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+                            } placeholder: {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.gray)
+                                            .font(.system(size: 16))
+                                    )
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(user.username)")
+                                    .font(.custom("Poppins-Medium", size: 15))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                
+                                if let bio = user.bio, !bio.isEmpty {
+                                    Text(bio)
+                                        .font(.custom("Poppins-Regular", size: 13))
+                                        .foregroundColor(.gray)
+                                        .lineLimit(1)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            let isMuted = viewModel.mutedUsers.contains { $0.id == user.id }
+                            
+                            Button(isMuted ? NSLocalizedString("muteSettings.activate", comment: "Activate button") : NSLocalizedString("muteSettings.navigation.title", comment: "Mute button")) {
+                                if isMuted {
+                                    viewModel.unmuteUser(user.id)
+                                } else {
+                                    viewModel.muteUser(user)
+                                }
+                            }
+                            .font(.custom("Poppins-Medium", size: 14))
+                            .foregroundColor(isMuted ? Color(hex: "00A896") : .red)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(isMuted ? Color(hex: "00A896") : .red, lineWidth: 1)
+                            )
+                        }
+                        .listRowBackground(LiistRowBackground())
+                    }
+                    .scrollContentBackground(.hidden)
+                }
+                
+                Spacer()
+            }
+            .navigationTitle(NSLocalizedString("muteSettings.muteUser.title", comment: "Mute user navigation title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancelar") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func searchUsers(query: String) {
+        isSearching = true
+        
+        FirestoreService().searchUsers(query: query, limit: 10) { result in
+            DispatchQueue.main.async {
+                self.isSearching = false
+                switch result {
+                case .success(let users):
+                    self.searchResults = users
+                case .failure(let error):
+                    self.searchResults = []
+                }
+            }
+        }
+    }
+}
+
+struct AddMutedWordView: View {
+    @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) var colorScheme
+    @ObservedObject var viewModel: MuteSettingsViewModel
+    @State var newWord = ""
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(NSLocalizedString("muteSettings.addWord.title", comment: "Add word title"))
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                    Text(NSLocalizedString("muteSettings.addWord.description", comment: "Add word description"))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.gray)
+                    
+                    TextField(NSLocalizedString("muteSettings.textField.placeholder", comment: "Text field placeholder"), text: $newWord)
+                        .font(.custom("Poppins-Regular", size: 16))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.gray.opacity(0.1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                    
+                    Button(action: {
+                        if !newWord.trimmingCharacters(in: .whitespaces).isEmpty {
+                            viewModel.addMutedWord(newWord.trimmingCharacters(in: .whitespaces))
+                            dismiss()
+                        }
+                    }) {
+                        Text(NSLocalizedString("muteSettings.add", comment: "Add button"))
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(newWord.isEmpty ? Color.gray : Color(hex: "00A896"))
+                            )
+                    }
+                    .disabled(newWord.isEmpty)
+                }
+                .padding()
+                
+                Spacer()
+            }
+            .navigationTitle(NSLocalizedString("muteSettings.mutedWord.title", comment: "Muted word navigation title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+class MuteSettingsViewModel: ObservableObject {
+    @Published var mutedUsers: [AppUser] = []
+    @Published var mutedWords: [String] = []
+    @Published var muteNotifications = true
+    @Published var hideFromSearch = true
+    
+    private let firestoreService = FirestoreService()
+    
+    func loadSettings(completion: @escaping () -> Void) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            completion()
+            return
+        }
+        
+        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let user):
+                    // Load mute settings from user data
+                    // For now, using empty defaults
+                    self?.mutedUsers = []
+                    self?.mutedWords = []
+                    self?.muteNotifications = true
+                    self?.hideFromSearch = true
+                case .failure(_):
+                    break
+                }
+                completion()
+            }
+        }
+    }
+    
+    func muteUser(_ user: AppUser) {
+        if !mutedUsers.contains(where: { $0.id == user.id }) {
+            mutedUsers.append(user)
+            saveSettings()
+        }
+    }
+    
+    func unmuteUser(_ userId: String) {
+        mutedUsers.removeAll { $0.id == userId }
+        saveSettings()
+    }
+    
+    func addMutedWord(_ word: String) {
+        if !mutedWords.contains(word.lowercased()) {
+            mutedWords.append(word.lowercased())
+            saveSettings()
+        }
+    }
+    
+    func removeMutedWord(_ word: String) {
+        mutedWords.removeAll { $0 == word }
+        saveSettings()
+    }
+    
+    func saveSettings() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let settings: [String: Any] = [
+            "mutedUsers": mutedUsers.map { $0.id },
+            "mutedWords": mutedWords,
+            "muteNotifications": muteNotifications,
+            "hideFromSearch": hideFromSearch
+        ]
+        
+        firestoreService.db.collection("users").document(userId).updateData([
+            "muteSettings": settings
+        ]) { error in
+            if let error = error {
+            }
+        }
+    }
+}
+
+struct LiistRowBackground: View {
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        ZStack {
+            Rectangle().fill(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
+            LinearGradient(
+                colors: [Color(colorScheme == .dark ? .white : .black).opacity(0.1), Color(hex: "00A896").opacity(0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.overlay)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+

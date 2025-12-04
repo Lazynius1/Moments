@@ -977,6 +977,7 @@ struct GlassmorphicStoryViewer: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging: Bool = false
     @State private var showSuccessMessage: Bool = false
+    @State private var canContinueChain: Bool = false
     @State private var successMessageText: String = ""
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dismiss) private var dismiss
@@ -1146,6 +1147,11 @@ struct GlassmorphicStoryViewer: View {
             
             // ✅ PRELOAD: Precargar siguiente historia
             preloadNextStory()
+            
+            // 🔗 VERIFICAR SI SE PUEDE CONTINUAR LA CADENA
+            if let chainId = story.chainId {
+                checkCanContinueChain(chainId: chainId)
+            }
             
             // 🔗 STORY CHAINS: Cargar historias de la cadena si es parte de una
             if story.chainId != nil {
@@ -1816,10 +1822,12 @@ struct GlassmorphicStoryViewer: View {
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                         }
                         
-                        // Botón principal para continuar
-                        Button(action: {
-                            continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
-                        }) {
+                        // Botón principal para continuar (solo si se puede)
+                        if canContinueChain {
+                            let _ = print("🔗 DEBUG: UI - canContinueChain is true, showing button")
+                            Button(action: {
+                                continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
+                            }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "plus.circle.fill")
                                     .foregroundColor(.white)
@@ -1848,6 +1856,7 @@ struct GlassmorphicStoryViewer: View {
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 25))
                             .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -2500,6 +2509,149 @@ struct GlassmorphicStoryViewer: View {
                     self.authorAllowsReactions = visibilitySettings["allowStoryReactions"] as? Bool ?? true
                     self.authorAllowsEphemeralPhotos = visibilitySettings["allowStoryEphemeralPhotos"] as? Bool ?? true
                 }
+            }
+        }
+    }
+    
+    // 🔗 FUNCIÓN: Verificar si el usuario puede continuar la cadena
+    private func checkCanContinueChain(chainId: String) {
+        print("🔗 DEBUG: Checking chain continuation for chainId: \(chainId)")
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("🔗 DEBUG: No current user, setting canContinueChain = false")
+            canContinueChain = false
+            return
+        }
+        print("🔗 DEBUG: Current user ID: \(currentUserId)")
+        
+        // Buscar la primera historia de la cadena para obtener la configuración
+        // Primero necesitamos encontrar el autor de la cadena desde la historia actual
+        let authorId = story.authorId
+        print("🔗 DEBUG: Searching in author's stories: \(authorId)")
+        
+        let firestoreService = FirestoreService()
+        firestoreService.db.collection("users").document(authorId).collection("stories")
+            .whereField("chainId", isEqualTo: chainId)
+            .whereField("chainPosition", isEqualTo: 1) // Primera parte
+            .limit(to: 1)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("🔗 DEBUG: Error checking chain continuation: \(error)")
+                    canContinueChain = false
+                    return
+                }
+                
+                guard let document = snapshot?.documents.first,
+                      let data = document.data() as? [String: Any] else {
+                    print("🔗 DEBUG: No first story found or invalid data")
+                    canContinueChain = false
+                    return
+                }
+                
+                print("🔗 DEBUG: Found first story data: \(data)")
+                
+                // El autor de la cadena siempre puede continuarla
+                let authorId = data["authorId"] as? String ?? ""
+                if authorId == currentUserId {
+                    print("🔗 DEBUG: Current user is the author, can always continue")
+                    DispatchQueue.main.async {
+                        canContinueChain = true
+                    }
+                    return
+                }
+                
+                // Verificar si se permite que otros continúen
+                let allowOthersToContinue = data["allowOthersToContinue"] as? Bool ?? true
+                print("🔗 DEBUG: allowOthersToContinue: \(allowOthersToContinue)")
+                
+                if !allowOthersToContinue {
+                    // Solo el creador original puede continuar
+                    print("🔗 DEBUG: Only creator can continue. Author: \(authorId), Current: \(currentUserId), canContinue: false")
+                    DispatchQueue.main.async {
+                        canContinueChain = false
+                    }
+                    return
+                }
+                
+                // Verificar audiencia de continuación
+                let continuationAudience = data["continuationAudience"] as? String ?? "everyone"
+                print("🔗 DEBUG: continuationAudience: \(continuationAudience)")
+                checkContinuationAudience(continuationAudience: continuationAudience, data: data, currentUserId: currentUserId)
+            }
+    }
+    
+    // 🔗 FUNCIÓN: Verificar audiencia de continuación
+    private func checkContinuationAudience(continuationAudience: String, data: [String: Any], currentUserId: String) {
+        let authorId = data["authorId"] as? String ?? ""
+        print("🔗 DEBUG: Checking continuation audience: \(continuationAudience) for author: \(authorId)")
+        
+        switch continuationAudience {
+        case "everyone":
+            print("🔗 DEBUG: Everyone can continue")
+            DispatchQueue.main.async {
+                canContinueChain = true
+                print("🔗 DEBUG: Set canContinueChain = \(canContinueChain)")
+            }
+            
+        case "connections":
+            print("🔗 DEBUG: Checking mutual connections...")
+            // Verificar conexión mutua usando PrivacyService
+            let privacyService = PrivacyService()
+            privacyService.checkMutualConnection(user1: currentUserId, user2: authorId) { isMutual in
+                DispatchQueue.main.async {
+                    canContinueChain = isMutual
+                    print("🔗 DEBUG: Mutual connection: \(isMutual), canContinue: \(canContinueChain)")
+                }
+            }
+            
+        case "bestFriends":
+            print("🔗 DEBUG: Checking best friends...")
+            // Verificar si el autor tiene al usuario actual en sus mejores amigos
+            let privacyService = PrivacyService()
+            privacyService.checkIfBestFriend(userId: authorId, friendId: currentUserId) { isBestFriend in
+                DispatchQueue.main.async {
+                    canContinueChain = isBestFriend
+                    print("🔗 DEBUG: Is best friend: \(isBestFriend), canContinue: \(canContinueChain)")
+                }
+            }
+            
+        case "custom":
+            print("🔗 DEBUG: Checking custom viewers...")
+            // Verificar usuarios específicos
+            let continuationCustomViewers = data["continuationCustomViewers"] as? [String] ?? []
+            DispatchQueue.main.async {
+                canContinueChain = continuationCustomViewers.contains(currentUserId)
+                print("🔗 DEBUG: Custom viewers: \(continuationCustomViewers), contains current user: \(continuationCustomViewers.contains(currentUserId)), canContinue: \(canContinueChain)")
+            }
+            
+        case "customList":
+            print("🔗 DEBUG: Checking custom list...")
+            // Verificar lista personalizada
+            let continuationCustomListId = data["continuationCustomListId"] as? String
+            let authorId = data["authorId"] as? String ?? ""
+            print("🔗 DEBUG: Custom list ID: \(continuationCustomListId ?? "nil"), Author ID: \(authorId)")
+            if let listId = continuationCustomListId {
+                // Usar PrivacyService para obtener miembros de la lista
+                let privacyService = PrivacyService()
+                privacyService.getCustomListViewers(
+                    listId: listId,
+                    ownerId: authorId
+                ) { members in
+                    DispatchQueue.main.async {
+                        canContinueChain = members.contains(currentUserId)
+                        print("🔗 DEBUG: Custom list members: \(members), contains current user: \(members.contains(currentUserId)), canContinue: \(canContinueChain)")
+                    }
+                }
+            } else {
+                print("🔗 DEBUG: No custom list ID, setting canContinue = false")
+                DispatchQueue.main.async {
+                    canContinueChain = false
+                }
+            }
+            
+        default:
+            print("🔗 DEBUG: Unknown audience type: \(continuationAudience), setting canContinue = false")
+            DispatchQueue.main.async {
+                canContinueChain = false
             }
         }
     }

@@ -70,6 +70,7 @@ import UIKit
 import MapKit
 import UserNotifications
 import Combine
+import WidgetKit
 
 struct FeedView: View {
     @EnvironmentObject var authService: AuthService
@@ -94,7 +95,7 @@ struct FeedView: View {
     @Binding var showCreatorView: Bool
     @State private var currentTime = Date()
     @Environment(\.colorScheme) var colorScheme
-    @State private var storyUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool)] = []
+    @State private var storyUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool])] = []
     @State private var isLoadingStories = true
     @State private var selectedFeedType: FeedType = UserDefaults.standard.selectedFeedType
     @State private var showingLocationMap = false
@@ -139,27 +140,31 @@ struct FeedView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                modernBackgroundView
-                    .ignoresSafeArea()
-                mainContent
+        ZStack {
+            modernBackgroundView
+                .ignoresSafeArea(.all)
+            
+            mainContent
+                .padding(.top, 1)
+            
+            // ✅ Pill flotante sobre el contenido
+            floatingFeedSelector
+            
+            // ✅ NUEVO: Banners de estado de red
+            VStack {
+                Spacer()
+                    .frame(height: 80) // ✅ Espacio para el header (ajustado a 80)
                 
-                // ✅ NUEVO: Banners de estado de red
-                VStack {
-                    Spacer()
-                        .frame(height: 80) // ✅ Espacio para el header (ajustado a 80)
-                    
-                    OfflineBanner(networkMonitor: networkMonitor) {
-                        // Reintentar conexión usando forceRefresh (ya recarga todo)
-                        forceRefresh()
-                    }
-                    
-                    SlowConnectionBanner(networkMonitor: networkMonitor)
-                    
-                    Spacer()
+                OfflineBanner(networkMonitor: networkMonitor) {
+                    // Reintentar conexión usando forceRefresh (ya recarga todo)
+                    forceRefresh()
                 }
-                .zIndex(999)
+                
+                SlowConnectionBanner(networkMonitor: networkMonitor)
+                
+                Spacer()
+            }
+            .zIndex(999)
                 
                 if showGlobalContextMenu, let moment = selectedMomentForMenu {
                     ModernContextMenuOverlay(
@@ -206,31 +211,29 @@ struct FeedView: View {
                 
 
                 
-                if showShareSheet, let moment = selectedMomentForMenu {
-                    ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .bottom).combined(with: .opacity)
-                        ))
-                        .zIndex(1001)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showShareSheet)
-                }
+            if showShareSheet, let moment = selectedMomentForMenu {
+                ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .bottom).combined(with: .opacity)
+                    ))
+                    .zIndex(1001)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showShareSheet)
             }
-        }
-        .navigationBarHidden(true)
-        
-        VStack {
-            NotificationSummaryPopup(
-                isPresented: $notificationSummaryService.shouldShowSummary,
-                unreadNotifications: badgeService.unreadNotificationsCount,
-                unreadMessages: badgeService.unreadMessagesCount,
-                colorScheme: colorScheme
-            )
             
-            Spacer() // Para que se mantenga arriba
+            VStack {
+                NotificationSummaryPopup(
+                    isPresented: $notificationSummaryService.shouldShowSummary,
+                    unreadNotifications: badgeService.unreadNotificationsCount,
+                    unreadMessages: badgeService.unreadMessagesCount,
+                    colorScheme: colorScheme
+                )
+                
+                Spacer() // Para que se mantenga arriba
+            }
+            .zIndex(2000) // Por encima de todo
         }
-        .zIndex(2000) // Por encima de todo
-        
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             AnalyticsService.shared.trackScreenView("FeedView")
             AnalyticsService.shared.trackFeatureUsage("feed")
@@ -262,6 +265,12 @@ struct FeedView: View {
                     unreadMessages: badgeService.unreadMessagesCount
                 )
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
+            showMessages = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowNotifications"))) { _ in
+            showNotifications = true
         }
         .onDisappear {
             // cleanupListeners() // ❌ ELIMINAR
@@ -437,12 +446,19 @@ struct FeedView: View {
     // ✅ Nuevo: Solicitud de permisos de notificaciones desde el Feed en primera carga
     private func requestNotificationPermissionIfNeeded() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            guard settings.authorizationStatus == .notDetermined else { return }
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-                if granted {
-                    DispatchQueue.main.async {
-                        UIApplication.shared.registerForRemoteNotifications()
+            if settings.authorizationStatus == .notDetermined {
+                // ✅ Solicitar permisos si no se han decidido
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+                    if granted {
+                        DispatchQueue.main.async {
+                            UIApplication.shared.registerForRemoteNotifications()
+                        }
                     }
+                }
+            } else if settings.authorizationStatus == .authorized {
+                // ✅ Si ya están otorgados, registrar para notificaciones remotas para obtener/refrescar token
+                DispatchQueue.main.async {
+                    UIApplication.shared.registerForRemoteNotifications()
                 }
             }
         }
@@ -514,32 +530,42 @@ struct FeedView: View {
     }
     
     private var mainContent: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                modernHeaderView
-                
-                // 🔥 NUEVO: Barra de progreso de uploads
-                uploadProgressBar
-                
-                // ✅ MODIFICADO: Selector de feed con guardado de preferencias
-                SegmentedFeedToggle(selectedFeedType: $selectedFeedType)
-                    .padding(.vertical, 8)
-                    .onChange(of: selectedFeedType) { newFeedType in
-                        // ✅ NUEVO: Guardar la preferencia del usuario
-                        UserDefaults.standard.selectedFeedType = newFeedType
-                        
-                        // ✅ Cambiar tipo de feed cuando se selecciona
-                        if let userId = Auth.auth().currentUser?.uid {
-                            viewModel.switchFeedType(to: newFeedType, userId: userId)
-                        }
-                        
-                        // ✅ NUEVO: Track analytics para preferencias
-                        AnalyticsService.shared.trackFeatureUsage("feed_type_changed_to_\(newFeedType.rawValue)")
-                    }
-                
-                scrollableContent
-            }
+        VStack(spacing: 0) {
+            modernHeaderView
+            
+            // 🔥 NUEVO: Barra de progreso de uploads
+            uploadProgressBar
+            
+            scrollableContent
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // ✅ NUEVO: Pill flotante sobre el contenido
+    private var floatingFeedSelector: some View {
+        VStack {
+            Spacer()
+                .frame(height: 100) // Espacio del header
+            
+            SegmentedFeedToggle(selectedFeedType: $selectedFeedType)
+                .padding(.horizontal, 20)
+                .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+                .onChange(of: selectedFeedType) { newFeedType in
+                    // ✅ NUEVO: Guardar la preferencia del usuario
+                    UserDefaults.standard.selectedFeedType = newFeedType
+                    
+                    // ✅ Cambiar tipo de feed cuando se selecciona
+                    if let userId = Auth.auth().currentUser?.uid {
+                        viewModel.switchFeedType(to: newFeedType, userId: userId)
+                    }
+                    
+                    // ✅ NUEVO: Track analytics para preferencias
+                    AnalyticsService.shared.trackFeatureUsage("feed_type_changed_to_\(newFeedType.rawValue)")
+                }
+            
+            Spacer()
+        }
+        .zIndex(998)
     }
     
     // ✅ Header moderno
@@ -569,6 +595,7 @@ struct FeedView: View {
                             // 🔥 NUEVO: Tu historia con progreso de upload si está subiendo
                             YourStoryCircleWithProgress(
                                 hasStory: storyUsers.first?.userId == Auth.auth().currentUser?.uid ? (storyUsers.first?.hasStory ?? false) : false,
+                                storyCount: storyUsers.first?.userId == Auth.auth().currentUser?.uid ? (storyUsers.first?.storyCount ?? 0) : 0,
                                 colorScheme: colorScheme,
                                 storyUploadService: storyUploadService
                             ) {
@@ -598,7 +625,9 @@ struct FeedView: View {
                                     userId: storyUser.userId,
                                     hasStory: storyUser.hasStory,
                                     hasUnseenStory: storyUser.hasUnseenStory,
-                                    isOwnStory: false, // Ya no es tu historia
+                                    storyCount: storyUser.storyCount,
+                                    storyViewedStatus: storyUser.storyViewedStatus,
+                                    isOwnStory: false,
                                     colorScheme: colorScheme
                                 ) {
                                     AnalyticsService.shared.trackInteraction("stories_button_tapped")
@@ -682,94 +711,108 @@ struct FeedView: View {
     
     // ✅ Contenido del scroll
     private var scrollableContent: some View {
-        GeometryReader { geometry in
-            ScrollViewReader { proxy in
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: max(15, geometry.size.height * 0.02)) {
-                        ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                            VStack(spacing: max(15, geometry.size.height * 0.02)) {
-                                let headerHeight = 100.0
-                                let progressBarHeight = uploadService.uploadingMoments.isEmpty ? 0.0 : 50.0
-                                let segmentedToggleHeight = 35.0
-                                let availableHeight = geometry.size.height - headerHeight - progressBarHeight - segmentedToggleHeight - 10
-
-                                ModernPostCardView(
-                                    moment: moment,
-                                    availableHeight: availableHeight,
-                                    colorScheme: colorScheme,
-                                    onComment: {
-                                        selectedMoment = moment
-                                        showingComments = true
-                                    },
-                                    onNearEnd: {
-                                        if moment.id == viewModel.moments.last?.id,
-                                           let userId = Auth.auth().currentUser?.uid {
-                                            viewModel.loadMoreMoments(userId: userId)
-                                        }
-                                    },
-                                    onHashtagTap: { hashtag in
-                        
-                                        selectedHashtag = "#\(hashtag)"
-                                        showExploreWithHashtag = true
-                                    },
-                                    onLocationTap: { locationName, coordinate in
-                                        DispatchQueue.main.async {
-                                            self.selectedLocationName = locationName
-                                            self.selectedLocationCoordinate = coordinate
-                                            self.showingLocationMap = true
-                                        }
-                                    },
-                                    // ✅ NUEVO: Callback para mostrar menú contextual global
-                                    onContextMenu: { moment in
-
-                                        selectedMomentForMenu = moment
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            showGlobalContextMenu = true
-                                        }
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                let screenHeight = UIScreen.main.bounds.height
+                let headerHeight = 100.0
+                let progressBarHeight = uploadService.uploadingMoments.isEmpty ? 0.0 : 50.0
+                let segmentedToggleHeight = 35.0
+                let tabbarHeight = 50.0
+                let availableHeight = screenHeight - headerHeight - progressBarHeight - segmentedToggleHeight - tabbarHeight - 60
+                
+                LazyVStack(spacing: max(15, screenHeight * 0.02)) {
+                    ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
+                        VStack(spacing: max(15, screenHeight * 0.02)) {
+                            
+                            ModernPostCardView(
+                                moment: moment,
+                                availableHeight: availableHeight,
+                                colorScheme: colorScheme,
+                                onComment: {
+                                    selectedMoment = moment
+                                    showingComments = true
+                                },
+                                onNearEnd: {
+                                    if moment.id == viewModel.moments.last?.id,
+                                       let userId = Auth.auth().currentUser?.uid {
+                                        viewModel.loadMoreMoments(userId: userId)
                                     }
-                                )
-                                .id(index)
-                                .environmentObject(firestoreService)
-                                .environmentObject(viewModel)
+                                },
+                                onHashtagTap: { hashtag in
+                    
+                                    selectedHashtag = "#\(hashtag)"
+                                    showExploreWithHashtag = true
+                                },
+                                onLocationTap: { locationName, coordinate in
+                                    DispatchQueue.main.async {
+                                        self.selectedLocationName = locationName
+                                        self.selectedLocationCoordinate = coordinate
+                                        self.showingLocationMap = true
+                                    }
+                                },
+                                // ✅ NUEVO: Callback para mostrar menú contextual global
+                                onContextMenu: { moment in
 
-                                let adInterval = selectedFeedType == .forYou ? 3 : 5
-                                if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
-                                    SmartNativeAdView()
-                                        .onAppear {
-                                            AnalyticsService.shared.trackFeatureUsage("native_ad_shown")
-
-                                        }
+                                    selectedMomentForMenu = moment
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        showGlobalContextMenu = true
+                                    }
                                 }
+                            )
+                            .id(index)
+                            .environmentObject(firestoreService)
+                            .environmentObject(viewModel)
+
+                            let adInterval = selectedFeedType == .forYou ? 3 : 5
+                            if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
+                                SmartNativeAdView()
+                                    .onAppear {
+                                        AnalyticsService.shared.trackFeatureUsage("native_ad_shown")
+
+                                    }
                             }
                         }
-
-                        if viewModel.isLoadingMore {
-                            ModernLoadingMoreView(colorScheme: colorScheme)
-                                .padding(.vertical, 15)
-                        }
-
-                        if viewModel.moments.isEmpty && !viewModel.isLoading {
-                            ModernEmptyFeedView(feedType: selectedFeedType, colorScheme: colorScheme)
-                                .padding(.vertical, 50)
-                        }
                     }
-                    .padding(.vertical, 15)
-                }
-                .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        proxy.scrollTo(0, anchor: .top)
+
+                    if viewModel.isLoadingMore {
+                        ModernLoadingMoreView(colorScheme: colorScheme)
+                            .padding(.vertical, 15)
+                    }
+
+                    if viewModel.moments.isEmpty && !viewModel.isLoading {
+                        ModernEmptyFeedView(feedType: selectedFeedType, colorScheme: colorScheme)
+                            .padding(.vertical, 50)
                     }
                 }
-                .refreshable {
-                    if let userId = Auth.auth().currentUser?.uid {
-                        // ✅ OPTIMIZADO: Usar forceRefresh en lugar de refreshFeed
-                        forceRefresh()
+                .padding(.vertical, 15)
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    proxy.scrollTo(0, anchor: .top)
+                }
+            }
+            .refreshable {
+                if let userId = Auth.auth().currentUser?.uid {
+                    // ✅ OPTIMIZADO: Usar forceRefresh en lugar de refreshFeed
+                    forceRefresh()
+                    await refreshFeed(userId: userId)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrollFeedToTop"))) { _ in
+                // ✅ NUEVO: Scroll al inicio y refrescar cuando se toca Home de nuevo
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(0, anchor: .top)
+                }
+                // Refrescar el feed
+                if let userId = Auth.auth().currentUser?.uid {
+                    forceRefresh()
+                    Task {
                         await refreshFeed(userId: userId)
                     }
                 }
-                .ignoresSafeArea(.container, edges: .bottom)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     private func startTimeUpdate() {
@@ -785,58 +828,43 @@ struct FeedView: View {
         let userId: String
         let hasStory: Bool
         let hasUnseenStory: Bool
+        let storyCount: Int
+        let storyViewedStatus: [Bool]
         let isOwnStory: Bool
-        let colorScheme: ColorScheme  // ✅ AGREGAR esta línea
+        let colorScheme: ColorScheme
         let action: () -> Void
         
         var body: some View {
-
             Button(action: action) {
                 ZStack {
                     AsyncProfileImageView(userId: userId)
                         .frame(width: 50, height: 50)
                         .overlay(
-                            Circle()
-                                .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 1)
+                            StorySegmentedRing(
+                                storyCount: storyCount,
+                                hasStory: hasStory,
+                                hasUnseenStory: hasUnseenStory,
+                                storyViewedStatus: storyViewedStatus,
+                                isOwnStory: isOwnStory,
+                                colorScheme: colorScheme,
+                                ringSize: 50,
+                                lineWidth: 2.5
+                            )
                         )
-
                 }
             }
         }
-        
-        private var storyRingGradient: LinearGradient {
-            if hasUnseenStory {
-                // ✅ HISTORIA NO VISTA: Tu gradiente único blue → purple → pink
-                return LinearGradient(
-                    colors: [Color.blue, Color.purple, Color.pink],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            } else if hasStory {
-                // ✅ HISTORIA YA VISTA: Gris según el tema
-                return LinearGradient(
-                    colors: colorScheme == .dark ?
-                    [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
-                    [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            } else {
-                // ✅ SIN HISTORIAS: Sin anillo (transparente)
-                return LinearGradient(
-                    colors: [Color.clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        }
     }
+    
+    // ✅ NOTA: StorySegmentedRing y StorySegment ahora están en un archivo compartido
+    // Glowsy/Views/story/StorySegmentedRing.swift
     
     /// ///
     //Progeso subida Stories
     ///
     struct YourStoryCircleWithProgress: View {
         let hasStory: Bool
+        let storyCount: Int
         let colorScheme: ColorScheme
         @ObservedObject var storyUploadService: BackgroundStoryUploadService
         let action: () -> Void
@@ -862,8 +890,15 @@ struct FeedView: View {
                         .frame(width: 50, height: 50)
                         .clipShape(Circle())
                         .overlay(
-                            Circle()
-                                .stroke(baseStoryRingGradient, lineWidth: hasStory ? 2.5 : 1)
+                            // ✅ Usar StorySegmentedRing para mostrar segmentos
+                            StorySegmentedRing(
+                                storyCount: storyCount,
+                                hasStory: hasStory,
+                                hasUnseenStory: false, // Tu propia historia siempre está vista
+                                storyViewedStatus: Array(repeating: true, count: storyCount), // ✅ Todas las historias propias están "vistas"
+                                isOwnStory: true, // ✅ Es tu propia historia
+                                colorScheme: colorScheme
+                            )
                         )
                     
                     // 🔥 PROGRESO DE UPLOAD si hay historia subiendo
@@ -898,25 +933,6 @@ struct FeedView: View {
             }
             .scaleEffect(storyUploadService.uploadingStory?.status == .failed ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: storyUploadService.uploadingStory?.status)
-        }
-        
-        // MARK: - Helper functions (igual que antes)
-        private var baseStoryRingGradient: LinearGradient {
-            if hasStory {
-                // ✅ TU HISTORIA: Mismo gradiente que usas para otros (tu identidad visual)
-                return LinearGradient(
-                    colors: [Color.blue, Color.purple, Color.pink],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            } else {
-                // ✅ NO TIENES HISTORIA: Sin anillo (transparente)
-                return LinearGradient(
-                    colors: [Color.clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
         }
         
         private func progressColors(for status: UploadStatus) -> [Color] {
@@ -1300,34 +1316,47 @@ struct FeedView: View {
                     let cacheAge = Date().timeIntervalSince(self.cachedStoriesTimestamp)
                     if cacheAge < 300 && !self.cachedStories.isEmpty { // 5 minutos
 
-                        var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool)] = []
+                        var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool])] = []
                         
                         // Agregar tu historia
                         let currentUserHasStory = self.cachedStories[userId] ?? false
-                        finalUsers.append((userId: userId, hasStory: currentUserHasStory, hasUnseenStory: false))
+                        // Si no tenemos el conteo en cache, usar 1 si tiene historia
+                        // Para el cache, no tenemos el estado individual, así que asumimos todas vistas si tiene historia
+                        finalUsers.append((userId: userId, hasStory: currentUserHasStory, hasUnseenStory: false, storyCount: currentUserHasStory ? 1 : 0, storyViewedStatus: currentUserHasStory ? [true] : []))
                         
                         // Agregar historias de otros desde cache
                         for followingId in followingIds {
                             if let hasStory = self.cachedStories[followingId], hasStory {
                                 let hasUnseenStory = self.cachedUnseenStories[followingId] ?? true // Default a true si no está en cache
-                                finalUsers.append((userId: followingId, hasStory: true, hasUnseenStory: hasUnseenStory))
+                                // Si no tenemos el conteo en cache, usar 1 si tiene historia
+                                // Para el cache, no tenemos el estado individual, así que asumimos todas no vistas si hasUnseenStory es true
+                                finalUsers.append((userId: followingId, hasStory: true, hasUnseenStory: hasUnseenStory, storyCount: 1, storyViewedStatus: hasUnseenStory ? [false] : [true]))
                             }
                         }
                         
                         self.storyUsers = finalUsers
+                        
+                        // ✅ Widget: Contar historias nuevas desde cache
+                        let newStoriesCount = finalUsers.filter { $0.hasUnseenStory }.count
+                        let widgetDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
+                        widgetDefaults?.set(newStoriesCount, forKey: "widget_new_stories_count")
+                        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+                        
                         self.isLoadingStories = false
                         continuation.resume()
                         return
                     }
                     
                     let group = DispatchGroup()
-                    var usersWithStories: [(userId: String, hasStory: Bool, hasUnseenStory: Bool)] = []
+                    var usersWithStories: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool])] = []
                     var currentUserHasStory = false // ✅ NUEVO: Track tu historia por separado
+                    var currentUserStoryCount = 0
+                    var currentUserViewedStatus: [Bool] = []
                     let syncQueue = DispatchQueue(label: "story.users.sync")
                     
                     for userIdToCheck in allUserIds {
                         group.enter()
-                        self.checkUserStories(userId: userIdToCheck, currentUserId: userId) { hasStory, hasUnseen in
+                        self.checkUserStories(userId: userIdToCheck, currentUserId: userId) { hasStory, hasUnseen, storyCount, viewedStatus in
                             syncQueue.async {
                                 // ✅ NUEVO: Guardar en cache
                                 self.cachedStories[userIdToCheck] = hasStory
@@ -1336,12 +1365,16 @@ struct FeedView: View {
                                 if userIdToCheck == userId {
                                     // ✅ NUEVO: Tu historia va por separado
                                     currentUserHasStory = hasStory
+                                    currentUserStoryCount = storyCount
+                                    currentUserViewedStatus = viewedStatus
                                 } else if hasStory {
                                     // ✅ CORREGIDO: Solo historias de OTROS usuarios
                                     usersWithStories.append((
                                         userId: userIdToCheck,
                                         hasStory: hasStory,
-                                        hasUnseenStory: hasUnseen
+                                        hasUnseenStory: hasUnseen,
+                                        storyCount: storyCount,
+                                        storyViewedStatus: viewedStatus
                                     ))
                                 }
                                 group.leave()
@@ -1351,10 +1384,10 @@ struct FeedView: View {
                     
                     group.notify(queue: .main) {
                         // ✅ NUEVO: Construir array final correctamente
-                        var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool)] = []
+                        var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool])] = []
                         
                         // 1. Agregar TU historia SIEMPRE (primera posición)
-                        finalUsers.append((userId: userId, hasStory: currentUserHasStory, hasUnseenStory: false))
+                        finalUsers.append((userId: userId, hasStory: currentUserHasStory, hasUnseenStory: false, storyCount: currentUserStoryCount, storyViewedStatus: currentUserViewedStatus))
                         
                         // 2. Agregar historias de otros (ordenadas por no vistas primero)
                         let sortedOthers = usersWithStories.sorted { user1, user2 in
@@ -1369,19 +1402,26 @@ struct FeedView: View {
                         // ✅ NUEVO: Actualizar timestamp del cache
                         self.cachedStoriesTimestamp = Date()
                         self.storyUsers = finalUsers
+                        
+                        // ✅ Widget: Contar historias nuevas (usuarios con historias no vistas)
+                        let newStoriesCount = finalUsers.filter { $0.hasUnseenStory }.count
+                        let widgetDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
+                        widgetDefaults?.set(newStoriesCount, forKey: "widget_new_stories_count")
+                        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+                        
                         self.isLoadingStories = false
                         continuation.resume()
                     }
                     
                 case .failure(let error):
                     // ✅ CORREGIDO: Fallback también debe verificar tu historia
-                    self.checkUserStories(userId: userId, currentUserId: userId) { hasStory, hasUnseen in
+                    self.checkUserStories(userId: userId, currentUserId: userId) { hasStory, hasUnseen, storyCount, viewedStatus in
                         DispatchQueue.main.async {
                             // Guardar en cache también en fallback
                             self.cachedStories[userId] = hasStory
                             self.cachedUnseenStories[userId] = hasUnseen
                             
-                            self.storyUsers = [(userId: userId, hasStory: hasStory, hasUnseenStory: false)]
+                            self.storyUsers = [(userId: userId, hasStory: hasStory, hasUnseenStory: false, storyCount: storyCount, storyViewedStatus: viewedStatus)]
                             self.isLoadingStories = false
                             continuation.resume()
                         }
@@ -1392,7 +1432,7 @@ struct FeedView: View {
     }
 
     // ✅ MEJORAR: checkUserStories con mejor logging y manejo de errores
-    private func checkUserStories(userId: String, currentUserId: String, completion: @escaping (Bool, Bool) -> Void) {
+    private func checkUserStories(userId: String, currentUserId: String, completion: @escaping (Bool, Bool, Int, [Bool]) -> Void) {
 
         
         firestoreService.db.collection("users").document(userId).collection("stories")
@@ -1401,12 +1441,12 @@ struct FeedView: View {
                 
                 if let error = error {
 
-                    completion(false, false)
+                    completion(false, false, 0, [])
                     return
                 }
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
 
-                    completion(false, false) // No tiene historias
+                    completion(false, false, 0, []) // No tiene historias
                     return
                 }
                 let stories = documents.compactMap { doc -> Story? in
@@ -1422,12 +1462,12 @@ struct FeedView: View {
                 
                 guard !stories.isEmpty else {
     
-                    completion(false, false)
+                    completion(false, false, 0, [])
                     return
                 }
                 
                 let group = DispatchGroup()
-                var isAnyStoryVisible = false
+                var visibleStories: [(story: Story, wasViewed: Bool)] = []
                 var hasUnseenStory = false
                 let syncQueue = DispatchQueue(label: "story.visibility.check")
 
@@ -1448,10 +1488,6 @@ struct FeedView: View {
 
                                 
                                 if canView {
-                                    syncQueue.async {
-                                        isAnyStoryVisible = true
-                                    }
-                                    
                                     // Si la historia es visible, comprobar si no ha sido vista
                                     if let storyId = story.id {
                                         group.enter() // Agregar un enter más para la verificación de viewers
@@ -1462,13 +1498,19 @@ struct FeedView: View {
                                             .getDocument { viewerDoc, _ in
                                                 let wasViewed = viewerDoc?.exists == true
                                                 
-                                                if !wasViewed {
-                                                    syncQueue.async {
+                                                syncQueue.async {
+                                                    visibleStories.append((story: story, wasViewed: wasViewed))
+                                                    if !wasViewed {
                                                         hasUnseenStory = true
                                                     }
                                                 }
                                                 group.leave()
                                             }
+                                    } else {
+                                        syncQueue.async {
+                                            visibleStories.append((story: story, wasViewed: false))
+                                            hasUnseenStory = true
+                                        }
                                     }
                                 }
                                 
@@ -1491,7 +1533,13 @@ struct FeedView: View {
                 
                 group.notify(queue: .main) {
                     // Solo completar con 'true' si al menos una historia fue visible
-                    completion(isAnyStoryVisible, hasUnseenStory)
+                    let storyCount = visibleStories.count
+                    // Ordenar por timestamp y extraer el estado de visto
+                    let sortedStories = visibleStories.sorted { story1, story2 in
+                        (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
+                    }
+                    let viewedStatus = sortedStories.map { $0.wasViewed }
+                    completion(storyCount > 0, hasUnseenStory, storyCount, viewedStatus)
                 }
             }
     }

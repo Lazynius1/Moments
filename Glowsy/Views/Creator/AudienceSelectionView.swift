@@ -891,22 +891,27 @@ struct CustomAudienceSelector: View {
                     ProgressView()
                         .padding()
                 } else {
-                    List {
-                        ForEach(searchResults) { user in
-                            UserSelectionRow(
-                                user: user,
-                                isSelected: selectedUsers.contains { $0.id == user.id },
-                                onToggle: {
-                                    if let index = selectedUsers.firstIndex(where: { $0.id == user.id }) {
-                                        selectedUsers.remove(at: index)
-                                    } else {
-                                        selectedUsers.append(user)
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(searchResults) { user in
+                                UserSelectionCard(
+                                    user: user,
+                                    isSelected: selectedUsers.contains { $0.id == user.id },
+                                    onToggle: {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            if let index = selectedUsers.firstIndex(where: { $0.id == user.id }) {
+                                                selectedUsers.remove(at: index)
+                                            } else {
+                                                selectedUsers.append(user)
+                                            }
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 20)
                     }
-                    .scrollContentBackground(.hidden)
                 }
                 
                 // Botón de completar
@@ -2050,6 +2055,138 @@ struct MemberPickerView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Card de Usuario Mejorada
+struct UserSelectionCard: View {
+    @Environment(\.colorScheme) var colorScheme
+    let user: AppUser
+    let isSelected: Bool
+    let onToggle: () -> Void
+    
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 16) {
+                // Avatar más grande
+                AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.3)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.white)
+                                .font(.system(size: 24))
+                        )
+                }
+                .frame(width: 60, height: 60)
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: isSelected ? [Color.blue, Color.purple] : [Color.gray.opacity(0.3)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: isSelected ? 3 : 1
+                        )
+                )
+                .scaleEffect(isSelected ? 1.05 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+                
+                // Info del usuario
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(user.username)
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                // Checkbox mejorado
+                ZStack {
+                    Circle()
+                        .fill(
+                            isSelected ? 
+                            LinearGradient(
+                                colors: [Color.blue, Color.purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ) : 
+                            LinearGradient(
+                                colors: [Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    isSelected ? Color.clear : Color.gray.opacity(0.5),
+                                    lineWidth: 2
+                                )
+                        )
+                    
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .scaleEffect(isSelected ? 1.1 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        isSelected ? 
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ) :
+                        LinearGradient(
+                            colors: [Color.gray.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                isSelected ?
+                                LinearGradient(
+                                    colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.3)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ) :
+                                LinearGradient(
+                                    colors: [Color.gray.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

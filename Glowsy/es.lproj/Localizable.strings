@@ -9,8 +9,38 @@
 "storyChains.chain" = "Cadena";
 "storyChains.chainTitle" = "Título de la cadena";
 "storyChains.chainTitlePlaceholder" = "Introduce el título de la cadena";
+"storyChains.configurationTitle" = "Configuración de Cadena";
+"storyChains.visibilityInfo" = "Las cadenas de historias son visibles para todos los usuarios. Aquí puedes configurar quién puede continuar tu cadena.";
+"storyChains.allowOthersToggle" = "¿Permitir que otros continúen esta cadena?";
+"storyChains.allowOthersDescription" = "Si está desactivado, solo tú podrás añadir partes a esta cadena.";
+"storyChains.continuationAudience" = "¿Quién puede continuar esta cadena?";
+"storyChains.shareChain" = "Compartir Cadena";
+"storyChains.cancel" = "Cancelar";
 "storyChains.continuing" = "Continuando: %@";
 "storyChains.continueStory" = "Continuar Historia";
+"storyChains.continuationAudience.title" = "¿Quién puede continuar esta cadena?";
+"storyChains.continuationAudience.navigationTitle" = "Audiencia de Continuación";
+
+/* Audience Types */
+"audience.everyone" = "Todos";
+"audience.connections" = "Conexiones mutuas";
+"audience.bestFriends" = "Mejores Amigos";
+"audience.custom" = "Personalizado";
+"audience.customList" = "Lista Personalizada";
+
+/* Common Actions */
+"common.cancel" = "Cancelar";
+"common.done" = "Hecho";
+
+/* Custom Lists */
+"audience.customLists" = "Listas Personalizadas";
+"audience.createList" = "Crear Lista";
+"audience.list.name" = "Nombre de la lista";
+"audience.list.name.placeholder" = "Introduce el nombre de la lista";
+"audience.members" = "Miembros";
+"audience.addMembers" = "Añadir miembros";
+"audience.noMembers" = "No hay miembros";
+"audience.people.count" = "%d personas";
 "storyChains.viewChain" = "Ver Cadena";
 "storyChains.part" = "Parte %d de '%@'";
 "storyChains.loading" = "Cargando cadena...";
@@ -120,6 +150,9 @@
 "creator.story.title" = "Historia";
 "creator.story.subtitle" = "Comparte momentos que desaparecen";
 "creator.gallery.permission" = "Necesitamos acceso a tu galería para seleccionar fotos y videos";
+"creator.permissions.instructions.title" = "Para otorgar permisos:";
+"creator.permissions.instructions.path" = "Ve a Configuración > Privacidad > Fotos";
+"creator.permissions.openSettings" = "Abrir Configuración";
 "creator.newMoment" = "Nuevo momento";
 "creator.next" = "Siguiente";
 "creator.edit" = "Editar";
@@ -578,6 +611,16 @@
 "profileEditor.interests.empty.title" = "No has seleccionado intereses";
 "profileEditor.interests.empty.subtitle" = "Toca en 'Editar' para añadir tus intereses";
 "profileEditor.interests.select.title" = "Selecciona hasta 5 intereses";
+"profileEditor.cancel" = "Cancelar";
+"profileEditor.save" = "Guardar";
+"profileEditor.next" = "Siguiente";
+"profileEditor.allowAccess" = "Permitir acceso";
+"profileEditor.retry" = "Reintentar";
+"profileEditor.addInterests" = "Añadir intereses";
+"profileEditor.done" = "Listo";
+"profileEditor.section.basic" = "Perfil";
+"profileEditor.section.interests" = "Intereses";
+"profileEditor.interests.navigationTitle" = "Intereses";
 
 /* Audience Selection */
 "audience.selection.title" = "Seleccionar Audiencia";
@@ -1563,3 +1606,27 @@
 "followButton.request" = "Solicitar";
 "followButton.ownProfile" = "Tu perfil";
 "followButton.blocked" = "Bloqueado";
+
+/* Live Activities */
+"liveActivity.uploadingStory" = "Subiendo historia";
+"liveActivity.uploading" = "Subiendo...";
+"liveActivity.processing" = "Procesando...";
+"liveActivity.completed" = "Completado";
+"liveActivity.error" = "Error";
+
+/* Widget */
+"widget.createStory.title" = "Subir historia";
+"widget.createStory.subtitle" = "Toca para crear en Moments";
+"widget.metrics.visits" = "Visitas";
+"widget.metrics.messages" = "Mensajes";
+"widget.metrics.notifications" = "Notifs";
+"widget.visits.singular" = "Hoy 1 persona ha visitado tu perfil";
+"widget.visits.plural" = "Hoy %d personas han visitado tu perfil";
+"widget.messages.singular" = "Tienes 1 mensaje sin leer";
+"widget.messages.plural" = "Tienes %d mensajes sin leer";
+"widget.notifications.singular" = "Tienes 1 notificación nueva";
+"widget.notifications.plural" = "Tienes %d notificaciones nuevas";
+"widget.stories.singular" = "1 historia nueva";
+"widget.stories.plural" = "%d historias nuevas";
+"widget.messageRequests.singular" = "1 solicitud de mensaje pendiente";
+"widget.messageRequests.plural" = "%d solicitudes de mensaje pendientes";

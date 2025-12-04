@@ -361,9 +361,16 @@ struct StoriesView: View {
                 self.userIds = stories.keys.contains(specificUserId) ? [specificUserId] : []
                 self.currentUserIndex = 0
                 
-                // ✅ CORREGIDO: Si es otro usuario, empezar en la última historia no vista (más reciente)
+                // ✅ CORREGIDO: Si es otro usuario, empezar en la primera historia no vista
+                // Necesitamos verificar los viewers directamente desde Firestore
                 if let userStories = stories[specificUserId] {
-                    self.currentStoryIndex = self.getLastUnseenStoryIndex(for: userStories)
+                    self.getFirstUnseenStoryIndexAsync(for: userStories, userId: specificUserId) { index in
+                        DispatchQueue.main.async {
+                            self.currentStoryIndex = index
+                            self.isLoading = false
+                        }
+                    }
+                    return // Salir temprano, isLoading se establecerá en el callback
                 }
             } else {
                 let newUserIds = stories.keys.sorted()
@@ -437,12 +444,60 @@ struct StoriesView: View {
         }
     }
     
-    // ✅ CORREGIDO: Obtener índice de la última historia no vista (más reciente)
-    private func getLastUnseenStoryIndex(for stories: [Story]) -> Int {
+    // ✅ CORREGIDO: Obtener índice de la primera historia no vista (versión asíncrona que verifica desde Firestore)
+    private func getFirstUnseenStoryIndexAsync(for stories: [Story], userId: String, completion: @escaping (Int) -> Void) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion(0)
+            return
+        }
+        
+        // Si no hay historias, empezar desde 0
+        guard !stories.isEmpty else {
+            completion(0)
+            return
+        }
+        
+        // Verificar viewers para cada historia en orden
+        let group = DispatchGroup()
+        var firstUnseenIndex: Int? = nil
+        let syncQueue = DispatchQueue(label: "story.viewers.check")
+        
+        for (index, story) in stories.enumerated() {
+            guard let storyId = story.id else { continue }
+            
+            group.enter()
+            
+            // Verificar directamente desde Firestore si el usuario ha visto esta historia
+            firestoreService.db.collection("users").document(userId)
+                .collection("stories").document(storyId)
+                .collection("viewers").document(currentUserId)
+                .getDocument { document, error in
+                    let wasViewed = document?.exists == true
+                    
+                    syncQueue.async {
+                        // Si encontramos la primera no vista y aún no hemos encontrado ninguna, guardar este índice
+                        if !wasViewed && firstUnseenIndex == nil {
+                            firstUnseenIndex = index
+                        }
+                    }
+                    
+                    group.leave()
+                }
+        }
+        
+        group.notify(queue: .main) {
+            // Si encontramos una historia no vista, empezar ahí
+            // Si todas están vistas, empezar desde el principio
+            completion(firstUnseenIndex ?? 0)
+        }
+    }
+    
+    // ✅ Versión síncrona para cuando los viewers ya están cargados
+    private func getFirstUnseenStoryIndex(for stories: [Story]) -> Int {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return 0 }
         
-        // Buscar desde el final (más reciente) hacia el principio
-        for index in stride(from: stories.count - 1, through: 0, by: -1) {
+        // Buscar desde el principio hacia el final (primera no vista)
+        for index in 0..<stories.count {
             let story = stories[index]
             if let storyId = story.id {
                 let wasViewed = storyViewModel.storyViewers[storyId]?.contains { viewer in

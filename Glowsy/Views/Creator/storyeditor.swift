@@ -109,6 +109,7 @@ struct StoryEditingView: View {
     @State private var isPublishing = false
     @State private var storyAudience: CaptionAndDetailsView.AudienceSetting = .everyone
     @State private var isLoadingUserSettings = true // NUEVO
+    @Environment(\.colorScheme) var colorScheme
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
     @State private var drawingImage: UIImage?
@@ -144,6 +145,11 @@ struct StoryEditingView: View {
     @State private var isContinuingChain = false
     @State private var originalChainTitle = ""
     @FocusState private var isChainTitleFocused: Bool
+    
+    // 🔗 NUEVAS VARIABLES para configuración de cadenas
+    @State private var allowOthersToContinue = true
+    @State private var continuationAudience: ChainContinuationSetting = .everyone
+    @State private var showingChainConfiguration = false
 
     enum TextStyle {
         case modern, classic, neon, typewriter, bold
@@ -314,53 +320,105 @@ struct StoryEditingView: View {
                     }
                     
                     // Bottom bar
-                    HStack {
-                        // Story settings - ✅ ACTUALIZADO con loading state
-                        Button(action: {
-                            if !isLoadingUserSettings {
-                                showingAudienceSelector = true
-                            }
-                        }) {
-                            HStack(spacing: 8) {
-                                if isLoadingUserSettings {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: getAudienceIcon())
-                                }
+                    VStack(spacing: 8) {
+                        // 🔗 Texto informativo de continuando cadena
+                        if isContinuingChain {
+                            HStack {
+                                Image(systemName: "link")
+                                    .foregroundColor(.blue)
+                                    .font(.system(size: 12))
                                 
-                                Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
-                                    .font(.system(size: 14, weight: .medium))
+                                Text("Continuando cadena: \(originalChainTitle)")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
+                                
+                                Spacer()
                             }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Capsule())
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                            )
+                            .padding(.horizontal, 16)
                         }
+                        
+                        HStack {
+                            // Story settings - Solo mostrar si NO es modo cadena
+                            if !isCreatingChain && !isContinuingChain {
+                                Button(action: {
+                                    if !isLoadingUserSettings {
+                                        showingAudienceSelector = true
+                                    }
+                                }) {
+                                    HStack(spacing: 8) {
+                                        if isLoadingUserSettings {
+                                            ProgressView()
+                                                .scaleEffect(0.7)
+                                                .tint(.white)
+                                        } else {
+                                            Image(systemName: getAudienceIcon())
+                                        }
+                                        
+                                        Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
+                                            .font(.system(size: 14, weight: .medium))
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.black.opacity(0.3))
+                                    .clipShape(Capsule())
+                                }
+                            }
                         
                         Spacer()
                         
-                        // Send button
-                        Button(action: {
-                            publishStory()
-                        }) {
-                            HStack(spacing: 8) {
-                                Text("storyEditor.share")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Image(systemName: "arrow.right")
+                        // Send button o Configuración de cadena
+                        if isCreatingChain || isContinuingChain {
+                            // Botón de configuración para cadenas
+                            Button(action: {
+                                showingChainConfiguration = true
+                            }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "gearshape")
+                                    Text("Configuración")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(
+                                    (colorScheme == .dark ? Color.black : Color.white)
+                                        .opacity(isLoadingUserSettings ? 0.5 : 1.0)
+                                )
+                                .clipShape(Capsule())
                             }
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(Color.white.opacity(isLoadingUserSettings ? 0.5 : 1.0))
-                            .clipShape(Capsule())
+                            .disabled(isPublishing || isLoadingUserSettings)
+                        } else {
+                            // Botón de compartir normal
+                            Button(action: {
+                                publishStory()
+                            }) {
+                                HStack(spacing: 8) {
+                                    Text("storyEditor.share")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Image(systemName: "arrow.right")
+                                }
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(Color.white.opacity(isLoadingUserSettings ? 0.5 : 1.0))
+                                .clipShape(Capsule())
+                            }
+                            .disabled(isPublishing || isLoadingUserSettings)
                         }
-                        .disabled(isPublishing || isLoadingUserSettings)
+                        }
                     }
                     .padding(.horizontal)
-                    .padding(.bottom, isCreatingChain ? 110 : 30) // ✅ Evitar solaparse con input inferior de cadena
+                    .padding(.bottom, isCreatingChain ? 115 : 35) // ✅ Evitar solaparse con input inferior de cadena
                 }
             }
             .navigationDestination(for: String.self) { userId in
@@ -431,6 +489,20 @@ struct StoryEditingView: View {
             )
             .onDisappear {
                 updateAudienceSetting()
+            }
+        }
+        // 🔗 NUEVO: Sheet de configuración de cadenas
+        .sheet(isPresented: $showingChainConfiguration) {
+            ChainConfigurationView(
+                allowOthersToContinue: $allowOthersToContinue,
+                continuationAudience: $continuationAudience,
+                selectedListId: $selectedListId,
+                selectedListName: $selectedListName,
+                customSelectedUsers: $customSelectedUsers
+            )
+            .onDisappear {
+                // Publicar la historia cuando se cierre la configuración
+                publishStory()
             }
         }
         .sheet(isPresented: $showingLocationMap) {
@@ -551,6 +623,17 @@ struct StoryEditingView: View {
     private func updateAudienceSetting() {
         // Esta función se llama cuando el sheet se cierra
         // La lógica ya está manejada por los bindings
+    }
+    
+    // 🔗 NUEVA FUNCIÓN: Convertir audiencia de continuación a ContentAudience
+    private func convertContinuationAudience() -> ContentAudience {
+        switch continuationAudience {
+        case .everyone: return .everyone
+        case .connections: return .connections
+        case .bestFriends: return .bestFriends
+        case .custom: return .custom
+        case .customList: return .customList
+        }
     }
     
     // ✅ NUEVA FUNCIÓN: Cargar configuración por defecto del usuario
@@ -895,14 +978,21 @@ struct StoryEditingView: View {
             finalChainTitle = originalChainTitle
         }
         
-        // 🔥 CONVERTIR storyAudience (CaptionAndDetailsView.AudienceSetting) a ContentAudience (sin forzar)
+        // 🔥 CONVERTIR storyAudience (CaptionAndDetailsView.AudienceSetting) a ContentAudience
+        // 🔗 STORY CHAINS: Las cadenas siempre son visibles para todos, pero la audiencia determina quién puede continuar
         let contentAudience: ContentAudience = {
-            switch storyAudience {
-            case .everyone: return .everyone
-            case .mutuals: return .connections
-            case .admirers: return .connections
-            case .bestFriends: return .bestFriends
-            case .custom: return selectedListId != nil ? .customList : .custom
+            if isCreatingChain || isContinuingChain {
+                // Para cadenas, siempre "everyone" para visibilidad
+                return .everyone
+            } else {
+                // Para historias normales, usar la audiencia seleccionada
+                switch storyAudience {
+                case .everyone: return .everyone
+                case .mutuals: return .connections
+                case .admirers: return .connections
+                case .bestFriends: return .bestFriends
+                case .custom: return selectedListId != nil ? .customList : .custom
+                }
             }
         }()
         
@@ -921,7 +1011,12 @@ struct StoryEditingView: View {
             finalRenderedImage: finalRenderedImage,
             chainId: finalChainId, // 🔗 AÑADIDO: Pasar ID de la cadena
             chainPosition: finalChainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-            chainTitle: finalChainTitle // 🔗 AÑADIDO: Pasar título de la cadena
+            chainTitle: finalChainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
+            allowOthersToContinue: (isCreatingChain || isContinuingChain) ? allowOthersToContinue : nil, // 🔗 AÑADIDO: Configuración de continuación
+            continuationAudience: (isCreatingChain || isContinuingChain) ? convertContinuationAudience() : nil, // 🔗 AÑADIDO: Audiencia de continuación
+            continuationCustomViewers: (isCreatingChain || isContinuingChain) ? customSelectedUsers : nil, // 🔗 AÑADIDO: Usuarios específicos de continuación
+            continuationCustomListId: (isCreatingChain || isContinuingChain) ? selectedListId : nil, // 🔗 AÑADIDO: Lista específica de continuación
+            continuationCustomListName: (isCreatingChain || isContinuingChain) ? selectedListName : nil // 🔗 AÑADIDO: Nombre de lista de continuación
         )
         
         if success {

@@ -586,7 +586,6 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
     const senderData = senderDoc.data();
     
     if (!validateUserData(senderData)) {
-      console.warn('⚠️ Datos de sender incompletos para mensaje');
       return null;
     }
     
@@ -608,20 +607,26 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
     const receiverDocs = await admin.firestore().getAll(...receiverRefs);
     
     const notifications = receiverDocs.map(async (receiverDoc) => {
-      if (!receiverDoc.exists) return null;
+      if (!receiverDoc.exists) {
+        return null;
+      }
       const receiverData = receiverDoc.data();
       const receiverId = receiverDoc.id;
       
       if (!validateUserData(receiverData)) {
-        console.warn('⚠️ Datos de receiver incompletos para mensaje');
         return null;
       }
       
-      if (!receiverData.isActive || !receiverData.fcmToken) return null;
+      if (!receiverData.isActive) {
+        return null;
+      }
+      
+      if (!receiverData.fcmToken) {
+        return null;
+      }
       
       // ✅ VERIFICAR SI LA CONVERSACIÓN ESTÁ SILENCIADA PARA ESTE USUARIO
       if (conversationData.isMuted === true) {
-        console.log(`🔇 Conversación ${conversationId} silenciada para ${receiverId}, saltando notificación`);
         return null;
       }
       
@@ -695,20 +700,18 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
       
       try {
         await admin.messaging().send(notificationMessage);
-        console.log(`✅ Notificación de mensaje enviada: ${senderData.username} -> ${receiverData.username} (${message.type})`);
-        console.log(`🔔 Conversación ${conversationId} NO silenciada, notificación enviada`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {
           await removeInvalidToken(receiverId, receiverData.fcmToken);
         }
-        throw error;
+        return null; // No hacer throw para que otras notificaciones puedan enviarse
       }
     });
     
     await Promise.all(notifications);
     
   } catch (error) {
-    console.error('❌ Error sending message notification:', error);
+    console.error('Error sending message notification:', error);
   }
 });
 

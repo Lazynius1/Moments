@@ -6,6 +6,7 @@ import Photos
 // MARK: - ACTUALIZACIÓN: GridPhotoPickerView con Editor de Crop
 struct GridPhotoPickerView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @Binding var selectedPhoto: PhotosPickerItem?
     @Binding var currentProfileImage: UIImage?
     @State private var photoAssets: [PHAsset] = []
@@ -53,18 +54,9 @@ struct GridPhotoPickerView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Fondo consistente con tu app
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Fondo consistente con el resto de la app
+                (colorScheme == .dark ? Color.black : Color.white)
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // Header con navegación
@@ -114,29 +106,29 @@ struct GridPhotoPickerView: View {
         }
     }
     
-    // MARK: - Header View (sin cambios)
+    // MARK: - Header View
     private var headerView: some View {
         VStack(spacing: 16) {
             HStack {
-                Button("Cancelar") {
+                Button(NSLocalizedString("profileEditor.cancel", comment: "")) {
                     if !isUploading {
                         dismiss()
                     }
                 }
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.white.opacity(isUploading ? 0.4 : 0.8))
+                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isUploading ? 0.4 : 0.8))
                 .disabled(isUploading)
                 
                 Spacer()
                 
                 Text("profileEditor.library")
                     .font(.custom("Poppins-Bold", size: 18))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 // ACTUALIZADO: Cambio de texto del botón
-                Button("Siguiente") {
+                Button(NSLocalizedString("profileEditor.next", comment: "")) {
                     handlePhotoSelection()
                 }
                 .font(.custom("Poppins-SemiBold", size: 16))
@@ -151,6 +143,7 @@ struct GridPhotoPickerView: View {
                 categoryFilters
             }
         }
+        .background(colorScheme == .dark ? Color.black : Color.white)
     }
     
     // NUEVO: Overlay de upload actualizado
@@ -253,7 +246,7 @@ struct GridPhotoPickerView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
-            Button("Permitir acceso") {
+            Button(NSLocalizedString("profileEditor.allowAccess", comment: "")) {
                 requestPhotoLibraryPermission()
             }
             .font(.custom("Poppins-SemiBold", size: 16))
@@ -269,21 +262,22 @@ struct GridPhotoPickerView: View {
     
     private var deniedPermissionView: some View {
         VStack(spacing: 24) {
-            Image(systemName: "exclamationmark.triangle")
+            Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 60))
-                .foregroundColor(.red.opacity(0.8))
+                .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
             
-                            Text("profileEditor.accessDenied.title")
+            Text("profileEditor.accessDenied.title")
                 .font(.custom("Poppins-Bold", size: 20))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
             
-                            Text("profileEditor.accessDenied.description")
+            Text("profileEditor.accessDenied.description")
                 .font(.custom("Poppins-Regular", size: 16))
-                .foregroundColor(.gray)
+                .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
-            Button("Abrir Configuración") {
+            // ✅ Instrucciones opcionales para el usuario
+            Button("creator.permissions.openSettings") {
                 if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(settingsUrl)
                 }
@@ -292,10 +286,17 @@ struct GridPhotoPickerView: View {
             .foregroundColor(.white)
             .padding(.horizontal, 32)
             .padding(.vertical, 16)
-            .background(Color(hex: "00A896"))
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
             .clipShape(Capsule())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(colorScheme == .dark ? Color.black : Color.white)
     }
     
     // MARK: - Helper Functions (sin cambios)
@@ -429,6 +430,7 @@ private struct CategoryFilterButton: View {
     let icon: String
     let isSelected: Bool
     let action: () -> Void
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         Button(action: action) {
@@ -438,13 +440,13 @@ private struct CategoryFilterButton: View {
                 Text(title)
                     .font(.custom("Poppins-Medium", size: 14))
             }
-            .foregroundColor(isSelected ? .white : .white.opacity(0.6))
+            .foregroundColor(isSelected ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)))
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
                 isSelected ?
                 Color(hex: "00A896").opacity(0.3) :
-                Color.white.opacity(0.1)
+                (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
             )
             .clipShape(Capsule())
             .overlay(
@@ -452,7 +454,7 @@ private struct CategoryFilterButton: View {
                     .stroke(
                         isSelected ?
                         Color(hex: "00A896") :
-                        Color.white.opacity(0.2),
+                        (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
                         lineWidth: 1
                     )
             )
@@ -606,6 +608,7 @@ struct ProfileFlowLayoutt: Layout {
 // MARK: - Vista de edición de perfil enfocada
 struct ModernEditProfileView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @Binding var selectedPhoto: PhotosPickerItem?
     @Binding var newBio: String
     var onSave: (PhotosPickerItem?, String) -> Void
@@ -637,8 +640,8 @@ struct ModernEditProfileView: View {
         
         var title: String {
             switch self {
-            case .basic: return "Perfil"
-            case .interests: return "Intereses"
+            case .basic: return NSLocalizedString("profileEditor.section.basic", comment: "")
+            case .interests: return NSLocalizedString("profileEditor.section.interests", comment: "")
             }
         }
         
@@ -650,29 +653,15 @@ struct ModernEditProfileView: View {
         }
     }
     
-    // Lista de intereses disponibles
-    private let availableInterests = [
-        "Música", "Cine", "Deportes", "Viajes", "Fotografía", "Arte", "Tecnología",
-        "Lectura", "Cocina", "Moda", "Gaming", "Fitness", "Naturaleza", "Animales",
-        "Baile", "Teatro", "Escritura", "Ciencia", "Historia", "Idiomas", "Anime",
-        "K-pop", "Streaming", "Yoga", "Meditación", "Senderismo", "Ciclismo"
-    ]
+    // Lista de intereses disponibles (cargada desde la base de datos)
+    @State private var availableInterests: [String] = []
 
     var body: some View {
         NavigationView {
             ZStack {
-                // Fondo glassmorphic consistente con tu app
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Fondo consistente con el resto de la app
+                (colorScheme == .dark ? Color.black : Color.white)
+                    .ignoresSafeArea()
                 
                 if isLoading {
                     // Vista de carga
@@ -683,7 +672,7 @@ struct ModernEditProfileView: View {
                         
                         Text("profileEditor.loadingProfile")
                             .font(.custom("Poppins-Medium", size: 16))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                     }
                 } else if let errorMessage = errorMessage {
                     // Vista de error
@@ -694,7 +683,7 @@ struct ModernEditProfileView: View {
                         
                         Text("profileEditor.error")
                             .font(.custom("Poppins-Bold", size: 18))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text(errorMessage)
                             .font(.custom("Poppins-Regular", size: 14))
@@ -702,11 +691,11 @@ struct ModernEditProfileView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                         
-                        Button("Reintentar") {
+                        Button(NSLocalizedString("profileEditor.retry", comment: "")) {
                             loadUserData()
                         }
                         .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(Color(hex: "00A896"))
@@ -762,6 +751,27 @@ struct ModernEditProfileView: View {
         }
         .onAppear {
             loadUserData()
+            loadInterests()
+        }
+    }
+    
+    // MARK: - Función para cargar intereses disponibles
+    private func loadInterests() {
+        firestoreService.fetchAvailableInterests { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let interests):
+                    availableInterests = interests
+                case .failure:
+                    // Fallback a lista por defecto si falla la carga
+                    availableInterests = [
+                        "Música", "Cine", "Deportes", "Viajes", "Fotografía", "Arte", "Tecnología",
+                        "Lectura", "Cocina", "Moda", "Gaming", "Fitness", "Naturaleza", "Animales",
+                        "Baile", "Teatro", "Escritura", "Ciencia", "Historia", "Idiomas", "Anime",
+                        "K-pop", "Streaming", "Yoga", "Meditación", "Senderismo", "Ciclismo"
+                    ]
+                }
+            }
         }
     }
     
@@ -806,21 +816,21 @@ struct ModernEditProfileView: View {
         VStack(spacing: 20) {
             // Barra de navegación
             HStack {
-                Button("Cancelar") {
+                Button(NSLocalizedString("profileEditor.cancel", comment: "")) {
                     dismiss()
                 }
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
                 
                 Spacer()
                 
                 Text("profileEditor.title")
                     .font(.custom("Poppins-Bold", size: 18))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
-                Button("Guardar") {
+                Button(NSLocalizedString("profileEditor.save", comment: "")) {
                     saveProfile()
                 }
                 .font(.custom("Poppins-SemiBold", size: 16))
@@ -842,7 +852,7 @@ struct ModernEditProfileView: View {
                             .clipShape(Circle())
                     } else {
                         Circle()
-                            .fill(Color.white.opacity(0.1))
+                            .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
                             .frame(width: 100, height: 100)
                             .overlay(
                                 Image(systemName: "person.circle.fill")
@@ -858,7 +868,7 @@ struct ModernEditProfileView: View {
                         .overlay(
                             Image(systemName: "camera.fill")
                                 .font(.system(size: 24))
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                         )
                 }
                 .overlay(
@@ -888,7 +898,7 @@ struct ModernEditProfileView: View {
                                 .foregroundColor(Color(hex: "00A896"))
                             Text("profileEditor.change")
                                 .font(.custom("Poppins-Medium", size: 12))
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                         }
                     }
                     
@@ -900,7 +910,7 @@ struct ModernEditProfileView: View {
                                     .foregroundColor(.red.opacity(0.8))
                                 Text("profileEditor.delete")
                                     .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                             }
                         }
                     }
@@ -926,7 +936,7 @@ struct ModernEditProfileView: View {
                             Text(section.title)
                                 .font(.custom("Poppins-Medium", size: 14))
                         }
-                        .foregroundColor(activeSection == section ? .white : .white.opacity(0.6))
+                        .foregroundColor(activeSection == section ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(
@@ -939,7 +949,7 @@ struct ModernEditProfileView: View {
                                 .stroke(
                                     activeSection == section ?
                                     Color(hex: "00A896") :
-                                    Color.white.opacity(0.2),
+                                    (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
                                     lineWidth: 1
                                 )
                         )
@@ -965,30 +975,30 @@ struct ModernEditProfileView: View {
                     
                     Text("profileEditor.username")
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                 }
                 
                 HStack {
                     Text("\(username)")
                         .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                     
                     Spacer()
                     
-                    Text("No editable")
+                    Text("profileEditor.notEditable")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray.opacity(0.6))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.1))
+                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
                         .clipShape(Capsule())
                 }
                 .padding(16)
-                .background(Color.white.opacity(0.05))
+                .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.1), lineWidth: 1)
                 )
             }
             
@@ -1002,30 +1012,30 @@ struct ModernEditProfileView: View {
                     
                     Text("profileEditor.email")
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                 }
                 
                 HStack {
                     Text(email)
                         .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                     
                     Spacer()
                     
-                    Text("No editable")
+                    Text("profileEditor.notEditable")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray.opacity(0.6))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.1))
+                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
                         .clipShape(Capsule())
                 }
                 .padding(16)
-                .background(Color.white.opacity(0.05))
+                .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.1), lineWidth: 1)
                 )
             }
             
@@ -1049,7 +1059,7 @@ struct ModernEditProfileView: View {
                     
                     Text("profileEditor.bio")
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                     
                     Spacer()
                     
@@ -1058,20 +1068,20 @@ struct ModernEditProfileView: View {
                         .foregroundColor(characterCount > 150 ? .red : .gray.opacity(0.7))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.1))
+                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
                         .clipShape(Capsule())
                 }
 
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(0.1))
+                        .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
                         .frame(height: 120)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
                                 .stroke(
                                     LinearGradient(
                                         colors: [
-                                            Color.white.opacity(0.2),
+                                            (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
                                             Color(hex: "00A896").opacity(0.4)
                                         ],
                                         startPoint: .topLeading,
@@ -1083,7 +1093,7 @@ struct ModernEditProfileView: View {
                     
                     TextEditor(text: $newBio)
                         .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .background(.clear)
                         .scrollContentBackground(.hidden)
                         .padding(16)
@@ -1118,7 +1128,7 @@ struct ModernEditProfileView: View {
                 
                 Spacer()
                 
-                Button("Editar") {
+                Button(NSLocalizedString("creator.edit", comment: "")) {
                     isShowingInterestsPicker = true
                 }
                 .font(.custom("Poppins-Medium", size: 14))
@@ -1139,7 +1149,7 @@ struct ModernEditProfileView: View {
                     
                     Text("profileEditor.interests.empty.title")
                         .font(.custom("Poppins-Medium", size: 16))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                     
                     Text("profileEditor.interests.empty.subtitle")
                         .font(.custom("Poppins-Regular", size: 14))
@@ -1147,7 +1157,7 @@ struct ModernEditProfileView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
                     
-                    Button("Añadir intereses") {
+                    Button(NSLocalizedString("profileEditor.addInterests", comment: "")) {
                         isShowingInterestsPicker = true
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))
@@ -1164,7 +1174,7 @@ struct ModernEditProfileView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.1), lineWidth: 1)
                 )
             } else {
                 // Flow layout de intereses seleccionados
@@ -1175,18 +1185,18 @@ struct ModernEditProfileView: View {
                                 .font(.system(size: 14))
                             Text(interest)
                                 .font(.custom("Poppins-Medium", size: 14))
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(Color.white.opacity(0.1))
+                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
                         .clipShape(Capsule())
                         .overlay(
                             Capsule()
                                 .stroke(
                                     LinearGradient(
                                         colors: [
-                                            Color.white.opacity(0.2),
+                                            (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
                                             Color(hex: "00A896").opacity(0.4)
                                         ],
                                         startPoint: .topLeading,
@@ -1218,13 +1228,13 @@ struct ModernEditProfileView: View {
             
             TextField(placeholder, text: text)
                 .font(.custom("Poppins-Regular", size: 15))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(16)
-                .background(Color.white.opacity(0.1))
+                .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.2), lineWidth: 1)
                 )
         }
     }
@@ -1233,7 +1243,8 @@ struct ModernEditProfileView: View {
     private var interestsPickerSheet: some View {
         NavigationView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                (colorScheme == .dark ? Color.black : Color.white)
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // Header con contador
@@ -1243,11 +1254,11 @@ struct ModernEditProfileView: View {
                     interestPickerGrid
                 }
             }
-            .navigationTitle("Intereses")
+            .navigationTitle(NSLocalizedString("profileEditor.interests.navigationTitle", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Listo") {
+                    Button(NSLocalizedString("profileEditor.done", comment: "")) {
                         isShowingInterestsPicker = false
                     }
                     .foregroundColor(Color(hex: "00A896"))
@@ -1263,7 +1274,7 @@ struct ModernEditProfileView: View {
         HStack {
                             Text("profileEditor.interests.select.title")
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
             
             Spacer()
             
@@ -1382,6 +1393,7 @@ private struct InterestPickerRow: View {
     let isSelected: Bool
     let isDisabled: Bool
     let onTap: () -> Void
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         Button(action: onTap) {
@@ -1390,7 +1402,7 @@ private struct InterestPickerRow: View {
                     .font(.system(size: 16))
                 Text(interest)
                     .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 Spacer()
                 
                 if isSelected {
@@ -1403,7 +1415,7 @@ private struct InterestPickerRow: View {
             .background(
                 isSelected ?
                 Color(hex: "00A896").opacity(0.2) :
-                Color.white.opacity(0.1)
+                (colorScheme == .dark ? Color.white : Color.black).opacity(0.1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
@@ -1411,7 +1423,7 @@ private struct InterestPickerRow: View {
                     .stroke(
                         isSelected ?
                         Color(hex: "00A896") :
-                        Color.white.opacity(0.2),
+                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.2),
                         lineWidth: 1
                     )
             )
