@@ -353,6 +353,7 @@
 "nova.you" = "You";
 "nova.name" = "Nova";
 "nova.personalAssistant" = "Your personal assistant";
+"nova.encryptedData" = "Encrypted data";
 "nova.recentConversations" = "Recent Conversations";
 "nova.noConversations" = "No previous conversations";
 "nova.startNewConversation" = "Start a new conversation and it will be saved automatically";
@@ -453,6 +454,7 @@
 "creator.album.elements.plural" = "%d elements";
 "creator.edit" = "Edit";
 "creator.format" = "Format:";
+"creator.recommendedDimensions" = "Recommended dimensions";
 "creator.share" = "Share";
 "creator.caption.placeholder" = "Write a caption...";
 "creator.files.selected.count" = "%d files selected";
@@ -744,6 +746,8 @@
 "feed.forYou" = "For You";
 "feed.following.description" = "Moments from people you follow";
 "feed.forYou.description" = "Content recommended for you";
+"feed.reels.tapToView" = "Tap to view";
+"feed.reels.badge" = "Reels";
 
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
@@ -1584,6 +1588,7 @@
 
 /* Live Activities */
 "liveActivity.uploadingStory" = "Uploading story";
+"liveActivity.uploadingMoment" = "Uploading moment";
 "liveActivity.uploading" = "Uploading...";
 "liveActivity.processing" = "Processing...";
 "liveActivity.completed" = "Completed";
@@ -1605,3 +1610,20 @@
 "widget.stories.plural" = "%d new stories";
 "widget.messageRequests.singular" = "1 pending message request";
 "widget.messageRequests.plural" = "%d pending message requests";
+
+/* Auth Errors */
+"auth.error.emailInUse" = "This email is already registered. Try signing in.";
+"auth.error.invalidEmail" = "The email address is not valid.";
+"auth.error.wrongPassword" = "Incorrect password. Please try again.";
+"auth.error.userNotFound" = "No user found with these credentials.";
+"auth.error.weakPassword" = "The password is too weak. Use at least 8 characters with letters and numbers.";
+"auth.error.network" = "Connection error. Check your internet and try again.";
+"auth.error.tooManyRequests" = "Too many attempts. Please wait a moment.";
+"auth.error.invalidCredentials" = "Incorrect username or password. Please verify your credentials.";
+"auth.error.userDisabled" = "This account has been deactivated. Contact support if you need help.";
+"auth.error.generic" = "Could not sign in. Please verify your credentials and try again.";
+"auth.error.emptyFields" = "Identifier and password are required.";
+"auth.error.usernameNotFound" = "User not found. Please verify your username.";
+"auth.error.privacyPolicyRequired" = "You must accept the privacy policy.";
+"auth.error.usernameUnavailable" = "Username not available.";
+"auth.error.userIdNotFound" = "Could not get user ID.";

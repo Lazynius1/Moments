@@ -632,6 +632,15 @@ struct Story: Identifiable, Codable {
                 } else {
                     stickerImage = UIImage(systemName: "chart.bar") ?? UIImage()
                 }
+            case .time, .weather, .emoji, .sticker, .generic, .selfie, .questionResponse:
+                // ✅ INTENTAR DECODIFICAR IMAGEN BASE64
+                // Usar UIScreen.main.scale para restaurar el tamaño lógico (puntos) original
+                if let data = Data(base64Encoded: stickerData.content),
+                   let image = UIImage(data: data, scale: UIScreen.main.scale) {
+                    stickerImage = image
+                } else {
+                    stickerImage = UIImage(systemName: "sticker") ?? UIImage()
+                }
             default:
                 stickerImage = UIImage(systemName: "sticker") ?? UIImage()
             }

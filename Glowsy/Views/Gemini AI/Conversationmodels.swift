@@ -153,7 +153,8 @@ struct SavedChatMessage: Identifiable, Codable {
 // MARK: - Extensiones para facilitar conversiones
 extension Array where Element == ChatMessage {
     func toSavedMessages() -> [SavedChatMessage] {
-        return self.map { SavedChatMessage(from: $0) }
+        // ✅ NO GUARDAR MENSAJES DEL SISTEMA (se generan automáticamente)
+        return self.filter { !$0.isSystem }.map { SavedChatMessage(from: $0) }
     }
 }
 

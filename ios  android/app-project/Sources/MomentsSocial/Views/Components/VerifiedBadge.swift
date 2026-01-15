@@ -136,3 +136,4 @@ struct VerifiedBadge_Previews: PreviewProvider {
         .padding()
     }
 } 
+

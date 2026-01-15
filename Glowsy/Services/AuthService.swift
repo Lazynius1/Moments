@@ -370,7 +370,7 @@ class AuthService: ObservableObject {
         func login(identifier: String, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
             
             guard !identifier.isEmpty, !password.isEmpty else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "El identificador y la contraseña son obligatorios."])))
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.emptyFields", comment: "Empty fields")])))
                 return
             }
             
@@ -406,7 +406,7 @@ class AuthService: ObservableObject {
                         
                         guard let data = document?.data(),
                               let email = data["email"] as? String else {
-                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no encontrado. Por favor, verifica tu nombre de usuario."])))
+                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
                             return
                         }
                         
@@ -630,7 +630,7 @@ class AuthService: ObservableObject {
     // ✅ REGISTRO CORREGIDO - Establecer flags SÍNCRONAMENTE antes de crear usuario
     func register(username: String, email: String, password: String, interests: [String], privacyPolicyAccepted: Bool, profileImage: UIImage?, completion: @escaping (Result<Void, Error>) -> Void) {
         guard privacyPolicyAccepted else {
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Debes aceptar las políticas de privacidad."])))
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.privacyPolicyRequired", comment: "Privacy policy required")])))
             return
         }
         
@@ -658,7 +658,7 @@ class AuthService: ObservableObject {
                 }
                 if document?.exists ?? false {
                     self.clearRegistrationState()
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Nombre de usuario no disponible."])))
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameUnavailable", comment: "Username unavailable")])))
                     return
                 }
                 
@@ -672,7 +672,7 @@ class AuthService: ObservableObject {
                     }
                     guard let userId = result?.user.uid else {
                         self.clearRegistrationState()
-                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener el ID del usuario."])))
+                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userIdNotFound", comment: "User ID not found")])))
                         return
                     }
                     
@@ -952,24 +952,40 @@ class AuthService: ObservableObject {
         private func mapAuthError(_ error: Error) -> Error {
             let nsError = error as NSError
             let errorMessage: String
+            let rawDescription = nsError.localizedDescription.lowercased()
             
             switch AuthErrorCode(rawValue: nsError.code) {
             case .emailAlreadyInUse:
-                errorMessage = "Este correo ya está registrado. Intenta iniciar sesión."
+                errorMessage = NSLocalizedString("auth.error.emailInUse", comment: "Email already registered")
             case .invalidEmail:
-                errorMessage = "El correo electrónico no es válido."
+                errorMessage = NSLocalizedString("auth.error.invalidEmail", comment: "Invalid email")
             case .wrongPassword:
-                errorMessage = "Contraseña incorrecta. Inténtalo de nuevo."
+                errorMessage = NSLocalizedString("auth.error.wrongPassword", comment: "Wrong password")
             case .userNotFound:
-                errorMessage = "No se encontró un usuario con estas credenciales."
+                errorMessage = NSLocalizedString("auth.error.userNotFound", comment: "User not found")
             case .weakPassword:
-                errorMessage = "La contraseña es muy débil. Usa al menos 8 caracteres con letras y números."
+                errorMessage = NSLocalizedString("auth.error.weakPassword", comment: "Weak password")
             case .networkError:
-                errorMessage = "Error de conexión. Verifica tu internet e intenta de nuevo."
+                errorMessage = NSLocalizedString("auth.error.network", comment: "Network error")
             case .tooManyRequests:
-                errorMessage = "Demasiados intentos. Por favor, espera un momento."
+                errorMessage = NSLocalizedString("auth.error.tooManyRequests", comment: "Too many requests")
+            case .invalidCredential:
+                errorMessage = NSLocalizedString("auth.error.invalidCredentials", comment: "Invalid credentials")
+            case .userDisabled:
+                errorMessage = NSLocalizedString("auth.error.userDisabled", comment: "User disabled")
             default:
-                errorMessage = "Error: \(nsError.localizedDescription)"
+                // ✅ Mensaje más user-friendly basado en el contenido del error
+                if rawDescription.contains("malformed") || rawDescription.contains("expired") || rawDescription.contains("invalid credential") {
+                    errorMessage = NSLocalizedString("auth.error.invalidCredentials", comment: "Invalid credentials")
+                } else if rawDescription.contains("password") || rawDescription.contains("contraseña") || rawDescription.contains("contrasenya") {
+                    errorMessage = NSLocalizedString("auth.error.wrongPassword", comment: "Wrong password")
+                } else if rawDescription.contains("user") || rawDescription.contains("usuario") || rawDescription.contains("usuari") || rawDescription.contains("not found") {
+                    errorMessage = NSLocalizedString("auth.error.userNotFound", comment: "User not found")
+                } else if rawDescription.contains("network") || rawDescription.contains("conexión") || rawDescription.contains("connexió") || rawDescription.contains("connection") {
+                    errorMessage = NSLocalizedString("auth.error.network", comment: "Network error")
+                } else {
+                    errorMessage = NSLocalizedString("auth.error.generic", comment: "Generic login error")
+                }
             }
             
             return NSError(domain: "", code: nsError.code, userInfo: [NSLocalizedDescriptionKey: errorMessage])

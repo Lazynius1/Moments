@@ -290,6 +290,23 @@ struct GlassmorphicChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 8) {
+                    
+                    // ✅ TRIGGER DE PAGINACIÓN
+                    if viewModel.canLoadMore {
+                        Color.clear
+                            .frame(height: 20)
+                            .onAppear {
+                                viewModel.loadMoreMessages()
+                            }
+                    }
+                    
+                    if viewModel.isLoadingMore {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: adaptiveColors.primary))
+                            .scaleEffect(0.8)
+                            .padding(.vertical, 10)
+                    }
+                    
                     ForEach(viewModel.groupedMessages, id: \.0) { date, messages in
                         GlassmorphicDateHeader(date: date)
                             .padding(.vertical, 10)
@@ -319,7 +336,7 @@ struct GlassmorphicChatView: View {
                                     handleMomentNavigationFromChat(message: message)
                                 }
                             )
-                            .id(message.id)
+                            .id("\(message.id)_\(message.status.rawValue)")
                             .onLongPressGesture {
                                 showingMessageOptions = message
                             }
@@ -334,9 +351,11 @@ struct GlassmorphicChatView: View {
                 }
                 .padding(.vertical, 10)
             }
-            .onReceive(viewModel.$messages) { _ in
+            .onChange(of: viewModel.messages.last?.id) { lastMessageId in
+                // ✅ Solo hacer scroll si cambia el ÚLTIMO mensaje (nuevo mensaje)
+                // Esto evita el scroll al cargar historial (donde cambia el PRIMER mensaje)
                 withAnimation {
-                    proxy.scrollTo(viewModel.messages.last?.id ?? "typing", anchor: .bottom)
+                    proxy.scrollTo(lastMessageId ?? "typing", anchor: .bottom)
                 }
             }
         }
@@ -402,12 +421,14 @@ struct GlassmorphicChatView: View {
             "conversationId": viewModel.conversation.id,
             "otherUserId": viewModel.conversation.otherParticipantId ?? "unknown"
         ])
+        viewModel.isChatVisible = true  // ✅ Marcar chat como visible
         viewModel.startListening()
         setupOnlineStatusObserver()
     }
     
     // ✅ REFACTORIZADO: Acciones al desaparecer
     private func onDisappearActions() {
+        viewModel.isChatVisible = false  // ✅ Marcar chat como no visible
         
         AnalyticsService.shared.trackInteraction("chat_closed", details: [
             "conversationId": viewModel.conversation.id,
@@ -779,7 +800,7 @@ struct GlassmorphicMessageRow: View {
                     GlassmorphicReactionsView(reactions: reactions, onTap: onReaction)
                 }
                 
-                MessageTimestamp(message: message, isCurrentUser: isCurrentUser)
+                MessageTimestamp(message: message, status: message.status, isCurrentUser: isCurrentUser)
             }
             
             if !isCurrentUser { Spacer(minLength: 50) }
@@ -1591,6 +1612,7 @@ struct GlassmorphicReactionsView: View {
 
 struct MessageTimestamp: View {
     let message: EnhancedMessage
+    let status: MessageStatus  // ✅ Parámetro explícito para forzar re-render
     let isCurrentUser: Bool
     @Environment(\.colorScheme) var colorScheme
     
@@ -1611,7 +1633,7 @@ struct MessageTimestamp: View {
             }
             
             if isCurrentUser {
-                MessageStatusIcon(status: message.status)
+                MessageStatusIcon(status: status)  // ✅ Usar parámetro explícito
             }
         }
     }
@@ -1917,13 +1939,18 @@ class InstagramChatViewModel: EnhancedChatViewModel {
             .assign(to: &$groupedMessages)
     }
     
-    // ✅ NUEVA: Función para forzar actualización de groupedMessages
+    // ✅ Función para forzar actualización de groupedMessages
     func updateGroupedMessages() {
         let calendar = Calendar.current
         let grouped = Dictionary(grouping: messages) { message in
             calendar.startOfDay(for: message.timestamp)
         }
         groupedMessages = grouped.sorted { $0.key < $1.key }
+        
+        // ✅ FORZAR SwiftUI a re-renderizar (porque EnhancedMessage es clase, no struct)
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
     }
     
     override func sendTextMessage(_ content: String, replyTo: String? = nil) {

@@ -22,6 +22,15 @@ class EnhancedChatViewModel: ObservableObject {
     // ✅ NUEVO: Flag para bloquear listener temporalmente
     private var isUpdatingLocalMessage = false
     
+    // ✅ NUEVO: Flag para saber si el chat está visible (para marcar como leído solo cuando está visible)
+    var isChatVisible = false
+    
+    // ✅ PAGINACIÓN
+    @Published var isLoadingMore = false
+    @Published var canLoadMore = true
+    private var historicalMessages: [EnhancedMessage] = []
+    private var realTimeMessages: [EnhancedMessage] = []
+    
     let conversation: Conversation
     let currentUserId: String
     private let chatService = ChatService()
@@ -66,23 +75,33 @@ class EnhancedChatViewModel: ObservableObject {
         var mergedMessages = newMessages
         
         for tempMessage in temporaryMessages {
+            // Solo agregar si NO existe ya en Firestore
             if !mergedMessages.contains(where: { $0.id == tempMessage.id }) {
                 mergedMessages.append(tempMessage)
-            } else {
-                // Si el mensaje ya existe en Firestore, preservar el estado temporal si es más reciente
-                if let existingIndex = mergedMessages.firstIndex(where: { $0.id == tempMessage.id }) {
-                    let existingMessage = mergedMessages[existingIndex]
-                    if existingMessage.status == .sent && tempMessage.status == .sending {
-                        mergedMessages[existingIndex].status = .sending
-                    }
-                }
             }
         }
         
-        // ✅ Aplicar estados locales con prioridad
+        // ✅ CORREGIDO: Solo aplicar estado local si es MÁS AVANZADO que el de Firestore
+        // Orden de prioridad: sending < sent < delivered < read
+        // No sobrescribir un estado más avanzado con uno menos avanzado
+        let statusPriority: [MessageStatus: Int] = [
+            .sending: 0,
+            .sent: 1,
+            .delivered: 2,
+            .read: 3,
+            .failed: -1
+        ]
+        
         for (messageId, localStatus) in localMessageStates {
             if let index = mergedMessages.firstIndex(where: { $0.id == messageId }) {
-                mergedMessages[index].status = localStatus
+                let firestoreStatus = mergedMessages[index].status
+                let localPriority = statusPriority[localStatus] ?? 0
+                let firestorePriority = statusPriority[firestoreStatus] ?? 0
+                
+                // Solo aplicar local si es más avanzado O si es failed
+                if localPriority > firestorePriority || localStatus == .failed {
+                    mergedMessages[index].status = localStatus
+                }
             }
         }
         
@@ -110,6 +129,11 @@ class EnhancedChatViewModel: ObservableObject {
                 // ✅ FORZAR actualización de SwiftUI
                 self.objectWillChange.send()
                 
+                // ✅ FORZAR actualización de groupedMessages si es InstagramChatViewModel
+                if let instagramViewModel = self as? InstagramChatViewModel {
+                    instagramViewModel.updateGroupedMessages()
+                }
+                
                 // ✅ Desbloquear listener después de un delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.isUpdatingLocalMessage = false
@@ -127,6 +151,56 @@ class EnhancedChatViewModel: ObservableObject {
     private func cleanupLocalStates() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
             self.localMessageStates.removeAll()
+        }
+    }
+    
+    // ✅ HELPER: Reconstruir lista completa de mensajes
+    private func rebuildMessagesList() {
+        // 1. Unir históricos + tiempo real
+        let allMessages = historicalMessages + realTimeMessages
+        
+        // 2. Deduplicar por ID
+        var seenIds = Set<String>()
+        let uniqueMessages = allMessages.filter { seenIds.insert($0.id).inserted }
+        
+        // 3. Ordenar
+        let sortedMessages = uniqueMessages.sorted { $0.timestamp < $1.timestamp }
+        
+        // 4. Preservar temporales y estados locales
+        let finalMessages = preserveTemporaryMessages(sortedMessages)
+        
+        self.messages = finalMessages
+        
+        // ✅ Forzar actualización de groupedMessages
+        if let instagramViewModel = self as? InstagramChatViewModel {
+            instagramViewModel.updateGroupedMessages()
+        }
+    }
+    
+    // ✅ FUNCIÓN: Cargar más mensajes (Pull to refresh)
+    func loadMoreMessages() {
+        guard !isLoadingMore, canLoadMore, let firstMessage = messages.first, let conversationId = conversation.id else { return }
+        
+        isLoadingMore = true
+        
+        chatService.fetchOlderMessages(conversationId: conversationId, before: firstMessage.timestamp) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isLoadingMore = false
+                
+                switch result {
+                case .success(let olderMessages):
+                    if olderMessages.isEmpty {
+                        self.canLoadMore = false
+                    } else {
+                        // Agregar al historial
+                        self.historicalMessages.append(contentsOf: olderMessages)
+                        self.rebuildMessagesList()
+                    }
+                case .failure(let error):
+                    print("Error loading more messages: \(error)")
+                }
+            }
         }
     }
     
@@ -192,10 +266,24 @@ class EnhancedChatViewModel: ObservableObject {
                 
                 switch result {
                 case .success(let messages):
-                    // ✅ Preservar mensajes temporales al actualizar la lista
-                    let mergedMessages = self.preserveTemporaryMessages(messages)
-                    self.messages = mergedMessages
-                    self.markUnreadMessagesAsRead(messages)
+                    
+                    // ✅ DETECTAR mensajes que caen fuera de la ventana de 50 (sliding window)
+                    // y moverlos al histórico para no perderlos
+                    let newSet = Set(messages.map { $0.id })
+                    let droppedMessages = self.realTimeMessages.filter { !newSet.contains($0.id) }
+                    
+                    if !droppedMessages.isEmpty {
+                        self.historicalMessages.append(contentsOf: droppedMessages)
+                    }
+                    
+                    // ✅ Actualizar solo la parte de tiempo real
+                    self.realTimeMessages = messages
+                    self.rebuildMessagesList()
+                    
+                    // ✅ SOLO marcar como leído si el chat está VISIBLE al usuario
+                    if self.isChatVisible {
+                        self.markUnreadMessagesAsRead(messages)
+                    }
                 case .failure(let error):
                     self.error = error.localizedDescription
                 }

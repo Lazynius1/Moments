@@ -19,6 +19,8 @@ class ChatService: ObservableObject {
     private let typingTimeout: TimeInterval = 3.0
     
     // MARK: - Initialization
+    static let shared = ChatService() // ✅ Singleton para acceso global
+    
     init() {
     }
     
@@ -38,7 +40,7 @@ class ChatService: ObservableObject {
     }
     
     // MARK: - Real-time Messages with Decryption
-    func listenToMessages(conversationId: String, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+    func listenToMessages(conversationId: String, limit: Int = 50, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
         Task {
             await preloadConversationKey(for: conversationId)
         }
@@ -49,6 +51,7 @@ class ChatService: ObservableObject {
             .document(conversationId)
             .collection("messages")
             .order(by: "timestamp", descending: false)
+            .limit(toLast: limit) // ✅ LIMITAR a los últimos mensajes
             .addSnapshotListener { [weak self] snapshot, error in
                 // ✅ Envolver todo en Task para poder usar await
                 Task {
@@ -62,6 +65,31 @@ class ChatService: ObservableObject {
             }
         
         activeListeners[conversationId] = listener
+    }
+    
+    // ✅ NUEVO: Cargar mensajes anteriores (Paginación)
+    func fetchOlderMessages(conversationId: String, before timestamp: Date, limit: Int = 20, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+        Task {
+            // Asegurar que tenemos la clave
+             await preloadConversationKey(for: conversationId)
+            
+            db.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .whereField("timestamp", isLessThan: Timestamp(date: timestamp))
+                .order(by: "timestamp", descending: true) // Descendente para obtener los más cercanos a la fecha
+                .limit(to: limit)
+                .getDocuments { [weak self] snapshot, error in
+                    Task {
+                        await self?.handleMessagesSnapshot(
+                            snapshot: snapshot,
+                            error: error,
+                            conversationId: conversationId,
+                            completion: completion
+                        )
+                    }
+                }
+        }
     }
 
     // ✅ Nueva función helper para manejar el snapshot de manera async
@@ -411,7 +439,7 @@ class ChatService: ObservableObject {
                 "conversationId": message.conversationId,
                 "senderId": message.senderId,
                 "type": message.type.rawValue,
-                "status": message.status.rawValue,
+                "status": MessageStatus.sent.rawValue, // ✅ FORZAR ESTADO ENVIADO INICIALMENTE
                 "isRead": message.isRead,
                 "isDeleted": message.isDeleted,
                 "isViewed": message.isViewed
@@ -481,12 +509,6 @@ class ChatService: ObservableObject {
                     return
                 }
                 
-                
-                // ✅ Llamar completion handler inmediatamente después de escribir a Firestore
-                var updatedMessage = message
-                updatedMessage.status = .sent
-                completion(.success(updatedMessage))
-            
                 // ✅ Update conversation with last message (decrypt for preview)
                 Task {
                     let lastMessagePreview: String = await {
@@ -518,27 +540,17 @@ class ChatService: ObservableObject {
                     }
                 }
                 
-                // Update message status to sent with a small delay to show the sending state
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    // ✅ Actualizar estado local inmediatamente
-                    self?.updateLocalMessageStatus(
-                        conversationId: message.conversationId,
-                        messageId: message.id,
-                        status: .sent
-                    )
-                    
-                    self?.updateMessageStatus(
-                        conversationId: message.conversationId,
-                        messageId: message.id,
-                        status: .sent
-                    ) { statusError in
-                        if let statusError = statusError {
-                            // No llamar completion aquí porque ya se llamó arriba
-                            return
-                        }
-                        
-                    }
-                }
+                // ✅ Marcar como enviado inmediatamente
+                self?.updateMessageStatus(
+                    conversationId: message.conversationId,
+                    messageId: message.id,
+                    status: .sent
+                ) { _ in }
+                
+                // ✅ Llamar completion con éxito INMEDIATAMENTE
+                var updatedMessage = message
+                updatedMessage.status = .sent
+                completion(.success(updatedMessage))
             }
         } catch {
             completion(.failure(error))
@@ -1055,7 +1067,7 @@ class ChatService: ObservableObject {
         }
     }
     
-    // ✅ NUEVA: Función para marcar mensajes como entregados automáticamente
+    // ✅ Función para marcar mensajes como entregados automáticamente
     func markMessagesAsDelivered(messages: [EnhancedMessage], conversationId: String, currentUserId: String) {
         let unreadMessages = messages.filter {
             $0.senderId != currentUserId &&
@@ -1064,42 +1076,84 @@ class ChatService: ObservableObject {
         }
         
         for message in unreadMessages {
-            // Marcar como entregado
             updateMessageStatus(
                 conversationId: conversationId,
                 messageId: message.id,
                 status: .delivered
-            ) { error in
-                if let error = error {
-                } else {
+            ) { _ in }
+        }
+    }
+    
+    // ✅ Marcar todos los mensajes pendientes como entregados (estilo WhatsApp)
+    // Se llama cuando la app se abre/vuelve a primer plano
+    func markAllPendingMessagesAsDelivered() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        // 1. Obtener todas las conversaciones del usuario
+        db.collection("conversations")
+            .whereField("participants", arrayContains: currentUserId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self, let documents = snapshot?.documents else { return }
+                
+                // 2. Para cada conversación, buscar mensajes con status "sent" del otro usuario
+                for conversationDoc in documents {
+                    let conversationId = conversationDoc.documentID
                     
-                    // Marcar como leído después de un pequeño delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        self.updateMessageStatus(
-                            conversationId: conversationId,
-                            messageId: message.id,
-                            status: .read
-                        ) { readError in
-                            if let readError = readError {
-                            } else {
+                    self.db.collection("conversations")
+                        .document(conversationId)
+                        .collection("messages")
+                        .whereField("senderId", isNotEqualTo: currentUserId)
+                        .whereField("status", isEqualTo: MessageStatus.sent.rawValue)
+                        .getDocuments { [weak self] messagesSnapshot, messagesError in
+                            guard let messages = messagesSnapshot?.documents else { return }
+                            
+                            // 3. Marcar cada mensaje como entregado
+                            for messageDoc in messages {
+                                self?.updateMessageStatus(
+                                    conversationId: conversationId,
+                                    messageId: messageDoc.documentID,
+                                    status: .delivered
+                                ) { _ in }
                             }
                         }
-                    }
                 }
             }
-        }
+    }
+    
+    // ✅ Marcar un mensaje específico como entregado cuando llega la notificación push
+    func markMessageAsDeliveredFromNotification(conversationId: String, messageId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        // Verificar que el mensaje no sea nuestro antes de marcar como entregado
+        db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .document(messageId)
+            .getDocument { [weak self] snapshot, error in
+                guard let data = snapshot?.data(),
+                      let senderId = data["senderId"] as? String,
+                      senderId != currentUserId,
+                      let status = data["status"] as? String,
+                      status == MessageStatus.sent.rawValue
+                else { return }
+                
+                self?.updateMessageStatus(
+                    conversationId: conversationId,
+                    messageId: messageId,
+                    status: .delivered
+                ) { _ in }
+            }
     }
     
     private func updateMessageStatus(conversationId: String, messageId: String, status: MessageStatus, completion: @escaping (Error?) -> Void) {
         
-        // ✅ Actualizar en Firestore
+        // ✅ Actualizar SOLO el status en Firestore (NO tocar timestamp para evitar reordenamiento)
         db.collection("conversations")
             .document(conversationId)
             .collection("messages")
             .document(messageId)
             .updateData([
-                "status": status.rawValue,
-                "timestamp": FieldValue.serverTimestamp() // Forzar actualización del listener
+                "status": status.rawValue
             ]) { error in
                 if let error = error {
                 } else {

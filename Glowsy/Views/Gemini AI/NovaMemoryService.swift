@@ -61,8 +61,8 @@ extension Character {
 
 class NovaMemoryService {
     private let db = Firestore.firestore()
-    private let vertexAI = VertexAI.vertexAI()
-    private lazy var model = vertexAI.generativeModel(modelName: "gemini-2.5-flash-lite")
+    private let vertexAI = VertexAI.vertexAI(location: "global")
+    private lazy var model = vertexAI.generativeModel(modelName: "gemini-3-flash-preview")
     
     // ✅ Control de procesamiento múltiple
     private var isProcessingMemory = false

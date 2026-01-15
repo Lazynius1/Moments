@@ -15,3 +15,11 @@
 "widget.messageRequests.singular" = "1 solicitud de mensaje pendiente";
 "widget.messageRequests.plural" = "%d solicitudes de mensaje pendientes";
 
+/* Live Activities */
+"liveActivity.uploadingStory" = "Subiendo historia";
+"liveActivity.uploadingMoment" = "Subiendo momento";
+"liveActivity.uploading" = "Subiendo...";
+"liveActivity.processing" = "Procesando...";
+"liveActivity.completed" = "Completado";
+"liveActivity.error" = "Error";
+

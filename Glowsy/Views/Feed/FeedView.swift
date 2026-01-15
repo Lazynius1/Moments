@@ -1860,7 +1860,7 @@ struct ModernPostCardView: View {
             case .square: return 400      // Para 1:1 (1080x1080)
             case .portrait: return 500    // Para 4:5 (1080x1350)
             case .landscape: return 300   // Para 16:9 - más compacto
-            case .reels: return 800       // ✅ NUEVO: Para 9:16 (reels/stories) - más alto
+            case .reels: return 600       // ✅ AJUSTADO: Para 9:16 (reels) - altura más razonable para el feed
             }
         }
         
@@ -2354,47 +2354,47 @@ struct ModernPostCardView: View {
         return colors[index % colors.count]
     }
     
-    // ✅ MEJORADO: Función detectAspectRatio con mejor clasificación
+    // ✅ MEJORADO: Función detectAspectRatio - SIEMPRE usar el aspect ratio guardado si está disponible
     private func detectAspectRatio() {
-        // ✅ Evitar detectar múltiples veces para el mismo momento
-        guard detectedAspectRatio == 1.0 || detectedAspectRatio == 0 else {
-            return // Ya se detectó
-        }
-        
-        // ✅ PRIMERO: Intentar usar aspect ratio guardado en el momento
-        if let savedAspectRatio = moment.aspectRatio {
+        // ✅ PRIMERO Y PRINCIPAL: Usar aspect ratio guardado en la base de datos (no recalcular)
+        if let savedAspectRatio = moment.aspectRatio, !savedAspectRatio.isEmpty {
             let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
+            let expectedRatioValue = aspectRatioFromDB.value
             
-            DispatchQueue.main.async {
-                // ✅ Validar que el valor sea finito y positivo
-                let ratioValue = aspectRatioFromDB.value
-                if ratioValue > 0 && ratioValue.isFinite {
-                    self.detectedAspectRatio = ratioValue
+            // ✅ MEJORADO: Solo actualizar si el valor actual es diferente o no está establecido
+            // Esto evita recálculos innecesarios al refrescar
+            if detectedAspectRatio != expectedRatioValue || detectedAspectRatio == 0 || detectedAspectRatio == 1.0 {
+                DispatchQueue.main.async {
+                    // ✅ Validar que el valor sea finito y positivo
+                    if expectedRatioValue > 0 && expectedRatioValue.isFinite {
+                        self.detectedAspectRatio = expectedRatioValue
+                        
+                        // ✅ INVALIDAR cache para recalcular con nuevo ratio
+                        self.cachedCardHeight = nil
+                    } else {
+                        self.detectedAspectRatio = 1.0 // Fallback a square
+                    }
                     
-                    // ✅ INVALIDAR cache para recalcular con nuevo ratio
-                    self.cachedCardHeight = nil
-                } else {
-
-                    self.detectedAspectRatio = 1.0 // Fallback a square
-                }
-                
-                // Clasificar el tipo con ratios exactos
-                switch aspectRatioFromDB {
-                case .landscape:
-                    self.aspectRatioType = .landscape
-
-                case .portrait:
-                    self.aspectRatioType = .portrait
-
-                case .square:
-                    self.aspectRatioType = .square
-
-                case .nineBySixteen:
-                    self.aspectRatioType = .reels
-
+                    // Clasificar el tipo con ratios exactos
+                    switch aspectRatioFromDB {
+                    case .landscape:
+                        self.aspectRatioType = .landscape
+                    case .portrait:
+                        self.aspectRatioType = .portrait
+                    case .square:
+                        self.aspectRatioType = .square
+                    case .nineBySixteen:
+                        self.aspectRatioType = .reels
+                    }
                 }
             }
-            return
+            return // ✅ IMPORTANTE: No hacer detección si ya tenemos el aspect ratio guardado
+        }
+        
+        // ✅ SOLO FALLBACK: Si NO hay aspect ratio guardado, detectar una sola vez
+        // Evitar detectar múltiples veces para el mismo momento
+        guard detectedAspectRatio == 1.0 || detectedAspectRatio == 0 else {
+            return // Ya se detectó
         }
         
         // ✅ FALLBACK: Si no hay aspect ratio guardado, detectar una sola vez
@@ -2883,6 +2883,9 @@ struct MediaItemView: View {
                             .overlay(ProgressView().tint(Color(hex: "00A896")))
                             .aspectRatio(aspectRatio, contentMode: .fit)
                     }
+                    .setProcessor(DownsamplingImageProcessor(size: CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width * aspectRatio)))
+                    .scaleFactor(UIScreen.main.scale)
+                    .cacheOriginalImage()
                     .resizable()
                     .aspectRatio(aspectRatio, contentMode: .fill)
                     .clipped()
@@ -2931,66 +2934,222 @@ struct CroppedVideoPlayer: View {
     let currentMoment: Moment
     let onTap: () -> Void
     
+    @StateObject private var globalManager = GlobalVideoManager.shared
+    @State private var isVisible = false
+    @State private var isMuted = true // ✅ Estado para el botón de mute
+    
     var body: some View {
         ZStack {
-            // ✅ VIDEO que se reproduce en el feed CON CROP
-            ModernVideoPlayer(
-                url: item.url,
-                aspectRatio: feedDisplayRatio, // ✅ Usar ratio croppado para el feed
-                videoId: currentMoment.id ?? "video_\(UUID().uuidString)"
-            )
-            
-            // ✅ OVERLAY invisible para capturar taps
-            Button(action: onTap) {
-                Rectangle()
-                    .fill(Color.clear)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            // ✅ INDICADORES sutiles
-            VStack {
-                HStack {
+            // ✅ MEJORADO: Para reels (9:16), mostrar más grande y destacado
+            if isReelsFormat {
+                // ✅ REELS: Mostrar con mejor diseño estilo Instagram
+                ZStack {
+                    // Thumbnail del video si está disponible
+                    if let thumbnailUrl = currentMoment.thumbnailUrl, !thumbnailUrl.isEmpty {
+                        KFImage(URL(string: thumbnailUrl))
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                    } else {
+                        // Video player como fallback
+                        ModernVideoPlayer(
+                            url: item.url,
+                            aspectRatio: aspectRatio, // ✅ Mostrar ratio completo para reels
+                            videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                            hideMuteButton: true // ✅ Ocultar botón de mute del player (usamos el nuestro arriba)
+                        )
+                        .onAppear {
+                            // ✅ Actualizar estado de mute cuando aparece el player
+                            let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
+                            isMuted = globalManager.isMuted(videoId)
+                        }
+                        .onChange(of: globalManager.userHasEnabledSoundInSession) { hasSound in
+                            // ✅ ESTILO INSTAGRAM: Actualizar estado cuando el usuario activa el sonido en la sesión
+                            let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
+                            isMuted = !hasSound || globalManager.isMuted(videoId)
+                        }
+                    }
+                    
+                    // ✅ OVERLAY con gradiente sutil estilo Instagram
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.black.opacity(0.0),
+                            Color.black.opacity(0.3)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    
+                    // ✅ OVERLAY invisible para capturar taps (en el fondo, zIndex bajo)
+                    Button(action: {
+                        onTap()
+                    }) {
+                        Rectangle()
+                            .fill(Color.clear)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .zIndex(1) // ✅ Overlay en el fondo
+                    
+                    // ✅ INDICADORES mejorados estilo Instagram (por encima del overlay)
+                    VStack {
+                        HStack {
+                            // ✅ Badge "Reels" estilo Instagram (esquina superior izquierda)
+                            HStack(spacing: 4) {
+                                Image(systemName: "play.rectangle.fill")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text(NSLocalizedString("feed.reels.badge", comment: "Reels badge"))
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color.purple.opacity(0.8),
+                                                Color.pink.opacity(0.8)
+                                            ]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            )
+                            .padding(.leading, 12)
+                            .padding(.top, 12)
+                            
+                            // ✅ Botón de mute (junto al badge) - por encima del overlay
+                            Button(action: {
+                                let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
+                                globalManager.toggleMute(videoId)
+                                isMuted = globalManager.isMuted(videoId)
+                            }) {
+                                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.2.fill")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .frame(width: 32, height: 32)
+                                    .background(
+                                        Circle()
+                                            .fill(.ultraThinMaterial)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                            )
+                                    )
+                                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                            }
+                            .padding(.leading, 8)
+                            .padding(.top, 12)
+                            
+                            Spacer()
+                            
+                            // Duración del video (esquina superior derecha)
+                            if let duration = currentMoment.videoDuration {
+                                Text(formatDuration(duration))
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(6)
+                                    .padding(.trailing, 12)
+                                    .padding(.top, 12)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // ✅ Indicador de expansión mejorado (centro abajo)
+                        HStack {
+                            Spacer()
+                            
+                            HStack(spacing: 4) {
+                                Text(NSLocalizedString("feed.reels.tapToView", comment: "Tap to view reels"))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                Image(systemName: "arrow.up.right.square.fill")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(.white.opacity(0.9))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.5))
+                            )
+                            
+                            Spacer()
+                        }
+                        .padding(.bottom, 12)
+                    }
+                    .zIndex(100) // ✅ Asegurar que todos los controles estén por encima del overlay
+                }
+            } else {
+                // ✅ VIDEOS HORIZONTALES: Mantener diseño actual
+                ModernVideoPlayer(
+                    url: item.url,
+                    aspectRatio: feedDisplayRatio,
+                    videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                    hideMuteButton: false // ✅ Mostrar botón de mute para videos horizontales
+                )
+                
+                // ✅ INDICADORES sutiles para videos horizontales
+                VStack {
+                    HStack {
+                        Spacer()
+                        
+                        if let duration = currentMoment.videoDuration {
+                            Text(formatDuration(duration))
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.black.opacity(0.6))
+                                .cornerRadius(6)
+                                .padding(.trailing, 8)
+                                .padding(.top, 8)
+                        }
+                    }
+                    
                     Spacer()
                     
-                    // Duración del video
-                    if let duration = currentMoment.videoDuration {
-                        Text(formatDuration(duration))
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.black.opacity(0.6))
+                    HStack {
+                        Spacer()
+                        
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(6)
+                            .background(Color.black.opacity(0.4))
                             .cornerRadius(6)
                             .padding(.trailing, 8)
-                            .padding(.top, 8)
+                            .padding(.bottom, 8)
                     }
-                }
-                
-                Spacer()
-                
-                // Indicador sutil de expansión
-                HStack {
-                    Spacer()
-                    
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                        .padding(6)
-                        .background(Color.black.opacity(0.4))
-                        .cornerRadius(6)
-                        .padding(.trailing, 8)
-                        .padding(.bottom, 8)
                 }
             }
         }
+        .onAppear {
+            isVisible = true
+        }
+        .onDisappear {
+            isVisible = false
+        }
     }
     
-    // ✅ LÓGICA DE CROP: Si es 9:16, mostrar como 4:5 en el feed
+    // ✅ MEJORADO: Detectar si es formato reels (9:16)
+    private var isReelsFormat: Bool {
+        aspectRatio < 0.7 || currentMoment.aspectRatio == "9:16"
+    }
+    
+    // ✅ LÓGICA DE CROP: Solo para videos horizontales
     private var feedDisplayRatio: CGFloat {
         if aspectRatio < 0.7 { // Es video vertical (reels 9:16)
-            return 0.8 // Mostrar como 4:5 en el feed (crop)
+            return aspectRatio // ✅ Mostrar ratio completo para reels (no crop)
         }
         return aspectRatio // Otros formatos mantienen su ratio
     }
@@ -3441,12 +3600,12 @@ class FeedViewModel: ObservableObject {
                         allMoments.append(contentsOf: limitedMoments)
                     }
                     
-                    // Configurar listeners
-                    for moment in limitedMoments {
-                        if let momentId = moment.id {
-                            self.listenForCommentUpdates(momentId: momentId, authorId: targetUserId)
-                        }
-                    }
+                    // Configurar listeners (ELIMINADO: ahora es lazy en ModernPostCardView)
+                    // for moment in limitedMoments {
+                    //    if let momentId = moment.id {
+                    //        self.listenForCommentUpdates(momentId: momentId, authorId: targetUserId)
+                    //    }
+                    // }
                 }
             }
         }
@@ -3473,6 +3632,11 @@ class FeedViewModel: ObservableObject {
                     }
                     
                     self.moments = filteredMoments
+                    
+                    // ✅ INSTANT PLAYBACK: Preload videos
+                    let videoUrls = filteredMoments
+                        .compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
                 }
             }
         }
@@ -3504,11 +3668,8 @@ class FeedViewModel: ObservableObject {
                     }
                     
                     // Configurar listeners
-                    for moment in limitedMoments {
-                        if let momentId = moment.id {
-                            self.listenForCommentUpdates(momentId: momentId, authorId: targetUserId)
-                        }
-                    }
+                    // Configurar listeners
+                    // (ELIMINADO: ahora es lazy en ModernPostCardView)
                 }
             }
         }
@@ -3530,6 +3691,11 @@ class FeedViewModel: ObservableObject {
                         self.followingMoments.append(contentsOf: filteredMoments)
                         self.moments.append(contentsOf: filteredMoments)
                     }
+                    
+                    // ✅ INSTANT PLAYBACK: Preload videos
+                    let videoUrls = filteredMoments
+                        .compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
                 }
             }
         }
@@ -3951,11 +4117,23 @@ class FeedViewModel: ObservableObject {
         firestoreService.fetchConnections(userId: userId) { result in
             if case .success(let connections) = result {
                 DispatchQueue.main.async {
-                    self.connections = connections
+                    self.objectWillChange.send()
                 }
             }
         }
+    }
+    
+    // ✅ NUEVO: Remover listener específico (Lazy Loading)
+    func removeCommentListener(momentId: String) {
+        listenersQueue.async(flags: .barrier) {
+            if let listener = self.commentListeners[momentId] {
+                listener.remove()
+                self.commentListeners.removeValue(forKey: momentId)
+            }
+        }
+    }    
         
+    func fetchAdmirers(userId: String) {
         firestoreService.fetchAdmirers(userId: userId) { result in
             if case .success(let admirers) = result {
                 DispatchQueue.main.async {
@@ -4104,3 +4282,4 @@ extension FeedViewModel {
         // AnalyticsService.shared.trackFeatureUsage("feed_preference_\(currentPreference.rawValue)")
     }
 }
+

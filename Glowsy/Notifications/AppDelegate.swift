@@ -46,6 +46,22 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     // ✅ Registro fallido de APNs
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
     }
+    
+    // ✅ Handler para notificaciones en BACKGROUND - marca mensajes como delivered
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        
+        // ✅ Marcar mensaje como entregado cuando llega la notificación (funciona en background!)
+        if let conversationId = userInfo["conversationId"] as? String,
+           let messageId = userInfo["messageId"] as? String {
+            ChatService.shared.markMessageAsDeliveredFromNotification(
+                conversationId: conversationId,
+                messageId: messageId
+            )
+            completionHandler(.newData)
+        } else {
+            completionHandler(.noData)
+        }
+    }
 }
 
 // MARK: - MessagingDelegate
@@ -65,10 +81,19 @@ extension AppDelegate: MessagingDelegate {
 
 // MARK: - UNUserNotificationCenterDelegate
 extension AppDelegate: UNUserNotificationCenterDelegate {
-    // ✅ MEJORADO: Mostrar notificaciones cuando la app está abierta con badge
+    // ✅ Mostrar notificaciones cuando la app está abierta + mark as delivered
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         
         let userInfo = notification.request.content.userInfo
+        
+        // ✅ Marcar mensaje como entregado cuando llegue la notificación (estilo WhatsApp)
+        if let conversationId = userInfo["conversationId"] as? String,
+           let messageId = userInfo["messageId"] as? String {
+            ChatService.shared.markMessageAsDeliveredFromNotification(
+                conversationId: conversationId,
+                messageId: messageId
+            )
+        }
         
         // ✅ VERIFICAR si es notificación silenciosa para badge
         if userInfo["silent"] as? Bool == true {
@@ -79,7 +104,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             completionHandler([.banner, .sound, .badge])
         }
         
-        // ✅ NUEVO: Actualizar badge service cuando llegue notificación
+        // ✅ Actualizar badge service cuando llegue notificación
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationBadgeService.shared.setupListeners()
         }

@@ -6,6 +6,9 @@ struct GlowsyWidgetExtensionBundle: WidgetBundle {
     var body: some Widget {
         GlowsyWidgetExtension()
         GlowsyWidgetExtensionControl()
-        GlowsyWidgetExtensionLiveActivity()
+        if #available(iOS 16.1, *) {
+            GlowsyWidgetExtensionLiveActivity()
+            MomentUploadLiveActivity()
+        }
     }
 }

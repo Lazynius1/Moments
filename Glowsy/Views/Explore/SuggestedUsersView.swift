@@ -77,14 +77,14 @@ struct SuggestedUsersView: View {
                         .scaleEffect(1.2)
                     Text("explore.suggestedUsers.loading")
                         .font(.custom("Poppins-Regular", size: 16))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.users.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "person.3.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text("explore.suggestedUsers.empty")
                         .font(.custom("Poppins-SemiBold", size: 18))
@@ -92,7 +92,7 @@ struct SuggestedUsersView: View {
                     
                     Text("explore.suggestedUsers.emptyDescription")
                         .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -121,7 +121,7 @@ struct SuggestedUsersView: View {
                                     .scaleEffect(0.8)
                                 Text("explore.suggestedUsers.loadingMore")
                                     .font(.custom("Poppins-Regular", size: 14))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                                 Spacer()
                             }
                             .padding(.vertical, 20)
@@ -158,11 +158,11 @@ struct SuggestedUserRow: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
-                    Circle()
+                        Circle()
                         .fill(Color.gray.opacity(0.3))
                         .overlay(
                             Image(systemName: "person.fill")
-                                .foregroundColor(.gray)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                         )
                 }
                 .frame(width: 50, height: 50)
@@ -186,7 +186,7 @@ struct SuggestedUserRow: View {
                 if commonInterests > 0 {
                     Text(String(format: NSLocalizedString("explore.suggestedUsers.commonInterests", comment: "Common interests"), commonInterests))
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 }
                 
                 // Intereses (máximo 2)
@@ -208,7 +208,7 @@ struct SuggestedUserRow: View {
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(Color.gray.opacity(0.1))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                                 .clipShape(Capsule())
                         }
                     }
@@ -356,6 +356,7 @@ class SuggestedUsersViewModel: ObservableObject {
     private let privacyService = PrivacyService()
     private var currentUserId: String?
     private var blockedUsers: Set<String> = []
+    private var followedUserIds: Set<String> = [] // Usuarios ya seguidos
     private var lastDocument: DocumentSnapshot?
     private let pageSize = 20
     
@@ -371,8 +372,11 @@ class SuggestedUsersViewModel: ObservableObject {
         // Cargar usuarios bloqueados
         loadBlockedUsers()
         
-        // Cargar usuarios sugeridos
-        loadSuggestedUsers()
+        // Cargar usuarios seguidos primero
+        loadFollowedUsers { [weak self] in
+            // Cargar usuarios sugeridos (ya con usuarios seguidos cargados)
+            self?.loadSuggestedUsers()
+        }
     }
     
     private func loadCurrentUserInterests() {
@@ -397,6 +401,26 @@ class SuggestedUsersViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self?.blockedUsers = Set(blocked)
                 }
+            }
+        }
+    }
+    
+    // Cargar usuarios seguidos
+    private func loadFollowedUsers(completion: @escaping () -> Void) {
+        guard let userId = currentUserId else {
+            completion()
+            return
+        }
+        
+        firestoreService.fetchConnections(userId: userId) { [weak self] result in
+            switch result {
+            case .success(let connections):
+                DispatchQueue.main.async {
+                    self?.followedUserIds = Set(connections.map { $0.userId })
+                    completion()
+                }
+            case .failure(_):
+                completion()
             }
         }
     }
@@ -427,10 +451,11 @@ class SuggestedUsersViewModel: ObservableObject {
                     }
                 }
                 
-                // Filtrar usuarios bloqueados
+                // Filtrar usuarios bloqueados Y usuarios ya seguidos
                 let filteredUsers = newUsers.filter { user in
                     !(self?.blockedUsers.contains(user.id) ?? false) &&
-                    !(user.blockedUsers ?? []).contains(userId)
+                    !(user.blockedUsers ?? []).contains(userId) &&
+                    !(self?.followedUserIds.contains(user.id) ?? false) // Excluir usuarios ya seguidos
                 }
                 
                 // Ordenar por intereses comunes
@@ -481,12 +506,13 @@ class SuggestedUsersViewModel: ObservableObject {
                     }
                 }
                 
-                // Filtrar usuarios bloqueados y duplicados
+                // Filtrar usuarios bloqueados, duplicados Y usuarios ya seguidos
                 let existingIds = Set(self?.users.map { $0.id } ?? [])
                 let filteredUsers = newUsers.filter { user in
                     !existingIds.contains(user.id) &&
                     !(self?.blockedUsers.contains(user.id) ?? false) &&
-                    !(user.blockedUsers ?? []).contains(self?.currentUserId ?? "")
+                    !(user.blockedUsers ?? []).contains(self?.currentUserId ?? "") &&
+                    !(self?.followedUserIds.contains(user.id) ?? false) // Excluir usuarios ya seguidos
                 }
                 
                 // Ordenar por intereses comunes
@@ -511,6 +537,7 @@ class SuggestedUsersViewModel: ObservableObject {
     func refreshUsers() async {
         users = []
         userButtonStates = [:]
+        followedUserIds = [] // Limpiar usuarios seguidos para recargar
         lastDocument = nil
         loadInitialUsers()
     }
@@ -523,6 +550,11 @@ class SuggestedUsersViewModel: ObservableObject {
             DispatchQueue.main.async {
                 if error == nil {
                     self?.userButtonStates[userId] = .following
+                    self?.followedUserIds.insert(userId) // Agregar a usuarios seguidos
+                    // Eliminar de la lista de usuarios sugeridos
+                    if let index = self?.users.firstIndex(where: { $0.id == userId }) {
+                        self?.users.remove(at: index)
+                    }
                 } else {
                     // En caso de error, recargar el estado del botón
                     self?.checkUserButtonState(for: userId)
@@ -540,7 +572,17 @@ class SuggestedUsersViewModel: ObservableObject {
             targetUserId: userId
         ) { [weak self] (state: FollowButtonState) in
             DispatchQueue.main.async {
-                self?.userButtonStates[userId] = state
+                guard let self = self else { return }
+                self.userButtonStates[userId] = state
+                
+                // Si el estado es "siguiendo", agregar a followedUserIds y eliminar de sugerencias
+                if state == .following {
+                    self.followedUserIds.insert(userId)
+                    // Eliminar de la lista de sugerencias
+                    if let index = self.users.firstIndex(where: { $0.id == userId }) {
+                        self.users.remove(at: index)
+                    }
+                }
             }
         }
     }

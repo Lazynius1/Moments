@@ -18,7 +18,8 @@ class OnlineStatusService: ObservableObject {
     @Published var lastSeen: Date = Date()
     
     // ✅ NUEVO: Variable para guardar el estado anterior (solo si era online o away)
-    private var previousOnlineStatus: OnlineStatus?
+    // ELIMINADO: Ya no es necesario con la nueva lógica basada en estados actuales
+    // private var previousOnlineStatus: OnlineStatus?
     
     init() {
         setupOnlineStatusTracking()
@@ -152,14 +153,35 @@ class OnlineStatusService: ObservableObject {
                 
                 let data = document.data()
                 let statusString = data?["onlineStatus"] as? String ?? "offline"
-                let status = OnlineStatus(rawValue: statusString) ?? .offline
+                let storedStatus = OnlineStatus(rawValue: statusString) ?? .offline
                 
                 var lastSeen: Date?
                 if let timestamp = data?["lastSeen"] as? Timestamp {
                     lastSeen = timestamp.dateValue()
                 }
                 
-                completion(status, lastSeen)
+                // ✅ LOGICA DE ESTADO PASIVO (CALCULADO)
+                // Si el usuario dice "online" pero su lastSeen es viejo, degradar el estado
+                var effectiveStatus = storedStatus
+                
+                if let lastSeenTime = lastSeen {
+                    let timeSinceLastSeen = Date().timeIntervalSince(lastSeenTime)
+                    
+                    if storedStatus == .online {
+                        if timeSinceLastSeen > 300 { // > 5 minutos sin actividad -> Ausente
+                            effectiveStatus = .away
+                        }
+                        if timeSinceLastSeen > 1800 { // > 30 minutos -> Offline
+                            effectiveStatus = .offline
+                        }
+                    } else if storedStatus == .away {
+                        if timeSinceLastSeen > 1800 { // > 30 minutos -> Offline
+                            effectiveStatus = .offline
+                        }
+                    }
+                }
+                
+                completion(effectiveStatus, lastSeen)
             }
     }
     
@@ -241,58 +263,39 @@ class OnlineStatusService: ObservableObject {
     // ✅ NUEVO: Manejar cuando la app entra en background
     private func handleAppDidEnterBackground() {
         
-        // ✅ LÓGICA INTELIGENTE: Solo guardar estado anterior si es online o away
-        if currentUserStatus == .online || currentUserStatus == .away {
-            previousOnlineStatus = currentUserStatus
-            
-            // Programar cambios automáticos según el estado actual
-            if currentUserStatus == .online {
-                // En línea: 10 min → away, 30 min → offline (PRODUCCIÓN)
-                awayTimer = Timer.scheduledTimer(withTimeInterval: 600, repeats: false) { [weak self] _ in
-                    self?.setStatus(.away)
-                    
-                    // ✅ NUEVO: Programar el siguiente cambio DESPUÉS de cambiar a away
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1200) {
-                        self?.setStatus(.offline)
-                    }
-                }
-                
-            } else if currentUserStatus == .away {
-                // Ausente: 20 min → offline (PRODUCCIÓN)
-                offlineTimer = Timer.scheduledTimer(withTimeInterval: 1200, repeats: false) { [weak self] _ in
-                    self?.setStatus(.offline)
-                }
-                
-            } else if currentUserStatus == .busy {
-                // Ocupado: 10 min → offline (directo) - PRODUCCIÓN
-                offlineTimer = Timer.scheduledTimer(withTimeInterval: 600, repeats: false) { [weak self] _ in
-                    self?.setStatus(.offline)
-                }
-            }
-            
-        } else {
-            // Si el estado es desconectado o invisible, no hacer nada
+        // Simplemente actualizamos el timestamp final para que la lógica pasiva funcione
+        if currentUserStatus == .online {
+            updateLastSeen()
         }
+        
+        // Cancelar timers previos
+        awayTimer?.invalidate()
+        offlineTimer?.invalidate()
+        awayTimer = nil
+        offlineTimer = nil
     }
     
     // ✅ NUEVO: Manejar cuando la app vuelve al foreground
     private func handleAppWillEnterForeground() {
         
-        // Cancelar timers automáticos
+        // Cancelar timers automáticos (limpieza)
         awayTimer?.invalidate()
         offlineTimer?.invalidate()
         awayTimer = nil
         offlineTimer = nil
         
-        // ✅ LÓGICA DE RESTAURACIÓN INTELIGENTE
-        if let previousStatus = previousOnlineStatus {
-            // Solo restaurar si el estado anterior era online o away
-            if previousStatus == .online || previousStatus == .away {
-                setStatus(previousStatus)
-            } else {
-            }
-            previousOnlineStatus = nil // Limpiar después de restaurar
-        } else {
+        // ✅ LÓGICA DE RESTAURACIÓN DE ESTADO
+        // Si el usuario estaba Online o Ausente, al volver a la app pasa a Online.
+        // Si estaba Ocupado, Invisible o Desconectado (manual), SE RESPETA ese estado.
+        switch currentUserStatus {
+        case .online, .away:
+            setStatus(.online)
+        case .busy:
+            // Si está ocupado, refrescamos el timestamp pero mantenemos el estado
+            updateLastSeen()
+        case .invisible, .offline:
+            // Si está oculto, no hacemos nada para respetar su privacidad
+            break
         }
     }
     

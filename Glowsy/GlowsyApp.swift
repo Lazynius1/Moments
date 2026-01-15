@@ -88,6 +88,8 @@ struct GlowsyApp: App {
                         }
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                             AnalyticsService.shared.applicationDidBecomeActive()
+                            // ✅ NUEVO: Marcar mensajes pendientes como entregados (respaldo si notificación no llegó)
+                            ChatService.shared.markAllPendingMessagesAsDelivered()
                         }
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                             AnalyticsService.shared.applicationWillResignActive()
