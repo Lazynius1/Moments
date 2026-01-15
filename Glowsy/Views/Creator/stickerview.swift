@@ -1170,11 +1170,16 @@ struct StickerPickerView: View {
                 UIColor.systemPurple.withAlphaComponent(0.85).cgColor,
                 UIColor.systemPink.withAlphaComponent(0.85).cgColor
             ] as CFArray
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0])!
             
             context.cgContext.saveGState()
             backgroundPath.addClip()
-            context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+            
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0]) {
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+            } else {
+                UIColor.systemPurple.setFill()
+                context.fill(rect)
+            }
             context.cgContext.restoreGState()
             
             // Borde sutil
@@ -1352,13 +1357,19 @@ struct StickerPickerView: View {
             let rect = CGRect(x: 0, y: 0, width: 140, height: 50)
             
             // ✅ FONDO CON GRADIENTE SEGÚN CLIMA
+            // ✅ FONDO CON GRADIENTE SEGÚN CLIMA
             let colors = getWeatherGradientColors(for: symbol)
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0])!
             
             let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
             context.cgContext.saveGState()
             path.addClip()
-            context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+            
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+            } else {
+                UIColor.systemBlue.setFill()
+                context.fill(rect)
+            }
             context.cgContext.restoreGState()
             
             // ✅ BORDE ELEGANTE
@@ -1397,12 +1408,17 @@ struct StickerPickerView: View {
                 UIColor.systemBlue.withAlphaComponent(0.9).cgColor,
                 UIColor.systemCyan.withAlphaComponent(0.9).cgColor
             ] as CFArray
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0])!
             
             let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
             context.cgContext.saveGState()
             path.addClip()
-            context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+            
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+            } else {
+                UIColor.systemBlue.setFill()
+                context.fill(rect)
+            }
             context.cgContext.restoreGState()
             
             // ✅ BORDE ELEGANTE
@@ -1521,13 +1537,19 @@ struct StickerPickerView: View {
                 UIColor.systemIndigo.withAlphaComponent(0.9).cgColor,
                 UIColor.systemPurple.withAlphaComponent(0.9).cgColor
             ] as CFArray
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0])!
             
             let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
-            context.cgContext.saveGState()
-            path.addClip()
-            context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-            context.cgContext.restoreGState()
+            
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
+                context.cgContext.saveGState()
+                path.addClip()
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+                context.cgContext.restoreGState()
+            } else {
+                // Fallback safe color
+                UIColor.systemIndigo.withAlphaComponent(0.9).setFill()
+                path.fill()
+            }
             
             // ✅ BORDE ELEGANTE
             UIColor.white.withAlphaComponent(0.3).setStroke()
@@ -1561,6 +1583,13 @@ struct StickerPickerView: View {
         dismiss()
     }
     
+    private func cleanupMemory() {
+        // ✅ Limpiar recursos pesados
+        giphyResults.removeAll()
+        isLoadingGiphy = false
+        searchText = ""
+    }
+    
     // MARK: - ✅ SELFIE STICKER
     private func createSelfieSticker() {
         // ✅ USAR SHEET PARA EVITAR CONFLICTOS DE PRESENTACIÓN
@@ -1568,7 +1597,11 @@ struct StickerPickerView: View {
     }
     
     // ✅ FUNCIÓN PARA CREAR STICKER DESDE IMAGEN
-    func createSelfieStickerFromImage(_ selfieImage: UIImage) {
+    func createSelfieStickerFromImage(_ originalImage: UIImage) {
+        // ✅ OPTIMIZAR IMAGEN ANTES DE PROCESAR
+        // Reducir tamaño masivo (ej. 12MP) a algo manejable para el renderer (800px)
+        let selfieImage = downscaleImageIfNeeded(originalImage)
+        
         // ✅ CREAR STICKER CIRCULAR CON BORDE ELEGANTE
         let size: CGFloat = 120
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
@@ -1584,12 +1617,17 @@ struct StickerPickerView: View {
                 UIColor.systemPurple.withAlphaComponent(0.8).cgColor,
                 UIColor.systemPink.withAlphaComponent(0.8).cgColor
             ] as CFArray
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0])!
             
-            context.cgContext.saveGState()
-            circlePath.addClip()
-            context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: size, y: size), options: [])
-            context.cgContext.restoreGState()
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0]) {
+                context.cgContext.saveGState()
+                circlePath.addClip()
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: size, y: size), options: [])
+                context.cgContext.restoreGState()
+            } else {
+                // Fallback
+                UIColor.systemPurple.withAlphaComponent(0.8).setFill()
+                circlePath.fill()
+            }
             
             // ✅ BORDE ELEGANTE
             UIColor.white.withAlphaComponent(0.6).setStroke()
@@ -1634,7 +1672,30 @@ struct StickerPickerView: View {
         )
         
         selectedStickers.append(sticker)
+        
+        // ✅ LIMPIAR MEMORIA
+        cleanupMemory()
         dismiss()
+    }
+    
+    // ✅ HELPER: Downscale large images before processing
+    private func downscaleImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 800) -> UIImage {
+        if image.size.width <= maxDimension && image.size.height <= maxDimension {
+            return image
+        }
+        
+        let aspectRatio = image.size.width / image.size.height
+        let newSize: CGSize
+        if image.size.width > image.size.height {
+            newSize = CGSize(width: maxDimension, height: maxDimension / aspectRatio)
+        } else {
+            newSize = CGSize(width: maxDimension * aspectRatio, height: maxDimension)
+        }
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
     
     private func createMentionSticker(_ username: String) {
@@ -1775,12 +1836,16 @@ struct StickerPickerView: View {
                 UIColor.systemOrange.withAlphaComponent(0.85).cgColor,
                 UIColor.systemYellow.withAlphaComponent(0.85).cgColor
             ] as CFArray
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0])!
             
-            context.cgContext.saveGState()
-            backgroundPath.addClip()
-            context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-            context.cgContext.restoreGState()
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0]) {
+                context.cgContext.saveGState()
+                backgroundPath.addClip()
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+                context.cgContext.restoreGState()
+            } else {
+                UIColor.systemOrange.withAlphaComponent(0.85).setFill()
+                backgroundPath.fill()
+            }
             
             // Borde sutil
             UIColor.white.withAlphaComponent(0.3).setStroke()
@@ -1850,21 +1915,25 @@ struct StickerPickerView: View {
                 UIColor.systemPink.withAlphaComponent(0.85).cgColor
             ] as CFArray
             
-            let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors,
-                locations: [0.0, 0.5, 1.0]
-            )!
-            
             context.cgContext.saveGState()
             let mainPath = UIBezierPath(roundedRect: rect, cornerRadius: 16)
             mainPath.addClip()
-            context.cgContext.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: 0, y: 0),
-                end: CGPoint(x: rect.width, y: rect.height),
-                options: []
-            )
+            
+            if let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colors,
+                locations: [0.0, 0.5, 1.0]
+            ) {
+                context.cgContext.drawLinearGradient(
+                    gradient,
+                    start: CGPoint(x: 0, y: 0),
+                    end: CGPoint(x: rect.width, y: rect.height),
+                    options: []
+                )
+            } else {
+                UIColor.systemPurple.withAlphaComponent(0.85).setFill()
+                mainPath.fill()
+            }
             context.cgContext.restoreGState()
             
             // ✅ Borde con glow sutil
@@ -1958,27 +2027,33 @@ struct StickerPickerView: View {
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: 300, height: 120)
             
-            // Fondo degradado dinámico
-            let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: [
-                    UIColor.systemTeal.cgColor,
-                    UIColor.systemBlue.cgColor,
-                    UIColor.systemPurple.cgColor
-                ] as CFArray,
-                locations: [0.0, 0.5, 1.0]
-            )!
+            // Fondo degradado dinámico - SAFE UNWRAP
+            let colors = [
+                UIColor.systemTeal.cgColor,
+                UIColor.systemBlue.cgColor,
+                UIColor.systemPurple.cgColor
+            ] as CFArray
             
             let path = UIBezierPath(roundedRect: rect, cornerRadius: 20)
             context.cgContext.addPath(path.cgPath)
             context.cgContext.clip()
             
-            context.cgContext.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: 0, y: 0),
-                end: CGPoint(x: rect.width, y: rect.height),
-                options: []
-            )
+            if let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colors,
+                locations: [0.0, 0.5, 1.0]
+            ) {
+                context.cgContext.drawLinearGradient(
+                    gradient,
+                    start: CGPoint(x: 0, y: 0),
+                    end: CGPoint(x: rect.width, y: rect.height),
+                    options: []
+                )
+            } else {
+                // Fallback color
+                UIColor.systemBlue.setFill()
+                path.fill()
+            }
             
             // Overlay glassmorphism
             UIColor.white.withAlphaComponent(0.1).setFill()

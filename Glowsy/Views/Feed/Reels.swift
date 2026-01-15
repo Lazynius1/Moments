@@ -65,6 +65,14 @@ struct ReelsViewer: View {
                             }
                         }
                 )
+                .onAppear {
+                    // ✅ INSTANT PLAYBACK: Precargar los primeros videos al abrir
+                     preloadUpcomingVideos(from: currentIndex)
+                }
+                .onChange(of: currentIndex) { newIndex in
+                    // ✅ INSTANT PLAYBACK: Precargar dinámicamente al scrollear
+                    preloadUpcomingVideos(from: newIndex)
+                }
             }
             
             // Solo botón de cerrar en la esquina superior derecha
@@ -96,6 +104,19 @@ struct ReelsViewer: View {
         }
         .preferredColorScheme(.dark)
         .statusBarHidden()
+    }
+    
+    // ✅ INSTANT PLAYBACK: Lógica de preloading para Reels
+    private func preloadUpcomingVideos(from index: Int) {
+        // Precargar los siguientes 3 videos
+        let preloadCount = 3
+        let endIndex = min(index + preloadCount, videos.count)
+        
+        if index + 1 < endIndex {
+            let upcomingVideos = videos[(index + 1)..<endIndex]
+            let urls = upcomingVideos.map { $0.videoUrl }
+            VideoPreloader.shared.preloadAssets(urls: urls)
+        }
     }
 }
 
@@ -545,6 +566,9 @@ struct ReelVideoView: View {
                     setupVideo()
                     loadVideoData()
                     checkUserStories() // ✅ NUEVO: Verificar historias del usuario
+                    
+                    // ✅ INSTANT PLAYBACK: Precargar siguientes videos
+                    preloadNextVideos()
                 }
             }
         }
@@ -788,6 +812,17 @@ struct ReelVideoView: View {
            let window = windowScene.windows.first {
             window.rootViewController?.present(activityViewController, animated: true)
         }
+    }
+    
+    // ✅ INSTANT PLAYBACK: Lógica de preloading inteligente
+    private func preloadNextVideos() {
+        // Encontrar el index actual (esto es un poco hacky porque ReelsViewer controla el index, 
+        // pero ReelVideoView no lo conoce directamente. 
+        // Sin embargo, podemos inferirlo o simplemente precargar los videos "alrededor" de este si tuviéramos acceso a la lista.
+        // DADO QUE ReelVideoView solo conoce "un" video, esta lógica debería estar en ReelsViewer (el padre).
+        // Moveré esta lógica arriba, pero aquí podemos al menos asegurar que ESTE video esté listo.
+        // VideoPreloader.shared.preload(urls: [video.videoUrl]) 
+        // (Esto ya se hace al init el player, así que aquí es redundante)
     }
 }
 
@@ -1084,13 +1119,8 @@ class ReelVideoPlayerManager: ObservableObject {
         cleanup()
         
         
-        // Crear player item con configuración optimizada
-        let asset = AVURLAsset(url: url, options: [
-            AVURLAssetPreferPreciseDurationAndTimingKey: false,
-            AVURLAssetAllowsCellularAccessKey: true
-        ])
-        
-        playerItem = AVPlayerItem(asset: asset)
+        // ✅ INSTANT PLAYBACK: Usar preloader
+        playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
         
         // Configurar player item para mejor rendimiento
         playerItem?.preferredForwardBufferDuration = 3.0 // Buffer más pequeño para seeks rápidos

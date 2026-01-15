@@ -3,6 +3,9 @@ import Foundation
 import FirebaseAuth
 import FirebaseFirestore
 import SwiftUI
+import ActivityKit
+import AVFoundation
+import UIKit
 
 // MARK: - 📱 MODELO DE MOMENTO EN PROGRESO
 class UploadingMoment: ObservableObject, Identifiable {
@@ -103,6 +106,10 @@ class BackgroundMomentUploadService: ObservableObject {
     @Published var isProcessing = false
     weak var feedViewModel: FeedViewModel?
     
+    // ✅ NUEVO: Live Activity para Dynamic Island
+    @available(iOS 16.1, *)
+    private var liveActivity: Activity<MomentUploadActivityAttributes>?
+    
     private init() {}
     
     // MARK: - 📤 FUNCIÓN PRINCIPAL: Iniciar upload en background
@@ -148,9 +155,32 @@ class BackgroundMomentUploadService: ObservableObject {
             self.isProcessing = true
         }
         
+        // ✅ NUEVO: Iniciar Live Activity
+        if #available(iOS 16.1, *) {
+            Task { @MainActor in
+                await startLiveActivity(for: uploadingMoment)
+            }
+        }
+        
+        // ✅ NUEVO: Solicitar tiempo de ejecución en background
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "MomentUpload") {
+            // End the task if time expires
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
+        
         // Procesar en background
         Task.detached(priority: .userInitiated) {
             await self.processUpload(uploadingMoment)
+            
+            // ✅ Terminar la tarea de background cuando finalice
+            DispatchQueue.main.async {
+                if backgroundTaskID != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                    backgroundTaskID = .invalid
+                }
+            }
         }
         
         return uploadingMoment
@@ -173,6 +203,14 @@ class BackgroundMomentUploadService: ObservableObject {
             // PASO 3: Completado (90% - 100%)
             await updateProgress(uploadingMoment, progress: 1.0, status: .completed)
             
+            // ✅ NUEVO: Actualizar Live Activity a estado "completed" y esperar unos segundos antes de cerrar
+            if #available(iOS 16.1, *) {
+                // Actualizar primero el estado a "completed" y esperar a que se complete
+                await updateLiveActivityAsync(progress: 1.0, status: "completed")
+                // Esperar 3 segundos para mostrar el emoji antes de cerrar
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
+                await endLiveActivityAsync()
+            }
             
             // ✅ NUEVO: Reanudar listeners con delay para evitar conflictos
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -220,19 +258,35 @@ class BackgroundMomentUploadService: ObservableObject {
         let totalFiles = uploadingMoment.mediaItems.count
         
         for (index, media) in uploadingMoment.mediaItems.enumerated() {
-            // Actualizar progreso (0% a 70% distribuido entre archivos)
+            // Actualizar progreso
             let baseProgress = Double(index) / Double(totalFiles) * 0.7
             await updateProgress(uploadingMoment, progress: baseProgress)
             
-            let uploadMediaItem = UploadMediaItem(
-                type: media.type == .image ? .image : .video,
-                image: media.type == .image ? media.image : nil,
-                videoURL: media.type == .video ? media.videoURL : nil
-            )
+            var finalMediaItem: UploadMediaItem
             
-            // 🔥 USAR uploadMedia NORMAL (que ya devuelve éxito y modera en background)
+            if media.type == .video, let videoURL = media.videoURL {
+                // ✅ COMPRESIÓN DE VIDEO: Comprimir antes de subir
+                do {
+                     // Notificar estado de compresión
+                    await updateProgress(uploadingMoment, progress: baseProgress, status: .processing)
+                    
+                    let compressedURL = try await compressVideo(inputURL: videoURL)
+                    finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: compressedURL)
+                } catch {
+                    // Si falla la compresión, usar original
+                    finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
+                }
+            } else {
+                finalMediaItem = UploadMediaItem(
+                    type: media.type == .image ? .image : .video,
+                    image: media.type == .image ? media.image : nil,
+                    videoURL: media.type == .video ? media.videoURL : nil
+                )
+            }
+            
+            // 🔥 USAR uploadMedia NORMAL
             let urlString = try await withCheckedThrowingContinuation { continuation in
-                storageService.uploadMedia(userId: uploadingMoment.userId, mediaItem: uploadMediaItem) { result in
+                storageService.uploadMedia(userId: uploadingMoment.userId, mediaItem: finalMediaItem) { result in
                     continuation.resume(with: result)
                 }
             }
@@ -246,6 +300,40 @@ class BackgroundMomentUploadService: ObservableObject {
         }
         
         return uploadedItems
+    }
+    
+    // MARK: - 🎥 COMPRESIÓN DE VIDEO
+    private func compressVideo(inputURL: URL) async throws -> URL {
+        let asset = AVURLAsset(url: inputURL)
+        
+        // 1. Crear URL de destino
+        let tempDir = FileManager.default.temporaryDirectory
+        let outputURL = tempDir.appendingPathComponent("compressed_\(UUID().uuidString).mp4")
+        
+        // 2. Configurar Export Session (Preset Medium Quality = 720p/1080p H.264 balanceado)
+        // AVAssetExportPreset1280x720 o AVAssetExportPresetMediumQuality son buenas opciones para redes sociales
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
+            throw NSError(domain: "CompressionError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear export session"])
+        }
+        
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        
+        // 3. Exportar
+        await exportSession.export()
+        
+        // 4. Verificar resultado
+        switch exportSession.status {
+        case .completed:
+            return outputURL
+        case .failed:
+            throw exportSession.error ?? NSError(domain: "CompressionError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Compresión fallida"])
+        case .cancelled:
+            throw NSError(domain: "CompressionError", code: -3, userInfo: [NSLocalizedDescriptionKey: "Compresión cancelada"])
+        default:
+            throw NSError(domain: "CompressionError", code: -4, userInfo: [NSLocalizedDescriptionKey: "Estado desconocido"])
+        }
     }
     
     // MARK: - 📝 CREAR MOMENTO EN FIRESTORE
@@ -353,16 +441,39 @@ class BackgroundMomentUploadService: ObservableObject {
     }
     
     // MARK: - 🔄 HELPERS
-    @MainActor
-    private func updateProgress(_ moment: UploadingMoment, progress: Double, status: UploadStatus? = nil, error: String? = nil) {
-        if let index = uploadingMoments.firstIndex(where: { $0.id == moment.id }) {
-            uploadingMoments[index].uploadProgress = progress
+    private func updateProgress(_ moment: UploadingMoment, progress: Double, status: UploadStatus? = nil, error: String? = nil) async {
+        await MainActor.run {
+            if let index = uploadingMoments.firstIndex(where: { $0.id == moment.id }) {
+                uploadingMoments[index].uploadProgress = progress
+                if let status = status {
+                    uploadingMoments[index].status = status
+                }
+                if let error = error {
+                    uploadingMoments[index].errorMessage = error
+                }
+            }
+        }
+        
+        // ✅ NUEVO: Actualizar Live Activity
+        if #available(iOS 16.1, *) {
+            let statusString: String
             if let status = status {
-                uploadingMoments[index].status = status
+                switch status {
+                case .uploading:
+                    statusString = "uploading"
+                case .processing:
+                    statusString = "processing"
+                case .completed:
+                    statusString = "completed"
+                case .failed:
+                    statusString = "failed"
+                case .moderated:
+                    statusString = "processing" // Tratar moderated como processing para la Live Activity
+                }
+            } else {
+                statusString = progress < 0.7 ? "uploading" : "processing"
             }
-            if let error = error {
-                uploadingMoments[index].errorMessage = error
-            }
+            updateLiveActivity(progress: progress, status: statusString)
         }
     }
     
@@ -403,6 +514,114 @@ class BackgroundMomentUploadService: ObservableObject {
         case .admirers: return "admirers"
         case .bestFriends: return "bestFriends"
         case .custom: return "custom"
+        }
+    }
+    
+    // MARK: - ✅ LIVE ACTIVITY FUNCTIONS
+    @available(iOS 16.1, *)
+    private func startLiveActivity(for uploadingMoment: UploadingMoment) async {
+        // Determinar tipo de media
+        let hasVideo = uploadingMoment.mediaItems.contains { $0.type == .video }
+        let hasImage = uploadingMoment.mediaItems.contains { $0.type == .image }
+        let mediaType: String
+        if hasVideo && hasImage {
+            mediaType = "mixed"
+        } else if hasVideo {
+            mediaType = "video"
+        } else {
+            mediaType = "image"
+        }
+        
+        let attributes = MomentUploadActivityAttributes(
+            momentId: uploadingMoment.tempId,
+            mediaType: mediaType,
+            mediaCount: uploadingMoment.mediaItems.count
+        )
+        
+        let initialContentState = MomentUploadActivityAttributes.ContentState(
+            progress: 0.0,
+            status: "uploading"
+        )
+        
+        do {
+            let activity = try Activity<MomentUploadActivityAttributes>.request(
+                attributes: attributes,
+                contentState: initialContentState,
+                pushType: nil
+            )
+            await MainActor.run {
+                liveActivity = activity
+            }
+        } catch {
+            // Error al iniciar Live Activity - puede ser que el tipo no esté disponible en el widget extension
+        }
+    }
+    
+    @available(iOS 16.1, *)
+    private func updateLiveActivity(progress: Double, status: String) {
+        guard let activity = liveActivity else {
+            return
+        }
+        
+        let updatedState = MomentUploadActivityAttributes.ContentState(
+            progress: progress,
+            status: status
+        )
+        
+        Task {
+            do {
+                await activity.update(using: updatedState)
+            } catch {
+            }
+        }
+    }
+    
+    @available(iOS 16.1, *)
+    private func updateLiveActivityAsync(progress: Double, status: String) async {
+        guard let activity = liveActivity else {
+            return
+        }
+        
+        let updatedState = MomentUploadActivityAttributes.ContentState(
+            progress: progress,
+            status: status
+        )
+        
+        do {
+            await activity.update(using: updatedState)
+        } catch {
+        }
+    }
+    
+    @available(iOS 16.1, *)
+    private func endLiveActivity() {
+        guard let activity = liveActivity else {
+            return
+        }
+        
+        Task {
+            do {
+                await activity.end(using: nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
+            } catch {
+            }
+        }
+        
+        liveActivity = nil
+    }
+    
+    @available(iOS 16.1, *)
+    private func endLiveActivityAsync() async {
+        guard let activity = liveActivity else {
+            return
+        }
+        
+        do {
+            await activity.end(using: nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
+        } catch {
+        }
+        
+        await MainActor.run {
+            liveActivity = nil
         }
     }
 }

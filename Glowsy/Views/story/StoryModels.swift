@@ -4318,6 +4318,7 @@ struct StoryStickerView: View {
                 }
             )
             .frame(width: 280, height: 180)
+            .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
             .position(
                 x: sticker.position.x * screenSize.width / 375,
@@ -4333,6 +4334,7 @@ struct StoryStickerView: View {
                 onResumeStory: onResumeStory
             )
             .frame(width: 280, height: 120)
+            .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
             .position(
                 x: sticker.position.x * screenSize.width / 375,
@@ -4347,6 +4349,7 @@ struct StoryStickerView: View {
                 onResumeStory: onResumeStory
             )
             .frame(height: 40)
+            .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
             .position(
                 x: sticker.position.x * screenSize.width / 375,
@@ -4360,6 +4363,7 @@ struct StoryStickerView: View {
                 onResumeStory: onResumeStory
             )
             .frame(height: 40)
+            .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
             .position(
                 x: sticker.position.x * screenSize.width / 375,
@@ -4372,6 +4376,7 @@ struct StoryStickerView: View {
                 temperature: sticker.interactionData?.questionText ?? "🌤️"
             )
             .frame(width: 140, height: 50)
+            .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
             .position(
                 x: sticker.position.x * screenSize.width / 375,
@@ -4382,13 +4387,15 @@ struct StoryStickerView: View {
             }
         } else {
             // Solo imagen estática
+            // Solo imagen estática
             Button(action: {
                 handleStickerTap()
             }) {
                 Image(uiImage: sticker.image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 100 * sticker.scale, height: 100 * sticker.scale)
+                    // ✅ FIX: Usar tamaño real de la imagen escalado
+                    .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
             }
             .buttonStyle(PlainButtonStyle())
             .rotationEffect(sticker.rotation)

@@ -30,6 +30,7 @@ struct ProcessedMedia: Identifiable {
     var videoURL: URL?
     let type: MediaType
     var aspectRatio: AspectRatio
+    var recommendedAspectRatio: AspectRatio? // ✅ NUEVO: Aspect ratio detectado automáticamente (recomendado)
     var hasEdits: Bool = false
     var thumbnailURL: URL?
     var videoDuration: Double?
@@ -72,34 +73,67 @@ struct ProcessedMedia: Identifiable {
             case .nineBySixteen: return 9.0/16.0
             }
         }
+        
+        // ✅ NUEVO: Convertir un ratio numérico a AspectRatio
+        static func fromRatio(_ ratio: CGFloat) -> AspectRatio {
+            let tolerance: CGFloat = 0.15
+            
+            // Detectar ratios específicos
+            if abs(ratio - 0.5625) < tolerance {
+                return .nineBySixteen
+            }
+            if abs(ratio - 0.8) < tolerance {
+                return .portrait
+            }
+            if abs(ratio - 1.0) < tolerance {
+                return .square
+            }
+            if abs(ratio - 1.777) < tolerance {
+                return .landscape
+            }
+            
+            // Detección por rangos
+            if ratio < 0.65 {
+                return .nineBySixteen
+            } else if ratio < 0.85 {
+                return .portrait
+            } else if ratio < 1.15 {
+                return .square
+            } else {
+                return .landscape
+            }
+        }
     }
     
-    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, hasEdits: Bool = false) {
+    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false) {
         self.id = id
         self.image = image
         self.videoURL = videoURL
         self.type = type
         self.aspectRatio = aspectRatio
+        self.recommendedAspectRatio = recommendedAspectRatio ?? aspectRatio // Si no se especifica, usar el aspectRatio como recomendado
         self.hasEdits = hasEdits
     }
     
-    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio) {
+    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil) {
         self.id = UUID().uuidString
         self.image = image
         self.videoURL = videoURL
         self.type = type
         self.aspectRatio = aspectRatio
+        self.recommendedAspectRatio = recommendedAspectRatio ?? aspectRatio
         self.hasEdits = false
     }
     
     // Método `with` actualizado para aceptar todos los parámetros necesarios
-    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, image: UIImage? = nil) -> ProcessedMedia {
+    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, image: UIImage? = nil) -> ProcessedMedia {
         ProcessedMedia(
             id: self.id,
             image: image ?? self.image,
             videoURL: videoURL ?? self.videoURL,
             type: self.type,
             aspectRatio: aspectRatio ?? self.aspectRatio,
+            recommendedAspectRatio: recommendedAspectRatio ?? self.recommendedAspectRatio,
             hasEdits: hasEdits ?? self.hasEdits
         )
     }
@@ -1295,7 +1329,8 @@ struct MediaSelectionView: View {
                             image: image,
                             videoURL: nil,
                             type: .image,
-                            aspectRatio: detectedAspectRatio
+                            aspectRatio: detectedAspectRatio,
+                            recommendedAspectRatio: detectedAspectRatio // ✅ Guardar el aspect ratio detectado como recomendado
                         )
                         processedMedia.append(media)
                     }
@@ -1312,7 +1347,8 @@ struct MediaSelectionView: View {
                         image: finalImage,
                         videoURL: videoURL,
                         type: .video,
-                        aspectRatio: detectedAspectRatio
+                        aspectRatio: detectedAspectRatio,
+                        recommendedAspectRatio: detectedAspectRatio // ✅ Guardar el aspect ratio detectado como recomendado
                     )
                     processedMedia.append(media)
                 }
@@ -1360,11 +1396,10 @@ struct MediaSelectionView: View {
     private func detectAspectRatio(from image: UIImage) -> ProcessedMedia.AspectRatio {
         let imageRatio = image.size.width / image.size.height
         
+        // ✅ MEJORADO: Tolerancia más amplia (15%) para detectar mejor ratios comunes
+        let tolerance: CGFloat = 0.15
         
-        // Tolerancia del 8% para variaciones
-        let tolerance: CGFloat = 0.08
-        
-        // Detectar ratios específicos con mayor precisión
+        // ✅ MEJORADO: Detectar ratios específicos con mayor precisión y tolerancia
         
         // 9:16 (Stories/Reels) - ratio ≈ 0.5625
         if abs(imageRatio - 0.5625) < tolerance {
@@ -1386,14 +1421,22 @@ struct MediaSelectionView: View {
             return .landscape
         }
         
-        // Detección por rangos si no coincide exactamente
-        if imageRatio < 0.7 {
+        // ✅ MEJORADO: Detección por rangos más precisos y amplios
+        // Rangos ajustados para cubrir más casos comunes
+        if imageRatio < 0.65 {
+            // Muy vertical (más vertical que 9:16)
             return .nineBySixteen
-        } else if imageRatio < 0.9 {
+        } else if imageRatio < 0.85 {
+            // Vertical moderado (entre 9:16 y 4:5)
             return .portrait
-        } else if imageRatio < 1.2 {
+        } else if imageRatio < 1.15 {
+            // Casi cuadrado o cuadrado (entre 4:5 y 16:9)
             return .square
+        } else if imageRatio < 2.0 {
+            // Horizontal moderado (16:9 o similar)
+            return .landscape
         } else {
+            // Muy horizontal (panorámica)
             return .landscape
         }
     }
@@ -1901,10 +1944,19 @@ struct MediaEditingView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     
+    @Environment(\.colorScheme) var colorScheme
+    
     @State private var currentMediaIndex = 0
     @State private var showingCropView = false
     @State private var showingFilterView = false
     @State private var appliedFilters: [String: FilterSettings] = [:]
+    
+    // ✅ NUEVO: Aspect ratio recomendado (detectado automáticamente de la imagen original)
+    private var recommendedAspectRatio: ProcessedMedia.AspectRatio {
+        guard currentMediaIndex < selectedMediaItems.count else { return .square }
+        // Usar el aspect ratio recomendado guardado, o el actual si no hay recomendado
+        return selectedMediaItems[currentMediaIndex].recommendedAspectRatio ?? selectedMediaItems[currentMediaIndex].aspectRatio
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -1915,14 +1967,14 @@ struct MediaEditingView: View {
                 }) {
                     Image(systemName: "chevron.left")
                         .font(.title2)
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 
                 Spacer()
                 
                 Text("creator.edit")
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
@@ -1935,23 +1987,68 @@ struct MediaEditingView: View {
                 }
             }
             .padding()
-            .background(Color.black.opacity(0.9))
+            .background(
+                colorScheme == .dark 
+                    ? Color.black.opacity(0.9)
+                    : Color.white
+            )
             
             // Media preview
-            TabView(selection: $currentMediaIndex) {
-                ForEach(selectedMediaItems.indices, id: \.self) { index in
-                    ZStack {
-                        Color.black
-                        
-                        Image(uiImage: selectedMediaItems[index].image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .tag(index)
+            ZStack {
+                TabView(selection: $currentMediaIndex) {
+                    ForEach(selectedMediaItems.indices, id: \.self) { index in
+                        ZStack {
+                            // ✅ Adaptar fondo según colorScheme
+                            colorScheme == .dark ? Color.black : Color.white
+                            
+                            Image(uiImage: selectedMediaItems[index].image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .tag(index)
+                        }
                     }
                 }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
+                
+                // ✅ NUEVO: Texto "Dimensiones recomendadas" en la parte superior central del media
+                VStack {
+                    if recommendedAspectRatio != .square || (currentMediaIndex < selectedMediaItems.count && selectedMediaItems[currentMediaIndex].aspectRatio != recommendedAspectRatio) {
+                        Text("creator.recommendedDimensions")
+                            .font(.caption2)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                ZStack {
+                                    // Material effect base
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(.ultraThinMaterial)
+                                        .opacity(0.7)
+                                    
+                                    // Fondo base adaptativo según colorScheme
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(
+                                            colorScheme == .dark 
+                                                ? Color.white.opacity(0.15)
+                                                : Color.black.opacity(0.15)
+                                        )
+                                }
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        colorScheme == .dark 
+                                            ? Color.white.opacity(0.2)
+                                            : Color.black.opacity(0.2),
+                                        lineWidth: 0.5
+                                    )
+                            )
+                            .padding(.top, 12)
+                    }
+                    Spacer()
+                }
             }
-            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
             
             // Media thumbnails
             ScrollView(.horizontal, showsIndicators: false) {
@@ -1968,7 +2065,12 @@ struct MediaEditingView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(currentMediaIndex == index ? Color.white : Color.clear, lineWidth: 2)
+                                            .stroke(
+                                                currentMediaIndex == index 
+                                                    ? (colorScheme == .dark ? Color.white : Color.black)
+                                                    : Color.clear, 
+                                                lineWidth: 2
+                                            )
                                     )
                                 
                                 if selectedMediaItems[index].hasEdits {
@@ -1986,13 +2088,17 @@ struct MediaEditingView: View {
                 .padding(.horizontal)
             }
             .frame(height: 80)
-            .background(Color.black.opacity(0.8))
+            .background(
+                colorScheme == .dark 
+                    ? Color.black.opacity(0.8)
+                    : Color.white
+            )
             
             // Aspect ratio selector
             HStack(spacing: 20) {
                 Text("creator.format")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 ForEach([ProcessedMedia.AspectRatio.square, .portrait, .landscape], id: \.self) { ratio in
                     Button(action: {
@@ -2003,7 +2109,12 @@ struct MediaEditingView: View {
                     }) {
                         VStack(spacing: 4) {
                             RoundedRectangle(cornerRadius: 4)
-                                .stroke(selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? Color.blue : Color.gray, lineWidth: 2)
+                                .stroke(
+                                    selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? Color.blue : 
+                                    (ratio == recommendedAspectRatio ? Color.green.opacity(0.7) : (colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.5))), 
+                                    lineWidth: selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? 2.5 : 
+                                    (ratio == recommendedAspectRatio ? 2.2 : 2)
+                                )
                                 .frame(
                                     width: ratio == .landscape ? 50 : (ratio == .square ? 40 : 32),
                                     height: 40
@@ -2011,7 +2122,10 @@ struct MediaEditingView: View {
                             
                             Text(ratio.displayName)
                                 .font(.caption2)
-                                .foregroundColor(selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? .blue : .gray)
+                                .foregroundColor(
+                                    selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? .blue : 
+                                    (ratio == recommendedAspectRatio ? .green.opacity(0.8) : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7)))
+                                )
                         }
                     }
                 }
@@ -2020,7 +2134,11 @@ struct MediaEditingView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.black.opacity(0.8))
+            .background(
+                colorScheme == .dark 
+                    ? Color.black.opacity(0.8)
+                    : Color.white
+            )
             
             // Editing tools
             HStack(spacing: 30) {
@@ -2033,13 +2151,29 @@ struct MediaEditingView: View {
                 }
             }
             .padding()
-            .background(Color.black)
+            .background(
+                colorScheme == .dark 
+                    ? Color.black
+                    : Color.white
+            )
         }
+        .background(
+            colorScheme == .dark 
+                ? Color.black
+                : Color.white
+        )
         .sheet(isPresented: $showingCropView) {
             if currentMediaIndex < selectedMediaItems.count {
+                // ✅ MEJORADO: Usar el aspect ratio recomendado si el usuario no ha seleccionado uno manualmente
+                let currentAspectRatio = selectedMediaItems[currentMediaIndex].aspectRatio
+                let aspectRatioToUse = currentAspectRatio == .square && recommendedAspectRatio != .square 
+                    ? recommendedAspectRatio 
+                    : currentAspectRatio
+                
                 CropViewWrapper(
                     image: selectedMediaItems[currentMediaIndex].image,
-                    aspectRatio: selectedMediaItems[currentMediaIndex].aspectRatio
+                    aspectRatio: aspectRatioToUse,
+                    allowFreeCrop: true // ✅ NUEVO: Permitir crop libre (no bloquear ratio)
                 ) { croppedImage, newAspectRatio in
                     selectedMediaItems[currentMediaIndex].image = croppedImage
                     selectedMediaItems[currentMediaIndex].aspectRatio = newAspectRatio
@@ -2366,11 +2500,26 @@ struct CaptionAndDetailsView: View {
         let allowSharing = UserDefaults.standard.object(forKey: "allowSharing") as? Bool ?? true
         
         
-        // Detectar aspect ratio del primer media item
+        // ✅ MEJORADO: Detectar aspect ratio del primer media item, priorizando el recomendado (detectado automáticamente)
         var detectedAspectRatio = "1:1" // Default
         if let firstMedia = selectedMediaItems.first {
-            detectedAspectRatio = firstMedia.aspectRatio.displayName
-            
+            // ✅ PRIORIDAD: Usar el aspect ratio recomendado si está disponible y es diferente de cuadrado
+            // Esto asegura que el aspect ratio detectado automáticamente se use incluso si el usuario no interactuó
+            if let recommended = firstMedia.recommendedAspectRatio, recommended != .square {
+                detectedAspectRatio = recommended.displayName
+            } else if firstMedia.aspectRatio != .square {
+                // Si no hay recomendado pero el actual no es cuadrado, usar el actual
+                detectedAspectRatio = firstMedia.aspectRatio.displayName
+            } else {
+                // Si ambos son cuadrado, verificar si realmente debería ser cuadrado detectando de nuevo
+                let imageRatio = firstMedia.image.size.width / firstMedia.image.size.height
+                let reDetected = ProcessedMedia.AspectRatio.fromRatio(imageRatio)
+                if reDetected != .square {
+                    detectedAspectRatio = reDetected.displayName
+                } else {
+                    detectedAspectRatio = "1:1" // Realmente es cuadrado
+                }
+            }
         }
         
         
@@ -2453,18 +2602,8 @@ extension ProcessedMedia.AspectRatio {
         }
     }
     
-    // ✅ NUEVO: Convertir aspect ratio numérico a tipo
-    static func fromRatio(_ ratio: CGFloat) -> ProcessedMedia.AspectRatio {
-        if ratio > 1.5 {
-            return .landscape // 16:9
-        } else if ratio < 0.9 {
-            return .portrait // 4:5
-        } else if ratio < 0.7 {
-            return .nineBySixteen // 9:16 (stories)
-        } else {
-            return .square // 1:1
-        }
-    }
+    // ✅ NOTA: La función fromRatio está definida dentro del enum AspectRatio (línea 78)
+    // para usar la lógica mejorada de detección con tolerancia y rangos más precisos
 }
 
 // MARK: - Story Camera View
@@ -2708,7 +2847,8 @@ struct StoryCameraView: View {
             image: image,
             videoURL: nil,
             type: .image,
-            aspectRatio: .nineBySixteen
+            aspectRatio: .nineBySixteen,
+            recommendedAspectRatio: .nineBySixteen
         )
         selectedMediaItems = [processedMedia]
         currentFlow = .storyEditing
@@ -2731,7 +2871,8 @@ struct StoryCameraView: View {
                         image: thumbnail,
                         videoURL: videoURL,
                         type: .video,
-                        aspectRatio: .nineBySixteen
+                        aspectRatio: .nineBySixteen,
+                        recommendedAspectRatio: .nineBySixteen
                     )
                     selectedMediaItems = [processedMedia]
                     currentFlow = .storyEditing
@@ -3060,27 +3201,51 @@ class CameraPreviewView: UIView {
 struct CropViewWrapper: UIViewControllerRepresentable {
     let image: UIImage
     let aspectRatio: ProcessedMedia.AspectRatio
+    let allowFreeCrop: Bool // ✅ NUEVO: Permitir crop libre (no bloquear ratio)
     let onComplete: (UIImage, ProcessedMedia.AspectRatio) -> Void
     @Environment(\.dismiss) private var dismiss
+    
+    init(image: UIImage, aspectRatio: ProcessedMedia.AspectRatio, allowFreeCrop: Bool = false, onComplete: @escaping (UIImage, ProcessedMedia.AspectRatio) -> Void) {
+        self.image = image
+        self.aspectRatio = aspectRatio
+        self.allowFreeCrop = allowFreeCrop
+        self.onComplete = onComplete
+    }
     
     func makeUIViewController(context: Context) -> UINavigationController {
         let cropViewController = TOCropViewController(croppingStyle: .default, image: image)
         cropViewController.delegate = context.coordinator
         
-        // ✅ MEJORADO: Set aspect ratio basado en selección incluyendo landscape
-        switch aspectRatio {
-        case .square:
-            cropViewController.aspectRatioPreset = .presetSquare
-            cropViewController.aspectRatioLockEnabled = true
-        case .portrait:
-            cropViewController.customAspectRatio = CGSize(width: 4, height: 5)
-            cropViewController.aspectRatioLockEnabled = true
-        case .landscape:
-            cropViewController.customAspectRatio = CGSize(width: 16, height: 9)
-            cropViewController.aspectRatioLockEnabled = true
-        case .nineBySixteen:
-            cropViewController.customAspectRatio = CGSize(width: 9, height: 16)
-            cropViewController.aspectRatioLockEnabled = true
+        // ✅ MEJORADO: Set aspect ratio basado en selección, pero permitir ajuste libre si allowFreeCrop es true
+        if allowFreeCrop {
+            // ✅ NUEVO: No bloquear el aspect ratio, solo sugerirlo como inicial
+            switch aspectRatio {
+            case .square:
+                cropViewController.aspectRatioPreset = .presetSquare
+            case .portrait:
+                cropViewController.customAspectRatio = CGSize(width: 4, height: 5)
+            case .landscape:
+                cropViewController.customAspectRatio = CGSize(width: 16, height: 9)
+            case .nineBySixteen:
+                cropViewController.customAspectRatio = CGSize(width: 9, height: 16)
+            }
+            cropViewController.aspectRatioLockEnabled = false // ✅ Permitir ajuste libre
+        } else {
+            // Comportamiento original: bloquear el aspect ratio
+            switch aspectRatio {
+            case .square:
+                cropViewController.aspectRatioPreset = .presetSquare
+                cropViewController.aspectRatioLockEnabled = true
+            case .portrait:
+                cropViewController.customAspectRatio = CGSize(width: 4, height: 5)
+                cropViewController.aspectRatioLockEnabled = true
+            case .landscape:
+                cropViewController.customAspectRatio = CGSize(width: 16, height: 9)
+                cropViewController.aspectRatioLockEnabled = true
+            case .nineBySixteen:
+                cropViewController.customAspectRatio = CGSize(width: 9, height: 16)
+                cropViewController.aspectRatioLockEnabled = true
+            }
         }
         
         cropViewController.rotateButtonsHidden = false
@@ -3116,7 +3281,18 @@ struct CropViewWrapper: UIViewControllerRepresentable {
         }
         
         func cropViewController(_ cropViewController: TOCropViewController, didCropTo image: UIImage, with cropRect: CGRect, angle: Int) {
-            parent.onComplete(image, parent.aspectRatio)
+            // ✅ NUEVO: Si allowFreeCrop es true, detectar el aspect ratio final de la imagen recortada
+            let finalAspectRatio: ProcessedMedia.AspectRatio
+            if parent.allowFreeCrop {
+                // Detectar el aspect ratio de la imagen recortada
+                let imageRatio = image.size.width / image.size.height
+                finalAspectRatio = ProcessedMedia.AspectRatio.fromRatio(imageRatio)
+            } else {
+                // Usar el aspect ratio que estaba bloqueado
+                finalAspectRatio = parent.aspectRatio
+            }
+            
+            parent.onComplete(image, finalAspectRatio)
             parent.dismiss()
         }
         
@@ -3135,6 +3311,8 @@ struct FilterSelectionView: View {
     
     @State private var selectedFilter: FilterType = .original
     @State private var filterIntensity: Double = 1.0
+    @State private var previewIntensity: Double = 1.0 // ✅ NUEVO: Valor para el preview (se actualiza con debounce)
+    @State private var intensityUpdateTask: Task<Void, Never>? // ✅ NUEVO: Task para cancelar actualizaciones pendientes
     
     enum FilterType: String, CaseIterable {
         case original = "Original"
@@ -3175,7 +3353,7 @@ struct FilterSelectionView: View {
                 ZStack {
                     Color.black
                     
-                    Image(uiImage: applyFilter(to: image))
+                    Image(uiImage: applyFilter(to: image, intensity: previewIntensity))
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
@@ -3195,6 +3373,20 @@ struct FilterSelectionView: View {
                             
                             Slider(value: $filterIntensity, in: 0...1)
                                 .tint(.white)
+                                .onChange(of: filterIntensity) { newValue in
+                                    // ✅ MEJORADO: Cancelar actualización anterior
+                                    intensityUpdateTask?.cancel()
+                                    
+                                    // ✅ MEJORADO: Actualizar preview con un pequeño delay para mejor rendimiento
+                                    intensityUpdateTask = Task {
+                                        try? await Task.sleep(nanoseconds: 16_000_000) // ~16ms (60fps)
+                                        if !Task.isCancelled {
+                                            await MainActor.run {
+                                                previewIntensity = newValue
+                                            }
+                                        }
+                                    }
+                                }
                             
                             Text("100")
                                 .font(.caption2)
@@ -3218,6 +3410,7 @@ struct FilterSelectionView: View {
                                     selectedFilter = filter
                                     if filter == .original {
                                         filterIntensity = 1.0
+                                        previewIntensity = 1.0
                                     }
                                 }
                             }
@@ -3255,7 +3448,7 @@ struct FilterSelectionView: View {
         .presentationDetents([.large])
     }
     
-    private func applyFilter(to inputImage: UIImage) -> UIImage {
+    private func applyFilter(to inputImage: UIImage, intensity: Double? = nil) -> UIImage {
         guard selectedFilter != .original,
               let ciImage = CIImage(image: inputImage),
               let filterName = selectedFilter.ciFilterName else {
@@ -3265,14 +3458,18 @@ struct FilterSelectionView: View {
         let filter = CIFilter(name: filterName)
         filter?.setValue(ciImage, forKey: kCIInputImageKey)
         
+        // ✅ MEJORADO: Usar el intensity pasado como parámetro o el del estado
+        let intensityValue = intensity ?? filterIntensity
+        
         // Apply intensity for certain filters
         if filterName == "CISepiaTone" || filterName == "CIColorMonochrome" {
-            filter?.setValue(filterIntensity, forKey: kCIInputIntensityKey)
+            filter?.setValue(intensityValue, forKey: kCIInputIntensityKey)
         }
         
         guard let outputImage = filter?.outputImage else { return inputImage }
         
-        let context = CIContext()
+        // ✅ MEJORADO: Usar un contexto optimizado para mejor rendimiento
+        let context = CIContext(options: [.useSoftwareRenderer: false])
         guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
             return inputImage
         }
@@ -4242,7 +4439,8 @@ struct StoryGalleryPicker: View {
                                 image: image,
                                 videoURL: nil,
                                 type: .image,
-                                aspectRatio: .nineBySixteen
+                                aspectRatio: .nineBySixteen,
+                                recommendedAspectRatio: .nineBySixteen
                             )
                             onSelect(media)
                             dismiss()
@@ -4274,7 +4472,8 @@ struct StoryGalleryPicker: View {
                                                     image: thumbnail,
                                                     videoURL: videoURL,
                                                     type: .video,
-                                                    aspectRatio: .nineBySixteen
+                                                    aspectRatio: .nineBySixteen,
+                                                    recommendedAspectRatio: .nineBySixteen
                                                 )
                                                 onSelect(media)
                                                 dismiss()
@@ -4696,12 +4895,15 @@ struct CameraCapture: UIViewControllerRepresentable {
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
+                // ✅ Detectar aspect ratio de la imagen capturada
+                let detectedRatio = ProcessedMedia.AspectRatio.fromRatio(image.size.width / image.size.height)
                 let media = ProcessedMedia(
                     id: UUID().uuidString,
                     image: image,
                     videoURL: nil,
                     type: .image,
-                    aspectRatio: .square
+                    aspectRatio: detectedRatio,
+                    recommendedAspectRatio: detectedRatio
                 )
                 parent.onCapture(media)
             } else if let videoURL = info[.mediaURL] as? URL {
@@ -4714,12 +4916,15 @@ struct CameraCapture: UIViewControllerRepresentable {
                     let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
                     let thumbnail = UIImage(cgImage: cgImage)
                     
+                    // ✅ Detectar aspect ratio del video capturado
+                    let detectedRatio = ProcessedMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
                     let media = ProcessedMedia(
                         id: UUID().uuidString,
                         image: thumbnail,
                         videoURL: videoURL,
                         type: .video,
-                        aspectRatio: .square
+                        aspectRatio: detectedRatio,
+                        recommendedAspectRatio: detectedRatio
                     )
                     parent.onCapture(media)
                 } catch {
@@ -5065,23 +5270,78 @@ struct StickerOverlayView: View {
     
     var body: some View {
         ZStack {
-            // ✅ SOLUCIÓN: Usar AnimatedStickerView para GIFs animados
+            // ✅ SOLUCIÓN DEFINITIVA: Renderizado idéntico al Viewer
             if sticker.isAnimated, let gifURL = sticker.gifURL {
-                // Para GIFs animados usar AnimatedStickerView
+                // GIF Animado
                 AnimatedStickerView(sticker: sticker, size: CGSize(width: 100 * scale, height: 100 * scale))
                     .frame(width: 100 * scale, height: 100 * scale)
-                    .allowsHitTesting(false) // ✅ PERMITIR QUE LOS GESTOS PASEN AL PADRE
+                    .allowsHitTesting(false)
+            } else if sticker.type == .poll, let pollData = sticker.interactionData?.pollData {
+                // POLL INTERACTIVO
+                InteractivePollSticker(
+                    pollData: pollData,
+                    storyId: "preview",
+                    userId: "preview",
+                    selectedOption: .constant(nil),
+                    hasVoted: .constant(false),
+                    voteCounts: .constant([:]),
+                    totalVotes: .constant(0),
+                    onVote: { _ in }
+                )
+                .frame(width: 280, height: 180)
+                .allowsHitTesting(false)
+            } else if sticker.type == .question, let questionText = sticker.interactionData?.questionText {
+                // QUESTION INTERACTIVO
+                InteractiveQuestionSticker(
+                    questionText: questionText,
+                    storyId: "preview",
+                    userId: "preview",
+                    onPauseStory: {},
+                    onResumeStory: {}
+                )
+                .frame(width: 280, height: 120)
+                .allowsHitTesting(false)
+            } else if sticker.type == .location, let locationName = sticker.interactionData?.location {
+                // LOCATION INTERACTIVO
+                InteractiveLocationSticker(
+                    locationName: locationName,
+                    coordinate: sticker.interactionData?.locationCoordinate,
+                    onPauseStory: {},
+                    onResumeStory: {}
+                )
+                .frame(height: 40)
+                .allowsHitTesting(false)
+            } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
+                // HASHTAG INTERACTIVO
+                InteractiveHashtagSticker(
+                    hashtag: hashtag,
+                    onPauseStory: {},
+                    onResumeStory: {}
+                )
+                .frame(height: 40)
+                .allowsHitTesting(false)
+            } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
+                // WEATHER ANIMADO
+                AnimatedWeatherSticker(
+                    weatherSymbol: weatherSymbol,
+                    temperature: sticker.interactionData?.questionText ?? "🌤️"
+                )
+                .frame(width: 140, height: 50)
+                .allowsHitTesting(false)
             } else {
-                // Para stickers estáticos usar imagen normal
+                // STICKER ESTÁTICO / IMAGEN (Time, Emoji, etc.)
+                // ✅ FIX: Usar tamaño natural de la imagen
                 Image(uiImage: sticker.image)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 100 * scale, height: 100 * scale)
-                    .allowsHitTesting(false) // ✅ PERMITIR QUE LOS GESTOS PASEN AL PADRE
+                    .aspectRatio(contentMode: .fit) // Asegurar aspecto correcto
+                    .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                    .allowsHitTesting(false)
             }
         }
         .rotationEffect(rotation)
+        // ✅ Aplicar escala al contenedor completo (incluyendo los frames fijos de arriba)
         .scaleEffect(isDragging ? 0.9 : (showInteractionFeedback ? 1.05 : 1.0))
+        .scaleEffect(scale) // ✅ IMPORTANTE: Aquí se aplica la escala del usuario
         .opacity(isDragging ? 0.8 : 1.0)
         .position(currentPosition)
         .contentShape(Rectangle()) // ✅ ASEGURAR QUE TODA EL ÁREA SEA INTERACTIVA
@@ -5106,18 +5366,13 @@ struct StickerOverlayView: View {
             // ✅ PINCH TO SCALE - Completamente libre, rango amplio
             MagnificationGesture()
                 .onChanged { value in
-                    // ✅ NO PERMITIR ESCALAR POLLS, QUESTIONS, LOCATIONS, HASHTAGS Y QUESTION RESPONSES
-                    if sticker.type == .poll || sticker.type == .question || sticker.type == .location || sticker.type == .hashtag || sticker.type == .questionResponse {
-                        return
-                    }
+                     // ✅ PERMITIR ESCALAR TODO (eliminada restricción anterior)
                     let newScale = sticker.scale * value
                     scale = min(max(newScale, 0.2), 5.0) // Rango muy amplio
                 }
                 .onEnded { value in
                     // ✅ ACTUALIZAR DIRECTAMENTE EL BINDING
-                    if sticker.type != .poll && sticker.type != .question && sticker.type != .location && sticker.type != .hashtag && sticker.type != .questionResponse {
-                        sticker.scale = scale
-                    }
+                    sticker.scale = scale
                 }
         )
         .simultaneousGesture(

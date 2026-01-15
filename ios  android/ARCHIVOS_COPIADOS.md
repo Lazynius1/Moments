@@ -94,3 +94,4 @@ swift build 2>&1 | grep error
 **Estado:** ✅ Archivos copiados, pendiente adaptación
 
 
+

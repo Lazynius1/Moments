@@ -6,6 +6,7 @@ import SwiftUI
 import AVFoundation
 import FirebaseStorage
 import ActivityKit
+import UIKit
 
 // ✅ Importar para usar StickerPickerView.sendMentionNotificationsForStory
 
@@ -198,9 +199,24 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
         
+        // ✅ NUEVO: SOLICITUD DE BACKGROUND TASK
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "StoryUpload") {
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
+        
         // Procesar en background
         Task.detached(priority: .userInitiated) {
             await self.processStoryUpload(uploadingStory)
+            
+            // ✅ Terminar background task
+            DispatchQueue.main.async {
+                if backgroundTaskID != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                    backgroundTaskID = .invalid
+                }
+            }
         }
         
         return uploadingStory
@@ -306,72 +322,37 @@ class BackgroundStoryUploadService: ObservableObject {
     
     // MARK: - 📁 PREPARAR MEDIA ITEM
     // ✅ COMPRESIÓN SIMPLE - PRESERVAR DIMENSIONES ORIGINALES
-    private func compressVideoForStory(_ videoURL: URL) async throws -> URL {
+    // MARK: - 🎥 COMPRESIÓN DE VIDEO (Optimizado a 720p - Igual que Feed)
+    private func compressVideoForStory(_ inputURL: URL) async throws -> URL {
+        let asset = AVURLAsset(url: inputURL)
         
-        let asset = AVAsset(url: videoURL)
+        // 1. Crear URL de destino
+        let tempDir = FileManager.default.temporaryDirectory
+        let outputURL = tempDir.appendingPathComponent("compressed_story_\(UUID().uuidString).mp4")
         
-        // ✅ CONFIGURACIÓN SIMPLE Y EFECTIVA
-        let exportSession = AVAssetExportSession(
-            asset: asset,
-            presetName: AVAssetExportPresetHighestQuality
-        )
-        
-        guard let exportSession = exportSession else {
-            throw NSError(domain: "VideoCompression", code: 1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear export session"])
+        // 2. Configurar Export Session (Preset 720p para balance calidad/tamaño)
+        // Esto reduce videos de 100MB+ a ~10-15MB con muy buena calidad visual en móvil
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
+            throw NSError(domain: "CompressionError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear export session"])
         }
         
-        let compressedURL = createTemporaryVideoURL()
-        exportSession.outputURL = compressedURL
+        exportSession.outputURL = outputURL
         exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
         
-        // 🎯 CONFIGURAR BITRATE Y FPS SIN CAMBIAR DIMENSIONES
-        if let videoTrack = try? await asset.loadTracks(withMediaType: .video).first {
-            let naturalSize = try await videoTrack.load(.naturalSize)
-            let preferredTransform = try await videoTrack.load(.preferredTransform)
-            
-            // ✅ CREAR COMPOSITION CON DIMENSIONES CORRECTAS
-            let videoComposition = AVMutableVideoComposition()
-            
-            // ✅ CALCULAR DIMENSIONES REALES DESPUÉS DE TRANSFORM
-            let transformedSize = naturalSize.applying(preferredTransform)
-            let finalSize = CGSize(width: abs(transformedSize.width), height: abs(transformedSize.height))
-            videoComposition.renderSize = finalSize // 🎯 USAR DIMENSIONES CORRECTAS
-            videoComposition.frameDuration = CMTime(value: 1, timescale: 30) // 30fps estándar
-            
-            let instruction = AVMutableVideoCompositionInstruction()
-            instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
-            
-            let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
-            layerInstruction.setTransform(preferredTransform, at: .zero) // 🎯 MANTENER TRANSFORM ORIGINAL
-            
-            instruction.layerInstructions = [layerInstruction]
-            videoComposition.instructions = [instruction]
-            
-            exportSession.videoComposition = videoComposition
-            
-
-        }
-        
-        // ✅ LÍMITE DE TAMAÑO RAZONABLE
-        exportSession.fileLengthLimit = 50 * 1024 * 1024 // 50MB
-        
-        
-        // ✅ EJECUTAR COMPRESIÓN
+        // 3. Exportar
         await exportSession.export()
         
+        // 4. Verificar resultado
         switch exportSession.status {
         case .completed:
-            let originalSize = getFileSize(videoURL)
-            let compressedSize = getFileSize(compressedURL)
-            return compressedURL
-            
+            return outputURL
         case .failed:
-            throw exportSession.error ?? NSError(domain: "VideoCompression", code: 2, userInfo: [NSLocalizedDescriptionKey: "Error en compresión"])
+            throw exportSession.error ?? NSError(domain: "CompressionError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Compresión fallida"])
         case .cancelled:
-            throw NSError(domain: "VideoCompression", code: 3, userInfo: [NSLocalizedDescriptionKey: "Compresión cancelada"])
+            throw NSError(domain: "CompressionError", code: -3, userInfo: [NSLocalizedDescriptionKey: "Compresión cancelada"])
         default:
-            throw NSError(domain: "VideoCompression", code: 4, userInfo: [NSLocalizedDescriptionKey: "Estado desconocido"])
+            throw NSError(domain: "CompressionError", code: -4, userInfo: [NSLocalizedDescriptionKey: "Estado desconocido"])
         }
     }
 
@@ -768,8 +749,23 @@ class BackgroundStoryUploadService: ObservableObject {
             self.isProcessing = true
         }
         
+        // ✅ NUEVO: SOLICITUD DE BACKGROUND TASK (RETRY)
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "StoryRetryUpload") {
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
+        
         Task.detached(priority: .userInitiated) {
             await self.processStoryUpload(story)
+            
+            // ✅ Terminar background task
+            DispatchQueue.main.async {
+                if backgroundTaskID != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                    backgroundTaskID = .invalid
+                }
+            }
         }
     }
     

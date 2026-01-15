@@ -246,6 +246,8 @@ struct ExploreView: View {
                 for user in viewModel.suggestedUsers {
                     viewModel.checkUserButtonState(for: user.id)
                 }
+                // ✅ Filtrar usuarios seguidos después de verificar estados
+                viewModel.filterFollowedUsersFromSuggestions()
             }
         }
         
@@ -337,6 +339,17 @@ struct SearchBarView: View {
                                 ),
                                 lineWidth: 1.5
                             )
+                    )
+                    .background(
+                        IntelligentGlow(
+                            isFocused: isSearchFocused,
+                            cornerRadius: 10,
+                            colors: [
+                                Color(hex: "667eea"),
+                                Color(hex: "764ba2"),
+                                Color(hex: "6B73FF")
+                            ]
+                        )
                     )
                     .shadow(
                         color: isSearchFocused ? Color(hex: "667eea").opacity(0.2) : .black.opacity(0.05),
@@ -1153,10 +1166,12 @@ class ExploreViewModel: ObservableObject {
                 self.currentUserInterests = currentUserProfile.interests
                 self.blockedUsers = Set(currentUserProfile.blockedUsers ?? [])
                 
-        
-                
-                // 2. PASO PRINCIPAL: Cargar usuarios y momentos
-                self.loadUsersAndMoments()
+                // 2. Cargar conexiones (usuarios seguidos) primero
+                self.loadConnectionsFirst { [weak self] in
+                    guard let self = self else { return }
+                    // 3. PASO PRINCIPAL: Cargar usuarios y momentos (ya con conexiones cargadas)
+                    self.loadUsersAndMoments()
+                }
                 
             case .failure(let error):
                 DispatchQueue.main.async {
@@ -1215,11 +1230,22 @@ class ExploreViewModel: ObservableObject {
             group.leave()
         }
         
-        group.notify(queue: .main) {
-            // Filtro BÁSICO - solo bloqueos
-            let filteredUsers = Array(allDiscoveredUsers).filter { user in
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+            
+            // ✅ Capturar followedUserIds en este momento para asegurar que esté actualizado
+            let currentFollowedUserIds = self.followedUserIds
+            
+            // ✅ LECTURA SINCRONIZADA: Asegurar que todas las escrituras hayan terminado
+            let finalUsers = syncQueue.sync {
+                return allDiscoveredUsers
+            }
+            
+            // Filtro COMPLETO - bloqueos Y usuarios ya seguidos
+            let filteredUsers = Array(finalUsers).filter { user in
                 !self.blockedUsers.contains(user.id) &&
-                !(user.blockedUsers ?? []).contains(userId)
+                !(user.blockedUsers ?? []).contains(userId) &&
+                !currentFollowedUserIds.contains(user.id) // ✅ Usar la copia capturada
             }
             
     
@@ -1233,7 +1259,8 @@ class ExploreViewModel: ObservableObject {
             
             DispatchQueue.main.async {
                 self.suggestedUsers = Array(sortedUsers.prefix(10))
-        
+                // ✅ Filtrar usuarios seguidos después de asignar la lista (por si acaso)
+                self.filterFollowedUsersFromSuggestions()
             }
             
             // Cargar momentos de una muestra diversa de usuarios
@@ -1353,7 +1380,64 @@ class ExploreViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Cargar conexiones de forma opcional
+    // MARK: - Cargar conexiones PRIMERO (antes de mostrar usuarios sugeridos)
+    private func loadConnectionsFirst(completion: @escaping () -> Void) {
+        guard let userId = currentUserId else {
+            completion()
+            return
+        }
+        
+        let group = DispatchGroup()
+        var loadedConnections: [Connection] = []
+        var loadedNotifications: [Notification] = []
+        
+        // Cargar usuarios seguidos
+        group.enter()
+        firestoreService.fetchConnections(userId: userId) { result in
+            defer { group.leave() }
+            switch result {
+            case .success(let connections):
+                loadedConnections = connections
+            case .failure(_):
+                break
+            }
+        }
+        
+        // Cargar solicitudes pendientes
+        group.enter()
+        firestoreService.fetchNotifications(for: userId) { result in
+            defer { group.leave() }
+            switch result {
+            case .success(let notifications):
+                loadedNotifications = notifications
+            case .failure(_):
+                break
+            }
+        }
+        
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else {
+                completion()
+                return
+            }
+            // ✅ Actualizar en el hilo principal después de que todo haya cargado
+            let loadedFollowedIds = Set(loadedConnections.map { $0.userId })
+            self.followedUserIds = loadedFollowedIds
+            self.pendingRequests = Set(loadedNotifications.filter {
+                $0.type == .followRequest && $0.isPending
+            }.map { $0.senderId })
+            
+            // ✅ Filtrar usuarios seguidos de la lista actual si ya hay usuarios cargados
+            // Esto es importante porque puede que la lista se haya cargado antes de que terminaran las conexiones
+            self.suggestedUsers = self.suggestedUsers.filter { user in
+                !loadedFollowedIds.contains(user.id)
+            }
+            
+            completion()
+        }
+    }
+    
+    // MARK: - Cargar conexiones de forma opcional (para actualizar estados después)
     private func loadConnectionsOptionally() {
         guard let userId = currentUserId else { return }
         
@@ -1393,6 +1477,16 @@ class ExploreViewModel: ObservableObject {
         }
         for user in searchedUsers {
             checkUserButtonState(for: user.id)
+        }
+        
+        // ✅ Filtrar usuarios seguidos de la lista después de actualizar estados
+        filterFollowedUsersFromSuggestions()
+    }
+    
+    // ✅ NUEVO: Filtrar usuarios seguidos de las sugerencias
+    func filterFollowedUsersFromSuggestions() {
+        suggestedUsers = suggestedUsers.filter { user in
+            !followedUserIds.contains(user.id)
         }
     }
     
@@ -1439,7 +1533,17 @@ class ExploreViewModel: ObservableObject {
             targetUserId: userId
         ) { [weak self] state in
             DispatchQueue.main.async {
-                self?.userButtonStates[userId] = state
+                guard let self = self else { return }
+                self.userButtonStates[userId] = state
+                
+                // ✅ Si el estado es "siguiendo", agregar a followedUserIds y eliminar de sugerencias
+                if state == .following {
+                    self.followedUserIds.insert(userId)
+                    // Eliminar de la lista de sugerencias
+                    if let index = self.suggestedUsers.firstIndex(where: { $0.id == userId }) {
+                        self.suggestedUsers.remove(at: index)
+                    }
+                }
             }
         }
     }
@@ -1456,6 +1560,15 @@ class ExploreViewModel: ObservableObject {
             switch result {
             case .success(let userProfile):
                 if userProfile.isPrivate {
+                    // ✅ Eliminar inmediatamente de la lista antes de enviar solicitud
+                    DispatchQueue.main.async {
+                        if let index = self.suggestedUsers.firstIndex(where: { $0.id == userId }) {
+                            self.suggestedUsers.remove(at: index)
+                        }
+                        self.pendingRequests.insert(userId)
+                        self.userButtonStates[userId] = .requestPending
+                    }
+                    
                     self.firestoreService.sendFollowRequest(
                         currentUserId: currentUserId,
                         targetUserId: userId
@@ -1463,17 +1576,23 @@ class ExploreViewModel: ObservableObject {
                         DispatchQueue.main.async {
                             if let error = error {
                                 self?.errorMessage = "Error al enviar solicitud: \(error.localizedDescription)"
-                            } else {
-                                self?.userButtonStates[userId] = .requestPending
-                                self?.pendingRequests.insert(userId)
-                                
-                                if let index = self?.suggestedUsers.firstIndex(where: { $0.id == userId }) {
-                                    self?.suggestedUsers.remove(at: index)
-                                }
+                                // Si hay error, revertir el estado del botón
+                                self?.userButtonStates[userId] = .canRequestFollow
+                                self?.pendingRequests.remove(userId)
                             }
+                            // Si no hay error, el usuario ya fue eliminado de la lista arriba
                         }
                     }
                 } else {
+                    // ✅ Eliminar inmediatamente de la lista antes de seguir
+                    DispatchQueue.main.async {
+                        if let index = self.suggestedUsers.firstIndex(where: { $0.id == userId }) {
+                            self.suggestedUsers.remove(at: index)
+                        }
+                        self.followedUserIds.insert(userId)
+                        self.userButtonStates[userId] = .following
+                    }
+                    
                     self.firestoreService.followUser(
                         currentUserId: currentUserId,
                         targetUserId: userId
@@ -1481,14 +1600,11 @@ class ExploreViewModel: ObservableObject {
                         DispatchQueue.main.async {
                             if let error = error {
                                 self?.errorMessage = "Error al seguir usuario: \(error.localizedDescription)"
-                            } else {
-                                self?.userButtonStates[userId] = .following
-                                self?.followedUserIds.insert(userId)
-                                
-                                if let index = self?.suggestedUsers.firstIndex(where: { $0.id == userId }) {
-                                    self?.suggestedUsers.remove(at: index)
-                                }
+                                // Si hay error, revertir el estado del botón
+                                self?.userButtonStates[userId] = .canFollow
+                                self?.followedUserIds.remove(userId)
                             }
+                            // Si no hay error, el usuario ya fue eliminado de la lista arriba
                         }
                     }
                 }
@@ -1532,6 +1648,8 @@ extension ExploreViewModel {
         filteredMoments = []
         suggestedUsers = []
         searchedUsers = []
+        followedUserIds = [] // ✅ Limpiar usuarios seguidos para recargarlos
+        pendingRequests = [] // ✅ Limpiar solicitudes pendientes para recargarlas
         fetchMomentsByInterests()
     }
     

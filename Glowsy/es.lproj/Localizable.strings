@@ -363,6 +363,7 @@
 "nova.you" = "Tú";
 "nova.name" = "Nova";
 "nova.personalAssistant" = "Tu asistente personal";
+"nova.encryptedData" = "Datos encriptados";
 "nova.recentConversations" = "Conversaciones Recientes";
 "nova.noConversations" = "No hay conversaciones previas";
 "nova.startNewConversation" = "Inicia una nueva conversación y se guardará automáticamente";
@@ -463,6 +464,7 @@
 "creator.album.elements.plural" = "%d elementos";
 "creator.edit" = "Editar";
 "creator.format" = "Formato:";
+"creator.recommendedDimensions" = "Dimensiones recomendadas";
 "creator.share" = "Compartir";
 "creator.caption.placeholder" = "Escribe un pie de foto...";
 "creator.files.selected.count" = "%d archivos seleccionados";
@@ -752,6 +754,8 @@
 "feed.forYou" = "Para Ti";
 "feed.following.description" = "Momentos de personas que sigues";
 "feed.forYou.description" = "Contenido recomendado para ti";
+"feed.reels.tapToView" = "Toca para ver";
+"feed.reels.badge" = "Reels";
 
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
@@ -1609,6 +1613,7 @@
 
 /* Live Activities */
 "liveActivity.uploadingStory" = "Subiendo historia";
+"liveActivity.uploadingMoment" = "Subiendo momento";
 "liveActivity.uploading" = "Subiendo...";
 "liveActivity.processing" = "Procesando...";
 "liveActivity.completed" = "Completado";
@@ -1630,3 +1635,20 @@
 "widget.stories.plural" = "%d historias nuevas";
 "widget.messageRequests.singular" = "1 solicitud de mensaje pendiente";
 "widget.messageRequests.plural" = "%d solicitudes de mensaje pendientes";
+
+/* Auth Errors */
+"auth.error.emailInUse" = "Este correo ya está registrado. Intenta iniciar sesión.";
+"auth.error.invalidEmail" = "El correo electrónico no es válido.";
+"auth.error.wrongPassword" = "Contraseña incorrecta. Inténtalo de nuevo.";
+"auth.error.userNotFound" = "No se encontró un usuario con estas credenciales.";
+"auth.error.weakPassword" = "La contraseña es muy débil. Usa al menos 8 caracteres con letras y números.";
+"auth.error.network" = "Error de conexión. Verifica tu internet e intenta de nuevo.";
+"auth.error.tooManyRequests" = "Demasiados intentos. Por favor, espera un momento.";
+"auth.error.invalidCredentials" = "Usuario o contraseña incorrectos. Por favor, verifica tus credenciales.";
+"auth.error.userDisabled" = "Esta cuenta ha sido desactivada. Contacta con soporte si necesitas ayuda.";
+"auth.error.generic" = "No se pudo iniciar sesión. Por favor, verifica tus credenciales e intenta de nuevo.";
+"auth.error.emptyFields" = "El identificador y la contraseña son obligatorios.";
+"auth.error.usernameNotFound" = "Usuario no encontrado. Por favor, verifica tu nombre de usuario.";
+"auth.error.privacyPolicyRequired" = "Debes aceptar las políticas de privacidad.";
+"auth.error.usernameUnavailable" = "Nombre de usuario no disponible.";
+"auth.error.userIdNotFound" = "No se pudo obtener el ID del usuario.";

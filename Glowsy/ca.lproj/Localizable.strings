@@ -353,6 +353,7 @@
 "nova.you" = "Tu";
 "nova.name" = "Nova";
 "nova.personalAssistant" = "El teu assistent personal";
+"nova.encryptedData" = "Dades xifrades";
 "nova.recentConversations" = "Converses Recents";
 "nova.noConversations" = "No hi ha converses prèvies";
 "nova.startNewConversation" = "Inicia una nova conversa i es guardarà automàticament";
@@ -453,6 +454,7 @@
 "creator.album.elements.plural" = "%d elements";
 "creator.edit" = "Editar";
 "creator.format" = "Format:";
+"creator.recommendedDimensions" = "Dimensions recomanades";
 "creator.share" = "Compartir";
 "creator.caption.placeholder" = "Escriu una llegenda...";
 "creator.files.selected.count" = "%d fitxers seleccionats";
@@ -742,6 +744,8 @@
 "feed.forYou" = "Per a Tu";
 "feed.following.description" = "Moments de persones que segueixes";
 "feed.forYou.description" = "Contingut recomanat per a tu";
+"feed.reels.tapToView" = "Toca per veure";
+"feed.reels.badge" = "Reels";
 
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
@@ -1582,6 +1586,7 @@
 
 /* Live Activities */
 "liveActivity.uploadingStory" = "Pujant història";
+"liveActivity.uploadingMoment" = "Pujant moment";
 "liveActivity.uploading" = "Pujant...";
 "liveActivity.processing" = "Processant...";
 "liveActivity.completed" = "Completat";
@@ -1603,3 +1608,20 @@
 "widget.stories.plural" = "%d històries noves";
 "widget.messageRequests.singular" = "1 sol·licitud de missatge pendent";
 "widget.messageRequests.plural" = "%d sol·licituds de missatge pendents";
+
+/* Auth Errors */
+"auth.error.emailInUse" = "Aquest correu ja està registrat. Intenta iniciar sessió.";
+"auth.error.invalidEmail" = "El correu electrònic no és vàlid.";
+"auth.error.wrongPassword" = "Contrasenya incorrecta. Torna-ho a provar.";
+"auth.error.userNotFound" = "No s'ha trobat cap usuari amb aquestes credencials.";
+"auth.error.weakPassword" = "La contrasenya és massa feble. Utilitza almenys 8 caràcters amb lletres i números.";
+"auth.error.network" = "Error de connexió. Verifica la teva internet i torna-ho a provar.";
+"auth.error.tooManyRequests" = "Massa intents. Si us plau, espera un moment.";
+"auth.error.invalidCredentials" = "Usuari o contrasenya incorrectes. Si us plau, verifica les teves credencials.";
+"auth.error.userDisabled" = "Aquest compte ha estat desactivat. Contacta amb suport si necessites ajuda.";
+"auth.error.generic" = "No s'ha pogut iniciar sessió. Si us plau, verifica les teves credencials i torna-ho a provar.";
+"auth.error.emptyFields" = "L'identificador i la contrasenya són obligatoris.";
+"auth.error.usernameNotFound" = "Usuari no trobat. Si us plau, verifica el teu nom d'usuari.";
+"auth.error.privacyPolicyRequired" = "Has d'acceptar les polítiques de privacitat.";
+"auth.error.usernameUnavailable" = "Nom d'usuari no disponible.";
+"auth.error.userIdNotFound" = "No s'ha pogut obtenir l'ID de l'usuari.";

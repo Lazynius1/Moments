@@ -9,10 +9,31 @@ class GlobalVideoManager: ObservableObject {
     @Published private(set) var activeVideoId: String?
     private var allPlayers: [String: VideoPlayerManager] = [:]
     
-    private init() {}
+    // ✅ ESTILO INSTAGRAM: Si el usuario activa el sonido en algún video, todos los posteriores tienen sonido
+    @Published private(set) var userHasEnabledSoundInSession: Bool = false
+    
+    private init() {
+        // ✅ Escuchar cuando la app entra en background para resetear la sesión
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterBackground),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appWillEnterBackground() {
+        // ✅ Resetear la sesión de sonido cuando la app entra en background
+        userHasEnabledSoundInSession = false
+    }
     
     func registerPlayer(_ playerId: String, manager: VideoPlayerManager) {
         allPlayers[playerId] = manager
+        
+        // ✅ ESTILO INSTAGRAM: Si el usuario ya activó el sonido en esta sesión, aplicar a este video también
+        if userHasEnabledSoundInSession {
+            manager.setMuted(false, respectSilentMode: true)
+        }
     }
     
     func unregisterPlayer(_ playerId: String) {
@@ -47,6 +68,40 @@ class GlobalVideoManager: ObservableObject {
             manager.pauseVideo()
         }
     }
+    
+    // ✅ ESTILO INSTAGRAM: Toggle mute que activa el sonido para toda la sesión
+    func toggleMute(_ playerId: String) {
+        guard let manager = allPlayers[playerId] else { return }
+        
+        let wasMuted = manager.isMuted
+        manager.toggleMute(respectSilentMode: true)
+        
+        // ✅ Si el usuario desmutea (activa el sonido), activar sonido para toda la sesión
+        if wasMuted && !manager.isMuted {
+            userHasEnabledSoundInSession = true
+            
+            // ✅ Aplicar sonido a todos los videos activos
+            for (id, playerManager) in allPlayers {
+                if id != playerId {
+                    playerManager.setMuted(false, respectSilentMode: true)
+                }
+            }
+        }
+    }
+    
+    // ✅ NUEVO: Obtener estado de mute de un video
+    func isMuted(_ playerId: String) -> Bool {
+        return allPlayers[playerId]?.isMuted ?? true
+    }
+    
+    // ✅ Verificar si el iPhone está en modo silencioso
+    private func isDeviceInSilentMode() -> Bool {
+        // En iOS, no hay una API directa para detectar el switch de silencio físico
+        // Pero podemos usar el volumen del sistema como indicador aproximado
+        // Si el volumen es 0, probablemente está en silencio
+        let volume = AVAudioSession.sharedInstance().outputVolume
+        return volume == 0.0
+    }
 }
 
 // ✅ MODIFICADO: ModernVideoPlayer con control global
@@ -54,6 +109,7 @@ struct ModernVideoPlayer: View {
     let url: String
     let aspectRatio: CGFloat
     let videoId: String // ✅ NUEVO: ID único para este video
+    let hideMuteButton: Bool // ✅ NUEVO: Para ocultar el botón de mute (usado en reels)
     
     @StateObject private var playerManager = VideoPlayerManager()
     @StateObject private var globalManager = GlobalVideoManager.shared
@@ -63,6 +119,13 @@ struct ModernVideoPlayer: View {
     @State private var isBuffering = false
     @State private var hasSetupPlayer = false
     @State private var isVisible = false
+    
+    init(url: String, aspectRatio: CGFloat, videoId: String, hideMuteButton: Bool = false) {
+        self.url = url
+        self.aspectRatio = aspectRatio
+        self.videoId = videoId
+        self.hideMuteButton = hideMuteButton
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -84,15 +147,17 @@ struct ModernVideoPlayer: View {
                 // Controls overlay
                 controlsOverlay
                 
-                // Mute/unmute button
-                VStack {
-                    Spacer()
-                    HStack {
-                        muteButton
+                // Mute/unmute button (solo si no está oculto)
+                if !hideMuteButton {
+                    VStack {
                         Spacer()
+                        HStack {
+                            muteButton
+                            Spacer()
+                        }
                     }
+                    .padding(12)
                 }
-                .padding(12)
                 
                 // Progress bar
                 VStack {
@@ -134,11 +199,10 @@ struct ModernVideoPlayer: View {
                 .fill(.ultraThinMaterial)
                 .aspectRatio(min(aspectRatio, 0.8), contentMode: .fit)
             
+            // ✅ HALO ANIMATION: También en la carga inicial
+            HaloLoadingView(cornerRadius: 0)
+            
             VStack(spacing: 12) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
-                    .scaleEffect(1.2)
-                
                 Text("Cargando video...")
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(.white.opacity(0.8))
@@ -175,11 +239,17 @@ struct ModernVideoPlayer: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(1.5)
                     
-                    Text("Buffering...")
-                        .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(.white.opacity(0.8))
+//                    Text("Buffering...")
+//                        .font(.custom("Poppins-Medium", size: 12))
+//                        .foregroundColor(.white.opacity(0.8))
                 }
                 .transition(.opacity)
+            }
+            // ✅ HALO ANIMATION: Mostrar el borde giratorio cuando está haciendo buffering
+            // Solo mostrar si NO estamos mostrando los controles (para no saturar)
+            if isBuffering && !showControls {
+                HaloLoadingView(cornerRadius: 0)
+                    .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: showControls)
@@ -250,8 +320,9 @@ struct ModernVideoPlayer: View {
     
     // ✅ NUEVO: Auto-play inteligente
     private func checkAutoPlay() {
-        // Solo auto-reproducir si es visible y no hay otro video reproduciéndose
-        if isVisible && globalManager.activeVideoId == nil {
+        // ✅ Auto-play al hacerse visible: este vídeo pasa a ser el activo
+        // GlobalVideoManager se encarga de pausar los demás
+        if isVisible {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if self.isVisible {
                     self.globalManager.playVideo(self.videoId)
@@ -297,12 +368,15 @@ class VideoPlayerManager: ObservableObject {
     func setupPlayer(with url: URL) {
         guard !hasSetupPlayer else { return }
         
-        let playerItem = AVPlayerItem(url: url)
+        // ✅ INSTANT PLAYBACK: Usar item precargado si existe
+        let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
+        
+        // Configuración adicional (aunque el preloader ya lo hace)
+        playerItem.preferredForwardBufferDuration = 5.0 
         player = AVPlayer(playerItem: playerItem)
         
-        // ✅ CONFIGURACIÓN OPTIMIZADA
         player?.isMuted = true
-        player?.automaticallyWaitsToMinimizeStalling = true
+        player?.automaticallyWaitsToMinimizeStalling = false // ✅ Inicio instantáneo (aunque arriesgue stall)
         
         // ✅ NO AUTO-PLAY - El GlobalVideoManager decidirá cuándo reproducir
         isPlaying = false
@@ -340,10 +414,37 @@ class VideoPlayerManager: ObservableObject {
         }
     }
     
-    func toggleMute() {
+    // ✅ ESTILO INSTAGRAM: Toggle mute respetando el modo silencioso del iPhone
+    func toggleMute(respectSilentMode: Bool = false) {
         guard let player = player else { return }
+        
+        if respectSilentMode {
+            // ✅ Verificar si el iPhone está en modo silencioso
+            let volume = AVAudioSession.sharedInstance().outputVolume
+            if volume == 0.0 {
+                // Si está en silencio, no hacer nada (el usuario debe activar el volumen primero)
+                return
+            }
+        }
+        
         player.isMuted.toggle()
         isMuted = player.isMuted
+    }
+    
+    // ✅ NUEVO: Establecer mute directamente (usado por GlobalVideoManager)
+    func setMuted(_ muted: Bool, respectSilentMode: Bool = false) {
+        guard let player = player else { return }
+        
+        if respectSilentMode {
+            let volume = AVAudioSession.sharedInstance().outputVolume
+            if volume == 0.0 && !muted {
+                // Si está en silencio y queremos activar sonido, no hacer nada
+                return
+            }
+        }
+        
+        player.isMuted = muted
+        isMuted = muted
     }
     
     private func setupLooping(for playerItem: AVPlayerItem) {
@@ -466,6 +567,51 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
             if let timeObserver = timeObserver {
                 playerLayer?.player?.removeTimeObserver(timeObserver)
             }
+        }
+    }
+}
+// ✅ NUEVO: Halo Loading Animation (Borde giratorio)
+struct HaloLoadingView: View {
+    let cornerRadius: CGFloat
+    @State private var isAnimating = false
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // 1. Capa de gradiente que gira (FONDO)
+                AngularGradient(
+                    gradient: Gradient(colors: [
+                        Color.purple.opacity(0),
+                        Color.purple.opacity(0.4),
+                        Color.pink,
+                        Color.orange,
+                        Color.pink,
+                        Color.purple.opacity(0.4),
+                        Color.purple.opacity(0)
+                    ]),
+                    center: .center
+                )
+                .scaleEffect(1.5) // Asegurar cobertura al girar
+                .rotationEffect(Angle(degrees: isAnimating ? 360 : 0)) // Gira el COLOR, no la forma
+                .mask(
+                    // MASCARA: El borde estático
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(lineWidth: 4)
+                )
+                .animation(
+                    Animation.linear(duration: 1.5)
+                        .repeatForever(autoreverses: false),
+                    value: isAnimating
+                )
+                
+                // 2. Brillo sutil interno (ESTÁTICO)
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.pink.opacity(0.3), lineWidth: 1)
+                    .blur(radius: 4)
+            }
+        }
+        .onAppear {
+            isAnimating = true
         }
     }
 }

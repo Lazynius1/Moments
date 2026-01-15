@@ -37,3 +37,4 @@ xcodebuild -workspace Project.xcworkspace -scheme "MomentsSocial App" -sdk iphon
 4. **@DocumentID**: Firebase-specific, necesita adaptación
 
 
+

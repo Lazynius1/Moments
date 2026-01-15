@@ -14,6 +14,9 @@ struct EditableImageView: View {
     @State private var lastOffset: CGSize = .zero
     @State private var lastRotation: Angle = .zero
     
+    // ✅ Fix: Use physical screen size to match Viewer and avoid Safe Area interpolation issues
+    private let screenSize = UIScreen.main.bounds.size
+    
     init(image: UIImage, scale: Binding<CGFloat>, offset: Binding<CGSize>, rotation: Binding<Angle>) {
         self.image = image
         self._scale = scale
@@ -22,68 +25,28 @@ struct EditableImageView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // ✅ Fondo con imagen original blur (usando blur nativo de SwiftUI)
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .blur(radius: 20)
-                    .scaleEffect(1.1) // Ligeramente más grande para evitar bordes
-                
-                // ✅ Imagen editable en primer plano (COMENTADO - disponible para futuro)
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: {
-                        let imageRatio = image.size.width / image.size.height
-                        let isHorizontal = imageRatio > 1.0
-                        return isHorizontal ? .fit : .fill
-                    }())
-                    // .scaleEffect(scale)           // COMENTADO: Zoom manual
-                    // .offset(offset)              // COMENTADO: Movimiento manual
-                    // .rotationEffect(rotation)    // COMENTADO: Rotación manual
-                    // .gesture(                    // COMENTADO: Gestos de transformación
-                    //     SimultaneousGesture(
-                    //         SimultaneousGesture(
-                    //             MagnificationGesture()
-                    //                 .onChanged { value in
-                    //                     let delta = value / lastScale
-                    //                     lastScale = value
-                    //                     scale = min(max(scale * delta, 0.5), 3.0)
-                    //                 }
-                    //                 .onEnded { _ in
-                    //                     lastScale = 1.0
-                    //                 },
-                    //             DragGesture()
-                    //                 .onChanged { value in
-                    //                     let delta = CGSize(
-                    //                         width: value.translation.width - lastOffset.width,
-                    //                         height: value.translation.height - lastOffset.height
-                    //                     )
-                    //                     lastOffset = value.translation
-                    //                     offset = CGSize(
-                    //                         width: offset.width + delta.width,
-                    //                         height: offset.height + delta.height
-                    //                     )
-                    //                 }
-                    //                 .onEnded { _ in
-                    //                     lastOffset = .zero
-                    //                 }
-                    //         ),
-                    //         RotationGesture()
-                    //             .onChanged { angle in
-                    //                 let delta = angle - lastRotation
-                    //                 lastRotation = angle
-                    //                 rotation += delta
-                    //             }
-                    //             .onEnded { _ in
-                    //                 lastRotation = .zero
-                    //             }
-                    //     )
-                    // )
-            }
+        ZStack {
+            // ✅ Fondo con imagen original blur (usando blur nativo de SwiftUI)
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: screenSize.width, height: screenSize.height)
+                .blur(radius: 20)
+                .scaleEffect(1.1) // Ligeramente más grande para evitar bordes
+            
+            // ✅ Imagen editable en primer plano
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: {
+                    let imageRatio = image.size.width / image.size.height
+                    let isHorizontal = imageRatio > 1.0
+                    return isHorizontal ? .fit : .fill
+                }())
+                // .scaleEffect(scale)           // COMENTADO: Zoom manual
+                // .offset(offset)              // COMENTADO: Movimiento manual
+                // .rotationEffect(rotation)    // COMENTADO: Rotación manual
         }
+        .frame(width: screenSize.width, height: screenSize.height) // Ensure ZStack fills screen
     }
 }
 
@@ -181,18 +144,18 @@ struct StoryEditingView: View {
                 // Background media
                 if let firstMedia = selectedMediaItems.first {
                     if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
-                        // ✅ Video estático con fondo blur y dimensiones respetadas
+                        // ✅ Video estático con fondo blur y dimensiones respetadas (WYSIWYG)
                         ZStack {
-                            // Fondo blur del video
-                            StoryVideoPlayerView(videoURL: videoURL)
+                            // Fondo blur del video (Llenar pantalla)
+                            StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
                                 .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                                 .blur(radius: 20)
                                 .scaleEffect(1.1)
-                                .clipped()
+                                .clipped() // Cortar exceso del blur
                                 .ignoresSafeArea()
                             
-                            // Video principal estático con dimensiones respetadas
-                            StoryVideoPlayerView(videoURL: videoURL)
+                            // Video principal (Ajustar contenido)
+                            StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspect)
                                 .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: UIScreen.main.bounds.height)
                                 .clipped()
                                 .ignoresSafeArea()
@@ -1241,10 +1204,11 @@ extension StoryEditingView {
 // MARK: - Video Player View
 struct StoryVideoPlayerView: UIViewRepresentable {
     let videoURL: URL
+    var videoGravity: AVLayerVideoGravity = .resizeAspect // ✅ Default gravity
     
     func makeUIView(context: Context) -> PlayerUIView {
         let playerView = PlayerUIView()
-        playerView.configure(with: videoURL)
+        playerView.configure(with: videoURL, gravity: videoGravity) // ✅ Pass gravity
         return playerView
     }
     
@@ -1268,7 +1232,7 @@ class PlayerUIView: UIView {
     }
     
     private func setupPlayer() {
-        backgroundColor = .black
+        backgroundColor = .clear // ✅ Transparent background for blur effect
         
         // ✅ Escuchar notificación para limpiar el video
         NotificationCenter.default.addObserver(
@@ -1280,11 +1244,11 @@ class PlayerUIView: UIView {
         }
     }
     
-    func configure(with url: URL) {
+    func configure(with url: URL, gravity: AVLayerVideoGravity = .resizeAspect) {
         player = AVPlayer(url: url)
         
         playerLayer = AVPlayerLayer(player: player)
-        playerLayer?.videoGravity = .resizeAspect
+        playerLayer?.videoGravity = gravity // ✅ Use passed gravity
         playerLayer?.frame = bounds
         
         if let playerLayer = playerLayer {
@@ -1401,6 +1365,7 @@ struct EditingToolButton: View {
     let icon: String
     let title: String
     let action: () -> Void
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         Button(action: action) {
@@ -1410,7 +1375,7 @@ struct EditingToolButton: View {
                 Text(title)
                     .font(.caption)
             }
-            .foregroundColor(.white)
+            .foregroundColor(colorScheme == .dark ? .white : .black)
         }
     }
 }
