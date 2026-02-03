@@ -176,6 +176,8 @@ struct StoriesView: View {
                 )
             }
         }
+        .ignoresSafeArea(.keyboard, edges: .all) // ✅ Ignorar keyboard en StoriesView
+        .ignoresSafeArea(.container, edges: .all) // ✅ Por si acaso
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
         .onAppear {

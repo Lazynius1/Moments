@@ -2,6 +2,10 @@
 struct AdaptiveColors {
     let colorScheme: ColorScheme
     
+    var background: Color {
+        colorScheme == .dark ? .black : .white
+    }
+    
     // Colores principales
     var primary: Color {
         colorScheme == .dark ? .white : .black
@@ -128,6 +132,7 @@ struct FeedView: View {
     // ✨ NUEVO: Variables para ReactionsListSheet
 
     @State private var isDeleting = false
+    
     @State private var targetConversationId: String? = nil
     @State private var targetMomentId: String? = nil
     @State private var showMomentDetail = false
@@ -145,7 +150,6 @@ struct FeedView: View {
                 .ignoresSafeArea(.all)
             
             mainContent
-                .padding(.top, 1)
             
             // ✅ Pill flotante sobre el contenido
             floatingFeedSelector
@@ -234,90 +238,96 @@ struct FeedView: View {
             .zIndex(2000) // Por encima de todo
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            AnalyticsService.shared.trackScreenView("FeedView")
-            AnalyticsService.shared.trackFeatureUsage("feed")
-            loadInitialData()
-            startTimeUpdate()
-            
-            setupServiceConnections()
-            
+            .onAppear {
+                AnalyticsService.shared.trackScreenView("FeedView")
+                AnalyticsService.shared.trackFeatureUsage("feed")
+                loadInitialData()
+                startTimeUpdate()
+                
+                setupServiceConnections()
+                
             // ✅ Solicitar permiso de notificaciones al cargar el feed (solo si no se ha decidido aún)
-            requestNotificationPermissionIfNeeded()
-            
-            // ✅ SETUP DE LISTENERS
-            badgeService.setupListeners()
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                notificationSummaryService.checkShouldShowSummary(
-                    unreadNotifications: badgeService.unreadNotificationsCount,
-                    unreadMessages: badgeService.unreadMessagesCount
-                )
+                requestNotificationPermissionIfNeeded()
+                
+                // ✅ SETUP DE LISTENERS
+                badgeService.setupListeners()
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    notificationSummaryService.checkShouldShowSummary(
+                        unreadNotifications: badgeService.unreadNotificationsCount,
+                        unreadMessages: badgeService.unreadMessagesCount
+                    )
+                }
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-            notificationSummaryService.markAppClosed()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                notificationSummaryService.checkShouldShowSummary(
-                    unreadNotifications: badgeService.unreadNotificationsCount,
-                    unreadMessages: badgeService.unreadMessagesCount
-                )
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                notificationSummaryService.markAppClosed()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
-            showMessages = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowNotifications"))) { _ in
-            showNotifications = true
-        }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    notificationSummaryService.checkShouldShowSummary(
+                        unreadNotifications: badgeService.unreadNotificationsCount,
+                        unreadMessages: badgeService.unreadMessagesCount
+                    )
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
+                showMessages = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowNotifications"))) { _ in
+                showNotifications = true
+            }
         .onDisappear {
             // cleanupListeners() // ❌ ELIMINAR
 
         }
-        .sheet(isPresented: $showNotifications) {
-            NotificationsView(onNotificationsCleared: {
+            .sheet(isPresented: $showNotifications) {
+                NotificationsView(onNotificationsCleared: {
 
                 // ✅ No es necesario actualizar hasUnreadNotifications localmente
                 // badgeService.clearAppBadge() // ❌ No llamar aquí, NotificationsView ya lo maneja
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("NotificationsCleared"),
-                    object: nil
-                )
-            })
-        }
-        .sheet(isPresented: $showMessages) {
-            MessagingView(targetConversationId: $targetConversationId)
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("NotificationsCleared"),
+                        object: nil
+                    )
+                })
+            }
+            .fullScreenCover(isPresented: $showMessages) {
+                MessagingView(targetConversationId: $targetConversationId, onDismiss: {
+                    showMessages = false
+                })
                 .environmentObject(messagingViewModel)
                 .environmentObject(firestoreService)
-        }
-        .fullScreenCover(isPresented: $showSpecificUserStories) {
-            StoriesView(startWithUserId: $selectedStoryUserId)
-                .environmentObject(firestoreService)
-        }
-        .fullScreenCover(isPresented: $showStories) {
-            StoriesView()
-                .environmentObject(firestoreService)
-        }
-        .sheet(isPresented: $showingComments, onDismiss: {
-            selectedMoment = nil
-        }) {
-            if let moment = selectedMoment {
-                ModernCommentsView(moment: moment)
-                    .environmentObject(firestoreService)
             }
-        }
-        .sheet(isPresented: $showExploreWithHashtag) {
-            ExploreView(initialSearchQuery: selectedHashtag)
-        }
-        .fullScreenCover(isPresented: $showingLocationMap) {
-            LocationMapView(
-                locationName: selectedLocationName.isEmpty ? NSLocalizedString("feed.location.default", comment: "Default location name") : selectedLocationName,
-                coordinate: selectedLocationCoordinate,
-                isPresented: $showingLocationMap
-            )
-        }
+            .fullScreenCover(isPresented: $showSpecificUserStories) {
+                StoriesView(startWithUserId: $selectedStoryUserId)
+                    .environmentObject(firestoreService)
+                    .ignoresSafeArea(.keyboard) // ✅ Agregar aquí
+            }
+            .fullScreenCover(isPresented: $showStories) {
+                StoriesView()
+                    .environmentObject(firestoreService)
+                    .ignoresSafeArea(.keyboard) // ✅ Agregar aquí
+            }
+            .sheet(isPresented: $showingComments, onDismiss: {
+                selectedMoment = nil
+            }) {
+                if let moment = selectedMoment {
+                    ModernCommentsView(moment: moment)
+                        .environmentObject(firestoreService)
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
+                }
+            }
+            .sheet(isPresented: $showExploreWithHashtag) {
+                ExploreView(initialSearchQuery: selectedHashtag)
+            }
+            .fullScreenCover(isPresented: $showingLocationMap) {
+                LocationMapView(
+                    locationName: selectedLocationName.isEmpty ? NSLocalizedString("feed.location.default", comment: "Default location name") : selectedLocationName,
+                    coordinate: selectedLocationCoordinate,
+                    isPresented: $showingLocationMap
+                )
+            }
         .onChange(of: showingLocationMap) { isShowing in
             if isShowing {
                 // ✅ El onChange es crucial para el funcionamiento, pero sin prints
@@ -325,45 +335,45 @@ struct FeedView: View {
         }
 
 
-        .fullScreenCover(isPresented: $showMomentDetail) {
-            if let momentId = targetMomentId, let userId = targetMomentUserId {
-                MomentDetailFromNotificationView(
-                    momentId: momentId,
-                    userId: userId,
-                    isPresented: $showMomentDetail
-                )
-                .onDisappear {
-                    targetMomentId = nil
-                    targetMomentUserId = nil
-                }
-            }
-        }
-        .sheet(isPresented: $showEditSheet) {
-            if let moment = selectedMomentForMenu {
-                EditMomentView(
-                    moment: moment,
-                    editedContent: $editedContent,
-                    onSave: { newContent in
-                        updateMoment(moment: moment, newContent: newContent)
+            .fullScreenCover(isPresented: $showMomentDetail) {
+                if let momentId = targetMomentId, let userId = targetMomentUserId {
+                    MomentDetailFromNotificationView(
+                        momentId: momentId,
+                        userId: userId,
+                        isPresented: $showMomentDetail
+                    )
+                    .onDisappear {
+                        targetMomentId = nil
+                        targetMomentUserId = nil
                     }
-                )
-            }
-        }
-        .alert(NSLocalizedString("feed.actions.delete.title", comment: "Delete moment alert title"), isPresented: $showDeleteAlert) {
-            Button(NSLocalizedString("feed.actions.cancel", comment: "Cancel action"), role: .cancel) { }
-            Button(NSLocalizedString("feed.actions.delete", comment: "Delete action"), role: .destructive) {
-                if let moment = selectedMomentForMenu {
-                    deleteMoment(moment: moment)
                 }
             }
-        } message: {
-            Text("feed.delete.confirm")
-        }
-        .sheet(isPresented: $showReportSheet) {
-            if let moment = selectedMomentForMenu {
-                ReportBottomSheet(moment: moment)
+            .sheet(isPresented: $showEditSheet) {
+                if let moment = selectedMomentForMenu {
+                    EditMomentView(
+                        moment: moment,
+                        editedContent: $editedContent,
+                        onSave: { newContent in
+                            updateMoment(moment: moment, newContent: newContent)
+                        }
+                    )
+                }
             }
-        }
+            .alert(NSLocalizedString("feed.actions.delete.title", comment: "Delete moment alert title"), isPresented: $showDeleteAlert) {
+                Button(NSLocalizedString("feed.actions.cancel", comment: "Cancel action"), role: .cancel) { }
+                Button(NSLocalizedString("feed.actions.delete", comment: "Delete action"), role: .destructive) {
+                    if let moment = selectedMomentForMenu {
+                        deleteMoment(moment: moment)
+                    }
+                }
+            } message: {
+                Text("feed.delete.confirm")
+            }
+            .sheet(isPresented: $showReportSheet) {
+                if let moment = selectedMomentForMenu {
+                    ReportBottomSheet(moment: moment)
+                }
+            }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenNotifications"))) { _ in
             showNotifications = true
         }
@@ -408,6 +418,13 @@ struct FeedView: View {
                 selectedMoment = nil
             }
         }
+        // ✅ RESTAURADO: Listener para navegación a perfil interna
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfileInFeed"))) { notification in
+            if let userId = notification.object as? String, !userId.isEmpty {
+                selectedUserId = userId
+                showUserProfile = true
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfileInFeed"))) { notification in
             if let userId = notification.object as? String, !userId.isEmpty {
                 selectedUserId = userId
@@ -429,11 +446,11 @@ struct FeedView: View {
 
         }
         .environmentObject(firestoreService)
-        .sheet(isPresented: $showUserProfile) {
-            if !selectedUserId.isEmpty {
-                UserProfileView(userId: selectedUserId)
+            .sheet(isPresented: $showUserProfile) {
+                if !selectedUserId.isEmpty {
+                    UserProfileView(userId: selectedUserId)
+                }
             }
-        }
         // 🔗 STORY CHAINS: Eliminado en Feed; centralizado en StoryModels
     }
     
@@ -504,25 +521,35 @@ struct FeedView: View {
             }
         }
     }
-    
+
     // ✅ Fondo moderno como ProfileView
     private var modernBackgroundView: some View {
         ZStack {
             if colorScheme == .dark {
-                // Negro más intenso y elegante
-                Color(hex: "0A0A0A")
-                    .ignoresSafeArea()
+                // ✅ Fondos profundos y uniformes
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: Color(hex: "080808"), location: 0),
+                        .init(color: Color(hex: "080808"), location: 0.3),
+                        .init(color: Color(hex: "0C0C0C"), location: 0.7),
+                        .init(color: Color(hex: "080808"), location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
             } else {
                 // ✅ NUEVO: Fondo claro elegante
                 LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
+                    gradient: Gradient(stops: [
+                        .init(color: .white, location: 0),
+                        .init(color: .white, location: 0.2), // Blanco sólido tras el header
+                        .init(color: Color(hex: "f8f9fa"), location: 0.5),
+                        .init(color: Color(hex: "e9ecef"), location: 0.8),
+                        .init(color: .white, location: 1.0)
                     ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
                 .ignoresSafeArea()
             }
@@ -530,13 +557,16 @@ struct FeedView: View {
     }
     
     private var mainContent: some View {
-        VStack(spacing: 0) {
-            modernHeaderView
-            
-            // 🔥 NUEVO: Barra de progreso de uploads
-            uploadProgressBar
-            
+        ZStack(alignment: .top) {
             scrollableContent
+                .ignoresSafeArea(edges: .top)
+            
+            VStack(spacing: 0) {
+                modernHeaderView
+                
+                // 🔥 NUEVO: Barra de progreso de uploads
+                uploadProgressBar
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -548,7 +578,7 @@ struct FeedView: View {
                 .frame(height: 100) // Espacio del header
             
             SegmentedFeedToggle(selectedFeedType: $selectedFeedType)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 12)
                 .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
                 .onChange(of: selectedFeedType) { newFeedType in
                     // ✅ NUEVO: Guardar la preferencia del usuario
@@ -570,9 +600,8 @@ struct FeedView: View {
     
     // ✅ Header moderno
     private var modernHeaderView: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                // Sección de historias CON progreso de upload
+        HStack(spacing: 8) {
+            // Sección de historias CON progreso de upload
                 if isLoadingStories {
                     HStack(spacing: 10) {
                         ForEach(0..<5, id: \.self) { _ in
@@ -588,7 +617,7 @@ struct FeedView: View {
                         }
                         Spacer()
                     }
-                    .padding(.leading, 20)
+                    .padding(.leading, 12)
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
@@ -643,7 +672,7 @@ struct FeedView: View {
                                 }
                             }
                         }
-                        .padding(.leading, 20)
+                        .padding(.leading, 12)
                         .padding(.trailing, 0)
                     }
                 }
@@ -667,6 +696,11 @@ struct FeedView: View {
                         action: {
                             AnalyticsService.shared.trackInteraction("notifications_button_tapped")
                             AnalyticsService.shared.trackFeatureUsage("notifications")
+                            
+                            // ✅ Marcar como leídas y limpiar badge al abrir desde el icono
+                            NotificationService.shared.markAllAsRead()
+                            NotificationBadgeService.shared.clearNotificationBadge()
+                            
                             showNotifications = true
                         }
                     )
@@ -682,31 +716,19 @@ struct FeedView: View {
                         }
                     )
                 }
-                .padding(.trailing, 20)
+                .padding(.trailing, 12)
             }
             .padding(.vertical, 16)
             .background(
-                Group {
-                    if colorScheme == .dark {
-                        // Negro más intenso y elegante
-                        Color(hex: "0A0A0A")
-                    } else {
-                        // Mismo fondo que el Feed en modo claro
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.white,
-                                Color(hex: "f8f9fa"),
-                                Color(hex: "e9ecef"),
-                                Color.white
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    }
-                }
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        colorScheme == .light ?
+                        Color.white.opacity(0.15) :
+                        Color.black.opacity(0.4) // Oscurecimiento mucho más fuerte para evitar el gris
+                    )
+                    .ignoresSafeArea(edges: .top)
             )
-            .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)
-        }
     }
     
     // ✅ Contenido del scroll
@@ -721,6 +743,10 @@ struct FeedView: View {
                 let availableHeight = screenHeight - headerHeight - progressBarHeight - segmentedToggleHeight - tabbarHeight - 60
                 
                 LazyVStack(spacing: max(15, screenHeight * 0.02)) {
+                    // ✅ Espacio para que el primer post empiece debajo del header
+                    Spacer()
+                        .frame(height: headerHeight + segmentedToggleHeight + 35)
+                    
                     ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
                         VStack(spacing: max(15, screenHeight * 0.02)) {
                             
@@ -757,6 +783,11 @@ struct FeedView: View {
                                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                         showGlobalContextMenu = true
                                     }
+                                },
+                                onTagTap: { userId in
+                                    // ✅ Tag Navigation
+                                    selectedUserId = userId
+                                    showUserProfile = true
                                 }
                             )
                             .id(index)
@@ -1045,14 +1076,29 @@ struct FeedView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(statusBackgroundColor)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(statusBorderColor, lineWidth: 0.5)
+                        )
+                    
+                    if uploadingMoment.status == .completed || uploadingMoment.status == .moderated {
+                        // Success Ping Animation
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.green.opacity(0.3), lineWidth: 2)
+                            .scaleEffect(checkScale == 1.0 ? 1.0 : 1.1)
+                            .opacity(checkScale == 1.0 ? 0 : 1)
+                    }
+                }
             )
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
+            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
         }
         
         // MARK: - 🎯 Vista de estado
@@ -1086,46 +1132,25 @@ struct FeedView: View {
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.orange)
                     
-                case .completed:
-                    // 🔥 VERSIÓN SIMPLE - Sin symbolEffect
-                    Image(systemName: "checkmark.circle.fill")
+                case .completed, .moderated:
+                    Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 14))
                         .foregroundColor(.green)
                         .scaleEffect(checkScale)
                         .onAppear {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                                checkScale = 1.2
+                            hapticNotification(.success)
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                                checkScale = 1.4
                             }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                                     checkScale = 1.0
                                 }
                             }
                         }
                     
                     Text("feed.uploading.published")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.green)
-                    
-                case .moderated:
-                    // 🔥 MISMA ANIMACIÓN pero usuario no sabe
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.green)
-                        .scaleEffect(checkScale)
-                        .onAppear {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                                checkScale = 1.2
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                                    checkScale = 1.0
-                                }
-                            }
-                        }
-                    
-                    Text("feed.uploading.published") // 🤫 Usuario no sabe que fue moderado
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.green)
                     
                 case .failed:
@@ -1162,17 +1187,18 @@ struct FeedView: View {
                     ZStack(alignment: .leading) {
                         // Fondo de la barra
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 4)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(height: 3)
                         
-                        // Progreso
+                        // Progreso con Glow
                         RoundedRectangle(cornerRadius: 2)
                             .fill(progressColor)
-                            .frame(width: geometry.size.width * uploadingMoment.uploadProgress, height: 4)
-                            .animation(.easeInOut(duration: 0.3), value: uploadingMoment.uploadProgress)
+                            .frame(width: geometry.size.width * uploadingMoment.uploadProgress, height: 3)
+                            .shadow(color: (uploadingMoment.status == .uploading ? Color(hex: "00A896") : Color.orange).opacity(0.5), radius: 4)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: uploadingMoment.uploadProgress)
                     }
                 }
-                .frame(height: 4)
+                .frame(height: 3)
                 
                 // Texto de estado detallado
                 HStack {
@@ -1203,17 +1229,40 @@ struct FeedView: View {
             }
         }
         
+        private var statusBorderColor: Color {
+            switch uploadingMoment.status {
+            case .uploading, .processing:
+                return Color.white.opacity(0.15)
+            case .completed, .moderated:
+                return Color.green.opacity(0.3)
+            case .failed:
+                return Color.red.opacity(0.3)
+            }
+        }
+        
+        private func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+            let generator = UIImpactFeedbackGenerator(style: style)
+            generator.prepare()
+            generator.impactOccurred()
+        }
+        
+        private func hapticNotification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+            let generator = UINotificationFeedbackGenerator()
+            generator.prepare()
+            generator.notificationOccurred(type)
+        }
+
         private var progressColor: LinearGradient {
             switch uploadingMoment.status {
             case .uploading:
                 return LinearGradient(
-                    colors: [.blue, .blue.opacity(0.8)],
+                    colors: [Color(hex: "00A896"), Color(hex: "00D2B4")],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
             case .processing:
                 return LinearGradient(
-                    colors: [.orange, .orange.opacity(0.8)],
+                    colors: [.orange, .yellow],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -1469,7 +1518,6 @@ struct FeedView: View {
                 let group = DispatchGroup()
                 var visibleStories: [(story: Story, wasViewed: Bool)] = []
                 var hasUnseenStory = false
-                let syncQueue = DispatchQueue(label: "story.visibility.check")
 
                 for story in stories {
                     group.enter()
@@ -1498,23 +1546,26 @@ struct FeedView: View {
                                             .getDocument { viewerDoc, _ in
                                                 let wasViewed = viewerDoc?.exists == true
                                                 
-                                                syncQueue.async {
+                                                DispatchQueue.main.async {
                                                     visibleStories.append((story: story, wasViewed: wasViewed))
                                                     if !wasViewed {
                                                         hasUnseenStory = true
                                                     }
+                                                    group.leave()
                                                 }
-                                                group.leave()
                                             }
                                     } else {
-                                        syncQueue.async {
+                                        DispatchQueue.main.async {
                                             visibleStories.append((story: story, wasViewed: false))
                                             hasUnseenStory = true
+                                            group.leave()
                                         }
                                     }
                                 }
                                 
-                                group.leave()
+                                DispatchQueue.main.async {
+                                    group.leave()
+                                }
                             }
                         }
                     }
@@ -1525,7 +1576,9 @@ struct FeedView: View {
                             if !hasCompleted {
                                 hasCompleted = true
 
-                                group.leave()
+                                DispatchQueue.main.async {
+                                    group.leave()
+                                }
                             }
                         }
                     }
@@ -1550,7 +1603,7 @@ struct FeedView: View {
                 await self.viewModel.refreshMoments(userId: userId)
             }
             group.addTask {
-                await self.notificationsViewModel.fetchNotifications()
+                await self.notificationsViewModel.refreshNotifications()
             }
             group.addTask {
                 await self.messagingViewModel.fetchConversations(for: userId)
@@ -1590,7 +1643,7 @@ struct ModernStoryButton: View {
     var body: some View {
         Button(action: action) {
             ZStack {
-                // Fondo más sutil - casi transparente como Instagram
+                // Fondo más sutil - casi transparente como estilo nativo
                 RoundedRectangle(cornerRadius: 12)
                     .fill(colorScheme == .dark ?
                           Color.white.opacity(0.05) :
@@ -1822,6 +1875,7 @@ struct ModernPostCardView: View {
     let onHashtagTap: (String) -> Void
     let onLocationTap: (String, CLLocationCoordinate2D?) -> Void
     let onContextMenu: (Moment) -> Void
+    var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation Callback
     @EnvironmentObject private var firestoreService: FirestoreService
     @EnvironmentObject private var feedViewModel: FeedViewModel
     @State private var currentImageIndex = 0
@@ -1832,6 +1886,7 @@ struct ModernPostCardView: View {
     @State private var isSaveLoading: Bool = false
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
+    @State private var showTags: Bool = false // ✅ NUEVO: Estado global para etiquetas en el post
     
     // ✅ ACTUALIZADO: AspectRatioType mejorado con soporte para reels
     @State private var aspectRatioType: AspectRatioType = .square
@@ -1904,7 +1959,7 @@ struct ModernPostCardView: View {
     // ✅ MEJORADO: Cálculo de altura con validaciones completas
     private var cardHeight: CGFloat {
         let currentSize = CGSize(
-            width: UIScreen.main.bounds.width - 30,
+            width: UIScreen.main.bounds.width - 16,
             height: availableHeight
         )
         
@@ -1981,14 +2036,18 @@ struct ModernPostCardView: View {
                     EnhancedCarouselView(
                         mediaItems: mediaItems,
                         currentIndex: $currentImageIndex,
+                        showTags: $showTags, // ✅ PASAR binding
                         aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                         allMoments: feedViewModel.moments,
-                        currentMoment: moment
+                        currentMoment: moment,
+                        onTagTap: onTagTap // ✅ Propagate to parent
                     )
                     .frame(height: max(cardHeight, 200))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                    .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
+                    // ✅ NUEVO: Sistema de sombras multi-nivel (Efecto de profundidad premium)
+                    .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
+                    .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)
                     .onAppear {
                         detectAspectRatio()
                     }
@@ -2048,6 +2107,50 @@ struct ModernPostCardView: View {
                         }
                     }
                     
+                    let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
+                    if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                        // Esquina inferior izquierda (encima del caption) - Estilo Glass
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        showTags.toggle()
+                                    }
+                                }) {
+                                    ZStack {
+                                        // Background Glass
+                                        Circle()
+                                            .fill(.ultraThinMaterial)
+                                            .frame(width: 38, height: 38)
+                                        
+                                        // Border Gradient Glass
+                                        Circle()
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
+                                            .frame(width: 38, height: 38)
+                                        
+                                        // Icon tinted if active
+                                        Image(systemName: showTags ? "person.fill" : "person.circle.fill")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                                    }
+                                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                                }
+                                .padding(.leading, 12)
+                                .padding(.bottom, moment.content.isEmpty ? 20 : 70) // Ajustar si hay texto
+                                Spacer()
+                            }
+                        }
+                        .zIndex(110)
+                    }
+                    
                     // ✅ NUEVO: Indicador de aspect ratio (solo para debug si está habilitado)
                     if ProcessInfo.processInfo.environment["DEBUG_ASPECT_RATIO"] != nil {
                         VStack {
@@ -2067,6 +2170,19 @@ struct ModernPostCardView: View {
                         }
                     }
                     
+                    // ✅ NUEVO: Gradiente protector para el texto (Cinematic feel)
+                    VStack {
+                        Spacer()
+                        LinearGradient(
+                            gradient: Gradient(colors: [.clear, .black.opacity(0.4), .black.opacity(0.7)]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 120) // Altura suficiente para cubrir el caption
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .allowsHitTesting(false)
+
                     if !moment.content.isEmpty {
                         VStack {
                             Spacer()
@@ -2081,7 +2197,7 @@ struct ModernPostCardView: View {
                                 )
                                 Spacer()
                             }
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 12)
                             .padding(.bottom, 20)
                         }
                     }
@@ -2097,7 +2213,7 @@ struct ModernPostCardView: View {
                 )
                 .environmentObject(firestoreService)
             }
-            .padding(.horizontal, 15)
+            .padding(.horizontal, 8)
         }
         .onAppear {
             if !hasLoadedInitialData {
@@ -2143,6 +2259,9 @@ struct ModernPostCardView: View {
                 if hasStory {
                     AnalyticsService.shared.trackInteraction("post_header_story_tapped")
                     showSpecificUserStories = true
+                } else {
+                    // Si no tiene historia, ir al perfil
+                    NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
                 }
             }) {
                 ZStack {
@@ -2161,14 +2280,20 @@ struct ModernPostCardView: View {
                 HStack(spacing: 6) {
                     HStack(spacing: 4) {
                         if moment.authorId == Auth.auth().currentUser?.uid {
-                            NavigationLink(destination: ProfileView(selectedTab: .constant(4))) {
+                            Button(action: {
+                                // Navegar al perfil propio (Tab 4) o mostrar hoja
+                                NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
+                            }) {
                                 Text("\(moment.username)")
                                     .font(.custom("Poppins-SemiBold", size: 15))
                                     .foregroundColor(adaptiveColors.primary)
                             }
                             .buttonStyle(PlainButtonStyle())
                         } else {
-                            NavigationLink(destination: UserProfileView(userId: moment.authorId)) {
+                            Button(action: {
+                                // Navegar a perfil de otro usuario
+                                NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
+                            }) {
                                 Text("\(moment.username)")
                                     .font(.custom("Poppins-SemiBold", size: 15))
                                     .foregroundColor(adaptiveColors.primary)
@@ -2186,7 +2311,7 @@ struct ModernPostCardView: View {
                         }
                     }
                     
-                    Text(timeAgo(from: moment.timestamp))
+                    Text(moment.timestamp.timeAgoDisplay())
                         .font(.custom("Poppins-Regular", size: 11))
                         .foregroundColor(adaptiveColors.tertiary)
                 }
@@ -2228,7 +2353,7 @@ struct ModernPostCardView: View {
                 )
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 12)
         .padding(.vertical, 12)
         .onAppear {
             checkUserStories()
@@ -2611,12 +2736,6 @@ struct ModernPostCardView: View {
             }
         }
     }
-    
-    private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
 }
 
 // ✅ ACTUALIZADO: ModernActionButtons con sistema de reactions
@@ -2833,9 +2952,11 @@ struct ModernFollowButton: View {
 struct EnhancedCarouselView: View {
     let mediaItems: [MediaItem]
     @Binding var currentIndex: Int
+    @Binding var showTags: Bool // ✅ NUEVO: Binding
     let aspectRatio: CGFloat
     let allMoments: [Moment] // ✅ NUEVO: Todos los momentos del feed
     let currentMoment: Moment // ✅ NUEVO: Momento actual
+    var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
     
     var body: some View {
         GeometryReader { geometry in
@@ -2845,7 +2966,9 @@ struct EnhancedCarouselView: View {
                         item: item,
                         aspectRatio: aspectRatio,
                         allMoments: allMoments, // ✅ PASAR todos los momentos
-                        currentMoment: currentMoment // ✅ PASAR momento actual
+                        currentMoment: currentMoment, // ✅ PASAR momento actual
+                        showTags: $showTags, // ✅ PASAR binding
+                        onTagTap: onTagTap // ✅ Propagate
                     )
                     .tag(index)
                     .frame(width: geometry.size.width)
@@ -2868,12 +2991,14 @@ struct MediaItemView: View {
     let aspectRatio: CGFloat
     let allMoments: [Moment]
     let currentMoment: Moment
+    @Binding var showTags: Bool // ✅ AHORA ES BINDING
+    var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
     
     @State private var showReelsViewer = false
     @State private var isVisible = false
     
     var body: some View {
-        Group {
+        ZStack { // ✅ CAMBIADO: ZStack para que el overlay esté ENCIMA
             if item.type == .image {
                 // Imágenes igual que antes
                 KFImage(URL(string: item.url))
@@ -2889,16 +3014,41 @@ struct MediaItemView: View {
                     .resizable()
                     .aspectRatio(aspectRatio, contentMode: .fill)
                     .clipped()
+                    .contentShape(Rectangle()) // ✅ Asegurar área de tap
+                    .simultaneousGesture( // ✅ USAR simultaneousGesture para mayor fiabilidad en TabView
+                        TapGesture().onEnded {
+                            if let tags = item.tags, !tags.isEmpty {
+                                withAnimation(.spring()) {
+                                    showTags.toggle()
+                                }
+                            }
+                        }
+                    )
             } else {
                 // ✅ VIDEOS: Con crop inteligente para el feed
                 CroppedVideoPlayer(
                     item: item,
                     aspectRatio: aspectRatio,
                     currentMoment: currentMoment,
-                    onTap: { openReelsViewer() }
+                    onTap: { 
+                        if let tags = item.tags, !tags.isEmpty {
+                            withAnimation(.spring()) {
+                                showTags.toggle()
+                            }
+                        } else {
+                            openReelsViewer() 
+                        }
+                    }
                 )
             }
+            
+            // ✅ Overlay de etiquetas
+            if let tags = item.tags, !tags.isEmpty {
+                PhotoTagOverlayView(tags: tags, isVisible: showTags, onTagTap: onTagTap)
+                    .zIndex(20)
+            }
         }
+        .clipped()
         .opacity(isVisible ? 1.0 : 0.8)
         .scaleEffect(isVisible ? 1.0 : 0.98)
         .animation(.easeInOut(duration: 0.4), value: isVisible)
@@ -2942,7 +3092,7 @@ struct CroppedVideoPlayer: View {
         ZStack {
             // ✅ MEJORADO: Para reels (9:16), mostrar más grande y destacado
             if isReelsFormat {
-                // ✅ REELS: Mostrar con mejor diseño estilo Instagram
+                // ✅ REELS: Mostrar con mejor diseño nativo
                 ZStack {
                     // Thumbnail del video si está disponible
                     if let thumbnailUrl = currentMoment.thumbnailUrl, !thumbnailUrl.isEmpty {
@@ -2971,7 +3121,7 @@ struct CroppedVideoPlayer: View {
                         }
                     }
                     
-                    // ✅ OVERLAY con gradiente sutil estilo Instagram
+                    // ✅ OVERLAY con gradiente sutil nativo
                     LinearGradient(
                         gradient: Gradient(colors: [
                             Color.black.opacity(0.0),
@@ -2992,10 +3142,10 @@ struct CroppedVideoPlayer: View {
                     .buttonStyle(PlainButtonStyle())
                     .zIndex(1) // ✅ Overlay en el fondo
                     
-                    // ✅ INDICADORES mejorados estilo Instagram (por encima del overlay)
+                    // ✅ INDICADORES mejorados nativos (por encima del overlay)
                     VStack {
                         HStack {
-                            // ✅ Badge "Reels" estilo Instagram (esquina superior izquierda)
+                            // ✅ Badge "Reels" nativo (esquina superior izquierda)
                             HStack(spacing: 4) {
                                 Image(systemName: "play.rectangle.fill")
                                     .font(.system(size: 10, weight: .semibold))
@@ -3240,11 +3390,11 @@ struct ExpandableContentView: View {
                     HStack(spacing: 4) {
                         Text(isExpanded ? "feed.seeLess" : "feed.seeMore")
                             .font(.custom("Poppins-SemiBold", size: 12))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundColor(.white)
                         
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundColor(.white)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -3258,13 +3408,8 @@ struct ExpandableContentView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-        .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
         .onAppear {
             needsExpansion = content.count > maxCharacters
         }
@@ -3282,7 +3427,7 @@ struct HashtagText: View {
             .font(.custom("Poppins-Regular", size: 14))
             .multilineTextAlignment(.leading)
             .lineLimit(nil)
-            .shadow(color: colorScheme == .dark ? .black.opacity(0.8) : .white.opacity(0.8), radius: 3, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 1)
             .environment(\.openURL, OpenURLAction { url in
                 // ✅ Manejar taps en hashtags a través de URLs personalizadas
                 if url.scheme == "hashtag", let hashtag = url.host {
@@ -3298,8 +3443,8 @@ struct HashtagText: View {
     private func buildAttributedString() -> AttributedString {
         var attributed = AttributedString(content)
         
-        // Color base para todo el texto
-        attributed.foregroundColor = colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9)
+        // Color base blanco para el degradado oscuro
+        attributed.foregroundColor = .white
         
         // Buscar y procesar hashtags
         let pattern = "#(\\w+)"
@@ -4131,7 +4276,7 @@ class FeedViewModel: ObservableObject {
                 self.commentListeners.removeValue(forKey: momentId)
             }
         }
-    }    
+    }
         
     func fetchAdmirers(userId: String) {
         firestoreService.fetchAdmirers(userId: userId) { result in

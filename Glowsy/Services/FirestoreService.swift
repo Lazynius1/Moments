@@ -383,49 +383,6 @@ class FirestoreService: ObservableObject {
         }
     }
 
-    func updateVisitSummaryNotification(userId: String, date: String) {
-        let notificationRef = db.collection("users").document(userId).collection("notifications").document("visit_\(date)")
-        let visitSummaryRef = db.collection("users").document(userId).collection("visitSummaries").document(date)
-        
-        visitSummaryRef.getDocument { [weak self] snapshot, error in
-            guard let self = self,
-                  let data = snapshot?.data(),
-                  let visitCount = data["visitCount"] as? Int64,
-                  let visitorIds = data["visitorIds"] as? [String] else {
-                return
-            }
-            
-            self.fetchUser(userId: visitorIds.last ?? "") { result in
-                let lastUsername: String
-                switch result {
-                case .success(let user):
-                    lastUsername = user.username
-                case .failure:
-                    lastUsername = "Alguien"
-                }
-                
-                let notification = Notification(
-                        id: "visit_\(date)",
-                        type: .profileVisit,
-                        senderId: visitorIds.last ?? "",
-                        senderUsername: lastUsername,
-                        timestamp: Date(),
-                        isPending: true,
-                        momentId: nil,
-                        visitCount: Int(visitCount),
-                        storyId: nil,
-                        storyAuthorId: nil,
-                        reaction: nil
-                    )
-                
-                do {
-                    try notificationRef.setData(from: notification, merge: true)
-                } catch {
-                    // Error silencioso al actualizar notificación
-                }
-            }
-        }
-    }
     
     // Crear usuario
     func createUser(userId: String, username: String, email: String, interests: [String], profileImagePath: String? = nil, completion: @escaping (Error?) -> Void) {
@@ -586,6 +543,35 @@ class FirestoreService: ObservableObject {
                 }
             }
         }
+    }
+
+    // ✅ NUEVO: Buscar usuario por Username (para deep links y menciones)
+    func fetchUserByUsername(_ username: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
+        let cleanUsername = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        db.collection("users")
+            .whereField("username", isEqualTo: cleanUsername)
+            .limit(to: 1)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents, let document = documents.first else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no encontrado"])))
+                    return
+                }
+                
+                do {
+                    let user = try document.data(as: AppUser.self)
+                    completion(.success(user))
+                } catch {
+                    // Fallback a decodificación manual si falla
+                    let data = document.data()
+                    self.attemptManualDecoding(data: data, completion: completion)
+                }
+            }
     }
     
     // ✅ FUNCIÓN DE FALLBACK: Decodificación manual para casos problemáticos
@@ -784,6 +770,7 @@ class FirestoreService: ObservableObject {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
+        scheduledDate: Date? = nil,
         completion: @escaping (Error?) -> Void
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
@@ -833,7 +820,8 @@ class FirestoreService: ObservableObject {
                     videoResolution: videoResolution,
                     disableComments: disableComments,
                     hideLikeCounts: hideLikeCounts,
-                    allowSharing: allowSharing
+                    allowSharing: allowSharing,
+                    scheduledDate: scheduledDate
                 )
                 
                 do {
@@ -860,6 +848,13 @@ class FirestoreService: ObservableObject {
                         }
                         if let videoResolution = item.videoResolution {
                             mediaData["videoResolution"] = videoResolution
+                        }
+                        
+                        // ✅ NUEVO: Etiquetas espaciales (Corregido: Codificar cada una individualmente para evitar errores con Firestore.Encoder)
+                        if let tags = item.tags, !tags.isEmpty {
+                            mediaData["tags"] = tags.compactMap { tag in
+                                try? encoder.encode(tag)
+                            }
                         }
                         
                         return mediaData
@@ -1093,7 +1088,15 @@ class FirestoreService: ObservableObject {
 
                 group.notify(queue: .main) {
                     allMoments.sort { $0.timestamp > $1.timestamp }
-                    let limitedMoments = Array(allMoments.prefix(10))
+                    
+                    // 🔥 FILTRAR MOMENTOS PROGRAMADOS (Solo mostrar si la fecha programada ya pasó o si no tiene fecha)
+                    let now = Date()
+                    let filteredMoments = allMoments.filter { moment in
+                        guard let scheduledDate = moment.scheduledDate else { return true }
+                        return scheduledDate <= now
+                    }
+                    
+                    let limitedMoments = Array(filteredMoments.prefix(10))
                     completion(.success((moments: limitedMoments, lastDocument: lastDocument)))
                 }
 
@@ -1140,7 +1143,15 @@ class FirestoreService: ObservableObject {
 
                 group.notify(queue: .main) {
                     allMoments.sort { $0.timestamp > $1.timestamp }
-                    let limitedMoments = Array(allMoments.prefix(10))
+                    
+                    // 🔥 FILTRAR MOMENTOS PROGRAMADOS
+                    let now = Date()
+                    let filteredMoments = allMoments.filter { moment in
+                        guard let scheduledDate = moment.scheduledDate else { return true }
+                        return scheduledDate <= now
+                    }
+                    
+                    let limitedMoments = Array(filteredMoments.prefix(10))
                     completion(.success((moments: limitedMoments, lastDocument: lastDocument)))
                 }
 
@@ -1184,7 +1195,23 @@ class FirestoreService: ObservableObject {
                 let moments = documents.compactMap { doc -> Moment? in
                     try? doc.data(as: Moment.self)
                 }
-                completion(.success(moments))
+                
+                // 🔥 FILTRAR MOMENTOS PROGRAMADOS (Si el usuario actual no es el autor)
+                let currentUserId = Auth.auth().currentUser?.uid
+                let now = Date()
+                
+                let filteredMoments = moments.filter { moment in
+                    // Si el usuario es el autor, sí puede ver sus propios momentos programados
+                    if moment.authorId == currentUserId {
+                        return true
+                    }
+                    
+                    // Para otros usuarios, solo si la fecha programada ya pasó o si no es un post programado
+                    guard let scheduledDate = moment.scheduledDate else { return true }
+                    return scheduledDate <= now
+                }
+                
+                completion(.success(filteredMoments))
             }
     }
 
@@ -1263,6 +1290,7 @@ class FirestoreService: ObservableObject {
                     "authorId": authorId,
                     "username": user.username,
                     "content": content,
+                    "text": content, // ✅ COMPATIBILIDAD: El servidor espera 'text' para notificaciones
                     "timestamp": Timestamp(date: now),
                     "profileImagePath": user.profileImagePath ?? NSNull(),
                     "updatedAt": NSNull(),
@@ -1304,22 +1332,16 @@ class FirestoreService: ObservableObject {
                                 momentId: momentId,
                                 momentAuthorId: userId,
                                 fromUserId: authorId,
+                                fromUsername: user.username,
                                 content: content
                             )
                         } else {
-                            // Es un comentario nuevo - notificar al autor del momento
-                            NotificationService.shared.sendCommentNotification(
-                                to: userId,
-                                from: authorId,
-                                momentId: momentId,
-                                content: content,
-                                momentAuthor: user.username
-                            )
+                            // Es un comentario nuevo - servidor se encarga de la notificación
                         }
                         
                         // Handle mentions
                         let mentions = self.extractMentions(from: content)
-                        self.handleMentions(mentions, momentId: momentId, fromUserId: authorId, content: content)
+                        self.handleMentions(mentions, momentId: momentId, fromUserId: authorId, fromUsername: user.username, content: content)
                     }
                 }
                 
@@ -1336,15 +1358,25 @@ class FirestoreService: ObservableObject {
             "content": content,
             "isEdited": true,
             "editedTimestamp": Timestamp(date: Date())
-        ]) { error in
+        ]) { [weak self] error in
             if let error = error {
                 completion(.failure(error))
             } else {
                 completion(.success(()))
                 
                 // Handle new mentions in edited comment
-                let mentions = self.extractMentions(from: content)
-                self.handleMentions(mentions, momentId: momentId, fromUserId: Auth.auth().currentUser?.uid ?? "", content: content)
+                let mentions = self?.extractMentions(from: content) ?? []
+                if !mentions.isEmpty {
+                    let currentUserId = Auth.auth().currentUser?.uid ?? ""
+                    self?.fetchUserProfile(userId: currentUserId) { result in
+                        if case .success(let user) = result {
+                            self?.handleMentions(mentions, momentId: momentId, fromUserId: currentUserId, fromUsername: user.username, content: content)
+                        } else {
+                            // Fallback if fetch fails
+                            self?.handleMentions(mentions, momentId: momentId, fromUserId: currentUserId, fromUsername: "Alguien", content: content)
+                        }
+                    }
+                }
             }
         }
     }
@@ -1394,6 +1426,18 @@ class FirestoreService: ObservableObject {
                         batch.updateData([
                             "commentCount": FieldValue.increment(Int64(-1))
                         ], forDocument: momentRef)
+                        
+                        // ✅ Limpiar notificaciones de las respuestas
+                        if let replyAuthorId = nestedDoc.data()["authorId"] as? String {
+                            // Notificación al autor del comentario padre (que se está borrando)
+                            NotificationService.shared.removeNotification(
+                                type: .comment,
+                                senderId: replyAuthorId,
+                                recipientId: authorId, // El autor del comentario padre
+                                momentId: momentId,
+                                commentId: nestedDoc.documentID
+                            )
+                        }
                     }
                     
                     // Commit the batch
@@ -1401,6 +1445,14 @@ class FirestoreService: ObservableObject {
                         if let batchError = batchError {
                             completion(.failure(batchError))
                         } else {
+                            // ✅ Limpiar notificación del comentario principal
+                            NotificationService.shared.removeNotification(
+                                type: .comment,
+                                senderId: authorId,
+                                recipientId: userId, // El dueño del momento
+                                momentId: momentId,
+                                commentId: commentId
+                            )
                             completion(.success(()))
                         }
                     }
@@ -1408,19 +1460,20 @@ class FirestoreService: ObservableObject {
         }
     }
     
-    private func notifyCommentReply(parentCommentId: String, momentId: String, momentAuthorId: String, fromUserId: String, content: String) {
+    private func notifyCommentReply(parentCommentId: String, momentId: String, momentAuthorId: String, fromUserId: String, fromUsername: String, content: String) {
         // Buscar el comentario padre para obtener su autor
         db.collection("users").document(momentAuthorId).collection("moments").document(momentId).collection("comments").document(parentCommentId).getDocument { snapshot, error in
             
             guard let data = snapshot?.data(),
                   let parentAuthorId = data["authorId"] as? String else { return }
             
-            NotificationService.shared.sendCommentReplyNotification(
+            NotificationService.shared.sendInteractionNotification(
+                type: .comment,
                 to: parentAuthorId,
-                from: fromUserId,
                 momentId: momentId,
-                content: content,
-                parentCommentId: parentCommentId
+                commentId: parentCommentId,
+                reaction: content, // ✅ Pasar contenido para el banner
+                senderUsername: fromUsername
             )
         }
     }
@@ -1437,19 +1490,19 @@ class FirestoreService: ObservableObject {
         }
     }
     
-    private func handleMentions(_ mentions: [String], momentId: String, fromUserId: String, content: String) {
+    private func handleMentions(_ mentions: [String], momentId: String, fromUserId: String, fromUsername: String, content: String) {
         for mention in mentions {
             // Find user by username and send notification
-            db.collection("users").whereField("username", isEqualTo: mention.lowercased()).getDocuments { snapshot, error in
+            db.collection("users").whereField("username", isEqualTo: mention.lowercased()).getDocuments(source: .default) { snapshot, error in
                 guard let documents = snapshot?.documents, let userDoc = documents.first else { return }
                 
                 let mentionedUserId = userDoc.documentID
-                NotificationService.shared.sendMentionNotification(
+                NotificationService.shared.sendInteractionNotification(
+                    type: .mention,
                     to: mentionedUserId,
-                    from: fromUserId,
-                    contentId: momentId,
-                    contentType: "moment",
-                    content: content
+                    momentId: momentId,
+                    reaction: content, // ✅ Pasar contenido para el banner
+                    senderUsername: fromUsername
                 )
             }
         }
@@ -1458,7 +1511,7 @@ class FirestoreService: ObservableObject {
     func fetchSuggestedUsers(completion: @escaping (Result<[AppUser], Error>) -> Void) {
         self.db.collection("users")
             .limit(to: 10)
-            .getDocuments { snapshot, error in
+            .getDocuments(source: .default) { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return
@@ -1510,6 +1563,16 @@ class FirestoreService: ObservableObject {
                         if let error = error {
                             completion(error)
                         } else {
+                            // ✅ LIMPIEZA DE NOTIFICACIÓN (Deshacer reacción)
+                            if userId != authorId {
+                                NotificationService.shared.removeNotification(
+                                    type: .reaction,
+                                    senderId: userId,
+                                    recipientId: authorId,
+                                    momentId: momentId,
+                                    reaction: reaction
+                                )
+                            }
                             completion(nil)
                         }
                     }
@@ -1525,12 +1588,8 @@ class FirestoreService: ObservableObject {
                         if let error = error {
                             completion(error)
                         } else {
-                            // Crear notificación solo si no es el autor
-                            if userId != authorId {
-                                self.createReactionNotification(userId: userId, authorId: authorId, momentId: momentId, reactionType: reaction, completion: completion)
-                            } else {
-                                completion(nil)
-                            }
+                            // Eliminamos notificación manual: servidor se encarga
+                            completion(nil)
                         }
                     }
                 }
@@ -1546,12 +1605,8 @@ class FirestoreService: ObservableObject {
                     if let error = error {
                         completion(error)
                     } else {
-                        // Crear notificación solo si no es el autor
-                        if userId != authorId {
-                            self.createReactionNotification(userId: userId, authorId: authorId, momentId: momentId, reactionType: reaction, completion: completion)
-                        } else {
-                            completion(nil)
-                        }
+                        // Eliminamos notificación manual: servidor se encarga
+                        completion(nil)
                     }
                 }
             }
@@ -1559,43 +1614,6 @@ class FirestoreService: ObservableObject {
     }
 
     // ✅ MÉTODO AUXILIAR para obtener contador de reacciones
-    private func getMomentReactionCount(momentId: String, userId: String, completion: @escaping (Int) -> Void) {
-        db.collection("users").document(userId)
-            .collection("moments").document(momentId)
-            .collection("reactions")
-            .getDocuments { snapshot, error in
-                let count = snapshot?.documents.count ?? 0
-                completion(count)
-            }
-    }
-    
-    // ✅ MÉTODO AUXILIAR para notificaciones
-    private func createReactionNotification(userId: String, authorId: String, momentId: String, reactionType: String, completion: @escaping (Error?) -> Void) {
-        fetchUser(userId: userId) { result in
-            switch result {
-            case .success(let user):
-                // ✅ OBTENER el contador actual de reacciones para el momento
-                self.getMomentReactionCount(momentId: momentId, userId: authorId) { reactionCount in
-                    self.createNotification(
-                        recipientId: authorId,
-                        senderId: userId,
-                        senderUsername: user.username,
-                        type: .reaction, // ✅ CORREGIDO: Usar .reaction para reacciones a momentos
-                        momentId: momentId,
-                        isPending: false,
-                        reaction: reactionType, // ✅ Pasar el tipo de reacción (love, fire, etc.)
-                        completion: { error in
-                            if let error = error {
-                            }
-                            completion(error)
-                        }
-                    )
-                }
-            case .failure(let error):
-                completion(error)
-            }
-        }
-    }
     
     // MARK: - SISTEMA COMPLETO DE SEGUIMIENTO ACTUALIZADO
 
@@ -1701,17 +1719,8 @@ class FirestoreService: ObservableObject {
                 if let error = error {
                     completion(error)
                 } else {
-                    self?.createNotification(
-                        recipientId: recipientId,
-                        senderId: senderId,
-                        senderUsername: senderUsername,
-                        type: .followRequest,
-                        momentId: nil,
-                        isPending: true,
-                        completion: { notificationError in
-                            completion(nil)
-                        }
-                    )
+                    // Eliminamos notificación manual: servidor se encarga
+                    completion(nil)
                 }
             }
         } catch {
@@ -1762,7 +1771,7 @@ class FirestoreService: ObservableObject {
                 return
             }
             
-            self.performFollow(currentUserId: senderId, targetUserId: recipientId) { error in
+            self.performFollow(currentUserId: senderId, targetUserId: recipientId, sendNotification: false) { error in
                 if let error = error {
                     completion(error)
                     return
@@ -1786,6 +1795,13 @@ class FirestoreService: ObservableObject {
                 batch.deleteDocument(notificationRef)
                 
                 batch.commit { error in
+                    if error == nil {
+                        // ✅ Notificar al solicitante que su solicitud fue aceptada
+                        NotificationService.shared.sendInteractionNotification(
+                            type: .requestAccepted, // Usar nuevo tipo
+                            to: senderId
+                        )
+                    }
                     completion(nil)
                 }
             }
@@ -1917,7 +1933,7 @@ class FirestoreService: ObservableObject {
         }
     }
 
-    private func performFollow(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
+    private func performFollow(currentUserId: String, targetUserId: String, sendNotification: Bool = true, completion: @escaping (Error?) -> Void) {
         fetchUserProfile(userId: currentUserId) { [weak self] result in
             guard let self = self else { return }
             
@@ -1946,20 +1962,10 @@ class FirestoreService: ObservableObject {
                     if let error = error {
                         completion(error)
                     } else {
-                        
-                        // Limpiar cache después de follow exitoso
                         self?.invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
                         
-                        // Crear notificación de nuevo seguidor
-                        self?.createNotification(
-                            recipientId: targetUserId,
-                            senderId: currentUserId,
-                            senderUsername: currentUser.username,
-                            type: .newFollower,
-                            momentId: nil,
-                            isPending: false,
-                            completion: { _ in completion(nil) }
-                        )
+                        // Eliminamos notificación manual: servidor se encarga (onFollowerAdded)
+                        completion(nil)
                     }
                 }
             case .failure(let error):
@@ -2025,6 +2031,13 @@ class FirestoreService: ObservableObject {
                     
                     // LIMPIAR CACHE DESPUÉS DEL UNFOLLOW EXITOSO
                     self.followingCache.removeValue(forKey: cacheKey)
+                    
+                    // ✅ LIMPIEZA DE NOTIFICACIÓN (Unfollow)
+                    NotificationService.shared.removeNotification(
+                        type: .newFollower,
+                        senderId: currentUserId,
+                        recipientId: targetUserId
+                    )
                     
                     // VERIFICACIÓN POST-UNFOLLOW CON DELAY (sin cache)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -2270,6 +2283,29 @@ class FirestoreService: ObservableObject {
             }
         }
     }
+    
+    // ✅ NUEVO: Actualizar bio y link
+    func updateProfileDetails(userId: String, bio: String?, websiteUrl: String?, completion: @escaping (Error?) -> Void) {
+        var data: [String: Any] = [:]
+        
+        if let bio = bio {
+            data["bio"] = bio
+        }
+        
+        // Permitimos guardar cadena vacía para borrar el link
+        if let websiteUrl = websiteUrl {
+            data["websiteUrl"] = websiteUrl
+        }
+        
+        guard !data.isEmpty else {
+            completion(nil)
+            return
+        }
+        
+        self.db.collection("users").document(userId).updateData(data) { error in
+            completion(error)
+        }
+    }
 
 
 
@@ -2493,102 +2529,6 @@ class FirestoreService: ObservableObject {
         }
     }
 
-    func createNotification(recipientId: String, senderId: String, senderUsername: String, type: NotificationType, momentId: String? = nil, isPending: Bool, storyId: String? = nil, storyAuthorId: String? = nil, reaction: String? = nil, completion: @escaping (Error?) -> Void) {
-        fetchUserProfile(userId: recipientId) { result in
-            switch result {
-            case .success(let user):
-                // Verificar preferencias de notificación
-                guard user.notificationPreferences?[type.rawValue] ?? true else {
-                    completion(nil)
-                    return
-                }
-                let notification = Notification(
-                    id: UUID().uuidString,
-                    type: type,
-                    senderId: senderId,
-                    senderUsername: senderUsername,
-                    timestamp: Date(),
-                    isPending: isPending,
-                    momentId: momentId,
-                    visitCount: nil,
-                    storyId: storyId,
-                    storyAuthorId: storyAuthorId,
-                    reaction: reaction
-                )
-                self.createNotification(notification: notification, for: recipientId) { error in
-                    completion(error)
-                }
-            case .failure(let error):
-                completion(error)
-            }
-        }
-    }
-
-    func createNotification(notification: Notification, for userId: String, completion: @escaping (Error?) -> Void) {
-        let notificationData: [String: Any] = [
-            "id": notification.id,
-            "type": notification.type.rawValue,
-            "senderId": notification.senderId,
-            "senderUsername": notification.senderUsername,
-            "timestamp": Timestamp(date: notification.timestamp),
-            "isPending": notification.isPending,
-            "momentId": notification.momentId as Any,
-            "visitCount": notification.visitCount as Any,
-            "storyId": notification.storyId as Any,
-            "storyAuthorId": notification.storyAuthorId as Any,
-            "reaction": notification.reaction as Any
-        ]
-        
-        db.collection("users")
-            .document(userId)
-            .collection("notifications")
-            .document(notification.id)
-            .setData(notificationData) { error in
-                completion(error)
-            }
-    }
-    
-    func fetchNotifications(for userId: String, completion: @escaping (Result<[Notification], Error>) -> Void) {
-        self.db.collection("users").document(userId).collection("notifications")
-            .order(by: "timestamp", descending: true)
-            .limit(to: 50)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
-
-                let notifications = documents.compactMap { doc -> Notification? in
-                    try? doc.data(as: Notification.self)
-                }
-                completion(.success(notifications))
-            }
-    }
-    
-    func markNotificationsAsRead(userId: String, notificationIds: [String], completion: @escaping (Error?) -> Void) {
-            let batch = db.batch()
-            
-            for notificationId in notificationIds {
-                let notificationRef = db.collection("users")
-                    .document(userId)
-                    .collection("notifications")
-                    .document(notificationId)
-                batch.updateData(["isPending": false], forDocument: notificationRef)
-            }
-            
-            batch.commit { error in
-                if let error = error {
-                    completion(error)
-                } else {
-                    completion(nil)
-                }
-            }
-        }
 
 
     func fetchMoment(momentId: String, userId: String, completion: @escaping (Result<Moment, Error>) -> Void) {
@@ -2725,45 +2665,10 @@ extension FirestoreService {
                       let userDoc = documents.first else { return }
                 
                 let mentionedUserId = userDoc.documentID
-                guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-                
-                self.createNotification(
-                    recipientId: mentionedUserId,
-                    senderId: currentUserId,
-                    senderUsername: "Usuario", // Mejorar obteniendo username real
-                    type: .comment,
-                    momentId: momentId,
-                    isPending: true
-                ) { _ in }
+                NotificationService.shared.sendInteractionNotification(type: .mention, to: mentionedUserId, momentId: momentId, reaction: commentContent)
             }
     }
     
-    func createCommentNotification(
-        momentId: String,
-        momentAuthorId: String,
-        commentAuthorId: String,
-        commentId: String,
-        commentContent: String,
-        isReply: Bool = false,
-        parentCommentAuthorId: String? = nil
-    ) {
-        guard commentAuthorId != momentAuthorId else { return }
-        
-        fetchUser(userId: commentAuthorId) { result in
-            switch result {
-            case .success(let user):
-                self.createNotification(
-                    recipientId: momentAuthorId,
-                    senderId: commentAuthorId,
-                    senderUsername: user.username,
-                    type: .comment,
-                    momentId: momentId,
-                    isPending: true
-                ) { _ in }
-            case .failure: break
-            }
-        }
-    }
 }
 
 extension FirestoreService {
@@ -2851,11 +2756,13 @@ extension FirestoreService {
             switch result {
             case .success(let user):
                 // Usar el sistema de notificaciones existente
-                NotificationService.shared.sendCommentLikeNotification(
+                NotificationService.shared.sendInteractionNotification(
+                    type: .like,
                     to: recipientId,
-                    from: senderId,
                     momentId: momentId,
-                    commentId: commentId
+                    commentId: commentId,
+                    reaction: reaction, // ✅ Pasar emoji para el banner
+                    senderUsername: user.username
                 )
                 // Notificación enviada
                 
@@ -2933,6 +2840,7 @@ extension FirestoreService {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
+        scheduledDate: Date? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         // Map AudienceSetting to ContentAudience
@@ -2943,6 +2851,7 @@ extension FirestoreService {
         case .admirers: contentAudience = .connections
         case .bestFriends: contentAudience = .bestFriends
         case .custom: contentAudience = selectedListId != nil ? .customList : .custom
+        case .onlyMe: contentAudience = .onlyMe
         }
         
         self.fetchUser(userId: userId) { [weak self] result in
@@ -2988,7 +2897,8 @@ extension FirestoreService {
                     videoResolution: videoResolution,
                     disableComments: disableComments,
                     hideLikeCounts: hideLikeCounts,
-                    allowSharing: allowSharing
+                    allowSharing: allowSharing,
+                    scheduledDate: scheduledDate
                 )
                 
                 do {
@@ -3015,6 +2925,13 @@ extension FirestoreService {
                         }
                         if let videoResolution = item.videoResolution {
                             mediaData["videoResolution"] = videoResolution
+                        }
+                        
+                        // ✅ NUEVO: Etiquetas espaciales (Corregido: Codificar cada una individualmente para evitar errores con Firestore.Encoder)
+                        if let tags = item.tags, !tags.isEmpty {
+                            mediaData["tags"] = tags.compactMap { tag in
+                                try? encoder.encode(tag)
+                            }
                         }
                         
                         return mediaData
@@ -3181,7 +3098,30 @@ extension FirestoreService {
                         if let continuationCustomListName = continuationCustomListName {
                             storyData["continuationCustomListName"] = continuationCustomListName
                         }
+                        
+                        // 🔗 SI ES UNA NUEVA CADENA (POSITION 1), CREAR DOCUMENTO GLOBAL DE METADATOS
+                        if chainPosition == 1 {
+                            let chainMetadata: [String: Any] = [
+                                "chainId": chainId,
+                                "authorId": userId,
+                                "title": chainTitle ?? "",
+                                "createdAt": FieldValue.serverTimestamp(),
+                                "allowOthersToContinue": allowOthersToContinue ?? true,
+                                "continuationAudience": continuationAudience?.rawValue ?? "everyone",
+                                "continuationCustomViewers": continuationCustomViewers ?? [],
+                                "continuationCustomListId": continuationCustomListId ?? "",
+                                "continuationCustomListName": continuationCustomListName ?? "",
+                                "isExpired": false
+                            ]
+                            
+                            self.db.collection("storyChains").document(chainId).setData(chainMetadata, merge: true) { error in
+                                if let error = error {
+                                    // Error silencioso
+                                }
+                            }
+                        }
                     }
+
                     
                     // 🔥 GUARDAR AUDIENCIA PERSONALIZADA SI ES NECESARIO
                     if audienceSetting == .custom, let customViewers = customViewers, !customViewers.isEmpty {
@@ -3331,6 +3271,7 @@ extension FirestoreService {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
+        scheduledDate: Date? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
@@ -3376,7 +3317,8 @@ extension FirestoreService {
                     videoResolution: videoResolution,
                     disableComments: disableComments,
                     hideLikeCounts: hideLikeCounts,
-                    allowSharing: allowSharing
+                    allowSharing: allowSharing,
+                    scheduledDate: scheduledDate
                 )
                 
                 do {
@@ -3403,6 +3345,13 @@ extension FirestoreService {
                         }
                         if let videoResolution = item.videoResolution {
                             mediaData["videoResolution"] = videoResolution
+                        }
+                        
+                        // ✅ NUEVO: Etiquetas espaciales (Corregido: Codificar cada una individualmente para evitar errores con Firestore.Encoder)
+                        if let tags = item.tags, !tags.isEmpty {
+                            mediaData["tags"] = tags.compactMap { tag in
+                                try? encoder.encode(tag)
+                            }
                         }
                         
                         return mediaData
@@ -3536,6 +3485,28 @@ extension FirestoreService {
                         }
                         if let continuationCustomListName = continuationCustomListName {
                             storyData["continuationCustomListName"] = continuationCustomListName
+                        }
+                        
+                        // 🔗 SI ES UNA NUEVA CADENA (POSITION 1), CREAR DOCUMENTO GLOBAL DE METADATOS
+                        if chainPosition == 1 {
+                            let chainMetadata: [String: Any] = [
+                                "chainId": chainId,
+                                "authorId": userId,
+                                "title": chainTitle ?? "",
+                                "createdAt": FieldValue.serverTimestamp(),
+                                "allowOthersToContinue": allowOthersToContinue ?? true,
+                                "continuationAudience": continuationAudience?.rawValue ?? "everyone",
+                                "continuationCustomViewers": continuationCustomViewers ?? [],
+                                "continuationCustomListId": continuationCustomListId ?? "",
+                                "continuationCustomListName": continuationCustomListName ?? "",
+                                "isExpired": false
+                            ]
+                            
+                            self.db.collection("storyChains").document(chainId).setData(chainMetadata, merge: true) { error in
+                                if let error = error {
+                                    // Error silencioso
+                                }
+                            }
                         }
                     }
 
@@ -3717,7 +3688,146 @@ extension FirestoreService {
         
         return interests
     }
+
+    // MARK: - HIGHLIGHTED STORIES METHODS
     
+    func fetchHighlights(userId: String, completion: @escaping (Result<[HighlightedStory], Error>) -> Void) {
+        db.collection("users").document(userId).collection("highlights")
+            .order(by: "createdAt", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                let highlights = snapshot?.documents.compactMap { doc -> HighlightedStory? in
+                    try? doc.data(as: HighlightedStory.self)
+                } ?? []
+                
+                completion(.success(highlights))
+            }
+    }
+    
+    // ✅ NUEVO: Obtener todas las historias (activas y archivadas) para crear destacadas
+    func fetchAllStories(userId: String, completion: @escaping (Result<[Story], Error>) -> Void) {
+        db.collection("users").document(userId).collection("stories")
+            .order(by: "timestamp", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                let stories = snapshot?.documents.compactMap { doc -> Story? in
+                    try? doc.data(as: Story.self)
+                } ?? []
+                
+                completion(.success(stories))
+            }
+    }
+    
+    // ✅ NUEVA: Paginación para mejor rendimiento
+    func fetchStoriesPaginated(userId: String, limit: Int, lastDocument: DocumentSnapshot?, completion: @escaping (Result<(stories: [Story], lastDoc: DocumentSnapshot?), Error>) -> Void) {
+        var query = db.collection("users").document(userId).collection("stories")
+            .order(by: "timestamp", descending: true)
+            .limit(to: limit)
+        
+        if let lastDoc = lastDocument {
+            query = query.start(afterDocument: lastDoc)
+        }
+        
+        query.getDocuments { snapshot, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let snapshot = snapshot else {
+                completion(.success((stories: [], lastDoc: nil)))
+                return
+            }
+            
+            let stories = snapshot.documents.compactMap { doc -> Story? in
+                try? doc.data(as: Story.self)
+            }
+            
+            completion(.success((stories: stories, lastDoc: snapshot.documents.last)))
+        }
+    }
+    
+    // ✅ NUEVO: Obtener historias específicas por ID
+    func fetchStoriesByIds(userId: String, storyIds: [String], completion: @escaping (Result<[Story], Error>) -> Void) {
+        let group = DispatchGroup()
+        var stories: [Story] = []
+        var lastError: Error?
+        
+        for storyId in storyIds {
+            group.enter()
+            db.collection("users").document(userId).collection("stories").document(storyId).getDocument { snapshot, error in
+                defer { group.leave() }
+                
+                if let error = error {
+                    lastError = error
+                    return
+                }
+                
+                if let snapshot = snapshot, snapshot.exists {
+                    if let story = try? snapshot.data(as: Story.self) {
+                        stories.append(story)
+                    }
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            if stories.isEmpty && !storyIds.isEmpty && lastError != nil {
+                completion(.failure(lastError!))
+            } else {
+                // Mantener el orden de los IDs originales
+                let orderedStories = storyIds.compactMap { id in
+                    stories.first(where: { $0.id == id })
+                }
+                completion(.success(orderedStories))
+            }
+        }
+    }
+    
+    func createHighlight(userId: String, title: String, storyIds: [String], coverImageUrl: String?, completion: @escaping (Error?) -> Void) {
+        let highlight = HighlightedStory(
+            id: nil,
+            title: title,
+            coverImageUrl: coverImageUrl,
+            storiesCount: storyIds.count,
+            createdAt: Date(),
+            storyIds: storyIds,
+            authorId: userId
+        )
+        
+        do {
+            let _ = try db.collection("users").document(userId).collection("highlights").addDocument(from: highlight) { error in
+                completion(error)
+            }
+        } catch {
+            completion(error)
+        }
+    }
+    
+    func deleteHighlight(userId: String, highlightId: String, completion: @escaping (Error?) -> Void) {
+        db.collection("users").document(userId).collection("highlights").document(highlightId).delete { error in
+            completion(error)
+        }
+    }
+    
+    func updateHighlight(userId: String, highlightId: String, title: String, storyIds: [String], coverImageUrl: String?, completion: @escaping (Error?) -> Void) {
+        let updateData: [String: Any] = [
+            "title": title,
+            "storyIds": storyIds,
+            "storiesCount": storyIds.count,
+            "coverImageUrl": coverImageUrl as Any
+        ]
+        
+        db.collection("users").document(userId).collection("highlights").document(highlightId).updateData(updateData) { error in
+            completion(error)
+        }
+    }
 }
-
-

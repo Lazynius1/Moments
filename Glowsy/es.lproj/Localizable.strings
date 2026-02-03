@@ -20,8 +20,11 @@
 "storyChains.continueStory" = "Continuar Historia";
 "storyChains.continuationAudience.title" = "¿Quién puede continuar esta cadena?";
 "storyChains.continuationAudience.navigationTitle" = "Audiencia de Continuación";
+"storyChains.inheritedSettingsInfo" = "La configuración de esta cadena fue definida por el autor original y no se puede cambiar.";
+"storyChains.collaboratorNotice" = "Nota: Como eres un colaborador, se aplican las reglas de la cadena establecidas por el autor.";
 
 /* Audience Types */
+"audience.title" = "Audiencia";
 "audience.everyone" = "Todos";
 "audience.connections" = "Conexiones mutuas";
 "audience.bestFriends" = "Mejores Amigos";
@@ -30,7 +33,19 @@
 
 /* Common Actions */
 "common.cancel" = "Cancelar";
+"common.apply" = "Aplicar";
+"common.delete" = "Eliminar";
 "common.done" = "Hecho";
+"common.edit" = "Editar";
+"common.next" = "Siguiente";
+"common.loading" = "Cargando...";
+"common.photo" = "Foto";
+"common.video" = "Video";
+"common.media" = "Media";
+"common.text" = "Texto";
+"common.location" = "Ubicación";
+"common.file" = "Archivo";
+"common.close" = "Cerrar";
 
 /* Custom Lists */
 "audience.customLists" = "Listas Personalizadas";
@@ -40,7 +55,6 @@
 "audience.members" = "Miembros";
 "audience.addMembers" = "Añadir miembros";
 "audience.noMembers" = "No hay miembros";
-"audience.people.count" = "%d personas";
 "storyChains.viewChain" = "Ver Cadena";
 "storyChains.part" = "Parte %d de '%@'";
 "storyChains.loading" = "Cargando cadena...";
@@ -81,20 +95,35 @@
 "profile.bio.placeholder" = "Añade una bio para contar a la gente sobre ti.";
 "profile.editButton" = "Editar Perfil";
 "profile.userList.visits" = "Visitas";
-"profile.userList.admirers" = "Admiradores";
-"profile.userList.connections" = "Conexiones";
+"profile.userList.admirers" = "Seguidores";
+"profile.userList.connections" = "Seguidos";
 "profile.userList.mutuals" = "Mutuos";
 "profile.stats.visits" = "Visitas";
-"profile.stats.admirers" = "Admiradores";
-"profile.stats.connections" = "Conexiones";
+"profile.stats.admirers" = "Seguidores";
+"profile.stats.connections" = "Seguidos";
 "profile.stats.mutuals" = "Mutuos";
 "profile.interests.title" = "Intereses";
 "profile.moments.title" = "Momentos";
 "profile.moments.empty.title" = "Aún No Hay Momentos";
 "profile.moments.empty.subtitle" = "Comparte tu primer momento y aparecerá aquí.";
+"profile.tab.moments" = "Momentos";
+"profile.tab.saved" = "Guardados";
+"profile.moreInfo" = "Ver más información";
+"profile.saved.empty.title" = "Nada Guardado Aún";
+"profile.saved.empty.subtitle" = "Los momentos que guardes aparecerán aquí.";
+"profile.saved.loading" = "Cargando guardados...";
 "profile.loading" = "Cargando perfil...";
 "profile.error.title" = "Oops, algo salió mal";
 "profile.error.retryButton" = "Reintentar";
+
+/* Scheduled Posts */
+"moment.scheduled.day" = "Programado en %d día";
+"moment.scheduled.days" = "Programado en %d días";
+"moment.scheduled.hour" = "Programado en %d hora";
+"moment.scheduled.hours" = "Programado en %d horas";
+"moment.scheduled.minute" = "Programado en %d minuto";
+"moment.scheduled.minutes" = "Programado en %d minutos";
+"moment.scheduled.soon" = "Programado pronto";
 
 /* Profile Content */
 "profile.content.empty" = "Sin contenido";
@@ -110,8 +139,8 @@
 "profile.image.uploading" = "Imagen...";
 "profile.userList.mutuals" = "Conexiones Mutuas";
 "profile.stats.visits" = "Visitas";
-"profile.stats.admirers" = "Admiradores";
-"profile.stats.connections" = "Conexiones";
+"profile.stats.admirers" = "Seguidores";
+"profile.stats.connections" = "Seguidos";
 "profile.stats.mutuals" = "Mutuas";
 
 /* UserListView */
@@ -158,7 +187,21 @@
 "creator.edit" = "Editar";
 "creator.share" = "Compartir";
 "creator.caption.placeholder" = "Escribe un pie de foto...";
+"creator.tagPeople" = "Etiquetar personas";
+"creator.tag.instructions" = "Toca la foto para etiquetar a personas";
+"creator.tag.search" = "Buscar usuario...";
+"creator.tag.selectUser" = "Seleccionar persona";
+"creator.tag.done" = "Listo";
+"creator.addLocation" = "Añadir ubicación";
+
+/* Profile */
+"profile.tab.moments" = "Momentos";
+"profile.tab.saved" = "Guardados";
+"profile.tab.tagged" = "Etiquetas";
+"profile.tagged.empty.title" = "No hay momentos etiquetados";
+"profile.tagged.empty.description" = "Aparecerás aquí cuando alguien te etiquete en un momento";
 "creator.publishing" = "Publicando momento...";
+"creator.uploading.success_fly" = "Momento compartido";
 "creator.advancedSettings" = "Configuración avanzada";
 "creator.album.select" = "Seleccionar álbum";
 "creator.camera" = "Cámara";
@@ -179,6 +222,11 @@
 "creator.hideReactionCount" = "Ocultar contador de reacciones";
 "creator.hideReactionCount.subtitle" = "El botón de reacciones seguirá visible, pero sin mostrar el número";
 "creator.dropToDelete" = "Soltar para eliminar";
+"creator.media_preview.hint" = "Mantén pulsado";
+"creator.scheduling.title" = "Programación";
+"creator.scheduling.enable" = "Programar publicación";
+"creator.scheduling.date" = "Fecha y hora";
+
 
 /* FeedView */
 "feed.delete.confirm" = "¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.";
@@ -198,6 +246,20 @@
 "feed.seeLess" = "ver menos";
 "feed.loadingMoment" = "Cargando momento...";
 "feed.empty.following.title" = "Tu feed está vacío";
+
+/* Nova Memory */
+"nova.memory.title" = "Memoria de Nova";
+"nova.memory.description" = "Gestiona lo que Nova sabe sobre ti";
+"nova.memory.empty" = "Nova aún no recuerda nada sobre ti";
+"nova.memory.empty.subtitle" = "Habla con Nova para que empiece a conocerte y recordarte.";
+"nova.memory.clearAll" = "Borrar toda la memoria";
+"nova.memory.clearAll.confirm" = "¿Borrar toda la memoria?";
+"nova.memory.clearAll.message" = "Nova olvidará todo lo que sabe de ti. Esta acción no se puede deshacer.";
+"nova.memory.section.preference" = "Preferencias";
+"nova.memory.section.personal" = "Personal";
+"nova.memory.section.professional" = "Trabajo/Estudios";
+"nova.memory.section.interest" = "Intereses";
+"nova.memory.section.general" = "General";
 "feed.empty.following.description" = "Sigue a más usuarios para ver sus momentos aquí";
 "feed.empty.foryou.title" = "Descubre nuevo contenido";
 "feed.empty.foryou.description" = "Te mostraremos contenido basado en tus intereses cuando esté disponible";
@@ -270,6 +332,10 @@
 "stories.noInteractions" = "El autor no permite interacciones";
 "stories.contentUnavailable" = "Contenido no disponible";
 "stories.activity.title" = "Actividad de la historia";
+"stories.activity.noViewers" = "Nadie ha visto esta historia aún";
+"stories.activity.noReactions" = "Sin reacciones todavía";
+"stories.activity.viewersTab" = "Vistas (%d)";
+"stories.activity.reactionsTab" = "Reacciones (%d)";
 "stories.ephemeral.expired" = "Momento efímero expirado";
 "stories.ephemeral.unavailable" = "La imagen ya no está disponible";
 "stories.replied" = "Respondiste a su historia";
@@ -332,6 +398,10 @@
 "notifications.message.comment.single" = "%@ comentó en tu momento.";
 "notifications.message.story.single" = "%@ reaccionó a tu historia.";
 "notifications.message.visit.single" = "%d personas visitaron tu perfil hoy.";
+"notifications.message.requestAccepted.multiple" = "%@ y %d más aceptaron tu solicitud de seguimiento.";
+"notifications.message.requestAccepted.single" = "%@ aceptó tu solicitud de seguimiento.";
+"notifications.message.tagged.single" = "%@ te etiquetó en un momento.";
+"notifications.message.tagged.multiple" = "%@ y %d más te etiquetaron en momentos.";
 
 /* Messages */
 "messages.count" = "%d";
@@ -358,6 +428,15 @@
 "time.viewed" = "Vio hace %@";
 "time.reacted" = "Reaccionó hace %@";
 "time.relative" = "%@";
+"time.unit.yr" = "año";
+"time.unit.yrs" = "años";
+"time.unit.mo" = "mes";
+"time.unit.mos" = "meses";
+"time.unit.wk" = "sem.";
+"time.unit.d" = "d";
+"time.unit.h" = "h";
+"time.unit.min" = "min";
+"time.now" = "ahora";
 
 /* Nova AI */
 "nova.you" = "Tú";
@@ -439,9 +518,11 @@
 "settings.privacy.hideMutual.description" = "Solo tú podrás ver quiénes son tus amigos en común";
 "settings.privacy.hideFollowing" = "Ocultar mi lista de seguidos";
 "settings.privacy.hideFollowing.description" = "Solo tú podrás ver a quién sigues";
-"settings.privacy.hideAdmirers" = "Ocultar mis admiradores";
+"settings.privacy.hideAdmirers" = "Ocultar mis seguidores";
 "settings.privacy.hideAdmirers.description" = "Solo tú podrás ver quién te sigue";
-"settings.privacy.control.description" = "Cuando actives estas opciones, otros usuarios no podrán ver estas listas en tu perfil. Nota: Ocultar 'siguiendo' o 'admiradores' también ocultará 'conexiones mutuas' ya que no se pueden calcular sin ambas listas. Siempre podrás cambiar estas configuraciones.";
+"settings.privacy.control.description" = "Cuando actives estas opciones, otros usuarios no podrán ver estas listas en tu perfil. Nota: Ocultar 'siguiendo' o 'seguidores' también ocultará 'conexiones mutuas' ya que no se pueden calcular sin ambas listas. Siempre podrás cambiar estas configuraciones.";
+"settings.privacy.readReceipts.title" = "Confirmaciones de lectura";
+"settings.privacy.readReceipts.description" = "Si desactivas las confirmaciones de lectura, no podrás ver las de otras personas.";
 "settings.logout" = "Cerrar sesión";
 "settings.logout.confirm" = "¿Estás seguro de que quieres cerrar sesión?";
 "settings.profile.username" = "Nombre de usuario";
@@ -470,6 +551,7 @@
 "creator.files.selected.count" = "%d archivos seleccionados";
 "creator.advancedSettings" = "Configuración avanzada";
 "creator.publishing" = "Publicando momento...";
+"creator.uploading.success_fly" = "Momento compartido";
 "creator.intensity" = "Intensidad";
 "creator.searching" = "Buscando...";
 "creator.location.useCurrent" = "Usar ubicación actual";
@@ -503,6 +585,8 @@
 "login.resetPassword.description" = "Te enviaremos un enlace a tu correo";
 "login.resetPassword.sendLink" = "Enviar enlace";
 "login.info.title" = "Información";
+"conversationSettings.privacy.readReceipts.title" = "Confirmación de lectura";
+"conversationSettings.privacy.readReceipts.description" = "Si desactivas el 'visto' en este chat, no podrás ver cuándo la otra persona lee tus mensajes.";
 
 /* Register */
 "register.back" = "Atrás";
@@ -542,6 +626,8 @@
 "chat.error" = "Error";
 "chat.message.deleted" = "Este mensaje fue eliminado";
 "chat.recording" = "Grabando...";
+"chat.reply.you" = "Tú";
+"chat.reply.select_item" = "Responder a un elemento";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversación no encontrada";
@@ -558,6 +644,38 @@
 "messaging.startConversation" = "Iniciar conversación";
 "messaging.writeMessageToStart" = "Escribe un mensaje para iniciar la conversación";
 "messaging.sendMessage" = "Enviar mensaje";
+"chat.viewOnce.tapToView" = "Toca para ver";
+"chat.viewOnce.autoDelete" = "Se borrará al cerrar";
+"chat.viewOnce.photo" = "Foto";
+"chat.viewOnce.video" = "Video";
+"chat.viewOnce.media" = "Media";
+"chat.viewOnce.photoOpened" = "Foto vista";
+"chat.viewOnce.videoOpened" = "Video visto";
+"chat.viewOnce.mediaOpened" = "Media visto";
+"chat.viewOnce.viewOnce" = "Ver una vez";
+"chat.viewOnce.viewed" = "Visto";
+"chat.viewOnce.sent" = "Enviado";
+"chat.viewOnce.alreadyViewed" = "Ya visto";
+"chat.preview.photo" = "📷 Foto";
+"chat.preview.video" = "🎥 Video";
+"chat.preview.audio" = "🎵 Audio";
+"chat.preview.gif" = "🎞️ GIF";
+"chat.preview.sticker" = "😊 Sticker";
+"chat.preview.location" = "📍 Ubicación";
+"chat.preview.file" = "📎 Archivo";
+"chat.preview.ephemeral" = "📸 Momento efímero";
+"chat.preview.sharedMoment" = "📷 Momento compartido";
+"chat.preview.viewOncePhoto" = "📷 Foto (ver una vez)";
+"chat.preview.viewOnceVideo" = "🎥 Video (ver una vez)";
+"chat.status.sending" = "Enviando";
+"chat.status.sent" = "Enviado";
+"chat.status.delivered" = "Entregado";
+"chat.status.read" = "Leído";
+"chat.status.failed" = "Falló";
+"chat.notification.viewOncePrompt" = "📸 Te envió un mensaje que se borrará al verlo";
+"chat.preview.newConversation" = "Nueva conversación";
+"chat.preview.ephemeral_long" = "⏱️ Mensaje temporal";
+"chat.preview.image" = "📷 Imagen";
 
 /* Message Requests */
 "messageRequests.request.title" = "Solicitud de mensaje";
@@ -613,6 +731,23 @@
 "profileEditor.interests.empty.title" = "No has seleccionado intereses";
 "profileEditor.interests.empty.subtitle" = "Toca en 'Editar' para añadir tus intereses";
 "profileEditor.interests.select.title" = "Selecciona hasta 5 intereses";
+"profileEditor.category.recent" = "Recientes";
+"profileEditor.category.photography" = "Fotografía";
+"profileEditor.category.selfies" = "Selfies";
+"profileEditor.category.albums" = "Álbumes";
+"profileEditor.album.selectTitle" = "Selecciona un álbum";
+"profileEditor.album.photosCount" = "%d fotos";
+"profileEditor.album.default" = "Álbum";
+"profileEditor.album.favorites" = "Favoritos";
+"profileEditor.album.screenshots" = "Capturas";
+"profileEditor.error.updateProfile" = "Error al actualizar perfil: %@";
+"profileEditor.error.uploadImage" = "Error al subir imagen: %@";
+"profileEditor.error.unauthenticated" = "Usuario no autenticado";
+"profileEditor.error.saveProfile" = "Error al guardar: %@";
+"profileEditor.crop.loadingImage" = "Cargando imagen...";
+"profileEditor.crop.moveAndScale" = "Mover y escalar";
+"profileEditor.crop.otherPhotos" = "Otras fotos";
+"profileEditor.crop.processing" = "Procesando...";
 "profileEditor.cancel" = "Cancelar";
 "profileEditor.save" = "Guardar";
 "profileEditor.next" = "Siguiente";
@@ -630,6 +765,7 @@
 "audience.saved" = "Audiencia guardada";
 "audience.predefined" = "Audiencia predefinida";
 "audience.customLists" = "Listas personalizadas";
+"audience.customLists.title" = "Listas personalizadas";
 "audience.manage" = "Gestionar";
 "audience.loadingLists" = "Cargando listas...";
 "audience.noCustomLists.title" = "Sin listas personalizadas";
@@ -638,6 +774,7 @@
 "audience.manualSelection" = "Selección manual";
 "audience.custom" = "Personalizado";
 "audience.people.count" = "%d personas";
+"audience.people.count.short" = "%d personas";
 "audience.selectPeople" = "Seleccionar %d personas";
 
 /* Audience Types */
@@ -659,6 +796,41 @@
 /* Audience Actions */
 "audience.actions.selectPeople" = "Seleccionar personas";
 "audience.actions.cancel" = "Cancelar";
+"audience.create" = "Crear";
+"audience.list.placeholder" = "Nombre de la lista";
+"audience.members.count.short" = "%d miembros";
+"audience.list.name.example" = "Ej: Trabajo, Familia, Gym...";
+"audience.personalization" = "Personalización";
+"audience.view.all" = "Ver todos";
+"audience.create.title" = "Nueva Lista";
+"audience.create.action" = "Crear";
+"audience.edit.title" = "Editar Lista";
+"audience.list.description.placeholder" = "Describe esta lista...";
+"audience.members.count.long" = "%d personas en la lista";
+"common.save" = "Guardar";
+"common.color" = "Color";
+"common.icon" = "Icono";
+"audience.list.add" = "Agregar";
+"audience.list.search" = "Buscar en la lista...";
+"audience.list.loadingMembers" = "Cargando miembros...";
+"audience.list.noResults" = "No se encontraron miembros con '%@'";
+"audience.list.empty" = "No hay miembros en esta lista";
+"audience.list.emptyAlt" = "Toca 'Agregar' para añadir personas";
+"audience.list.membersShown" = "%d miembros mostrados";
+"audience.list.searchresults" = "Resultados de búsqueda para '%@'";
+"audience.list.deleteMember.title" = "Eliminar miembro";
+"audience.list.deleteMember.message" = "¿Eliminar a %@ de esta lista?";
+"audience.picker.title" = "Agregar Miembros";
+"audience.picker.searchPlaceholder" = "Buscar personas...";
+"audience.picker.initialTitle" = "Buscar personas";
+"audience.picker.initialDescription" = "Escribe el nombre de usuario para encontrar personas y agregarlas a tu lista";
+"audience.picker.noResultsDescription" = "No se encontraron personas con '%@'";
+"audience.picker.selectedCount" = "%d seleccionadas";
+"audience.picker.selectedDescription" = "Personas para agregar a la lista";
+"common.confirm" = "Confirmar";
+"common.searching" = "Buscando...";
+"common.noResults" = "Sin resultados";
+"common.clear" = "Limpiar";
 
 /* Login Activity */
 "loginActivity.navigation.title" = "Actividad de Inicio";
@@ -919,7 +1091,7 @@
 /* Navigation Titles */
 "settings.title" = "Configuración";
 "settings.accountManagement" = "Gestión de cuenta";
-"settings.connectionPrivacy" = "Privacidad de Conexiones";
+"settings.connectionPrivacy" = "Privacidad del perfil";
 "settings.notifications" = "Notificaciones";
 "accountManagement.deleteAccount.title" = "Eliminar cuenta";
 "blockedUsers.title" = "Usuarios bloqueados";
@@ -937,7 +1109,7 @@
 "settings.sections.highlightedStories.subtitle" = "Gestionar tus historias favoritas";
 "settings.sections.contentVisibility" = "Visibilidad de contenido";
 "settings.sections.contentVisibility.subtitle" = "Gestionar quién puede ver tu contenido";
-"settings.sections.connections" = "Conexiones";
+"settings.sections.connections" = "Privacidad del perfil";
 "settings.sections.bestFriends" = "Mejores amigos";
 "settings.sections.bestFriends.subtitle" = "Gestionar lista de mejores amigos";
 "settings.sections.blockedAccounts" = "Cuentas bloqueadas";
@@ -1257,6 +1429,15 @@
 "highlightedStories.create" = "Crear destacada";
 "highlightedStories.title" = "Historias Destacadas";
 "highlightedStories.new" = "Nueva";
+"highlightedStories.selectStories" = "Seleccionar historias";
+"highlightedStories.newHighlight" = "Nueva destacada";
+"highlightedStories.noStoriesToSelect" = "No hay historias para seleccionar";
+"highlightedStories.editCover" = "Editar portada";
+"highlightedStories.titleLabel" = "Título";
+"highlightedStories.titlePlaceholder" = "Ej. Viaje 2024";
+"highlightedStories.selectCover" = "Seleccionar portada";
+"highlightedStories.storyCount" = "%d historia%@";
+"highlightedStories.edit" = "Editar destacada";
 
 /* Stories View - Additional */
 "stories.noStoriesAvailable" = "No hay historias disponibles";
@@ -1373,6 +1554,8 @@
 "accountManagement.ok" = "OK";
 "accountManagement.userNotFound" = "No se pudo obtener el usuario actual";
 "accountManagement.requiredText" = "ELIMINAR MI CUENTA";
+"accountManagement.error.delete" = "Error eliminando cuenta: %@";
+"accountManagement.error.noEmail" = "No se pudo obtener el email del usuario";
 "accountManagement.deleting" = "Eliminando...";
 "accountManagement.permanentDeletion" = "ELIMINACIÓN PERMANENTE";
 "accountManagement.irreversible" = "Esta acción es irreversible";
@@ -1392,13 +1575,13 @@
 
 /* Notifications */
 "notifications.error.unknown" = "Ocurrió un error desconocido";
-"notifications.empty.mentions" = "Sin menciones";
-"notifications.empty.storyReactions" = "Sin reacciones";
-"notifications.empty.requests" = "Sin solicitudes";
-"notifications.empty.reactions" = "Sin reacciones";
-"notifications.empty.likes" = "Sin me gusta";
-"notifications.empty.follows" = "Sin nuevos seguidores";
-"notifications.empty.default" = "Sin notificaciones";
+"notifications.empty.comments" = "No hay comentarios aún";
+"notifications.empty.storyReactions" = "Sin reacciones a tus historias";
+"notifications.empty.requests" = "No tienes solicitudes pendientes";
+"notifications.empty.reactions" = "Aún no hay reacciones";
+"notifications.empty.mentions" = "Sin menciones todavía";
+"notifications.empty.follows" = "Todavía no tienes seguidores";
+"notifications.empty.default" = "No hay notificaciones";
 "notifications.loadMore" = "Cargar más";
 "notifications.accept" = "Aceptar";
 "notifications.reject" = "Rechazar";
@@ -1421,6 +1604,19 @@
 
 /* Network Status - Offline Banners */
 "network.offline.title" = "Sin conexión a internet";
+
+/* In-App Banners */
+"banner.verb.like" = "le gustó tu momento";
+"banner.verb.comment" = "comentó tu momento";
+"banner.verb.reaction" = "reaccionó a tu momento";
+"banner.verb.follow" = "empezó a seguirte";
+"banner.verb.request" = "envió una solicitud";
+"banner.verb.accepted" = "aceptó tu solicitud";
+"banner.verb.mention" = "te mencionó";
+"banner.verb.story" = "reaccionó a tu historia";
+"banner.verb.message" = "te envió un mensaje";
+"notifications.message.message.single" = "%@ te envió un mensaje";
+"notifications.message.message.multiple" = "%@ y %d personas más te enviaron mensajes";
 "network.offline.retry" = "Reintentar";
 "network.slow.title" = "Conexión lenta - Usando modo optimizado";
 
@@ -1450,6 +1646,7 @@
 "editMoment.save" = "Guardar";
 "editMoment.description" = "Descripción";
 "editMoment.saving" = "Guardando cambios...";
+"editMoment.placeholder" = "Escribe algo...";
 
 /* Interests */
 "interest.escritura" = "Escritura";
@@ -1652,3 +1849,117 @@
 "auth.error.privacyPolicyRequired" = "Debes aceptar las políticas de privacidad.";
 "auth.error.usernameUnavailable" = "Nombre de usuario no disponible.";
 "auth.error.userIdNotFound" = "No se pudo obtener el ID del usuario.";
+
+/* Notification Summary */
+"feed.summary.highlights" = "Novedades";
+"notifications.section.new" = "Nuevas";
+"notifications.section.this_week" = "Esta semana";
+"notifications.section.this_month" = "Este mes";
+"notifications.section.earlier" = "Anteriores";
+
+/* Banners */
+"banner.verb.like" = "le gustó tu momento";
+"banner.verb.comment" = "comentó tu momento";
+"banner.verb.reaction" = "reaccionó a tu momento";
+"banner.verb.follow" = "comenzó a seguirte";
+"banner.verb.request" = "envió una solicitud";
+"banner.verb.accepted" = "aceptó tu solicitud";
+"banner.verb.mention" = "te mencionó";
+"banner.verb.story" = "reaccionó a tu historia";
+"banner.verb.message" = "te envió un mensaje";
+"notifications.message.message.single" = "%@ te envió un mensaje";
+"notifications.message.message.multiple" = "%@ y %d personas más te enviaron mensajes";
+
+/* Whats New v2.2 */
+"whatsNew.title" = "The Profile & Connection Update";
+"whatsNew.subtitle" = "Moments v2.2.0";
+"whatsNew.nova.title" = "Highlights";
+"whatsNew.nova.description" = "Guarda tus historias favoritas en tu perfil para siempre.";
+"whatsNew.audioPro.title" = "Etiquetado de Usuarios";
+"whatsNew.audioPro.description" = "Etiqueta a tus amigos en fotos y videos de forma sencilla.";
+"whatsNew.smartGrid.title" = "Publicaciones Programadas";
+"whatsNew.smartGrid.description" = "Planifica tus momentos y deja que se publiquen automáticamente.";
+"whatsNew.glassStudio.title" = "Nuevas Pestañas";
+"whatsNew.glassStudio.description" = "Explora fácilmente tus momentos, contenido guardado y etiquetas.";
+"whatsNew.banners.title" = "Perfil Compartible";
+"whatsNew.banners.description" = "Comparte tu perfil fácilmente con un código QR.";
+"whatsNew.summary.title" = "Explorer Renovado";
+"whatsNew.summary.description" = "Una interfaz más limpia y fluida para descubrir contenido único.";
+"whatsNew.maps.title" = "Renovación del Mapa";
+"whatsNew.maps.description" = "Nueva experiencia inmersiva con cabeceras de cristal y detalles refinados.";
+
+/* Best Friends */
+"bestFriends.title" = "Mejores Amigos";
+"bestFriends.empty.title" = "Sin mejores amigos";
+"bestFriends.empty.description" = "Añade amigos desde tus seguidos para marcarlos como mejores amigos.";
+"bestFriends.search.placeholder" = "Buscar en listas...";
+"bestFriends.section.mutuals" = "Amigos en común";
+"bestFriends.section.following" = "Seguidos";
+"bestFriends.section.followers" = "Seguidores";
+"bestFriends.search.noResults" = "No se encontraron resultados para '%@'";
+"bestFriends.button.remove" = "Eliminar";
+"bestFriends.button.add" = "Añadir";
+"bestFriends.button.addGeneric" = "Agregar";
+"bestFriends.error.following" = "Error al cargar seguidos: %@";
+"bestFriends.error.followers" = "Error al cargar seguidores: %@";
+"bestFriends.error.auth" = "Usuario no autenticado";
+"whatsNew.button" = "Explorar Moments 2.2";
+
+/* Modernized Settings Connection Privacy */
+"settings.privacy.connections.allPublic" = "Todos los seguidos públicos";
+"settings.privacy.connections.hiddenCount.singular" = "1 lista oculta";
+"settings.privacy.connections.hiddenCount.plural" = "%d listas ocultas";
+"settings.privacy.connections.allHidden" = "Todas las listas ocultas";
+"settings.privacy.connections.configure" = "Configurar";
+
+/* Support Moments */
+"support.section.title" = "Apoyar Moments";
+"support.badges.title" = "Badges de apoyo";
+"support.badges.subtitle.default" = "Badges únicos + Suscripción Plus";
+"support.badges.subtitle.plusEnabled" = "Plus activo - Explora badges disponibles";
+"support.badges.subtitle.badgesAndPlus" = "Plus + %d badges";
+"support.badges.subtitle.badgesOnly" = "%d badges + Suscripción Plus";
+"support.manageSubscription.title" = "Gestionar suscripción";
+"support.manageSubscription.subtitle" = "Configurar tu suscripción Plus";
+"support.view.title" = "Apoyar Moments";
+"support.view.header.subtitle" = "Ayúdanos a mantener la app gratuita para todos";
+"support.view.plus.title" = "Moments Plus";
+"support.view.plus.active" = "ACTIVO";
+"support.view.plus.popular" = "POPULAR";
+"support.view.features.noAds.title" = "Sin anuncios";
+"support.view.features.noAds.description" = "Experiencia completamente limpia";
+"support.view.features.crown.title" = "Badge exclusivo";
+"support.view.features.crown.description" = "Muestra tu apoyo al proyecto";
+"support.view.features.development.title" = "Apoya el desarrollo";
+"support.view.features.development.description" = "Mantiene la app gratuita para todos";
+"support.view.plus.alreadyActive.title" = "¡Ya eres Moments Plus!";
+"support.view.plus.alreadyActive.description" = "Gracias por apoyar el proyecto";
+"support.view.plus.get.button" = "Obtener Moments Plus - %@/mes";
+"support.view.badges.oneTime" = "Una sola vez";
+"support.view.faq.title" = "Preguntas frecuentes";
+"support.view.faq.q1" = "¿Por qué badges de pago?";
+"support.view.faq.a1" = "Los badges nos ayudan a mantener Moments gratuito para todos. Son opcionales y puramente para mostrar apoyo.";
+"support.view.thanks.title" = "¡Gracias!";
+"support.view.thanks.message" = "Tu apoyo nos ayuda a mantener Moments gratuito para todos.";
+"support.badgeCard.owned" = "POSEÍDO";
+
+"support.view.faq.q2" = "¿Los badges dan ventajas?";
+"support.view.faq.a2" = "No. Los badges son solo cosméticos. Creemos en mantener la experiencia justa para todos.";
+"support.view.faq.q3" = "¿Puedo ocultar mi badge?";
+"support.view.faq.a3" = "Sí, puedes mostrar u ocultar tus badges en cualquier momento desde tu perfil.";
+"support.view.faq.q4" = "¿Cómo cancelo mi suscripción?";
+"support.view.faq.a4" = "Puedes cancelar en cualquier momento desde Configuración de iOS > Tu Nombre > Suscripciones, o usando el botón 'Gestionar suscripción' arriba.";
+
+"support.badgePurchase.available" = "Tu badge \"%@\" ya está disponible en tu perfil.";
+"support.badgePurchase.exploreMore" = "Explorar más badges";
+
+/* Settings Groups */
+"settings.group.identity" = "Identidad y Conexión";
+"settings.group.security" = "Seguridad y Privacidad";
+"settings.group.activity" = "Contenido y Actividad";
+"settings.group.system" = "Sistema y Soporte";
+
+/* Scheduled Posts */
+"profile.moments.scheduled" = "Programado";
+"profile.moments.scheduled.in" = "En %@";
+

@@ -20,12 +20,32 @@ class NotificationNavigationService: ObservableObject {
     
     private init() {}
     
+    // ✅ Helpers para navegación directa (usados por InAppBannerView)
+    func navigateToMoment(momentId: String, userId: String) {
+         pendingNavigation = .moment(momentId, userId)
+    }
+    
+    func navigateToProfile(userId: String) {
+        pendingNavigation = .profile(userId)
+    }
+    
+    func navigateToNotifications(filter: String?) {
+        pendingNavigation = .notifications(filter)
+    }
+    
+    func navigateToStory(storyId: String) {
+        pendingNavigation = .story(storyId)
+    }
+    
+    func navigateToConversation(conversationId: String) {
+        pendingNavigation = .conversation(conversationId)
+    }
+    
     // ✅ SIMPLIFICADO: Método para procesar datos de notificación
     func handleNotificationData(_ userInfo: [AnyHashable: Any]) {
         guard let type = userInfo["type"] as? String else {
             return
         }
-        
         
         switch type {
         case "moment_reaction":

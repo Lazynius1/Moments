@@ -1,0 +1,122 @@
+ESPAÑOL
+
+Version 2.0.0 - The Nova Update
+
+Hemos cambiado Moments de arriba a abajo!
+Esta es nuestra actualización más grande hasta la fecha. Cada pantalla, cada animación y cada interacción ha sido rediseñada para ser más fluida, moderna y personal.
+
+Nova 2.0: Más humana que nunca
+Nova ha evolucionado. Ahora tiene ojos (Visión) para ver lo que compartes, memoria (Memoria Semántica) para recordar tus conversaciones pasadas, e iniciativa propia (Sparks) para sorprenderte. Ya no es un bot, es tu compañera.
+
+Una Nueva Experiencia de Chat
+Hemos redefinido la mensajería desde dentro.
+- Audio Pro: Nuevos waveforms dinámicos que cobran vida con tu voz.
+- Smart Grid: Tus fotos y videos ahora se agrupan en collages inteligentes automáticamente.
+- Glass Studio: Una nueva cámara integrada que hace que capturar momentos sea mágico.
+- Control Total: Gestiona tu privacidad con confirmaciones de lectura personalizables por chat.
+
+Notificaciones Inteligentes
+- Notificaciones In-App: Mantente informado de mensajes y reacciones sin interrumpir lo que estás haciendo en la app.
+- Resumen de Actividad: Un vistazo rápido a todo lo que ha pasado mientras no estabas.
+
+Diseño Glassmorphic
+La interfaz brilla con luz propia. Hemos pulido cada detalle con nuestro nuevo lenguaje de diseño: transparencias elegantes, desenfoques dinámicos y transiciones que vuelan.
+
+Rendimiento y Fluidez
+- Historias instantáneas que cargan al momento.
+- Nuevo sistema de subida con feedback visual en tiempo real.
+- Optimizaciones profundas para que la app se sienta ligera y rápida.
+
+---
+
+Versión corta:
+
+Versión 2.0.0
+
+- Nova 2.0: Visión, Memoria y Personalidad propia.
+- Rediseño Total: Nueva interfaz Glassmorphic en toda la app.
+- Chat Revolucionario: Audios visuales, cámara pro y notificaciones in-app.
+- Resumen: No te pierdas nada con el nuevo resumen de actividad.
+- Velocidad: Todo es más rápido, desde las historias hasta el envío de mensajes.
+
+ENGLISH
+
+Version 2.0.0 - The Nova Update
+
+We've rebuilt Moments from the ground up!
+This is our biggest update ever. Every screen, every animation, and every interaction has been redesigned to be smoother, modern, and more personal.
+
+Nova 2.0: More human than ever
+Nova has evolved. She now has eyes (Vision) to see what you share, memory (Semantic Memory) to remember past conversations, and initiative (Sparks) to surprise you. She's no longer just a bot; she's your companion.
+
+A New Chat Experience
+We've redefined messaging from within.
+- Audio Pro: New dynamic waveforms that come alive with your voice.
+- Smart Grid: Your photos and videos automatically group into smart collages.
+- Glass Studio: A new integrated camera that makes capturing moments magical.
+- Total Control: Manage your privacy with customizable read receipts per chat.
+
+Smart Notifications
+- In-App Notifications: Stay informed about messages and reactions without interrupting what you're doing in the app.
+- Activity Summary: A quick overview of everything that happened while you were away.
+
+Glassmorphic Design
+The interface shines. We've polished every detail with our new design language: elegant transparencies, dynamic blurs, and transitions that fly.
+
+Performance and Fluidity
+- Instant stories that load immediately.
+- New upload system with real-time visual feedback.
+- Deep optimizations to make the app feel light and fast.
+
+---
+
+Short version:
+
+Version 2.0.0
+
+- Nova 2.0: Vision, Memory, and distinct Personality.
+- Total Redesign: New Glassmorphic interface across the entire app.
+- Revolutionary Chat: Visual audios, pro camera, and in-app notifications.
+- Summary: Don't miss a thing with the new activity summary.
+- Speed: Everything is faster, from stories to messaging.
+
+CATALÀ
+
+Versió 2.0.0 - The Nova Update
+
+Hem canviat Moments de dalt a baix!
+Aquesta és la nostra actualització més gran fins ara. Cada pantalla, cada animació i cada interacció s'ha redissenyat per ser més fluida, moderna i personal.
+
+Nova 2.0: Més humana que mai
+Nova ha evolucionat. Ara té ulls (Visió) per veure el que comparteixes, memòria (Memòria Semàntica) per recordar converses passades, i iniciativa pròpia (Sparks) per sorprendre't. Ja no és un bot, és la teva companya.
+
+Una Nova Experiència de Xat
+Hem redefinit la missatgeria des de dins.
+- Audio Pro: Nous waveforms dinàmics que cobren vida amb la teva veu.
+- Smart Grid: Les teves fotos i vídeos ara s'agrupen en collages intel·ligents automàticament.
+- Glass Studio: Una nova càmera integrada que fa que capturar moments sigui màgic.
+- Control Total: Gestiona la teva privacitat amb confirmacions de lectura personalitzables per xat.
+
+Notificacions Intel·ligents
+- Notificacions In-App: Mantén-te informat de missatges i reaccions sense interrompre el que estàs fent a l'app.
+- Resum d'Activitat: Un cop d'ull ràpid a tot el que ha passat mentre no hi eres.
+
+Disseny Glassmorphic
+La interfície brilla amb llum pròpia. Hem polit cada detall amb el nostre nou llenguatge de disseny: transparències elegants, desenfocaments dinàmics i transicions que volen.
+
+Rendiment i Fluïdesa
+- Històries instantànies que carreguen al moment.
+- Nou sistema de pujada amb feedback visual en tempo real.
+- Optimitzacions profundes perquè l'app se senti lleugera i ràpida.
+
+---
+
+Versió curta:
+
+Versió 2.0.0
+
+- Nova 2.0: Visió, Memòria i Personalitat pròpia.
+- Redisseny Total: Nova interfície Glassmorphic a tota l'app.
+- Xat Revolucionari: Àudios visuals, càmera pro i notificacions in-app.
+- Resum: No et perdis res amb el nou resum d'activitat.
+- Velocitat: Tot és més ràpid, des de les històries fins a l'enviament de missatges.

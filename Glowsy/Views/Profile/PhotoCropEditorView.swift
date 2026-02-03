@@ -32,6 +32,7 @@ extension UIImage {
 // MARK: -  Profile Picture Editor
 struct PhotoCropEditorView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) var colorScheme
     let originalAsset: PHAsset
     let onSave: (UIImage) -> Void
     
@@ -55,16 +56,28 @@ struct PhotoCropEditorView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // MARK: - 1. Immersive Background
+            immersiveBackground
             
             if isLoadingImage {
                 loadingView
             } else if let image = fullResolutionImage {
                 VStack(spacing: 0) {
+                    // Header Flotante
                     headerView
-                    cropAreaView(with: image)
-                    photoGridSection()
-                    Spacer()
+                        .padding(.top, 10)
+                    
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 24) {
+                            // Área de Crop
+                            cropAreaView(with: image)
+                                .padding(.top, 20)
+                            
+                            // Sección de Galería (Estilo Glass)
+                            photoGridSection()
+                                .padding(.bottom, 40)
+                        }
+                    }
                 }
             }
             
@@ -79,15 +92,49 @@ struct PhotoCropEditorView: View {
     }
     
     // MARK: - Vista de carga
+    private var immersiveBackground: some View {
+        ZStack {
+            // Capa 1: Fondo Adaptativo
+            (colorScheme == .dark ? Color.black : Color.white)
+                .ignoresSafeArea()
+            
+            // Capa 2: Imagen desenfocada
+            if let image = fullResolutionImage {
+                GeometryReader { proxy in
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped() // ✅ IMPORTANTE: Evitar que la imagen horizontal expanda el layout
+                }
+                .blur(radius: 60)
+                .opacity(colorScheme == .dark ? 0.4 : 0.2)
+                .ignoresSafeArea()
+            }
+            
+            // Capa 3: Overlay gradiente para profundidad
+            LinearGradient(
+                colors: [
+                    (colorScheme == .dark ? Color.black : Color.white).opacity(0.6),
+                    .clear,
+                    (colorScheme == .dark ? Color.black : Color.white).opacity(0.8)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        }
+    }
+    
     private var loadingView: some View {
         VStack(spacing: 20) {
             ProgressView()
                 .scaleEffect(1.5)
-                .tint(Color(hex: "00A896"))
+                .tint(colorScheme == .dark ? .white : .black)
             
-            Text("Cargando imagen...")
+            Text(NSLocalizedString("profileEditor.crop.loadingImage", comment: ""))
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
         }
     }
     
@@ -99,28 +146,25 @@ struct PhotoCropEditorView: View {
                     dismiss()
                 }
             }) {
-                Text("Cancelar")
-                    .font(.custom("Poppins-Regular", size: 17))
-                    .foregroundColor(.white.opacity(isProcessing ? 0.4 : 0.8))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(isProcessing ? 0.1 : 0.15))
-                    )
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    .padding(10)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.white.opacity(isProcessing ? 0.2 : 0.3), lineWidth: 1)
+                        Circle()
+                            .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
                     )
             }
             .disabled(isProcessing)
-            .buttonStyle(PlainButtonStyle())
             
             Spacer()
             
-            Text("Mover y escalar")
+            Text(NSLocalizedString("profileEditor.crop.moveAndScale", comment: ""))
                 .font(.custom("Poppins-SemiBold", size: 17))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .primary)
+                .shadow(color: (colorScheme == .dark ? Color.black : Color.white).opacity(0.3), radius: 2, x: 0, y: 1)
             
             Spacer()
             
@@ -130,22 +174,21 @@ struct PhotoCropEditorView: View {
                 impactFeedback.impactOccurred()
                 cropAndSaveImage()
             }) {
-                Text("Listo")
-                    .font(.custom("Poppins-SemiBold", size: 17))
-                    .foregroundColor(isProcessing ? .gray : Color(hex: "00A896"))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(10)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isProcessing ? Color.gray.opacity(0.3) : Color(hex: "00A896").opacity(0.2))
+                        Circle()
+                            .fill(isProcessing ? Color.gray.opacity(0.5) : Color(hex: "00A896"))
                     )
+                    .shadow(radius: 5)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(isProcessing ? Color.gray.opacity(0.5) : Color(hex: "00A896").opacity(0.5), lineWidth: 1)
+                        Circle()
+                            .stroke(Color.primary.opacity(0.2), lineWidth: 1)
                     )
             }
             .disabled(isProcessing)
-            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -153,35 +196,27 @@ struct PhotoCropEditorView: View {
     
     // MARK: - Área de crop cuadrada
     private func cropAreaView(with image: UIImage) -> some View {
-        VStack(spacing: 0) {
-            // ✅ Sin texto explicativo - el usuario ya sabe qué hacer 😄
-            Spacer()
-                .frame(height: 20)
-            
-            // ✅ ÁREA DE CROP CIRCULAR REAL (no cuadrada)
+        VStack(spacing: 16) {
+            // MARK: - Crop Base
             ZStack {
-                // Fondo oscuro
+                // Sombra de Profundidad
                 Circle()
-                    .fill(Color.black)
-                    .frame(width: cropSize, height: cropSize)
+                    .fill(Color.black.opacity(colorScheme == .dark ? 0.4 : 0.1))
+                    .frame(width: cropSize + 10, height: cropSize + 10)
+                    .blur(radius: 20)
                 
                 // Imagen manipulable
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill()
-                    .frame(
-                        width: cropSize * scale,
-                        height: (cropSize * scale) / (image.size.width / image.size.height)
-                    )
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: cropSize, height: cropSize)
+                    .scaleEffect(scale)
                     .offset(CGSize(width: offset.width + gestureTranslation.width, height: offset.height + gestureTranslation.height))
-                    .clipped()
-                    // ✅ EFECTOS VISUALES SUTILES DURANTE GESTOS
-                    .scaleEffect(isDragging || isZooming ? 1.01 : 1.0)
-                    .animation(.easeInOut(duration: 0.2), value: isDragging)
-                    .animation(.easeInOut(duration: 0.2), value: isZooming)
+                    .clipped() // ✅ VOLVER A AÑADIR: Evitar que la imagen se vea fuera del círculo
+                    .scaleEffect(isDragging || isZooming ? 1.02 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
                     .gesture(
                         SimultaneousGesture(
-                            // ✅ DRAG GESTURE MEJORADO
                             DragGesture()
                                 .updating($gestureTranslation) { value, state, _ in
                                     if !isProcessing {
@@ -197,25 +232,21 @@ struct PhotoCropEditorView: View {
                                             height: offset.height + value.translation.height
                                         )
                                         
-                                        // ✅ FEEDBACK HÁPTICO SUAVE
                                         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                                         impactFeedback.impactOccurred()
                                         
-                                        withAnimation(.easeOut(duration: 0.3)) {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                             offset = limitOffset(newOffset, imageSize: image.size)
                                         }
                                     }
                                 },
                             
-                            // ✅ MAGNIFICATION GESTURE MEJORADO
                             MagnificationGesture()
                                 .onChanged { value in
                                     if !isProcessing {
                                         isZooming = true
                                         let newScale = lastScale * value
-                                        // ✅ RANGO DE ZOOM MÁS FLEXIBLE: Permitir zoom out hasta 0.3
                                         scale = max(getMinimumScale(for: image.size), min(newScale, 4.0))
-                                        offset = limitOffset(offset, imageSize: image.size)
                                     }
                                 }
                                 .onEnded { _ in
@@ -223,47 +254,59 @@ struct PhotoCropEditorView: View {
                                         isZooming = false
                                         lastScale = scale
                                         
-                                        // ✅ FEEDBACK HÁPTICO PARA ZOOM
                                         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                                         impactFeedback.impactOccurred()
                                         
-                                        withAnimation(.easeOut(duration: 0.3)) {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                             offset = limitOffset(offset, imageSize: image.size)
                                         }
                                     }
                                 }
                         )
                     )
-                    // ✅ GESTO DE DOBLE TAP PARA RESET
                     .onTapGesture(count: 2) {
                         if !isProcessing {
                             resetToInitialPosition(for: image.size)
                         }
                     }
                 
-                // Grid de ayuda sutil
-                gridOverlay
-                    .allowsHitTesting(false)
-                
-                // ✅ Círculo que muestra EXACTAMENTE el área de crop final
-                Circle()
-                    .stroke(Color.white.opacity(0.8), lineWidth: 3)
-                    .frame(width: cropSize, height: cropSize)
-                    .allowsHitTesting(false)
-                
-
-                
-                // ✅ Indicador de estado de gestos (sutil)
+                // Grid de ayuda elegante
                 if isDragging || isZooming {
-                    Circle()
-                        .stroke(Color.white.opacity(0.4), lineWidth: 2)
-                        .frame(width: cropSize, height: cropSize)
+                    gridOverlay
                         .allowsHitTesting(false)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
+                
+                // Máscara Circular Premium
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                (colorScheme == .dark ? Color.white : Color.primary).opacity(0.8),
+                                (colorScheme == .dark ? Color.white : Color.primary).opacity(0.2)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 2
+                    )
+                    .frame(width: cropSize, height: cropSize)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                            .padding(-1)
+                    )
+                    .allowsHitTesting(false)
             }
             .frame(width: cropSize, height: cropSize)
             .clipShape(Circle())
-            .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 2))
+            .overlay(
+                // Guía visual de "área segura"
+                Circle()
+                    .stroke((colorScheme == .dark ? Color.white : Color.primary).opacity(0.1), lineWidth: 20)
+                    .frame(width: cropSize + 22, height: cropSize + 22)
+                    .blur(radius: 5)
+            )
             .onAppear {
                 setupInitialTransform(for: image.size)
             }
@@ -277,20 +320,20 @@ struct PhotoCropEditorView: View {
             // Líneas verticales
             HStack(spacing: cropSize / 3 - 1) {
                 Rectangle()
-                    .fill(Color.white.opacity(0.2))
+                    .fill((colorScheme == .dark ? Color.white : Color.primary).opacity(0.2))
                     .frame(width: 1, height: cropSize)
                 Rectangle()
-                    .fill(Color.white.opacity(0.2))
+                    .fill((colorScheme == .dark ? Color.white : Color.primary).opacity(0.2))
                     .frame(width: 1, height: cropSize)
             }
             
             // Líneas horizontales
             VStack(spacing: cropSize / 3 - 1) {
                 Rectangle()
-                    .fill(Color.white.opacity(0.2))
+                    .fill((colorScheme == .dark ? Color.white : Color.primary).opacity(0.2))
                     .frame(width: cropSize, height: 1)
                 Rectangle()
-                    .fill(Color.white.opacity(0.2))
+                    .fill((colorScheme == .dark ? Color.white : Color.primary).opacity(0.2))
                     .frame(width: cropSize, height: 1)
             }
         }
@@ -298,50 +341,60 @@ struct PhotoCropEditorView: View {
     
     // MARK: - Grid de fotos completo (como ProfileEditor)
     private func photoGridSection() -> some View {
-        VStack(spacing: 16) {
-            Text("Otras fotos")
-                .font(.custom("Poppins-SemiBold", size: 16))
-                .foregroundColor(.white.opacity(0.9))
-                .padding(.top, 30)
+        VStack(spacing: 20) {
+            HStack {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.system(size: 16))
+                    .foregroundColor(Color(hex: "00A896"))
+                
+                Text(NSLocalizedString("profileEditor.crop.otherPhotos", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 8)
             
-            // Grid de fotos recientes
-            if isLoadingRecentPhotos {
-                HStack(spacing: 8) {
-                    ForEach(0..<4, id: \.self) { _ in
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 70, height: 70)
-                            .overlay(
-                                ProgressView()
-                                    .scaleEffect(0.6)
-                                    .tint(.white)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+            // Contenedor Glass para el Grid
+            ZStack {
+                if isLoadingRecentPhotos {
+                    HStack(spacing: 12) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            Rectangle()
+                                .fill(Color.primary.opacity(0.1))
+                                .frame(height: 100)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
                     }
-                }
-            } else {
-                ScrollView {
+                } else {
                     LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
-                        spacing: 2
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
+                        spacing: 4
                     ) {
-                        ForEach(photoAssets.indices, id: \.self) { index in
+                        ForEach(photoAssets.prefix(12).indices, id: \.self) { index in
                             let asset = photoAssets[index]
                             
                             PhotoGridItem(
                                 asset: asset,
-                                isSelected: false, // No hay selección en el editor
+                                isSelected: false,
                                 imageManager: imageManager
                             ) {
                                 selectNewPhotoFromGrid(asset)
                             }
                         }
                     }
-                    .padding(.top, 8)
                 }
             }
+            .padding(12)
+            .background(Color.primary.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+            )
         }
         .padding(.horizontal, 20)
+        .padding(.top, 20)
     }
     
     // MARK: - Configuración inicial
@@ -375,9 +428,10 @@ struct PhotoCropEditorView: View {
     private func getMinimumScale(for imageSize: CGSize) -> CGFloat {
         let scaleX = cropSize / imageSize.width
         let scaleY = cropSize / imageSize.height
-        // ✅ PERMITIR ZOOM OUT: Escala mínima más pequeña para permitir que la imagen se vea completa
-        let minScale = min(scaleX, scaleY)
-        return max(minScale, 0.5) // ✅ Mínimo 0.5 para no hacer la imagen demasiado pequeña
+        
+        // ✅ Para cubrir el círculo, necesitamos la escala que cubra el lado más corto (aspect fill)
+        let minScale = max(scaleX, scaleY) 
+        return max(minScale, 0.5)
     }
     
     private func calculateSmartOffset(imageSize: CGSize, scale: CGFloat) -> CGSize {
@@ -424,17 +478,17 @@ struct PhotoCropEditorView: View {
     // MARK: - Overlay de procesamiento
     private var processingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.8)
+            (colorScheme == .dark ? Color.black : Color.white).opacity(0.8)
                 .ignoresSafeArea()
             
             VStack(spacing: 16) {
                 ProgressView()
                     .scaleEffect(1.2)
-                    .tint(.white)
+                    .tint(colorScheme == .dark ? .white : .black)
                 
-                Text("Procesando...")
+                Text(NSLocalizedString("profileEditor.crop.processing", comment: ""))
                     .font(.custom("Poppins-Medium", size: 16))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
             }
         }
     }
@@ -568,6 +622,7 @@ struct PhotoCropEditorView: View {
 
 // MARK: - Photo Grid Item (copiado de ProfileEditor)
 private struct PhotoGridItem: View {
+    @Environment(\.colorScheme) var colorScheme
     let asset: PHAsset
     let isSelected: Bool
     let imageManager: PHImageManager
@@ -592,7 +647,7 @@ private struct PhotoGridItem: View {
                         .overlay(
                             ProgressView()
                                 .scaleEffect(0.8)
-                                .tint(.white)
+                                .tint(colorScheme == .dark ? .white : .black)
                         )
                 }
                 
@@ -608,7 +663,7 @@ private struct PhotoGridItem: View {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 24))
                                         .foregroundColor(Color(hex: "00A896"))
-                                        .background(Circle().fill(.white))
+                                        .background(Circle().fill(colorScheme == .dark ? .black : .white))
                                         .padding(8)
                                 }
                                 Spacer()

@@ -9,190 +9,122 @@ struct QRCodeView: View {
     @State private var showShareSheet = false
     @State private var qrImage: UIImage?
     
+// MARK: - Modern Sheet View
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+        VStack(spacing: 0) {
+            // Header con título
+            VStack(spacing: 2) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, 12)
                 
-                VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 8) {
-                        Text(NSLocalizedString("qrCode.title", comment: "QR code title"))
-                            .font(.custom("Poppins-Bold", size: 24))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
-                        Text(NSLocalizedString("qrCode.subtitle", comment: "QR code subtitle"))
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.gray)
-                    }
-                    
-                    // QR Code Card
-                    VStack(spacing: 20) {
-                        // Profile Info
-                        HStack(spacing: 12) {
-                            AsyncImage(url: URL(string: viewModel.user?.profileImagePath ?? "")) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 60, height: 60)
-                                    .overlay(
-                                        Image(systemName: "person.fill")
-                                            .foregroundColor(.gray)
-                                            .font(.system(size: 25))
-                                    )
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("\(viewModel.user?.username ?? "")")
-                                    .font(.custom("Poppins-SemiBold", size: 18))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                
-                                if let bio = viewModel.user?.bio, !bio.isEmpty {
-                                    Text(bio)
-                                        .font(.custom("Poppins-Regular", size: 14))
-                                        .foregroundColor(.gray)
-                                        .lineLimit(2)
-                                }
-                            }
-                            
-                            Spacer()
-                        }
-                        
-                        Divider()
-                            .background(Color.gray.opacity(0.3))
-                        
-                        // QR Code
-                        if let qrImage = qrImage {
-                            Image(uiImage: qrImage)
-                                .interpolation(.none)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 200, height: 200)
-                                .background(Color.white)
-                                .cornerRadius(12)
-                                .shadow(color: .gray.opacity(0.3), radius: 4)
-                        } else {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(width: 200, height: 200)
-                                .overlay(
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                )
-                        }
-                        
-                        Text("moments.app/\(viewModel.user?.username ?? "")")
-                            .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(.gray)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.gray.opacity(0.1))
-                            )
-                    }
-                    .padding(24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal)
-                    
-                    // Action Buttons
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            showShareSheet = true
-                        }) {
-                            HStack {
-                                Image(systemName: "square.and.arrow.up")
-                                    .font(.system(size: 16, weight: .medium))
-                                Text(NSLocalizedString("qrCode.share", comment: "Share QR code"))
-                                    .font(.custom("Poppins-SemiBold", size: 16))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color(hex: "00A896"))
-                            .cornerRadius(12)
-                        }
-                        
-                        Button(action: {
-                            if let qrImage = qrImage {
-                                UIImageWriteToSavedPhotosAlbum(qrImage, nil, nil, nil)
-                                // Show success feedback
-                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                impactFeedback.impactOccurred()
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "square.and.arrow.down")
-                                    .font(.system(size: 16, weight: .medium))
-                                Text(NSLocalizedString("qrCode.saveToPhotos", comment: "Save to photos"))
-                                    .font(.custom("Poppins-Medium", size: 16))
-                            }
-                            .foregroundColor(Color(hex: "00A896"))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(hex: "00A896"), lineWidth: 1.5)
-                            )
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    Spacer()
-                }
-                .padding(.top)
+                Text(NSLocalizedString("qrCode.title", comment: "QR code title"))
+                    .font(.custom("Poppins-Bold", size: 20))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.top, 8)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                )
-                            
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "00A896"))
-                        }
-                    }
-                }
-            }
-            .onAppear {
-                viewModel.loadUserData()
-                generateQRCode()
-            }
-            .onChange(of: viewModel.user) { _ in
-                generateQRCode()
-            }
-            .sheet(isPresented: $showShareSheet) {
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 20)
+            
+            // Tarjeta QR Limpia
+            VStack(spacing: 20) {
                 if let qrImage = qrImage {
-                    QRShareSheet(activityItems: [qrImage])
+                    Image(uiImage: qrImage)
+                        .interpolation(.none)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 200, height: 200)
+                } else {
+                    ProgressView()
+                        .frame(width: 200, height: 200)
                 }
+                
+                Text("@\(viewModel.user?.username ?? "")")
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(ProfileColors.accent)
+            }
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(colorScheme == .dark ? Color(hex: "1A1A1A") : .white)
+                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+            )
+            .padding(.bottom, 30)
+            
+            // Botones de acción
+            HStack(spacing: 16) {
+                Button(action: {
+                    showShareSheet = true
+                }) {
+                    HStack {
+                        Image(systemName: "square.and.arrow.up")
+                        Text(NSLocalizedString("qrCode.share", comment: "Share"))
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(ProfileColors.accent)
+                    .clipShape(Capsule())
+                }
+                
+                Button(action: {
+                    if let qrImage = qrImage {
+                        UIImageWriteToSavedPhotosAlbum(qrImage, nil, nil, nil)
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                        impactFeedback.impactOccurred()
+                    }
+                }) {
+                    Image(systemName: "arrow.down.to.line")
+                        .font(.system(size: 20))
+                        .foregroundColor(ProfileColors.textPrimary)
+                        .frame(width: 50, height: 50)
+                        .background(ProfileColors.materialBackground)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(ProfileColors.borderColor, lineWidth: 1)
+                        )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 30)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 30)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.3),
+                                    Color(hex: "00A896").opacity(0.4)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .padding(.horizontal, 16) // Un poco de margen lateral
+        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        // ✅ CLAVE: Fondo del sheet TOTALMENTE transparente para ver solo nuestra tarjeta
+        .presentationBackground(.clear)
+        .presentationDetents([.height(550)]) // Altura fija para que se vea flotante
+        .presentationDragIndicator(.hidden) // Ocultamos el indicador nativo porque usamos el custom capsule o nada
+        .onAppear {
+            viewModel.loadUserData()
+            generateQRCode()
+        }
+        .onChange(of: viewModel.user) { _ in
+            generateQRCode()
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let qrImage = qrImage {
+                QRShareSheet(activityItems: [qrImage, URL(string: "https://glowsy.app/\(viewModel.user?.username ?? "")")!])
             }
         }
     }
@@ -203,7 +135,11 @@ struct QRCodeView: View {
         let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()
         
-        let data = Data("moments://profile/\(username)".utf8)
+        // ✅ URL FINAL: glowsy://profile/username
+        // Esto abrirá la app y navegará al perfil del usuario
+        let deepLink = "glowsy://profile/\(username)"
+        let data = Data(deepLink.utf8)
+        
         filter.setValue(data, forKey: "inputMessage")
         
         if let outputImage = filter.outputImage {

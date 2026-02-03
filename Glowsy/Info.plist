@@ -5,13 +5,17 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-7805678909278568~7091658934</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Permite usar el micrófono para grabar audio en tus historias.</string>
+	<string>Permite usar el micrófono para grabar audio en tus historias y mensajes de voz.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Permite usar la cámara para hacer fotos y vídeos y compartirlos.</string>
+	<string>Permite usar la cámara para capturar fotos y vídeos para tus historias, momentos y perfil.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Permite usar tu ubicación para etiquetar publicaciones y mostrar contenido cercano.</string>
+	<string>Permite usar tu ubicación para etiquetar publicaciones, mostrar contenido cercano y mejorar las sugerencias de Nova AI.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Permite el seguimiento para personalizar anuncios. Nos ayuda a mantener la app gratuita.</string>
+	<string>Este identificador se usará para mostrarte anuncios personalizados y mejorar tu experiencia en la app.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Permite el acceso a tu galería para subir fotos a tus historias, cambiar tu foto de perfil y permitir que Nova AI analice tus imágenes.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Permite guardar fotos y vídeos (como tu código QR o historias editadas) directamente en tu galería.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>SKAdNetworkItems</key>
@@ -233,5 +237,19 @@
 	<string>en</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.glowsyapp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>moments</string>
+				<string>glowsy</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

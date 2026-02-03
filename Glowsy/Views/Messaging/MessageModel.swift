@@ -14,6 +14,9 @@ struct Conversation: Identifiable, Codable, Hashable {
     let otherParticipantProfileImagePath: String?
     let isPinned: Bool?
     let isMuted: Bool?
+    
+    // ✅ Privacy: Preferencias explícitas de lectura por usuario en este chat
+    var readReceiptPreferences: [String: Bool]?
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -34,6 +37,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         case otherParticipantProfileImagePath
         case isPinned
         case isMuted
+        case readReceiptPreferences
     }
 
     init(id: String?, participants: [String], lastMessage: String?, timestamp: Date, readStatus: [String: Bool], otherParticipantId: String, otherParticipantUsername: String?, otherParticipantProfileImagePath: String?, isPinned: Bool? = false, isMuted: Bool? = false) {
@@ -47,6 +51,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.otherParticipantProfileImagePath = otherParticipantProfileImagePath
         self.isPinned = isPinned
         self.isMuted = isMuted
+        self.readReceiptPreferences = [:]
     }
 
     init(from decoder: Decoder) throws {
@@ -62,6 +67,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.otherParticipantProfileImagePath = try container.decodeIfPresent(String.self, forKey: .otherParticipantProfileImagePath)
         self.isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
         self.isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
+        self.readReceiptPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .readReceiptPreferences) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -76,6 +82,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(otherParticipantProfileImagePath, forKey: .otherParticipantProfileImagePath)
         try container.encodeIfPresent(isPinned, forKey: .isPinned)
         try container.encodeIfPresent(isMuted, forKey: .isMuted)
+        try container.encodeIfPresent(readReceiptPreferences, forKey: .readReceiptPreferences)
     }
     
     // Propiedad calculada para obtener el número de mensajes no leídos
@@ -101,7 +108,7 @@ struct Conversation: Identifiable, Codable, Hashable {
             }
             return lastMessage
         }
-        return "Nueva conversación"
+        return NSLocalizedString("chat.preview.newConversation", comment: "")
     }
 }
 
@@ -195,18 +202,18 @@ enum MessageType: String, CaseIterable, Codable {
     
     var displayName: String {
         switch self {
-        case .text: return "Texto"
-        case .image: return "Imagen"
-        case .video: return "Video"
-        case .audio: return "Audio"
+        case .text: return NSLocalizedString("common.text", comment: "")
+        case .image: return NSLocalizedString("common.photo", comment: "")
+        case .video: return NSLocalizedString("common.video", comment: "")
+        case .audio: return NSLocalizedString("common.audio", comment: "")
         case .gif: return "GIF"
         case .sticker: return "Sticker"
-        case .location: return "Ubicación"
-        case .file: return "Archivo"
-        case .ephemeral: return "Temporal"
-        case .sharedMoment: return "Momento Compartido"
-        case .viewOnceImage: return "Foto (Ver una vez)"
-        case .viewOnceVideo: return "Video (Ver una vez)"
+        case .location: return NSLocalizedString("common.location", comment: "")
+        case .file: return NSLocalizedString("common.file", comment: "")
+        case .ephemeral: return NSLocalizedString("chat.viewOnce.viewOnce", comment: "")
+        case .sharedMoment: return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+        case .viewOnceImage: return NSLocalizedString("chat.viewOnce.photo", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
+        case .viewOnceVideo: return NSLocalizedString("chat.viewOnce.video", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
         }
     }
     
@@ -236,17 +243,17 @@ enum MessageType: String, CaseIterable, Codable {
     var conversationPreview: String {
         switch self {
         case .text: return ""
-        case .image: return "📷 Foto"
-        case .video: return "🎥 Video"
-        case .audio: return "🎵 Audio"
-        case .gif: return "🎞️ GIF"
-        case .sticker: return "😊 Sticker"
-        case .location: return "📍 Ubicación"
-        case .file: return "📎 Archivo"
-        case .ephemeral: return "📸 Momento efímero"
-        case .sharedMoment: return "📷 Momento compartido"
-        case .viewOnceImage: return "📷 Foto (ver una vez)"
-        case .viewOnceVideo: return "🎥 Video (ver una vez)"
+        case .image: return NSLocalizedString("chat.preview.photo", comment: "")
+        case .video: return NSLocalizedString("chat.preview.video", comment: "")
+        case .audio: return NSLocalizedString("chat.preview.audio", comment: "")
+        case .gif: return NSLocalizedString("chat.preview.gif", comment: "")
+        case .sticker: return NSLocalizedString("chat.preview.sticker", comment: "")
+        case .location: return NSLocalizedString("chat.preview.location", comment: "")
+        case .file: return NSLocalizedString("chat.preview.file", comment: "")
+        case .ephemeral: return NSLocalizedString("chat.preview.ephemeral", comment: "")
+        case .sharedMoment: return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+        case .viewOnceImage: return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
+        case .viewOnceVideo: return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         }
     }
 }
@@ -261,11 +268,11 @@ enum MessageStatus: String, Codable {
     
     var displayName: String {
         switch self {
-        case .sending: return "Enviando"
-        case .sent: return "Enviado"
-        case .delivered: return "Entregado"
-        case .read: return "Leído"
-        case .failed: return "Falló"
+        case .sending: return NSLocalizedString("chat.status.sending", comment: "")
+        case .sent: return NSLocalizedString("chat.status.sent", comment: "")
+        case .delivered: return NSLocalizedString("chat.status.delivered", comment: "")
+        case .read: return NSLocalizedString("chat.status.read", comment: "")
+        case .failed: return NSLocalizedString("chat.status.failed", comment: "")
         }
     }
     
@@ -495,27 +502,27 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case .text:
             return content ?? ""
         case .image:
-            return "📷 Imagen"
+            return NSLocalizedString("chat.preview.image", comment: "")
         case .video:
-            return "🎥 Video"
+            return NSLocalizedString("chat.preview.video", comment: "")
         case .audio:
-            return "🎵 Audio"
+            return NSLocalizedString("chat.preview.audio", comment: "")
         case .gif:
-            return "🎞️ GIF"
+            return NSLocalizedString("chat.preview.gif", comment: "")
         case .sticker:
-            return "😊 Sticker"
+            return NSLocalizedString("chat.preview.sticker", comment: "")
         case .location:
-            return "📍 Ubicación"
+            return NSLocalizedString("chat.preview.location", comment: "")
         case .file:
-            return "📎 \(fileName ?? "Archivo")"
+            return "📎 \(fileName ?? NSLocalizedString("common.file", comment: ""))"
         case .ephemeral:
-            return "⏱️ Mensaje temporal"
+            return NSLocalizedString("chat.preview.ephemeral_long", comment: "")
         case .sharedMoment:
-            return "📸 Momento compartido"
+            return NSLocalizedString("chat.preview.sharedMoment", comment: "")
         case .viewOnceImage:
-            return "📷 Foto (ver una vez)"
+            return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo:
-            return "🎥 Video (ver una vez)"
+            return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         }
     }
     
@@ -538,11 +545,11 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         
         if senderId == currentUserId {
             // Usuario que envió el mensaje
-            return isViewed ? "Visto" : "Enviado"
+            return isViewed ? NSLocalizedString("chat.viewOnce.viewed", comment: "") : NSLocalizedString("chat.viewOnce.sent", comment: "")
         } else {
             // Usuario que recibe el mensaje
             let hasViewed = hasBeenViewedBy(userId: currentUserId)
-            return hasViewed ? "Visto" : "Toca para ver"
+            return hasViewed ? NSLocalizedString("chat.viewOnce.viewed", comment: "") : NSLocalizedString("chat.viewOnce.tapToView", comment: "")
         }
     }
     
@@ -647,8 +654,8 @@ enum ViewOnceMediaType {
     
     var preview: String {
         switch self {
-        case .image: return "📷 Foto (ver una vez)"
-        case .video: return "🎥 Video (ver una vez)"
+        case .image: return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
+        case .video: return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         }
     }
     
@@ -719,7 +726,7 @@ struct MessageNotification {
     }
     
     var body: String {
-        return isViewOnce ? "📸 Te envió un mensaje que se borrará al verlo" : messagePreview
+        return isViewOnce ? NSLocalizedString("chat.notification.viewOncePrompt", comment: "") : messagePreview
     }
     
     init(conversationId: String, messageId: String, senderId: String, senderName: String, messagePreview: String, timestamp: Date = Date(), isViewOnce: Bool = false) {
@@ -913,7 +920,7 @@ extension EnhancedMessage {
     }
 }
 
-// MARK: - ✅ NUEVA: Constants para view-once (Instagram Style)
+// MARK: - ✅ NUEVA: Constants para view-once (Moments Style)
 struct ViewOnceConstants {
     // ✅ Se borra al cerrar vista, no con timers
     static let autoDeleteDelay: TimeInterval = 0.5 // Delay antes de auto-eliminar (al cerrar vista)
@@ -936,8 +943,8 @@ struct ViewOnceConstants {
         static let viewOnceClosed = "ViewOnceMessageClosed" // ✅ NUEVO: Cuando se cierra la vista
     }
     
-    // ✅ NUEVAS: Constantes específicas para Instagram-style
-    struct InstagramStyle {
+    // ✅ NUEVAS: Constantes específicas para Moments-style
+    struct MomentsStyle {
         static let deleteOnViewClose = true // Se borra al cerrar vista
         static let allowScreenshots = false // Prevenir screenshots (si es posible)
         static let showCloseWarning = true // Mostrar "Se borrará al cerrar"

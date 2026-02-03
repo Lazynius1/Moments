@@ -148,22 +148,22 @@ struct AsyncProfileImageView: View {
                     .tint(.white)
                     .scaleEffect(0.7)
             } else if let path = profileImagePath, let url = URL(string: path), !path.isEmpty {
-                // Imagen del usuario con AsyncImage nativo
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    ProgressView()
-                        .tint(.white)
-                        .scaleEffect(0.7)
-                }
-                .clipShape(Circle())
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isLoading = false
+                // ✅ MEJORADO: Usar Kingfisher para caché persistente
+                KFImage(url)
+                    .onSuccess { _ in
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isLoading = false
+                        }
                     }
-                }
+                    .resizable()
+                    .placeholder {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(0.7)
+                    }
+                    .fade(duration: 0.3)
+                    .scaledToFill()
+                    .clipShape(Circle())
             } else {
                 // Placeholder cuando no hay imagen
                 Image(systemName: "person.fill")
@@ -181,6 +181,25 @@ struct AsyncProfileImageView: View {
         }
         .onDisappear {
             stopListening()
+        }
+        // ✅ CRÍTICO: Fix para el bug de fotos equivocadas en listas (Cell Reuse)
+        .onChange(of: userId) { newUserId in
+            resetAndReload(for: newUserId)
+        }
+    }
+
+    private func resetAndReload(for newUserId: String) {
+        // 1. Detener listener anterior
+        stopListening()
+        
+        // 2. Limpiar estado anterior inmediatamente
+        profileImagePath = nil
+        isLoading = true
+        
+        // 3. Iniciar nueva carga si el ID es válido
+        if !newUserId.isEmpty {
+            loadUserProfileImage()
+            startListeningForChanges()
         }
     }
 

@@ -11,13 +11,14 @@ import MapKit
 // MARK: - Glassmorphic Chat View
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
-    @StateObject private var viewModel: InstagramChatViewModel
+    @StateObject private var viewModel: MomentsChatViewModel
     @StateObject private var onlineStatusService = OnlineStatusService()
     @State private var messageText: String = ""
     @State private var showMediaPicker: Bool = false
     @State private var showEnhancedCamera = false
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var replyingTo: EnhancedMessage?
+    @State private var clusterForReply: [EnhancedMessage]? = nil // ✅ New: Selection grid for clusters
     @State private var editingMessage: EnhancedMessage?
     @State private var showingMessageOptions: EnhancedMessage?
     @State private var scrollToBottom = false
@@ -26,6 +27,7 @@ struct GlassmorphicChatView: View {
     @State private var recordingTime: TimeInterval = 0
     @State private var recordingTimer: Timer?
     @State private var showingConversationSettings = false
+    @State private var highlightedMessageId: String? = nil // ✅ New: Jump to message highlight
     @State private var otherUserStatus: OnlineStatus = .offline
     @State private var otherUserLastSeen: Date?
     @State private var statusListener: ListenerRegistration?
@@ -62,7 +64,7 @@ struct GlassmorphicChatView: View {
     }
     
     init(conversation: Conversation) {
-        _viewModel = StateObject(wrappedValue: InstagramChatViewModel(conversation: conversation))
+        _viewModel = StateObject(wrappedValue: MomentsChatViewModel(conversation: conversation))
     }
     
     var body: some View {
@@ -137,7 +139,7 @@ struct GlassmorphicChatView: View {
         } message: {
             Text("chat.moment.loadError")
         }
-        // ✅ NUEVO: Navegación al perfil del usuario
+// ✅ NUEVO: Navegación al perfil del usuario
         .background(
             NavigationLink(
                 destination: viewModel.conversation.otherParticipantId != nil ?
@@ -145,6 +147,23 @@ struct GlassmorphicChatView: View {
                 isActive: $showingUserProfile
             ) { EmptyView() }
         )
+        // ✅ NUEVO: Pantalla de selección de medios para respuestas a clusters
+        .sheet(item: Binding(
+            get: { clusterForReply.map { ClusterWrapper(messages: $0) } },
+            set: { clusterForReply = $0?.messages }
+        )) { wrapper in
+            GlassmorphicMediaSelectionSheet(
+                messages: wrapper.messages,
+                onSelect: { selectedMessage in
+                    self.replyingTo = selectedMessage
+                    self.clusterForReply = nil
+                },
+                onCancel: {
+                    self.clusterForReply = nil
+                }
+            )
+            .presentationDetents([.medium, .large])
+        }
         .onAppear {
             onAppearActions()
         }
@@ -179,43 +198,22 @@ struct GlassmorphicChatView: View {
                         showingUserProfile = true
                     }
                 }) {
-                    if let profileImagePath = viewModel.conversation.otherParticipantProfileImagePath,
-                       let url = URL(string: profileImagePath) {
-                        KFImage(url)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
-                            .overlay(
-                                StorySegmentedRing(
-                                    storyCount: storyCount,
-                                    hasStory: hasStory,
-                                    hasUnseenStory: hasUnseenStory,
-                                    storyViewedStatus: storyViewedStatus,
-                                    isOwnStory: false,
-                                    colorScheme: colorScheme,
-                                    ringSize: 40,
-                                    lineWidth: 2.5
-                                )
+                    // ✅ ACTUALIZADO: Usar el componente asíncrono centralizado para tiempo real
+                    AsyncProfileImageView(userId: viewModel.conversation.otherParticipantId ?? "")
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                        .overlay(
+                            StorySegmentedRing(
+                                storyCount: storyCount,
+                                hasStory: hasStory,
+                                hasUnseenStory: hasUnseenStory,
+                                storyViewedStatus: storyViewedStatus,
+                                isOwnStory: false,
+                                colorScheme: colorScheme,
+                                ringSize: 40,
+                                lineWidth: 2.5
                             )
-                    } else {
-                        Image(systemName: "person.circle.fill")
-                            .resizable()
-                            .frame(width: 40, height: 40)
-                            .foregroundColor(.white.opacity(0.7))
-                            .overlay(
-                                StorySegmentedRing(
-                                    storyCount: storyCount,
-                                    hasStory: hasStory,
-                                    hasUnseenStory: hasUnseenStory,
-                                    storyViewedStatus: storyViewedStatus,
-                                    isOwnStory: false,
-                                    colorScheme: colorScheme,
-                                    ringSize: 40,
-                                    lineWidth: 2.5
-                                )
-                            )
-                    }
+                        )
                 }
                 .buttonStyle(PlainButtonStyle())
                 
@@ -311,35 +309,8 @@ struct GlassmorphicChatView: View {
                         GlassmorphicDateHeader(date: date)
                             .padding(.vertical, 10)
                         
-                        ForEach(messages) { message in
-                            GlassmorphicMessageRow(
-                                message: message,
-                                isCurrentUser: message.senderId == viewModel.currentUserId,
-                                showAvatar: shouldShowAvatar(for: message, in: messages),
-                                otherUserAvatar: viewModel.conversation.otherParticipantProfileImagePath,
-                                onReply: { replyingTo = message },
-                                onReaction: { emoji in
-                                    viewModel.addReaction(to: message, emoji: emoji)
-                                },
-                                onAvatarTap: {
-                                    showingUserProfile = true
-                                },
-                                // ✅ NUEVO: Callback para cuando un mensaje es visto
-                                onMessageViewed: { messageId in
-                                    // Actualizar el mensaje localmente
-                                    if let index = viewModel.messages.firstIndex(where: { $0.id == messageId }) {
-                                        viewModel.messages[index].isViewed = true
-                                    }
-                                },
-                                // ✅ NUEVO: Callback para navegación al momento
-                                onMomentNavigation: { message in
-                                    handleMomentNavigationFromChat(message: message)
-                                }
-                            )
-                            .id("\(message.id)_\(message.status.rawValue)")
-                            .onLongPressGesture {
-                                showingMessageOptions = message
-                            }
+                        ForEach(self.clusterMessages(messages)) { item in
+                            renderMessageItem(item, in: messages, proxy: proxy)
                         }
                     }
                     
@@ -365,7 +336,10 @@ struct GlassmorphicChatView: View {
     private var replyBarSection: some View {
         Group {
             if let replyingTo = replyingTo {
-                GlassmorphicReplyBar(message: replyingTo) {
+                GlassmorphicReplyBar(
+                    message: replyingTo,
+                    otherParticipantName: viewModel.conversation.otherParticipantUsername ?? "Usuario"
+                ) {
                     self.replyingTo = nil
                 }
             }
@@ -409,6 +383,84 @@ struct GlassmorphicChatView: View {
     }
     
     // ✅ REFACTORIZADO: Acciones al aparecer
+    
+    // ✅ REFACTORIZADO: Renderizar cada item del chat por separado para evitar errores del compilador
+    @ViewBuilder
+    private func renderMessageItem(_ item: MessageItem, in messages: [EnhancedMessage], proxy: ScrollViewProxy) -> some View {
+        switch item {
+        case .single(let message):
+            GlassmorphicMessageRow(
+                message: message,
+                isCurrentUser: message.senderId == viewModel.currentUserId,
+                showAvatar: shouldShowAvatar(for: message, in: messages),
+                otherUserId: viewModel.conversation.otherParticipantId,
+                otherParticipantName: viewModel.conversation.otherParticipantUsername ?? "Usuario",
+                repliedMessage: message.replyTo != nil ? viewModel.messages.first(where: { $0.id == message.replyTo }) : nil,
+                onReply: { replyingTo = message },
+                onReaction: { emoji in
+                    viewModel.addReaction(to: message, emoji: emoji)
+                },
+                onAvatarTap: {
+                    showingUserProfile = true
+                },
+                onReplyTap: { targetId in
+                    jumpToMessage(targetId, proxy: proxy)
+                },
+                onMessageViewed: { messageId in
+                    if let index = viewModel.messages.firstIndex(where: { $0.id == messageId }) {
+                        viewModel.messages[index].isViewed = true
+                    }
+                },
+                onMomentNavigation: { message in
+                    handleMomentNavigationFromChat(message: message)
+                },
+                progress: viewModel.uploadProgress[message.id]
+            )
+            .id(message.id)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(highlightedMessageId == message.id ? Color.white.opacity(0.15) : Color.clear)
+                    .padding(.horizontal, -8)
+                    .padding(.vertical, -4)
+            )
+            .scaleEffect(highlightedMessageId == message.id ? 1.03 : 1.0)
+            .onLongPressGesture {
+                showingMessageOptions = message
+            }
+            
+        case .mediaCluster(let clusterMessages):
+            GlassmorphicClusterRow(
+                messages: clusterMessages,
+                isCurrentUser: clusterMessages.first?.senderId == viewModel.currentUserId,
+                showAvatar: shouldShowAvatar(for: clusterMessages.first!, in: messages),
+                otherUserId: viewModel.conversation.otherParticipantId,
+                onAvatarTap: { showingUserProfile = true },
+                onMessageViewed: { messageId in
+                    if let index = viewModel.messages.firstIndex(where: { $0.id == messageId }) {
+                        viewModel.messages[index].isViewed = true
+                    }
+                },
+                onMomentNavigation: { message in
+                    handleMomentNavigationFromChat(message: message)
+                },
+                onReply: { messages in
+                    self.clusterForReply = messages
+                },
+                onReplyTap: { id in
+                    jumpToMessage(id, proxy: proxy)
+                },
+                uploadProgress: viewModel.uploadProgress
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(clusterMessages.contains(where: { $0.id == highlightedMessageId }) ? Color.white.opacity(0.15) : Color.clear)
+                    .padding(.horizontal, -8)
+                    .padding(.vertical, -4)
+            )
+            .scaleEffect(clusterMessages.contains(where: { $0.id == highlightedMessageId }) ? 1.03 : 1.0)
+        }
+    }
+
     private func onAppearActions() {
         if let conversationId = viewModel.conversation.id {
             Task {
@@ -622,6 +674,70 @@ struct GlassmorphicChatView: View {
 
 // ✅ NUEVO: Función para manejar navegación al momento desde el chat
 extension GlassmorphicChatView {
+    // MARK: - Clustering Logic
+    private func clusterMessages(_ input: [EnhancedMessage]) -> [MessageItem] {
+        var result: [MessageItem] = []
+        var currentCluster: [EnhancedMessage] = []
+        
+        for message in input {
+            // Only cluster images/videos
+            let isClusterable = message.type == .image || message.type == .video
+            
+            if isClusterable {
+                if let last = currentCluster.last {
+                    let timeDiff = abs(message.timestamp.timeIntervalSince(last.timestamp))
+                    let sameSender = message.senderId == last.senderId
+                    
+                    if sameSender && timeDiff < 60 { // WhatsApp grouping threshold
+                        currentCluster.append(message)
+                    } else {
+                        if !currentCluster.isEmpty {
+                            result.append(currentCluster.count > 1 ? .mediaCluster(currentCluster) : .single(currentCluster[0]))
+                            currentCluster = []
+                        }
+                        currentCluster.append(message)
+                    }
+                } else {
+                    currentCluster.append(message)
+                }
+            } else {
+                if !currentCluster.isEmpty {
+                    result.append(currentCluster.count > 1 ? .mediaCluster(currentCluster) : .single(currentCluster[0]))
+                    currentCluster = []
+                }
+                result.append(.single(message))
+            }
+        }
+        
+        if !currentCluster.isEmpty {
+            result.append(currentCluster.count > 1 ? .mediaCluster(currentCluster) : .single(currentCluster[0]))
+        }
+        
+        return result
+    }
+    
+    // ✅ JUMP TO MESSAGE: Scrollear hacia un mensaje específico con efecto visual
+    private func jumpToMessage(_ messageId: String, proxy: ScrollViewProxy) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            proxy.scrollTo(messageId, anchor: .center)
+        }
+        
+        // Efecto visual temporal
+        highlightedMessageId = messageId
+        
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation {
+                if highlightedMessageId == messageId {
+                    highlightedMessageId = nil
+                }
+            }
+        }
+    }
+    
     private func handleMomentNavigationFromChat(message: EnhancedMessage) {
         if let sharedMomentData = message.sharedMomentData,
            let momentId = sharedMomentData["momentId"] as? String {
@@ -760,50 +876,118 @@ struct GlassmorphicMessageRow: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
     let showAvatar: Bool
-    let otherUserAvatar: String?
+    let otherUserId: String?
+    let otherParticipantName: String
+    let repliedMessage: EnhancedMessage?
     let onReply: () -> Void
     let onReaction: (String) -> Void
     let onAvatarTap: () -> Void // ✅ NUEVO: Callback para tap en avatar
+    let onReplyTap: ((String) -> Void)? // ✅ New: Jump to message
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)? // ✅ NUEVO: Callback para navegación al momento
+    let progress: Double? // ✅ New: Real-time progress
+    
+    @Environment(\.colorScheme) var colorScheme
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    @State private var dragOffset: CGFloat = 0
+    @State private var hasTriggeredHaptic = false
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            if !isCurrentUser {
-                if showAvatar {
-                    // ✅ ACTUALIZADO: Avatar con navegación al perfil
-                    Button(action: onAvatarTap) {
-                        GlassmorphicAvatar(imageUrl: otherUserAvatar)
-                            .frame(width: 32, height: 32)
+        ZStack(alignment: .leading) {
+            // Background Reply Icon (appears when swiping)
+            if dragOffset > 0 {
+                Image(systemName: "arrowshape.turn.up.left.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(adaptiveColors.userAccentColor)
+                    .opacity(Double(min(dragOffset / 60, 1.0)))
+                    .offset(x: min(dragOffset - 30, 0))
+                    .padding(.leading, 12)
+            }
+            
+            HStack(alignment: .bottom, spacing: 8) {
+                if !isCurrentUser {
+                    if showAvatar {
+                        // ✅ ACTUALIZADO: Avatar con navegación al perfil
+                        Button(action: onAvatarTap) {
+                            GlassmorphicAvatar(userId: otherUserId ?? "")
+                                .frame(width: 32, height: 32)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    } else {
+                        Color.clear.frame(width: 32, height: 32)
                     }
-                    .buttonStyle(PlainButtonStyle())
-                } else {
-                    Color.clear.frame(width: 32, height: 32)
                 }
+                
+                if isCurrentUser { Spacer(minLength: 50) }
+                
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                    if let originalMessage = repliedMessage {
+                        GlassmorphicReplyPreview(
+                            message: originalMessage,
+                            isParentMessageFromCurrentUser: isCurrentUser,
+                            otherParticipantName: otherParticipantName,
+                            onTap: { onReplyTap?(originalMessage.id) } // ✅ New: Trigger jump
+                        )
+                        .padding(.bottom, -8) // Superponer ligeramente con la burbuja
+                        .zIndex(1)
+                    }
+                    
+                    GlassmorphicMessageBubble(
+                        message: message,
+                        repliedMessage: repliedMessage,
+                        otherParticipantName: otherParticipantName,
+                        isCurrentUser: isCurrentUser,
+                        progress: progress, // ✅ Pass progress
+                        onReplyTap: onReplyTap, // ✅ Pass jump callback
+                        onMessageViewed: onMessageViewed,
+                        onMomentNavigation: onMomentNavigation
+                    )
+                    
+                    if let reactions = message.reactions, !reactions.isEmpty {
+                        GlassmorphicReactionsView(reactions: reactions, onTap: onReaction)
+                    }
+                    
+                    MessageTimestamp(message: message, status: message.status, isCurrentUser: isCurrentUser)
+                }
+                
+                if !isCurrentUser { Spacer(minLength: 50) }
             }
-            
-            if isCurrentUser { Spacer(minLength: 50) }
-            
-            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                if let replyToId = message.replyTo {
-                    GlassmorphicReplyPreview(messageId: replyToId)
-                }
-                
-                GlassmorphicMessageBubble(
-                    message: message,
-                    isCurrentUser: isCurrentUser,
-                    onMessageViewed: onMessageViewed,
-                    onMomentNavigation: onMomentNavigation
-                )
-                
-                if let reactions = message.reactions, !reactions.isEmpty {
-                    GlassmorphicReactionsView(reactions: reactions, onTap: onReaction)
-                }
-                
-                MessageTimestamp(message: message, status: message.status, isCurrentUser: isCurrentUser)
-            }
-            
-            if !isCurrentUser { Spacer(minLength: 50) }
+            .offset(x: dragOffset)
+            .contentShape(Rectangle()) // Asegurar que todo el área es gesture-able
+            .gesture(
+                DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                    .onChanged { value in
+                        // ✅ SOLUCIÓN: Solo detectar si el movimiento es predominantemente horizontal
+                        let horizontalMove = value.translation.width
+                        let verticalMove = value.translation.height
+                        
+                        if horizontalMove > 0 && abs(horizontalMove) > abs(verticalMove) {
+                            dragOffset = horizontalMove
+                            
+                            // Haptic Feedback
+                            if dragOffset > 60 && !hasTriggeredHaptic {
+                                let generator = UIImpactFeedbackGenerator(style: .medium)
+                                generator.impactOccurred()
+                                hasTriggeredHaptic = true
+                            } else if dragOffset < 60 && hasTriggeredHaptic {
+                                hasTriggeredHaptic = false
+                            }
+                        }
+                    }
+                    .onEnded { value in
+                        if dragOffset > 70 {
+                            onReply()
+                        }
+                        
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            dragOffset = 0
+                            hasTriggeredHaptic = false
+                        }
+                    }
+            )
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 2)
@@ -887,7 +1071,11 @@ struct DeletedMessageBubble: View {
 // MARK: - Updated Glassmorphic Message Bubble
 struct GlassmorphicMessageBubble: View {
     let message: EnhancedMessage
+    let repliedMessage: EnhancedMessage?
+    let otherParticipantName: String
     let isCurrentUser: Bool
+    let progress: Double? // ✅ New
+    let onReplyTap: ((String) -> Void)? // ✅ New: Jump to message
     let onMessageViewed: ((String) -> Void)? // ✅ NUEVO callback
     let onMomentNavigation: ((EnhancedMessage) -> Void)? // ✅ NUEVO callback para navegación al momento
     @State private var showEphemeralImage: Bool = false
@@ -908,6 +1096,7 @@ struct GlassmorphicMessageBubble: View {
                     ViewOnceMessageBubble(
                         message: message,
                         isCurrentUser: isCurrentUser,
+                        progress: progress, // ✅ Pass progress
                         onViewed: {
                             markViewOnceAsViewed()
                         }
@@ -919,161 +1108,212 @@ struct GlassmorphicMessageBubble: View {
                         ])
                     }
                 } else {
-                    // ✅ TERCERO: Mostrar contenido normal según el tipo
-                    switch message.type {
-                    case .text:
-                        // Check if this is a story reply text message
-                        if message.storyReplyData != nil {
-                            StoryReplyMessageBubble(
-                                message: message,
-                                isCurrentUser: isCurrentUser
-                            )
+                // ✅ TERCERO: Mostrar contenido normal según el tipo
+                switch message.type {
+                case .text:
+                    // Check if this is a story reply text message
+                    if message.storyReplyData != nil {
+                        StoryReplyMessageBubble(
+                            message: message,
+                            isCurrentUser: isCurrentUser
+                        )
+                    } else if let content = message.content {
+                        // Regular text message con colores adaptativos
+                        HStack(alignment: .bottom, spacing: 12) {
+                            if isCurrentUser {
+                                // SENT Message: Content + Accent Line
+                                Text(content)
+                                    .font(.custom("Poppins-Regular", size: 15))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .foregroundColor(adaptiveColors.messageTextColor)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(.ultraThinMaterial.opacity(0.3)) // Barely there background
+                                    )
+                                
+                                // User Accent Line (Dynamic)
+                                Capsule()
+                                    .fill(adaptiveColors.userAccentColor)
+                                    .frame(width: 3, height: 20)
+                                    .padding(.bottom, 6)
+                                    
+                            } else {
+                                // RECEIVED Message: Accent Line + Content
+                                Capsule()
+                                    .fill(adaptiveColors.receivedAccentColor)
+                                    .frame(width: 3, height: 20)
+                                    .padding(.bottom, 6)
+                                
+                                Text(content)
+                                    .font(.custom("Poppins-Regular", size: 15))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .foregroundColor(adaptiveColors.messageTextColor)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(.ultraThinMaterial.opacity(0.3)) // Barely there background
+                                    )
+                            }
+                        }
+                    }
+                    
+                case .image:
+                    GlassmorphicImageMessage(
+                        imageUrl: message.mediaUrl,
+                        isSending: message.status == .sending,
+                        progress: progress
+                    )
+                    .frame(maxWidth: 250, maxHeight: 300)
+                        .onAppear {
+                            AnalyticsService.shared.trackInteraction("image_message_viewed")
+                        }
+                    
+                case .audio:
+                    GlassmorphicAudioMessage(
+                        audioUrl: message.mediaUrl,
+                        duration: message.duration ?? 0,
+                        isCurrentUser: isCurrentUser,
+                        isSending: message.status == .sending,
+                        progress: progress,
+                        adaptiveColors: adaptiveColors
+                    )
+                    .onAppear {
+                        AnalyticsService.shared.trackInteraction("audio_message_viewed")
+                    }
+                    
+                case .video:
+                    GlassmorphicVideoMessage(
+                        videoUrl: message.mediaUrl,
+                        thumbnailUrl: message.thumbnailUrl,
+                        isSending: message.status == .sending,
+                        progress: progress
+                    )
+                    .frame(maxWidth: 250, maxHeight: 300)
+                        .onAppear {
+                            AnalyticsService.shared.trackInteraction("video_message_viewed")
+                        }
+                    
+                case .ephemeral:
+                    // Check if this is a story reply (always ephemeral for media)
+                    if message.storyReplyData != nil {
+                        StoryReplyMessageBubble(
+                            message: message,
+                            isCurrentUser: isCurrentUser
+                        )
+                    } else {
+                        // Regular ephemeral message (not story reply)
+                        if let mediaUrl = message.mediaUrl, !message.isViewed, isEphemeralValid() {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(adaptiveColors.messageBubbleBackground) // ✅ CAMBIO AQUÍ
+                                    .frame(maxWidth: 250, maxHeight: 300)
+                                    .overlay(
+                                        VStack(spacing: 8) {
+                                            Image(systemName: "camera.circle.fill")
+                                                .font(.system(size: 40))
+                                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7)) // ✅ CAMBIO AQUÍ
+                                            
+                                            Text("chat.tapToView")
+                                                .font(.custom("Poppins-Medium", size: 14))
+                                                .foregroundColor(adaptiveColors.messageTextColor) // ✅ CAMBIO AQUÍ
+                                            
+                                            Text("chat.ephemeral.title")
+                                                .font(.custom("Poppins-Regular", size: 12))
+                                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7)) // ✅ CAMBIO AQUÍ
+                                        }
+                                    )
+                                
+                                if showEphemeralImage {
+                                    GlassmorphicImageMessage(
+                                        imageUrl: mediaUrl,
+                                        isSending: false,
+                                        progress: nil
+                                    )
+                                }
+                            }
+                            .onTapGesture {
+                                AnalyticsService.shared.trackInteraction("ephemeral_message_opened", details: [
+                                    "messageId": message.id
+                                ])
+                                showEphemeralImage = true
+                                markAsViewed()
+                            }
                         } else if let content = message.content {
-                            // Regular text message con colores adaptativos
                             Text(content)
                                 .font(.custom("Poppins-Regular", size: 15))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
-                                .foregroundColor(adaptiveColors.messageTextColor) // ✅ CAMBIO AQUÍ
+                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6)) // ✅ CAMBIO AQUÍ
                                 .background(
-                                    Group {
-                                        if isCurrentUser {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(adaptiveColors.messageBubbleBackground) // ✅ CAMBIO AQUÍ
+                                        .overlay(
                                             RoundedRectangle(cornerRadius: 20)
-                                                .fill(Color(hex: "00A896").opacity(0.8))
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 20)
-                                                        .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                                                )
-                                        } else {
+                                                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
+                                        )
+                                )
+                        } else {
+                            Text("chat.message.expired")
+                                .font(.custom("Poppins-Regular", size: 15))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6)) // ✅ CAMBIO AQUÍ
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(adaptiveColors.messageBubbleBackground) // ✅ CAMBIO AQUÍ
+                                        .overlay(
                                             RoundedRectangle(cornerRadius: 20)
-                                                .fill(adaptiveColors.messageBubbleBackground) // ✅ CAMBIO AQUÍ
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 20)
-                                                        .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                                                )
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 20)
-                                                        .fill(.ultraThinMaterial)
-                                                )
-                                        }
-                                    }
+                                                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
+                                        )
                                 )
                         }
-                        
-                    case .image:
-                        GlassmorphicImageMessage(imageUrl: message.mediaUrl)
-                            .onAppear {
-                                AnalyticsService.shared.trackInteraction("image_message_viewed")
-                            }
-                        
-                    case .audio:
-                        GlassmorphicAudioMessage(
-                            audioUrl: message.mediaUrl,
-                            duration: message.duration ?? 0,
-                            isCurrentUser: isCurrentUser
-                        )
-                        .onAppear {
-                            AnalyticsService.shared.trackInteraction("audio_message_viewed")
-                        }
-                        
-                    case .video:
-                        GlassmorphicVideoMessage(videoUrl: message.mediaUrl, thumbnailUrl: message.thumbnailUrl)
-                            .onAppear {
-                                AnalyticsService.shared.trackInteraction("video_message_viewed")
-                            }
-                        
-                    case .ephemeral:
-                        // Check if this is a story reply (always ephemeral for media)
-                        if message.storyReplyData != nil {
-                            StoryReplyMessageBubble(
-                                message: message,
-                                isCurrentUser: isCurrentUser
-                            )
-                        } else {
-                            // Regular ephemeral message (not story reply)
-                            if let mediaUrl = message.mediaUrl, !message.isViewed, isEphemeralValid() {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(adaptiveColors.messageBubbleBackground) // ✅ CAMBIO AQUÍ
-                                        .frame(maxWidth: 250, maxHeight: 300)
-                                        .overlay(
-                                            VStack(spacing: 8) {
-                                                Image(systemName: "camera.circle.fill")
-                                                    .font(.system(size: 40))
-                                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7)) // ✅ CAMBIO AQUÍ
-                                                
-                                                Text("chat.tapToView")
-                                                    .font(.custom("Poppins-Medium", size: 14))
-                                                    .foregroundColor(adaptiveColors.messageTextColor) // ✅ CAMBIO AQUÍ
-                                                
-                                                Text("chat.ephemeral.title")
-                                                    .font(.custom("Poppins-Regular", size: 12))
-                                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7)) // ✅ CAMBIO AQUÍ
-                                            }
-                                        )
-                                    
-                                    if showEphemeralImage {
-                                        GlassmorphicImageMessage(imageUrl: mediaUrl)
-                                    }
-                                }
-                                .onTapGesture {
-                                    AnalyticsService.shared.trackInteraction("ephemeral_message_opened", details: [
-                                        "messageId": message.id
-                                    ])
-                                    showEphemeralImage = true
-                                    markAsViewed()
-                                }
-                            } else if let content = message.content {
-                                Text(content)
-                                    .font(.custom("Poppins-Regular", size: 15))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6)) // ✅ CAMBIO AQUÍ
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(adaptiveColors.messageBubbleBackground) // ✅ CAMBIO AQUÍ
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 20)
-                                                    .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                                            )
-                                    )
-                            } else {
-                                Text("chat.message.expired")
-                                    .font(.custom("Poppins-Regular", size: 15))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6)) // ✅ CAMBIO AQUÍ
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(adaptiveColors.messageBubbleBackground) // ✅ CAMBIO AQUÍ
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 20)
-                                                    .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                                            )
-                                    )
-                            }
-                        }
-                    case .sharedMoment:
-                        SharedMomentMessageBubble(
-                            message: message,
-                            isCurrentUser: isCurrentUser,
-                            onTap: {
-                                // ✅ NUEVO: Usar el callback de navegación al momento
-                                onMomentNavigation?(message)
-                            }
-                        )
-                        .onAppear {
-                            AnalyticsService.shared.trackInteraction("shared_moment_viewed")
-                        }
-                        
-                    default:
-                        Text("chat.message.unsupported")
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6)) // ✅ CAMBIO AQUÍ
-                            .glassmorphicChat()
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
                     }
+                case .sharedMoment:
+                    HStack(alignment: .bottom, spacing: 12) {
+                        if isCurrentUser {
+                            // SENT: Content + Accent
+                            SharedMomentMessageBubble(
+                                message: message,
+                                isCurrentUser: isCurrentUser,
+                                onTap: {
+                                    onMomentNavigation?(message)
+                                }
+                            )
+                            
+                            // User Accent Line
+                            Capsule()
+                                .fill(adaptiveColors.userAccentColor)
+                                .frame(width: 3, height: 20)
+                                .padding(.bottom, 6)
+                        } else {
+                            // RECEIVED: Accent + Content
+                            Capsule()
+                                .fill(adaptiveColors.receivedAccentColor)
+                                .frame(width: 3, height: 20)
+                                .padding(.bottom, 6)
+                            
+                            SharedMomentMessageBubble(
+                                message: message,
+                                isCurrentUser: isCurrentUser,
+                                onTap: {
+                                    onMomentNavigation?(message)
+                                }
+                            )
+                        }
+                    }
+                    .onAppear {
+                        AnalyticsService.shared.trackInteraction("shared_moment_viewed")
+                    }
+                    
+                default:
+                    Text("chat.message.unsupported")
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6)) // ✅ CAMBIO AQUÍ
+                        .glassmorphicChat()
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                }
                 }
             }
         }
@@ -1130,6 +1370,8 @@ struct GlassmorphicMessageBubble: View {
 // MARK: - Glassmorphic Media Messages
 struct GlassmorphicImageMessage: View {
     let imageUrl: String?
+    let isSending: Bool // ✅ New
+    let progress: Double? // ✅ New
     @State private var showFullScreen = false
     
     var body: some View {
@@ -1137,13 +1379,25 @@ struct GlassmorphicImageMessage: View {
             KFImage(imageURL)
                 .resizable()
                 .scaledToFill()
-                .frame(maxWidth: 250, maxHeight: 300)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
                 )
                 .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                .overlay(
+                    Group {
+                        if isSending, let uploadProgress = progress {
+                            ZStack {
+                                Color.black.opacity(0.4) // Máximo contraste
+                                BlurView(style: UIBlurEffect.Style.systemThinMaterialDark) // Desenfoque premium
+                                MediaProgressRing(progress: uploadProgress, size: 60, lineWidth: 4)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+                )
                 .onTapGesture {
                     showFullScreen = true
                 }
@@ -1157,6 +1411,8 @@ struct GlassmorphicImageMessage: View {
 struct GlassmorphicVideoMessage: View {
     let videoUrl: String?
     let thumbnailUrl: String?
+    let isSending: Bool // ✅ New
+    let progress: Double? // ✅ New
     @State private var showPlayer = false
     
     var body: some View {
@@ -1165,12 +1421,11 @@ struct GlassmorphicVideoMessage: View {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()
-                    .frame(maxWidth: 250, maxHeight: 300)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.1))
-                    .frame(width: 250, height: 200)
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             }
             
             // Play button with glass effect
@@ -1186,6 +1441,16 @@ struct GlassmorphicVideoMessage: View {
                         .foregroundColor(.white)
                         .font(.system(size: 24))
                 )
+            
+            // ✅ Progress Overlay (Mejorado)
+            if isSending, let uploadProgress = progress {
+                ZStack {
+                    Color.black.opacity(0.4)
+                    BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
+                    MediaProgressRing(progress: uploadProgress, size: 60, lineWidth: 4)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
         }
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -1196,80 +1461,90 @@ struct GlassmorphicVideoMessage: View {
             showPlayer = true
         }
         .fullScreenCover(isPresented: $showPlayer) {
-            // ✅ VIDEO PLAYER FUNCIONAL PARA MENSAJES NORMALES
-            NormalVideoPlayerView(videoUrl: videoUrl)
+            NormalVideoPlayerView(videoUrl: videoUrl, thumbnailUrl: thumbnailUrl)
         }
     }
 }
 
 struct NormalVideoPlayerView: View {
     let videoUrl: String?
+    let thumbnailUrl: String?
     @Environment(\.dismiss) var dismiss
-    @State private var player: AVPlayer?
+    @State private var dragOffset: CGFloat = 0
+    @State private var isPaused = false
     
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             
             if let videoUrl = videoUrl, let url = URL(string: videoUrl) {
-                VideoPlayer(player: AVPlayer(url: url))
-                    .onAppear {
-                        player = AVPlayer(url: url)
-                        player?.play()
-                    }
-                    .onDisappear {
-                        player?.pause()
-                        player = nil
-                    }
-            } else {
-                VStack(spacing: 20) {
-                    Image(systemName: "video.slash")
-                        .font(.system(size: 60))
-                        .foregroundColor(.white.opacity(0.7))
-                    
-                    Text("chat.video.unavailable")
-                        .font(.custom("Poppins-Regular", size: 18))
-                        .foregroundColor(.white.opacity(0.8))
-                }
+                MomentsVideoPlayer(
+                    url: url,
+                    isLooping: true,
+                    isPaused: isPaused,
+                    videoGravity: .resizeAspectFill,
+                    onVideoFinished: {}
+                )
+                .ignoresSafeArea()
             }
             
-            // ✅ Controls overlay
-            VStack {
+            VStack(spacing: 0) {
+                // Progress Bar (Simple white line for normal media)
+                Capsule()
+                    .fill(Color.white.opacity(0.3))
+                    .frame(height: 3)
+                    .padding(.horizontal, 30)
+                    .padding(.top, 4)
+                
                 HStack {
-                    Button(action: { dismiss() }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 16, weight: .medium))
-                            Text("chat.close")
-                                .font(.custom("Poppins-Medium", size: 16))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(Color.black.opacity(0.6))
-                                .overlay(
-                                    Capsule()
-                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                )
-                        )
+                    HStack(spacing: 6) {
+                        Image(systemName: "video.fill")
+                            .font(.system(size: 14))
+                        Text("common.video")
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .textCase(.uppercase)
                     }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
                     
                     Spacer()
+                    
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
                 }
-                .padding()
+                .padding(.horizontal, 30)
+                .padding(.top, 20)
                 
                 Spacer()
             }
         }
-        .navigationBarHidden(true)
-        .onAppear {
-            // ✅ Track video view
-            AnalyticsService.shared.trackInteraction("normal_video_opened", details: [
-                "videoUrl": videoUrl ?? "unknown"
-            ])
-        }
+        .statusBar(hidden: false)
+        .offset(y: dragOffset)
+        .animation(.interactiveSpring(), value: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if value.translation.height > 0 {
+                        dragOffset = value.translation.height
+                    }
+                }
+                .onEnded { value in
+                    if value.translation.height > 100 {
+                        dismiss()
+                    } else {
+                        dragOffset = 0
+                    }
+                }
+        )
     }
 }
 
@@ -1381,7 +1656,7 @@ struct GlassmorphicInputBar: View {
                         .font(.system(size: 18))
                         .foregroundColor(.white)
                         .frame(width: 40, height: 40)
-                        .background(Color(hex: "00A896"))
+                        .background(adaptiveColors.userAccentColor)
                         .clipShape(Circle())
                 }
                 .transition(.scale.combined(with: .opacity))
@@ -1431,7 +1706,7 @@ struct GlassmorphicDateHeader: View {
 }
 
 struct GlassmorphicAvatar: View {
-    let imageUrl: String?
+    let userId: String
     @Environment(\.colorScheme) var colorScheme
     
     private var adaptiveColors: AdaptiveColors {
@@ -1439,40 +1714,8 @@ struct GlassmorphicAvatar: View {
     }
     
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(adaptiveColors.messageBubbleBackground)
-            
-            if let imageUrl = imageUrl, let url = URL(string: imageUrl) {
-                KFImage(url)
-                    .placeholder {
-                        Circle()
-                            .fill(adaptiveColors.messageBubbleBackground)
-                            .overlay(
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
-                            )
-                            .overlay(
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .tint(adaptiveColors.primary)
-                            )
-                    }
-                    .resizable()
-                    .scaledToFill()
-                    .clipShape(Circle())
-            } else {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
-            }
-        }
-        .overlay(
-            Circle()
-                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-        )
-        .shadow(color: adaptiveColors.primary.opacity(0.1), radius: 4, x: 0, y: 2)
+        AsyncProfileImageView(userId: userId)
+            .shadow(color: adaptiveColors.primary.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 }
 
@@ -1512,6 +1755,7 @@ struct GlassmorphicTypingIndicator: View {
 
 struct GlassmorphicReplyBar: View {
     let message: EnhancedMessage
+    let otherParticipantName: String
     let onCancel: () -> Void
     @Environment(\.colorScheme) var colorScheme
     
@@ -1519,57 +1763,121 @@ struct GlassmorphicReplyBar: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
     
+    private var currentUserId: String {
+        Auth.auth().currentUser?.uid ?? ""
+    }
+    
     var body: some View {
-        HStack {
-            Rectangle()
-                .fill(Color(hex: "00A896"))
-                .frame(width: 3)
+        HStack(spacing: 0) {
+            Capsule()
+                .fill(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
+                .frame(width: 3.5)
+                .padding(.vertical, 8)
+                .padding(.leading, 1)
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text("chat.replying")
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(adaptiveColors.replyBarSecondaryText) // ✅ CAMBIO AQUÍ
-                Text(message.content ?? "Mensaje")
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(adaptiveColors.replyBarText) // ✅ CAMBIO AQUÍ
-                    .lineLimit(1)
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
+                    
+                    Text(message.preview)
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(adaptiveColors.replyBarText)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                if let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .padding(.trailing, 8)
+                }
+                
+                Button(action: onCancel) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(adaptiveColors.replyBarSecondaryText)
+                }
             }
-            
-            Spacer()
-            
-            Button(action: onCancel) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(adaptiveColors.replyBarSecondaryText) // ✅ CAMBIO AQUÍ
-            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
         }
-        .padding()
-        .background(adaptiveColors.replyBarBackground) // ✅ CAMBIO AQUÍ
-        .glassmorphicChat()
-        .padding(.horizontal, 16)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(adaptiveColors.replyBarBackground)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
+        )
+        .padding(.horizontal, 8)
+        .padding(.bottom, 4)
     }
 }
 
 struct GlassmorphicReplyPreview: View {
-    let messageId: String
+    let message: EnhancedMessage
+    let isParentMessageFromCurrentUser: Bool
+    let otherParticipantName: String
+    let onTap: (() -> Void)? // ✅ New: Tap callback
     @Environment(\.colorScheme) var colorScheme
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
     
+    private var currentUserId: String {
+        Auth.auth().currentUser?.uid ?? ""
+    }
+    
     var body: some View {
-        HStack(spacing: 4) {
-            Rectangle()
-                .fill(adaptiveColors.primary.opacity(0.5))
-                .frame(width: 2)
-            
-                            Text("chat.replyingToMessage")
-                .font(.custom("Poppins-Regular", size: 12))
-                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
-                .lineLimit(1)
+        Button(action: { onTap?() }) {
+            HStack(spacing: 0) {
+                Capsule()
+                    .fill(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
+                    .frame(width: 2.5)
+                    .padding(.vertical, 6)
+                    .padding(.leading, 1)
+                
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
+                            .font(.custom("Poppins-SemiBold", size: 11))
+                            .foregroundColor(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
+                        
+                        Text(message.preview)
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.messageTextColor.opacity(0.8))
+                            .lineLimit(1)
+                    }
+                    
+                    Spacer()
+                    
+                    if let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
+                        KFImage(url)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 30, height: 30)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .background(adaptiveColors.messageBubbleBackground.opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .frame(minWidth: 120, maxWidth: 220)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(adaptiveColors.messageBubbleStroke.opacity(0.5), lineWidth: 0.5)
+            )
         }
-        .padding(.leading, 8)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -1682,7 +1990,7 @@ struct MessageStatusIcon: View {
                 Image(systemName: "checkmark")
             }
             .font(.system(size: 10, weight: .medium))
-            .foregroundColor(Color(hex: "00A896"))
+            .foregroundColor(adaptiveColors.userAccentColor)
         case .failed:
             HStack(spacing: 2) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -1895,29 +2203,83 @@ struct GlassActionButton: View {
 struct FullScreenImageView: View {
     let imageUrl: URL
     @Environment(\.dismiss) var dismiss
+    @State private var dragOffset: CGFloat = 0
+    @State private var progress: Double = 0
+    let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                
-                KFImage(imageUrl)
-                    .resizable()
-                    .scaledToFit()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cerrar") { dismiss() }
-                        .foregroundColor(.white)
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            KFImage(imageUrl)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Constant space to keep header position consistent since there's no progress bar
+                Color.clear.frame(height: 7)
+
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo.fill")
+                            .font(.system(size: 14))
+                        Text("Foto")
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .textCase(.uppercase)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    
+                    Spacer()
+                    
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
                 }
+                .padding(.horizontal, 30)
+                .padding(.top, 20)
+                
+                Spacer()
+            }
+        }
+        .statusBar(hidden: false)
+        .offset(y: dragOffset)
+        .animation(.interactiveSpring(), value: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if value.translation.height > 0 {
+                        dragOffset = value.translation.height
+                    }
+                }
+                .onEnded { value in
+                    if value.translation.height > 100 {
+                        dismiss()
+                    } else {
+                        dragOffset = 0
+                    }
+                }
+        )
+        .onReceive(timer) { _ in
+            if progress < 5.0 {
+                progress += 0.1
             }
         }
     }
 }
 
-// MARK: - Enhanced InstagramChatViewModel with Better Audio Deletion
-class InstagramChatViewModel: EnhancedChatViewModel {
+// MARK: - Enhanced MomentsChatViewModel with Better Audio Deletion
+class MomentsChatViewModel: EnhancedChatViewModel {
     @Published var groupedMessages: [(Date, [EnhancedMessage])] = []
     @Published var messagesSentThisSession: Int = 0
     private let chatService = ChatService() // ✅ Agregar ChatService
@@ -2002,41 +2364,93 @@ class InstagramChatViewModel: EnhancedChatViewModel {
     
     // MARK: - New Media Message Functions
     func sendImageMessage(_ imageData: Data) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            error = "No se puede enviar la imagen: ID de conversación no válido"
+            return
+        }
+        
         trackMediaMessageSent(type: "image")
         
-        chatService.sendMediaMessage(
-            conversationId: conversation.id ?? "",
+        // ✅ Crear mensaje local inmediatamente para feedback visual
+        let messageId = UUID().uuidString
+        let tempMessage = EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
             senderId: currentUserId,
             type: .image,
-            mediaData: imageData
-        ) { result in
-            switch result {
-            case .success(let message):
-                // Image message sent successfully
-                break
-            case .failure(let error):
-                // Handle error if needed
-                break
+            status: .sending
+        )
+        
+        // Agregar mensaje temporal a la lista local
+        DispatchQueue.main.async {
+            self.messages.append(tempMessage)
+            self.updateGroupedMessages()
+            self.objectWillChange.send()
+        }
+        
+        chatService.sendMediaMessage(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: .image,
+            mediaData: imageData,
+            messageId: messageId // ✅ Pasar el mismo ID
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(_):
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                case .failure(let error):
+                    self?.error = "Error al enviar imagen: \(error.localizedDescription)"
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                }
             }
         }
     }
     
     func sendAudioMessage(_ audioData: Data, duration: TimeInterval) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            error = "No se puede enviar el audio: ID de conversación no válido"
+            return
+        }
+        
         trackMediaMessageSent(type: "audio")
         
+        // ✅ Crear mensaje local inmediatamente para feedback visual
+        let messageId = UUID().uuidString
+        let tempMessage = EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: .audio,
+            content: nil,
+            mediaUrl: nil,
+            thumbnailUrl: nil,
+            duration: duration,
+            status: .sending
+        )
+        
+        // Agregar mensaje temporal a la lista local
+        DispatchQueue.main.async {
+            self.messages.append(tempMessage)
+            self.updateGroupedMessages()
+            self.objectWillChange.send()
+        }
+        
         chatService.sendAudioMessage(
-            conversationId: conversation.id ?? "",
+            conversationId: conversationId,
             senderId: currentUserId,
             audioData: audioData,
-            duration: duration
-        ) { result in
-            switch result {
-            case .success(let message):
-                // Audio message sent successfully
-                break
-            case .failure(let error):
-                // Handle error if needed
-                break
+            duration: duration,
+            messageId: messageId // ✅ Pasar el mismo ID
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(_):
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                case .failure(let error):
+                    self?.error = "Error al enviar audio: \(error.localizedDescription)"
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                }
             }
         }
     }
@@ -2048,6 +2462,25 @@ class InstagramChatViewModel: EnhancedChatViewModel {
             return
         }
         
+        // ✅ Crear mensaje local inmediatamente para feedback visual
+        let messageId = UUID().uuidString
+        let messageType: MessageType = mediaType == .image ? .viewOnceImage : .viewOnceVideo
+        
+        let tempMessage = EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: messageType,
+            status: .sending,
+            isViewed: false
+        )
+        
+        // Agregar mensaje temporal a la lista local
+        DispatchQueue.main.async {
+            self.messages.append(tempMessage)
+            self.updateGroupedMessages()
+            self.objectWillChange.send()
+        }
         
         let trackingType = mediaType == .image ? "view_once_image" : "view_once_video"
         AnalyticsService.shared.trackInteraction("view_once_message_sent", details: [
@@ -2059,15 +2492,17 @@ class InstagramChatViewModel: EnhancedChatViewModel {
             conversationId: conversationId,
             senderId: currentUserId,
             mediaData: data,
-            mediaType: mediaType
+            mediaType: mediaType,
+            messageId: messageId // ✅ Pasar el mismo ID
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(_):
-                    // View once message sent successfully
-                    break
+                    // ✅ SOLO cambiar el estado, no reemplazar
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
                 case .failure(let error):
                     self?.error = "Error al enviar mensaje: \(error.localizedDescription)"
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }
         }
@@ -2132,13 +2567,16 @@ struct VoiceRecordingBar: View {
                     )
                 
                 Text("chat.recording")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(adaptiveColors.recordingIndicator)
+                
+                LiveWaveformView(color: adaptiveColors.primary)
+                    .frame(width: 100, height: 25)
                 
                 Spacer()
                 
                 Text(formattedTime)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(adaptiveColors.primary)
             }
             .padding(.horizontal, 16)
@@ -2219,28 +2657,291 @@ extension AdaptiveColors {
         colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6)
     }
     
+    // MARK: - Accent Colors
+    var userAccentColor: Color {
+        // Light mode: System Blue
+        // Dark mode: Purple/Indigo
+        colorScheme == .dark ? Color.purple : Color.blue
+    }
+    
+    var receivedAccentColor: Color {
+        // Light mode: Concrete Gray (Distinct but subtle)
+        // Dark mode: White with opacity (Glass effect)
+        colorScheme == .dark ? Color.white.opacity(0.4) : Color.black.opacity(0.2)
+    }
+    
+
+
     // MARK: - Gradientes específicos para chat actualizados
     var chatBackground: [Color] {
         colorScheme == .dark ? [
-            Color(hex: "1a1a2e"),
-            Color(hex: "16213e"),
-            Color(hex: "0f3460")
+            Color(hex: "0F172A"), // Slate 900
+            Color(hex: "1E293B"), // Slate 800
+            Color(hex: "334155")  // Slate 700
         ] : [
-            Color(hex: "f8f9fa"),
-            Color(hex: "e9ecef"),
-            Color(hex: "dee2e6")
+            Color(hex: "F1F5F9"), // Slate 100
+            Color(hex: "E2E8F0"), // Slate 200
+            Color(hex: "CBD5E1")  // Slate 300
         ]
     }
     
     var messagingBackground: [Color] {
         colorScheme == .dark ? [
-            Color(hex: "00A896").opacity(0.6),
-            Color(hex: "02C39A").opacity(0.4),
-            Color(hex: "F0F3BD").opacity(0.3)
+            userAccentColor.opacity(0.3),
+            Color.blue.opacity(0.2),
+            Color.black
         ] : [
-            Color(hex: "E8F5E8"),
-            Color(hex: "F0F8FF"),
-            Color(hex: "FFF8DC")
+            userAccentColor.opacity(0.1),
+            Color.white,
+            Color.white
         ]
+    }
+
+}
+
+// MARK: - Clustering UI Components
+struct GlassmorphicClusterRow: View {
+    let messages: [EnhancedMessage]
+    let isCurrentUser: Bool
+    let showAvatar: Bool
+    let otherUserId: String?
+    let onAvatarTap: () -> Void
+    let onMessageViewed: ((String) -> Void)?
+    let onMomentNavigation: ((EnhancedMessage) -> Void)? // ✅ Added missing property
+    let onReply: ([EnhancedMessage]) -> Void // ✅ New: Cluster reply callback
+    let onReplyTap: ((String) -> Void)? // ✅ New: Jump to message callback
+    let uploadProgress: [String: Double]
+    
+    @State private var dragOffset: CGFloat = 0
+    @State private var hasTriggeredHaptic = false
+    @Environment(\.colorScheme) var colorScheme
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    var body: some View {
+        ZStack(alignment: .leading) {
+            // Background Reply Icon (appears when swiping)
+            if dragOffset > 0 {
+                Image(systemName: "arrowshape.turn.up.left.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(adaptiveColors.userAccentColor)
+                    .opacity(Double(min(dragOffset / 60, 1.0)))
+                    .offset(x: min(dragOffset - 30, 0))
+                    .padding(.leading, 12)
+            }
+            
+            HStack(alignment: .bottom, spacing: 8) {
+                if !isCurrentUser {
+                    if showAvatar {
+                        Button(action: onAvatarTap) {
+                            GlassmorphicAvatar(userId: otherUserId ?? "")
+                                .frame(width: 32, height: 32)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    } else {
+                        Color.clear.frame(width: 32, height: 32)
+                    }
+                }
+                
+                if isCurrentUser { Spacer(minLength: 50) }
+                
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                    MediaGridBubble(
+                        messages: messages,
+                        isCurrentUser: isCurrentUser,
+                        uploadProgress: uploadProgress,
+                        onMomentNavigation: onMomentNavigation
+                    )
+                }
+                
+                if !isCurrentUser { Spacer(minLength: 50) }
+            }
+            .offset(x: dragOffset)
+            .contentShape(Rectangle()) // Asegurar que todo el área es gesture-able
+            .gesture(
+                DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                    .onChanged { value in
+                        let horizontalMove = value.translation.width
+                        let verticalMove = value.translation.height
+                        
+                        if horizontalMove > 0 && abs(horizontalMove) > abs(verticalMove) {
+                            dragOffset = horizontalMove
+                            
+                            // Haptic Feedback
+                            if dragOffset > 60 && !hasTriggeredHaptic {
+                                let generator = UIImpactFeedbackGenerator(style: .medium)
+                                generator.impactOccurred()
+                                hasTriggeredHaptic = true
+                            } else if dragOffset < 60 && hasTriggeredHaptic {
+                                hasTriggeredHaptic = false
+                            }
+                        }
+                    }
+                    .onEnded { value in
+                        if dragOffset > 70 {
+                            onReply(messages)
+                        }
+                        
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            dragOffset = 0
+                            hasTriggeredHaptic = false
+                        }
+                    }
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+    }
+}
+
+struct MediaGridBubble: View {
+    let messages: [EnhancedMessage]
+    let isCurrentUser: Bool
+    let uploadProgress: [String: Double]
+    let onMomentNavigation: ((EnhancedMessage) -> Void)?
+    
+    var body: some View {
+        let count = messages.count
+        let columns = count >= 2 ? 2 : 1
+        let gridItems = Array(repeating: GridItem(.flexible(), spacing: 4), count: columns)
+        
+        LazyVGrid(columns: gridItems, spacing: 4) {
+            ForEach(messages.prefix(4)) { message in
+                Group {
+                    if message.type == .image {
+                        GlassmorphicImageMessage(
+                            imageUrl: message.mediaUrl,
+                            isSending: message.status == .sending,
+                            progress: uploadProgress[message.id]
+                        )
+                    } else if message.type == .video {
+                        GlassmorphicVideoMessage(
+                            videoUrl: message.mediaUrl,
+                            thumbnailUrl: message.thumbnailUrl,
+                            isSending: message.status == .sending,
+                            progress: uploadProgress[message.id]
+                        )
+                    }
+                }
+                .aspectRatio(1, contentMode: .fill)
+                .frame(maxWidth: .infinity)
+                .frame(height: count > 2 ? 120 : 200)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .frame(width: 250)
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial.opacity(0.3))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+// ✅ Identifiable wrapper for cluster selection sheet
+struct ClusterWrapper: Identifiable {
+    let messages: [EnhancedMessage]
+    var id: String {
+        messages.first?.id ?? "empty-cluster"
+    }
+}
+
+// MARK: - Media Selection Sheet for Clusters
+struct GlassmorphicMediaSelectionSheet: View {
+    let messages: [EnhancedMessage]
+    let onSelect: (EnhancedMessage) -> Void
+    let onCancel: () -> Void
+    @Environment(\.colorScheme) var colorScheme
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // Header
+            HStack {
+                Text("chat.reply.select_item")
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(adaptiveColors.primary)
+                
+                Spacer()
+                
+                Button(action: onCancel) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(adaptiveColors.primary.opacity(0.6))
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            
+            ScrollView {
+                let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(messages) { message in
+                        Button(action: { onSelect(message) }) {
+                            ZStack {
+                                // ✅ Simple thumbnails sin gestos propios
+                                if message.type == .image, let urlString = message.mediaUrl, let url = URL(string: urlString) {
+                                    KFImage(url)
+                                        .resizable()
+                                        .scaledToFill()
+                                } else if message.type == .video {
+                                    // Video thumbnail
+                                    if let thumbUrl = message.thumbnailUrl, let url = URL(string: thumbUrl) {
+                                        KFImage(url)
+                                            .resizable()
+                                            .scaledToFill()
+                                    } else {
+                                        Rectangle()
+                                            .fill(Color.white.opacity(0.1))
+                                    }
+                                    // Play icon overlay
+                                    Circle()
+                                        .fill(Color.black.opacity(0.5))
+                                        .frame(width: 40, height: 40)
+                                        .overlay(
+                                            Image(systemName: "play.fill")
+                                                .foregroundColor(.white)
+                                                .font(.system(size: 16))
+                                        )
+                                }
+                            }
+                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                            .aspectRatio(1, contentMode: .fill)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(adaptiveColors.primary.opacity(0.2), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+                        }
+                        .buttonStyle(ScaleButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 30)
+            }
+        }
+        .background(.ultraThinMaterial)
+        .overlay(
+            RoundedCorner(radius: 30, corners: [.topLeft, .topRight])
+                .stroke(adaptiveColors.primary.opacity(0.1), lineWidth: 1)
+        )
+        .clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
+    }
+}
+
+// MARK: - Helper Styles
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
     }
 }

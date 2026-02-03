@@ -81,11 +81,20 @@ struct ModernCommentsView: View {
                 // UI normal de comentarios (código existente)
                 VStack(spacing: 0) {
                     modernHeaderView
-                    enhancedCommentsListView
-                    if let replyComment = replyToComment {
-                        replyIndicatorView(replyComment)
+                    
+                    ZStack(alignment: .bottom) {
+                        enhancedCommentsListView
+                            .padding(.bottom, 80) // Espacio para el input flotante
+                        
+                        // Input flotante
+                        VStack(spacing: 0) {
+                            if let replyComment = replyToComment {
+                                replyIndicatorView(replyComment)
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
+                            commentInputView
+                        }
                     }
-                    commentInputView
                 }
             }
         }
@@ -152,47 +161,41 @@ struct ModernCommentsView: View {
     private var modernBackgroundView: some View {
         ZStack {
             if colorScheme == .dark {
-                // Negro más intenso y elegante - igual que FeedView
-                Color(hex: "0A0A0A")
+                // Negro más intenso y elegante
+                Color(hex: "050505")
                     .ignoresSafeArea()
                 
-                // Overlay sutil para profundidad
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black.opacity(0.1),
-                        Color.clear,
-                        Color.black.opacity(0.05)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-            } else {
-                // Fondo claro elegante - igual que FeedView
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Efecto de luz ambiental sutil (Blue/Purple glow)
+                Circle()
+                    .fill(Color.blue.opacity(0.05))
+                    .frame(width: 300, height: 300)
+                    .blur(radius: 100)
+                    .offset(x: -100, y: -200)
                 
-                // Overlay sutil para profundidad
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white.opacity(0.3),
-                        Color.clear,
-                        Color(hex: "f8f9fa").opacity(0.2)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                Circle()
+                    .fill(Color.purple.opacity(0.05))
+                    .frame(width: 300, height: 300)
+                    .blur(radius: 100)
+                    .offset(x: 100, y: 200)
+                
+            } else {
+                // Fondo claro elegante
+                Color(hex: "f8f9fa")
+                    .ignoresSafeArea()
+                
+                // Efecto de luz ambiental sutil
+                Circle()
+                    .fill(Color.blue.opacity(0.03))
+                    .frame(width: 300, height: 300)
+                    .blur(radius: 80)
+                    .offset(x: -100, y: -200)
             }
+            
+            // Material sutil encima
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(0.3)
+                .ignoresSafeArea()
         }
     }
     
@@ -209,8 +212,8 @@ struct ModernCommentsView: View {
                                 .stroke(
                                     LinearGradient(
                                         colors: [
-                                            colorScheme == .dark ? Color.white.opacity(0.3) : Color.black.opacity(0.1),
-                                            Color.white.opacity(0.3)
+                                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1),
+                                            Color.white.opacity(0.1)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -220,48 +223,44 @@ struct ModernCommentsView: View {
                         )
                     
                     Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    colorScheme == .dark ? Color.white : Color.black,
-                                    Color.white.opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
             
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text("modernComments.title")
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
-                    // ✅ NUEVO: Indicador de carga en el header
+                    // ✅ Indicador de carga
                     if isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
-                            .scaleEffect(0.8)
+                            .scaleEffect(0.7)
                     } else if !comments.isEmpty {
-                        Text("(\(totalCommentsCount))")
-                            .font(.custom("Poppins-Medium", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .padding(.horizontal, 8)
+                        Text("\(totalCommentsCount)")
+                            .font(.custom("Poppins-Bold", size: 11))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
                             .clipShape(Capsule())
                     }
                 }
                 
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     Text(String(format: NSLocalizedString("modernComments.postOf", comment: "Post of user"), moment.username))
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
+                        .foregroundColor(.gray)
                     
-                    // ✅ INSIGNIA DE VERIFICADO
                     VerifiedBadgeView(userId: moment.authorId, size: 10)
                 }
             }
@@ -271,13 +270,13 @@ struct ModernCommentsView: View {
             // Menú de ordenación
             Menu {
                 Button(action: { sortOption = .newest }) {
-                    Label(NSLocalizedString("modernComments.sort.newest", comment: "Most recent"), systemImage: "clock.arrow.circlepath")
+                    Label(NSLocalizedString("modernComments.sort.newest", comment: "Latest"), systemImage: "arrow.up.circle")
                 }
                 Button(action: { sortOption = .oldest }) {
-                    Label(NSLocalizedString("modernComments.sort.oldest", comment: "Oldest"), systemImage: "clock")
+                    Label(NSLocalizedString("modernComments.sort.oldest", comment: "Oldest"), systemImage: "arrow.down.circle")
                 }
                 Button(action: { sortOption = .mostLiked }) {
-                    Label(NSLocalizedString("modernComments.sort.mostLiked", comment: "Most liked"), systemImage: "heart.fill")
+                    Label(NSLocalizedString("modernComments.sort.mostLiked", comment: "Top"), systemImage: "heart")
                 }
             } label: {
                 ZStack {
@@ -286,43 +285,26 @@ struct ModernCommentsView: View {
                         .frame(width: 32, height: 32)
                         .overlay(
                             Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1),
-                                            Color.white.opacity(0.2)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
                     
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .gray.opacity(0.7) : .gray.opacity(0.6))
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.vertical, 14)
         .background(
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.1 : 0.05)
+                .ignoresSafeArea(edges: .top)
         )
-        .background(.ultraThinMaterial)
         .overlay(
             Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.1), Color.white.opacity(0.2)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(height: 0.5),
+                .fill(Color.gray.opacity(0.1))
+                .frame(height: 1),
             alignment: .bottom
         )
     }
@@ -425,18 +407,9 @@ struct ModernCommentsView: View {
         )
     }
     
-    // ✅ Input de comentario moderno (mejorado)
+    // ✅ Input de comentario moderno (Diseño Floating Glass)
     private var commentInputView: some View {
         VStack(spacing: 0) {
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.1), Color.white.opacity(0.2)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(height: 0.5)
             
             HStack(spacing: 12) {
                 if editingCommentId != nil {
@@ -459,27 +432,22 @@ struct ModernCommentsView: View {
                                 .font(.custom("Poppins-Regular", size: 15))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1...4)
-                                .disabled(isLoading) // ✅ NUEVO: Deshabilitar mientras carga
+                                .disabled(isLoading)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.2), Color.white.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
                         )
                         
                         VStack(spacing: 8) {
                             Button(action: {
                                 if let commentId = editingCommentId, !editingCommentContent.isEmpty {
+                                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                                    generator.impactOccurred()
                                     updateComment(commentId: commentId, content: editingCommentContent)
                                     editingCommentId = nil
                                     editingCommentContent = ""
@@ -487,27 +455,16 @@ struct ModernCommentsView: View {
                             }) {
                                 if isLoading {
                                     ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                                         .scaleEffect(0.8)
                                         .frame(width: 36, height: 36)
-                                        .background(
-                                            LinearGradient(
-                                                colors: [Color.gray.opacity(0.5)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                        .clipShape(Circle())
                                 } else {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
                                         .frame(width: 36, height: 36)
                                         .background(
                                             LinearGradient(
-                                                colors: editingCommentContent.isEmpty ?
-                                                [Color.gray.opacity(0.5)] :
-                                                [Color.white, Color.white.opacity(0.8)],
+                                                colors: [Color.blue, Color.purple],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             )
@@ -515,7 +472,7 @@ struct ModernCommentsView: View {
                                         .clipShape(Circle())
                                 }
                             }
-                            .disabled(editingCommentContent.isEmpty || isLoading) // ✅ NUEVO: Deshabilitar mientras carga
+                            .disabled(editingCommentContent.isEmpty || isLoading)
                             
                             Button(action: {
                                 editingCommentId = nil
@@ -523,40 +480,48 @@ struct ModernCommentsView: View {
                             }) {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 14))
-                                    .foregroundColor(.gray.opacity(0.6))
+                                    .foregroundColor(.gray)
                                     .frame(width: 36, height: 36)
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
                             }
-                            .disabled(isLoading) // ✅ NUEVO: Deshabilitar mientras carga
+                            .disabled(isLoading)
                         }
                     }
                 } else {
-                    // Modo comentario normal mejorado
-                    HStack(spacing: 12) {
-                        TextField(replyToComment != nil ? "Responder..." : "Añade un comentario...", text: $newComment, axis: .vertical)
+                    // Modo comentario normal mejorado (Floating)
+                    HStack(spacing: 8) {
+                        // ✅ Avatar del usuario actual
+                        if let currentUserId = Auth.auth().currentUser?.uid {
+                            AsyncProfileImageView(userId: currentUserId)
+                                .frame(width: 36, height: 36)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                )
+                        }
+                        
+                        TextField(replyToComment != nil ? "Responder a \(replyToComment?.username ?? "")..." : "Añade un comentario...", text: $newComment, axis: .vertical)
                             .font(.custom("Poppins-Regular", size: 15))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .lineLimit(1...4)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color.white.opacity(0.2), Color.white.opacity(0.3)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
+                            .background(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 25)
+                                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
                                     )
                             )
-                            .disabled(isLoading) // ✅ NUEVO: Deshabilitar mientras carga
+                            .disabled(isLoading)
                         
                         Button(action: {
                             if !newComment.isEmpty {
+                                let generator = UIImpactFeedbackGenerator(style: .medium)
+                                generator.impactOccurred()
                                 addComment(content: newComment, parentCommentId: replyToComment?.id)
                                 newComment = ""
                                 replyToComment = nil
@@ -567,35 +532,36 @@ struct ModernCommentsView: View {
                                     .fill(
                                         LinearGradient(
                                             colors: newComment.isEmpty || isLoading ?
-                                            [Color.gray.opacity(0.5)] :
-                                            [Color.blue, Color.purple, Color.pink],
+                                            [Color.gray.opacity(0.3), Color.gray.opacity(0.3)] :
+                                            [Color.blue, Color.purple, Color.pink], // ✅ Degradado correcto
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
                                     )
                                     .frame(width: 44, height: 44)
+                                    .shadow(color: newComment.isEmpty ? .clear : Color.purple.opacity(0.4), radius: 5, x: 0, y: 3)
                                 
                                 if isLoading {
                                     ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                                         .scaleEffect(0.8)
+                                        .tint(.white)
                                 } else {
                                     Image(systemName: "paperplane.fill")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                        .rotationEffect(.degrees(newComment.isEmpty ? 0 : 45))
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .offset(x: -1, y: 1) // Ajuste visual
                                 }
                             }
                         }
-                        .disabled(newComment.isEmpty || isLoading) // ✅ NUEVO: Deshabilitar mientras carga
-                        .scaleEffect(newComment.isEmpty || isLoading ? 0.9 : 1.0)
+                        .disabled(newComment.isEmpty || isLoading)
+                        .scaleEffect(newComment.isEmpty || isLoading ? 0.95 : 1.0)
                         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: newComment.isEmpty)
                     }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
+            .padding(.bottom, 8) // Espacio extra abajo
         }
     }
     
@@ -944,13 +910,29 @@ struct EnhancedModernCommentRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
-                // ✅ Línea de conexión visual (como X/Twitter)
+                // ✅ Línea de conexión visual (Gradient)
                 if shouldShowConnectorLine {
                     VStack {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 2)
-                            .padding(.leading, indentationWidth - 10)
+                        // Gradiente que se desvanece
+                        LinearGradient(
+                            colors: [
+                                Color.blue.opacity(0.3),
+                                Color.purple.opacity(0.3)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(width: 2)
+                        .padding(.leading, indentationWidth - 10)
+                        
+                        // Pequeño punto en la conexión (opcional, para detalle premium)
+                        if nestingLevel > 0 {
+                            Circle()
+                                .fill(Color.purple.opacity(0.5))
+                                .frame(width: 4, height: 4)
+                                .padding(.leading, indentationWidth - 11)
+                                .offset(y: -4)
+                        }
                     }
                     .frame(width: indentationWidth)
                 }
@@ -994,15 +976,27 @@ struct EnhancedModernCommentRow: View {
                     HStack {
                         Image(systemName: "arrow.turn.down.right")
                             .font(.system(size: 12))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
                         
                         Text(String(format: NSLocalizedString("modernComments.viewMoreReplies", comment: "View more replies"), nestedComments.count))
                             .font(.custom("Poppins-Medium", size: 12))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.1))
+                    .background(Color.blue.opacity(0.05))
                     .clipShape(Capsule())
                 }
                 .padding(.leading, indentationWidth + 50)
@@ -1011,57 +1005,153 @@ struct EnhancedModernCommentRow: View {
         }
     }
     
-    // ✅ Contenido principal del comentario
+
+    
+    // ✅ Contenido principal del comentario CON SWIPE
     private var commentContent: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // ✅ Avatar con tamaño variable según nivel
-            AsyncProfileImageView(userId: comment.authorId)
-                .frame(width: avatarSize, height: avatarSize)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.4)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: nestingLevel == 0 ? 1.5 : 1
-                        )
-                )
-                .shadow(
-                    color: Color.white.opacity(nestingLevel == 0 ? 0.3 : 0.1),
-                    radius: nestingLevel == 0 ? 4 : 2,
-                    x: 0,
-                    y: 2
-                )
-            
-            VStack(alignment: .leading, spacing: 8) {
-                // ✅ Header del comentario
-                commentHeader
-                
-                // ✅ Contenido con @menciones destacadas
-                contentWithMentions
-                
-                // ✅ Botones de acción
-                actionButtons
+        ZStack(alignment: .trailing) {
+            // Fondo de acciones de deslizar
+            if shouldShowSwipeActions {
+                HStack(spacing: 0) {
+                    Spacer()
+                    
+                    if canEdit {
+                        Button(action: {
+                            withAnimation { offset = 0 }
+                            onEdit(comment)
+                        }) {
+                            VStack {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                            }
+                            .frame(width: 60, height: nestingLevel == 0 ? 80 : 60) // Ajustar altura
+                            .background(Color.blue)
+                        }
+                    }
+                    
+                    if canDelete {
+                        Button(action: {
+                            withAnimation { offset = 0 }
+                            onDelete(comment)
+                        }) {
+                            VStack {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                            }
+                            .frame(width: 60, height: nestingLevel == 0 ? 80 : 60) // Ajustar altura
+                            .background(Color.red)
+                            .clipShape(
+                                .rect(
+                                    topLeadingRadius: 0,
+                                    bottomLeadingRadius: 0,
+                                    bottomTrailingRadius: nestingLevel == 0 ? 16 : 12,
+                                    topTrailingRadius: nestingLevel == 0 ? 16 : 12
+                                )
+                            )
+                        }
+                    }
+                }
+                .padding(.vertical, nestingLevel == 0 ? 12 : 8) // Coincidir con padding del row
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            // Contenido visible
+            HStack(alignment: .top, spacing: 12) {
+                // ✅ Avatar con borde gradiente
+                AsyncProfileImageView(userId: comment.authorId)
+                    .frame(width: avatarSize, height: avatarSize)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: nestingLevel == 0 ?
+                                    [Color.blue.opacity(0.6), Color.purple.opacity(0.6)] :
+                                    [Color.white.opacity(0.3), Color.white.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: nestingLevel == 0 ? 1.5 : 1
+                            )
+                    )
+                    .shadow(
+                        color: nestingLevel == 0 ? Color.purple.opacity(0.2) : .clear,
+                        radius: 4,
+                        x: 0,
+                        y: 2
+                    )
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    // ✅ Header del comentario
+                    commentHeader
+                    
+                    // ✅ Contenido con @menciones destacadas
+                    contentWithMentions
+                    
+                    // ✅ Botones de acción
+                    actionButtons
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, nestingLevel == 0 ? 12 : 8)
+            .background(commentBackground)
+            .clipShape(RoundedRectangle(cornerRadius: nestingLevel == 0 ? 16 : 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: nestingLevel == 0 ? 16 : 12)
+                    .stroke(commentBorder, lineWidth: nestingLevel == 0 ? 1 : 0.5)
+            )
+            .offset(x: offset)
+            .gesture(
+                DragGesture()
+                    .onChanged { gesture in
+                        if shouldShowSwipeActions {
+                            // Solo permitir deslizar a la izquierda
+                            if gesture.translation.width < 0 {
+                                offset = gesture.translation.width
+                            }
+                        }
+                    }
+                    .onEnded { _ in
+                        if shouldShowSwipeActions {
+                            if offset < -50 {
+                                withAnimation {
+                                    offset = -actionWidth
+                                }
+                            } else {
+                                withAnimation {
+                                    offset = 0
+                                }
+                            }
+                        }
+                    }
+            )
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, nestingLevel == 0 ? 12 : 8)
-        .background(commentBackground)
-        .clipShape(RoundedRectangle(cornerRadius: nestingLevel == 0 ? 16 : 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: nestingLevel == 0 ? 16 : 12)
-                .stroke(commentBorder, lineWidth: nestingLevel == 0 ? 1 : 0.5)
-        )
-        .shadow(
-            color: Color.black.opacity(nestingLevel == 0 ? 0.3 : 0.1),
-            radius: nestingLevel == 0 ? 8 : 4,
-            x: 0,
-            y: nestingLevel == 0 ? 4 : 2
-        )
+        // Animación de entrada "Pop"
+        .transition(.scale.combined(with: .opacity))
+    }
+    
+    // ✅ Propiedades para SWIPE
+    @State private var offset: CGFloat = 0
+    
+    private var canEdit: Bool {
+        comment.authorId == Auth.auth().currentUser?.uid
+    }
+    
+    private var canDelete: Bool {
+        comment.authorId == Auth.auth().currentUser?.uid || moment.authorId == Auth.auth().currentUser?.uid
+    }
+    
+    private var shouldShowSwipeActions: Bool {
+        canEdit || canDelete
+    }
+    
+    private var actionWidth: CGFloat {
+        var width: CGFloat = 0
+        if canEdit { width += 60 }
+        if canDelete { width += 60 }
+        return width
     }
     
     // ✅ Tamaño de avatar variable
@@ -1077,13 +1167,11 @@ struct EnhancedModernCommentRow: View {
     private var commentBackground: some View {
         Group {
             if nestingLevel == 0 {
-                // ✅ Opción 1: Background sólido con efecto similar
-                Color.black.opacity(0.3)
-                    .overlay(Color.white.opacity(0.1))
+                // Background sólido con efecto glass
+                Color.black.opacity(colorScheme == .dark ? 0.3 : 0.05)
                     .background(.ultraThinMaterial)
             } else {
-                Color.black.opacity(0.1)
-                    .overlay(Color.white.opacity(0.05))
+                Color.clear
             }
         }
     }
@@ -1092,8 +1180,8 @@ struct EnhancedModernCommentRow: View {
     private var commentBorder: LinearGradient {
         LinearGradient(
             colors: nestingLevel == 0 ?
-                [Color.white.opacity(0.2), Color.white.opacity(0.3)] :
-                [Color.white.opacity(0.1), Color.gray.opacity(0.2)],
+                [Color.white.opacity(0.15), Color.white.opacity(0.05)] :
+                [Color.clear, Color.clear],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -1139,10 +1227,7 @@ struct EnhancedModernCommentRow: View {
             
             Spacer()
             
-            // ✅ Menú de opciones (solo para comentarios principales o propios)
-            if (comment.authorId == Auth.auth().currentUser?.uid || moment.authorId == Auth.auth().currentUser?.uid) && nestingLevel <= 1 {
-                commentOptionsMenu
-            }
+
         }
     }
     
@@ -1212,26 +1297,7 @@ struct EnhancedModernCommentRow: View {
         return result
     }
     
-    // ✅ Menú de opciones del comentario
-    private var commentOptionsMenu: some View {
-        Menu {
-            if comment.authorId == Auth.auth().currentUser?.uid {
-                Button(action: { onEdit(comment) }) {
-                    Label("Editar", systemImage: "pencil")
-                }
-            }
-            Button(action: { onDelete(comment) }) {
-                Label("Eliminar", systemImage: "trash")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 14))
-                .foregroundColor(.gray.opacity(0.6))
-                .frame(width: 24, height: 24)
-                .background(.ultraThinMaterial)
-                .clipShape(Circle())
-        }
-    }
+
     
     // ✅ Botones de acción mejorados
     private var actionButtons: some View {

@@ -7,6 +7,7 @@ import FirebaseAuth
 struct StoryChainView: View {
     let chainId: String
     let chainTitle: String
+    let canContinueChain: Bool // 🔗 NUEVO: Indica si el usuario actual puede continuar esta cadena
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = StoryChainViewModel()
     @State private var selectedStoryIndex = 0
@@ -59,10 +60,21 @@ struct StoryChainView: View {
                     )
                 } else {
                     VStack(spacing: 0) {
-                        // Header con información de la cadena
-                        chainHeader
+                        // Header con información de la cadena y botón de cierre
+                        ZStack(alignment: .topTrailing) {
+                            chainHeader
+                            
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .padding(16)
+                            }
+                        }
                         
-                        // Grid 2x2 de historias con miniatura estática (sin reproducción)
+                        // Grid 2x2 de historias
                         ScrollView {
                             LazyVGrid(columns: gridColumns, spacing: 12) {
                                 ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
@@ -72,9 +84,7 @@ struct StoryChainView: View {
                                         isSelected: selectedStoryIndex == index
                                     )
                                     .onTapGesture {
-                                        selectedStoryIndex = index
-                                    }
-                                    .onTapGesture(count: 2) {
+                                        // 🔗 AHORA CON UN SOLO TOQUE SE ABRE EL VISOR
                                         selectedStoryIndex = index
                                         showStoriesViewer = true
                                     }
@@ -82,6 +92,60 @@ struct StoryChainView: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 20)
+                            
+                            // Espacio extra al final para que el botón flotante no tape contenido
+                            if canContinueChain {
+                                Color.clear.frame(height: 80)
+                            }
+                        }
+                    }
+                    
+                    // 🔗 BOTÓN FLOTANTE PARA CONTINUAR (Si tiene permiso)
+                    if canContinueChain && !viewModel.isLoading && !viewModel.stories.isEmpty {
+                        VStack {
+                            Spacer()
+                            
+                            Button(action: {
+                                continueChain()
+                            }) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 18))
+                                    
+                                    Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
+                                        .font(.custom("Poppins-Bold", size: 16))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 28)
+                                .padding(.vertical, 14)
+                                .background(
+                                    ZStack {
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                        .clipShape(Capsule())
+                                        
+                                        Capsule()
+                                            .fill(.ultraThinMaterial)
+                                            .opacity(0.3)
+                                    }
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color.white.opacity(0.4), Color.white.opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                                .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                            }
+                            .padding(.bottom, 24)
                         }
                     }
                 }
@@ -99,79 +163,77 @@ struct StoryChainView: View {
     // MARK: - Chain Header
     private var chainHeader: some View {
         VStack(spacing: 12) {
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text(chainTitle)
-                    .font(.custom("Poppins-Bold", size: 18))
+                    .font(.custom("Poppins-Bold", size: 20))
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40) // Espacio para la X
                 
                 HStack(spacing: 8) {
-                    Text(String(format: NSLocalizedString("storyChains.parts", comment: "Parts"), chainStats.partCount, StoryChainLimits.maxParts))
-                        .font(.custom("Poppins-Regular", size: 14))
+                    Label(
+                        String(format: NSLocalizedString("storyChains.parts", comment: "Parts"), chainStats.partCount, StoryChainLimits.maxParts),
+                        systemImage: "link"
+                    )
+                    .font(.custom("Poppins-Medium", size: 14))
+                    .foregroundColor(.secondary)
+                    
+                    Text("•")
                         .foregroundColor(.secondary)
                     
                     if !chainStats.isExpired {
-                        Text("•")
-                            .foregroundColor(.secondary)
-                        
-                        Text(chainStats.remainingTime.formattedRemainingTime())
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(chainStats.remainingTime < 3600 ? .red : .secondary)
+                        Label(
+                            chainStats.remainingTime.formattedRemainingTime(),
+                            systemImage: "clock"
+                        )
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(chainStats.remainingTime < 3600 ? .red : .secondary)
                     } else {
                         Text(NSLocalizedString("storyChains.expired", comment: "Expired"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.custom("Poppins-Bold", size: 14))
                             .foregroundColor(.red)
                     }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 20)
+            .padding(.top, 24)
             
-            // Indicador de progreso de la cadena
+            // Indicador de progreso de la cadena mejorado
             if !viewModel.stories.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: 4) {
                     ForEach(0..<viewModel.stories.count, id: \.self) { index in
                         Rectangle()
                             .fill(
                                 LinearGradient(
                                     colors: index <= selectedStoryIndex
                                     ? [Color.blue, Color.purple, Color.pink]
-                                    : [Color.white.opacity(0.3), Color.white.opacity(0.3)],
+                                    : [Color.white.opacity(0.2), Color.white.opacity(0.2)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
-                            .frame(height: 3)
+                            .frame(height: 4)
                             .clipShape(Capsule())
-                            .background(
-                                Capsule()
-                                    .fill(Color.white.opacity(0.1))
-                                    .background(.ultraThinMaterial)
-                            )
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
             }
         }
-        .padding(.bottom, 16)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.3),
-                                    Color.blue.opacity(0.4)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
+            ZStack {
+                Color.clear
+                    .background(.ultraThinMaterial)
+                
+                LinearGradient(
+                    colors: [Color.white.opacity(0.05), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
+            }
         )
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
         .onAppear {
             loadChainStats()
         }
@@ -503,16 +565,6 @@ struct StoryChainGridItemView: View {
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.white.opacity(0.08))
                 .background(.ultraThinMaterial)
-        )
-    }
-}
-
-// MARK: - Preview
-struct StoryChainView_Previews: PreviewProvider {
-    static var previews: some View {
-        StoryChainView(
-            chainId: "preview-chain-id",
-            chainTitle: NSLocalizedString("storyChains.example.title", comment: "My Day in 5 Photos")
         )
     }
 }

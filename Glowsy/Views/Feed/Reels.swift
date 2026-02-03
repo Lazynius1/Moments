@@ -168,7 +168,7 @@ struct ReelVideoView: View {
                         let haptic = UIImpactFeedbackGenerator(style: .light)
                         haptic.impactOccurred()
                         
-                        // Solo toggle play/pause silencioso como TikTok
+                        // Solo toggle play/pause silencioso
                         playerManager.togglePlayback()
                     }
                     .onTapGesture(count: 2) {
@@ -250,7 +250,7 @@ struct ReelVideoView: View {
                         .animation(.spring(response: 0.6, dampingFraction: 0.6), value: isDoubleTapAnimating)
                 }
                 
-                // Sin controles visuales - solo play/pause silencioso como TikTok
+                // Sin controles visuales - solo play/pause silencioso
                 
                 // Información del usuario en la parte superior (a la altura del botón cerrar)
                 VStack {
@@ -439,7 +439,7 @@ struct ReelVideoView: View {
                     
                     if playerManager.duration > 0 {
                         VStack(spacing: 8) {
-                            // Progress bar interactiva estilo TikTok
+                            // Progress bar interactiva
                             GeometryReader { geometry in
                                 ZStack(alignment: .leading) {
                                     // Background track
@@ -594,6 +594,8 @@ struct ReelVideoView: View {
                 .onDisappear {
                     loadCommentCount()
                 }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
     
@@ -756,7 +758,7 @@ struct ReelVideoView: View {
         }
     }
     
-    // Sin controles visuales - comportamiento como TikTok
+    // Sin controles visuales - comportamiento optimizado
     
     // Funciones auxiliares para formateo
     private func formatTime(_ seconds: Double) -> String {
@@ -1099,7 +1101,7 @@ struct EnhancedReelActionButton: View {
     }
 }
 
-// Enhanced Video Player Manager con seek optimizado para TikTok
+// Enhanced Video Player Manager con seek optimizado
 class ReelVideoPlayerManager: ObservableObject {
     @Published var player: AVPlayer?
     @Published var isPlaying = false
@@ -1122,9 +1124,14 @@ class ReelVideoPlayerManager: ObservableObject {
         // ✅ INSTANT PLAYBACK: Usar preloader
         playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
         
-        // Configurar player item para mejor rendimiento
-        playerItem?.preferredForwardBufferDuration = 3.0 // Buffer más pequeño para seeks rápidos
-        playerItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = false
+        // ✅ Buffer inicial optimizado: 2.5s
+        // Empiezan a reproducir con solo un buffer inicial carga en background
+        playerItem?.preferredForwardBufferDuration = 2.5 // Buffer inicial (2.5s) - balance perfecto
+        playerItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true // Seguir cargando mientras está pausado
+        // ✅ Priorizar velocidad sobre calidad para inicio más rápido
+        if #available(iOS 14.0, *) {
+            playerItem?.preferredPeakBitRate = 0 // Sin límite de bitrate, usar toda la velocidad disponible
+        }
         
         // Crear player
         player = AVPlayer(playerItem: playerItem)
@@ -1147,7 +1154,7 @@ class ReelVideoPlayerManager: ObservableObject {
         observePlayback()
     }
     
-    // MARK: - Seek optimizado estilo TikTok
+    // MARK: - Seek optimizado
     func updateProgress(to newProgress: Double) {
         // Update visual inmediato sin esperar al seek
         DispatchQueue.main.async {

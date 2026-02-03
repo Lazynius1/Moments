@@ -371,12 +371,18 @@ class VideoPlayerManager: ObservableObject {
         // ✅ INSTANT PLAYBACK: Usar item precargado si existe
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
         
-        // Configuración adicional (aunque el preloader ya lo hace)
-        playerItem.preferredForwardBufferDuration = 5.0 
-        player = AVPlayer(playerItem: playerItem)
+        // ✅ OPTIMIZED BUFFER: Buffer inicial 2-3s (equilibrado)
+        // Empiezan a reproducir con solo 2-3s cargados, luego siguen cargando en background
+        playerItem.preferredForwardBufferDuration = 2.5 // Buffer inicial (2.5s) - balance perfecto
+        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true // Seguir cargando mientras está pausado
         
+        player = AVPlayer(playerItem: playerItem)
         player?.isMuted = true
         player?.automaticallyWaitsToMinimizeStalling = false // ✅ Inicio instantáneo (aunque arriesgue stall)
+        // ✅ Priorizar velocidad sobre calidad para inicio más rápido
+        if #available(iOS 14.0, *) {
+            playerItem.preferredPeakBitRate = 0 // Sin límite de bitrate, usar toda la velocidad disponible
+        }
         
         // ✅ NO AUTO-PLAY - El GlobalVideoManager decidirá cuándo reproducir
         isPlaying = false

@@ -198,9 +198,11 @@ struct ContentVisibilityView: View {
         }
         .sheet(isPresented: $showingStoryAudienceSelector) {
             StoryAudienceSelector(viewModel: viewModel)
+                .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingPostAudienceSelector) {
             PostAudienceSelector(viewModel: viewModel)
+                .presentationBackground(.clear)
         }
         // ✅ NUEVO: Sheet para configuración de interacciones
         .sheet(isPresented: $showingStoryInteractionSettings) {

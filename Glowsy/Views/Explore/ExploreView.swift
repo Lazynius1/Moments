@@ -206,7 +206,11 @@ struct ExploreView: View {
                 if searchText.isEmpty {
                     // ✅ Solo contenido esencial - SIN trending
                     suggestedUsersSection
-                    momentsSection
+                    
+                    if !viewModel.moments.isEmpty {
+                        DynamicMomentsGrid(moments: viewModel.moments, onMomentTap: handleMomentTap)
+                            .padding(.bottom, 80)
+                    }
                     
                 } else {
                     searchResultsSection
@@ -230,6 +234,7 @@ struct ExploreView: View {
         private var suggestedUsersSection: some View {
             SuggestedUsersSection(
                 users: viewModel.suggestedUsers,
+                moments: viewModel.moments, // ✅ Passing visible moments
                 currentUserInterests: viewModel.currentUserInterests,
                 userButtonStates: viewModel.userButtonStates,
                 onFollowUser: viewModel.followUser,
@@ -251,25 +256,18 @@ struct ExploreView: View {
             }
         }
         
-        private var momentsSection: some View {
-            MomentsGridSection(
-                moments: viewModel.filteredMoments,
-                onMomentTap: { moment in
-                    viewModel.checkCanViewContent(for: moment.authorId) { canView in
-                        if canView {
-                            selectedMoment = moment
-                        } else {
-                            showPrivateProfileAlert = true
-                        }
-                    }
-                }
-            )
-            .onAppear {
-                for moment in viewModel.filteredMoments {
-                    viewModel.loadAuthorProfile(for: moment.authorId)
+        // MARK: - Handlers
+        private func handleMomentTap(_ moment: Moment) {
+            viewModel.checkCanViewContent(for: moment.authorId) { canView in
+                if canView {
+                    selectedMoment = moment
+                } else {
+                    showPrivateProfileAlert = true
                 }
             }
         }
+        
+        // Removed redundant momentsSection property
         
         private var searchResultsSection: some View {
             SmartSearchResultsView(
@@ -505,6 +503,7 @@ struct ErrorStateView: View {
 // MARK: - Sección de Usuarios Sugeridos
 struct SuggestedUsersSection: View {
     let users: [AppUser]
+    let moments: [Moment] // ✅ Recibimos momentos ya filtrados
     let currentUserInterests: [String]
     let userButtonStates: [String: FollowButtonState]
     let onFollowUser: (String) -> Void
@@ -537,10 +536,14 @@ struct SuggestedUsersSection: View {
                 .padding(.top, 16)
                 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 20) {
+                    HStack(spacing: 16) {
                         ForEach(users) { user in
+                            // ✅ Buscar el último momento visible de este usuario
+                            let latestMoment = moments.first(where: { $0.authorId == user.id })
+                            
                             SuggestedUserCard(
                                 user: user,
+                                backgroundMoment: latestMoment,
                                 commonInterests: Set(user.interests).intersection(Set(currentUserInterests)).count,
                                 buttonState: userButtonStates[user.id] ?? .canFollow,
                                 onFollow: { onFollowUser(user.id) },
@@ -548,7 +551,7 @@ struct SuggestedUsersSection: View {
                             )
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 10)
                 }
             }
         }
@@ -558,6 +561,7 @@ struct SuggestedUsersSection: View {
 // MARK: - Tarjeta de Usuario Sugerido
 struct SuggestedUserCard: View {
     let user: AppUser
+    let backgroundMoment: Moment? // ✅ Momento para el fondo
     let commonInterests: Int
     let buttonState: FollowButtonState
     let onFollow: () -> Void
@@ -565,65 +569,130 @@ struct SuggestedUserCard: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                    Circle()
-                        .fill(
+        ZStack {
+            // ✅ FONDO: Imagen del momento o Gradiente
+            GeometryReader { geometry in
+                if let moment = backgroundMoment,
+                   let imagePath = moment.imagePath,
+                   let url = getImageURL(from: imagePath) {
+                    
+                    KFImage(url)
+                        .placeholder {
+                            defaultBackground
+                        }
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 160, height: 220)
+                        .clipped()
+                        .blur(radius: 8)
+                        .overlay(
+                            // Overlay oscuro para legibilidad
                             LinearGradient(
-                                colors: [
-                                    Color(hex: "667eea").opacity(0.3),
-                                    Color(hex: "764ba2").opacity(0.3)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                                colors: [.black.opacity(0.7), .black.opacity(0.3)],
+                                startPoint: .bottom,
+                                endPoint: .top
                             )
                         )
-                        .frame(width: 80, height: 80)
-                    
-                    ProfileImageeView(imagePath: user.profileImagePath, size: 72)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.6), Color.clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 3
-                            )
-                    )
+                } else {
+                    defaultBackground
+                }
             }
             
-            VStack(spacing: 6) {
-                HStack(spacing: 4) {
-                    Text("\(user.username)")
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
+            // ✅ CONTENIDO
+            VStack(spacing: 12) {
+                Spacer()
+                
+                // Profile Image with Glow
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "667eea").opacity(0.3))
+                        .frame(width: 68, height: 68)
+                        .blur(radius: 8)
                     
-                    // ✅ INSIGNIA DE VERIFICADO
-                    VerifiedBadgeView(userId: user.id, size: 12)
+                    ProfileImageeView(imagePath: user.profileImagePath, size: 60)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                        )
                 }
                 
-                Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
-                    .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(Color(hex: "667eea"))
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text(user.username)
+                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .foregroundColor(.white) // ✅ Texto blanco siempre
+                            .lineLimit(1)
+                            .shadow(radius: 2)
+                        
+                        VerifiedBadgeView(userId: user.id, size: 12)
+                    }
+                    
+                    if commonInterests > 0 {
+                        Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
+                            .font(.custom("Poppins-Medium", size: 11))
+                            .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(1)
+                    } else {
+                        Text("Suggested for you")
+                             .font(.custom("Poppins-Medium", size: 11))
+                             .foregroundColor(.white.opacity(0.9))
+                    }
+                }
+                
+                Button(action: onFollow) {
+                    Text(buttonState == .following ? "Following" : (buttonState == .requestPending ? "Requested" : "Follow"))
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(buttonState.isActionable ? .white : .primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            Group {
+                                if buttonState.isActionable {
+                                    LinearGradient(
+                                        colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                } else {
+                                    Color.white // Botón blanco para "Following"
+                                        .opacity(0.9)
+                                }
+                            }
+                        )
+                        .clipShape(Capsule())
+                }
+                .disabled(!buttonState.isActionable)
             }
-            
-            FollowButton(
-                user: user,
-                buttonState: buttonState,
-                onTap: onFollow
-            )
+            .padding(12)
+            .padding(.bottom, 12)
         }
-        .frame(width: 140)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isPressed)
+        .frame(width: 160, height: 220)
+        .background(Color.black) // Fallback color
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+        .scaleEffect(isPressed ? 0.96 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
         .onTapGesture { onTap() }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: 50) { isPressing in
+        .onLongPressGesture(minimumDuration: 0, pressing: { isPressing in
             isPressed = isPressing
-        } perform: {}
+        }, perform: {})
+    }
+    
+    private var defaultBackground: some View {
+        LinearGradient(
+            colors: [Color(hex: "667eea").opacity(0.2), Color(hex: "764ba2").opacity(0.1)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay(
+            // Patrón sutil o efecto glass
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+        )
     }
 }
 
@@ -800,47 +869,163 @@ struct FollowButton: View {
     }
 }
 
-// MARK: - Sección de Grid de Moments
-struct MomentsGridSection: View {
+// MARK: - Grid Dinámico (Quilt Pattern)
+struct DynamicMomentsGrid: View {
     let moments: [Moment]
     let onMomentTap: (Moment) -> Void
     
-    private let columns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8)
-    ]
+    // El patrón se repite cada 12 items: 3, 3, 3(1L+2S), 3, 3(2S+1R) NO, CORRECCIÓN:
+    // Mejor ciclo: Row(3) -> BigLeft(3 consumidos) -> Row(3) -> BigRight(3 consumidos). Total 12 items.
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("explore.moments.title")
-                        .font(.custom("Poppins-SemiBold", size: 22))
-                        .foregroundColor(.primary)
-                    
-                    Text(String(format: NSLocalizedString("explore.moments.count", comment: "Moments count"), moments.count))
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.secondary)
+        VStack(spacing: 2) { // Spacing vertical del grid = 2
+            let chunked = moments.chunked(into: 12)
+            
+            ForEach(0..<chunked.count, id: \.self) { index in
+                let chunk = chunked[index]
+                let items = Array(chunk)
+                
+                // Renderizar el bloque de 12 (o menos si es el final)
+                DynamicGridBlock(items: items, onMomentTap: onMomentTap)
+            }
+        }
+    }
+}
+
+struct DynamicGridBlock: View {
+    let items: [Moment] // Up to 12 items
+    let onMomentTap: (Moment) -> Void
+    
+    var body: some View {
+        // Calcular filas basados en disponibilidad
+        // Fila 1: 0,1,2 (3 items)
+        if items.count >= 3 {
+             MomentsRowView(moments: Array(items[0..<3]), onTap: onMomentTap)
+        } else {
+             MomentsRowView(moments: items, onTap: onMomentTap)
+        }
+        
+        // Bloque Big Left: 3,4,5 (3 items) -> Index 3 es Big
+        if items.count >= 6 {
+            BigLeftRowView(moments: Array(items[3..<6]), onTap: onMomentTap)
+        } else if items.count > 3 {
+            // Remainder row
+            MomentsRowView(moments: Array(items[3..<items.count]), onTap: onMomentTap)
+        }
+        
+        // Fila 3: 6,7,8 (3 items)
+        if items.count >= 9 {
+             MomentsRowView(moments: Array(items[6..<9]), onTap: onMomentTap)
+        } else if items.count > 6 {
+             MomentsRowView(moments: Array(items[6..<items.count]), onTap: onMomentTap)
+        }
+        
+        // Bloque Big Right: 9,10,11 (3 items) -> Index 11 es Big
+        if items.count >= 12 {
+            BigRightRowView(moments: Array(items[9..<12]), onTap: onMomentTap)
+        } else if items.count > 9 {
+            // Remainder row
+            MomentsRowView(moments: Array(items[9..<items.count]), onTap: onMomentTap)
+        }
+    }
+}
+
+// Fila Standard de 3 items
+struct MomentsRowView: View {
+    let moments: [Moment]
+    let onTap: (Moment) -> Void
+    
+    var body: some View {
+        GeometryReader { geo in
+            let width = (geo.size.width - 4) / 3 // 2 gaps of 2px
+            HStack(spacing: 2) {
+                ForEach(moments) { moment in
+                    MomentCard(moment: moment, onTap: { onTap(moment) })
+                        .frame(width: width, height: width)
+                        .clipped()
+                }
+                // Spacer si hay menos de 3 para alinear a la izquierda
+                if moments.count < 3 {
+                    Spacer()
+                }
+            }
+        }
+        .aspectRatio(3.0/1.0, contentMode: .fit) // Si son 3 cuadrados, ratio 3:1. Si menos, se ajusta el HStack
+        .frame(height: UIScreen.main.bounds.width / 3) // Altura aproximada para layout
+    }
+}
+
+// Bloque Grande Izquierda: [ Big(2x2) ] [ Small / Small ]
+struct BigLeftRowView: View {
+    let moments: [Moment] // Expects 3 items: [Big, Small, Small]
+    let onTap: (Moment) -> Void
+    
+    var body: some View {
+        GeometryReader { geo in
+            let oneUnit = (geo.size.width - 4) / 3
+            let twoUnits = oneUnit * 2 + 2
+            
+            HStack(alignment: .top, spacing: 2) {
+                // Item 0: Grande
+                if moments.indices.contains(0) {
+                    MomentCard(moment: moments[0], onTap: { onTap(moments[0]) })
+                        .frame(width: twoUnits, height: twoUnits)
+                        .clipped()
                 }
                 
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            
-            if moments.isEmpty {
-                EmptyMomentsView()
-            } else {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(moments, id: \.id) { moment in
-                        MomentCard(
-                            moment: moment,
-                            onTap: { onMomentTap(moment) }
-                        )
+                // Stack Derecha: Items 1, 2
+                VStack(spacing: 2) {
+                    if moments.indices.contains(1) {
+                        MomentCard(moment: moments[1], onTap: { onTap(moments[1]) })
+                            .frame(width: oneUnit, height: oneUnit)
+                            .clipped()
+                    }
+                    if moments.indices.contains(2) {
+                        MomentCard(moment: moments[2], onTap: { onTap(moments[2]) })
+                            .frame(width: oneUnit, height: oneUnit)
+                            .clipped()
                     }
                 }
             }
         }
+        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 2)
+    }
+}
+
+// Bloque Grande Derecha: [ Small / Small ] [ Big(2x2) ]
+struct BigRightRowView: View {
+    let moments: [Moment] // Expects 3 items: [Small, Small, Big]
+    let onTap: (Moment) -> Void
+    
+    var body: some View {
+        GeometryReader { geo in
+            let oneUnit = (geo.size.width - 4) / 3
+            let twoUnits = oneUnit * 2 + 2
+            
+            HStack(alignment: .top, spacing: 2) {
+                // Stack Izquierda: Items 0, 1
+                VStack(spacing: 2) {
+                    if moments.indices.contains(0) {
+                        MomentCard(moment: moments[0], onTap: { onTap(moments[0]) })
+                            .frame(width: oneUnit, height: oneUnit)
+                            .clipped()
+                    }
+                    if moments.indices.contains(1) {
+                        MomentCard(moment: moments[1], onTap: { onTap(moments[1]) })
+                            .frame(width: oneUnit, height: oneUnit)
+                            .clipped()
+                    }
+                }
+                
+                // Item 2: Grande
+                if moments.indices.contains(2) {
+                    MomentCard(moment: moments[2], onTap: { onTap(moments[2]) })
+                        .frame(width: twoUnits, height: twoUnits)
+                        .clipped()
+                }
+            }
+        }
+        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 2)
     }
 }
 
@@ -848,90 +1033,54 @@ struct MomentsGridSection: View {
 struct MomentCard: View {
     let moment: Moment
     let onTap: () -> Void
-    @State private var isPressed = false
     
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 6)
-            
-            // Contenido del momento (imagen o video)
-            momentContent
-            
-            // Overlay con información
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 32, height: 32)
-                        
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.white)
+        Button(action: onTap) {
+            GeometryReader { geometry in
+                ZStack {
+                    Color.gray.opacity(0.1)
+                    
+                    if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
+                        ExploreVideoThumbnailView(videoUrl: videoUrl)
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.width)
+                            .clipped()
+                            .overlay(
+                                ZStack {
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .frame(width: 24, height: 24)
+                                    
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.white)
+                                }
+                                .padding(8),
+                                alignment: .bottomTrailing
+                            )
+                    } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
+                        KFImage(url)
+                            .placeholder {
+                                Color.gray.opacity(0.2)
+                            }
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.width)
+                            .clipped()
                     }
                 }
             }
-            .padding(12)
+            .aspectRatio(1, contentMode: .fit) 
         }
-        .frame(width: 120, height: 120)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
-        .onTapGesture { onTap() }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: 50) { isPressing in
-            isPressed = isPressing
-        } perform: {}
+        .buttonStyle(PlainButtonStyle())
     }
     
     @ViewBuilder
     private var momentContent: some View {
-        if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
-            // Video thumbnail
-            ExploreVideoThumbnailView(videoUrl: videoUrl)
-        } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-            // Imagen
-            KFImage(url)
-                .placeholder {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.gray.opacity(0.2))
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "667eea")))
-                        )
-                }
-                .onFailure { error in
-                }
-                .resizable()
-                .scaledToFill()
-                .frame(width: 120, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-        } else {
-            // Placeholder
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.gray.opacity(0.2))
-                .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "photo.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.white)
-                )
-        }
+        EmptyView() // Not used in this simplified version
     }
 }
+
 
 // MARK: - Video Thumbnail View
 struct ExploreVideoThumbnailView: View {
@@ -940,17 +1089,13 @@ struct ExploreVideoThumbnailView: View {
     @State private var isLoading = true
     
     var body: some View {
-        ZStack {
+        Group {
             if let thumbnail = thumbnailImage {
                 Image(uiImage: thumbnail)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 120, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 120, height: 120)
+                Color.gray.opacity(0.1)
                     .overlay(
                         Group {
                             if isLoading {
@@ -959,29 +1104,11 @@ struct ExploreVideoThumbnailView: View {
                             } else {
                                 Image(systemName: "video.fill")
                                     .font(.system(size: 28))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.white.opacity(0.8))
                             }
                         }
                     )
             }
-            
-            // Indicador de video
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 24, height: 24)
-                        
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white)
-                    }
-                }
-            }
-            .padding(8)
         }
         .onAppear {
             generateThumbnail()
@@ -1405,7 +1532,7 @@ class ExploreViewModel: ObservableObject {
         
         // Cargar solicitudes pendientes
         group.enter()
-        firestoreService.fetchNotifications(for: userId) { result in
+        NotificationService.shared.fetchNotificationsOnce(userId: userId) { result in
             defer { group.leave() }
             switch result {
             case .success(let notifications):
@@ -1454,7 +1581,7 @@ class ExploreViewModel: ObservableObject {
             }
         }
         
-        firestoreService.fetchNotifications(for: userId) { [weak self] result in
+        NotificationService.shared.fetchNotificationsOnce(userId: userId) { [weak self] result in
             switch result {
             case .success(let notifications):
                 DispatchQueue.main.async {
@@ -2258,13 +2385,13 @@ struct MomentsSearchGrid: View {
     let onMomentTap: (Moment) -> Void
     
     private let columns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8)
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2)
     ]
     
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
+        LazyVGrid(columns: columns, spacing: 2) {
             ForEach(moments.prefix(12), id: \.id) { moment in
                 MomentCard(
                     moment: moment,
@@ -2272,7 +2399,7 @@ struct MomentsSearchGrid: View {
                 )
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 0)
     }
 }
 

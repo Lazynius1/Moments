@@ -11,6 +11,8 @@ struct GlowsyApp: App {
     @StateObject private var ephemeralCleanupManager = EphemeralCleanupManager()
     @StateObject private var cacheManager = CacheManager.shared
     @State private var showSplash = true
+    @State private var showWhatsNew = false
+    @AppStorage("lastVersionPrompted") private var lastVersionPrompted: String = "1.0.0"
 
     // Agregar una propiedad para almacenar el listener de autenticación
     @State private var authListenerHandle: AuthStateDidChangeListenerHandle?
@@ -42,6 +44,9 @@ struct GlowsyApp: App {
                                     showSplash = false
                                 }
                             }
+                            
+                            // Check version after splash
+                            checkVersion()
                         }
                 } else {
                     TabBarView()
@@ -114,7 +119,7 @@ struct GlowsyApp: App {
                                let chainTitle = userInfo["chainTitle"] as? String {
                                 // Enviar a TabBarView para manejar la navegación a Story Chain
                                 NotificationCenter.default.post(
-                                    name: NSNotification.Name("ShowStoryChain"), 
+                                    name: NSNotification.Name("ShowStoryChain"),
                                     object: nil,
                                     userInfo: ["chainId": chainId, "chainTitle": chainTitle]
                                 )
@@ -123,6 +128,21 @@ struct GlowsyApp: App {
 
                         .transition(.opacity.combined(with: .scale))
                 }
+            }
+            .sheet(isPresented: $showWhatsNew) {
+                WhatsNewView()
+            }
+        }
+    }
+    
+    private func checkVersion() {
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.2.0"
+        
+        if lastVersionPrompted != currentVersion {
+            // Esperar un poco para que la transición del splash termine
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                showWhatsNew = true
+                lastVersionPrompted = currentVersion
             }
         }
     }

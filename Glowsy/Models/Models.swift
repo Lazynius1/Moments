@@ -5,6 +5,11 @@ import UIKit
 import SwiftUI
 import CoreLocation
 
+// MARK: - Filter Models
+struct FilterSettings: Codable {
+    let name: String
+    let intensity: Double
+}
 
 // MARK: - ================== MODELOS DE SEGUIMIENTO Y SOLICITUDES ==================
 
@@ -273,7 +278,14 @@ extension Comment {
         return editedTimestamp != nil
     }
 }
-// MARK: - ================== MODELOS DE CONTENIDO ==================
+// MARK: - Photo Tag for spatial tagging
+struct PhotoTag: Codable, Identifiable, Equatable {
+    var id: String = UUID().uuidString
+    let userId: String
+    let username: String
+    let x: Double // 0.0 to 1.0 (relative to image width)
+    let y: Double // 0.0 to 1.0 (relative to image height)
+}
 
 struct MediaItem: Identifiable, Codable {
     let id = UUID().uuidString
@@ -284,20 +296,22 @@ struct MediaItem: Identifiable, Codable {
     let videoDuration: Double?
     let videoFileSize: Int64?
     let videoResolution: String?
+    let tags: [PhotoTag]? // ✅ Etiquetas espaciales para esta imagen
 
     enum MediaType: String, Codable {
         case image
         case video
     }
     
-    // Init para videos con metadata completa
-    init(type: MediaType, url: String, thumbnailUrl: String? = nil, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) {
+    // Init completo para imágenes/videos
+    init(type: MediaType, url: String, thumbnailUrl: String? = nil, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, tags: [PhotoTag]? = nil) {
         self.type = type
         self.url = url
         self.thumbnailUrl = thumbnailUrl
         self.videoDuration = videoDuration
         self.videoFileSize = videoFileSize
         self.videoResolution = videoResolution
+        self.tags = tags
     }
 }
 
@@ -322,8 +336,31 @@ struct Moment: Identifiable, Codable, Equatable {
     let customListId: String?
     let thumbnailUrl: String?        // URL del thumbnail generado
     let videoDuration: Double?       // Duración en segundos
-    let videoFileSize: Int64?          // Tamaño en bytes
+    let videoFileSize: Int64?        // Tamaño en bytes
     let videoResolution: String?     // "1080x1920", "1080x1080", etc.
+    let scheduledDate: Date?         // ✅ NUEVO: Fecha programada
+    
+    // Helper properties for scheduling
+    var isScheduled: Bool {
+        guard let scheduledDate = scheduledDate else { return false }
+        return scheduledDate > Date()
+    }
+
+    func scheduledTimeFormatted() -> String {
+        guard let scheduledDate = scheduledDate else { return "" }
+        let diff = scheduledDate.timeIntervalSince(Date())
+        
+        if diff <= 0 { return NSLocalizedString("moment.publishing", comment: "Publishing...") }
+        
+        let hours = Int(diff) / 3600
+        let minutes = (Int(diff) % 3600) / 60
+        
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
     
     // ✅ NUEVOS CAMPOS DE CONFIGURACIÓN AVANZADA
     let disableComments: Bool
@@ -353,6 +390,7 @@ struct Moment: Identifiable, Codable, Equatable {
         case videoUrl
         // ✅ NUEVAS CLAVES
         case disableComments, hideLikeCounts, allowSharing
+        case scheduledDate
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
         case trendingScore, engagementRate
     }
@@ -387,6 +425,7 @@ struct Moment: Identifiable, Codable, Equatable {
         disableComments: Bool,
         hideLikeCounts: Bool,
         allowSharing: Bool,
+        scheduledDate: Date? = nil,
         trendingScore: Double? = nil,
         engagementRate: Double? = nil
     ) {
@@ -414,12 +453,52 @@ struct Moment: Identifiable, Codable, Equatable {
         self.disableComments = disableComments
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
+        self.scheduledDate = scheduledDate // ✅ FIXED: Asignar fecha programada
         self.trendingScore = trendingScore
         self.engagementRate = engagementRate
     }
 }
 
+// MARK: - Moment Helpers
+extension Moment {
+    var scheduledRemainingText: String {
+        guard let scheduledDate = scheduledDate else { return "" }
+        let now = Date()
+        guard scheduledDate > now else { return "" }
+        
+        let components = Calendar.current.dateComponents([.day, .hour, .minute], from: now, to: scheduledDate)
+        
+        if let days = components.day, days > 0 {
+            let key = days == 1 ? "moment.scheduled.day" : "moment.scheduled.days"
+            return String(format: NSLocalizedString(key, comment: "Scheduled in X days"), days)
+        } else if let hours = components.hour, hours > 0 {
+            let key = hours == 1 ? "moment.scheduled.hour" : "moment.scheduled.hours"
+            return String(format: NSLocalizedString(key, comment: "Scheduled in X hours"), hours)
+        } else if let minutes = components.minute, minutes > 0 {
+            let key = minutes == 1 ? "moment.scheduled.minute" : "moment.scheduled.minutes"
+            return String(format: NSLocalizedString(key, comment: "Scheduled in X minutes"), minutes)
+        } else {
+            return NSLocalizedString("moment.scheduled.soon", comment: "Scheduled soon")
+        }
+    }
+}
 
+
+
+// ================== MODELO DE HISTORIAS DESTACADAS ==================
+struct HighlightedStory: Identifiable, Codable {
+    @DocumentID var id: String?
+    let title: String
+    let coverImageUrl: String?
+    let storiesCount: Int
+    let createdAt: Date
+    let storyIds: [String]
+    let authorId: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, coverImageUrl, storiesCount, createdAt, storyIds, authorId
+    }
+}
 
 // ================== MODELO DE HISTORIA (CORREGIDO) ==================
 struct Story: Identifiable, Codable {
@@ -598,7 +677,7 @@ struct Story: Identifiable, Codable {
             
             switch StickerItem.StickerType(rawValue: stickerData.type) {
             case .mention:
-                // ✅ RECREAR STICKER DE MENCION con el estilo Instagram
+                // ✅ RECREAR STICKER DE MENCION con estilo nativo
                 if let username = stickerData.username {
                     stickerImage = createMentionStickerImage(username: username)
                 } else {
@@ -727,7 +806,7 @@ struct Story: Identifiable, Codable {
         return renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: width, height: height)
             
-            // ✅ FONDO BLANCO como Instagram
+            // ✅ FONDO BLANCO
             let backgroundPath = UIBezierPath(roundedRect: rect, cornerRadius: height / 2)
             UIColor.white.setFill()
             backgroundPath.fill()
@@ -1015,7 +1094,7 @@ extension StickerItem.StickerType {
 // MARK: - ================== MODELOS DE NOTIFICACIONES ACTUALIZADOS ==================
 
 struct Notification: Identifiable, Codable {
-    let id: String
+    @DocumentID var id: String?
     let type: NotificationType
     let senderId: String
     let senderUsername: String
@@ -1040,10 +1119,12 @@ struct Notification: Identifiable, Codable {
         case storyId
         case storyAuthorId
         case reaction
+        case reactionType // ✅ COMPATIBILIDAD: El servidor usa este campo para momentos
+        case commentText  // ✅ COMPATIBILIDAD: El servidor usa este campo para comentarios
         case commentId
     }
 
-    init(id: String = UUID().uuidString,
+    init(id: String? = nil,
          type: NotificationType,
          senderId: String,
          senderUsername: String,
@@ -1055,6 +1136,7 @@ struct Notification: Identifiable, Codable {
          storyAuthorId: String? = nil,
          reaction: String? = nil,
          commentId: String? = nil) {
+        
         self.id = id
         self.type = type
         self.senderId = senderId
@@ -1071,7 +1153,7 @@ struct Notification: Identifiable, Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decode(String.self, forKey: .id)
+        self.id = try container.decodeIfPresent(String.self, forKey: .id)
         let typeString = try container.decode(String.self, forKey: .type)
         self.type = NotificationType(rawValue: typeString) ?? .newFollower
         self.senderId = try container.decode(String.self, forKey: .senderId)
@@ -1083,13 +1165,27 @@ struct Notification: Identifiable, Codable {
         self.visitCount = try container.decodeIfPresent(Int.self, forKey: .visitCount)
         self.storyId = try container.decodeIfPresent(String.self, forKey: .storyId)
         self.storyAuthorId = try container.decodeIfPresent(String.self, forKey: .storyAuthorId)
-        self.reaction = try container.decodeIfPresent(String.self, forKey: .reaction)
+        
+        // ✅ MAPEO INTELIGENTE DE CONTENIDO
+        // 1. Intentar campo 'reaction' (Stories y manual)
+        // 2. Intentar campo 'reactionType' (Moment reactions de Cloud Functions)
+        // 3. Intentar campo 'commentText' (Comentarios de Cloud Functions)
+        if let reaction = try container.decodeIfPresent(String.self, forKey: .reaction) {
+            self.reaction = reaction
+        } else if let reactionType = try container.decodeIfPresent(String.self, forKey: .reactionType) {
+            self.reaction = reactionType
+        } else if let commentText = try container.decodeIfPresent(String.self, forKey: .commentText) {
+            self.reaction = commentText
+        } else {
+            self.reaction = nil
+        }
+        
         self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(id, forKey: .id)
         try container.encode(type.rawValue, forKey: .type)
         try container.encode(senderId, forKey: .senderId)
         try container.encode(senderUsername, forKey: .senderUsername)
@@ -1111,10 +1207,13 @@ enum NotificationType: String, Codable, CaseIterable {
     case mention = "mention" // ✅ NUEVO: Tipo general para menciones
     case newFollower = "newFollower"
     case followRequest = "followRequest" // NUEVO
+    case requestAccepted = "requestAccepted" // ✅ NUEVO: Solicitud aceptada
     case mutualConnection = "mutualConnection"
     case profileVisit = "profileVisit"
     case storyReaction = "storyReaction"
-    
+    case message = "message" // ✅ NUEVO: Para mensajes directos (DM)
+    case photoTag = "photoTag" // ✅ NUEVO: Para etiquetas en fotos
+
     var displayName: String {
         switch self {
         case .like: return "Me gusta" // Para comentarios
@@ -1123,9 +1222,12 @@ enum NotificationType: String, Codable, CaseIterable {
         case .mention: return "Menciones" // ✅ NUEVO
         case .newFollower: return "Nuevos seguidores"
         case .followRequest: return "Solicitudes de seguimiento" // NUEVO
+        case .requestAccepted: return "Solicitud aceptada" // ✅ NUEVO
         case .mutualConnection: return "Conexiones mutuas"
         case .profileVisit: return "Visitas al perfil"
         case .storyReaction: return "Reacción a historia"
+        case .message: return "Mensajes"
+        case .photoTag: return "Etiquetas en fotos"
         }
     }
     
@@ -1137,9 +1239,12 @@ enum NotificationType: String, Codable, CaseIterable {
         case .mention: return "at.circle.fill" // ✅ NUEVO: Icono @ para menciones
         case .newFollower: return "person.badge.plus"
         case .followRequest: return "person.crop.circle.badge.questionmark"
+        case .requestAccepted: return "person.crop.circle.badge.checkmark" // ✅ NUEVO
         case .mutualConnection: return "person.2.fill"
         case .profileVisit: return "eye.fill"
         case .storyReaction: return "face.smiling"
+        case .message: return "envelope.fill"
+        case .photoTag: return "person.crop.rectangle"
         }
     }
 }

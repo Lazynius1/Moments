@@ -94,7 +94,7 @@ struct VerifiedBadge_Previews: PreviewProvider {
         VStack(spacing: 20) {
             // Solo la chapita
             VerifiedBadge(size: 20, gradient: LinearGradient(
-                colors: [Color(hex: "00A896"), Color(hex: "02C39A"), Color(hex: "00A896").opacity(0.8)],
+                colors: [Color.blue, Color.purple, Color.pink],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ))
@@ -117,17 +117,17 @@ struct VerifiedBadge_Previews: PreviewProvider {
             // Diferentes tamaños
             HStack(spacing: 20) {
                 VerifiedBadge(size: 12, gradient: LinearGradient(
-                    colors: [Color(hex: "00A896"), Color(hex: "02C39A"), Color(hex: "00A896").opacity(0.8)],
+                    colors: [Color.blue, Color.purple, Color.pink],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ))
                 VerifiedBadge(size: 16, gradient: LinearGradient(
-                    colors: [Color(hex: "00A896"), Color(hex: "02C39A"), Color(hex: "00A896").opacity(0.8)],
+                    colors: [Color.blue, Color.purple, Color.pink],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ))
                 VerifiedBadge(size: 20, gradient: LinearGradient(
-                    colors: [Color(hex: "00A896"), Color(hex: "02C39A"), Color(hex: "00A896").opacity(0.8)],
+                    colors: [Color.blue, Color.purple, Color.pink],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ))

@@ -58,6 +58,8 @@ struct AppUser: Identifiable, Codable {
     let activeHoursEnd: String?
     let notificationPreferences: [String: Bool]?
     let bestFriends: [String]
+    let websiteUrl: String? // ✅ NUEVO: Campo para website en bio
+
     
     // ✅ NUEVO: Campo para estado de cuenta
     let isActive: Bool
@@ -83,6 +85,9 @@ struct AppUser: Identifiable, Codable {
     let onlineStatus: OnlineStatus
     let lastSeen: Date?
     let isOnline: Bool
+    
+    // ✅ Privacy: Confirmaciones de lectura
+    let showReadReceipts: Bool
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -101,6 +106,8 @@ struct AppUser: Identifiable, Codable {
         case activeHoursEnd
         case notificationPreferences
         case bestFriends
+        case websiteUrl // ✅ NUEVO
+
         case isActive
         case deactivatedAt
         case deactivatedBy
@@ -114,6 +121,7 @@ struct AppUser: Identifiable, Codable {
         case onlineStatus
         case lastSeen
         case isOnline
+        case showReadReceipts
     }
 
     init(from decoder: Decoder) throws {
@@ -134,6 +142,8 @@ struct AppUser: Identifiable, Codable {
         self.activeHoursEnd = try container.decodeIfPresent(String.self, forKey: .activeHoursEnd)
         self.notificationPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .notificationPreferences)
         self.bestFriends = (try container.decodeIfPresent([String].self, forKey: .bestFriends)) ?? []
+        self.websiteUrl = try container.decodeIfPresent(String.self, forKey: .websiteUrl) // ✅ NUEVO
+
         
         // ✅ NUEVO: Decodificación de campos de activación
         self.isActive = (try container.decodeIfPresent(Bool.self, forKey: .isActive)) ?? true
@@ -173,6 +183,7 @@ struct AppUser: Identifiable, Codable {
         }
         
         self.isOnline = (try container.decodeIfPresent(Bool.self, forKey: .isOnline)) ?? false
+        self.showReadReceipts = (try container.decodeIfPresent(Bool.self, forKey: .showReadReceipts)) ?? true
     }
 
     init(
@@ -192,6 +203,8 @@ struct AppUser: Identifiable, Codable {
         activeHoursEnd: String?,
         notificationPreferences: [String: Bool]?,
         bestFriends: [String],
+        websiteUrl: String? = nil, // ✅ NUEVO
+
         isActive: Bool = true,
         deactivatedAt: Date? = nil,
         deactivatedBy: String? = nil,
@@ -204,7 +217,8 @@ struct AppUser: Identifiable, Codable {
         isVerified: Bool = false,
         onlineStatus: OnlineStatus = .offline,
         lastSeen: Date? = nil,
-        isOnline: Bool = false
+        isOnline: Bool = false,
+        showReadReceipts: Bool = true
     ) {
         self.id = id
         self.username = username
@@ -222,6 +236,8 @@ struct AppUser: Identifiable, Codable {
         self.activeHoursEnd = activeHoursEnd
         self.notificationPreferences = notificationPreferences
         self.bestFriends = bestFriends
+        self.websiteUrl = websiteUrl // ✅ NUEVO
+
         self.isActive = isActive
         self.deactivatedAt = deactivatedAt
         self.deactivatedBy = deactivatedBy
@@ -235,6 +251,7 @@ struct AppUser: Identifiable, Codable {
         self.onlineStatus = onlineStatus
         self.lastSeen = lastSeen
         self.isOnline = isOnline
+        self.showReadReceipts = showReadReceipts
     }
 }
 

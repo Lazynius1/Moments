@@ -53,9 +53,12 @@ struct MediaModerationResult {
 class MediaModerationService {
     static let shared = MediaModerationService()
 
-    private let visionAPIKey = "AIzaSyAfaYObVRF4G5Dk2ir2w7qMhhR57LaP-u4" // REPLACE THIS
-    private let visionBaseURL = "https://vision.googleapis.com/v1/images:annotate"
-    private let speechAPIKey = "AIzaSyAfaYObVRF4G5Dk2ir2w7qMhhR57LaP-u4" // REPLACE THIS
+    private let sightengineUser = "208616776"
+    private let sightengineSecret = "tBgwREigE3caEC8UHEya9ZkpdUM5rtTd"
+    private let sightengineBaseURL = "https://api.sightengine.com/1.0/check.json"
+    
+    // Mantenemos speech por si se usa en audio moderación, pero Sightengine también puede hacerlo
+    private let speechAPIKey = "AIzaSyAfaYObVRF4G5Dk2ir2w7qMhhR57LaP-u4" 
     private let speechBaseURL = "https://speech.googleapis.com/v1/speech:recognize"
     
     // ✅ NUEVO: Queues dedicados para operaciones pesadas
@@ -421,7 +424,7 @@ class MediaModerationService {
     ) {
 
         let group = DispatchGroup()
-        var visionResults: [(Double, [String: String])] = []
+        var visionResults: [(Double, [String: Any])] = []
 
         for (frameData, timestamp) in frames {
             group.enter()
@@ -449,45 +452,44 @@ class MediaModerationService {
     private func analyzeFrameWithVision(
         frameData: Data,
         timestamp: Double,
-        completion: @escaping ([String: String]?) -> Void
+        completion: @escaping ([String: Any]?) -> Void
     ) {
-        guard let originalImage = UIImage(data: frameData) else {
-            completion(nil)
-            return
-        }
-
-        // ✅ MENOR RESOLUCIÓN para mayor velocidad
-        let maxDimension: CGFloat = 640 // Reducido de 1280
-        let resizedImage = originalImage.resized(toMaxDimension: maxDimension)
-        guard let resizedImageData = resizedImage.jpegData(compressionQuality: 0.5) else { // Mayor compresión
-            completion(nil)
-            return
-        }
-
-
-        let base64Image = resizedImageData.base64EncodedString()
-        let requestBody: [String: Any] = [
-            "requests": [
-                [
-                    "image": ["content": base64Image],
-                    "features": [
-                        ["type": "SAFE_SEARCH_DETECTION", "maxResults": 1]
-                    ]
-                ]
-            ]
-        ]
-
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody),
-              let url = URL(string: "\(visionBaseURL)?key=\(visionAPIKey)") else {
+        // Sightengine prefiere multipart/form-data para imágenes
+        let boundary = "Boundary-\(UUID().uuidString)"
+        guard let url = URL(string: sightengineBaseURL) else {
             completion(nil)
             return
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = jsonData
-        request.timeoutInterval = 10.0 // ✅ TIMEOUT REDUCIDO
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        
+        // Parámetros
+        let parameters = [
+            "api_user": sightengineUser,
+            "api_secret": sightengineSecret,
+            "models": "nudity-2.1,face-attributes,scam,offensive"
+        ]
+        
+        for (key, value) in parameters {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        
+        // Imagen
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"media\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(frameData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+        request.timeoutInterval = 20.0
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
@@ -502,20 +504,11 @@ class MediaModerationService {
 
             do {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let errorJson = json["error"] as? [String: Any],
-                       let errorMessage = errorJson["message"] as? String {
+                    if let status = json["status"] as? String, status == "failure" {
                         completion(nil)
                         return
                     }
-
-                    guard let responses = json["responses"] as? [[String: Any]],
-                          let firstResponse = responses.first,
-                          let safeSearch = firstResponse["safeSearchAnnotation"] as? [String: String] else {
-                        completion(nil)
-                        return
-                    }
-
-                    completion(safeSearch)
+                    completion(json)
                 } else {
                     completion(nil)
                 }
@@ -723,7 +716,7 @@ class MediaModerationService {
 
     // MARK: - RESTO DE FUNCIONES (SIN CAMBIOS PERO MANTENIENDO NOMBRES ORIGINALES)
     
-    private func combineFrameResults(_ results: [(Double, [String: String])]) -> MediaModerationResult {
+    private func combineFrameResults(_ results: [(Double, [String: Any])]) -> MediaModerationResult {
         guard !results.isEmpty else {
             return MediaModerationResult(
                 visualScore: 0.0,
@@ -736,42 +729,64 @@ class MediaModerationService {
 
         var maxAdultScore = 0.0
         var maxViolenceScore = 0.0
-        var maxRacyScore = 0.0
         var problematicFrames: [String] = []
+        var finalAction: MediaModerationAction = .approved
 
-        for (timestamp, safeSearch) in results {
-            let adultScore = scoreFromLevel(safeSearch["adult"])
-            let violenceScore = scoreFromLevel(safeSearch["violence"])
-            let racyScore = scoreFromLevel(safeSearch["racy"])
+        for (timestamp, json) in results {
+            // Parsing Sightengine Nudity
+            if let nudity = json["nudity"] as? [String: Any] {
+                let sexualDisplay = nudity["sexual_display"] as? Double ?? 0.0
+                let sexualActivity = nudity["sexual_activity"] as? Double ?? 0.0
+                let erotic = nudity["erotica"] as? Double ?? 0.0
+                let sexting = nudity["sexting"] as? Double ?? 0.0
+                
+                // Estos son los que permitimos (Fitness y Swimwear)
+                let fitness = nudity["fitness"] as? Double ?? 0.0
+                let swimwear = nudity["swimwear"] as? Double ?? 0.0
+                
+                // Lógica "Modo Instagram": 
+                // Si es fitness o swimwear, ignoramos si no hay contenido sexual explícito
+                let combinedAdult = max(sexualDisplay, sexualActivity, erotic * 0.8, sexting)
+                
+                if combinedAdult > 0.90 {
+                    finalAction = .deleted(reason: "Contenido sexual explícito detectado", category: "adult")
+                    problematicFrames.append("\(Int(timestamp))s")
+                } else if combinedAdult > 0.70 {
+                    finalAction = .warning(reason: "Contenido sugerente", category: "adult")
+                }
+                
+                maxAdultScore = max(maxAdultScore, combinedAdult)
+            }
+            
+            // Parsing Scam/Fraud (El pájaro)
+            if let scam = json["scam"] as? [String: Any] {
+                let prob = scam["prob"] as? Double ?? 0.0
+                // Solo bloqueamos si es extremadamente seguro que es un scam o falsificación
+                if prob > 0.98 {
+                    finalAction = .deleted(reason: "Posible fraude o falsificación", category: "scam")
+                }
+            }
 
-            maxAdultScore = max(maxAdultScore, adultScore)
-            maxViolenceScore = max(maxViolenceScore, violenceScore)
-            maxRacyScore = max(maxRacyScore, racyScore)
-
-            // ✅ UMBRAL MÁS ALTO para ser menos agresivo
-            if adultScore >= 0.8 || violenceScore >= 0.8 || racyScore >= 0.9 {
-                problematicFrames.append("\(Int(timestamp))s")
+            // Parsing Offensive/Hate
+            if let offensive = json["offensive"] as? [String: Any] {
+                let prob = offensive["prob"] as? Double ?? 0.0
+                if prob > 0.90 {
+                    finalAction = .deleted(reason: "Contenido ofensivo detectado", category: "offensive")
+                }
             }
         }
 
-        let visualScore = max(maxAdultScore, maxViolenceScore, maxRacyScore * 0.8)
-        let action = determineActionFromScores(
-            adult: maxAdultScore,
-            violence: maxViolenceScore,
-            racy: maxRacyScore
-        )
-
+        let visualScore = maxAdultScore
+        
         return MediaModerationResult(
             visualScore: visualScore,
             audioScore: nil,
             combinedScore: visualScore,
-            action: action,
+            action: finalAction,
             details: [
                 "frames_analyzed": results.count,
                 "problematic_frames": problematicFrames,
-                "max_adult_score": maxAdultScore,
-                "max_violence_score": maxViolenceScore,
-                "max_racy_score": maxRacyScore
+                "provider": "sightengine"
             ]
         )
     }
@@ -888,60 +903,35 @@ class MediaModerationService {
         contentType: ContentType,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
-        analyzeFrameWithVision(frameData: imageData, timestamp: 0.0) { [weak self] safeSearchData in
-            guard let safeSearch = safeSearchData else {
-                let errorAction: MediaModerationAction = .error("Error analizando imagen con Vision API")
-                self?.logModerationEvent(
-                    userId: userId,
-                    mediaURL: originalURL,
-                    mediaType: "image",
-                    contentType: contentType.rawValue,
-                    action: self?.actionToString(errorAction) ?? "moderation_error",
-                    reason: self?.getReasonFromAction(errorAction) ?? "Error Vision API",
-                    category: self?.getCategoryFromAction(errorAction) ?? "system_error",
-                    contentId: contentId
-                )
+        analyzeFrameWithVision(frameData: imageData, timestamp: 0.0) { [weak self] json in
+            guard let json = json else {
+                let errorAction: MediaModerationAction = .error("Error analizando imagen con Sightengine")
                 completion(errorAction)
                 return
             }
 
-            let result = self?.analyzeSafeSearch(safeSearch) ?? .approved
-            let actionString = self?.actionToString(result) ?? "approved"
+            let result = self?.analyzeSightengineResult(json) ?? .approved
+            
             self?.logModerationEvent(
                 userId: userId,
                 mediaURL: originalURL,
                 mediaType: "image",
                 contentType: contentType.rawValue,
-                action: actionString,
+                action: self?.actionToString(result) ?? "approved",
                 reason: self?.getReasonFromAction(result) ?? "Contenido analizado",
                 category: self?.getCategoryFromAction(result) ?? "clean",
                 contentId: contentId,
-                visionData: safeSearch
+                visionData: ["provider": "sightengine"] // Simplificado para el log
             )
 
             completion(result)
         }
     }
 
-    private func analyzeSafeSearch(_ safeSearch: [String: String]) -> MediaModerationAction {
-        safeSearch.forEach { key, value in
-        }
-
-        let adultScore = scoreFromLevel(safeSearch["adult"])
-        let violenceScore = scoreFromLevel(safeSearch["violence"])
-        let racyScore = scoreFromLevel(safeSearch["racy"])
-        let spoofedScore = scoreFromLevel(safeSearch["spoof"])
-        let medicalScore = scoreFromLevel(safeSearch["medical"])
-
-        // ✅ UMBRALES MÁS ALTOS para ser menos agresivo
-        if spoofedScore >= 0.9 {
-            return .deleted(reason: "Contenido falsificado detectado", category: ModerationCategory.spoofed.rawValue)
-        }
-        if medicalScore >= 0.9 {
-            return .warning(reason: "Contenido médico detectado", category: ModerationCategory.medical.rawValue)
-        }
-
-        return determineActionFromScores(adult: adultScore, violence: violenceScore, racy: racyScore)
+    private func analyzeSightengineResult(_ json: [String: Any]) -> MediaModerationAction {
+        // Usamos la misma lógica que combineFrameResults pero para una sola imagen
+        let result = combineFrameResults([(0.0, json)])
+        return result.action
     }
 
     private func getReasonFromAction(_ action: MediaModerationAction) -> String {
@@ -1170,51 +1160,53 @@ class MediaModerationService {
 
     private func determineActionFromScoresWithConfig(adult: Double, violence: Double, racy: Double, completion: @escaping (MediaModerationAction) -> Void) {
         loadModerationSettings { [weak self] config in
-            // ✅ UMBRALES SIMILARES A INSTAGRAM (balanceados)
+            // ✅ UMBRALES EQUILIBRADOS Y MÁS TOLERANTES
+            // Modificado para permitir fotos "racy" (sin camiseta, playa, fitness) y evitar falsos positivos con pájaros (spoofed)
             let deleteThresholds = config?["deleteThresholds"] as? [String: Double] ?? [
-                "adult": 0.85,     // Más permisivo - Solo desnudez explícita
-                "violence": 0.75,  // Más permisivo - Solo violencia gráfica
-                "racy": 0.98,      // Casi imposible de eliminar - Solo contenido extremadamente explícito
-                "medical": 0.9,    // Más permisivo - Solo contenido médico muy explícito
-                "spoofed": 0.8     // Más permisivo - Solo manipulaciones obvias
+                "adult": 0.95,     // Muy estricto: Solo desnudez explícita
+                "violence": 0.85,  // Solo violencia gráfica extrema
+                "racy": 0.99,      // Prácticamente deshabilitado para borrar
+                "medical": 0.95,   // Solo contenido médico explícito
+                "spoofed": 0.99    // Evitar que detecte animales/pájaros como falsos
             ]
 
             let warningThresholds = config?["warningThresholds"] as? [String: Double] ?? [
-                "adult": 0.75,     // Más permisivo - Advertencia solo para contenido muy adulto
-                "violence": 0.65,  // Más permisivo - Advertencia solo para violencia moderada
-                "racy": 0.95,      // Casi imposible de advertir - Solo contenido extremadamente explícito
-                "medical": 0.8,    // Más permisivo - Advertencia solo para contenido médico moderado
-                "spoofed": 0.7     // Más permisivo - Advertencia solo para manipulaciones moderadas
+                "adult": 0.90,     // Advertencia solo si es casi seguro (VERY_LIKELY)
+                "violence": 0.80,  
+                "racy": 0.98,      // Deshabilitado en la práctica
+                "medical": 0.90,   
+                "spoofed": 0.95    
             ]
 
+            // 1. ADULT CONTENT
             if adult >= deleteThresholds["adult"]! {
-                completion(.deleted(reason: "Contenido adulto detectado", category: ModerationCategory.adult.rawValue))
+                completion(.deleted(reason: "Contenido adulto explícito detectado", category: ModerationCategory.adult.rawValue))
                 return
             }
-            if violence >= deleteThresholds["violence"]! {
-                completion(.deleted(reason: "Contenido violento detectado", category: ModerationCategory.violence.rawValue))
-                return
-            }
-            // ✅ DESHABILITADO: Moderación de racy (demasiado conservadora)
-            // if racy >= deleteThresholds["racy"]! {
-            //     completion(.deleted(reason: "Contenido explícito detectado", category: ModerationCategory.racy.rawValue))
-            //     return
-            // }
-
             if adult >= warningThresholds["adult"]! {
                 completion(.warning(reason: "Contenido potencialmente adulto", category: ModerationCategory.adult.rawValue))
+                return
+            }
+
+            // 2. VIOLENCE
+            if violence >= deleteThresholds["violence"]! {
+                completion(.deleted(reason: "Contenido violento extremo detectado", category: ModerationCategory.violence.rawValue))
                 return
             }
             if violence >= warningThresholds["violence"]! {
                 completion(.warning(reason: "Contenido potencialmente violento", category: ModerationCategory.violence.rawValue))
                 return
             }
-            // ✅ DESHABILITADO: Advertencias de racy (demasiado conservadora)
-            // if racy >= warningThresholds["racy"]! {
-            //     completion(.warning(reason: "Contenido potencialmente sugerente", category: ModerationCategory.racy.rawValue))
-            //     return
-            // }
 
+            // 3. SPOOFED (El problema de los pájaros/animales)
+            // Solo actuar si es una falsificación extremadamente evidente
+            if racy >= deleteThresholds["spoofed"]! {
+                completion(.deleted(reason: "Contenido falsificado detectado", category: ModerationCategory.spoofed.rawValue))
+                return
+            }
+
+            // ✅ RACY está deshabilitado intencionadamente para permitir fotos de perfil fitness/playa
+            
             completion(.approved)
         }
     }

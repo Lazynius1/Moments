@@ -12,9 +12,9 @@ struct GlassmorphicBackground: View {
     
     var body: some View {
         ZStack {
-            // ✅ FONDO ADAPTATIVO: Instagram-style en modo oscuro
+            // ✅ FONDO ADAPTATIVO: Diseño optimizado en modo oscuro
             if adaptiveColors.colorScheme == .dark {
-                // Negro elegante tipo Instagram - más suave
+                // Negro elegante - más suave
                 Color(hex: "1A1A1A") // Negro más suave, menos agresivo
                     .ignoresSafeArea()
             } else {
@@ -107,6 +107,7 @@ struct MessagingView: View {
     @State private var isShowingNewConversation = false
     @State private var selectedConversation: Conversation? // ✅ Solo para navigationDestination
     @Binding var targetConversationId: String?
+    var onDismiss: (() -> Void)? = nil
     @State private var offsetValues: [String: CGFloat] = [:]
     
     @State private var searchText: String = ""
@@ -315,16 +316,28 @@ struct MessagingView: View {
     private var glassmorphicTopBar: some View {
         VStack(spacing: 8) {
             HStack {
-                // New conversation button (izquierda)
-                Button(action: {
-                    isShowingNewConversation = true
-                }) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 22))
-                        .foregroundColor(adaptiveColors.primary)
-                        .frame(width: 44, height: 44)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
+                if let onDismiss = onDismiss {
+                    // Close button if presented fullscreen
+                    Button(action: { onDismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(adaptiveColors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                } else {
+                    // New conversation button (izquierda)
+                    Button(action: {
+                        isShowingNewConversation = true
+                    }) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 22))
+                            .foregroundColor(adaptiveColors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
                 }
                 
                 Spacer()
@@ -367,30 +380,46 @@ struct MessagingView: View {
                 
                 Spacer()
                 
-                // Message requests button (derecha)
-                Button(action: {
-                    showingMessageRequests = true
-                }) {
-                    ZStack {
-                        Image(systemName: "message.circle")
-                            .font(.system(size: 22))
-                            .foregroundColor(adaptiveColors.primary)
-                            .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                        
-                        // Badge for pending requests
-                        if pendingRequestCount > 0 {
-                            Text("\(pendingRequestCount)")
-                                .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .frame(width: 18, height: 18)
-                                .background(
-                                    Circle()
-                                        .fill(Color(hex: "FF3B30"))
-                                )
-                                .offset(x: 12, y: -12)
+                HStack(spacing: 12) {
+                    if onDismiss != nil {
+                        // New conversation button moved here if presented fullscreen
+                        Button(action: {
+                            isShowingNewConversation = true
+                        }) {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 20))
+                                .foregroundColor(adaptiveColors.primary)
+                                .frame(width: 44, height: 44)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                        }
+                    }
+                    
+                    // Message requests button (derecha)
+                    Button(action: {
+                        showingMessageRequests = true
+                    }) {
+                        ZStack {
+                            Image(systemName: "message.circle")
+                                .font(.system(size: 22))
+                                .foregroundColor(adaptiveColors.primary)
+                                .frame(width: 44, height: 44)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                            
+                            // Badge for pending requests
+                            if pendingRequestCount > 0 {
+                                Text("\(pendingRequestCount)")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(width: 18, height: 18)
+                                    .background(
+                                        Circle()
+                                            .fill(Color(hex: "FF3B30"))
+                                    )
+                                    .offset(x: 12, y: -12)
+                            }
                         }
                     }
                 }
@@ -550,15 +579,15 @@ struct MessagingView: View {
              }
          } else {
              ScrollView(showsIndicators: false) {
-                 VStack(spacing: 0) { // ✅ Sin spacing entre conversaciones (estilo Instagram)
+                 VStack(spacing: 0) { // ✅ Sin spacing entre conversaciones
                      if isSearching {
                          searchResultsSection
                      } else {
                          conversationsSection
                      }
                  }
-                 .padding(.horizontal, 0) // ✅ Sin padding horizontal (estilo Instagram)
-                 .padding(.vertical, 0) // ✅ Sin padding vertical (estilo Instagram)
+                 .padding(.horizontal, 0) // ✅ Sin padding horizontal
+                 .padding(.vertical, 0) // ✅ Sin padding vertical
              }
          }
      }
@@ -743,7 +772,7 @@ struct MessagingView: View {
     }
 }
 
-// ✅ NUEVO COMPONENTE: Conversación con swipe actions (estilo Instagram)
+// ✅ NUEVO COMPONENTE: Conversación con swipe actions
 struct SwipeableConversationRow: View {
     let conversation: Conversation
     let onTap: () -> Void
@@ -789,13 +818,13 @@ struct SwipeableConversationRow: View {
             }
             .cornerRadius(20)
             
-            // ✅ Fila de conversación principal (estilo Instagram)
+            // ✅ Fila de conversación principal
             VStack(spacing: 0) {
                 GlassmorphicConversationRow(conversation: conversation, onTap: onTap)
                     .background(Color.clear) // ✅ Sin fondo sólido, mantener transparencia
                     .offset(x: offset)
                 
-                // ✅ Separador sutil como Instagram
+                // ✅ Separador sutil
                 Rectangle()
                     .fill(Color.white.opacity(0.1))
                     .frame(height: 0.5)
@@ -1054,6 +1083,7 @@ struct GlassmorphicConversationRow: View {
         // ✅ NUEVO: Sheet para mostrar historias del usuario
         .sheet(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(storiesUserId))
+                .ignoresSafeArea(.keyboard) // ✅ Prevenir shift del keyboard
         }
         // ✅ NUEVO: Sheet para navegación al perfil del usuario
         .sheet(isPresented: $showingUserProfile) {
@@ -1111,38 +1141,46 @@ struct GlassmorphicConversationRow: View {
                                         let wasViewed = viewerDoc?.exists == true
                                         syncQueue.async {
                                             visibleStories.append((story: story, wasViewed: wasViewed))
+                                            group.leave() // ✅ Leave INSIDE syncQueue for thread safety
                                         }
-                                        group.leave()
+                                        group.leave() // Matches the storyId check enter
                                     }
                             } else {
                                 syncQueue.async {
                                     visibleStories.append((story: story, wasViewed: false))
+                                    group.leave() // ✅ Leave INSIDE syncQueue
                                 }
                             }
+                        } else {
+                            group.leave() // ✅ Leave if not viewable
                         }
-                        group.leave()
                     }
                 }
                 
                 group.notify(queue: .main) {
-                    if !visibleStories.isEmpty {
-                        self.hasStory = true
-                        let storyCount = visibleStories.count
-                        // Ordenar por timestamp y extraer el estado de visto
-                        let sortedStories = visibleStories.sorted { story1, story2 in
-                            (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
+                    // ✅ Use syncQueue to safely read visibleStories
+                    syncQueue.async {
+                        let finalStories = visibleStories
+                        DispatchQueue.main.async {
+                            if !finalStories.isEmpty {
+                                self.hasStory = true
+                                let storyCount = finalStories.count
+                                let sortedStories = finalStories.sorted { story1, story2 in
+                                    (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
+                                }
+                                let viewedStatus = sortedStories.map { $0.wasViewed }
+                                let hasUnseenVisible = viewedStatus.contains(false)
+                                
+                                self.storyCount = storyCount
+                                self.storyViewedStatus = viewedStatus
+                                self.hasUnseenStory = hasUnseenVisible
+                            } else {
+                                self.hasStory = false
+                                self.hasUnseenStory = false
+                                self.storyCount = 0
+                                self.storyViewedStatus = []
+                            }
                         }
-                        let viewedStatus = sortedStories.map { $0.wasViewed }
-                        let hasUnseenVisible = viewedStatus.contains(false)
-                        
-                        self.storyCount = storyCount
-                        self.storyViewedStatus = viewedStatus
-                        self.hasUnseenStory = hasUnseenVisible
-                    } else {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                        self.storyCount = 0
-                        self.storyViewedStatus = []
                     }
                 }
             }
@@ -1678,7 +1716,7 @@ class MessagingViewModel: ObservableObject {
         }
     }
 
-    // ✅ NUEVA: Refrescar los primeros usuarios visibles (como Instagram)
+    // ✅ NUEVA: Refrescar los primeros usuarios visibles (optimizado)
     func refreshVisibleUsers() {
         let visibleUsers = Array(conversations.prefix(10)) // Primeros 10
         for conversation in visibleUsers {

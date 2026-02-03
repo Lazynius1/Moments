@@ -830,19 +830,15 @@ extension BackgroundStoryUploadService {
     
     // ✅ FUNCIÓN: Optimizar imagen para historias
     private func optimizeImageForStory(_ image: UIImage) -> UIImage {
-        // ✅ PASO 1: Normalizar orientación
+        // Normalizamos orientación siempre
         let normalizedImage = image.normalized()
         
-        // ✅ PASO 2: Comprimir a JPEG
-        guard let compressedData = normalizedImage.jpegData(compressionQuality: 0.9) else {
-            return normalizedImage
-        }
+        // Capped dimension for memory - Stories are typically 1080x1920
+        // Using 1440 for high quality but much less memory than camera resolution
+        let maxDimension: CGFloat = 1440
         
-        // ✅ PASO 3: Redimensionar si es muy grande (>8MB)
-        if compressedData.count > 8 * 1024 * 1024 { // 8MB
-            let maxDimension: CGFloat = 3072
-            let resizedImage = calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
-            return resizedImage
+        if normalizedImage.size.width > maxDimension || normalizedImage.size.height > maxDimension {
+            return calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
         }
         
         return normalizedImage

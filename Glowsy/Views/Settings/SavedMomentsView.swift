@@ -529,38 +529,43 @@ struct GridMomentCard: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var showingFullScreen = false
     
+    // Estados para miniaturas de video
+    @State private var videoThumbnail: UIImage?
+    @State private var isLoadingVideoThumbnail = false
+    
     var body: some View {
         Button(action: { showingFullScreen = true }) {
             ZStack {
-                if let imagePath = moment.imagePath {
-                    AsyncImage(url: URL(string: imagePath)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: UIScreen.main.bounds.width / 3 - 14, height: UIScreen.main.bounds.width / 3 - 14)
-                            .clipped()
-                    } placeholder: {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: UIScreen.main.bounds.width / 3 - 14, height: UIScreen.main.bounds.width / 3 - 14)
-                            .overlay(ProgressView().scaleEffect(0.8))
+                // --- CONTENIDO MEDIA ---
+                if let mediaItem = moment.mediaItems?.first {
+                    if mediaItem.type == .video {
+                        videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
+                    } else {
+                        imageView(url: mediaItem.url)
                     }
+                } else if let imagePath = moment.imagePath {
+                    imageView(url: imagePath)
+                } else if let videoUrl = moment.videoUrl {
+                    videoView(videoURL: videoUrl, thumbnailURL: moment.thumbnailUrl)
                 } else {
-                    ZStack {
-                        LinearGradient(
-                            colors: [Color(hex: "00A896").opacity(0.8), Color(hex: "00A896").opacity(0.6)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        
-                        Text(moment.content)
-                            .font(.custom("Poppins-Medium", size: 12))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(4)
-                            .padding(8)
+                    // Momento de texto
+                    textMomentView()
+                }
+                
+                // Play indicator si es video
+                if isVideo {
+                    VStack {
+                        HStack {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.white)
+                                .padding(5)
+                                .background(Circle().fill(.black.opacity(0.3)))
+                            Spacer()
+                        }
+                        Spacer()
                     }
-                    .frame(width: UIScreen.main.bounds.width / 3 - 14, height: UIScreen.main.bounds.width / 3 - 14)
+                    .padding(6)
                 }
                 
                 VStack {
@@ -608,6 +613,115 @@ struct GridMomentCard: View {
             .environmentObject(FirestoreService())
         }
     }
+    
+    private var isVideo: Bool {
+        if let firstMedia = moment.mediaItems?.first {
+            return firstMedia.type == .video
+        }
+        return moment.videoUrl != nil
+    }
+    
+    @ViewBuilder
+    private func imageView(url: String) -> some View {
+        KFImage(URL(string: url))
+            .placeholder {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: itemWidth, height: itemWidth)
+                    .overlay(ProgressView().scaleEffect(0.8))
+            }
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(width: itemWidth, height: itemWidth)
+            .clipped()
+    }
+    
+    @ViewBuilder
+    private func videoView(videoURL: String, thumbnailURL: String?) -> some View {
+        ZStack {
+            if let thumb = thumbnailURL, let url = URL(string: thumb) {
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: itemWidth, height: itemWidth)
+                    .clipped()
+            } else if let generated = videoThumbnail {
+                Image(uiImage: generated)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: itemWidth, height: itemWidth)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: itemWidth, height: itemWidth)
+                    .overlay(
+                        VStack(spacing: 4) {
+                            if isLoadingVideoThumbnail {
+                                ProgressView().scaleEffect(0.6).tint(.white)
+                            } else {
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                        }
+                    )
+                    .onAppear {
+                        loadVideoThumbnail(from: videoURL)
+                    }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func textMomentView() -> some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "00A896").opacity(0.8), Color(hex: "00A896").opacity(0.6)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            
+            Text(moment.content)
+                .font(.custom("Poppins-Medium", size: 12))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(4)
+                .padding(8)
+        }
+        .frame(width: itemWidth, height: itemWidth)
+    }
+    
+    private var itemWidth: CGFloat {
+        UIScreen.main.bounds.width / 3 - 14
+    }
+    
+    private func loadVideoThumbnail(from urlString: String) {
+        guard videoThumbnail == nil, !isLoadingVideoThumbnail, let url = URL(string: urlString) else { return }
+        
+        isLoadingVideoThumbnail = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let asset = AVAsset(url: url)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            imageGenerator.maximumSize = CGSize(width: itemWidth * 2, height: itemWidth * 2)
+            
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
+                let uiImage = UIImage(cgImage: cgImage)
+                
+                DispatchQueue.main.async {
+                    self.videoThumbnail = uiImage
+                    self.isLoadingVideoThumbnail = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isLoadingVideoThumbnail = false
+                }
+            }
+        }
+    }
 }
 
 // MARK: - ✅ ListMomentCard CORREGIDO
@@ -617,37 +731,42 @@ struct ListMomentCard: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var showingFullScreen = false
     
+    // Estados para miniaturas de video
+    @State private var videoThumbnail: UIImage?
+    @State private var isLoadingVideoThumbnail = false
+    
     var body: some View {
         Button(action: { showingFullScreen = true }) {
             HStack(spacing: 12) {
-                if let imagePath = moment.imagePath {
-                    AsyncImage(url: URL(string: imagePath)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 60, height: 60)
-                            .cornerRadius(8)
-                            .clipped()
-                    } placeholder: {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 60, height: 60)
-                            .overlay(ProgressView().scaleEffect(0.6))
+                // --- CONTENIDO MEDIA ---
+                ZStack {
+                    if let mediaItem = moment.mediaItems?.first {
+                        if mediaItem.type == .video {
+                            videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
+                        } else {
+                            imageView(url: mediaItem.url)
+                        }
+                    } else if let imagePath = moment.imagePath {
+                        imageView(url: imagePath)
+                    } else if let videoUrl = moment.videoUrl {
+                        videoView(videoURL: videoUrl, thumbnailURL: moment.thumbnailUrl)
+                    } else {
+                        // Momento de texto
+                        textMomentView()
                     }
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(LinearGradient(
-                            colors: [Color(hex: "00A896").opacity(0.8), Color(hex: "00A896").opacity(0.6)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 60, height: 60)
-                        .overlay(
-                            Image(systemName: "text.quote")
-                                .font(.system(size: 20))
-                                .foregroundColor(.white)
-                        )
+                    
+                    // Indicador de video pequeño
+                    if isVideo {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 8))
+                            .foregroundColor(.white)
+                            .padding(3)
+                            .background(Circle().fill(.black.opacity(0.3)))
+                    }
                 }
+                .frame(width: 60, height: 60)
+                .cornerRadius(8)
+                .clipped()
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("@\(moment.username)")
@@ -703,6 +822,105 @@ struct ListMomentCard: View {
                 }
             )
             .environmentObject(FirestoreService())
+        }
+    }
+    
+    private var isVideo: Bool {
+        if let firstMedia = moment.mediaItems?.first {
+            return firstMedia.type == .video
+        }
+        return moment.videoUrl != nil
+    }
+    
+    @ViewBuilder
+    private func imageView(url: String) -> some View {
+        KFImage(URL(string: url))
+            .placeholder {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 60, height: 60)
+                    .overlay(ProgressView().scaleEffect(0.6))
+            }
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(width: 60, height: 60)
+    }
+    
+    @ViewBuilder
+    private func videoView(videoURL: String, thumbnailURL: String?) -> some View {
+        ZStack {
+            if let thumb = thumbnailURL, let url = URL(string: thumb) {
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 60, height: 60)
+            } else if let generated = videoThumbnail {
+                Image(uiImage: generated)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 60, height: 60)
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Group {
+                            if isLoadingVideoThumbnail {
+                                ProgressView().scaleEffect(0.5).tint(.white)
+                            } else {
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                        }
+                    )
+                    .onAppear {
+                        loadVideoThumbnail(from: videoURL)
+                    }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func textMomentView() -> some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(LinearGradient(
+                colors: [Color(hex: "00A896").opacity(0.8), Color(hex: "00A896").opacity(0.6)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+            .frame(width: 60, height: 60)
+            .overlay(
+                Image(systemName: "text.quote")
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+            )
+    }
+    
+    private func loadVideoThumbnail(from urlString: String) {
+        guard videoThumbnail == nil, !isLoadingVideoThumbnail, let url = URL(string: urlString) else { return }
+        
+        isLoadingVideoThumbnail = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let asset = AVAsset(url: url)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            imageGenerator.maximumSize = CGSize(width: 120, height: 120) // Smaller for list
+            
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
+                let uiImage = UIImage(cgImage: cgImage)
+                
+                DispatchQueue.main.async {
+                    self.videoThumbnail = uiImage
+                    self.isLoadingVideoThumbnail = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isLoadingVideoThumbnail = false
+                }
+            }
         }
     }
 }
@@ -768,6 +986,8 @@ struct ModernSavedMomentsDetailView: View {
             if let moment = selectedMoment {
                 ModernCommentsView(moment: moment)
                     .environmentObject(firestoreService)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
                         .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRemoveAlert) {
@@ -880,19 +1100,19 @@ struct ModernSavedDetailHeader: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 12) {
                         AsyncSavedProfileImageView(userId: moment.authorId)
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.5)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
+                                .frame(width: 40, height: 40)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.5)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
                                         lineWidth: 1.5
-                                    )
-                            )
+                                        )
+                                )
                         
                         VStack(spacing: 2) {
                             Text(moment.username)
@@ -996,6 +1216,7 @@ struct ModernSavedDetailMomentCard: View {
     @State private var hasLoadedInitialData: Bool = false
     @State private var isFollowing: Bool = false
     @State private var isFollowLoading: Bool = false
+    @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var aspectRatioType: AspectRatioType = .square
     
     // ✅ AGREGAR: Colores adaptativos
@@ -1060,6 +1281,7 @@ struct ModernSavedDetailMomentCard: View {
                     EnhancedCarouselView(
                         mediaItems: mediaItems,
                         currentIndex: $currentImageIndex,
+                        showTags: $showTags, // ✅ PASAR binding
                         aspectRatio: detectedAspectRatio,
                         allMoments: [], // ✅ AGREGAR: Array vacío para guardados (no necesita ReelsViewer)
                         currentMoment: moment // ✅ AGREGAR: El momento actual
@@ -1113,9 +1335,80 @@ struct ModernSavedDetailMomentCard: View {
                                 )
                                 Spacer()
                             }
-                            .padding(.horizontal, 20)
                             .padding(.bottom, 20)
                         }
+                    }
+                    
+                    // ✅ NUEVO: BOTONES DE ETIQUETAS (Nivel superior del card)
+                    let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
+                    if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                        // Esquina superior izquierda
+                        VStack {
+                            HStack {
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        showTags.toggle()
+                                    }
+                                }) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(showTags ? Color(hex: "00A896") : Color.black.opacity(0.6))
+                                            .frame(width: 32, height: 32)
+                                            .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
+                                        Image(systemName: "tag.fill")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+                                    .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
+                                }
+                                .padding(.leading, 12)
+                                .padding(.top, (currentMediaItem?.type == .video) ? 12 : 12)
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                        .zIndex(100)
+
+                        // Esquina inferior izquierda (encima del caption)
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        showTags.toggle()
+                                    }
+                                }) {
+                                    ZStack {
+                                        // Background Glass
+                                        Circle()
+                                            .fill(.ultraThinMaterial)
+                                            .frame(width: 36, height: 36)
+                                        
+                                        // Border Gradient Glass
+                                        Circle()
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
+                                            .frame(width: 36, height: 36)
+                                        
+                                        // Icon tinted if active
+                                        Image(systemName: showTags ? "person.fill" : "person.circle.fill")
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                                    }
+                                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                                }
+                                .padding(.leading, 12)
+                                .padding(.bottom, moment.content.isEmpty ? 15 : 60) // Ajustar si hay texto
+                                Spacer()
+                            }
+                        }
+                        .zIndex(110)
                     }
                 }
                 
@@ -1143,19 +1436,19 @@ struct ModernSavedDetailMomentCard: View {
     private var postHeaderView: some View {
         HStack(spacing: 12) {
             AsyncSavedProfileImageView(userId: moment.authorId)
-                .frame(width: 44, height: 44)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            LinearGradient(
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
                                 colors: adaptiveColors.overlayStroke,  // ✅ CAMBIAR esta línea
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.5
-                        )
-                )
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
             
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(moment.username)")

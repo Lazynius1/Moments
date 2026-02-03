@@ -10,11 +10,11 @@ struct SupportMomentsSection: View {
     @Binding var isShowingSupportMoments: Bool
     
     var body: some View {
-        Section("Apoyar Moments") {
+        Section(NSLocalizedString("support.section.title", comment: "Support Moments")) {
             // Badges de apoyo (principal)
             SettingsRow(
                 icon: "star.circle",
-                title: "Badges de apoyo",
+                title: NSLocalizedString("support.badges.title", comment: "Support Badges"),
                 subtitle: getBadgeSubtitle(),
                 action: {
                     isShowingSupportMoments = true
@@ -25,14 +25,14 @@ struct SupportMomentsSection: View {
             if authService.currentUser?.isPlusSubscriber == true {
                 SettingsRow(
                     icon: "creditcard.circle",
-                    title: "Gestionar suscripción",
-                    subtitle: "Configurar tu suscripción Plus",
-                    isExternal: true,
+                    title: NSLocalizedString("support.manageSubscription.title", comment: "Manage Subscription"),
+                    subtitle: NSLocalizedString("support.manageSubscription.subtitle", comment: "Configure your Plus subscription"),
                     action: {
                         if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                             UIApplication.shared.open(url)
                         }
-                    }
+                    },
+                    isExternal: true
                 )
             }
         }
@@ -43,19 +43,19 @@ struct SupportMomentsSection: View {
     
     private func getBadgeSubtitle() -> String {
         guard let currentUser = authService.currentUser else {
-            return "Badges únicos + Suscripción Plus"
+            return NSLocalizedString("support.badges.subtitle.default", comment: "Unique Badges + Plus Subscription")
         }
         
         let badgeCount = currentUser.ownedBadges.count
         
         if currentUser.isPlusSubscriber && badgeCount > 0 {
-            return "Plus + \(badgeCount) badge\(badgeCount > 1 ? "s" : "")"
+            return String(format: NSLocalizedString("support.badges.subtitle.badgesAndPlus", comment: "Plus + %d badges"), badgeCount)
         } else if currentUser.isPlusSubscriber {
-            return "Plus activo - Explora badges disponibles"
+            return NSLocalizedString("support.badges.subtitle.plusEnabled", comment: "Plus Active - Explore available badges")
         } else if badgeCount > 0 {
-            return "\(badgeCount) badge\(badgeCount > 1 ? "s" : "") + Suscripción Plus"
+            return String(format: NSLocalizedString("support.badges.subtitle.badgesOnly", comment: "%d badges + Plus Subscription"), badgeCount)
         } else {
-            return "Badges únicos + Suscripción Plus"
+            return NSLocalizedString("support.badges.subtitle.default", comment: "Unique Badges + Plus Subscription")
         }
     }
 }
@@ -71,58 +71,25 @@ struct SupportMomentsView: View {
     @State private var showThankYou = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Header
-                        headerSection
-                        
-                        // Sin anuncios section
-                        noAdsSection
-                        
-                        // Badges section
-                        badgesSection
-                        
-                        // FAQ section
-                        faqSection
-                        
-                        Spacer(minLength: 40)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+        SettingsSubsectionWrapper(title: NSLocalizedString("support.view.title", comment: "Support Moments")) {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    headerSection
+                    
+                    // Sin anuncios section
+                    noAdsSection
+                    
+                    // Badges section
+                    badgesSection
+                    
+                    // FAQ section
+                    faqSection
+                    
+                    Spacer(minLength: 40)
                 }
-            }
-            .navigationTitle("Apoyar Moments")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                )
-                            
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "00A896"))
-                        }
-                    }
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
             .onAppear {
                 storeManager.loadProducts()
@@ -130,10 +97,10 @@ struct SupportMomentsView: View {
             .sheet(item: $selectedBadge) { badge in
                 BadgePurchaseView(badge: badge, storeManager: storeManager)
             }
-            .alert("¡Gracias!", isPresented: $showThankYou) {
-                Button("OK") {}
+            .alert(NSLocalizedString("support.view.thanks.title", comment: "¡Gracias!"), isPresented: $showThankYou) {
+                Button(NSLocalizedString("settings.ok", comment: "OK")) {}
             } message: {
-                Text("Tu apoyo nos ayuda a mantener Moments gratuito para todos.")
+                Text(NSLocalizedString("support.view.thanks.message", comment: "Tu apoyo nos ayuda a mantener Moments gratuito para todos."))
             }
         }
     }
@@ -156,11 +123,11 @@ struct SupportMomentsView: View {
             }
             
             VStack(spacing: 8) {
-                Text("Apoya Moments")
+                Text(NSLocalizedString("support.view.title", comment: "Apoya Moments"))
                     .font(.custom("Poppins-Bold", size: 24))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Ayúdanos a mantener la app gratuita para todos")
+                Text(NSLocalizedString("support.view.header.subtitle", comment: "Ayúdanos a mantener la app gratuita para todos"))
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
@@ -171,7 +138,7 @@ struct SupportMomentsView: View {
     private var noAdsSection: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("Moments Plus")
+                Text(NSLocalizedString("support.view.plus.title", comment: "Moments Plus"))
                     .font(.custom("Poppins-Bold", size: 20))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
@@ -189,7 +156,7 @@ struct SupportMomentsView: View {
                             ))
                             .frame(height: 24)
                         
-                        Text("ACTIVO")
+                        Text(NSLocalizedString("support.view.plus.active", comment: "ACTIVO"))
                             .font(.custom("Poppins-Bold", size: 10))
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
@@ -205,7 +172,7 @@ struct SupportMomentsView: View {
                             ))
                             .frame(height: 24)
                         
-                        Text("POPULAR")
+                        Text(NSLocalizedString("support.view.plus.popular", comment: "POPULAR"))
                             .font(.custom("Poppins-Bold", size: 10))
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
@@ -214,9 +181,9 @@ struct SupportMomentsView: View {
             }
             
             VStack(alignment: .leading, spacing: 12) {
-                FeatureRow(icon: "nosign", title: "Sin anuncios", description: "Experiencia completamente limpia")
-                FeatureRow(icon: "crown.fill", title: "Badge exclusivo", description: "Muestra tu apoyo al proyecto")
-                FeatureRow(icon: "heart.fill", title: "Apoya el desarrollo", description: "Mantiene la app gratuita para todos")
+                FeatureRow(icon: "nosign", title: NSLocalizedString("support.view.features.noAds.title", comment: "Sin anuncios"), description: NSLocalizedString("support.view.features.noAds.description", comment: "Experiencia completamente limpia"))
+                FeatureRow(icon: "crown.fill", title: NSLocalizedString("support.view.features.crown.title", comment: "Badge exclusivo"), description: NSLocalizedString("support.view.features.crown.description", comment: "Muestra tu apoyo al proyecto"))
+                FeatureRow(icon: "heart.fill", title: NSLocalizedString("support.view.features.development.title", comment: "Apoya el desarrollo"), description: NSLocalizedString("support.view.features.development.description", comment: "Mantiene la app gratuita para todos"))
             }
             
             // ✅ NUEVO: Botón dinámico basado en estado
@@ -229,11 +196,11 @@ struct SupportMomentsView: View {
                             .foregroundColor(.green)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("¡Ya eres Moments Plus!")
+                            Text(NSLocalizedString("support.view.plus.alreadyActive.title", comment: "¡Ya eres Moments Plus!"))
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
-                            Text("Gracias por apoyar el proyecto")
+                            Text(NSLocalizedString("support.view.plus.alreadyActive.description", comment: "Gracias por apoyar el proyecto"))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.gray)
                         }
@@ -263,7 +230,7 @@ struct SupportMomentsView: View {
                             Image(systemName: "gear")
                                 .font(.system(size: 16, weight: .medium))
                             
-                            Text("Gestionar suscripción")
+                            Text(NSLocalizedString("support.manageSubscription.title", comment: "Gestionar suscripción"))
                                 .font(.custom("Poppins-Medium", size: 16))
                         }
                         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -284,7 +251,7 @@ struct SupportMomentsView: View {
                         Image(systemName: "crown.fill")
                             .font(.system(size: 16, weight: .bold))
                         
-                        Text("Obtener Moments Plus - €2.99/mes")
+                        Text(String(format: NSLocalizedString("support.view.plus.get.button", comment: "Obtener Moments Plus - %@/mes"), "€2.99"))
                             .font(.custom("Poppins-SemiBold", size: 16))
                     }
                     .foregroundColor(.white)
@@ -312,13 +279,13 @@ struct SupportMomentsView: View {
     private var badgesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Badges de apoyo")
+                Text(NSLocalizedString("support.badges.title", comment: "Badges de apoyo"))
                     .font(.custom("Poppins-Bold", size: 20))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
-                Text("Una sola vez")
+                Text(NSLocalizedString("support.view.badges.oneTime", comment: "Una sola vez"))
                     .font(.custom("Poppins-Medium", size: 12))
                     .foregroundColor(.gray)
                     .padding(.horizontal, 12)
@@ -351,31 +318,31 @@ struct SupportMomentsView: View {
     
     private var faqSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Preguntas frecuentes")
+            Text(NSLocalizedString("support.view.faq.title", comment: "Preguntas frecuentes"))
                 .font(.custom("Poppins-Bold", size: 20))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             VStack(spacing: 12) {
                 FAQItem(
-                    question: "¿Por qué badges de pago?",
-                    answer: "Los badges nos ayudan a mantener Moments gratuito para todos. Son opcionales y puramente para mostrar apoyo."
+                    question: NSLocalizedString("support.view.faq.q1", comment: "¿Por qué badges de pago?"),
+                    answer: NSLocalizedString("support.view.faq.a1", comment: "Los badges nos ayudan a mantener Moments gratuito para todos. Son opcionales y puramente para mostrar apoyo.")
                 )
                 
                 FAQItem(
-                    question: "¿Los badges dan ventajas?",
-                    answer: "No. Los badges son solo cosméticos. Creemos en mantener la experiencia justa para todos."
+                    question: NSLocalizedString("support.view.faq.q2", comment: "¿Los badges dan ventajas?"),
+                    answer: NSLocalizedString("support.view.faq.a2", comment: "No. Los badges son solo cosméticos. Creemos en mantener la experiencia justa para todos.")
                 )
                 
                 FAQItem(
-                    question: "¿Puedo ocultar mi badge?",
-                    answer: "Sí, puedes mostrar u ocultar tus badges en cualquier momento desde tu perfil."
+                    question: NSLocalizedString("support.view.faq.q3", comment: "¿Puedo ocultar mi badge?"),
+                    answer: NSLocalizedString("support.view.faq.a3", comment: "Sí, puedes mostrar u ocultar tus badges en cualquier momento desde tu perfil.")
                 )
                 
                 // ✅ NUEVA: FAQ para usuarios Plus
                 if authService.currentUser?.isPlusSubscriber == true {
                     FAQItem(
-                        question: "¿Cómo cancelo mi suscripción?",
-                        answer: "Puedes cancelar en cualquier momento desde Configuración de iOS > Tu Nombre > Suscripciones, o usando el botón 'Gestionar suscripción' arriba."
+                        question: NSLocalizedString("support.view.faq.q4", comment: "¿Cómo cancelo mi suscripción?"),
+                        answer: NSLocalizedString("support.view.faq.a4", comment: "Puedes cancelar en cualquier momento desde Configuración de iOS > Tu Nombre > Suscripciones, o usando el botón 'Gestionar suscripción' arriba.")
                     )
                 }
             }
@@ -442,7 +409,7 @@ struct SmartBadgeCard: View {
                     
                     // ✅ Precio o estado
                     if isOwned {
-                        Text("POSEÍDO")
+                    Text(NSLocalizedString("support.badgeCard.owned", comment: "POSEÍDO"))
                             .font(.custom("Poppins-Bold", size: 12))
                             .foregroundColor(.green)
                     } else {
@@ -665,7 +632,7 @@ struct BadgePurchaseView: View {
                 dismiss()
             }
         } message: {
-            Text("Tu badge \"\(badge.name)\" ya está disponible en tu perfil.")
+            Text(String(format: NSLocalizedString("support.badgePurchase.available", comment: "Tu badge já está disponível em tu perfil."), badge.name))
         }
     }
     
@@ -1081,7 +1048,7 @@ struct BadgeManagementView: View {
                                     Image(systemName: "plus.circle.fill")
                                         .font(.system(size: 16, weight: .semibold))
                                     
-                                    Text("Explorar más badges")
+                                    Text(NSLocalizedString("support.badgePurchase.exploreMore", comment: "Explorar más badges"))
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                 }
                                 .foregroundColor(.white)

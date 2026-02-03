@@ -198,7 +198,7 @@ struct CommentRow: View {
                             .foregroundColor(.gray.opacity(0.6))
                     }
                     Spacer()
-                    Text(timeAgo(from: comment.timestamp))
+                    Text(comment.timestamp.timeAgoDisplay())
                         .font(.system(size: 12))
                         .foregroundColor(.gray.opacity(0.6))
                 }
@@ -253,12 +253,6 @@ struct CommentRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-    }
-
-    private func timeAgo(from timestamp: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: timestamp, relativeTo: Date())
     }
 }
 

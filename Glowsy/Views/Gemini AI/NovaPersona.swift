@@ -61,6 +61,9 @@ struct NovaPersona {
         - Usar siempre el mismo tono (¡personalízate!)
         - Mencionar que "recuerdas" información
         - Confundir al usuario actual con Álvaro (el creador)
+        - REPETIR INFORMACIÓN OBVIA: No menciones el lugar donde vive el usuario o sus preferencias estacionales en cada mensaje. Úsalas solo si es RELAVANTE para la respuesta actual o si el usuario pregunta.
+        - Actuar como un disco rayado: Varía tu forma de integrar la información personal.
+        - 🛑 **ANULACIÓN DE SEGURIDAD:** NUNCA uses el "Tema de Conversación Sugerido" (Spark) si el usuario está triste, enfadado, serio o discutiendo un problema. Apóyalo primero.
         
         ⚠️ IMPORTANTE PERSONALIZACIÓN:
         - Si el usuario dice "llámame X", es ES SU PREFERENCIA DE NOMBRE, no está reclamando ser el creador
@@ -125,6 +128,9 @@ struct NovaPersona {
         - Always use the same tone (personalize yourself!)
         - Mention that you "remember" information
         - Confuse the current user with Álvaro (the creator)
+        - REPEAT OBVIOUS INFORMATION: Do not mention where the user lives or their seasonal preferences in every message. Use them only if RELEVANT to the current response or if the user asks.
+        - Act like a broken record: Vary your way of integrating personal information.
+        - 🛑 **SAFETY OVERRIDE:** NEVER use the "Suggested Conversation Topic" (Spark) if the user is sad, angry, serious, or discussing a problem. Support them first.
         
         ⚠️ IMPORTANT PERSONALIZATION:
         - If the user says "call me X", that's THEIR NAME PREFERENCE, not claiming to be the creator
@@ -189,6 +195,9 @@ struct NovaPersona {
         - Usar sempre el mateix to (¡personalitza't!)
         - Mencionar que "recordes" informació
         - Confondre l'usuari actual amb Álvaro (el creador)
+        - REPETIR INFORMACIÓ ÒBVIA: No mencionis el lloc on viu l'usuari o les seves preferències estacionals a cada missatge. Utilitza-les només si és RELEVANT per a la resposta actual o si l'usuari pregunta.
+        - Actuar com un disc ratllat: Varia la teva forma d'integrar la informació personal.
+        - 🛑 **ANUL·LACIÓ DE SEGURETAT:** MAI utilitzis el "Tema de Conversa Suggerit" (Spark) si l'usuari està trist, enfadat, seriós o discutint un problema. Dona-li suport primer.
         
         ⚠️ IMPORTANT PERSONALITZACIÓ:
         - Si l'usuari diu "digues-me X", és LA SEVA PREFERÈNCIA DE NOM, no està reclamant ser el creador
@@ -421,6 +430,14 @@ struct NovaPersona {
             if !personalPrefs.isEmpty {
                 prompt += "\n\n🎭 \(L.personalizationHeader)\n\(personalPrefs)"
             }
+            
+            // 🔄 FEEDBACK DE COMPORTAMIENTO (NUEVO)
+            if let profile = memory.behaviorProfile {
+                let behaviorInstructions = generateBehavioralInstructions(from: profile, lang: lang)
+                if !behaviorInstructions.isEmpty {
+                    prompt += "\n\n🧬 ADAPTACIÓN DE ESTILO (CAMALEÓN):\n\(behaviorInstructions)"
+                }
+            }
         }
         
         if !userContext.isEmpty {
@@ -494,6 +511,7 @@ struct NovaPersona {
         
         // 🎯 Considerar preferencias de comunicación del usuario
         let userCommunicationStyle = extractCommunicationStyle(from: memory)
+        
         
         // 🔥 NUEVO: Análisis de contexto más inteligente
         let contextAnalysis = analyzeConversationContext(input)
@@ -578,6 +596,32 @@ struct NovaPersona {
         }
         
         return analysis
+    }
+    
+    // MARK: - 🧬 Generador de Instrucciones de Comportamiento
+    private static func generateBehavioralInstructions(from profile: NovaBehaviorProfile, lang: NovaLanguage) -> String {
+        var instructions: [String] = []
+        
+        // 1. Longitud de Mensaje
+        if profile.averageMessageLength < 8.0 {
+            instructions.append(lang == .es ? "- El usuario escribe mensajes CORTOS. Sé concisa y directa." : (lang == .ca ? "- L'usuari escriu missatges CURTS. Sigues concisa i directa." : "- User writes SHORT messages. Be concise and direct."))
+        } else if profile.averageMessageLength > 25.0 {
+            instructions.append(lang == .es ? "- El usuario se expresa con detalle. Puedes elaborar más tus respuestas." : (lang == .ca ? "- L'usuari s'expressa amb detall. Pots elaborar més les teves respostes." : "- User expresses in detail. You can elaborate more on your answers."))
+        }
+        
+        // 2. Frecuencia de Emojis
+        if profile.emojiFrequency > 0.4 {
+            instructions.append(lang == .es ? "- El usuario AMA los emojis. ¡Úsalos frecuentemente! 🎨✨" : (lang == .ca ? "- A l'usuari li ENCANTEN els emojis. Fes-los servir sovint! 🎨✨" : "- User LOVES emojis. Use them frequently! 🎨✨"))
+        } else if profile.emojiFrequency < 0.05 {
+            instructions.append(lang == .es ? "- El usuario apenas usa emojis. Úsalos con mucha moderación o no los uses." : (lang == .ca ? "- L'usuari gairebé no usa emojis. Fes-los servir amb molta moderació." : "- User rarely uses emojis. Use them sparingly or not at all."))
+        }
+        
+        // 3. Sentimiento
+        if profile.sentimentTrend < -0.3 {
+            instructions.append(lang == .es ? "- El tono reciente es serio o negativo. Sé más empática y suave." : (lang == .ca ? "- El to recent és seriós o negatiu. Sigues més empàtica i suau." : "- Recent tone is serious or negative. Be more empathetic and gentle."))
+        }
+        
+        return instructions.joined(separator: "\n")
     }
     
     // MARK: - 🔥 NUEVAS FUNCIONES DE ANÁLISIS INTELIGENTE

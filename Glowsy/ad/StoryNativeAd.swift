@@ -807,113 +807,129 @@ struct IntegratedStoryAdView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header con progreso y controles
-                VStack(spacing: 12) {
-                    // Barra de progreso
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(.white.opacity(0.3))
-                                .frame(height: 3)
-                            
-                            Rectangle()
-                                .fill(.white)
-                                .frame(width: geometry.size.width * (1 - timeRemaining / adDuration), height: 3)
-                                .animation(.linear(duration: 1), value: timeRemaining)
-                        }
-                    }
-                    .frame(height: 3)
-                    .padding(.horizontal, 20)
+                // Media del anuncio (Pantalla completa e inmersiva)
+                ZStack(alignment: .bottom) {
+                    IntegratedStoryMediaView(nativeAd: nativeAd)
+                        .frame(width: screenSize.width, height: screenSize.height)
                     
-                    HStack {
-                        // Botón cerrar
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 20, weight: .medium))
+                    // ✅ Gradiente protector cinemático
+                    LinearGradient(
+                        gradient: Gradient(colors: [.clear, .black.opacity(0.4), .black.opacity(0.8)]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 250)
+                    .allowsHitTesting(false)
+                    
+                    // ✅ Contenido del anuncio arriba del gradiente
+                    VStack(spacing: 20) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(nativeAd.headline ?? "")
+                                .font(.custom("Poppins-Bold", size: 22))
                                 .foregroundColor(.white)
-                                .frame(width: 32, height: 32)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Circle())
-                        }
-                        
-                        Spacer()
-                        
-                        // Badge "Anuncio" con tiempo
-                        HStack(spacing: 6) {
-                            Text("Anuncio")
-                                .font(.custom("Poppins-Medium", size: 12))
-                                .foregroundColor(.white.opacity(0.8))
+                                .shadow(color: .black.opacity(0.5), radius: 4)
                             
-                            Text("\(Int(timeRemaining))s")
-                                .font(.custom("Poppins-Medium", size: 10))
-                                .foregroundColor(.white.opacity(0.6))
+                            if let body = nativeAd.body {
+                                Text(body)
+                                    .font(.custom("Poppins-Regular", size: 15))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .lineLimit(3)
+                                    .shadow(color: .black.opacity(0.3), radius: 2)
+                            }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(.ultraThinMaterial)
-                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
                         
-                        Spacer()
-                        
-                        // Botón siguiente
-                        Button(action: onNext) {
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(width: 32, height: 32)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Circle())
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
-                .padding(.top, 50)
-                
-                // Media del anuncio (centrado)
-                IntegratedStoryMediaView(nativeAd: nativeAd)
-                    .frame(width: screenSize.width * 0.9, height: screenSize.height * 0.6)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .padding(.vertical, 20)
-                
-                // Contenido del anuncio
-                VStack(spacing: 16) {
-                    // Título
-                    Text(nativeAd.headline ?? "Anuncio")
-                        .font(.custom("Poppins-Bold", size: 20))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
-                    
-                    // Descripción
-                    if let body = nativeAd.body {
-                        Text(body)
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.white.opacity(0.8))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                    }
-                    
-                    // Botón de acción
-                    Button(action: {
-                        // Acción del botón
-                    }) {
-                        Text(nativeAd.callToAction ?? "Más información")
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                        // ✅ Botón de acción Premium
+                        Button(action: {
+                            // La interacción se maneja nativamente por AdMob
+                        }) {
+                            HStack {
+                                Text(nativeAd.callToAction ?? "Más información")
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.system(size: 20))
+                            }
                             .foregroundColor(.white)
-                            .padding(.horizontal, 30)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 40)
+                            .padding(.vertical, 14)
                             .background(
-                                LinearGradient(
-                                    colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                             )
-                            .cornerRadius(12)
+                        }
+                        .padding(.bottom, 60)
                     }
                 }
+            }
+            .ignoresSafeArea()
+            
+            // ✅ Capa de Controles superior (Sobre el media)
+            VStack(spacing: 0) {
+                // Progress Bar estilo Story
+                HStack(spacing: 4) {
+                    ForEach(0..<storyCount, id: \.self) { index in
+                        Capsule()
+                            .fill(index == storyIndex ? Color.white : Color.white.opacity(0.3))
+                            .frame(height: 3)
+                            .overlay(
+                                index == storyIndex ?
+                                GeometryReader { geo in
+                                    Rectangle()
+                                        .fill(Color.white)
+                                        .frame(width: geo.size.width * (1 - timeRemaining / adDuration))
+                                } : nil
+                            )
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 60)
+                
+                // Header Nativo
+                HStack(spacing: 12) {
+                    // Icono del anunciante
+                    if let icon = nativeAd.icon {
+                        AsyncImage(url: URL(string: icon.imageURL?.absoluteString ?? "")) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Circle().fill(.ultraThinMaterial)
+                        }
+                        .frame(width: 38, height: 38)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(nativeAd.advertiser ?? "Anunciante")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(.white)
+                        
+                        Text("Patrocinado")
+                            .font(.custom("Poppins-Regular", size: 11))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Spacer()
+                    
+                    // Botón cerrar
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
                 
                 Spacer()
             }
@@ -954,11 +970,10 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
         let nativeAdView = NativeAdView()
         nativeAdView.nativeAd = nativeAd
         
-        // MediaView
+        // MediaView - Totalmente inmersivo, sin bordes
         let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
-        mediaView.backgroundColor = UIColor.systemGray6
-        mediaView.layer.cornerRadius = 16
+        mediaView.backgroundColor = .black
         mediaView.clipsToBounds = true
         mediaView.mediaContent = nativeAd.mediaContent
         mediaView.translatesAutoresizingMaskIntoConstraints = false
@@ -1045,15 +1060,15 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
         
         // Constraints - Layout vertical DENTRO del NativeAdView (como FeedNativeAd)
         NSLayoutConstraint.activate([
-            // MediaView - parte superior (más grande para parecer historia)
-            mediaView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 8),
-            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            mediaView.heightAnchor.constraint(equalToConstant: 500), // Más alto para parecer historia
+            // MediaView - Pantalla completa real
+            mediaView.topAnchor.constraint(equalTo: nativeAdView.topAnchor),
+            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor),
+            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor),
+            mediaView.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor),
             
-            // Ad Attribution - debajo del media (sin superposición)
-            adAttributionView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
-            adAttributionView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
+            // Ad Attribution - Posicionado discretamente arriba
+            adAttributionView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 110),
+            adAttributionView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 16),
             adAttributionView.widthAnchor.constraint(equalToConstant: 25),
             adAttributionView.heightAnchor.constraint(equalToConstant: 18),
             
@@ -1061,34 +1076,16 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
             adAttributionLabel.centerXAnchor.constraint(equalTo: adAttributionView.centerXAnchor),
             adAttributionLabel.centerYAnchor.constraint(equalTo: adAttributionView.centerYAnchor),
             
-            // AdChoices - debajo del media (sin superposición)
-            adChoicesView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
-            adChoicesView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            // AdChoices - Arriba a la derecha
+            adChoicesView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 110),
+            adChoicesView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -16),
             
-            // ✅ HÍBRIDO: Texto en horizontal, video en vertical - SIN SUPERPOSICIONES
-            // Headline - debajo de los elementos de atribución
-            headlineLabel.topAnchor.constraint(equalTo: adAttributionView.bottomAnchor, constant: 12),
-            headlineLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            headlineLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            headlineLabel.heightAnchor.constraint(equalToConstant: 30),
-            
-            // Body - debajo del headline, horizontal
-            bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 4),
-            bodyLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            bodyLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            bodyLabel.heightAnchor.constraint(equalToConstant: 25),
-            
-            // Icon - debajo del body, horizontal (no superpuesto)
-            iconView.topAnchor.constraint(equalTo: bodyLabel.bottomAnchor, constant: 8),
-            iconView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            iconView.heightAnchor.constraint(equalToConstant: 40),
-            iconView.widthAnchor.constraint(equalToConstant: 40),
-            
-            // Advertiser - debajo del icono
-            advertiserLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 8),
-            advertiserLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            advertiserLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            advertiserLabel.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
+            // Registramos los labels pero los mantenemos fuera de la vista 
+            // ya que SwiftUI renderiza el texto cinemático
+            headlineLabel.heightAnchor.constraint(equalToConstant: 0),
+            bodyLabel.heightAnchor.constraint(equalToConstant: 0),
+            iconView.heightAnchor.constraint(equalToConstant: 0),
+            advertiserLabel.heightAnchor.constraint(equalToConstant: 0)
             
             // ✅ QUITADO: CTA Button constraints - No necesario, el tapping general funciona
             // callToActionButton.topAnchor.constraint(equalTo: advertiserLabel.bottomAnchor, constant: 16),

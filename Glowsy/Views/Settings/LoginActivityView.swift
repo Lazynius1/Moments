@@ -488,13 +488,3 @@ class LoginActivityViewModel: ObservableObject {
         showError = true
     }
 }
-
-// MARK: - Extensions
-extension Date {
-    func timeAgoDisplay() -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "es")
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: self, relativeTo: Date())
-    }
-}
