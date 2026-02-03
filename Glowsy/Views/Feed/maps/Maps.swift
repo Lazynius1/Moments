@@ -51,17 +51,21 @@ struct LocationMapView: View {
     
     var body: some View {
         ZStack {
-            modernBackgroundView
+            // ✅ EL MAPA OCUPA TODO EL FONDO
+            modernMapView
                 .ignoresSafeArea()
             
+            // ✅ HEADER DE PILLS FLOTANTES
             VStack(spacing: 0) {
                 modernHeaderView
-                
-                modernMapView // ✅ Aquí es donde agregamos efectos climáticos
-                    .ignoresSafeArea(.container, edges: .bottom)
+                Spacer()
             }
             
-                            LocationBottomSheet(
+            // ✅ BARRA DE ESTADÍSTICAS (SI EXISTE) - La movimos dentro de modernHeaderView en el paso anterior, 
+            // pero si hay componentes adicionales los manejamos aquí.
+            
+            // ✅ BOTTOM SHEET
+            LocationBottomSheet(
                     isPresented: $showingBottomSheet,
                     moments: locationMoments,
                     isLoadingMoments: isLoadingMoments,
@@ -82,31 +86,6 @@ struct LocationMapView: View {
                     }
                 )
             
-            // ✅ NUEVO: INDICADOR DE CLIMA
-            if let weather = currentWeather, weatherEffectsEnabled {
-                VStack {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 4) {
-                            WeatherIndicatorView(weather: weather, colorScheme: colorScheme)
-                            
-                            // ✅ ATRIBUCIÓN DE APPLE WEATHER (REQUERIDA)
-                            HStack(spacing: 4) {
-                                Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
-                                    .font(.custom("Poppins-Regular", size: 9))
-                                    .foregroundColor(.secondary)
-                                
-                                Link(NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"), destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
-                                    .font(.custom("Poppins-Medium", size: 9))
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.top, 100) // Debajo del header
-                    }
-                    Spacer()
-                }
-            }
         }
         .navigationBarHidden(true)
         .onAppear {
@@ -191,173 +170,114 @@ struct LocationMapView: View {
     }
     
     private var modernHeaderView: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 16) {
-                Button(action: { isPresented = false }) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: adaptiveColors.buttonStroke,
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
-                            )
-                            .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
-                        
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: adaptiveColors.buttonGradient,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+        VStack(alignment: .trailing, spacing: 12) {
+            // ✅ FILA SUPERIOR: PILLS DE NAVEGACIÓN Y ACCIÓN
+            HStack(alignment: .top, spacing: 12) {
+                // ✅ PILL 1: NAVEGACIÓN Y INFO
+                HStack(spacing: 12) {
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(adaptiveColors.primary)
+                            .frame(width: 32, height: 32)
                     }
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(locationName)
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(adaptiveColors.primary)
-                        .lineLimit(1)
                     
-                    HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(locationName)
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(adaptiveColors.primary)
+                            .lineLimit(1)
+                        
                         if !locationMoments.isEmpty {
                             Text(String(format: NSLocalizedString("maps.location.moments", comment: "Number of moments in location"), locationMoments.count))
-                                .font(.custom("Poppins-Regular", size: 12))
+                                .font(.custom("Poppins-Regular", size: 11))
                                 .foregroundColor(adaptiveColors.tertiary)
                         }
-                        
-                        // ✅ NUEVO: Indicador de distancia si tenemos ubicación actual
-                        if let currentLocation = locationManager.currentLocation,
-                           let coordinate = coordinate {
-                            let distance = LocationUtilities.distance(
-                                from: currentLocation.coordinate,
-                                to: coordinate
-                            )
-                            
-                            if !locationMoments.isEmpty {
-                                Text("•")
-                                    .font(.custom("Poppins-Regular", size: 12))
-                                    .foregroundColor(adaptiveColors.tertiary)
-                            }
-                            
-                            HStack(spacing: 4) {
-                                Image(systemName: "location.circle.fill")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(adaptiveColors.accent)
-                                
-                                Text(LocationUtilities.formatDistance(distance))
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(adaptiveColors.secondary)
-                            }
-                        }
-                        
-
                     }
                 }
+                .padding(.leading, 8)
+                .padding(.trailing, 16)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                )
+                .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
                 
                 Spacer()
                 
-                // ✅ NUEVO: BOTÓN TOGGLE EFECTOS CLIMÁTICOS
-                if currentWeather != nil {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            weatherEffectsEnabled.toggle()
-                        }
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 44, height: 44)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: weatherEffectsEnabled ?
-                                                [adaptiveColors.accent, adaptiveColors.accent.opacity(0.6)] :
-                                                adaptiveColors.buttonStroke,
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
-                                        )
-                                )
-                                .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
+                VStack(alignment: .trailing, spacing: 4) {
+                    // ✅ PILL 2: ACCIONES (Weather Info + Share)
+                    HStack(spacing: 12) {
+                        if let weather = currentWeather {
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    weatherEffectsEnabled.toggle()
+                                }
+                            }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: weatherEffectsEnabled ? weather.condition.systemImageName : "cloud.slash.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundStyle(weatherEffectsEnabled ? adaptiveColors.accent : adaptiveColors.primary.opacity(0.7))
+                                    
+                                    VStack(alignment: .leading, spacing: -2) {
+                                        Text(weather.temperatureFormatted)
+                                            .font(.custom("Poppins-Bold", size: 13))
+                                            .foregroundColor(adaptiveColors.primary)
+                                        
+                                        Text(weather.condition.displayName)
+                                            .font(.custom("Poppins-Medium", size: 9))
+                                            .foregroundColor(adaptiveColors.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
                             
-                            Image(systemName: weatherEffectsEnabled ? "cloud.fill" : "cloud.slash.fill")
+                            Rectangle()
+                                .fill(adaptiveColors.secondary.opacity(0.2))
+                                .frame(width: 1, height: 24)
+                        }
+                        
+                        Button(action: shareLocation) {
+                            Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: weatherEffectsEnabled ?
-                                        [adaptiveColors.accent, adaptiveColors.accent.opacity(0.8)] :
-                                        adaptiveColors.buttonGradient,
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .foregroundStyle(adaptiveColors.primary.opacity(0.7))
+                                .frame(width: 32, height: 32)
                         }
                     }
-                }
-                
-                Button(action: shareLocation) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: adaptiveColors.buttonStroke,
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
-                            )
-                            .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
-                        
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: adaptiveColors.buttonGradient,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                    .padding(.leading, 16)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                    )
+                    .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
+                    
+                    // ✅ ATRIBUCIÓN CONTEXTUAL
+                    if currentWeather != nil && weatherEffectsEnabled {
+                        HStack(spacing: 4) {
+                            Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
+                                .font(.custom("Poppins-Regular", size: 7))
+                                .foregroundColor(.secondary.opacity(0.8))
+                            
+                            Link(NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"), destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
+                                .font(.custom("Poppins-Medium", size: 7))
+                                .foregroundColor(.blue.opacity(0.6))
+                        }
+                        .padding(.trailing, 8)
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(.ultraThinMaterial)
-            .overlay(
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: adaptiveColors.overlayStroke,
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(height: 0.5),
-                alignment: .bottom
-            )
-            .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)
+            .padding(.horizontal, 16)
             
-            // ✅ NUEVO: Barra de estadísticas si hay momentos
+            // ✅ PILL LATERAL: ESTADÍSTICAS (Vertical a la derecha)
             if !locationMoments.isEmpty {
-                HStack(spacing: 20) {
+                VStack(spacing: 16) {
                     StatisticItem(
                         icon: "photo.fill",
                         value: "\(locationMoments.count)",
@@ -375,46 +295,52 @@ struct LocationMapView: View {
                     StatisticItem(
                         icon: "calendar",
                         value: formatDateRange(),
-                        label: "período",
-                        color: .green
+                        label: "tiempo",
+                        color: .orange
                     )
-                    
-                    Spacer()
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.ultraThinMaterial.opacity(0.5))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 16)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 30))
                 .overlay(
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: adaptiveColors.overlayStroke,
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(height: 0.5),
-                    alignment: .bottom
+                    RoundedRectangle(cornerRadius: 30)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
                 )
+                .shadow(color: adaptiveColors.shadowColor.opacity(0.1), radius: 10, x: 0, y: 5)
+                .padding(.trailing, 16)
+                .onTapGesture {
+                    withAnimation(.spring()) {
+                        showingBottomSheet.toggle()
+                    }
+                }
             }
         }
+        .padding(.top, 8)
     }
     
-    // ✅ NUEVO: Componente de estadística
+    // ✅ NUEVO: Componente de estadística Premium
     private func StatisticItem(icon: String, value: String, label: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(color)
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 32, height: 32)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(color)
+            }
             
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(spacing: 0) {
                 Text(value)
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.custom("Poppins-Bold", size: 12))
                     .foregroundColor(adaptiveColors.primary)
                 
-                Text(label)
-                    .font(.custom("Poppins-Regular", size: 10))
+                Text(label.uppercased())
+                    .font(.custom("Poppins-Bold", size: 7))
                     .foregroundColor(adaptiveColors.tertiary)
+                    .tracking(0.5)
             }
         }
     }
@@ -1413,46 +1339,44 @@ struct ModernLocationGallery: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Fotos en este lugar")
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(adaptiveColors.primary)
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14))
+                        .foregroundColor(adaptiveColors.accent)
+                    
+                    Text("Explorar galería")
+                        .font(.custom("Poppins-Bold", size: 16))
+                        .foregroundColor(adaptiveColors.primary)
+                }
                 
                 Spacer()
                 
                 if !moments.isEmpty {
                     Button(action: onShowAll) {
-                        HStack(spacing: 4) {
-                            Text("Ver todas")
-                                .font(.custom("Poppins-Medium", size: 12))
-                                .foregroundColor(adaptiveColors.accent)
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(adaptiveColors.accent)
-                        }
+                        Text("Ver todas")
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(adaptiveColors.accent)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(adaptiveColors.accent.opacity(0.1))
+                            .clipShape(Capsule())
                     }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 16)
             
             if isLoading {
-                HStack(spacing: 8) {
+                HStack(spacing: 12) {
                     ForEach(0..<4, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: 12)
                             .fill(.ultraThinMaterial)
-                            .frame(width: 70, height: 70)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .tint(adaptiveColors.accent)
-                                    .scaleEffect(0.7)
-                            )
+                            .frame(width: 85, height: 110)
+                            .overlay(ProgressView().tint(adaptiveColors.accent))
                     }
-                    Spacer()
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 20)
             } else if !moments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
@@ -1465,14 +1389,14 @@ struct ModernLocationGallery: View {
                     }
                     .padding(.horizontal, 16)
                 }
-                .padding(.bottom, 12)
+                .padding(.bottom, 20)
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 24)
+                .fill(.ultraThinMaterial.opacity(0.8))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 24)
                         .stroke(
                             LinearGradient(
                                 colors: adaptiveColors.overlayStroke,
@@ -1483,7 +1407,7 @@ struct ModernLocationGallery: View {
                         )
                 )
         )
-        .shadow(color: adaptiveColors.shadowColor, radius: 12, x: 0, y: 8)
+        .shadow(color: adaptiveColors.shadowColor.opacity(0.1), radius: 15, x: 0, y: 10)
         .padding(.horizontal, 16)
     }
 }
@@ -1504,20 +1428,20 @@ struct ModernLocationPhotoCard: View {
             image
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: 70, height: 70)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(width: 90, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 14)
                         .stroke(
                             LinearGradient(
-                                colors: adaptiveColors.overlayStroke,
+                                colors: [.white.opacity(0.3), .clear],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
                             lineWidth: 1
                         )
                 )
-                .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
                 .onAppear {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         imageLoaded = true
@@ -1567,101 +1491,26 @@ struct ModernLocationGalleryView: View {
     
     var body: some View {
         ZStack {
+            // Fondo Base Premium
+            adaptiveColors.background.ignoresSafeArea()
+            
             if colorScheme == .dark {
                 LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-            } else {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    colors: [Color.black, Color(hex: "0A0A0A")],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
                 .ignoresSafeArea()
             }
             
             VStack(spacing: 0) {
-                HStack {
-                    Button("Cerrar") {
-                        isPresented = false
-                    }
-                    .font(.custom("Poppins-Medium", size: 16))
-                    .foregroundColor(adaptiveColors.accent)
-                    
-                    Spacer()
-                    
-                    Text(locationName)
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(adaptiveColors.primary)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                    
-                    Button(action: {}) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(adaptiveColors.accent)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(.ultraThinMaterial)
-                .overlay(
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: adaptiveColors.overlayStroke,
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(height: 0.5),
-                    alignment: .bottom
-                )
-                .shadow(color: adaptiveColors.shadowColor, radius: 8, x: 0, y: 4)
+                // Header Refinado
+                headerView
                 
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 2) {
-                        ForEach(moments) { moment in
-                            Button(action: {
-                                selectedMoment = moment
-                                showingDetail = true
-                            }) {
-                                // ✅ USAR moment.imagePath EN VEZ DE moment.imageUrl
-                                KFImage(URL(string: moment.imagePath ?? ""))
-                                    .placeholder {
-                                        Rectangle()
-                                            .fill(.ultraThinMaterial)
-                                            .overlay(
-                                                ProgressView()
-                                                    .progressViewStyle(CircularProgressViewStyle())
-                                                    .tint(adaptiveColors.accent)
-                                                    .scaleEffect(0.7)
-                                            )
-                                    }
-                                    .resizable()
-                                    .aspectRatio(1, contentMode: .fill)
-                                    .clipped()
-                                    .opacity(showingDetail ? 0.0 : 1.0)
-                                    .animation(.easeIn(duration: 0.2), value: showingDetail)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                    }
-                    .padding(.top, 4)
+                if moments.isEmpty {
+                    emptyStateView
+                } else {
+                    galleryGrid
                 }
             }
         }
@@ -1671,11 +1520,115 @@ struct ModernLocationGalleryView: View {
                let selectedIndex = moments.firstIndex(where: { $0.id == selectedMoment.id }) {
                 LocationMomentDetailView(
                     locationMoments: moments,
-                    initialIndex: selectedIndex,  // ✅ Usar selectedIndex calculado
+                    initialIndex: selectedIndex,
                     locationName: locationName,
                     isPresented: $showingDetail
                 )
             }
+        }
+    }
+    
+    private var headerView: some View {
+        HStack(spacing: 20) {
+            Button(action: { isPresented = false }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(adaptiveColors.primary)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(locationName)
+                    .font(.custom("Poppins-Bold", size: 18))
+                    .foregroundColor(adaptiveColors.primary)
+                    .lineLimit(1)
+                
+                Text("\(moments.count) Momentos")
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(adaptiveColors.accent)
+            }
+            
+            Spacer()
+            
+            Button(action: {}) {
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(adaptiveColors.primary)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .fill(adaptiveColors.overlayStroke[0])
+                .frame(height: 0.5),
+            alignment: .bottom
+        )
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 50))
+                .foregroundColor(adaptiveColors.tertiary)
+            
+            Text("No hay fotos aún")
+                .font(.custom("Poppins-SemiBold", size: 18))
+                .foregroundColor(adaptiveColors.primary)
+        }
+        .frame(maxHeight: .infinity)
+    }
+    
+    private var galleryGrid: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 2) {
+                ForEach(moments) { moment in
+                    Button(action: {
+                        selectedMoment = moment
+                        showingDetail = true
+                    }) {
+                        KFImage(URL(string: moment.imagePath ?? ""))
+                            .placeholder {
+                                Rectangle()
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(ProgressView().tint(adaptiveColors.accent))
+                            }
+                            .resizable()
+                            .aspectRatio(1, contentMode: .fill)
+                            .frame(maxWidth: .infinity)
+                            .aspectRatio(1, contentMode: .fit)
+                            .clipped()
+                            .overlay(
+                                // Overlay sutil para video
+                                Group {
+                                    if moment.videoUrl != nil {
+                                        VStack {
+                                            Spacer()
+                                            HStack {
+                                                Spacer()
+                                                Image(systemName: "play.fill")
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(.white)
+                                                    .padding(6)
+                                                    .background(.black.opacity(0.4))
+                                                    .clipShape(Circle())
+                                                    .padding(6)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(.top, 2)
         }
     }
 }
@@ -1961,36 +1914,23 @@ struct LocationBottomSheet: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // ✅ FONDO CON GLASSMORPHISM
-                if isPresented {
-                    Color.black.opacity(0.25)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            hideBottomSheet()
-                        }
-                        .animation(.easeInOut(duration: 0.3), value: isPresented)
-                }
+                // Eliminamos el fondo oscuro para permitir navegación en el mapa
                 
                 VStack {
                     Spacer()
                     
                     VStack(spacing: 0) {
-                        // ✅ HANDLE PARA ARRASTRAR
                         dragHandle
-                        
-                        // ✅ HEADER DEL BOTTOM SHEET
                         bottomSheetHeader
-                        
-                        // ✅ CONTENIDO
                         bottomSheetContent
-                            .frame(maxHeight: geometry.size.height * 0.6)
                     }
-                    .frame(maxHeight: min(geometry.size.height * 0.8, geometry.size.height - 100))
                     .background(glassmorphicBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 24))
                     .shadow(color: adaptiveColors.shadowColor, radius: 20, x: 0, y: -8)
                     .offset(y: offset)
                     .gesture(dragGesture)
+                    // Eliminamos el frames fijos aquí para que el contenido mande si es poco
+                    .frame(maxHeight: min(geometry.size.height * 0.8, geometry.size.height - 100), alignment: .bottom)
                 }
             }
         }
@@ -2014,36 +1954,26 @@ struct LocationBottomSheet: View {
         }
     }
     
-    // ✅ FONDO GLASSMORPHIC
+    // ✅ FONDO GLASSMORPHIC MEJORADO (Transpariencia máxima)
     private var glassmorphicBackground: some View {
         ZStack {
-            // Fondo base glassmorphic
-            if colorScheme == .dark {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(hex: "1a1a2e").opacity(0.95),
-                        Color(hex: "16213e").opacity(0.92),
-                        Color.black.opacity(0.88)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            } else {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white.opacity(0.95),
-                        Color(hex: "f8f9fa").opacity(0.92),
-                        Color(hex: "e9ecef").opacity(0.88)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-            
-            // Overlay glassmorphic
+            // Solo usar Material Blur premium (Efecto Glass real)
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.2 : 0.4)
+            
+            // Borde sutil superior para profundidad
+            VStack {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.3), Color.clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+                Spacer()
+            }
         }
     }
     
@@ -2052,8 +1982,8 @@ struct LocationBottomSheet: View {
         RoundedRectangle(cornerRadius: 3)
             .fill(adaptiveColors.tertiary.opacity(0.6))
             .frame(width: 40, height: 6)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.top, 10)
+            .padding(.bottom, 2)
     }
     
     // ✅ HEADER CON GLASSMORPHISM
@@ -2062,10 +1992,9 @@ struct LocationBottomSheet: View {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(locationName)
-                        .font(.custom("Poppins-SemiBold", size: 20))
+                        .font(.custom("Poppins-Bold", size: 22))
                         .foregroundColor(adaptiveColors.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
                     
                     HStack(spacing: 8) {
                         Text(String(format: NSLocalizedString("maps.bottomSheet.moments", comment: "Number of moments in location"), moments.count))
@@ -2131,7 +2060,7 @@ struct LocationBottomSheet: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .padding(.bottom, 8)
             
             // ✅ SEPARADOR GLASSMORPHIC
             if !moments.isEmpty && !isLoadingMoments {
@@ -2149,80 +2078,99 @@ struct LocationBottomSheet: View {
         }
     }
     
-    // ✅ CONTENIDO PRINCIPAL
+    // ✅ CONTENIDO PRINCIPAL ADAPTATIVO
     private var bottomSheetContent: some View {
-        ScrollView {
+        Group {
             if isLoadingMoments {
                 loadingView
+                    .padding(.top, 16)
+                    .padding(.bottom, 30)
             } else if moments.isEmpty {
                 emptyView
+                    .padding(.vertical, 40)
             } else {
-                VStack(spacing: 0) {
+                let content = VStack(spacing: 0) {
                     if viewMode == .gallery {
                         galleryView
                     } else {
-                        listView
+                        modernListView
                     }
                 }
-                .padding(.top, 16)
+                
+                if moments.count <= 6 {
+                    content
+                        .padding(.bottom, 30) // Espacio para el safe area/gesto
+                } else {
+                    ScrollView {
+                        content
+                            .padding(.bottom, 30)
+                    }
+                    .scrollIndicators(.hidden)
+                    .frame(maxHeight: 500) // Límite para scroll
+                }
             }
         }
-        .scrollIndicators(.hidden)
     }
     
-    // ✅ VISTA DE GALERÍA CON GLASSMORPHISM
+    // ✅ VISTA DE GALERÍA MEJORADA (Grid estilo Explorer)
     private var galleryView: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
             ForEach(moments) { moment in
                 Button(action: { onMomentTap(moment) }) {
-                    // ✅ DETECTAR SI ES VIDEO O IMAGEN
-                    if moment.videoUrl != nil {
-                        // ✅ MOSTRAR THUMBNAIL DE VIDEO
-                        MapsVideoThumbnailView(
-                            moment: moment,
-                            size: CGSize(width: 120, height: 120),
-                            cornerRadius: 6,
-                            colorScheme: colorScheme
-                        )
-                    } else {
-                        // ✅ MOSTRAR IMAGEN NORMAL
-                        AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(1, contentMode: .fill)
-                                .clipped()
-                        } placeholder: {
+                    GeometryReader { geometry in
+                        ZStack {
+                            // Fondo material por si la imagen tarda o es pequeña
                             Rectangle()
                                 .fill(.ultraThinMaterial)
-                                .aspectRatio(1, contentMode: .fill)
-                                .overlay(
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                        .tint(adaptiveColors.accent)
-                                        .scaleEffect(0.6)
+                            
+                            // ✅ DETECTAR SI ES VIDEO O IMAGEN
+                            if moment.videoUrl != nil {
+                                MapsVideoThumbnailView(
+                                    moment: moment,
+                                    size: CGSize(width: geometry.size.width, height: geometry.size.width),
+                                    cornerRadius: 0,
+                                    colorScheme: colorScheme
                                 )
+                            } else {
+                                KFImage(URL(string: moment.imagePath ?? ""))
+                                    .placeholder {
+                                        ProgressView()
+                                            .tint(adaptiveColors.accent)
+                                            .scaleEffect(0.6)
+                                    }
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width, height: geometry.size.width)
+                                    .clipped()
+                            }
                         }
                     }
+                    .aspectRatio(1, contentMode: .fit)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
             }
         }
         .padding(.horizontal, 16)
     }
     
-    // ✅ VISTA DE LISTA CON GLASSMORPHISM
-    private var listView: some View {
-        LazyVStack(spacing: 12) {
+    // ✅ VISTA DE LISTA MODERNA (Estilo Feed)
+    private var modernListView: some View {
+        LazyVStack(spacing: 16) {
             ForEach(moments) { moment in
-                LocationMomentRow(
+                ModernLocationMomentRow(
                     moment: moment,
                     colorScheme: colorScheme,
                     onTap: onMomentTap
                 )
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
     }
     
     // ✅ LOADING CON GLASSMORPHISM
@@ -2443,7 +2391,8 @@ struct MapsVideoThumbnailView: View {
 }
 
 // ✅ ROW PARA VISTA DE LISTA CON GLASSMORPHISM
-struct LocationMomentRow: View {
+// ✅ COMPONENTE DE FILA MODERNA (Inspirado en ModernPostCardView)
+struct ModernLocationMomentRow: View {
     let moment: Moment
     let colorScheme: ColorScheme
     let onTap: (Moment) -> Void
@@ -2454,88 +2403,63 @@ struct LocationMomentRow: View {
     
     var body: some View {
         Button(action: { onTap(moment) }) {
-            HStack(spacing: 12) {
-                // ✅ DETECTAR SI ES VIDEO O IMAGEN
-                if moment.videoUrl != nil {
-                    // ✅ MOSTRAR THUMBNAIL DE VIDEO
-                    MapsVideoThumbnailView(
-                        moment: moment,
-                        size: CGSize(width: 60, height: 60),
-                        cornerRadius: 12,
-                        colorScheme: colorScheme
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(
-                                LinearGradient(
-                                    colors: adaptiveColors.overlayStroke,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                } else {
-                    // ✅ IMAGEN CON GLASSMORPHISM
-                    AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 60, height: 60)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: adaptiveColors.overlayStroke,
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                    } placeholder: {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 60, height: 60)
-                            .overlay(
-                                ProgressView()
-                                    .tint(adaptiveColors.accent)
-                                    .scaleEffect(0.7)
-                            )
-                    }
-                }
-                
-                // ✅ INFO DEL MOMENTO
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("@\(moment.username)")
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(adaptiveColors.primary)
+            VStack(alignment: .leading, spacing: 0) {
+                // Background con blur y gradiente sutil
+                ZStack(alignment: .bottomLeading) {
+                    // Contenido visual (Video o Imagen)
+                    mediaPreview
                     
-                    if !moment.content.isEmpty {
-                        Text(moment.content)
-                            .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(adaptiveColors.secondary)
-                            .lineLimit(2)
-                    }
+                    // Overlay inferior para mejor lectura de info
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.6)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 60)
                     
-                    Text(formatTimeAgo(moment.timestamp))
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(adaptiveColors.tertiary)
+                    // Info sutil sobre la imagen
+                    HStack(spacing: 10) {
+                        ProfileImageeView(imagePath: moment.profileImagePath, size: 32)
+                            .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
+                            .shadow(radius: 2)
+                        
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("@\(moment.username)")
+                                .font(.custom("Poppins-SemiBold", size: 13))
+                                .foregroundColor(.white)
+                                .shadow(radius: 2)
+                            
+                            Text(formatTimeAgo(moment.timestamp))
+                                .font(.custom("Poppins-Regular", size: 10))
+                                .foregroundColor(.white.opacity(0.8))
+                                .shadow(radius: 1)
+                        }
+                        
+                        Spacer()
+                        
+                        // Badge de audiencia
+                        audienceBadge
+                    }
+                    .padding(12)
                 }
+                .frame(height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
                 
-                Spacer()
-                
-                // ✅ INDICADOR DE AUDIENCIA
-                audienceIndicator
+                // Texto si existe
+                if !moment.content.isEmpty {
+                    Text(moment.content)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(adaptiveColors.primary.opacity(0.9))
+                        .lineLimit(2)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(.ultraThinMaterial.opacity(0.5))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 18)
                             .stroke(
                                 LinearGradient(
                                     colors: adaptiveColors.overlayStroke,
@@ -2546,24 +2470,68 @@ struct LocationMomentRow: View {
                             )
                     )
             )
-            .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
+            .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
         }
         .buttonStyle(PlainButtonStyle())
     }
     
-    private var audienceIndicator: some View {
-        Image(systemName: getAudienceIcon(moment.audience ?? "everyone"))
-            .font(.system(size: 14, weight: .medium))
-            .foregroundColor(getAudienceColor(moment.audience ?? "everyone"))
+    @ViewBuilder
+    private var mediaPreview: some View {
+        if moment.videoUrl != nil {
+            MapsVideoThumbnailView(
+                moment: moment,
+                size: CGSize(width: UIScreen.main.bounds.width - 40, height: 180),
+                cornerRadius: 18,
+                colorScheme: colorScheme
+            )
+        } else {
+            AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 180)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+            } placeholder: {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .overlay(ProgressView().tint(adaptiveColors.accent))
+            }
+        }
+    }
+    
+    private var audienceBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: getAudienceIcon(moment.audience ?? "everyone"))
+                .font(.system(size: 8, weight: .bold))
+            Text(getAudienceLabel(moment.audience ?? "everyone").uppercased())
+                .font(.custom("Poppins-Bold", size: 8))
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(getAudienceColor(moment.audience ?? "everyone").opacity(0.8))
+        )
+        .shadow(color: .black.opacity(0.2), radius: 2)
     }
     
     private func getAudienceIcon(_ audience: String) -> String {
         switch audience {
         case "everyone": return "globe"
-        case "connections": return "person.2"
-        case "bestFriends": return "heart"
-        case "custom", "customList": return "person.3"
+        case "connections": return "person.2.fill"
+        case "bestFriends": return "heart.fill"
         default: return "globe"
+        }
+    }
+    
+    private func getAudienceLabel(_ audience: String) -> String {
+        switch audience {
+        case "everyone": return "Público"
+        case "connections": return "Seguidos"
+        case "bestFriends": return "Amigos"
+        default: return "Público"
         }
     }
     
@@ -2572,8 +2540,7 @@ struct LocationMomentRow: View {
         case "everyone": return .green
         case "connections": return .blue
         case "bestFriends": return .pink
-        case "custom", "customList": return .orange
-        default: return adaptiveColors.secondary
+        default: return .gray
         }
     }
     

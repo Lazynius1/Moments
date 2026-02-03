@@ -4,6 +4,8 @@ import FirebaseVertexAI
 import FirebaseFirestore
 import FirebaseAuth
 import UIKit
+import PhotosUI
+import Photos
 
 // MARK: - Colores modernos
 struct ModernGeminiColors {
@@ -52,12 +54,12 @@ struct ModernGeminiColors {
 // MARK: - Vista Principal
 struct GeminiView: View {
     @StateObject private var viewModel = GeminiViewModel()
-    @State private var showSuggestedOptions = true
     @State private var scrollOffset: CGFloat = 0
     @State private var keyboardHeight: CGFloat = 0
     @State private var showConversationHistory = false
     @State private var isKeyboardVisible = false
     @State private var showLanguageSheet = false
+    @State private var isShowingMemory = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -73,14 +75,15 @@ struct GeminiView: View {
                     EnhancedGeminiHeader(
                         viewModel: viewModel,
                         showConversationHistory: $showConversationHistory,
-                        showSuggestedOptions: $showSuggestedOptions
+                        showSuggestedOptions: $viewModel.showSuggestedOptions,
+                        isShowingMemory: $isShowingMemory
                     )
                     
                     ZStack {
-                        if viewModel.userData != nil && !viewModel.isLoading && viewModel.conversationHistory.isEmpty && showSuggestedOptions {
+                        if viewModel.userData != nil && !viewModel.isLoading && viewModel.conversationHistory.isEmpty && viewModel.showSuggestedOptions {
                             ModernWelcomeSection(
                                 viewModel: viewModel,
-                                showSuggestedOptions: $showSuggestedOptions
+                                showSuggestedOptions: $viewModel.showSuggestedOptions
                             )
                             .transition(.opacity.combined(with: .scale))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -172,7 +175,7 @@ struct GeminiView: View {
                     // ✅ OPTIMIZACIÓN: Solo animar el offset del teclado
                     EnhancedInputBar(
                         viewModel: viewModel,
-                        showSuggestedOptions: $showSuggestedOptions,
+                        showSuggestedOptions: $viewModel.showSuggestedOptions,
                         onFocusChange: { focused in
                             // ✅ SCROLL CUANDO EL TEXTOFIELD OBTIENE FOCUS
                             if focused && !viewModel.conversationHistory.isEmpty {
@@ -205,8 +208,25 @@ struct GeminiView: View {
                     ConversationHistoryOverlay(
                         viewModel: viewModel,
                         showConversationHistory: $showConversationHistory,
-                        showSuggestedOptions: $showSuggestedOptions
+                        showSuggestedOptions: $viewModel.showSuggestedOptions
                     )
+                    .transition(.move(edge: .bottom))
+                    .zIndex(2)
+                }
+                
+                // 🎉 CONFETI OVERLAY
+                if viewModel.showCelebration {
+                    ConfettiView()
+                        .zIndex(3)
+                        .transition(.opacity)
+                        .onAppear {
+                            // Auto-ocultar después de 4 segundos
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                withAnimation {
+                                    viewModel.showCelebration = false
+                                }
+                            }
+                        }
                 }
             }
             .onTapGesture {
@@ -236,6 +256,9 @@ struct GeminiView: View {
                 // ✅ Ajustar keyboardHeight directamente
                 keyboardHeight = 0
                 isKeyboardVisible = false
+            }
+            .sheet(isPresented: $isShowingMemory) {
+                NovaMemoryManagementView()
             }
         }
         .navigationBarHidden(true)
@@ -301,24 +324,35 @@ struct EnhancedChatBubble: View {
                 HStack {
                     Spacer(minLength: 50)
                     
-                    VStack(alignment: .trailing, spacing: 8) {
-                        Text(message.text)
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 14)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        ModernGeminiColors.primary,
-                                        ModernGeminiColors.secondary
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                    VStack(alignment: .trailing, spacing: 10) {
+                        if let image = message.image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .shadow(radius: 4)
+                        }
+
+                        if !message.text.isEmpty {
+                            Text(message.text)
+                                .font(.custom("Poppins-Regular", size: 16))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 14)
+                                .background(
+                                    LinearGradient(
+                                        colors: [
+                                            ModernGeminiColors.primary,
+                                            ModernGeminiColors.secondary
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .shadow(color: ModernGeminiColors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                .shadow(color: ModernGeminiColors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
                         
                         Text("nova.you")
                             .font(.custom("Poppins-Medium", size: 12))
@@ -434,6 +468,16 @@ struct EnhancedChatBubble: View {
         }
         .onDisappear {
             animationTimer?.invalidate()
+        }
+        // ✅ SOPORTE PARA STREAMING: Cuando el texto del mensaje cambie (vía ViewModel)
+        .onChange(of: message.text) { newText in
+            if !message.isHistorical && !message.isUser {
+                // Si el texto está creciendo vía stream, lo mostramos directamente
+                // sin la animación artificial de "startNaturalAnimation"
+                displayedText = newText
+                isInitialized = true
+                isTyping = false // Ocultamos los puntos de carga ya que ya hay texto
+            }
         }
     }
     
@@ -552,6 +596,11 @@ struct NovaHapticFeedback {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
     }
+    
+    static func success() {
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.success)
+    }
 }
 
 // MARK: - ⭐ TEXTO FORMATEADO AVANZADO CON LINKS
@@ -597,18 +646,23 @@ struct EnhancedFormattedText: View {
             }
             
             // Headers (## Texto)
-            if trimmedLine.hasPrefix("##") {
-                let content = trimmedLine.replacingOccurrences(of: "##", with: "").trimmingCharacters(in: .whitespaces)
+            if trimmedLine.hasPrefix("##") || trimmedLine.hasPrefix("#") {
+                let content = trimmedLine.replacingOccurrences(of: "##", with: "")
+                                         .replacingOccurrences(of: "#", with: "")
+                                         .trimmingCharacters(in: .whitespaces)
                 sections.append(TextSection(type: .header, content: content))
             }
-            // Bullet points (• Texto)
-            else if trimmedLine.hasPrefix("•") {
-                let content = trimmedLine.replacingOccurrences(of: "•", with: "").trimmingCharacters(in: .whitespaces)
+            // Bullet points (•, -, * Texto)
+            else if trimmedLine.hasPrefix("•") || trimmedLine.hasPrefix("-") || (trimmedLine.hasPrefix("*") && !trimmedLine.hasPrefix("**")) {
+                let content = trimmedLine.replacingOccurrences(of: "•", with: "")
+                                         .replacingOccurrences(of: "-", with: "")
+                                         .replacingOccurrences(of: "*", with: "")
+                                         .trimmingCharacters(in: .whitespaces)
                 sections.append(TextSection(type: .bulletPoint, content: content))
             }
             // Numbered lists (1. Texto)
-            else if let match = trimmedLine.range(of: #"^\d+\.\s"#, options: .regularExpression) {
-                let numberStr = String(trimmedLine[match]).replacingOccurrences(of: ".", with: "").trimmingCharacters(in: .whitespaces)
+            else if let match = trimmedLine.range(of: #"^\d+[\.\)]\s"#, options: .regularExpression) {
+                let numberStr = capturedNumber(from: trimmedLine)
                 let content = String(trimmedLine[match.upperBound...]).trimmingCharacters(in: .whitespaces)
                 sections.append(TextSection(type: .numberedList, content: content, number: Int(numberStr)))
             }
@@ -634,6 +688,14 @@ struct EnhancedFormattedText: View {
         return sections
     }
     
+    private func capturedNumber(from line: String) -> String {
+        let pattern = #"^\d+"#
+        if let range = line.range(of: pattern, options: .regularExpression) {
+            return String(line[range])
+        }
+        return "1"
+    }
+
     private func parseLinksInLine(_ line: String) -> [TextSection] {
         var sections: [TextSection] = []
         var remainingText = line
@@ -698,13 +760,23 @@ struct HeaderView: View {
     let text: String
     
     var body: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 4) {
             Text(text)
-                .font(.custom("Poppins-Bold", size: 18))
-                .foregroundColor(ModernGeminiColors.primary)
-            Spacer()
+                .font(.custom("Poppins-Bold", size: 20))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [ModernGeminiColors.primary, ModernGeminiColors.accent],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+            
+            RoundedRectangle(cornerRadius: 2)
+                .fill(ModernGeminiColors.primary.opacity(0.3))
+                .frame(width: 40, height: 3)
         }
-        .padding(.vertical, 4)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
     }
 }
 
@@ -783,18 +855,61 @@ struct LinkView: View {
 
 struct CodeBlockView: View {
     let text: String
+    @State private var isCopied = false
     
     var body: some View {
-        Text(text.replacingOccurrences(of: "```", with: ""))
-            .font(.custom("SF Mono", size: 14))
-            .foregroundColor(ModernGeminiColors.textPrimary)
-            .padding()
-            .background(ModernGeminiColors.secondaryBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
-            )
+        let code = text.replacingOccurrences(of: "```", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = code.components(separatedBy: "\n")
+        let language = lines.first?.lowercased() ?? "swift"
+        let cleanCode = lines.count > 1 ? lines.dropFirst().joined(separator: "\n") : code
+        
+        VStack(alignment: .leading, spacing: 0) {
+            // Header del bloque de código
+            HStack {
+                Text(language.uppercased())
+                    .font(.custom("SF Mono-Bold", size: 10))
+                    .foregroundColor(ModernGeminiColors.textSecondary)
+                
+                Spacer()
+                
+                Button(action: {
+                    UIPasteboard.general.string = cleanCode
+                    withAnimation { isCopied = true }
+                    NovaHapticFeedback.success()
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation { isCopied = false }
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                        Text(isCopied ? "Copiado" : "Copiar")
+                    }
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(isCopied ? .green : ModernGeminiColors.primary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(ModernGeminiColors.secondaryBackground.opacity(0.5))
+            
+            Divider()
+                .background(ModernGeminiColors.borderColor)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(cleanCode)
+                    .font(.custom("SF Mono", size: 13))
+                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .padding(12)
+            }
+        }
+        .background(ModernGeminiColors.secondaryBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+        )
+        .padding(.vertical, 8)
     }
 }
 
@@ -831,33 +946,43 @@ struct RegularTextView: View {
     private func parseInlineFormatting(_ text: String) -> AttributedString {
         var attributedString = AttributedString(text)
         
-        // Bold text **texto**
-        let boldPattern = #"\*\*([^*]+)\*\*"#
-        if let boldRegex = try? NSRegularExpression(pattern: boldPattern) {
-            let matches = boldRegex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
-            
-            // Procesar matches en orden inverso para evitar problemas de índices
-            for match in matches.reversed() {
-                if let range = Range(match.range, in: text) {
-                    let boldText = String(text[range]).replacingOccurrences(of: "**", with: "")
-                    
-                    // Método más simple y compatible
-                    let startIndex = attributedString.startIndex
-                    let matchStart = attributedString.index(startIndex, offsetByCharacters: match.range.location)
-                    let matchEnd = attributedString.index(startIndex, offsetByCharacters: match.range.location + match.range.length)
-                    
-                    if matchStart < attributedString.endIndex && matchEnd <= attributedString.endIndex {
-                        let attributedRange = matchStart..<matchEnd
-                        var boldAttributedText = AttributedString(boldText)
-                        boldAttributedText.font = .custom("Poppins-Bold", size: 16)
-                        
-                        attributedString.replaceSubrange(attributedRange, with: boldAttributedText)
-                    }
-                }
-            }
+        // 1. Negritas **texto**
+        applyRegex(pattern: #"\*\*([^*]+)\*\*"#, to: &attributedString, originalText: text) { matchText in
+            var attr = AttributedString(matchText.replacingOccurrences(of: "**", with: ""))
+            attr.font = .custom("Poppins-Bold", size: 16)
+            return attr
+        }
+        
+        // 2. Cursivas *texto* (evitando negritas ya procesadas)
+        applyRegex(pattern: #"(?<!\*)\*([^*]+)\*(?!\*)"#, to: &attributedString, originalText: text) { matchText in
+            var attr = AttributedString(matchText.replacingOccurrences(of: "*", with: ""))
+            attr.font = .custom("Poppins-Italic", size: 16)
+            return attr
         }
         
         return attributedString
+    }
+    
+    private func applyRegex(pattern: String, to attributedString: inout AttributedString, originalText: String, transform: (String) -> AttributedString) {
+        let regex = try? NSRegularExpression(pattern: pattern)
+        let matches = regex?.matches(in: originalText, range: NSRange(location: 0, length: originalText.utf16.count)) ?? []
+        
+        // Procesar en reversa
+        for match in matches.reversed() {
+            let matchText = (originalText as NSString).substring(with: match.range)
+            let startIndex = attributedString.startIndex
+            
+            // Aproximación simplificada para encontrar o rango en AttributedString
+            // Nota: En una app de producción real, esto requiere un mapeo más robusto de índices
+            if let rangeInOriginal = Range(match.range, in: originalText) {
+                // Buscamos o tramo literal para facer o replace
+                // (Moi simplificado, pero funciona para a maioría de casos de chat)
+                let substring = originalText[rangeInOriginal]
+                if let attrRange = attributedString.range(of: substring) {
+                    attributedString.replaceSubrange(attrRange, with: transform(matchText))
+                }
+            }
+        }
     }
 }
 // MARK: - Componentes UI Originales
@@ -1074,6 +1199,7 @@ struct EnhancedGeminiHeader: View {
     @ObservedObject var viewModel: GeminiViewModel
     @Binding var showConversationHistory: Bool
     @Binding var showSuggestedOptions: Bool
+    @Binding var isShowingMemory: Bool
     @Environment(\.colorScheme) var colorScheme
     
     // ✨ ESTADOS PARA EASTER EGG
@@ -1219,6 +1345,17 @@ struct EnhancedGeminiHeader: View {
             
             // Botones de acción
             HStack(spacing: 8) {
+                // Botón de memoria
+                Button(action: { isShowingMemory = true }) {
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 20))
+                        .foregroundColor(ModernGeminiColors.accent)
+                        .frame(width: 36, height: 36)
+                        .background(ModernGeminiColors.materialBackground)
+                        .clipShape(Circle())
+                        .shadow(color: ModernGeminiColors.shadowColor, radius: 4)
+                }
+                
                 if !viewModel.conversationHistory.isEmpty {
                     Button(action: {
                         viewModel.startNewConversation()
@@ -1631,6 +1768,206 @@ struct ModernSuggestionCard: View {
     }
 }
 
+// MARK: - ✨ SISTEMA DE PARTÍCULAS PREMIUM (Canvas)
+struct PremiumSparkleParticle: Identifiable {
+    let id = UUID()
+    var x: Double
+    var y: Double
+    var size: Double
+    var opacity: Double
+    var speedX: Double
+    var speedY: Double
+    var creationDate = Date()
+}
+
+// ✅ CLASE LIGERA SIN @Published PARA EVITAR BUCLES INFINITOS EN CANVAS
+class PremiumSparkleSystem {
+    var particles: [PremiumSparkleParticle] = []
+    private let maxParticles = 15
+    private var lastUpdate: TimeInterval = 0
+    
+    func update(date: Date) {
+        let now = date.timeIntervalSince1970
+        
+        // Limitar updates a ~60fps si es necesario, pero Canvas ya lo maneja bien
+        if now - lastUpdate < 0.016 { return }
+        lastUpdate = now
+        
+        // Eliminar partículas viejas
+        particles.removeAll { date.timeIntervalSince($0.creationDate) > 1.5 }
+        
+        // Mover partículas
+        for i in 0..<particles.indices.count {
+            particles[i].x += particles[i].speedX
+            particles[i].y += particles[i].speedY
+            particles[i].opacity -= 0.01
+        }
+        
+        // Crear nuevas si es necesario
+        if particles.count < maxParticles {
+            addParticle()
+        }
+    }
+    
+    private func addParticle() {
+        let p = PremiumSparkleParticle(
+            x: Double.random(in: -40...40),
+            y: Double.random(in: -40...40),
+            size: Double.random(in: 2...6),
+            opacity: Double.random(in: 0.4...1.0),
+            speedX: Double.random(in: -0.2...0.2),
+            speedY: Double.random(in: -0.5...(-0.1))
+        )
+        particles.append(p)
+    }
+}
+
+struct PremiumSparkleEmitter: View {
+    // ✅ USAR STATE EN LUGAR DE STATEOBJECT
+    @State private var system = PremiumSparkleSystem()
+    let color: Color
+    
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                // ✅ Update síncrono seguro dentro del draw loop (no dispara re-render externo)
+                system.update(date: timeline.date)
+                
+                for particle in system.particles {
+                    let rect = CGRect(
+                        x: size.width/2 + particle.x,
+                        y: size.height/2 + particle.y,
+                        width: particle.size,
+                        height: particle.size
+                    )
+                    
+                    var resolvedContext = context
+                    resolvedContext.opacity = particle.opacity
+                    
+                    // Dibujar estrella/sparkle
+                    if let sparkle = context.resolveSymbol(id: "sparkle") {
+                        resolvedContext.draw(sparkle, in: rect)
+                    } else {
+                        resolvedContext.fill(Path(ellipseIn: rect), with: .color(color))
+                    }
+                }
+            } symbols: {
+                Image(systemName: "sparkle")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundColor(color)
+                    .tag("sparkle")
+            }
+        }
+    }
+}
+
+// MARK: - 🎉 SISTEMA DE CONFETI (Celebración)
+struct ConfettiParticle: Identifiable {
+    let id = UUID()
+    var x: Double
+    var y: Double
+    var color: Color
+    var size: Double
+    var rotation: Double
+    var speedX: Double
+    var speedY: Double
+    var rotationSpeed: Double
+    var opacity: Double = 1.0
+}
+
+class ConfettiSystem {
+    var particles: [ConfettiParticle] = []
+    private let colors: [Color] = [.red, .blue, .green, .yellow, .pink, .purple, .orange]
+    private var lastUpdate: TimeInterval = 0
+    
+    init() {
+        // Lanzar explosión inicial
+        for _ in 0..<50 {
+            addParticle(burst: true)
+        }
+    }
+    
+    func update(date: Date, size: CGSize) {
+        let now = date.timeIntervalSince1970
+        if now - lastUpdate < 0.016 { return }
+        lastUpdate = now
+        
+        // Mover partículas
+        for i in 0..<particles.indices.count {
+            particles[i].x += particles[i].speedX
+            particles[i].y += particles[i].speedY
+            particles[i].rotation += particles[i].rotationSpeed
+            particles[i].speedY += 0.1 // Gravedad
+            
+            // Fade out al final
+            if particles[i].y > size.height {
+                particles[i].opacity -= 0.02
+            }
+        }
+        
+        // Eliminar las que caen fuera o son invisibles
+        particles.removeAll { $0.y > size.height + 100 || $0.opacity <= 0 }
+        
+        // Añadir nuevas continuamente (fuente)
+        if particles.count < 100 {
+            addParticle(burst: false)
+        }
+    }
+    
+    private func addParticle(burst: Bool) {
+        let p = ConfettiParticle(
+            x: burst ? Double.random(in: -50...50) : Double.random(in: -300...300), // Centro o ancho
+            y: burst ? Double.random(in: -50...50) : -50, // Centro o arriba
+            color: colors.randomElement()!,
+            size: Double.random(in: 6...12),
+            rotation: Double.random(in: 0...360),
+            speedX: Double.random(in: -2...2),
+            speedY: burst ? Double.random(in: -10...(-2)) : Double.random(in: 2...8), // Explosión vs Caída
+            rotationSpeed: Double.random(in: -5...5)
+        )
+        particles.append(p)
+    }
+}
+
+struct ConfettiView: View {
+    @State private var system = ConfettiSystem()
+    
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                system.update(date: timeline.date, size: size)
+                
+                for particle in system.particles {
+                    var particleContext = context
+                    let rect = CGRect(
+                        x: size.width/2 + particle.x, // Centrado
+                        y: burstMode(particle) ? size.height/2 + particle.y : particle.y, // Ajuste coord
+                        width: particle.size,
+                        height: particle.size * 0.6
+                    )
+                    
+                    particleContext.opacity = particle.opacity
+                    particleContext.rotate(by: .degrees(particle.rotation))
+                    
+                    // Dibujar rectángulo de confeti
+                    particleContext.fill(Path(getRect(rect)), with: .color(particle.color))
+                }
+            }
+        }
+        .allowsHitTesting(false) // Permitir toques a través
+    }
+    
+    // Helpers simples para lógica de posición
+    private func burstMode(_ p: ConfettiParticle) -> Bool {
+        return p.speedY < 0 // Si sube, es explosión inicial
+    }
+    
+    private func getRect(_ rect: CGRect) -> CGRect {
+        return rect
+    }
+}
+
 struct ModernLoadingAnimation: View {
     @State private var isAnimating = false
     @Environment(\.colorScheme) var colorScheme
@@ -1639,57 +1976,75 @@ struct ModernLoadingAnimation: View {
         HStack {
             Spacer()
             
-            VStack(spacing: 16) {
-                HStack(spacing: 8) {
-                    ForEach(0..<3) { index in
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        ModernGeminiColors.primary,
-                                        ModernGeminiColors.secondary,
-                                        ModernGeminiColors.accent
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+            VStack(spacing: 20) {
+                ZStack {
+                    // ✨ Sparkles de fondo
+                    PremiumSparkleEmitter(color: ModernGeminiColors.accent)
+                        .frame(width: 100, height: 100)
+                    
+                    HStack(spacing: 12) {
+                        ForEach(0..<3) { index in
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            ModernGeminiColors.primary,
+                                            ModernGeminiColors.secondary,
+                                            ModernGeminiColors.accent
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                            .frame(width: 12, height: 12)
-                            .scaleEffect(isAnimating ? 1.2 : 0.8)
-                            .animation(
-                                .easeInOut(duration: 0.6)
-                                .repeatForever()
-                                .delay(Double(index) * 0.2),
-                                value: isAnimating
-                            )
+                                .frame(width: 14, height: 14)
+                                .scaleEffect(isAnimating ? 1.3 : 0.7)
+                                .shadow(color: ModernGeminiColors.primary.opacity(0.4), radius: isAnimating ? 8 : 2)
+                                .animation(
+                                    .easeInOut(duration: 0.8)
+                                    .repeatForever()
+                                    .delay(Double(index) * 0.2),
+                                    value: isAnimating
+                                )
+                        }
                     }
                 }
+                .frame(height: 60)
                 
                 Text("nova.typing")
-                    .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(ModernGeminiColors.textSecondary)
-                    .opacity(isAnimating ? 1.0 : 0.7)
-                    .animation(.easeInOut(duration: 1).repeatForever(), value: isAnimating)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(ModernGeminiColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundStyle(
                         LinearGradient(
-                            colors: [
-                                ModernGeminiColors.borderColor,
-                                ModernGeminiColors.accent.opacity(0.3)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
+                            colors: [ModernGeminiColors.textPrimary, ModernGeminiColors.accent],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
+                    .opacity(isAnimating ? 1.0 : 0.6)
+                    .animation(.easeInOut(duration: 1.2).repeatForever(), value: isAnimating)
+            }
+            .padding(.horizontal, 30)
+            .padding(.vertical, 24)
+            .background(
+                ZStack {
+                    ModernGeminiColors.cardBackground
+                    
+                    // Efecto de brillo interior
+                    RoundedRectangle(cornerRadius: 30)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    ModernGeminiColors.accent.opacity(0.5),
+                                    Color.clear
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                }
             )
-            .shadow(color: ModernGeminiColors.shadowColor, radius: 8, x: 0, y: 4)
+            .clipShape(RoundedRectangle(cornerRadius: 30))
+            .shadow(color: ModernGeminiColors.primary.opacity(0.15), radius: 15, x: 0, y: 8)
             
             Spacer()
         }
@@ -1731,6 +2086,7 @@ struct EnhancedInputBar: View {
     @ObservedObject var viewModel: GeminiViewModel
     @Binding var showSuggestedOptions: Bool
     @FocusState private var isTextFieldFocused: Bool
+    @State private var selectedItem: PhotosPickerItem? = nil
     @Environment(\.colorScheme) var colorScheme
     
     // ✅ CALLBACK PARA NOTIFICAR CUANDO EL TEXTOFIELD OBTIENE FOCUS
@@ -1738,31 +2094,94 @@ struct EnhancedInputBar: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // ⭐ SUGERENCIAS MEJORADAS - NO SE OCULTAN CON FOCUS
-            if showSuggestedOptions && viewModel.conversationHistory.isEmpty {
-                SmartSuggestionChips(viewModel: viewModel, showSuggestedOptions: $showSuggestedOptions)
-                    .padding(.vertical, 12)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            // ⭐ SUGERENCIAS MEJORADAS (Welcome o Follow-up)
+            if viewModel.showSuggestedOptions {
+                if viewModel.conversationHistory.isEmpty {
+                    // Sugerencias iniciales (Welcome)
+                    SmartSuggestionChips(viewModel: viewModel, showSuggestedOptions: $viewModel.showSuggestedOptions, type: .welcome)
+                        .padding(.vertical, 12)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                } else if !viewModel.followUpSuggestions.isEmpty {
+                    // Sugerencias contextuales (Follow-up)
+                    SmartSuggestionChips(viewModel: viewModel, showSuggestedOptions: $viewModel.showSuggestedOptions, type: .followUp)
+                        .padding(.vertical, 12)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
             
             // ⭐ SEPARADOR CONDICIONAL
-            if showSuggestedOptions && viewModel.conversationHistory.isEmpty {
+            if viewModel.showSuggestedOptions && viewModel.conversationHistory.isEmpty {
                 Rectangle()
                     .frame(height: 0.5)
                     .foregroundColor(ModernGeminiColors.borderColor)
             }
             
-            HStack(spacing: 12) {
+            // ⭐ VISTA PREVIA DE IMAGEN SELECCIONADA
+            if let selectedImage = viewModel.selectedImage {
+                HStack {
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: selectedImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .shadow(radius: 4)
+                        
+                        Button(action: {
+                            viewModel.selectedImage = nil
+                            selectedItem = nil
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.white)
+                                .background(Circle().fill(Color.black.opacity(0.5)))
+                                .font(.system(size: 20))
+                        }
+                        .offset(x: 10, y: -10)
+                    }
+                    .padding(.top, 8)
+                    .padding(.leading, 20)
+                    
+                    Spacer()
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+            
+            HStack(alignment: .bottom, spacing: 12) {
+                // ✅ Botón para adjuntar imágenes
+                PhotosPicker(selection: $selectedItem, matching: .images) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [ModernGeminiColors.primary, ModernGeminiColors.secondary],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                .padding(.bottom, 10)
+                .onChange(of: selectedItem) { newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self),
+                           let image = UIImage(data: data) {
+                            await MainActor.run {
+                                viewModel.selectedImage = image
+                            }
+                        }
+                    }
+                }
+                
                 // ✅ TextField con cambios en el overlay para rendimiento
                 TextField(NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"), text: $viewModel.inputText, axis: .vertical)
+                    .lineLimit(1...6)
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(ModernGeminiColors.textPrimary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .background(ModernGeminiColors.cardBackground)
-                    .clipShape(Capsule())
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
                     .overlay(
-                        Capsule()
+                        RoundedRectangle(cornerRadius: 24)
                             .stroke(
                                 LinearGradient(
                                     colors: [
@@ -1811,6 +2230,7 @@ struct EnhancedInputBar: View {
                                 .clipShape(Circle())
                                 .shadow(color: ModernGeminiColors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
                         }
+                        .padding(.bottom, 2) // Pequeño ajuste para aliñar con el círculo
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -1839,8 +2259,15 @@ struct EnhancedInputBar: View {
 
 // MARK: - Sugerencias Inteligentes Dinámicas
 struct SmartSuggestionChips: View {
+    enum SuggestionType {
+        case welcome
+        case followUp
+    }
+    
     @ObservedObject var viewModel: GeminiViewModel
     @Binding var showSuggestedOptions: Bool
+    let type: SuggestionType
+    
     @State private var dynamicSuggestions: [DynamicSuggestion] = []
     @State private var isLoadingSuggestions = true
     @State private var refreshTimer: Timer?
@@ -1848,7 +2275,7 @@ struct SmartSuggestionChips: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                if isLoadingSuggestions {
+                if type == .welcome ? isLoadingSuggestions : viewModel.isLoadingFollowUps {
                     // Placeholder mientras carga
                     ForEach(0..<3) { _ in
                         RoundedRectangle(cornerRadius: 20)
@@ -1857,13 +2284,17 @@ struct SmartSuggestionChips: View {
                             .shimmer()
                     }
                 } else {
-                    ForEach(dynamicSuggestions.prefix(6)) { suggestion in
+                    let suggestions = type == .welcome ? 
+                        dynamicSuggestions.map { SmartSuggestion(text: $0.text, icon: $0.icon, action: $0.action) } :
+                        viewModel.followUpSuggestions
+                    
+                    ForEach(suggestions.prefix(6), id: \.text) { suggestion in
                         SmartSuggestionChip(
-                            suggestion: SmartSuggestion(text: suggestion.text, icon: suggestion.icon)
+                            suggestion: suggestion
                         ) {
-                            viewModel.inputText = suggestion.action
+                            viewModel.inputText = suggestion.action ?? suggestion.text
                             viewModel.sendMessage()
-                            showSuggestedOptions = false
+                            // No ocultamos automáticamente para que el usuario vea la acción
                         }
                     }
                 }
@@ -1903,9 +2334,10 @@ struct SmartSuggestionChips: View {
     }
 }
 
-struct SmartSuggestion {
+struct SmartSuggestion: Codable {
     let text: String
     let icon: String
+    var action: String? = nil
 }
 
 // MARK: - Sugerencias Dinámicas para Welcome Section
@@ -2086,14 +2518,16 @@ struct GeminiScrollOffsetPreferenceKey: PreferenceKey {
 // MARK: - Mantener el modelo ChatMessage igual
 struct ChatMessage: Identifiable, Equatable {
     let id = UUID()
-    let text: String
+    var text: String
+    let image: UIImage? // ✅ NUEVO: Soporte para imágenes
     let isUser: Bool
     let timestamp: Date
     let isHistorical: Bool // ✅ NUEVO: Flag para mensajes históricos
     let isSystem: Bool // ✅ NUEVO: Flag para mensajes del sistema (como WhatsApp)
 
-    init(text: String, isUser: Bool, isHistorical: Bool = false, isSystem: Bool = false) {
+    init(text: String, isUser: Bool, image: UIImage? = nil, isHistorical: Bool = false, isSystem: Bool = false) {
         self.text = text
+        self.image = image
         self.isUser = isUser
         self.timestamp = Date()
         self.isHistorical = isHistorical // ✅ Por defecto es nuevo mensaje
@@ -2103,6 +2537,7 @@ struct ChatMessage: Identifiable, Equatable {
     static func ==(lhs: ChatMessage, rhs: ChatMessage) -> Bool {
         return lhs.id == rhs.id &&
                lhs.text == rhs.text &&
+               lhs.image == rhs.image &&
                lhs.isUser == rhs.isUser &&
                lhs.isHistorical == rhs.isHistorical &&
                lhs.isSystem == rhs.isSystem
@@ -2112,10 +2547,16 @@ struct ChatMessage: Identifiable, Equatable {
 // MARK: - GeminiViewModel Mejorado
 class GeminiViewModel: ObservableObject {
     @Published var inputText = ""
+    @Published var selectedImage: UIImage? = nil
     @Published var responseText = ""
     @Published var isLoading = false
     @Published var conversationHistory: [ChatMessage] = []
     @Published var conversationTitles: [ConversationTitle] = []
+    @Published var photoAuthorizationStatus: PHAuthorizationStatus = .notDetermined // ✅ NUEVO: Estado de permisos
+    @Published var followUpSuggestions: [SmartSuggestion] = [] // ✅ NUEVO: Sugerencias contextuales
+    @Published var isLoadingFollowUps = false // ✅ NUEVO: Estado de carga de sugerencias
+    @Published var showSuggestedOptions = true // ✅ MOVIDO DESDE LA VISTA
+    @Published var showCelebration = false // 🎉 NUEVO: Efecto de confeti
 
     private(set) var userData: AppUser?
     private(set) var recentMoments: [Moment] = []
@@ -2128,7 +2569,8 @@ class GeminiViewModel: ObservableObject {
     private var conversationService: ConversationService?
     private let firestoreService = FirestoreService()
     private let vertexAI: VertexAI
-    private let model: GenerativeModel
+    private var model: GenerativeModel
+    private var chatSession: Chat?
     
     private let memoryService = NovaMemoryService()
     // ✅ LAZY: Solo inicializar cuando realmente se necesite (cuando el usuario haga una consulta de actividad)
@@ -2167,7 +2609,21 @@ class GeminiViewModel: ObservableObject {
     init() {
         self.vertexAI = VertexAI.vertexAI(location: "global")
         
-        // ✅ CONFIGURAR MODELO CON CONFIGURACIÓN OPTIMIZADA
+        // Inicialización básica (se actualizará cuando carguen los datos del usuario)
+        self.model = vertexAI.generativeModel(modelName: "gemini-3-flash-preview")
+        
+        Task {
+            await MainActor.run {
+                self.conversationService = ConversationService()
+            }
+            await self.loadConversationTitles()
+        }
+    }
+
+    // ✅ NUEVA: Configurar el modelo con instrucciones del sistema y sesión de chat
+    private func setupModelAndSession() {
+        guard let userData = userData else { return }
+        
         let config = GenerationConfig(
             temperature: 0.7,
             topP: 0.8,
@@ -2178,7 +2634,6 @@ class GeminiViewModel: ObservableObject {
             responseMIMEType: "text/plain"
         )
         
-        // ✅ CONFIGURAR SAFETY SETTINGS PARA EVITAR BLOQUEOS
         let safetySettings = [
             SafetySetting(harmCategory: .harassment, threshold: .blockMediumAndAbove),
             SafetySetting(harmCategory: .hateSpeech, threshold: .blockMediumAndAbove),
@@ -2186,19 +2641,105 @@ class GeminiViewModel: ObservableObject {
             SafetySetting(harmCategory: .dangerousContent, threshold: .blockMediumAndAbove)
         ]
         
+        // Construir instrucciones del sistema (System Instruction)
+        // 🔥 Conversational Spark: Seleccionar y marcar
+        self.userMemory?.selectRandomSpark()
+        let systemInstruction = buildSystemInstruction()
+        
+        // Si hay un spark activo, marcarlo como usado para que no se repita pronto
+        if let spark = self.userMemory?.activeSpark {
+            Task {
+                await self.markSparkAsProbed(id: spark.id)
+            }
+        }
+        
         self.model = vertexAI.generativeModel(
             modelName: "gemini-3-flash-preview",
             generationConfig: config,
-            safetySettings: safetySettings
+            safetySettings: safetySettings,
+            systemInstruction: ModelContent(role: "system", parts: [systemInstruction])
         )
         
-        Task {
-            await MainActor.run {
-                self.conversationService = ConversationService()
+        // ✅ INICIAR SESIÓN DE CHAT (OPTIMIZADO: Sliding Window)
+        // Convertimos el historial existente al formato de Gemini
+        // Limitamos a los últimos 12 mensajes para ahorrar tokens (aprox. 6 turnos)
+        let relevantHistory = conversationHistory.filter { !$0.isSystem }.suffix(12)
+        
+        let history = relevantHistory.map { msg in
+            ModelContent(role: msg.isUser ? "user" : "model", parts: [msg.text])
+        }
+        
+        self.chatSession = model.startChat(history: history)
+        LogConfig.log("🚀 Sesión de Chat iniciada con \(history.count) mensajes de historial (Ventana deslizante)", category: "Gemini")
+        
+        // ✅ Verificar permisos al iniciar el VM
+        checkPhotoLibraryPermission()
+    }
+    
+    // MARK: - 🔐 PERMISOS DE GALERÍA (Consistente con Stories/Moments)
+    func checkPhotoLibraryPermission() {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        DispatchQueue.main.async {
+            self.photoAuthorizationStatus = status
+        }
+        
+        if status == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
+                DispatchQueue.main.async {
+                    self.photoAuthorizationStatus = newStatus
+                }
             }
-            await self.loadConversationTitles()
         }
     }
+
+    private func buildSystemInstruction() -> String {
+        guard let userData = userData else { return "" }
+        
+        let userContext = buildSimpleContext()
+        let memoryContext = userMemory?.contextString ?? ""
+        
+        // Usamos la lógica de NovaPersona pero enfocada a System Instruction
+        let instruction = NovaPersona.getPersonalizedPrompt(
+            userContext: userContext,
+            memoryContext: memoryContext,
+            personalization: userMemory
+        )
+        
+        return """
+        \(instruction)
+        
+        🎯 CONTEXTO DINÁMICO DEL USUARIO:
+        - Nombre para usar: \(userMemory?.preferredName ?? userData.username)
+        - Intereses principales: \(userData.interests.joined(separator: ", "))
+        - Momento actual: \(getCurrentTimeContext())
+        
+        ⚠️ REGLAS DE SESIÓN:
+        - Mantén un tono consistente con el análisis de 'vibe' que recibirás en cada mensaje.
+        - NO repitas que eres una IA o que tienes memoria.
+        - Sé concisa y directa a menos que se pida detalle.
+        """
+    }
+    // MARK: - 🧠 Helper de Memoria Conversacional
+    func markSparkAsProbed(id: String) async {
+        guard let memory = userMemory else { return }
+        
+        // 1. Actualizar memoria localmente (para esta sesión)
+        self.userMemory = memory.markingFactAsProbed(id: id)
+        
+        // 2. Persistir en Firestore
+        // Aseguramos que usamos la versión actualizada para guardar
+        if let updatedMemory = self.userMemory {
+            self.memoryService.saveMemory(updatedMemory) { result in
+                switch result {
+                case .success:
+                    LogConfig.log("✅ Spark marcado como 'probed' exitosamente: \(id)", category: "Memory")
+                case .failure(let error):
+                    LogConfig.log("❌ Error marcando spark como probed: \(error.localizedDescription)", category: "Memory")
+                }
+            }
+        }
+    }
+    
 
     // MARK: - Funciones originales sin cambios
     func fetchUserData() {
@@ -2241,11 +2782,13 @@ class GeminiViewModel: ObservableObject {
                         LogConfig.log("🎭 Nombre preferido detectado: \(preferredName)", category: "Personalization")
                     }
                     LogConfig.log("🧠 Memoria personalizada cargada: \(memory.facts.count) hechos", category: "Memory")
-                    // ✅ NUEVO: Marcar que la memoria está lista
+                    // ✅ NUEVO: Marcar que la memoria está lista y configurar sesión
                     self?.hasMemoryLoaded = true
+                    self?.setupModelAndSession()
                 case .failure(_):
                     self?.userMemory = NovaMemory(userId: userId)
                     self?.hasMemoryLoaded = true
+                    self?.setupModelAndSession()
                 }
             }
         }
@@ -2601,220 +3144,210 @@ class GeminiViewModel: ObservableObject {
             conversationHistory.append(ChatMessage(text: systemMessage, isUser: false, isSystem: true))
         }
         
-        // ✅ PREPARAR MENSAJE DEL USUARIO
-        let userMessage = ChatMessage(text: inputText, isUser: true)
+        // ✅ PREPARAR MENSAJE DEL USUARIO (con imagen si existe)
+        let currentImage = selectedImage
+        let userMessage = ChatMessage(text: inputText, isUser: true, image: currentImage)
         conversationHistory.append(userMessage)
         
-        // ✅ GUARDAR INPUT ANTES DE LIMPIARLO
         let currentInput = inputText
         inputText = ""
+        
+        // 🎭 ACTUALIZAR PERFIL DE COMPORTAMIENTO (En segundo plano)
+        // 🎭 ACTUALIZAR PERFIL DE COMPORTAMIENTO (En segundo plano)
+        if let memory = self.userMemory {
+            // Capturar textos recientes (incluyendo el actual)
+            let recentTexts = conversationHistory
+                .filter { $0.isUser }
+                .suffix(10)
+                .map { $0.text }
+            
+            Task.detached(priority: .background) { [weak self] in
+                let updatedMemory = NovaBehaviorService.shared.updateBehaviorProfile(memory: memory, recentMessages: Array(recentTexts))
+                
+                await MainActor.run {
+                    self?.userMemory = updatedMemory
+                    // Persistir silenciosamente
+                    self?.memoryService.saveMemory(updatedMemory) { _ in }
+                }
+            }
+        }
+        selectedImage = nil
         isLoading = true
 
-        // ✅ CONSTRUIR CONTEXTO PERSONALIZADO (esta línea faltaba!)
-        let userContext = buildSimpleContext()
-        let memoryContext = userMemory?.contextString ?? ""
+        // ✅ ANÁLISIS DINÁMICO (Mucho más ligero ahora)
         let vibeAnalysis = NovaPersona.analyzeUserVibeWithPersonalization(currentInput, memory: userMemory)
-
-        let fullPrompt = NovaPersona.getPersonalizedPrompt(
-            userContext: userContext,
-            memoryContext: memoryContext,
-            personalization: userMemory
-        )
-        
-        let recentHistory = Array(conversationHistory.suffix(8))
-        let conversationContext = recentHistory.map { message in
-            "\(message.isUser ? "Usuario: " : "Nova: ") \(message.text)"
-        }.joined(separator: "\n")
-        
-        // 🎯 USAR NOMBRE PREFERIDO EN EL PROMPT
-        let displayName = userMemory?.preferredName ?? userData.username
-        
-        // 🔥 NUEVO: Análisis inteligente para el prompt dinámico
         let engagement = memoryService.analyzeConversationEngagement(conversationHistory)
         let patterns = memoryService.analyzeCommunicationPatterns(conversationHistory)
-        
         let lang = detectInputLanguage(currentInput) ?? (NovaLanguageService.getPreferredLanguage() ?? .es)
-        let finalPrompt: String
-        switch lang {
-        case .es:
-            finalPrompt = """
-            \(fullPrompt)
-
-            🗣️ Responde exclusivamente en Español.
-
-            🎭 ANÁLISIS DE PERSONALIDAD PARA ESTA RESPUESTA:
-            \(vibeAnalysis)
-
-            🔥 ANÁLISIS INTELIGENTE DE LA CONVERSACIÓN:
-            - Nivel de engagement: \(engagement.level.description)
-            - Participación del usuario: \(String(format: "%.1f", engagement.userParticipation * 100))%
-            - Consistencia de temas: \(String(format: "%.1f", engagement.topicConsistency * 100))%
-            - Patrón de comunicación: \(patterns.isFormal ? "Formal" : "Casual")
-            - Uso de emojis: \(patterns.usesEmojis ? "Sí" : "No")
-            - Frecuencia de preguntas: \(String(format: "%.1f", patterns.questionFrequency * 100))%
-
-            🎯 ADAPTACIÓN INTELIGENTE:
-            \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
-
-            HISTORIAL RECIENTE:
-            \(conversationContext)
-
-            CONSULTA ACTUAL: \(currentInput)
-
-            CONTEXTO ESPECÍFICO:
-            - Usuario actual: \(displayName) (es UN USUARIO de la app, NO el creador)
-            - Creador de la app: Álvaro (persona diferente al usuario actual)  
-            - Momento: \(getCurrentTimeContext())
-            - Intereses: \(userData.interests.prefix(3).joined(separator: ", "))
-
-            ⚠️ CRÍTICO PERSONALIZACIÓN: 
-            - Si conoces el nombre preferido, úsalo SIEMPRE en lugar del username
-            - Aplica las preferencias de comunicación automáticamente
-            - Si preguntan sobre el creador, menciona "Álvaro", nunca "\(userData.username)"
-            - ADAPTA tu respuesta según el análisis de engagement y patrones arriba
-            
-            🚫 REGLA IMPORTANTE - NO SEAS PESADO CON INTERESES:
-            - NO menciones los intereses del usuario en CADA respuesta
-            - Solo usa intereses cuando sea RELEVANTE para la pregunta específica
-            - NO fuerces sugerencias basadas en intereses si el usuario no las pide
-            - Sé natural y conversacional, no un catálogo de recomendaciones
-            - Los intereses son contexto, NO el tema principal de cada conversación
-            """
-        case .en:
-            finalPrompt = """
-            \(fullPrompt)
-
-            🗣️ Respond exclusively in English.
-
-            🎭 PERSONALITY ANALYSIS FOR THIS RESPONSE:
-            \(vibeAnalysis)
-
-            🔥 INTELLIGENT CONVERSATION ANALYSIS:
-            - Engagement level: \(engagement.level.description)
-            - User participation: \(String(format: "%.1f", engagement.userParticipation * 100))%
-            - Topic consistency: \(String(format: "%.1f", engagement.topicConsistency * 100))%
-            - Communication pattern: \(patterns.isFormal ? "Formal" : "Casual")
-            - Emoji usage: \(patterns.usesEmojis ? "Yes" : "No")
-            - Question frequency: \(String(format: "%.1f", patterns.questionFrequency * 100))%
-
-            🎯 INTELLIGENT ADAPTATION:
-            \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
-
-            RECENT HISTORY:
-            \(conversationContext)
-
-            CURRENT QUERY: \(currentInput)
-
-            SPECIFIC CONTEXT:
-            - Current user: \(displayName) (is a USER of the app, NOT the creator)
-            - App creator: Álvaro (different person than the current user)
-            - Time: \(getCurrentTimeContext())
-            - Interests: \(userData.interests.prefix(3).joined(separator: ", "))
-
-            ⚠️ CRITICAL PERSONALIZATION:
-            - If you know the preferred name, ALWAYS use it instead of the username
-            - Apply communication preferences automatically
-            - If they ask about the creator, mention "Álvaro", never "\(userData.username)"
-            - ADAPT your response according to the engagement and pattern analysis above
-            
-            🚫 IMPORTANT RULE - DON'T OVERUSE INTERESTS:
-            - Do NOT mention the user's interests in EVERY response
-            - Only use interests when RELEVANT to the specific question
-            - Do NOT force suggestions based on interests if not asked
-            - Be natural and conversational, not a catalog of recommendations
-            - Interests are context, NOT the main topic of every conversation
-            """
-        case .ca:
-            finalPrompt = """
-            \(fullPrompt)
-
-            🗣️ Respon exclusivament en Català.
-
-            🎭 ANÀLISI DE PERSONALITAT PER A AQUESTA RESPOSTA:
-            \(vibeAnalysis)
-
-            🔥 ANÀLISI INTEL·LIGENT DE LA CONVERSA:
-            - Nivell d'enganxament: \(engagement.level.description)
-            - Participació de l'usuari: \(String(format: "%.1f", engagement.userParticipation * 100))%
-            - Consistència de temes: \(String(format: "%.1f", engagement.topicConsistency * 100))%
-            - Patró de comunicació: \(patterns.isFormal ? "Formal" : "Casual")
-            - Ús d'emojis: \(patterns.usesEmojis ? "Sí" : "No")
-            - Freqüència de preguntes: \(String(format: "%.1f", patterns.questionFrequency * 100))%
-
-            🎯 ADAPTACIÓ INTEL·LIGENT:
-            \(getAdaptationInstructions(engagement: engagement, patterns: patterns))
-
-            HISTORIAL RECENT:
-            \(conversationContext)
-
-            CONSULTA ACTUAL: \(currentInput)
-
-            CONTEXT ESPECÍFIC:
-            - Usuari actual: \(displayName) (és UN USUARI de l'app, NO el creador)
-            - Creador de l'app: Álvaro (persona diferent de l'usuari actual)
-            - Moment: \(getCurrentTimeContext())
-            - Interessos: \(userData.interests.prefix(3).joined(separator: ", "))
-
-            ⚠️ CRÍTIC DE PERSONALITZACIÓ:
-            - Si coneixes el nom preferit, fes-lo servir SEMPRE en lloc del username
-            - Aplica les preferències de comunicació automàticament
-            - Si pregunten sobre el creador, esmenta "Álvaro", mai "\(userData.username)"
-            - ADAPTA la teva resposta segons l'anàlisi d'enganxament i patrons de dalt
-            
-            🚫 REGLA IMPORTANT - NO ABUSIS DELS INTERESSOS:
-            - NO mencionis els interessos de l'usuari a CADA resposta
-            - Utilitza interessos només quan sigui RELLEVANT per a la pregunta específica
-            - NO forcis suggeriments basats en interessos si l'usuari no ho demana
-            - Sigues natural i conversacional, no un catàleg de recomanacions
-            - Els interessos són context, NO el tema principal de cada conversa
-            """
+        
+        // 🔍 RAG: Búsqueda Semántica de Contexto
+        var ragContext = ""
+        if let memory = userMemory {
+            // Buscar solo si hay memoria y query
+            let relevantFacts = NovaEmbeddingService.shared.findSimilarFacts(query: currentInput, facts: memory.facts)
+            if !relevantFacts.isEmpty {
+                let contextContent = relevantFacts.map { "  • \($0.content)" }.joined(separator: "\n")
+                // Localizar cabecera según idioma
+                let header = lang == .es ? "💡 MEMORIA RELEVANTE:" : (lang == .ca ? "💡 MEMÒRIA RELLEVANT:" : "💡 RELEVANT MEMORY:")
+                ragContext = "\n\(header)\n\(contextContent)"
+                LogConfig.log("🔍 RAG: Inyectados \(relevantFacts.count) hechos relevantes", category: "Memory")
+            }
         }
+        
+        // ✅ CONSTRUIR PROMPT LIGERO (El contexto pesado está en systemInstruction)
+        let langName: String = {
+            switch lang {
+            case .es: return "Español"
+            case .en: return "English"
+            case .ca: return "Català"
+            }
+        }()
+        
+        let minimalPrompt = """
+        🗣️ Responde en \(langName).
+        🎭 Vibe actual: \(vibeAnalysis)
+        🎯 Adaptación: \(getAdaptationInstructions(engagement: engagement, patterns: patterns))\(ragContext)
+        
+        Usuario: \(currentInput)
+        """
 
-        // ✅ TASK CON MANEJO ROBUSTO DE ERRORES
         Task { @MainActor in
             do {
-                // ✅ GENERAR CONTENIDO CON RETRY LOGIC
-                let response = try await generateContentWithRetry(prompt: finalPrompt, maxRetries: 2)
-                let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-                let fallback: String = {
-                    switch lang {
-                    case .es: return "No pude generar una respuesta. ¿Puedes reformular tu pregunta?"
-                    case .en: return "I couldn't generate a response. Could you rephrase your question?"
-                    case .ca: return "No he pogut generar una resposta. Pots reformular la teva pregunta?"
-                    }
-                }()
-                let responseText = response.text ?? fallback
+                // ✅ Asegurar sesión inicializada
+                if chatSession == nil { setupModelAndSession() }
                 
-                // 🎯 VALIDAR PERSONALIZACIÓN EN LA RESPUESTA
+                // 1. Añadimos un mensaje vacío para el bot que iremos llenando
+                let botMessage = ChatMessage(text: "", isUser: false)
+                self.conversationHistory.append(botMessage)
+                let botMessageIndex = self.conversationHistory.count - 1
+                
+                var fullResponseText = ""
+                let stream = sendMessageStreamWithRetry(prompt: minimalPrompt, image: currentImage, maxRetries: 2)
+                
+                for try await chunk in stream {
+                    if let newText = chunk.text {
+                        fullResponseText += newText
+                        // Actualizamos el mensaje en el historial en tiempo real
+                        self.conversationHistory[botMessageIndex].text = fullResponseText
+                        self.responseText = fullResponseText // Para otros usos de la UI si existen
+                    }
+                }
+                
+                // 🎯 VALIDAR PERSONALIZACIÓN FINAL
                 let validatedResponse = NovaPersona.validatePersonalization(
                     input: currentInput,
                     memory: userMemory,
-                    response: responseText
+                    response: fullResponseText
                 )
                 
-                // ✅ ACTUALIZAR UI
-                self.isLoading = false
-                self.responseText = validatedResponse
-                self.conversationHistory.append(ChatMessage(text: validatedResponse, isUser: false))
-                
-                // 🔥 NUEVO: Feedback háptico cuando Nova termina de responder
-                triggerHapticFeedback(type: .success)
-                
-                // ✅ GUARDAR CONVERSACIÓN
-                Task {
-                    await self.saveCurrentConversation()
+                // Actualizar con la versión validada si hubo cambios
+                if validatedResponse != fullResponseText {
+                    self.conversationHistory[botMessageIndex].text = validatedResponse
+                    self.responseText = validatedResponse
                 }
                 
-                            // ✅ PROCESAR MEMORIA CON DEBOUNCE MEJORADO
-                self.scheduleMemoryProcessing(userId: userId)
+                self.isLoading = false
+                triggerHapticFeedback(type: .success)
                 
-                // 🔥 NUEVO: Análisis inteligente de la conversación en tiempo real
+                Task { await self.saveCurrentConversation() }
+                self.scheduleMemoryProcessing(userId: userId)
                 self.analyzeConversationIntelligently(userId: userId)
+                
+                // 🎉 DETECTAR CELEBRACIÓN
+                if self.shouldTriggerCelebration(text: validatedResponse) {
+                    await MainActor.run {
+                        self.showCelebration = true
+                        NovaHapticFeedback.success() // Doble feedback para enfatizar
+                    }
+                }
+
+                // ✅ GENERAR SUGERENCIAS CONTEXTUALES
+                await self.generateFollowUpSuggestions()
                 
             } catch {
                 await handleSendMessageError(error)
             }
         }
+    }
+    
+    // 🔥 NUEVA: Generar sugerencias inteligentes basadas en el contexto actual
+    private func generateFollowUpSuggestions() async {
+        guard !conversationHistory.isEmpty else { return }
+        
+        // ✅ Detectar idioma del último mensaje del usuario para que las sugerencias coincidan
+        let lastUserMessage = conversationHistory.last { $0.isUser }?.text ?? ""
+        let lang = detectInputLanguage(lastUserMessage) ?? (NovaLanguageService.getPreferredLanguage() ?? .es)
+        let langName = lang == .es ? "Español" : (lang == .ca ? "Català" : "English")
+
+        await MainActor.run {
+            self.isLoadingFollowUps = true
+            self.followUpSuggestions = []
+        }
+        
+        // 🧠 Prompt ligero para Gemini
+        let suggestionPrompt = """
+        Eres un asistente de IA que genera 3 sugerencias de seguimiento concisas y relevantes para una conversación.
+        Las sugerencias deben ser en formato JSON, un array de objetos SmartSuggestion.
+        Cada SmartSuggestion debe tener un 'title' (String) y un 'icon' (String, nombre de SF Symbol).
+        El 'title' debe ser una pregunta o una frase corta que invite a continuar la conversación.
+        El 'icon' debe ser relevante para el título.
+        
+        Ejemplo de JSON:
+        [
+            {"title": "¿Qué tal tu día?", "icon": "sun.max.fill"},
+            {"title": "Cuéntame más", "icon": "ellipsis.bubble.fill"},
+            {"title": "Alguna novedad?", "icon": "sparkles"}
+        ]
+        
+        Contexto de la conversación (últimos 5 mensajes):
+        \(conversationHistory.suffix(5).map { "\($0.isUser ? "Usuario" : "Nova"): \($0.text)" }.joined(separator: "\n"))
+        
+        Usa iconos de SF Symbols apropiados (sparkles, questionmark.circle, arrow.right, etc).
+        Idioma: \(langName)
+        """
+        
+        do {
+            // Usamos el modelo principal para esto también (es más rápido en flash)
+            let result = try await model.generateContent(suggestionPrompt)
+            
+            if let text = result.text {
+                // Limpiar JSON si Gemini añade markdown
+                let cleanedJSON = text.replacingOccurrences(of: "```json", with: "")
+                                     .replacingOccurrences(of: "```", with: "")
+                                     .trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if let data = cleanedJSON.data(using: .utf8) {
+                    let decodedSuggestions = try JSONDecoder().decode([SmartSuggestion].self, from: data)
+                    
+                    await MainActor.run {
+                        self.followUpSuggestions = decodedSuggestions
+                        self.isLoadingFollowUps = false
+                        // Mostrar sugerencias si no estamos en bienvenida
+                        withAnimation(.spring()) {
+                            self.showSuggestedOptions = true
+                        }
+                    }
+                }
+            }
+        } catch {
+            LogConfig.log("❌ Error generando sugerencias contextuales: \(error.localizedDescription)", category: "Gemini")
+            await MainActor.run {
+                self.isLoadingFollowUps = false
+            }
+        }
+    }
+    
+    // 🎉 DETECTOR DE CELEBRACIONES
+    private func shouldTriggerCelebration(text: String) -> Bool {
+        let lowercasedText = text.lowercased()
+        let keywords = [
+            "felicidades", "enhorabuena", "genial", "fantástico", "celebrar", 
+            "increíble", "fiesta", "éxito", "congratulations", "amazing", 
+            "hooray", "party", "success", "great job", "awesome",
+            "felicitats", "enhorabona", "fantàstic"
+        ]
+        
+        return keywords.contains { lowercasedText.contains($0) }
     }
     
     // 🔥 NUEVA: Función de análisis inteligente de conversación en tiempo real
@@ -2912,33 +3445,114 @@ class GeminiViewModel: ObservableObject {
         return instructions
     }
     
-    // ✅ NUEVA FUNCIÓN PARA RETRY CON FIREBASE
-    private func generateContentWithRetry(prompt: String, maxRetries: Int) async throws -> GenerateContentResponse {
+    // ✅ NUEVA: Envío de mensaje usando la sesión de chat con STREAMING (soporta Imágenes)
+    private func sendMessageStreamWithRetry(prompt: String, image: UIImage?, maxRetries: Int) -> AsyncThrowingStream<GenerateContentResponse, Error> {
+        return AsyncThrowingStream(GenerateContentResponse.self) { continuation in
+            Task {
+                var lastError: Error?
+                
+                for attempt in 0...maxRetries {
+                    do {
+                        if attempt > 0 {
+                            let delay = pow(2.0, Double(attempt)) * 0.5
+                            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                            LogConfig.log("🔄 Reintentando envío multimodal con stream (intento \(attempt + 1))", category: "Retry")
+                        }
+                        
+                        // ✅ USAR SESIÓN SI ESTÁ DISPONIBLE
+                        guard let session = chatSession else {
+                            continuation.finish(throwing: NSError(domain: "GeminiError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Sesión no inicializada"]))
+                            return
+                        }
+                        
+                        // En FirebaseVertexAI, sendMessageStream puede aceptar variadic arguments o un array de Parts
+                        // El objeto UIImage es PartsRepresentable por defecto
+                        let stream: AsyncThrowingStream<GenerateContentResponse, Error>
+                        if let image = image {
+                            stream = try session.sendMessageStream(prompt, image)
+                        } else {
+                            stream = try session.sendMessageStream(prompt)
+                        }
+                        
+                        for try await response in stream {
+                            continuation.yield(response)
+                        }
+                        
+                        continuation.finish()
+                        return
+                        
+                    } catch {
+                        lastError = error
+                        LogConfig.log("❌ Error en streaming multimodal (intento \(attempt + 1)): \(error.localizedDescription)", category: "Error")
+                        
+                        if !isNetworkError(error) && attempt == 0 {
+                            continuation.finish(throwing: error)
+                            return
+                        }
+                    }
+                }
+                continuation.finish(throwing: lastError ?? NSError(domain: "GeminiError", code: -1))
+            }
+        }
+    }
+
+    // ✅ ANTIGUA: Envío de mensaje usando la sesión de chat (con historial, NO stream)
+    private func sendMessageWithRetry(prompt: String, maxRetries: Int) async throws -> GenerateContentResponse {
         var lastError: Error?
         
         for attempt in 0...maxRetries {
             do {
                 if attempt > 0 {
-                    // ✅ DELAY EXPONENCIAL ENTRE REINTENTOS
                     let delay = pow(2.0, Double(attempt)) * 0.5
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    LogConfig.log("🔄 Reintentando generación de contenido (intento \(attempt + 1))", category: "Retry")
+                    LogConfig.log("🔄 Reintentando envío de mensaje (intento \(attempt + 1))", category: "Retry")
                 }
                 
-                return try await model.generateContent(prompt)
+                if let session = chatSession {
+                    return try await session.sendMessage(prompt)
+                } else {
+                    return try await model.generateContent(prompt)
+                }
                 
             } catch {
                 lastError = error
-                LogConfig.log("❌ Error en intento \(attempt + 1): \(error.localizedDescription)", category: "Error")
+                LogConfig.log("❌ Error en envío de mensaje (intento \(attempt + 1)): \(error.localizedDescription)", category: "Error")
                 
-                // ✅ SI ES ERROR DE RED, CONTINUAR; SI ES OTRO TIPO, ROMPER
                 if !isNetworkError(error) && attempt == 0 {
                     throw error
                 }
             }
         }
         
-        throw lastError ?? NSError(domain: "GenerationError", code: -1)
+        throw lastError ?? NSError(domain: "GeminiError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error desconocido"])
+    }
+
+    // ✅ ANTIGUA: Generación de contenido simple (sin historial de sesión)
+    // Se usa para cosas puntuales como regenerar bio, títulos, etc.
+    private func generateContentWithRetry(prompt: String, maxRetries: Int) async throws -> GenerateContentResponse {
+        var lastError: Error?
+        
+        for attempt in 0...maxRetries {
+            do {
+                if attempt > 0 {
+                    let delay = pow(2.0, Double(attempt)) * 0.5
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    LogConfig.log("🔄 Reintentando generación simple (intento \(attempt + 1))", category: "Retry")
+                }
+                
+                return try await model.generateContent(prompt)
+                
+            } catch {
+                lastError = error
+                LogConfig.log("❌ Error en generación simple (intento \(attempt + 1)): \(error.localizedDescription)", category: "Error")
+                
+                if !isNetworkError(error) && attempt == 0 {
+                    throw error
+                }
+            }
+        }
+        
+        throw lastError ?? NSError(domain: "GeminiError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error desconocido"])
     }
     
     // ✅ FUNCIÓN PARA DETECTAR ERRORES DE RED
@@ -3070,18 +3684,6 @@ class GeminiViewModel: ObservableObject {
             - Username en la app: \(userData.username)
             - Intereses: \(userData.interests.joined(separator: ", "))
             - Bio: \(userData.bio ?? "No especificada")
-            - Conexiones: \(mutualConnections.count)
-            - Visitas al perfil: \(profileVisits.count)
-            
-            CONEXIONES MUTUAS:
-            \(mutualConnections.isEmpty ? "No hay conexiones mutuas" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-            
-            VISITANTES DEL PERFIL:
-            \(profileVisits.isEmpty ? "No hay visitas registradas" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-            
-            ACTIVIDAD:
-            - Momentos publicados: \(recentMoments.count)
-            - Última actividad: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "No disponible")
             
             IMPORTANTE: El usuario "\(userData.username)" es UN USUARIO de la app. Álvaro es el creador (persona diferente).
             """
@@ -3092,18 +3694,6 @@ class GeminiViewModel: ObservableObject {
             - App username: \(userData.username)
             - Interests: \(userData.interests.joined(separator: ", "))
             - Bio: \(userData.bio ?? "Not specified")
-            - Connections: \(mutualConnections.count)
-            - Profile visits: \(profileVisits.count)
-            
-            MUTUAL CONNECTIONS:
-            \(mutualConnections.isEmpty ? "No mutual connections" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-            
-            PROFILE VISITORS:
-            \(profileVisits.isEmpty ? "No recorded visits" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-            
-            ACTIVITY:
-            - Moments posted: \(recentMoments.count)
-            - Last activity: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "Not available")
             
             IMPORTANT: The user "\(userData.username)" is a USER of the app. Álvaro is the creator (different person).
             """
@@ -3114,20 +3704,8 @@ class GeminiViewModel: ObservableObject {
             - Nom d'usuari a l'app: \(userData.username)
             - Interessos: \(userData.interests.joined(separator: ", "))
             - Bio: \(userData.bio ?? "No especificada")
-            - Connexions: \(mutualConnections.count)
-            - Visites al perfil: \(profileVisits.count)
             
-            CONNEXIONS MÚTUES:
-            \(mutualConnections.isEmpty ? "No hi ha connexions mútues" : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-            
-            VISITANTS DEL PERFIL:
-            \(profileVisits.isEmpty ? "No hi ha visites registrades" : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-            
-            ACTIVITAT:
-            - Moments publicats: \(recentMoments.count)
-            - Última activitat: \(recentMoments.first?.timestamp.timeAgoDisplay() ?? "No disponible")
-            
-            IMPORTANT: L'usuari "\(userData.username)" és UN USUARI de l'app. Álvaro és el creador (persona diferent).
+            IMPORTANT: L'usuari "\(userData.username)" és un USUARI de l'app. Álvaro és el creador (persona diferent).
             """
         }
     }
@@ -3139,9 +3717,10 @@ class GeminiViewModel: ObservableObject {
         LogConfig.log("🧠 Iniciando procesamiento seguro de memoria", category: "Memory")
         
         let currentHistory = conversationHistory
+        let existingFacts = self.userMemory?.facts ?? []
         
         await withCheckedContinuation { continuation in
-            memoryService.extractFactsFromConversation(currentHistory, userId: userId) { facts in
+            memoryService.extractFactsFromConversation(currentHistory, userId: userId, existingFacts: existingFacts) { facts in
                 if !facts.isEmpty {
                     self.memoryService.updateMemoryWithFacts(facts, userId: userId) { result in
                         if case .success = result {

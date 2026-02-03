@@ -35,6 +35,10 @@ struct ModernMomentDetailView: View {
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag: Bool = false
     
+    // ✅ NUEVOS: Navegación de perfil desde tags
+    @State private var showUserProfile = false
+    @State private var selectedUserId: String = ""
+    
     private let privacyService = PrivacyService()
     private let firestoreService2 = FirestoreService()
     
@@ -56,25 +60,23 @@ struct ModernMomentDetailView: View {
                     .ignoresSafeArea(.all)
                     .opacity(backgroundOpacity)
                 
-                // ✅ Header flotante
+                // ✅ Header fijo superior con efecto cristal
                 ModernDetailHeader(
                     moment: moments[safe: currentIndex],
+                    safeAreaTop: safeAreaTop
                 )
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+                .ignoresSafeArea(.container, edges: .top) // ✅ El header debe ignorar el safe area para pegarse al notch
                 .zIndex(10)
-                .offset(x: dragOffset * 0.3) // ✅ Se mueve menos que el contenido
-                .opacity(backgroundOpacity)
                 
-                // ✅ Contenido principal con drag
+                // ✅ Contenido principal
                 VStack(spacing: 0) {
-                    Spacer().frame(height: safeAreaTop + 17) // ✅ Espacio para el header
                     modernMomentsScrollView(
                         geometry: geometry,
                         safeAreaBottom: safeAreaBottom
                     )
                 }
-                .offset(x: dragOffset) // ✅ Se mueve con el drag
+                .padding(.top, safeAreaTop + 10) // Ajustado: el header ahora es más compacto
+                .offset(x: dragOffset)
                 .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0) // ✅ Escala durante drag
                 
                 // ✅ Overlay del menú contextual
@@ -113,6 +115,8 @@ struct ModernMomentDetailView: View {
             if let moment = selectedMoment {
                 ModernCommentsView(moment: moment)
                     .environmentObject(firestoreService)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
         .sheet(isPresented: $showEditSheet) {
@@ -146,6 +150,10 @@ struct ModernMomentDetailView: View {
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
+        }
+        // ✅ Sheet de perfil para navegación de tags
+        .sheet(isPresented: $showUserProfile) {
+            UserProfileView(userId: selectedUserId)
         }
         .onAppear {
             currentIndex = initialIndex
@@ -215,6 +223,11 @@ struct ModernMomentDetailView: View {
                             onHashtagTap: { hashtag in
                                 selectedHashtag = "#\(hashtag)"
                                 showExploreWithHashtag = true
+                            },
+                            onTagTap: { userId in
+                                // ✅ NAVEGACIÓN A PERFIL
+                                selectedUserId = userId
+                                showUserProfile = true
                             }
                         )
                         .id(index)
@@ -275,43 +288,55 @@ struct ModernMomentDetailView: View {
 // MARK: - ✅ Header centrado y limpio
 struct ModernDetailHeader: View {
     let moment: Moment?
+    let safeAreaTop: CGFloat
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        HStack {
-            Spacer()
+        VStack(spacing: 0) {
+            // Relleno ajustado para el área segura (notch)
+            Color.clear
+                .frame(height: max(20, safeAreaTop - 10)) 
             
-            if let moment = moment {
-                HStack(spacing: 12) {
-                    AsyncProfileImageView(userId: moment.authorId)
-                        .frame(width: 45, height: 45)
-                        .clipShape(Circle())
-                    
-                    VStack(spacing: 2) {
-                        HStack(spacing: 4) {
-                            Text(moment.username)
-                                .font(.custom("Poppins-SemiBold", size: 20))
-                                .foregroundColor(.primary)
-                            
-                            // ✅ INSIGNIA DE VERIFICADO
-                            VerifiedBadgeView(userId: moment.authorId, size: 16)
-                        }
+            HStack {
+                Spacer()
+                
+                if let moment = moment {
+                    HStack(spacing: 10) {
+                        AsyncProfileImageView(userId: moment.authorId)
+                            .frame(width: 38, height: 38)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(.white.opacity(0.15), lineWidth: 0.5)
+                            )
                         
-                        Text(timeAgo(from: moment.timestamp))
-                            .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(.gray.opacity(0.8))
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(spacing: 4) {
+                                Text(moment.username)
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .foregroundColor(.primary)
+                                
+                                VerifiedBadgeView(userId: moment.authorId, size: 13)
+                            }
+                            
+                            Text(moment.timestamp.timeAgoDisplay())
+                                .font(.custom("Poppins-Regular", size: 10))
+                                .foregroundColor(.secondary.opacity(0.7))
+                        }
                     }
                 }
+
+                Spacer()
             }
-
-            Spacer()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            
+            Divider()
+                .background(Color.white.opacity(0.04)) // Más sutil
         }
-        .padding(.horizontal, 20)
-    }
-
-    private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        .background(
+            colorScheme == .dark ? Color(hex: "0A0A0A") : Color.white
+        )
     }
 }
 
@@ -323,6 +348,7 @@ struct ModernDetailMomentCard: View {
     let onComment: () -> Void
     let onContextMenu: () -> Void
     let onHashtagTap: (String) -> Void
+    var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme
@@ -348,8 +374,7 @@ struct ModernDetailMomentCard: View {
     @State private var isSaveLoading: Bool = false
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
-    
-    // ✅ Estado para detectar tipo de aspecto con alturas específicas
+    @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var aspectRatioType: AspectRatioType = .square
     
     enum AspectRatioType {
@@ -357,29 +382,19 @@ struct ModernDetailMomentCard: View {
         
         var maxHeight: CGFloat {
             switch self {
-            case .square: return 400      // ✅ Para 1:1 (1080x1080)
-            case .portrait: return 500    // ✅ Para 4:5 (1080x1350)
-            case .landscape: return 280   // ✅ Para 16:9 - más compacto
-            case .reels: return 600       // ✅ NUEVO: Para 9:16 (reels/stories) - más alto
+            case .square: return 450
+            case .portrait: return 550
+            case .landscape: return 300
+            case .reels: return 1000 // Inmersivo, sin límite estricto corto
             }
         }
         
-        // ✅ Aspect ratios exactos basados en las dimensiones reales
         var exactRatio: CGFloat {
             switch self {
-            case .square: return 1.0      // 1080÷1080 = 1.0
-            case .portrait: return 0.8    // 1080÷1350 = 0.8
-            case .landscape: return 1.78  // 16÷9 = 1.778
-            case .reels: return 0.5625    // 9÷16 = 0.5625 (formato vertical de reels)
-            }
-        }
-        
-        var displayName: String {
-            switch self {
-            case .square: return "1:1"
-            case .portrait: return "4:5"
-            case .landscape: return "16:9"
-            case .reels: return "9:16"
+            case .square: return 1.0
+            case .portrait: return 0.8
+            case .landscape: return 16.0/9.0
+            case .reels: return 9.0/16.0
             }
         }
     }
@@ -401,16 +416,11 @@ struct ModernDetailMomentCard: View {
         return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
     }
     
-    // ✅ CORREGIDO: Cálculo de altura con validaciones completas
     private var cardHeight: CGFloat {
-        let maxWidth = UIScreen.main.bounds.width - 30
+        let maxWidth = UIScreen.main.bounds.width - 32
         
-        // ✅ Validar que maxWidth sea positivo
-        guard maxWidth > 0 else {
-            return 300 // Fallback seguro
-        }
+        guard maxWidth > 0 else { return 350 }
         
-        // ✅ Validar aspect ratio detectado
         let aspectRatio: CGFloat
         if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
             aspectRatio = detectedAspectRatio
@@ -418,18 +428,15 @@ struct ModernDetailMomentCard: View {
             aspectRatio = aspectRatioType.exactRatio
         }
         
-        // ✅ Calcular altura con validación
         let calculatedHeight = maxWidth / aspectRatio
-        // ✅ Validar que la altura calculada sea válida
-        guard calculatedHeight > 0 && calculatedHeight.isFinite else {
-            return aspectRatioType.maxHeight // Usar altura máxima como fallback
+        
+        // Para Reels, dejamos que crezca más libremente
+        if aspectRatioType == .reels {
+            let maxReelsHeight = availableHeight + 100 // Permitir que sea inmersivo
+            return min(calculatedHeight, maxReelsHeight)
         }
-        // ✅ Aplicar límites seguros
-        let maxAllowedHeight = min(aspectRatioType.maxHeight, max(availableHeight - 80, 200))
-        let finalHeight = min(calculatedHeight, maxAllowedHeight)
-        // ✅ Validación final - asegurar altura mínima
-        let safeHeight = max(finalHeight, 200) // Mínimo 200pt
-        return safeHeight
+        
+        return min(calculatedHeight, aspectRatioType.maxHeight)
     }
     
     var body: some View {
@@ -437,35 +444,39 @@ struct ModernDetailMomentCard: View {
             // ✅ Contenido principal con diseño del feed
             ZStack(alignment: .topTrailing) {
                 ZStack(alignment: .bottom) {
-                    // ✅ Media content con altura validada (código igual)
+                    // ✅ Media content with height logic
                     ZStack {
                         EnhancedCarouselView(
                             mediaItems: mediaItems,
                             currentIndex: $currentImageIndex,
+                            showTags: $showTags, // ✅ PASAR binding
                             aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
-                            allMoments: [moment], // ✅ AGREGAR: Solo el momento actual
-                            currentMoment: moment // ✅ AGREGAR: El momento actual
+                            allMoments: [moment],
+                            currentMoment: moment,
+                            onTagTap: onTagTap // ✅ Propagate
                         )
                         .frame(height: max(cardHeight, 200))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 10)
                         .onAppear {
                             detectAspectRatio()
                         }
                         
-                        // Indicadores de media múltiple mejorados...
+                        // Los indicadores de Reels y botón de mute ya los proporciona el CroppedVideoPlayer
+                        // que está dentro del EnhancedCarouselView, así mantenemos consistencia con el Feed.
+                        
+                        // Indicadores de media múltiples...
                         if mediaItems.count > 1 {
                             VStack {
-                                HStack(spacing: 8) {
+                                HStack(spacing: 6) {
                                     ForEach(0..<mediaItems.count, id: \.self) { index in
                                         Capsule()
-                                            .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
-                                            .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
-                                            .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                                            .fill(currentImageIndex == index ? .white : .white.opacity(0.4))
+                                            .frame(width: currentImageIndex == index ? 24 : 6, height: 4)
+                                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentImageIndex)
                                     }
                                 }
-                                .padding(.top, 20)
+                                .padding(.top, (aspectRatioType == .reels ? 80 : 20))
                                 Spacer()
                             }
                         }
@@ -482,9 +493,54 @@ struct ModernDetailMomentCard: View {
                                     )
                                     Spacer()
                                 }
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 20)
+                                .padding(.horizontal, 15)
+                                .padding(.bottom, 15)
                             }
+                        }
+                        
+                        // ✅ NUEVO: BOTONES DE ETIQUETAS (Nivel superior del card)
+                        let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
+                        if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                            // Esquina inferior izquierda (encima del caption) - Estilo Glass
+                            VStack {
+                                Spacer()
+                                    HStack {
+                                        Button(action: {
+                                            withAnimation(.spring()) {
+                                                showTags.toggle()
+                                            }
+                                        }) {
+                                            ZStack {
+                                                // Background Glass
+                                                Circle()
+                                                    .fill(.ultraThinMaterial)
+                                                    .frame(width: 36, height: 36)
+                                                
+                                                // Border Gradient Glass
+                                                Circle()
+                                                    .stroke(
+                                                        LinearGradient(
+                                                            colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                                            startPoint: .topLeading,
+                                                            endPoint: .bottomTrailing
+                                                        ),
+                                                        lineWidth: 1.5
+                                                    )
+                                                    .frame(width: 36, height: 36)
+                                                
+                                                // Icon tinted if active
+                                                Image(systemName: showTags ? "person.fill" : "person.circle.fill")
+                                                    .font(.system(size: 15, weight: .bold))
+                                                    .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                                            }
+                                            .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                                        }
+                                        .padding(.leading, 12)
+                                        .padding(.bottom, moment.content.isEmpty ? 15 : 60)
+                                        Spacer()
+                                    }
+                            }
+                            .zIndex(110)
                         }
                     }
                     
@@ -500,29 +556,22 @@ struct ModernDetailMomentCard: View {
                     .environmentObject(firestoreService)
                 }
                 
-                // ✅ CORREGIDO: Botón simple que ejecuta el callback
+                // Menú de opciones (ellipsis)
                 Button(action: onContextMenu) {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.white)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 40, height: 40)
                         .background(.ultraThinMaterial)
                         .clipShape(Circle())
                         .overlay(
                             Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.4), Color.gray.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
                         )
-                        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                 }
-                .padding(.top, 10)
-                .padding(.trailing, 15)
+                .padding(.top, 15)
+                .padding(.trailing, 10)
             }
             .padding(.horizontal, 15)
         }
@@ -722,7 +771,7 @@ struct ModernDetailActionButtons: View {
         HStack(spacing: 16) {
             Spacer()
             
-            VStack(spacing: 14) {
+            VStack(spacing: 16) {
                 // ✅ Reaction Button
                 // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
                 EpicReactionButton(
@@ -733,97 +782,80 @@ struct ModernDetailActionButtons: View {
                 
                 // ✅ Comment button mejorado
                 Button(action: onComment) {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 5) {
                         ZStack {
                             Circle()
                                 .fill(.ultraThinMaterial)
-                                .frame(width: 54, height: 54)
+                                .frame(width: 52, height: 52)
                                 .overlay(
                                     Circle()
                                         .stroke(
                                             LinearGradient(
-                                                colors: commentCount > 0 ?
-                                                [Color(hex: "00A896").opacity(0.7), Color(hex: "6B73FF").opacity(0.7)] :
-                                                [Color.white.opacity(0.4), Color.white.opacity(0.4)],   
+                                                colors: [.white.opacity(0.4), .white.opacity(0.1)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
-                                            lineWidth: 1.5
+                                            lineWidth: 1
                                         )
                                 )
-                                .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
+                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                             
                             Image(systemName: commentCount > 0 ? "bubble.left.fill" : "bubble.left")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: commentCount > 0 ?
-                                        [Color.blue, Color.purple] :
-                                        [Color.white.opacity(0.9), Color.white],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundColor(.white)
+                                .shadow(radius: 1)
                         }
                         
                         if commentCount > 0 {
                             Text("\(commentCount)")
                                 .font(.custom("Poppins-SemiBold", size: 12))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
                         }
                     }
                 }
-                .scaleEffect(commentCount > 0 ? 1.08 : 1.0)
-                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: commentCount)
+                .scaleEffect(commentCount > 0 ? 1.05 : 1.0)
                 
                 // ✅ Save button mejorado
                 Button(action: onSave) {
                     ZStack {
                         Circle()
                             .fill(.ultraThinMaterial)
-                            .frame(width: 54, height: 54)
+                            .frame(width: 52, height: 52)
                             .overlay(
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: isSaved ?
-                                            [Color.yellow.opacity(0.7), Color.orange.opacity(0.7)] :
-                                            [Color.white.opacity(0.4), Color.white.opacity(0.4)],
+                                            colors: isSaved ? 
+                                            [Color.yellow.opacity(0.7), Color.orange.opacity(0.5)] : 
+                                            [.white.opacity(0.4), .white.opacity(0.1)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
-                                        lineWidth: 1.5
+                                        lineWidth: 1
                                     )
                             )
-                            .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
+                            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                         
                         if isSaveLoading {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(0.9)
                                 .tint(.white)
+                                .scaleEffect(0.8)
                         } else {
                             Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: isSaved ?
-                                        [Color.yellow, Color.orange] :
-                                        [Color.white.opacity(0.9), Color.white],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundColor(isSaved ? .yellow : .white)
+                                .shadow(radius: 1)
                         }
                     }
                 }
-                .scaleEffect(isSaved ? 1.15 : 1.0)
-                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isSaved)
                 .disabled(isSaveLoading)
+                .scaleEffect(isSaved ? 1.1 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSaved)
             }
         }
         .padding(.trailing, 20)
-        .padding(.bottom, 20)
+        .padding(.bottom, 25)
     }
 }
 
@@ -1005,11 +1037,6 @@ struct ModernDetailBackground: View {
                 )
                 .ignoresSafeArea()
             }
-            
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.08 + abs(scrollOffset) * 0.0002)
-                .ignoresSafeArea()
         }
     }
 }

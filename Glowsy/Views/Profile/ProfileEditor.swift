@@ -2,6 +2,19 @@ import SwiftUI
 import PhotosUI
 import FirebaseAuth
 import Photos
+import Kingfisher
+
+// MARK: - Album Information Model (Local for Profile Editor)
+struct ProfileAlbumInfo: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let assetCollection: PHAssetCollection
+    let assetCount: Int
+    
+    static func == (lhs: ProfileAlbumInfo, rhs: ProfileAlbumInfo) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
 
 // MARK: - ACTUALIZACIÓN: GridPhotoPickerView con Editor de Crop
 struct GridPhotoPickerView: View {
@@ -9,6 +22,7 @@ struct GridPhotoPickerView: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var selectedPhoto: PhotosPickerItem?
     @Binding var currentProfileImage: UIImage?
+    var onUploadSuccess: (() -> Void)? = nil // NUEVO: Callback para notificar éxito
     @State private var photoAssets: [PHAsset] = []
     @State private var selectedAsset: PHAsset?
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
@@ -24,7 +38,14 @@ struct GridPhotoPickerView: View {
     @State private var uploadError: String?
     @State private var showUploadError = false
     
+    // NUEVO: Estados para manejo de álbumes
+    @State private var availableAlbums: [ProfileAlbumInfo] = []
+    @State private var selectedAlbum: ProfileAlbumInfo?
+    @State private var showingAlbumPicker = false
+    @State private var isLoadingLibrary = true
+    @State private var thumbnails: [PHAsset: UIImage] = [:]
     
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
     private let imageManager = PHImageManager.default()
     private let firestoreService = FirestoreService()
     private let storageService = StorageService()
@@ -34,10 +55,10 @@ struct GridPhotoPickerView: View {
         
         var title: String {
             switch self {
-            case .recent: return "Recientes"
-            case .photography: return "Fotografía"
-            case .selfies: return "Selfies"
-            case .albums: return "Álbumes"
+            case .recent: return NSLocalizedString("profileEditor.category.recent", comment: "")
+            case .photography: return NSLocalizedString("profileEditor.category.photography", comment: "")
+            case .selfies: return NSLocalizedString("profileEditor.category.selfies", comment: "")
+            case .albums: return NSLocalizedString("profileEditor.category.albums", comment: "")
             }
         }
         
@@ -52,101 +73,215 @@ struct GridPhotoPickerView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Fondo consistente con el resto de la app
-                (colorScheme == .dark ? Color.black : Color.white)
-                    .ignoresSafeArea()
+        ZStack {
+            (colorScheme == .dark ? Color.black : Color.white)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                headerView
+                    .zIndex(10) // Asegurar que el header esté por encima
                 
-                VStack(spacing: 0) {
-                    // Header con navegación
-                    headerView
-                    
-                    // Contenido según estado de autorización
-                    if authorizationStatus == .authorized || authorizationStatus == .limited {
-                        if isLoading {
-                            loadingView
-                        } else {
-                            photoGridView
-                        }
-                    } else if authorizationStatus == .denied {
-                        deniedPermissionView
-                    } else {
-                        requestPermissionView
-                    }
+                if let selectedAsset = selectedAsset {
+                    mainPreviewSection(for: selectedAsset)
                 }
                 
-                // Overlay de upload
-                if isUploading {
-                    uploadingOverlay
-                }
+                mediaGridSection
             }
-            .navigationBarHidden(true)
         }
         .onAppear {
-            checkPhotoLibraryPermission()
+            loadInitialPhotos()
         }
-        .alert("Error al subir imagen", isPresented: $showUploadError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(uploadError ?? "Error desconocido")
-        }
-        // NUEVO: Sheet para el editor de crop natural
         .sheet(isPresented: $isShowingCropEditor) {
             if let assetForCrop = selectedAssetForCrop {
                 PhotoCropEditorView(
-                    originalAsset: assetForCrop, // Pasamos el asset
+                    originalAsset: assetForCrop,
                     onSave: { croppedImage in
-                        // Guardar la imagen recortada
+                        isShowingCropEditor = false
                         currentProfileImage = croppedImage
-                        uploadImageToFirebaseWithCleanup(image: croppedImage, userId: Auth.auth().currentUser?.uid ?? "")
+                        uploadImageToFirebaseWithCleanup(image: croppedImage, userId: Auth.auth().currentUser?.uid ?? "") {
+                            onUploadSuccess?()
+                            self.dismiss()
+                        }
                     }
                 )
             }
         }
     }
     
-    // MARK: - Header View
+    // MARK: - Header estilo Creator
     private var headerView: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Button(NSLocalizedString("profileEditor.cancel", comment: "")) {
-                    if !isUploading {
-                        dismiss()
-                    }
-                }
-                .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isUploading ? 0.4 : 0.8))
-                .disabled(isUploading)
-                
-                Spacer()
-                
-                Text("profileEditor.library")
-                    .font(.custom("Poppins-Bold", size: 18))
+        HStack {
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Spacer()
-                
-                // ACTUALIZADO: Cambio de texto del botón
-                Button(NSLocalizedString("profileEditor.next", comment: "")) {
-                    handlePhotoSelection()
-                }
-                .font(.custom("Poppins-SemiBold", size: 16))
-                .foregroundColor(selectedAsset != nil && !isUploading ? Color(hex: "00A896") : .gray)
-                .disabled(selectedAsset == nil || isUploading)
+                    .padding(10)
+                    .background(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06))
+                    .clipShape(Circle())
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
+            .contentShape(Rectangle()) // Área interactiva completa
             
-            // Filtros de categoría
-            if !isUploading {
-                categoryFilters
+            Spacer()
+            
+            Text(NSLocalizedString("profileEditor.library", comment: ""))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+            
+            Spacer()
+            
+            if let asset = selectedAsset {
+                Button(action: {
+                    selectedAssetForCrop = asset
+                    isShowingCropEditor = true
+                }) {
+                    HStack(spacing: 4) {
+                        Text(NSLocalizedString("profileEditor.next", comment: ""))
+                        Image(systemName: "chevron.right")
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(Capsule())
+                }
+                .contentShape(Capsule()) // Área interactiva completa
+            } else {
+                Color.clear.frame(width: 80, height: 40)
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(colorScheme == .dark ? Color.black : Color.white)
     }
     
-    // NUEVO: Overlay de upload actualizado
+    // MARK: - Preview Principal estilo Creator
+    private func mainPreviewSection(for asset: PHAsset) -> some View {
+        ZStack {
+            // Fondo con Blur
+            if let image = thumbnails[asset] {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: UIScreen.main.bounds.width, height: 300)
+                    .blur(radius: 40)
+                    .opacity(0.6)
+                    .overlay(Color.black.opacity(0.1))
+            }
+            
+            // Imagen principal
+            if let image = thumbnails[asset] {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 280)
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                    .padding(.vertical, 10)
+            } else {
+                ProgressView()
+                    .tint(.white)
+            }
+        }
+        .frame(height: 300)
+        .clipped()
+        .background(colorScheme == .dark ? Color.black : Color.white)
+        .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.95)), removal: .opacity))
+        .onAppear {
+            loadThumbnail(for: asset)
+        }
+    }
+    
+    // MARK: - Grid Section estilo Creator
+    private var mediaGridSection: some View {
+        VStack(spacing: 0) {
+            // Sub-header del Grid con Album y Camara
+            HStack {
+                Button(action: { showingAlbumPicker = true }) {
+                    HStack(spacing: 6) {
+                        Text(selectedAlbum?.title ?? NSLocalizedString("profileEditor.category.recent", comment: ""))
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06))
+                    .clipShape(Capsule())
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            Divider()
+            
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 2) {
+                    ForEach(photoAssets, id: \.localIdentifier) { asset in
+                        PhotoGridItem(
+                            asset: asset,
+                            isSelected: selectedAsset?.localIdentifier == asset.localIdentifier,
+                            imageManager: imageManager,
+                            onTap: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedAsset = asset
+                                    loadThumbnail(for: asset)
+                                }
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 2)
+                .padding(.bottom, 30)
+            }
+        }
+        .sheet(isPresented: $showingAlbumPicker) {
+            ProfileAlbumPickerView(
+                albums: availableAlbums,
+                selectedAlbum: selectedAlbum,
+                onAlbumSelected: { album in
+                    selectedAlbum = album
+                    showingAlbumPicker = false
+                    loadPhotosFromAlbum(album)
+                }
+            )
+        }
+    }
+    
+    // Funciones de carga auxiliares
+    private func loadInitialPhotos() {
+        isLoadingLibrary = true
+        checkPhotoLibraryPermission()
+    }
+    
+    private func loadThumbnail(for asset: PHAsset) {
+        if thumbnails[asset] != nil { return }
+        
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = true
+        
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: CGSize(width: 800, height: 800),
+            contentMode: .aspectFill,
+            options: options
+        ) { result, _ in
+            if let result = result {
+                DispatchQueue.main.async {
+                    thumbnails[asset] = result
+                }
+            }
+        }
+    }
+    
+    // MARK: - Overlay de upload actualizado
     private var uploadingOverlay: some View {
         ZStack {
             Color.black.opacity(0.7)
@@ -172,7 +307,6 @@ struct GridPhotoPickerView: View {
         }
     }
     
-    // MARK: - Category Filters (sin cambios)
     private var categoryFilters: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
@@ -182,37 +316,25 @@ struct GridPhotoPickerView: View {
                         icon: category.icon,
                         isSelected: selectedCategory == category
                     ) {
-                        selectedCategory = category
-                        loadPhotosForCategory(category)
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-        }
-    }
-    
-    // MARK: - Photo Grid View (sin cambios significativos)
-    private var photoGridView: some View {
-        ScrollView {
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
-                spacing: 2
-            ) {
-                ForEach(photoAssets.indices, id: \.self) { index in
-                    let asset = photoAssets[index]
-                    
-                    PhotoGridItem(
-                        asset: asset,
-                        isSelected: selectedAsset?.localIdentifier == asset.localIdentifier,
-                        imageManager: imageManager
-                    ) {
-                        if !isUploading {
-                            selectedAsset = asset
+                        withAnimation {
+                            selectedCategory = category
+                        }
+                        
+                        if category == .albums {
+                            if availableAlbums.isEmpty {
+                                loadAvailableAlbums()
+                            } else if let album = selectedAlbum {
+                                loadPhotosFromAlbum(album)
+                            } else {
+                                loadPhotosForCategory(category)
+                            }
+                        } else {
+                            loadPhotosForCategory(category)
                         }
                     }
                 }
             }
-            .padding(.top, 8)
+            .padding(.horizontal, 20)
         }
     }
     
@@ -304,6 +426,7 @@ struct GridPhotoPickerView: View {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         
         if authorizationStatus == .authorized || authorizationStatus == .limited {
+            loadAvailableAlbums()
             loadPhotosForCategory(.recent)
         }
     }
@@ -313,6 +436,7 @@ struct GridPhotoPickerView: View {
             DispatchQueue.main.async {
                 authorizationStatus = status
                 if status == .authorized || status == .limited {
+                    loadAvailableAlbums()
                     loadPhotosForCategory(.recent)
                 }
             }
@@ -355,6 +479,101 @@ struct GridPhotoPickerView: View {
         DispatchQueue.main.async {
             self.photoAssets = assets
             self.isLoading = false
+            self.isLoadingLibrary = false
+            if let firstAsset = assets.first {
+                self.selectedAsset = firstAsset
+                self.loadThumbnail(for: firstAsset)
+            }
+        }
+    }
+    
+    private func loadAvailableAlbums() {
+        var albums: [ProfileAlbumInfo] = []
+        
+        let smartAlbumSubtypes: [PHAssetCollectionSubtype] = [
+            .smartAlbumUserLibrary,
+            .smartAlbumFavorites,
+            .smartAlbumScreenshots,
+            .smartAlbumSelfPortraits,
+            .smartAlbumRecentlyAdded
+        ]
+        
+        for subtype in smartAlbumSubtypes {
+            let fetchResult = PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: subtype, options: nil)
+            fetchResult.enumerateObjects { collection, _, _ in
+                let assetCount = PHAsset.fetchAssets(in: collection, options: nil).count
+                if assetCount > 0 {
+                    let title = collection.localizedTitle ?? getSmartAlbumTitle(for: subtype)
+                    albums.append(ProfileAlbumInfo(
+                        id: collection.localIdentifier,
+                        title: title,
+                        assetCollection: collection,
+                        assetCount: assetCount
+                    ))
+                }
+            }
+        }
+        
+        let userAlbums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
+        userAlbums.enumerateObjects { collection, _, _ in
+            let assetCount = PHAsset.fetchAssets(in: collection, options: nil).count
+            if assetCount > 0 {
+                albums.append(ProfileAlbumInfo(
+                    id: collection.localIdentifier,
+                    title: collection.localizedTitle ?? NSLocalizedString("profileEditor.album.default", comment: ""),
+                    assetCollection: collection,
+                    assetCount: assetCount
+                ))
+            }
+        }
+        
+        albums.sort { $0.assetCount > $1.assetCount }
+        
+        DispatchQueue.main.async {
+            self.availableAlbums = albums
+            if let first = albums.first {
+                self.selectedAlbum = first
+                self.loadPhotosFromAlbum(first)
+            }
+        }
+    }
+    
+    private func getSmartAlbumTitle(for subtype: PHAssetCollectionSubtype) -> String {
+        switch subtype {
+        case .smartAlbumUserLibrary: return NSLocalizedString("profileEditor.category.recent", comment: "")
+        case .smartAlbumFavorites: return NSLocalizedString("profileEditor.album.favorites", comment: "")
+        case .smartAlbumScreenshots: return NSLocalizedString("profileEditor.album.screenshots", comment: "")
+        case .smartAlbumSelfPortraits: return NSLocalizedString("profileEditor.category.selfies", comment: "")
+        case .smartAlbumRecentlyAdded: return NSLocalizedString("profileEditor.category.recent", comment: "")
+        default: return NSLocalizedString("profileEditor.album.default", comment: "")
+        }
+    }
+    
+    private func loadPhotosFromAlbum(_ album: ProfileAlbumInfo?) {
+        isLoading = true
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        
+        let allPhotos: PHFetchResult<PHAsset>
+        if let album = album {
+            allPhotos = PHAsset.fetchAssets(in: album.assetCollection, options: fetchOptions)
+        } else {
+            allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        }
+        
+        var assets: [PHAsset] = []
+        allPhotos.enumerateObjects { asset, _, _ in
+            assets.append(asset)
+        }
+        
+        DispatchQueue.main.async {
+            self.photoAssets = assets
+            self.isLoading = false
+            self.isLoadingLibrary = false
+            if let firstAsset = assets.first {
+                self.selectedAsset = firstAsset
+                self.loadThumbnail(for: firstAsset)
+            }
         }
     }
     
@@ -368,7 +587,7 @@ struct GridPhotoPickerView: View {
     }
     
     // MARK: - Función de upload (sin cambios)
-    private func uploadImageToFirebaseWithCleanup(image: UIImage, userId: String) {
+    private func uploadImageToFirebaseWithCleanup(image: UIImage, userId: String, completion: (() -> Void)? = nil) {
         guard !userId.isEmpty else { return }
         
         isUploading = true
@@ -394,7 +613,7 @@ struct GridPhotoPickerView: View {
                             self.isUploading = false
                             
                             if let error = error {
-                                self.uploadError = "Error al actualizar perfil: \(error.localizedDescription)"
+                                self.uploadError = String(format: NSLocalizedString("profileEditor.error.updateProfile", comment: ""), error.localizedDescription)
                                 self.showUploadError = true
                             } else {
                                 // 4. Borrar imagen anterior si existe
@@ -409,6 +628,7 @@ struct GridPhotoPickerView: View {
                                 }
                                 
                                 self.dismiss()
+                                completion?()
                             }
                         }
                     }
@@ -416,7 +636,7 @@ struct GridPhotoPickerView: View {
                 case .failure(let error):
                     DispatchQueue.main.async {
                         self.isUploading = false
-                        self.uploadError = "Error al subir imagen: \(error.localizedDescription)"
+                        self.uploadError = String(format: NSLocalizedString("profileEditor.error.uploadImage", comment: ""), error.localizedDescription)
                         self.showUploadError = true
                     }
                 }
@@ -492,28 +712,35 @@ private struct PhotoGridItem: View {
                         )
                 }
                 
-                // Overlay de selección
+                // Overlay de selección estilo Creator
+                VStack {
+                    HStack {
+                        Spacer()
+                        if isSelected {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: "00A896"))
+                                    .frame(width: 22, height: 22)
+                                    .shadow(radius: 2)
+                                
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(6)
+                        } else {
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                                .frame(width: 22, height: 22)
+                                .padding(6)
+                        }
+                    }
+                    Spacer()
+                }
+                
                 if isSelected {
                     Rectangle()
-                        .fill(.clear)
-                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
-                        .overlay(
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(Color(hex: "00A896"))
-                                        .background(Circle().fill(.white))
-                                        .padding(8)
-                                }
-                                Spacer()
-                            }
-                        )
-                        .overlay(
-                            Rectangle()
-                                .stroke(Color(hex: "00A896"), lineWidth: 3)
-                        )
+                        .stroke(Color(hex: "00A896"), lineWidth: 3)
                 }
             }
         }
@@ -611,12 +838,14 @@ struct ModernEditProfileView: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var selectedPhoto: PhotosPickerItem?
     @Binding var newBio: String
-    var onSave: (PhotosPickerItem?, String) -> Void
+    var onSave: (PhotosPickerItem?, String, String?) -> Void // ✅ UPGRADE: Incluye website
+
     
     // Estados para edición de perfil - AHORA CON DATOS REALES
     @State private var username: String = ""
     @State private var email: String = ""
     @State private var website: String = ""
+    @State private var profileImagePath: String? = nil
     @State private var selectedInterests: Set<String> = []
     
     // Estados de UI
@@ -659,61 +888,30 @@ struct ModernEditProfileView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Fondo consistente con el resto de la app
-                (colorScheme == .dark ? Color.black : Color.white)
-                    .ignoresSafeArea()
+                // MARK: - 1. Immersive Background
+                immersiveBackground
                 
                 if isLoading {
                     // Vista de carga
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                            .tint(Color(hex: "00A896"))
-                        
-                        Text("profileEditor.loadingProfile")
-                            .font(.custom("Poppins-Medium", size: 16))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
-                    }
+                    loadingView
                 } else if let errorMessage = errorMessage {
                     // Vista de error
-                    VStack(spacing: 20) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 50))
-                            .foregroundColor(.red.opacity(0.8))
-                        
-                        Text("profileEditor.error")
-                            .font(.custom("Poppins-Bold", size: 18))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
-                        Text(errorMessage)
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                        
-                        Button(NSLocalizedString("profileEditor.retry", comment: "")) {
-                            loadUserData()
-                        }
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(Color(hex: "00A896"))
-                        .clipShape(Capsule())
-                    }
+                    errorView(message: errorMessage)
                 } else {
                     // Vista principal
                     VStack(spacing: 0) {
-                        // Header con navegación
+                        // Header con navegación Flotante
                         profileHeader
+                            .padding(.top, 10)
                         
                         // Navegación por pestañas (simplificada)
                         if EditSection.allCases.count > 1 {
                             sectionTabs
+                                .padding(.top, 10)
                         }
                         
                         // Contenido según la sección activa
-                        ScrollView {
+                        ScrollView(showsIndicators: false) {
                             VStack(spacing: 24) {
                                 switch activeSection {
                                 case .basic:
@@ -724,7 +922,7 @@ struct ModernEditProfileView: View {
                             }
                             .padding(.horizontal, 20)
                             .padding(.vertical, 24)
-                            .padding(.bottom, 40)
+                            .padding(.bottom, 100)
                         }
                     }
                 }
@@ -733,7 +931,11 @@ struct ModernEditProfileView: View {
             .sheet(isPresented: $isShowingPhotoPicker) {
                 GridPhotoPickerView(
                     selectedPhoto: $selectedPhoto,
-                    currentProfileImage: $currentProfileImage
+                    currentProfileImage: $currentProfileImage,
+                    onUploadSuccess: {
+                        // Si se subió una foto con éxito, ya no necesitamos subirla en onSave
+                        self.selectedPhoto = nil 
+                    }
                 )
             }
             .sheet(isPresented: $isShowingInterestsPicker) {
@@ -754,6 +956,85 @@ struct ModernEditProfileView: View {
             loadInterests()
         }
     }
+    
+    // MARK: - Subviews Inmersivas
+    private var immersiveBackground: some View {
+        ZStack {
+            // Capa 1: Gradiente Base
+            Color(hex: "0F2027").ignoresSafeArea()
+            
+            // Capa 2: Imagen desenfocada si existe
+            GeometryReader { proxy in
+                if let uiImage = currentProfileImage {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .blur(radius: 50)
+                        .opacity(0.4)
+                } else if let path = profileImagePath, let url = URL(string: path) {
+                    KFImage(url)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .blur(radius: 50)
+                        .opacity(0.4)
+                } else {
+                    LinearGradient(
+                        colors: [Color(hex: "0F2027"), Color(hex: "203A43"), Color(hex: "2C5364")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .opacity(0.6)
+                }
+            }
+            .ignoresSafeArea()
+            
+            // Capa 3: Overlay oscuro
+            Color.black.opacity(0.4).ignoresSafeArea()
+        }
+    }
+    
+    private var loadingView: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .scaleEffect(1.5)
+                .tint(.white)
+            
+            Text("profileEditor.loadingProfile")
+                .font(.custom("Poppins-Medium", size: 16))
+                .foregroundColor(.white.opacity(0.8))
+        }
+    }
+    
+    private func errorView(message: String) -> some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundColor(.red.opacity(0.8))
+            
+            Text("profileEditor.error")
+                .font(.custom("Poppins-Bold", size: 18))
+                .foregroundColor(.white)
+            
+            Text(message)
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            Button(NSLocalizedString("profileEditor.retry", comment: "")) {
+                loadUserData()
+            }
+            .font(.custom("Poppins-SemiBold", size: 14))
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color(hex: "00A896"))
+            .clipShape(Capsule())
+        }
+    }
+
     
     // MARK: - Función para cargar intereses disponibles
     private func loadInterests() {
@@ -793,13 +1074,13 @@ struct ModernEditProfileView: View {
                     // Cargar datos del usuario
                     self.username = user.username
                     self.email = user.email
+                    self.profileImagePath = user.profileImagePath
                     self.newBio = user.bio ?? ""
                     self.characterCount = self.newBio.count
                     self.selectedInterests = Set(user.interests ?? [])
                     
-                    // Nota: website no está en el modelo AppUser actual
-                    // Si lo añades al modelo, descomenta esta línea:
-                    // self.website = user.website ?? ""
+                    // ✅ AHORA SÍ: Cargamos el website
+                    self.website = user.websiteUrl ?? ""
                     
                     self.isLoading = false
                     
@@ -813,111 +1094,164 @@ struct ModernEditProfileView: View {
     
     // MARK: - Header del perfil
     private var profileHeader: some View {
-        VStack(spacing: 20) {
-            // Barra de navegación
+        VStack(spacing: 24) {
+            // MARK: - Barra de Navegación Flotante
             HStack {
-                Button(NSLocalizedString("profileEditor.cancel", comment: "")) {
-                    dismiss()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(10)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                        )
                 }
-                .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
                 
                 Spacer()
                 
                 Text("profileEditor.title")
                     .font(.custom("Poppins-Bold", size: 18))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                 
                 Spacer()
                 
-                Button(NSLocalizedString("profileEditor.save", comment: "")) {
-                    saveProfile()
+                Button(action: { saveProfile() }) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(10)
+                        .background(
+                            Circle()
+                                .fill(characterCount <= 150 ? Color(hex: "00A896") : Color.gray.opacity(0.5))
+                        )
+                        .shadow(radius: 5)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
                 }
-                .font(.custom("Poppins-SemiBold", size: 16))
-                .foregroundColor(Color(hex: "00A896"))
                 .disabled(characterCount > 150)
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-            // Avatar con opciones de edición
-            VStack(spacing: 16) {
+            // MARK: - Avatar Central con Efectos Premium
+            VStack(spacing: 20) {
                 ZStack {
-                    // Imagen de perfil actual o placeholder
+                    // Círculo de Brillo de Fondo
+                    Circle()
+                        .fill(Color(hex: "00A896").opacity(0.2))
+                        .frame(width: 130, height: 130)
+                        .blur(radius: 15)
+                    
+                    // Imagen de perfil o placeholder
                     if let currentImage = currentProfileImage {
                         Image(uiImage: currentImage)
                             .resizable()
                             .scaledToFill()
-                            .frame(width: 100, height: 100)
+                            .frame(width: 110, height: 110)
+                            .clipShape(Circle())
+                    } else if let path = profileImagePath, let url = URL(string: path) {
+                        KFImage(url)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 110, height: 110)
                             .clipShape(Circle())
                     } else {
                         Circle()
-                            .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
-                            .frame(width: 100, height: 100)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 110, height: 110)
                             .overlay(
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.gray.opacity(0.6))
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.white.opacity(0.6))
                             )
                     }
                     
-                    // Overlay para editar
-                    Circle()
-                        .fill(.black.opacity(0.3))
-                        .frame(width: 100, height: 100)
-                        .overlay(
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                        )
-                }
-                .overlay(
+                    // Borde Premium Animado (estático por ahora pero con gradiente)
                     Circle()
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color(hex: "00A896").opacity(0.6),
-                                    Color.white.opacity(0.3)
+                                    Color(hex: "00A896"),
+                                    Color.white.opacity(0.5),
+                                    Color(hex: "00A896").opacity(0.8)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
-                            lineWidth: 2
+                            lineWidth: 3
                         )
-                )
+                        .frame(width: 118, height: 118)
+                    
+                    // Botón de Cámara Overlay
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Button(action: { isShowingPhotoPicker = true }) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(8)
+                                    .background(Color(hex: "00A896"))
+                                    .clipShape(Circle())
+                                    .shadow(radius: 4)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                        }
+                    }
+                    .frame(width: 110, height: 110)
+                }
                 .onTapGesture {
                     isShowingPhotoPicker = true
                 }
                 
-                // Opciones de foto
-                HStack(spacing: 24) {
+                // Botones de Acción Rápidos (Cristal)
+                HStack(spacing: 16) {
                     Button(action: { isShowingPhotoPicker = true }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "photo.circle")
-                                .font(.system(size: 20))
-                                .foregroundColor(Color(hex: "00A896"))
+                        HStack(spacing: 6) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 14))
                             Text("profileEditor.change")
-                                .font(.custom("Poppins-Medium", size: 12))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                                .font(.custom("Poppins-Medium", size: 13))
                         }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                        )
                     }
                     
                     if currentProfileImage != nil || selectedPhoto != nil {
                         Button(action: { showingDeleteConfirmation = true }) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "trash.circle")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.red.opacity(0.8))
-                                Text("profileEditor.delete")
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
-                            }
+                            Image(systemName: "trash")
+                                .font(.system(size: 14))
+                                .foregroundColor(.red.opacity(0.8))
+                                .padding(10)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                                )
                         }
                     }
                 }
             }
+            .padding(.bottom, 10)
         }
-        .padding(.bottom, 20)
     }
     
     // MARK: - Pestañas de sección
@@ -926,34 +1260,39 @@ struct ModernEditProfileView: View {
             HStack(spacing: 16) {
                 ForEach(EditSection.allCases, id: \.self) { section in
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             activeSection = section
                         }
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: section.icon)
-                                .font(.system(size: 14))
+                                .font(.system(size: 14, weight: .semibold))
                             Text(section.title)
-                                .font(.custom("Poppins-Medium", size: 14))
+                                .font(.custom("Poppins-SemiBold", size: 14))
                         }
-                        .foregroundColor(activeSection == section ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .foregroundColor(activeSection == section ? .white : .white.opacity(0.6))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
                         .background(
-                            activeSection == section ?
-                            Color(hex: "00A896").opacity(0.3) :
-                            Color.clear
+                            ZStack {
+                                if activeSection == section {
+                                    Color(hex: "00A896").opacity(0.3)
+                                    BlurView(style: .systemUltraThinMaterialDark)
+                                } else {
+                                    Color.white.opacity(0.05)
+                                }
+                            }
                         )
+                        .clipShape(Capsule())
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
+                            Capsule()
                                 .stroke(
                                     activeSection == section ?
-                                    Color(hex: "00A896") :
-                                    (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
+                                    Color(hex: "00A896").opacity(0.8) :
+                                    Color.white.opacity(0.1),
                                     lineWidth: 1
                                 )
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
                     }
                 }
             }
@@ -964,139 +1303,129 @@ struct ModernEditProfileView: View {
     
     // MARK: - Sección de perfil básico
     private var basicProfileSection: some View {
-        VStack(spacing: 20) {
-            // Nombre de usuario (solo lectura)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "at")
-                        .font(.system(size: 16))
-                        .foregroundColor(Color(hex: "00A896"))
-                        .frame(width: 24)
+        VStack(spacing: 24) {
+            // MARK: - Information Card (Glass)
+            VStack(spacing: 20) {
+                // Nombre de usuario (solo lectura)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "at")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color(hex: "00A896"))
+                        
+                        Text("profileEditor.username")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Spacer()
+                        
+                        Text("profileEditor.notEditable")
+                            .font(.custom("Poppins-Medium", size: 10))
+                            .foregroundColor(.white.opacity(0.4))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.05))
+                            .clipShape(Capsule())
+                    }
                     
-                    Text("profileEditor.username")
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                }
-                
-                HStack {
                     Text("\(username)")
-                        .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                    
-                    Spacer()
-                    
-                    Text("profileEditor.notEditable")
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray.opacity(0.6))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
-                        .clipShape(Capsule())
-                }
-                .padding(16)
-                .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.1), lineWidth: 1)
-                )
-            }
-            
-            // Email (solo lectura)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "envelope")
-                        .font(.system(size: 16))
-                        .foregroundColor(Color(hex: "00A896"))
-                        .frame(width: 24)
-                    
-                    Text("profileEditor.email")
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(.white)
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.black.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        )
                 }
                 
-                HStack {
+                // Email (solo lectura)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "envelope.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "00A896"))
+                        
+                        Text("profileEditor.email")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Spacer()
+                        
+                        Text("profileEditor.notEditable")
+                            .font(.custom("Poppins-Medium", size: 10))
+                            .foregroundColor(.white.opacity(0.4))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.05))
+                            .clipShape(Capsule())
+                    }
+                    
                     Text(email)
-                        .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                    
-                    Spacer()
-                    
-                    Text("profileEditor.notEditable")
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray.opacity(0.6))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
-                        .clipShape(Capsule())
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(.white)
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.black.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        )
                 }
-                .padding(16)
-                .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.1), lineWidth: 1)
+                
+                // Sitio web (editable)
+                profileInputField(
+                    title: NSLocalizedString("profileEditor.website", comment: "Website"),
+                    placeholder: "www.yoursite.com",
+                    text: $website,
+                    icon: "link"
                 )
+                .textInputAutocapitalization(.never)
+                .keyboardType(.URL)
             }
-            
-            // Sitio web (editable, pero no está en el modelo actual)
-            /*
-            profileInputField(
-                title: "Sitio web",
-                placeholder: "www.tusitio.com",
-                text: $website,
-                icon: "globe"
+            .padding(20)
+            .background(Color.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
-            */
             
-            // Editor de biografía
-            VStack(alignment: .leading, spacing: 12) {
+            // MARK: - Bio Card (Glass)
+            VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Image(systemName: "text.alignleft")
-                        .font(.system(size: 16))
+                    Image(systemName: "pencil.and.outline")
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color(hex: "00A896"))
-                        .frame(width: 24)
                     
                     Text("profileEditor.bio")
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
+                        .foregroundColor(.white)
                     
                     Spacer()
                     
                     Text("\(characterCount)/150")
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(characterCount > 150 ? .red : .gray.opacity(0.7))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
-                        .clipShape(Capsule())
+                        .font(.custom("Poppins-Medium", size: 12))
+                        .foregroundColor(characterCount > 150 ? .red : .white.opacity(0.5))
                 }
 
                 ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
-                        .frame(height: 120)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
-                                            Color(hex: "00A896").opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                    
                     TextEditor(text: $newBio)
                         .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .background(.clear)
+                        .foregroundColor(.white)
                         .scrollContentBackground(.hidden)
-                        .padding(16)
+                        .background(Color.clear)
+                        .frame(minHeight: 100)
+                        .padding(12)
+                        .background(Color.black.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        )
                         .onChange(of: newBio) { newValue in
                             characterCount = newValue.count
                         }
@@ -1104,137 +1433,148 @@ struct ModernEditProfileView: View {
                     if newBio.isEmpty {
                         Text("profileEditor.bio.placeholder")
                             .font(.custom("Poppins-Regular", size: 15))
-                            .foregroundColor(.gray.opacity(0.6))
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 24)
+                            .foregroundColor(.white.opacity(0.3))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 20)
                             .allowsHitTesting(false)
                     }
                 }
             }
+            .padding(20)
+            .background(Color.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
         }
     }
     
     // MARK: - Sección de intereses
     private var interestsSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Image(systemName: "heart.circle")
-                    .font(.system(size: 20))
-                    .foregroundColor(Color(hex: "00A896"))
-                
-                Text("profileEditor.interests.title")
-                    .font(.custom("Poppins-SemiBold", size: 18))
-                    .foregroundColor(.white.opacity(0.9))
-                
-                Spacer()
-                
-                Button(NSLocalizedString("creator.edit", comment: "")) {
-                    isShowingInterestsPicker = true
-                }
-                .font(.custom("Poppins-Medium", size: 14))
-                .foregroundColor(Color(hex: "00A896"))
-            }
-            
-                            Text("profileEditor.interests.description")
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.gray.opacity(0.7))
-                .padding(.top, -10)
-            
-            // Grid de intereses seleccionados
-            if selectedInterests.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "heart.circle.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.gray.opacity(0.5))
+            // MARK: - Information Card (Glass)
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(hex: "00A896"))
                     
-                    Text("profileEditor.interests.empty.title")
-                        .font(.custom("Poppins-Medium", size: 16))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    Text("profileEditor.interests.title")
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(.white)
                     
-                    Text("profileEditor.interests.empty.subtitle")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.gray.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
+                    Spacer()
                     
-                    Button(NSLocalizedString("profileEditor.addInterests", comment: "")) {
-                        isShowingInterestsPicker = true
+                    Button(action: { isShowingInterestsPicker = true }) {
+                        Text(NSLocalizedString("creator.edit", comment: ""))
+                            .font(.custom("Poppins-Medium", size: 14))
+                            .foregroundColor(Color(hex: "00A896"))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "00A896").opacity(0.1))
+                            .clipShape(Capsule())
                     }
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color(hex: "00A896"))
-                    .clipShape(Capsule())
-                    .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 8, x: 0, y: 4)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-                .background(Color.white.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.1), lineWidth: 1)
-                )
-            } else {
-                // Flow layout de intereses seleccionados
-                ProfileFlowLayoutt(spacing: 8) {
-                    ForEach(Array(selectedInterests.sorted()), id: \.self) { interest in
-                        HStack(spacing: 6) {
-                            Text(InterestPickerRow.interestEmoji(for: interest))
-                                .font(.system(size: 14))
-                            Text(interest)
-                                .font(.custom("Poppins-Medium", size: 14))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                Text("profileEditor.interests.description")
+                    .font(.custom("Poppins-Regular", size: 14))
+                    .foregroundColor(.white.opacity(0.6))
+                    .padding(.top, -10)
+                
+                // Grid de intereses seleccionados
+                if selectedInterests.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "heart.circle")
+                            .font(.system(size: 48))
+                            .foregroundColor(.white.opacity(0.2))
+                        
+                        VStack(spacing: 4) {
+                            Text("profileEditor.interests.empty.title")
+                                .font(.custom("Poppins-Medium", size: 16))
+                                .foregroundColor(.white.opacity(0.8))
+                            
+                            Text("profileEditor.interests.empty.subtitle")
+                                .font(.custom("Poppins-Regular", size: 13))
+                                .foregroundColor(.white.opacity(0.5))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
+                        
+                        Button(NSLocalizedString("profileEditor.addInterests", comment: "")) {
+                            isShowingInterestsPicker = true
+                        }
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color(hex: "00A896"))
                         .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
-                                            Color(hex: "00A896").opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+                    .background(Color.black.opacity(0.2))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    )
+                } else {
+                    // Flow layout de intereses seleccionados
+                    ProfileFlowLayoutt(spacing: 10) {
+                        ForEach(Array(selectedInterests.sorted()), id: \.self) { interest in
+                            HStack(spacing: 6) {
+                                Text(InterestPickerRow.interestEmoji(for: interest))
+                                    .font(.system(size: 14))
+                                Text(interest)
+                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                            )
+                        }
                     }
                 }
             }
+            .padding(20)
+            .background(Color.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
         }
     }
     
     // MARK: - Componentes auxiliares
     private func profileInputField(title: String, placeholder: String, text: Binding<String>, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.system(size: 14))
                     .foregroundColor(Color(hex: "00A896"))
-                    .frame(width: 24)
                 
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white.opacity(0.9))
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(.white.opacity(0.6))
             }
             
-            TextField(placeholder, text: text)
-                .font(.custom("Poppins-Regular", size: 15))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+            TextField("", text: text, prompt: Text(placeholder).foregroundColor(.white.opacity(0.3)))
+                .font(.custom("Poppins-Medium", size: 16))
+                .foregroundColor(.white)
                 .padding(16)
-                .background((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
+                .background(Color.black.opacity(0.2))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.2), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
                 )
         }
     }
@@ -1243,12 +1583,12 @@ struct ModernEditProfileView: View {
     private var interestsPickerSheet: some View {
         NavigationView {
             ZStack {
-                (colorScheme == .dark ? Color.black : Color.white)
-                    .ignoresSafeArea()
+                immersiveBackground
                 
                 VStack(spacing: 0) {
                     // Header con contador
                     interestPickerHeader
+                        .padding(.top, 20)
                     
                     // Grid de intereses
                     interestPickerGrid
@@ -1272,16 +1612,16 @@ struct ModernEditProfileView: View {
     // MARK: - Componentes del selector de intereses
     private var interestPickerHeader: some View {
         HStack {
-                            Text("profileEditor.interests.select.title")
+            Text("profileEditor.interests.select.title")
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
+                .foregroundColor(.white.opacity(0.8))
             
             Spacer()
             
             Text("\(selectedInterests.count)/5")
                 .font(.custom("Poppins-SemiBold", size: 14))
                 .foregroundColor(selectedInterests.count >= 5 ? .red : Color(hex: "00A896"))
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(Color.white.opacity(0.1))
                 .clipShape(Capsule())
@@ -1324,7 +1664,7 @@ struct ModernEditProfileView: View {
     // MARK: - Función para guardar perfil
     private func saveProfile() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            errorMessage = "Usuario no autenticado"
+            errorMessage = NSLocalizedString("profileEditor.error.unauthenticated", comment: "")
             return
         }
         
@@ -1335,14 +1675,14 @@ struct ModernEditProfileView: View {
         let saveGroup = DispatchGroup()
         var saveErrors: [Error] = []
         
-        // Guardar biografía si cambió
+        // Guardar detalles del perfil (bio y website solamente aquí, ya que la foto se maneja en el picker)
         saveGroup.enter()
-        firestoreService.updateBio(userId: userId, bio: newBio) { error in
-            if let error = error {
-                saveErrors.append(error)
-            }
-            saveGroup.leave()
-        }
+        
+        // Llamar a la función onSave que maneja bio y website
+        // Nota: Pasamos nil para la foto siempre aquí para evitar que el ViewModel
+        // intente subirla DE NUEVO, ya que nuestro picker ya lo hizo.
+        onSave(nil, newBio, website.isEmpty ? nil : website)
+        saveGroup.leave()
         
         // Guardar intereses si cambiaron
         saveGroup.enter()
@@ -1354,24 +1694,22 @@ struct ModernEditProfileView: View {
         }
         
         // Guardar foto si se seleccionó una nueva
-        if let photo = selectedPhoto {
-            saveGroup.enter()
-            // Usar la función onSave para manejar la foto
-            onSave(photo, newBio)
-            saveGroup.leave()
-        }
+        // NOTA: La lógica de la foto ya se incluyó en onSave en el bloque anterior
+        // si selectedPhoto != nil. No duplicar lógica aquí.
         
         // Cuando todas las operaciones terminen
         saveGroup.notify(queue: .main) {
             self.isLoading = false
             
             if saveErrors.isEmpty {
-                // Éxito - cerrar la vista
-                self.dismiss()
+                // Éxito - cerrar la vista con un pequeño delay para asegurar que el padre refresque bien
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.dismiss()
+                }
             } else {
                 // Mostrar errores
                 let errorMessages = saveErrors.map { $0.localizedDescription }.joined(separator: "\n")
-                self.errorMessage = "Error al guardar: \(errorMessages)"
+                self.errorMessage = String(format: NSLocalizedString("profileEditor.error.saveProfile", comment: ""), errorMessages)
             }
         }
     }
@@ -1436,6 +1774,165 @@ private struct InterestPickerRow: View {
     
     static func interestEmoji(for interest: String) -> String {
         return InterestEmojiHelper.emoji(for: interest)
+    }
+}
+
+
+// MARK: - Local Album Picker for Profile Editor
+struct ProfileAlbumPickerView: View {
+    let albums: [ProfileAlbumInfo]
+    let selectedAlbum: ProfileAlbumInfo?
+    let onAlbumSelected: (ProfileAlbumInfo) -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
+    @State private var albumThumbnails: [String: UIImage] = [:]
+    
+    private let imageManager = PHImageManager.default()
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header estilo Creator
+            Capsule()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 40, height: 4)
+                .padding(.top, 12)
+            
+            HStack {
+                Text(NSLocalizedString("profileEditor.album.selectTitle", comment: ""))
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                Spacer()
+                
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.gray.opacity(0.5))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
+            
+            Divider()
+            
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(albums) { album in
+                        ProfileAlbumRowView(
+                            album: album,
+                            thumbnail: albumThumbnails[album.id],
+                            isSelected: selectedAlbum?.id == album.id
+                        ) {
+                            onAlbumSelected(album)
+                        }
+                        .onAppear {
+                            loadAlbumThumbnail(for: album)
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.3),
+                                    Color(hex: "00A896").opacity(0.4)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .presentationBackground(.clear)
+    }
+    
+    private func loadAlbumThumbnail(for album: ProfileAlbumInfo) {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.fetchLimit = 1
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        
+        let assets = PHAsset.fetchAssets(in: album.assetCollection, options: fetchOptions)
+        guard let firstAsset = assets.firstObject else { return }
+        
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = false
+        
+        imageManager.requestImage(
+            for: firstAsset,
+            targetSize: CGSize(width: 120, height: 120),
+            contentMode: .aspectFill,
+            options: options
+        ) { image, _ in
+            if let image = image {
+                DispatchQueue.main.async {
+                    albumThumbnails[album.id] = image
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Local Album Row for Profile Editor
+struct ProfileAlbumRowView: View {
+    let album: ProfileAlbumInfo
+    let thumbnail: UIImage?
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                // Miniatura
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 64, height: 64)
+                    
+                    if let thumbnail = thumbnail {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(album.title)
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                    Text(String(format: NSLocalizedString("profileEditor.album.photosCount", comment: ""), album.assetCount))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.gray)
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(Color(hex: "00A896"))
+                        .font(.title3)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

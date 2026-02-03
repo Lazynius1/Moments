@@ -236,11 +236,23 @@ struct ConversationSettingsView: View {
                         viewModel.toggleNotifications()
                     }
                 
-                Toggle("Confirmación de lectura", isOn: $viewModel.readReceiptsEnabled)
-                    .toggleStyle(SwitchToggleStyle(tint: adaptiveColors.primary))
-                    .onChange(of: viewModel.readReceiptsEnabled) { _ in
-                        viewModel.toggleReadReceipts()
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("conversationSettings.privacy.readReceipts.title")
+                            .foregroundColor(adaptiveColors.messageTextColor)
+                        Text("conversationSettings.privacy.readReceipts.description")
+                            .font(.caption)
+                            .foregroundColor(adaptiveColors.timestampColor.opacity(0.7))
                     }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $viewModel.readReceiptsEnabled)
+                        .tint(adaptiveColors.primary)
+                        .onChange(of: viewModel.readReceiptsEnabled) { _ in
+                            viewModel.toggleReadReceipts()
+                        }
+                }
                 
                 Toggle("Indicador de escritura", isOn: $viewModel.typingIndicatorEnabled)
                     .toggleStyle(SwitchToggleStyle(tint: adaptiveColors.primary))
@@ -467,7 +479,18 @@ class ConversationSettingsViewModel: ObservableObject {
     }
     
     func toggleReadReceipts() {
-        UserDefaults.standard.set(readReceiptsEnabled, forKey: "chat_read_receipts_enabled")
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let conversationId = currentConversation?.id else { return }
+        
+        let db = Firestore.firestore()
+        let conversationRef = db.collection("conversations").document(conversationId)
+        
+        // Guardar la preferencia explícita para este chat
+        conversationRef.updateData([
+            "readReceiptPreferences.\(currentUserId)": readReceiptsEnabled
+        ])
+        
+        UserDefaults.standard.set(readReceiptsEnabled, forKey: "chat_read_receipts_enabled_\(conversationId)")
     }
     
     func toggleTypingIndicator() {
@@ -475,37 +498,42 @@ class ConversationSettingsViewModel: ObservableObject {
     }
     
     private func loadPrivacySettings() {
-        // Cargar desde UserDefaults como fallback
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let conversationId = currentConversation?.id else { return }
+        
+        // Cargar desde UserDefaults como fallback instantáneo
         notificationsEnabled = UserDefaults.standard.bool(forKey: "chat_notifications_enabled")
-        readReceiptsEnabled = UserDefaults.standard.bool(forKey: "chat_read_receipts_enabled")
+        readReceiptsEnabled = UserDefaults.standard.bool(forKey: "chat_read_receipts_enabled_\(conversationId)")
         typingIndicatorEnabled = UserDefaults.standard.bool(forKey: "chat_typing_indicator_enabled")
         
-        // Cargar preferencias reales desde Firestore
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let db = Firestore.firestore()
         
-        firestoreService.fetchUser(userId: currentUserId) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let user):
-                    // Usar preferencias de Firestore si existen
-                    if let notificationPrefs = user.notificationPreferences {
-                        self?.notificationsEnabled = notificationPrefs["chat_messages"] ?? true
+        // 1. Cargar el usuario para el ajuste global
+        firestoreService.fetchUser(userId: currentUserId) { [weak self] userResult in
+            // 2. Cargar la conversación para el ajuste específico
+            db.collection("conversations").document(conversationId).getDocument { [weak self] convSnapshot, convError in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    
+                    // Procesar ajuste GLOBAL
+                    var globalEnabled = true
+                    if case .success(let user) = userResult {
+                        globalEnabled = user.showReadReceipts
+                        if let notificationPrefs = user.notificationPreferences {
+                            self.notificationsEnabled = notificationPrefs["chat_messages"] ?? true
+                        }
                     }
                     
-                    // Si no hay valores guardados, usar valores por defecto
-                    if UserDefaults.standard.object(forKey: "chat_notifications_enabled") == nil {
-                        self?.notificationsEnabled = true
+                    // Procesar ajuste ESPECÍFICO
+                    if let convData = convSnapshot?.data(),
+                       let prefs = convData["readReceiptPreferences"] as? [String: Bool],
+                       let chatPreference = prefs[currentUserId] {
+                        // Prioridad 1: Ajuste del chat
+                        self.readReceiptsEnabled = chatPreference
+                    } else {
+                        // Prioridad 2: Ajuste global
+                        self.readReceiptsEnabled = globalEnabled
                     }
-                    if UserDefaults.standard.object(forKey: "chat_read_receipts_enabled") == nil {
-                        self?.readReceiptsEnabled = true
-                    }
-                    if UserDefaults.standard.object(forKey: "chat_typing_indicator_enabled") == nil {
-                        self?.typingIndicatorEnabled = true
-                    }
-                    
-                case .failure(_):
-                    break
-                    // Mantener valores de UserDefaults como fallback
                 }
             }
         }

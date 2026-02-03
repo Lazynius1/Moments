@@ -10,21 +10,31 @@ enum ChainContinuationSetting: String, CaseIterable {
     
     var title: String {
         switch self {
-        case .everyone: return NSLocalizedString("audience.everyone", comment: "Everyone")
-        case .connections: return NSLocalizedString("audience.connections", comment: "Connections")
-        case .bestFriends: return NSLocalizedString("audience.bestFriends", comment: "Best Friends")
-        case .custom: return NSLocalizedString("audience.custom", comment: "Custom")
-        case .customList: return NSLocalizedString("audience.customList", comment: "Custom List")
+        case .everyone: return NSLocalizedString("audience.type.everyone", comment: "Everyone")
+        case .connections: return NSLocalizedString("audience.type.connections", comment: "Connections")
+        case .bestFriends: return NSLocalizedString("audience.type.bestFriends", comment: "Best Friends")
+        case .custom: return NSLocalizedString("audience.type.custom", comment: "Custom")
+        case .customList: return NSLocalizedString("audience.type.customList", comment: "Custom List")
         }
     }
     
     var icon: String {
         switch self {
         case .everyone: return "globe"
-        case .connections: return "person.2"
-        case .bestFriends: return "heart.fill"
-        case .custom: return "person.crop.circle"
-        case .customList: return "list.bullet"
+        case .connections: return "person.2.fill"
+        case .bestFriends: return "heart.circle.fill"
+        case .custom: return "person.crop.circle.badge.plus"
+        case .customList: return "list.bullet.rectangle"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .everyone: return NSLocalizedString("audience.description.everyone", comment: "Everyone description")
+        case .connections: return NSLocalizedString("audience.description.connections", comment: "Connections description")
+        case .bestFriends: return NSLocalizedString("audience.description.bestFriends", comment: "Best Friends description")
+        case .custom: return NSLocalizedString("audience.description.custom", comment: "Custom description")
+        case .customList: return NSLocalizedString("audience.description.customList", comment: "Custom List description")
         }
     }
 }
@@ -36,6 +46,8 @@ struct ChainConfigurationView: View {
     @Binding var selectedListId: String?
     @Binding var selectedListName: String?
     @Binding var customSelectedUsers: [String]
+    let isContinuing: Bool // 🔗 NUEVO: Indica si estamos continuando una cadena existente
+    var onConfirm: (() -> Void)? // 🔗 NUEVO: Callback para cuando el usuario confirma la publicación
     
     @State private var showingContinuationSelector = false
     
@@ -52,7 +64,10 @@ struct ChainConfigurationView: View {
                         .font(.custom("Poppins-Bold", size: 24))
                         .foregroundColor(.primary)
                     
-                    Text(NSLocalizedString("storyChains.visibilityInfo", comment: "Visibility info"))
+                    // Texto informativo aclarando el origen de la configuración
+                    Text(isContinuing ? 
+                         NSLocalizedString("storyChains.inheritedSettingsInfo", comment: "The settings for this chain were defined by the original author and cannot be changed.") :
+                         NSLocalizedString("storyChains.visibilityInfo", comment: "Visibility info"))
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -62,56 +77,72 @@ struct ChainConfigurationView: View {
                 
                 // Configuración principal
                 VStack(spacing: 20) {
-                    // Toggle para permitir continuación
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text(NSLocalizedString("storyChains.allowOthersToggle", comment: "Allow others toggle"))
-                                .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(.primary)
+                    // Toggle para permitir continuación (Oculto si es continuación)
+                    if !isContinuing {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(NSLocalizedString("storyChains.allowOthersToggle", comment: "Allow others toggle"))
+                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                Toggle("", isOn: $allowOthersToContinue)
+                                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+                            }
                             
-                            Spacer()
-                            
-                            Toggle("", isOn: $allowOthersToContinue)
-                                .toggleStyle(SwitchToggleStyle(tint: .blue))
+                            Text(NSLocalizedString("storyChains.allowOthersDescription", comment: "Allow others description"))
+                                .font(.custom("Poppins-Regular", size: 14))
+                                .foregroundColor(.secondary)
                         }
-                        
-                        Text(NSLocalizedString("storyChains.allowOthersDescription", comment: "Allow others description"))
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(.secondary)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     
-                    // Selector de audiencia (solo si está activado)
+                    // Selector de audiencia (Solo lectura si es continuación)
                     if allowOthersToContinue {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(NSLocalizedString("storyChains.continuationAudience", comment: "Continuation audience"))
                                 .font(.custom("Poppins-Medium", size: 16))
                                 .foregroundColor(.primary)
                             
-                                        Button(action: {
-                                            showingContinuationSelector = true
-                                        }) {
+                            Button(action: {
+                                if !isContinuing {
+                                    showingContinuationSelector = true
+                                }
+                            }) {
                                 HStack {
                                     Image(systemName: getAudienceIcon())
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(isContinuing ? .secondary : .blue)
                                     
                                     Text(getAudienceText())
                                         .font(.custom("Poppins-Regular", size: 16))
-                                        .foregroundColor(.primary)
+                                        .foregroundColor(isContinuing ? .secondary : .primary)
                                     
                                     Spacer()
                                     
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(.secondary)
+                                    if !isContinuing {
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
                                 .padding()
                                 .background(Color(.systemGray6))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
+                            .disabled(isContinuing)
                         }
+                    }
+                    
+                    if isContinuing {
+                        // Mensaje de pie para colaboradores
+                        Text(NSLocalizedString("storyChains.collaboratorNotice", comment: "Note: Since you are a collaborator, the chain rules established by the author apply."))
+                            .font(.custom("Poppins-Italic", size: 13))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 8)
                     }
                 }
                 .padding(.horizontal)
@@ -121,6 +152,8 @@ struct ChainConfigurationView: View {
                 // Botón de compartir
                 Button(action: {
                     dismiss()
+                    // 🔗 NOTIFICAR CONFIRMACIÓN
+                    onConfirm?()
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.right.circle.fill")
@@ -238,6 +271,8 @@ struct ChainConfigurationView: View {
         continuationAudience: .constant(.everyone),
         selectedListId: .constant(nil),
         selectedListName: .constant(nil),
-        customSelectedUsers: .constant([])
+        customSelectedUsers: .constant([]),
+        isContinuing: false
     )
 }
+

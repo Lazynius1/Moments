@@ -4,9 +4,11 @@ import AVFoundation
 import UIKit
 
 struct SocialVideoEditorView: View {
-    @Binding var selectedMediaItems: [ProcessedMedia]
+    @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
+    
+    @Environment(\.colorScheme) var colorScheme
     
     @State private var player: AVPlayer?
     @State private var timeObserver: Any?
@@ -98,7 +100,7 @@ struct SocialVideoEditorView: View {
             }
         }
         
-        var toProcessedMediaAspectRatio: ProcessedMedia.AspectRatio {
+        var toProcessedMediaAspectRatio: CreatorMedia.AspectRatio {
             switch self {
             case .reels: return .nineBySixteen
             case .square: return .square
@@ -137,39 +139,47 @@ struct SocialVideoEditorView: View {
         let thumbnailImage: UIImage // Añadir thumbnail como imagen
     }
     
-    var currentVideo: ProcessedMedia? {
+    var currentVideo: CreatorMedia? {
         let videoItems = selectedMediaItems.filter { $0.type == .video }
         return videoItems.indices.contains(selectedClipIndex) ? videoItems[selectedClipIndex] : nil
     }
     
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+
+        VStack(spacing: 0) {
+            // Header estilo redes sociales
+            headerView
             
-            VStack(spacing: 0) {
-                // Header estilo redes sociales
-                headerView
-                
-                // Preview del video
-                videoPreviewSection
-                
-                // Timeline de recorte
-                if let _ = currentVideo {
-                    trimTimelineSection
-                }
-                
-                // Controles inferiores
-                controlsSection
-                
-                Spacer()
+            // Preview del video
+            videoPreviewSection
+            
+            // Timeline de recorte
+            if let _ = currentVideo {
+                trimTimelineSection
             }
             
-            // Overlay de procesamiento
-            if isProcessing {
-                processingOverlay
-            }
+            // Controles inferiores
+            controlsSection
+            
+            Spacer()
         }
+        .frame(width: UIScreen.main.bounds.width) // ✅ FORZAR ANCHO ESTRICTO: Nada puede salirse de la pantalla
+        .clipped() // ✅ Recortar cualquier contenido que intente desbordarse
+        .overlay(
+            ZStack(alignment: .top) {
+                // ✅ FORZAR FONDO DE STATUS BAR: Asegura contraste correcto
+                Color(colorScheme == .dark ? .black : .white)
+                    .frame(height: 0)
+                    .ignoresSafeArea(edges: .top)
+                
+                if isProcessing {
+                    processingOverlay
+                }
+            }
+        )
+        .statusBar(hidden: false) // ✅ FORZAR VISIBILIDAD
         .navigationBarHidden(true)
+        .background(colorScheme == .dark ? Color.black : Color.white)
         .onAppear {
             setupVideoPlayer()
         }
@@ -204,7 +214,7 @@ struct SocialVideoEditorView: View {
                     
                     Circle()
                         .trim(from: 0, to: processingProgress)
-                        .stroke(Color.blue, lineWidth: 4)
+                        .stroke(Color.pink, lineWidth: 4)
                         .frame(width: 80, height: 80)
                         .rotationEffect(.degrees(-90))
                         .animation(.easeInOut(duration: 0.3), value: processingProgress)
@@ -243,69 +253,71 @@ struct SocialVideoEditorView: View {
     private var headerView: some View {
         HStack {
             Button(action: goBack) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.title2)
-                    Text("videoEditor.back")
-                        .font(.body)
-                }
-                .foregroundColor(.white)
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 40, height: 40)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
             .disabled(isProcessing)
             
             Spacer()
             
-                            Text("videoEditor.edit")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
+            Text(NSLocalizedString("videoEditor.edit", comment: "Edit Video"))
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Spacer()
             
-            Button(action: processAndContinue) {
-                HStack(spacing: 8) {
-                    if isProcessing {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.8)
-                    }
-                    
-                    Text(isProcessing ? "Procesando..." : "Siguiente")
-                        .font(.body)
-                        .fontWeight(.semibold)
+            if !isProcessing {
+                GlowSharePill(
+                    title: "creator.next",
+                    icon: "chevron.right",
+                    isSmall: true
+                ) {
+                    processAndContinue()
                 }
-                .foregroundColor(isProcessing ? .white.opacity(0.7) : .blue)
+            } else {
+                ProgressView()
+                    .tint(.white)
+                    .frame(width: 40, height: 40)
             }
-            .disabled(isProcessing)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.black)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+        .background(
+            (colorScheme == .dark ? Color.black : Color.white)
+                .ignoresSafeArea(edges: .top)
+        )
+        .zIndex(10)
     }
     
     // MARK: - Video Preview
     private var videoPreviewSection: some View {
         ZStack {
-            if let video = currentVideo, let videoURL = video.videoURL {
-                // Contenedor del video con aspecto correcto
-                GeometryReader { geometry in
-                    let videoSize = calculateVideoSize(for: geometry.size)
-                    
-                    ZStack {
-                        // Fondo negro
-                        Rectangle()
-                            .fill(Color.black)
-                        
-                        // Player del video
-                        VideoPlayerWrapper(player: player)
-                            .frame(width: videoSize.width, height: videoSize.height)
-                            .clipped()
-                            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                    }
+            if let video = currentVideo {
+                // Fondo Cinemático (Blur)
+                if let thumbnail = video.thumbnail {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 500)
+                        .blur(radius: 30)
+                        .opacity(0.6)
+                        .overlay(Color.black.opacity(0.3))
                 }
-                .aspectRatio(selectedFormat.ratio, contentMode: .fit)
-                .frame(maxHeight: 500)
-                .background(Color.black)
+
+                // Contenedor del video con aspecto correcto
+                // Contenedor del video con aspecto correcto - SIMPLIFICADO
+                VideoPlayerWrapper(player: player)
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 5)                .aspectRatio(selectedFormat.ratio, contentMode: .fit)
+                .frame(maxWidth: UIScreen.main.bounds.width) // ✅ Limitar ancho a la pantalla
+                .frame(maxHeight: 480) // Limitar altura máxima
+                .padding(.vertical, 10)
                 
                 // Overlay de controles de reproducción
                 videoOverlayControls
@@ -349,24 +361,28 @@ struct SocialVideoEditorView: View {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 80))
                         .foregroundColor(.white.opacity(0.8))
+                        .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 5)
                 }
             }
             
-            // Indicador de volumen
-            if volume == 0 {
-                VStack {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "speaker.slash.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
-                    }
-                    Spacer()
-                }
-                .padding()
+            // Indicador de volumen (temporal al cambiar)
+            if showingVolumeSlider {
+                 Text("\(Int(volume * 100))%")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(20)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .transition(.opacity)
+            }
+            
+            // Aspect Ratio Guides (se muestran al cambiar formato)
+            if showingFormatPicker {
+                Rectangle()
+                    .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                    .foregroundColor(.white.opacity(0.5))
+                    .aspectRatio(selectedFormat.ratio, contentMode: .fit)
+                    .padding(20)
             }
         }
     }
@@ -379,7 +395,7 @@ struct SocialVideoEditorView: View {
                 Text(formatTime(max(trimStartTime, currentTime)))
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
@@ -392,7 +408,7 @@ struct SocialVideoEditorView: View {
                 Text(formatTime(trimEndTime))
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
             }
             .padding(.horizontal, 20)
             
@@ -400,7 +416,8 @@ struct SocialVideoEditorView: View {
             timelineView
         }
         .padding(.vertical, 16)
-        .background(Color.gray.opacity(0.1))
+        .background(.ultraThinMaterial)
+        .cornerRadius(20, corners: [.topLeft, .topRight])
         .opacity(isProcessing ? 0.5 : 1.0)
     }
     
@@ -412,28 +429,11 @@ struct SocialVideoEditorView: View {
             ZStack {
                 // Fondo del timeline con gradiente moderno
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.black.opacity(0.9),
-                                Color.gray.opacity(0.3),
-                                Color.black.opacity(0.9)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(height: 90)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
+                    .frame(height: 80)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.2), Color.white.opacity(0.05)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 1
-                            )
+                            .stroke(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
                     )
                 
                 // Thumbnails del video
@@ -460,7 +460,7 @@ struct SocialVideoEditorView: View {
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color.blue.opacity(0.3),
+                                            Color.pink.opacity(0.3),
                                             Color.purple.opacity(0.2)
                                         ],
                                         startPoint: .topLeading,
@@ -522,9 +522,9 @@ struct SocialVideoEditorView: View {
                     .stroke(
                         LinearGradient(
                             colors: [
-                                Color.blue.opacity(isDraggingTrimHandle ? 1.0 : 0.8),
-                                Color.purple.opacity(isDraggingTrimHandle ? 0.8 : 0.6),
-                                Color.blue.opacity(isDraggingTrimHandle ? 1.0 : 0.8)
+                                Color.purple.opacity(isDraggingTrimHandle ? 1.0 : 0.8),
+                                Color.pink.opacity(isDraggingTrimHandle ? 0.8 : 0.6),
+                                Color.purple.opacity(isDraggingTrimHandle ? 1.0 : 0.8)
                             ],
                             startPoint: .leading,
                             endPoint: .trailing
@@ -533,7 +533,7 @@ struct SocialVideoEditorView: View {
                     )
                     .frame(width: selectedWidth, height: 90)
                     .position(x: startX + selectedWidth / 2, y: 45)
-                    .shadow(color: Color.blue.opacity(isDraggingTrimHandle ? 0.8 : 0.5), radius: isDraggingTrimHandle ? 6 : 4, x: 0, y: 0)
+                    .shadow(color: Color.pink.opacity(isDraggingTrimHandle ? 0.8 : 0.5), radius: isDraggingTrimHandle ? 6 : 4, x: 0, y: 0)
                     .animation(.easeInOut(duration: 0.2), value: isDraggingTrimHandle)
                 
                 // Handle izquierdo
@@ -557,13 +557,13 @@ struct SocialVideoEditorView: View {
                 ZStack {
                     // Línea principal
                     Rectangle()
-                        .fill(Color.white)
+                        .fill(colorScheme == .dark ? Color.white : Color.black)
                         .frame(width: 3, height: 100)
                         .shadow(color: Color.white.opacity(0.5), radius: 2, x: 0, y: 0)
                     
                     // Círculo superior
                     Circle()
-                        .fill(Color.white)
+                        .fill(colorScheme == .dark ? Color.white : Color.black)
                         .frame(width: 12, height: 12)
                         .offset(y: -50)
                         .shadow(color: Color.white.opacity(0.3), radius: 2, x: 0, y: 0)
@@ -572,7 +572,8 @@ struct SocialVideoEditorView: View {
             }
         }
         .frame(height: 90)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 20) // ✅ Padding ANTES del frame para que sea parte del ancho total
+        .frame(maxWidth: UIScreen.main.bounds.width) // ✅ Limitar al ancho de pantalla
         .clipped()
         .allowsHitTesting(!isProcessing)
     }
@@ -586,18 +587,18 @@ struct SocialVideoEditorView: View {
                 .fill(
                     LinearGradient(
                         colors: isDragging ? [
-                            Color.blue.opacity(1.0),
-                            Color.purple.opacity(0.9)
+                            Color.purple.opacity(1.0),
+                            Color.pink.opacity(0.9)
                         ] : [
-                            Color.blue.opacity(0.9),
-                            Color.purple.opacity(0.8)
+                            Color.purple.opacity(0.9),
+                            Color.pink.opacity(0.8)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
                 .frame(width: isDragging ? 16 : 12, height: 90)
-                .shadow(color: Color.blue.opacity(isDragging ? 0.8 : 0.5), radius: isDragging ? 6 : 4, x: 0, y: 2)
+                .shadow(color: Color.pink.opacity(isDragging ? 0.8 : 0.5), radius: isDragging ? 6 : 4, x: 0, y: 2)
                 .scaleEffect(isDragging ? 1.05 : 1.0)
                 .animation(.easeInOut(duration: 0.2), value: isDragging)
             
@@ -701,16 +702,24 @@ struct SocialVideoEditorView: View {
                 )
                 
                 // Volumen
-                controlButton(
-                    icon: volume > 0 ? "speaker.2" : "speaker.slash",
-                    title: "Audio",
-                    subtitle: volume > 0 ? "Activado" : "Silenciado",
-                    action: {
-                        if !isProcessing {
-                            toggleVolume()
-                        }
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: volume == 0 ? "speaker.slash.fill" : "speaker.wave.3.fill")
+                            .font(.body)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .onTapGesture {
+                                toggleVolume()
+                            }
+                        
+                        Slider(value: $volume, in: 0...1.0)
+                            .accentColor(colorScheme == .dark ? .white : .black)
                     }
-                )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .frame(width: 180)
+                }
             }
             .padding(.horizontal)
             .opacity(isProcessing ? 0.5 : 1.0)
@@ -736,17 +745,17 @@ struct SocialVideoEditorView: View {
                             VStack(spacing: 4) {
                                 Image(systemName: "play.rectangle")
                                     .font(.title2)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 Text("\(index + 1)")
                                     .font(.caption)
                                     .fontWeight(.semibold)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                             
                             if index == selectedClipIndex {
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.blue, lineWidth: 2)
+                                    .stroke(Color.pink, lineWidth: 2)
                                     .frame(width: 60, height: 80)
                             }
                         }
@@ -763,14 +772,14 @@ struct SocialVideoEditorView: View {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .frame(width: 30, height: 30)
                 
                 VStack(spacing: 2) {
                     Text(title)
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text(subtitle)
                         .font(.caption2)
@@ -803,7 +812,7 @@ struct SocialVideoEditorView: View {
                     showingSpeedPicker = false
                     applyPlaybackSpeed()
                 }
-                .foregroundColor(.blue)
+                .foregroundColor(.pink)
                 .fontWeight(.semibold)
             }
             .padding()
@@ -819,7 +828,7 @@ struct SocialVideoEditorView: View {
                         VStack(spacing: 12) {
                             ZStack {
                                 Circle()
-                                    .fill(playbackSpeed == speed ? Color.blue : Color.gray.opacity(0.2))
+                                    .fill(playbackSpeed == speed ? Color.pink : Color.gray.opacity(0.2))
                                     .frame(width: 80, height: 80)
                                 
                                 Image(systemName: speed.icon)
@@ -830,7 +839,7 @@ struct SocialVideoEditorView: View {
                             Text(speed.rawValue)
                                 .font(.headline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(playbackSpeed == speed ? .blue : .primary)
+                                .foregroundColor(playbackSpeed == speed ? .pink : .primary)
                         }
                     }
                 }
@@ -862,7 +871,7 @@ struct SocialVideoEditorView: View {
                 Button(NSLocalizedString("videoEditor.done", comment: "Done")) {
                     showingFormatPicker = false
                 }
-                .foregroundColor(.blue)
+                .foregroundColor(.pink)
                 .fontWeight(.semibold)
             }
             .padding()
@@ -878,7 +887,7 @@ struct SocialVideoEditorView: View {
                         HStack {
                             Image(systemName: format.icon)
                                 .font(.title2)
-                                .foregroundColor(selectedFormat == format ? .blue : .gray)
+                                .foregroundColor(selectedFormat == format ? .pink : .gray)
                                 .frame(width: 30)
                             
                             VStack(alignment: .leading, spacing: 2) {
@@ -902,12 +911,12 @@ struct SocialVideoEditorView: View {
                             
                             if selectedFormat == format {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.pink)
                             }
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 12)
-                        .background(selectedFormat == format ? Color.blue.opacity(0.1) : Color.clear)
+                        .background(selectedFormat == format ? Color.pink.opacity(0.1) : Color.clear)
                         .cornerRadius(10)
                     }
                 }
@@ -955,6 +964,29 @@ struct SocialVideoEditorView: View {
         
         // Configurar volumen inicial
         player?.volume = volume
+        
+        // ✅ DETECTAR ASPECT RATIO AUTOMÁTICAMENTE
+        Task {
+            do {
+                guard let track = try await asset.loadTracks(withMediaType: .video).first else { return }
+                let naturalSize = try await track.load(.naturalSize)
+                let transform = try await track.load(.preferredTransform)
+                let size = naturalSize.applying(transform)
+                let ratio = abs(size.width / size.height)
+                
+                await MainActor.run {
+                    if ratio > 1.2 {
+                        self.selectedFormat = .landscape
+                    } else if ratio < 0.85 {
+                        self.selectedFormat = .reels
+                    } else {
+                        self.selectedFormat = .square
+                    }
+                }
+            } catch {
+                print("Error detectando aspect ratio: \(error)")
+            }
+        }
     }
     
     private func cleanupPlayer() {

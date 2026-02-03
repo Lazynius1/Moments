@@ -10,6 +10,7 @@ struct EditableImageView: View {
     @Binding var scale: CGFloat
     @Binding var offset: CGSize
     @Binding var rotation: Angle
+    let filteredImage: UIImage?
     @State private var lastScale: CGFloat = 1.0
     @State private var lastOffset: CGSize = .zero
     @State private var lastRotation: Angle = .zero
@@ -17,17 +18,22 @@ struct EditableImageView: View {
     // ✅ Fix: Use physical screen size to match Viewer and avoid Safe Area interpolation issues
     private let screenSize = UIScreen.main.bounds.size
     
-    init(image: UIImage, scale: Binding<CGFloat>, offset: Binding<CGSize>, rotation: Binding<Angle>) {
+    init(image: UIImage, scale: Binding<CGFloat>, offset: Binding<CGSize>, rotation: Binding<Angle>, filteredImage: UIImage? = nil) {
         self.image = image
         self._scale = scale
         self._offset = offset
         self._rotation = rotation
+        self.filteredImage = filteredImage
+    }
+    
+    var displayImage: UIImage {
+        filteredImage ?? image
     }
     
     var body: some View {
         ZStack {
             // ✅ Fondo con imagen original blur (usando blur nativo de SwiftUI)
-            Image(uiImage: image)
+            Image(uiImage: displayImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: screenSize.width, height: screenSize.height)
@@ -35,10 +41,10 @@ struct EditableImageView: View {
                 .scaleEffect(1.1) // Ligeramente más grande para evitar bordes
             
             // ✅ Imagen editable en primer plano
-            Image(uiImage: image)
+            Image(uiImage: displayImage)
                 .resizable()
                 .aspectRatio(contentMode: {
-                    let imageRatio = image.size.width / image.size.height
+                    let imageRatio = displayImage.size.width / displayImage.size.height
                     let isHorizontal = imageRatio > 1.0
                     return isHorizontal ? .fit : .fill
                 }())
@@ -78,16 +84,27 @@ struct StoryEditingView: View {
     @State private var drawingImage: UIImage?
     @State private var editableImageViewRef: EditableImageView?
     
+    // ✅ Filtros e Intensidad
+    @State private var filterIntensity: Double = 1.0
+    @State private var isApplyingFilter = false
+    @State private var showingIntensitySlider = false
+    @State private var showingFilterToolbar = false
+    
+    
     // ✅ Variables para transformaciones de imagen
     @State private var imageScale: CGFloat = 1.0
     @State private var imageOffset: CGSize = .zero
     @State private var imageRotation: Angle = .zero
     
-    // ✅ NUEVAS VARIABLES para listas personalizadas
     @State private var selectedListId: String?
     @State private var selectedListName: String?
     @State private var customSelectedUsers: [String] = []
     @State private var forceUpdate: Bool = false
+    
+    // ✅ Filtros
+    @State private var selectedFilter: FilterService.FilterType = .normal
+    @State private var filteredImage: UIImage? = nil
+    @State private var filterTask: Task<Void, Never>? = nil
     
     // ✅ PROPIEDADES para navegación
     @State private var showingUserProfile = false
@@ -141,38 +158,7 @@ struct StoryEditingView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ZStack {
-                // Background media
-                if let firstMedia = selectedMediaItems.first {
-                    if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
-                        // ✅ Video estático con fondo blur y dimensiones respetadas (WYSIWYG)
-                        ZStack {
-                            // Fondo blur del video (Llenar pantalla)
-                            StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
-                                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                                .blur(radius: 20)
-                                .scaleEffect(1.1)
-                                .clipped() // Cortar exceso del blur
-                                .ignoresSafeArea()
-                            
-                            // Video principal (Ajustar contenido)
-                            StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspect)
-                                .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: UIScreen.main.bounds.height)
-                                .clipped()
-                                .ignoresSafeArea()
-                        }
-                    } else {
-                        // ✅ Editable Image View para imágenes
-                        EditableImageView(
-                            image: firstMedia.image,
-                            scale: $imageScale,
-                            offset: $imageOffset,
-                            rotation: $imageRotation
-                        )
-                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                        .clipped()
-                        .ignoresSafeArea()
-                    }
-                }
+                backgroundMediaView()
                 
                 // Drawing overlay
                 if let drawing = drawingImage {
@@ -193,195 +179,29 @@ struct StoryEditingView: View {
                     onNavigateToProfile: { userId in
                         handleProfileNavigation(userId: userId)
                     },
-                    onNavigateToLocation: { locationName, coordinate in  // ← AGREGAR ESTA LÍNEA
+                    onNavigateToLocation: { locationName, coordinate in
                         handleLocationNavigation(locationName: locationName, coordinate: coordinate)
                     }
                 )
-                .id(forceUpdate) // ✅ FORZAR RECONSTRUCCIÓN CUANDO CAMBIE
+                .id(forceUpdate)
 
                 // Controls
                 VStack {
-                    // Top bar
-                    HStack {
-                        Button(action: {
-                            currentFlow = .storyCamera
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding(12)
-                                .background(Color.black.opacity(0.3))
-                                .clipShape(Circle())
-                        }
-                        
-                        Spacer()
-                        
-                        // 🔗 Toggle Crear Cadena
-                        if !isContinuingChain {
-                            Button(action: {
-                                isCreatingChain.toggle()
-                            }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: isCreatingChain ? "link" : "link")
-                                        .foregroundColor(isCreatingChain ? .blue : .white)
-                                    
-                                    Text(isCreatingChain ? NSLocalizedString("storyChains.createChain", comment: "Create Chain") : NSLocalizedString("storyChains.chain", comment: "Chain"))
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(isCreatingChain ? .blue : .white)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(isCreatingChain ? Color.blue.opacity(0.2) : Color.black.opacity(0.3))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1)
-                                )
-                                .clipShape(Capsule())
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // Editing tools
-                        HStack(spacing: 20) {
-                            EditingToolIcon(icon: "textformat.alt") {
-                                showingTextEditor = true
-                            }
-                            
-                            EditingToolIcon(icon: "face.smiling") {
-                                showingStickerPicker = true
-                            }
-                            
-                            EditingToolIcon(icon: "scribble") {
-                                showingDrawing = true
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            saveToGallery()
-                        }) {
-                            Image(systemName: "arrow.down.circle")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding(12)
-                                .background(Color.black.opacity(0.3))
-                                .clipShape(Circle())
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 30) // ✅ BAJAR ICONOS DE LA PARTE SUPERIOR
+                    topBarView()
                     
-                    // (Título de cadena movido a input inferior)
+                    HStack {
+                        Spacer()
+                        sideToolbarView()
+                    }
                     
                     Spacer()
                     
-                    // Video controls
+                    // Video playback controls
                     if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
                         VideoControlsOverlay()
                     }
                     
-                    // Bottom bar
-                    VStack(spacing: 8) {
-                        // 🔗 Texto informativo de continuando cadena
-                        if isContinuingChain {
-                            HStack {
-                                Image(systemName: "link")
-                                    .foregroundColor(.blue)
-                                    .font(.system(size: 12))
-                                
-                                Text("Continuando cadena: \(originalChainTitle)")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                            )
-                            .padding(.horizontal, 16)
-                        }
-                        
-                        HStack {
-                            // Story settings - Solo mostrar si NO es modo cadena
-                            if !isCreatingChain && !isContinuingChain {
-                                Button(action: {
-                                    if !isLoadingUserSettings {
-                                        showingAudienceSelector = true
-                                    }
-                                }) {
-                                    HStack(spacing: 8) {
-                                        if isLoadingUserSettings {
-                                            ProgressView()
-                                                .scaleEffect(0.7)
-                                                .tint(.white)
-                                        } else {
-                                            Image(systemName: getAudienceIcon())
-                                        }
-                                        
-                                        Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
-                                            .font(.system(size: 14, weight: .medium))
-                                    }
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(Color.black.opacity(0.3))
-                                    .clipShape(Capsule())
-                                }
-                            }
-                        
-                        Spacer()
-                        
-                        // Send button o Configuración de cadena
-                        if isCreatingChain || isContinuingChain {
-                            // Botón de configuración para cadenas
-                            Button(action: {
-                                showingChainConfiguration = true
-                            }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "gearshape")
-                                    Text("Configuración")
-                                        .font(.system(size: 16, weight: .semibold))
-                                }
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 12)
-                                .background(
-                                    (colorScheme == .dark ? Color.black : Color.white)
-                                        .opacity(isLoadingUserSettings ? 0.5 : 1.0)
-                                )
-                                .clipShape(Capsule())
-                            }
-                            .disabled(isPublishing || isLoadingUserSettings)
-                        } else {
-                            // Botón de compartir normal
-                            Button(action: {
-                                publishStory()
-                            }) {
-                                HStack(spacing: 8) {
-                                    Text("storyEditor.share")
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Image(systemName: "arrow.right")
-                                }
-                                .foregroundColor(.black)
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 12)
-                                .background(Color.white.opacity(isLoadingUserSettings ? 0.5 : 1.0))
-                                .clipShape(Capsule())
-                            }
-                            .disabled(isPublishing || isLoadingUserSettings)
-                        }
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, isCreatingChain ? 115 : 35) // ✅ Evitar solaparse con input inferior de cadena
+                    bottomControlsView()
                 }
             }
             .navigationDestination(for: String.self) { userId in
@@ -402,6 +222,11 @@ struct StoryEditingView: View {
                let chainTitle = initialChainTitle,
                let chainPosition = initialChainPosition {
                 setChainContext(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
+            }
+            
+            // Inicializar filtro si es necesario
+            if filteredImage == nil && selectedFilter != .normal {
+                applySelectedFilter()
             }
         }
             .onDisappear {
@@ -453,6 +278,7 @@ struct StoryEditingView: View {
             .onDisappear {
                 updateAudienceSetting()
             }
+            .presentationBackground(.clear)
         }
         // 🔗 NUEVO: Sheet de configuración de cadenas
         .sheet(isPresented: $showingChainConfiguration) {
@@ -461,12 +287,13 @@ struct StoryEditingView: View {
                 continuationAudience: $continuationAudience,
                 selectedListId: $selectedListId,
                 selectedListName: $selectedListName,
-                customSelectedUsers: $customSelectedUsers
+                customSelectedUsers: $customSelectedUsers,
+                isContinuing: isContinuingChain,
+                onConfirm: {
+                    // 🔗 PUBLICAR SOLO SI SE CONFIRMA EN EL SHEET
+                    publishStory()
+                }
             )
-            .onDisappear {
-                // Publicar la historia cuando se cierre la configuración
-                publishStory()
-            }
         }
         .sheet(isPresented: $showingLocationMap) {
             LocationMapView(
@@ -568,6 +395,7 @@ struct StoryEditingView: View {
                 case .bestFriends: return .bestFriends
                 case .custom:
                     return selectedListId != nil ? .customList : .custom
+                case .onlyMe: return .onlyMe
                 }
             },
             set: { newValue in
@@ -577,7 +405,7 @@ struct StoryEditingView: View {
                 case .bestFriends: storyAudience = .bestFriends
                 case .custom: storyAudience = .custom
                 case .customList: storyAudience = .custom
-                case .onlyMe: storyAudience = .everyone
+                case .onlyMe: storyAudience = .onlyMe
                 }
             }
         )
@@ -598,6 +426,362 @@ struct StoryEditingView: View {
         case .customList: return .customList
         }
     }
+    
+    // ✅ Componentes de la UI extraídos para simplificar el body
+    @ViewBuilder
+    private func backgroundMediaView() -> some View {
+        if let firstMedia = selectedMediaItems.first {
+            if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
+                ZStack {
+                    StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
+                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                        .blur(radius: 20)
+                        .scaleEffect(1.1)
+                        .clipped()
+                        .ignoresSafeArea()
+                    
+                    StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspect)
+                        .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: UIScreen.main.bounds.height)
+                        .clipped()
+                        .ignoresSafeArea()
+                }
+            } else {
+                EditableImageView(
+                    image: firstMedia.image,
+                    scale: $imageScale,
+                    offset: $imageOffset,
+                    rotation: $imageRotation,
+                    filteredImage: filteredImage
+                )
+                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                .clipped()
+                .ignoresSafeArea()
+                .onChange(of: selectedFilter) { _ in
+                    applySelectedFilter()
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func topBarView() -> some View {
+        HStack {
+            Button(action: {
+                currentFlow = .storyCamera
+            }) {
+                Image(systemName: "xmark")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .padding(12)
+                    .background(Material.ultraThinMaterial)
+                    .clipShape(Circle())
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                saveToGallery()
+            }) {
+                Image(systemName: "arrow.down.circle")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .padding(12)
+                    .background(Material.ultraThinMaterial)
+                    .clipShape(Circle())
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 40)
+    }
+    
+    @ViewBuilder
+    private func sideToolbarView() -> some View {
+        VStack(spacing: 16) {
+            if !isContinuingChain {
+                Button(action: {
+                    withAnimation(.spring()) {
+                        isCreatingChain.toggle()
+                    }
+                }) {
+                    Image(systemName: "link")
+                        .font(.system(size: 20))
+                        .foregroundColor(isCreatingChain ? .blue : .white)
+                        .frame(width: 44, height: 44)
+                        .background(isCreatingChain ? Color.blue.opacity(0.2) : Color.clear)
+                        .background(Material.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1)
+                        )
+                }
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            }
+
+            
+            EditingToolIcon(icon: "textformat.alt") {
+                showingTextEditor = true
+            }
+            
+            EditingToolIcon(icon: "face.smiling") {
+                showingStickerPicker = true
+            }
+            
+            EditingToolIcon(icon: "scribble") {
+                showingDrawing = true
+            }
+            
+            Button(action: {
+                withAnimation(.spring()) {
+                    showingFilterToolbar.toggle()
+                }
+            }) {
+                Image(systemName: "paintbrush")
+                    .font(.system(size: 20))
+                    .foregroundColor(showingFilterToolbar ? .pink : .white)
+                    .frame(width: 44, height: 44)
+                    .background(showingFilterToolbar ? Color.pink.opacity(0.2) : Color.clear)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(showingFilterToolbar ? Color.pink : Color.clear, lineWidth: 1)
+                    )
+            }
+            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        }
+        .padding(.trailing, 16)
+    }
+    
+    @ViewBuilder
+    private func bottomControlsView() -> some View {
+        VStack(spacing: 12) {
+            if showingFilterToolbar {
+                // Intensity Slider
+                if selectedFilter != .normal && showingIntensitySlider {
+                    VStack(spacing: 4) {
+                        Text("\(Int(filterIntensity * 100))%")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
+                        
+                        Slider(value: $filterIntensity, in: 0...1.0)
+                            .accentColor(.white)
+                            .padding(.horizontal, 40)
+                            .onChange(of: filterIntensity) { _ in
+                                applySelectedFilter()
+                            }
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                // Swipeable Filter Selector
+                if selectedMediaItems.first?.type == .image {
+                    FilterSelectorView(selectedFilter: $selectedFilter, baseImage: selectedMediaItems.first?.image)
+                        .onChange(of: selectedFilter) { _ in
+                            if selectedFilter != .normal {
+                                withAnimation(.spring()) {
+                                    showingIntensitySlider = true
+                                }
+                            } else {
+                                withAnimation(.spring()) {
+                                    showingIntensitySlider = false
+                                }
+                            }
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            
+            // 🔗 Texto informativo de continuando cadena
+            if isContinuingChain {
+                HStack {
+                    Image(systemName: "link")
+                        .foregroundColor(.blue)
+                        .font(.system(size: 12))
+                    
+                    Text("Continuando cadena: \(originalChainTitle)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                )
+                .padding(.horizontal, 16)
+            }
+            
+            HStack {
+                // Story settings
+                if !isCreatingChain && !isContinuingChain {
+                    Button(action: {
+                        if !isLoadingUserSettings {
+                            showingAudienceSelector = true
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            if isLoadingUserSettings {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: getAudienceIcon())
+                            }
+                            
+                            Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.3))
+                        .clipShape(Capsule())
+                    }
+                }
+            
+                Spacer()
+                
+                // Botón de acción principal
+                principalActionButton()
+            }
+        }
+        .padding(.horizontal)
+        .padding(.bottom, isCreatingChain ? 115 : 35)
+    }
+    
+    @ViewBuilder
+    private func principalActionButton() -> some View {
+        if isContinuingChain {
+            // 🔗 BOTÓN DIRECTO PARA COLABORADORES (Sin configuración)
+            Button(action: {
+                publishStory()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .foregroundColor(.white)
+                        .font(.system(size: 16))
+                    
+                    Text(NSLocalizedString("storyChains.shareChain", comment: "Share Chain"))
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(
+                    ZStack {
+                        // Fondo glassmorphism con gradiente premium
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .clipShape(Capsule())
+                        
+                        // Efecto glassmorphism
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .opacity(0.3)
+                    }
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+            }
+            .disabled(isPublishing || isLoadingUserSettings)
+        } else if isCreatingChain {
+            // 🔗 BOTÓN DE CONFIGURACIÓN PARA EL AUTOR ORIGINAL
+            Button(action: {
+                showingChainConfiguration = true
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape")
+                    Text("Configuración")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(
+                    (colorScheme == .dark ? Color.black : Color.white)
+                        .opacity(isLoadingUserSettings ? 0.5 : 1.0)
+                )
+                .clipShape(Capsule())
+            }
+            .disabled(isPublishing || isLoadingUserSettings)
+        } else {
+            // 🎬 BOTÓN DE PUBLICAR HISTORIA NORMAL
+            Button(action: {
+                publishStory()
+            }) {
+                HStack(spacing: 8) {
+                    Text("storyEditor.share")
+                        .font(.system(size: 16, weight: .semibold))
+                    Image(systemName: "arrow.right")
+                }
+                .foregroundColor(.black)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(isLoadingUserSettings ? 0.5 : 1.0))
+                .clipShape(Capsule())
+            }
+            .disabled(isPublishing || isLoadingUserSettings)
+        }
+    }
+    
+    // ✅ Filtros: Aplicación asíncrona optimizada (Cancela tareas previas para evitar lag)
+    private func applySelectedFilter() {
+        guard let firstMedia = selectedMediaItems.first, firstMedia.type == .image else {
+            filteredImage = nil
+            return
+        }
+        
+        if selectedFilter == .normal {
+            filteredImage = nil
+            return
+        }
+        
+        isApplyingFilter = true
+        
+        // Cancelar la tarea anterior si existe para evitar acumulación de procesamiento
+        filterTask?.cancel()
+        
+        // Crear nueva tarea
+        filterTask = Task.detached(priority: .userInitiated) {
+            // Pequeño retardo opcional si el slider se mueve demasiado rápido (debouncing)
+            // try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
+            
+            if Task.isCancelled { return }
+            
+            let optimizedImage = firstMedia.image
+            let filtered = FilterService.shared.applyFilter(selectedFilter, to: optimizedImage, intensity: filterIntensity)
+            
+            if Task.isCancelled { return }
+            
+            await MainActor.run {
+                self.filteredImage = filtered
+                self.isApplyingFilter = false
+            }
+        }
+    }
+    
     
     // ✅ NUEVA FUNCIÓN: Cargar configuración por defecto del usuario
     private func loadUserDefaultAudienceSettings() {
@@ -632,7 +816,7 @@ struct StoryEditingView: View {
                             self.selectedListId = visibilitySettings["storyCustomListId"] as? String
                             self.selectedListName = visibilitySettings["storyCustomListName"] as? String
                         case .onlyMe:
-                            self.storyAudience = .everyone
+                            self.storyAudience = .onlyMe
                         }
                     }
                 }
@@ -690,58 +874,82 @@ struct StoryEditingView: View {
             return UIImage()
         }
         
-        let baseImage: UIImage
-        let originalSize: CGSize
+        // standard story resolution (1080 x 1920)
+        let targetSize = CGSize(width: 1080, height: 1920)
         let screenSize = UIScreen.main.bounds.size
-        let scaleFactorX: CGFloat
-        let scaleFactorY: CGFloat
         
-        // ✅ Determinar si es imagen o video
-        if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
-            // ✅ Para videos, usar el thumbnail como base
-            baseImage = firstMedia.image
-            originalSize = baseImage.size
-            scaleFactorX = originalSize.width / screenSize.width
-            scaleFactorY = originalSize.height / screenSize.height
-        } else {
-            // ✅ Para imágenes, usar la imagen optimizada
-            let optimizedImage = optimizeImageForStory(firstMedia.image)
-            baseImage = optimizedImage
-            originalSize = baseImage.size
-            scaleFactorX = originalSize.width / screenSize.width
-            scaleFactorY = originalSize.height / screenSize.height
-        }
+        // baseImage and scaling factors
+        let baseImage: UIImage = firstMedia.image
+        let scaleFactorX = targetSize.width / screenSize.width
+        let scaleFactorY = targetSize.height / screenSize.height
         
-        let renderer = UIGraphicsImageRenderer(size: originalSize)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
         
         return renderer.image { context in
-            let rect = CGRect(origin: .zero, size: originalSize)
+            let rect = CGRect(origin: .zero, size: targetSize)
             
-            // ✅ Crear fondo blur usando Core Image
+            // 1. Optimized background blur
+            // We downscale the image significantly before blurring to save memory and CPU
             let blurRadius: CGFloat = 20
-            let ciContext = CIContext(options: nil)
-            if let ciImage = CIImage(image: baseImage),
-               let blurFilter = CIFilter(name: "CIGaussianBlur") {
-                blurFilter.setValue(ciImage, forKey: kCIInputImageKey)
-                blurFilter.setValue(blurRadius, forKey: kCIInputRadiusKey)
-                
-                if let outputImage = blurFilter.outputImage,
-                   let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) {
-                    let blurImage = UIImage(cgImage: cgImage)
-                    blurImage.draw(in: rect)
-                }
+            let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+            
+            // scale down for blur (much faster and less memory)
+            let smallSize = CGSize(width: 200, height: 200 * (targetSize.height / targetSize.width))
+            let smallRect = CGRect(origin: .zero, size: smallSize)
+            
+            let smallRenderer = UIGraphicsImageRenderer(size: smallSize)
+            let smallImage = smallRenderer.image { _ in
+                baseImage.draw(in: smallRect)
             }
             
-            // ✅ Aplicar transformaciones (diferentes para imagen y video)
-            context.cgContext.saveGState()
-            
-            // Centrar las transformaciones
-            context.cgContext.translateBy(x: originalSize.width / 2, y: originalSize.height / 2)
-            
-            if firstMedia.type == .video {
-                // ✅ Videos sin transformaciones (estáticos)
+            let ciImage = CIImage(image: smallImage)
+            if let ciImage = ciImage,
+               let clampFilter = CIFilter(name: "CIAffineClamp"),
+               let blurFilter = CIFilter(name: "CIGaussianBlur") {
+                
+                // 1. Extend edges to infinity to avoid sampling transparency at borders
+                clampFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                let clampedImage = clampFilter.outputImage
+                
+                // 2. Apply blur
+                blurFilter.setValue(clampedImage, forKey: kCIInputImageKey)
+                blurFilter.setValue(blurRadius, forKey: kCIInputRadiusKey)
+                
+                // 3. Crop back to original small size and render
+                if let outputImage = blurFilter.outputImage?.cropped(to: ciImage.extent),
+                   let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) {
+                    let blurImage = UIImage(cgImage: cgImage)
+                    
+                    // 4. Draw slightly larger than canvas (overscale) to guarantee no gaps
+                    let overscale: CGFloat = 1.05
+                    let overscaleRect = CGRect(
+                        x: -(targetSize.width * (overscale - 1) / 2),
+                        y: -(targetSize.height * (overscale - 1) / 2),
+                        width: targetSize.width * overscale,
+                        height: targetSize.height * overscale
+                    )
+                    blurImage.draw(in: overscaleRect)
+                }
             } else {
-                // ✅ Aplicar transformaciones completas para imágenes
+                // Fallback: solid color or just the image
+                UIColor.black.setFill()
+                UIRectFill(rect)
+            }
+            
+            // Apply selected filter if any
+            let renderImage: UIImage
+            if selectedFilter != .normal {
+                renderImage = FilterService.shared.applyFilter(selectedFilter, to: baseImage, intensity: filterIntensity)
+            } else {
+                renderImage = baseImage
+            }
+            
+            // 2. Main content rendering
+            context.cgContext.saveGState()
+            context.cgContext.translateBy(x: targetSize.width / 2, y: targetSize.height / 2)
+            
+            if firstMedia.type != .video {
+                // images use full transformations
                 context.cgContext.rotate(by: imageRotation.radians)
                 context.cgContext.scaleBy(x: imageScale, y: imageScale)
                 
@@ -750,47 +958,54 @@ struct StoryEditingView: View {
                 context.cgContext.translateBy(x: offsetX, y: offsetY)
             }
             
-            // Dibujar la imagen transformada
+            // Draw image scaled to fit/fill
+            let imageRatio = renderImage.size.width / renderImage.size.height
+            let targetRatio = targetSize.width / targetSize.height
+            
+            let finalWidth: CGFloat
+            let finalHeight: CGFloat
+            
+            if imageRatio > targetRatio {
+                // Horizontal image
+                finalWidth = targetSize.width
+                finalHeight = targetSize.width / imageRatio
+            } else {
+                // Vertical image
+                finalHeight = targetSize.height
+                finalWidth = targetSize.height * imageRatio
+            }
+            
             let imageRect = CGRect(
-                x: -originalSize.width / 2,
-                y: -originalSize.height / 2,
-                width: originalSize.width,
-                height: originalSize.height
+                x: -finalWidth / 2,
+                y: -finalHeight / 2,
+                width: finalWidth,
+                height: finalHeight
             )
-            baseImage.draw(in: imageRect)
+            renderImage.draw(in: imageRect)
             
             context.cgContext.restoreGState()
             
+            // 3. Drawing overlay
             if let drawing = drawingImage {
                 drawing.draw(in: rect, blendMode: .normal, alpha: 1.0)
             }
             
+            // 4. Text overlay
             if !storyText.isEmpty {
                 let paragraphStyle = NSMutableParagraphStyle()
                 paragraphStyle.alignment = .center
                 
-                var fontSize: CGFloat = 28 * max(scaleFactorX, scaleFactorY)
-                var fontWeight: UIFont.Weight = .medium
+                let baseFontSize: CGFloat = 28
+                let scaledFontSize = baseFontSize * max(scaleFactorX, scaleFactorY)
                 
+                let font: UIFont
                 switch selectedTextStyle {
-                case .modern:
-                    fontSize = 28 * max(scaleFactorX, scaleFactorY)
-                    fontWeight = .medium
-                case .classic:
-                    fontSize = 26 * max(scaleFactorX, scaleFactorY)
-                    fontWeight = .regular
-                case .neon:
-                    fontSize = 30 * max(scaleFactorX, scaleFactorY)
-                    fontWeight = .black
-                case .typewriter:
-                    fontSize = 24 * max(scaleFactorX, scaleFactorY)
-                    fontWeight = .regular
-                case .bold:
-                    fontSize = 32 * max(scaleFactorX, scaleFactorY)
-                    fontWeight = .heavy
+                case .modern: font = UIFont.systemFont(ofSize: scaledFontSize, weight: .medium)
+                case .classic: font = UIFont(name: "Georgia", size: scaledFontSize - 2) ?? .systemFont(ofSize: scaledFontSize)
+                case .neon: font = UIFont.systemFont(ofSize: scaledFontSize + 2, weight: .black)
+                case .typewriter: font = UIFont(name: "Courier New", size: scaledFontSize - 4) ?? .systemFont(ofSize: scaledFontSize)
+                case .bold: font = UIFont.systemFont(ofSize: scaledFontSize + 4, weight: .heavy)
                 }
-                
-                let font = UIFont.systemFont(ofSize: fontSize, weight: fontWeight)
                 
                 let attributes: [NSAttributedString.Key: Any] = [
                     .font: font,
@@ -809,31 +1024,31 @@ struct StoryEditingView: View {
                 let scaleFactor = max(scaleFactorX, scaleFactorY)
                 
                 switch selectedTextStyle {
-                case .modern:
-                    UIColor.black.withAlphaComponent(0.6).setFill()
+                case .modern, .neon, .typewriter:
+                    let bgColor: UIColor = {
+                        switch selectedTextStyle {
+                        case .modern: return .black.withAlphaComponent(0.6)
+                        case .neon: return .purple.withAlphaComponent(0.8)
+                        case .typewriter: return .gray.withAlphaComponent(0.7)
+                        default: return .clear
+                        }
+                    }()
+                    bgColor.setFill()
                     let backgroundRect = textRect.insetBy(dx: -16 * scaleFactor, dy: -8 * scaleFactor)
                     UIBezierPath(roundedRect: backgroundRect, cornerRadius: 8 * scaleFactor).fill()
-                case .neon:
-                    UIColor.purple.withAlphaComponent(0.8).setFill()
-                    let backgroundRect = textRect.insetBy(dx: -16 * scaleFactor, dy: -8 * scaleFactor)
-                    UIBezierPath(roundedRect: backgroundRect, cornerRadius: 8 * scaleFactor).fill()
-                case .typewriter:
-                    UIColor.gray.withAlphaComponent(0.7).setFill()
-                    let backgroundRect = textRect.insetBy(dx: -16 * scaleFactor, dy: -8 * scaleFactor)
-                    UIBezierPath(roundedRect: backgroundRect, cornerRadius: 8 * scaleFactor).fill()
-                default:
-                    break
+                default: break
                 }
                 
                 storyText.draw(in: textRect, withAttributes: attributes)
             }
             
+            // 5. Stickers overlay
             for sticker in selectedStickers {
-                                    // ✅ NO renderizar stickers interactivos en la imagen final
-                    // Los stickers interactivos se mostrarán dinámicamente en la UI
-                    if sticker.type == .mention || sticker.type == .poll || sticker.type == .question || sticker.type == .location || sticker.type == .hashtag || sticker.type == .weather {
-                        continue
-                    }
+                // interactive stickers (mentions, etc.) are handled by metadata, not drawn on the static image
+                if sticker.type == .mention || sticker.type == .poll || sticker.type == .question || 
+                   sticker.type == .location || sticker.type == .hashtag || sticker.type == .weather {
+                    continue
+                }
                 
                 context.cgContext.saveGState()
                 
@@ -842,26 +1057,23 @@ struct StoryEditingView: View {
                     y: sticker.position.y * scaleFactorY
                 )
                 
-                // ✅ USAR DIMENSIONES REALES PARA STICKERS DE RESPUESTA
-                let originalSize = sticker.image.size
+                let stickerOriginalSize = sticker.image.size
                 let scaledWidth: CGFloat
                 let scaledHeight: CGFloat
+                let stickerScale = sticker.scale
                 
                 if sticker.type == .questionResponse {
-                    // ✅ MANTENER PROPORCIONES ORIGINALES (320x100)
-                    let scaleFactor = max(scaleFactorX, scaleFactorY)
-                    scaledWidth = originalSize.width * scaleFactor
-                    scaledHeight = originalSize.height * scaleFactor
+                    let commonScale = max(scaleFactorX, scaleFactorY) * stickerScale
+                    scaledWidth = stickerOriginalSize.width * commonScale
+                    scaledHeight = stickerOriginalSize.height * commonScale
                 } else {
-                    // ✅ OTROS STICKERS USAN TAMAÑO FIJO
-                    let baseSize = 100 * max(scaleFactorX, scaleFactorY) * sticker.scale
+                    let baseSize = 100 * max(scaleFactorX, scaleFactorY) * stickerScale
                     scaledWidth = baseSize
                     scaledHeight = baseSize
                 }
                 
                 context.cgContext.translateBy(x: scaledPosition.x, y: scaledPosition.y)
                 context.cgContext.rotate(by: CGFloat(sticker.rotation.radians))
-                context.cgContext.scaleBy(x: sticker.scale, y: sticker.scale)
                 
                 let stickerRect = CGRect(
                     x: -scaledWidth / 2,
@@ -870,16 +1082,13 @@ struct StoryEditingView: View {
                     height: scaledHeight
                 )
                 
-                // ✅ SOLUCIÓN: NO renderizar stickers GIFs en la imagen final
-                // Los GIFs se mostrarán animados en la UI, no en la imagen estática
                 if !sticker.isAnimated {
-                    // Solo renderizar stickers estáticos en la imagen final
                     sticker.image.draw(in: stickerRect)
                 }
-                // Los GIFs animados se mostrarán dinámicamente en la UI
                 
                 context.cgContext.restoreGState()
             }
+            
         }
     }
     
@@ -955,6 +1164,7 @@ struct StoryEditingView: View {
                 case .admirers: return .connections
                 case .bestFriends: return .bestFriends
                 case .custom: return selectedListId != nil ? .customList : .custom
+                case .onlyMe: return .onlyMe
                 }
             }
         }()
@@ -1162,19 +1372,15 @@ extension StoryEditingView {
     
     // ✅ FUNCIÓN: Optimizar imagen para historias
     private func optimizeImageForStory(_ image: UIImage) -> UIImage {
-        // ✅ PASO 1: Normalizar orientación
+        // Normalizamos orientación siempre
         let normalizedImage = image.normalized()
         
-        // ✅ PASO 2: Comprimir a JPEG
-        guard let compressedData = normalizedImage.jpegData(compressionQuality: 0.9) else {
-            return normalizedImage
-        }
+        // Capped dimension for memory - Stories are typically 1080x1920
+        // Using 1440 for high quality but much less memory than camera resolution
+        let maxDimension: CGFloat = 1440
         
-        // ✅ PASO 3: Redimensionar si es muy grande (>8MB)
-        if compressedData.count > 8 * 1024 * 1024 { // 8MB
-            let maxDimension: CGFloat = 3072
-            let resizedImage = calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
-            return resizedImage
+        if normalizedImage.size.width > maxDimension || normalizedImage.size.height > maxDimension {
+            return calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
         }
         
         return normalizedImage
@@ -1389,9 +1595,10 @@ struct EditingToolIcon: View {
             Image(systemName: icon)
                 .font(.system(size: 20))
                 .foregroundColor(.white)
-                .frame(width: 40, height: 40)
-                .background(Color.black.opacity(0.3))
+                .frame(width: 44, height: 44)
+                .background(.ultraThinMaterial)
                 .clipShape(Circle())
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         }
     }
 }
@@ -1469,11 +1676,6 @@ struct MediaLibraryItem: Identifiable {
         self.videoURL = videoURL
         self.phAsset = phAsset
     }
-}
-
-struct FilterSettings {
-    let name: String
-    let intensity: Double
 }
 
 struct StickerItem: Identifiable {
@@ -1584,6 +1786,99 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
         
         init(_ parent: CameraPreviewRepresentable) {
             self.parent = parent
+        }
+    }
+}
+// MARK: - Filter Selector View
+struct FilterSelectorView: View {
+    @Binding var selectedFilter: FilterService.FilterType
+    let baseImage: UIImage?
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(FilterService.FilterType.allCases, id: \.self) { filterType in
+                        FilterItemView(
+                            type: filterType,
+                            isSelected: selectedFilter == filterType,
+                            baseImage: baseImage
+                        ) {
+                            withAnimation(.spring()) {
+                                selectedFilter = filterType
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            
+            Text(selectedFilter.rawValue)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+        }
+        .padding(.bottom, 8)
+    }
+}
+
+struct FilterItemView: View {
+    let type: FilterService.FilterType
+    let isSelected: Bool
+    let baseImage: UIImage?
+    let action: () -> Void
+    
+    @State private var previewImage: UIImage? = nil
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ZStack {
+                    if let preview = previewImage {
+                        Image(uiImage: preview)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        Color.gray.opacity(0.3)
+                    }
+                    
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white, lineWidth: 3)
+                    }
+                }
+                .frame(width: 60, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .shadow(radius: isSelected ? 4 : 0)
+                
+                Text(type.rawValue)
+                    .font(.system(size: 10, weight: isSelected ? .bold : .regular))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.8))
+            }
+        }
+        .onAppear {
+            generatePreview()
+        }
+    }
+    
+    private func generatePreview() {
+        guard let base = baseImage else { return }
+        
+        // Generate a very small thumbnail for the carousel to save memory
+        let size = CGSize(width: 60, height: 80)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let thumb = renderer.image { _ in
+            base.draw(in: CGRect(origin: .zero, size: size))
+        }
+        
+        Task.detached(priority: .background) {
+            let filtered = FilterService.shared.applyFilterToThumbnail(type, to: thumb)
+            await MainActor.run {
+                self.previewImage = filtered
+            }
         }
     }
 }

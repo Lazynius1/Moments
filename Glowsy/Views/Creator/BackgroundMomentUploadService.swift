@@ -25,6 +25,7 @@ class UploadingMoment: ObservableObject, Identifiable {
     let disableComments: Bool
     let hideLikeCounts: Bool
     let allowSharing: Bool
+    let scheduledDate: Date?
     
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
@@ -48,7 +49,8 @@ class UploadingMoment: ObservableObject, Identifiable {
         aspectRatio: String,
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
-        allowSharing: Bool = true
+        allowSharing: Bool = true,
+        scheduledDate: Date? = nil
     ) {
         self.tempId = "temp_\(UUID().uuidString)"
         self.userId = userId
@@ -69,6 +71,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         self.disableComments = disableComments
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
+        self.scheduledDate = scheduledDate
     }
 }
 
@@ -125,7 +128,8 @@ class BackgroundMomentUploadService: ObservableObject {
         aspectRatio: String,
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
-        allowSharing: Bool = true
+        allowSharing: Bool = true,
+        scheduledDate: Date? = nil
     ) -> UploadingMoment? {
         
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
@@ -146,7 +150,8 @@ class BackgroundMomentUploadService: ObservableObject {
             aspectRatio: aspectRatio,
             disableComments: disableComments,
             hideLikeCounts: hideLikeCounts,
-            allowSharing: allowSharing
+            allowSharing: allowSharing,
+            scheduledDate: scheduledDate
         )
         
         // Agregar al feed inmediatamente
@@ -198,6 +203,20 @@ class BackgroundMomentUploadService: ObservableObject {
             let momentId = try await createMomentInFirestore(uploadingMoment, mediaUrls: mediaUrls)
             await MainActor.run {
                 uploadingMoment.momentId = momentId
+            }
+            
+            // ✅ NUEVO: Enviar notificaciones a usuarios etiquetados
+            if let taggedUsers = uploadingMoment.taggedUsers, !taggedUsers.isEmpty {
+                for taggedUserId in taggedUsers {
+                    // Evitar notificarse a sí mismo
+                    if taggedUserId != uploadingMoment.userId {
+                        NotificationService.shared.sendInteractionNotification(
+                            type: .photoTag,
+                            to: taggedUserId,
+                            momentId: momentId
+                        )
+                    }
+                }
             }
             
             // PASO 3: Completado (90% - 100%)
@@ -292,7 +311,15 @@ class BackgroundMomentUploadService: ObservableObject {
             }
             
             let mediaItemType: MediaItem.MediaType = media.type == .image ? .image : .video
-            uploadedItems.append(MediaItem(type: mediaItemType, url: urlString))
+            uploadedItems.append(MediaItem(
+                type: mediaItemType,
+                url: urlString,
+                thumbnailUrl: media.thumbnailURL?.absoluteString,
+                videoDuration: media.videoDuration,
+                videoFileSize: media.videoFileSize,
+                videoResolution: media.videoResolution,
+                tags: media.tags // ✅ Etiquetas espaciales
+            ))
             
             // Progreso por archivo completado
             let fileProgress = Double(index + 1) / Double(totalFiles) * 0.7
@@ -355,7 +382,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     aspectRatio: uploadingMoment.aspectRatio,
                     disableComments: uploadingMoment.disableComments,      // ✅ NUEVO: Configuración avanzada
                     hideLikeCounts: uploadingMoment.hideLikeCounts,        // ✅ NUEVO: Configuración avanzada
-                    allowSharing: uploadingMoment.allowSharing            // ✅ NUEVO: Configuración avanzada
+                    allowSharing: uploadingMoment.allowSharing,            // ✅ NUEVO: Configuración avanzada
+                    scheduledDate: uploadingMoment.scheduledDate
                 ) { momentId, error in // 🔥 Captura el momentId
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -381,7 +409,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     aspectRatio: uploadingMoment.aspectRatio,
                     disableComments: uploadingMoment.disableComments,      // ✅ NUEVO: Configuración avanzada
                     hideLikeCounts: uploadingMoment.hideLikeCounts,        // ✅ NUEVO: Configuración avanzada
-                    allowSharing: uploadingMoment.allowSharing            // ✅ NUEVO: Configuración avanzada
+                    allowSharing: uploadingMoment.allowSharing,            // ✅ NUEVO: Configuración avanzada
+                    scheduledDate: uploadingMoment.scheduledDate
                 ) { momentId, error in // 🔥 Captura el momentId
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -514,6 +543,7 @@ class BackgroundMomentUploadService: ObservableObject {
         case .admirers: return "admirers"
         case .bestFriends: return "bestFriends"
         case .custom: return "custom"
+        case .onlyMe: return "onlyMe"
         }
     }
     

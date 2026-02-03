@@ -3,493 +3,285 @@ import FirebaseFirestore
 import FirebaseAuth
 import UserNotifications
 
-// MARK: - ✨ Enhanced Notification Service (Adaptado a tu estructura)
+// MARK: - ✨ Glowsy Notification Service (Unified Source of Truth)
 class NotificationService: ObservableObject {
     static let shared = NotificationService()
     private let db = Firestore.firestore()
     
     @Published var unreadCount: Int = 0
     @Published var notifications: [Notification] = []
+    @Published var isLoading: Bool = false
+    @Published var isLoadingMore: Bool = false
+    @Published var canLoadMore: Bool = true
+    
+    private var listener: ListenerRegistration?
+    private var lastDocument: DocumentSnapshot?
+    private let pageSize = 20
+    private var profileCache: [String: User] = [:]
     
     private init() {
-        // Solicitud de permisos de notificaciones pospuesta hasta interacción del usuario
-        observeNotifications()
+        startObserving()
     }
     
-    // MARK: - Permission & Setup
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                DispatchQueue.main.async {
-                    UIApplication.shared.registerForRemoteNotifications()
+    // MARK: - Lifecycle Management
+    func startObserving() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        listener?.remove()
+        isLoading = true
+        
+        let query = db.collection("users").document(userId).collection("notifications")
+            .order(by: "timestamp", descending: true)
+            .limit(to: pageSize)
+        
+        listener = query.addSnapshotListener { [weak self] snapshot, error in
+            guard let self = self, let documents = snapshot?.documents else { 
+                self?.isLoading = false
+                return 
+            }
+            
+            self.lastDocument = documents.last
+            self.canLoadMore = documents.count >= self.pageSize
+            
+            DispatchQueue.main.async {
+                self.notifications = documents.compactMap { doc in
+                    try? doc.data(as: Notification.self)
                 }
+                self.updateUnreadCount()
+                self.isLoading = false
             }
         }
     }
     
-    // MARK: - Real-time Notification Observation
-    private func observeNotifications() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    func loadMore() {
+        guard let userId = Auth.auth().currentUser?.uid, 
+              let lastDoc = lastDocument, 
+              canLoadMore && !isLoading else { return }
+        
+        isLoadingMore = true
         
         db.collection("users").document(userId).collection("notifications")
             .order(by: "timestamp", descending: true)
-            .limit(to: 50)
-            .addSnapshotListener { [weak self] snapshot, error in
-                guard let documents = snapshot?.documents else { return }
+            .start(afterDocument: lastDoc)
+            .limit(to: pageSize)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self, let documents = snapshot?.documents else {
+                    self?.isLoadingMore = false
+                    return
+                }
+                
+                self.lastDocument = documents.last
+                self.canLoadMore = documents.count >= self.pageSize
+                
+                let newNotifications = documents.compactMap { doc in
+                    try? doc.data(as: Notification.self)
+                }
                 
                 DispatchQueue.main.async {
-                    self?.notifications = documents.compactMap { doc in
-                        try? doc.data(as: Notification.self)
-                    }
-                    
-                    self?.unreadCount = self?.notifications.filter { $0.isPending }.count ?? 0
-                    
-                    // Update app badge
-                    UIApplication.shared.applicationIconBadgeNumber = self?.unreadCount ?? 0
+                    self.notifications.append(contentsOf: newNotifications)
+                    self.isLoadingMore = false
                 }
             }
     }
     
-    // MARK: - Comment Notifications (Adaptadas a tu modelo)
-    
-    func sendCommentNotification(to userId: String, from fromUserId: String, momentId: String, content: String, momentAuthor: String = "") {
-        guard userId != fromUserId else { return }
-        
-        fetchUserProfile(userId: fromUserId) { [weak self] fromUser in
-            let notification = Notification(
-                type: .comment,
-                senderId: fromUserId,
-                senderUsername: fromUser?.username ?? "Usuario",
-                timestamp: Date(),
-                isPending: true,
-                momentId: momentId
-            )
-            
-            self?.saveNotification(notification, for: userId)
-            self?.sendPushNotification(notification, to: userId)
-            
-            // Enviar analítica si tienes AnalyticsService
-        }
+    private func updateUnreadCount() {
+        self.unreadCount = notifications.filter { $0.isPending }.count
+        UIApplication.shared.applicationIconBadgeNumber = self.unreadCount
     }
     
-    func sendCommentReplyNotification(to userId: String, from fromUserId: String, momentId: String, content: String, parentCommentId: String) {
-        guard userId != fromUserId else { return }
-        
-        fetchUserProfile(userId: fromUserId) { [weak self] fromUser in
-            let notification = Notification(
-                type: .comment, // Usar el tipo existente
-                senderId: fromUserId,
-                senderUsername: fromUser?.username ?? "Usuario",
-                timestamp: Date(),
-                isPending: true,
-                momentId: momentId
-            )
-            
-            self?.saveNotification(notification, for: userId)
-            self?.sendPushNotification(notification, to: userId)
-            
-        }
-    }
+    // MARK: - Notification Creation Engine (Internal)
     
-    func sendCommentLikeNotification(to userId: String, from fromUserId: String, momentId: String, commentId: String) {
-        guard userId != fromUserId else { return }
+    private func triggerNotification(_ notification: Notification, to targetUserId: String) {
+        // 1. Evitar auto-notificaciones
+        guard targetUserId != Auth.auth().currentUser?.uid else { return }
         
-        fetchUserProfile(userId: fromUserId) { [weak self] fromUser in
-            let notification = Notification(
-                type: .like, // ✅ CORRECTO: Para likes en comentarios (no en momentos)
-                senderId: fromUserId,
-                senderUsername: fromUser?.username ?? "Usuario",
-                timestamp: Date(),
-                isPending: true,
-                momentId: momentId,
-                commentId: commentId // ✅ Agregar commentId para identificar el comentario
-            )
-            
-            self?.saveNotification(notification, for: userId)
-            self?.sendPushNotification(notification, to: userId)
-            
-        }
-    }
-    
-    // ✅ FUNCIÓN UNIFICADA para menciones (cualquier contenido)
-    func sendMentionNotification(to userId: String, from fromUserId: String, contentId: String, contentType: String, content: String = "") {
-        guard userId != fromUserId else { return }
-        
-        fetchUserProfile(userId: fromUserId) { [weak self] fromUser in
-            // ✅ Crear la notificación con los parámetros correctos desde el inicio
-            let notification: Notification
-            
-            switch contentType {
-            case "moment":
-                notification = Notification(
-                    type: .mention,
-                    senderId: fromUserId,
-                    senderUsername: fromUser?.username ?? "Usuario",
-                    timestamp: Date(),
-                    isPending: true,
-                    momentId: contentId
-                )
-            case "story":
-                notification = Notification(
-                    type: .mention,
-                    senderId: fromUserId,
-                    senderUsername: fromUser?.username ?? "Usuario",
-                    timestamp: Date(),
-                    isPending: true,
-                    storyId: contentId
-                )
-            case "comment":
-                notification = Notification(
-                    type: .mention,
-                    senderId: fromUserId,
-                    senderUsername: fromUser?.username ?? "Usuario",
-                    timestamp: Date(),
-                    isPending: true,
-                    momentId: contentId // Los comentarios están en momentos
-                )
-            default:
-                notification = Notification(
-                    type: .mention,
-                    senderId: fromUserId,
-                    senderUsername: fromUser?.username ?? "Usuario",
-                    timestamp: Date(),
-                    isPending: true,
-                    momentId: contentId // Por defecto
-                )
+        // 2. Verificar preferencias del destinatario
+        db.collection("users").document(targetUserId).getDocument { [weak self] snapshot, error in
+            if let data = snapshot?.data(),
+               let preferences = data["notificationPreferences"] as? [String: Bool] {
+                let isAllowed = preferences[notification.type.rawValue] ?? true
+                if !isAllowed { return }
             }
             
-            self?.saveNotification(notification, for: userId)
-            self?.sendPushNotification(notification, to: userId)
-            
+            // 3. Guardar en Firestore (Cloud Functions se encarga del Push)
+            self?.saveNotification(notification, for: targetUserId)
         }
     }
     
-    // MARK: - Batch Mention Notifications
-    func sendBatchMentionNotifications(mentionedUserIds: [String], from fromUserId: String, contentId: String, contentType: String, content: String = "") {
-        for userId in mentionedUserIds {
-            sendMentionNotification(to: userId, from: fromUserId, contentId: contentId, contentType: contentType, content: content)
+    private func saveNotification(_ notification: Notification, for userId: String) {
+        guard let notificationId = notification.id else { return }
+        do {
+            try db.collection("users").document(userId).collection("notifications").document(notificationId).setData(from: notification)
+        } catch {
+            print("❌ Error saving notification: \(error)")
         }
     }
     
-    // MARK: - Mark as Read
-    func markAsRead(_ notification: Notification) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    // MARK: - Public Sending Methods
+    
+    func sendInteractionNotification(type: NotificationType, to targetUserId: String, momentId: String? = nil, storyId: String? = nil, commentId: String? = nil, reaction: String? = nil, senderUsername: String? = nil) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        db.collection("users").document(userId).collection("notifications").document(notification.id).updateData([
-            "isPending": false,
-            "readAt": Timestamp(date: Date())
+        // 1. Prioridad: Username pasado por parámetro
+        // 2. Segunda opción: UserDefaults (rápido)
+        // 3. Fallback: "Alguien" (mejor que "Usuario")
+        let username = senderUsername ?? UserDefaults.standard.string(forKey: "current_username") ?? "Alguien"
+        
+        let notification = Notification(
+            type: type,
+            senderId: currentUserId,
+            senderUsername: username,
+            timestamp: Date(),
+            isPending: true,
+            momentId: momentId,
+            storyId: storyId,
+            reaction: reaction,
+            commentId: commentId
+        )
+        
+        triggerNotification(notification, to: targetUserId)
+    }
+    
+    // Especial para menciones
+    func sendMentionNotification(to userId: String, momentId: String? = nil, storyId: String? = nil) {
+        sendInteractionNotification(type: .mention, to: userId, momentId: momentId, storyId: storyId)
+    }
+    
+    // Especial para visitas (con agrupamiento por fecha manejado por ID)
+    func updateVisitNotification(to userId: String, visitorUsername: String, visitorId: String, count: Int) {
+        let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+        let notificationId = "visit_\(dateString)"
+        
+        let notification = Notification(
+            id: notificationId,
+            type: .profileVisit,
+            senderId: visitorId,
+            senderUsername: visitorUsername,
+            timestamp: Date(),
+            isPending: true,
+            visitCount: count
+        )
+        
+        saveNotification(notification, for: userId)
+    }
+    
+    // MARK: - Actions
+    
+    func markAsRead(_ notification: Notification) {
+        guard let userId = Auth.auth().currentUser?.uid, let notificationId = notification.id else { return }
+        
+        db.collection("users").document(userId).collection("notifications").document(notificationId).updateData([
+            "isPending": false
         ])
         
-        // Update local state
         if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
             notifications[index].isPending = false
-            unreadCount = notifications.filter { $0.isPending }.count
-            UIApplication.shared.applicationIconBadgeNumber = unreadCount
+            updateUnreadCount()
         }
     }
     
     func markAllAsRead() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        let batch = db.batch()
-        let unreadNotifications = notifications.filter { $0.isPending }
-        
-        for notification in unreadNotifications {
-            let ref = db.collection("users").document(userId).collection("notifications").document(notification.id)
-            batch.updateData([
-                "isPending": false,
-                "readAt": Timestamp(date: Date())
-            ], forDocument: ref)
+        // ✅ Optimista: Limpiar estado local inmediatamente
+        DispatchQueue.main.async {
+            self.notifications.indices.forEach { self.notifications[$0].isPending = false }
+            self.unreadCount = 0
+            UIApplication.shared.applicationIconBadgeNumber = 0
         }
         
-        batch.commit { [weak self] error in
-            if error == nil {
-                DispatchQueue.main.async {
-                    self?.notifications = self?.notifications.map { notification in
-                        var updated = notification
-                        updated.isPending = false
-                        return updated
-                    } ?? []
-                    
-                    self?.unreadCount = 0
-                    UIApplication.shared.applicationIconBadgeNumber = 0
+        // ✅ Real: Buscar TODAS las notificaciones no leídas en Firestore (no solo las cargadas)
+        db.collection("users").document(userId).collection("notifications")
+            .whereField("isPending", isEqualTo: true)
+            .limit(to: 500) // Límite de seguridad para batch
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self, let documents = snapshot?.documents, !documents.isEmpty else { return }
+                
+                let batch = self.db.batch()
+                
+                for doc in documents {
+                    batch.updateData(["isPending": false], forDocument: doc.reference)
+                }
+                
+                batch.commit { error in
+                    if let error = error {
+                        print("❌ Error marking all as read: \(error)")
+                    }
+                }
+            }
+    }
+    
+    func deleteNotification(_ notification: Notification) {
+        guard let userId = Auth.auth().currentUser?.uid, let notificationId = notification.id else { return }
+        
+        db.collection("users").document(userId).collection("notifications").document(notificationId).delete()
+        
+        DispatchQueue.main.async {
+            self.notifications.removeAll { $0.id == notification.id }
+            self.updateUnreadCount()
+        }
+    }
+    
+    // ✅ NUEVO: Eliminar notificación por criterios (para deshacer acciones)
+    func removeNotification(type: NotificationType, senderId: String, recipientId: String, momentId: String? = nil, storyId: String? = nil, commentId: String? = nil, reaction: String? = nil) {
+        
+        var query = db.collection("users").document(recipientId).collection("notifications")
+            .whereField("type", isEqualTo: type.rawValue)
+            .whereField("senderId", isEqualTo: senderId)
+        
+        if let momentId = momentId {
+            query = query.whereField("momentId", isEqualTo: momentId)
+        }
+        
+        if let storyId = storyId {
+            query = query.whereField("storyId", isEqualTo: storyId)
+        }
+        
+        if let commentId = commentId {
+            query = query.whereField("commentId", isEqualTo: commentId)
+        }
+        
+        if let reaction = reaction {
+            query = query.whereField("reaction", isEqualTo: reaction)
+        }
+        
+        query.getDocuments { [weak self] snapshot, error in
+            guard let documents = snapshot?.documents else { return }
+            
+            let batch = self?.db.batch()
+            
+            for doc in documents {
+                batch?.deleteDocument(doc.reference)
+            }
+            
+            batch?.commit { error in
+                if error == nil {
+                    print("✅ Notification removed successfully")
                 }
             }
         }
     }
     
-    // MARK: - Private Helper Methods
-    private func saveNotification(_ notification: Notification, for userId: String) {
-        let data: [String: Any] = [
-            "type": notification.type.rawValue,
-            "senderId": notification.senderId,
-            "senderUsername": notification.senderUsername,
-            "timestamp": Timestamp(date: notification.timestamp),
-            "isPending": notification.isPending,
-            "momentId": notification.momentId as Any,
-            "visitCount": notification.visitCount as Any,
-            "storyId": notification.storyId as Any,
-            "storyAuthorId": notification.storyAuthorId as Any,
-            "reaction": notification.reaction as Any
-        ]
-        
-        db.collection("users").document(userId).collection("notifications").document(notification.id).setData(data)
-    }
-    
-    private func sendPushNotification(_ notification: Notification, to userId: String) {
-        // ✅ Cloud Functions maneja automáticamente las notificaciones push FCM
-        // Solo guardamos en Firestore y Cloud Functions se encarga del resto
-    }
-    
-    private func fetchUserProfile(userId: String, completion: @escaping (User?) -> Void) {
-        db.collection("users").document(userId).getDocument { snapshot, error in
-            guard let data = snapshot?.data() else {
-                completion(nil)
-                return
+    // MARK: - Utility (One-time fetch)
+    func fetchNotificationsOnce(userId: String, completion: @escaping (Result<[Notification], Error>) -> Void) {
+        db.collection("users").document(userId).collection("notifications")
+            .order(by: "timestamp", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                let notifications = snapshot?.documents.compactMap { try? $0.data(as: Notification.self) } ?? []
+                completion(.success(notifications))
             }
-            
-            // Crear un User temporal con los datos necesarios
-            let user = User(
-                id: userId,
-                username: data["username"] as? String ?? "Usuario",
-                email: data["email"] as? String ?? "",
-                profileImagePath: data["profileImagePath"] as? String,
-                isVerified: data["isVerified"] as? Bool ?? false,
-                bio: data["bio"] as? String
-            )
-            completion(user)
-        }
-    }
-    
-    // MARK: - Notification Message Helpers
-    private func getNotificationTitle(for notification: Notification) -> String {
-        switch notification.type {
-        case .comment:
-            return "💬 Nuevo comentario"
-        case .mention:
-            return "📧 Te mencionaron"
-        case .like:
-            return "❤️ Le gustó tu contenido"
-        case .reaction:
-            return "✨ Reaccionó a tu momento"
-        case .newFollower:
-            return "👥 Nuevo seguidor"
-        case .followRequest:
-            return "📩 Solicitud de seguimiento"
-        case .mutualConnection:
-            return "🤝 Conexión mutua"
-        case .profileVisit:
-            return "👁️ Visita al perfil"
-        case .storyReaction:
-            return "😊 Reacción a historia"
-        }
-    }
-    
-    private func getNotificationBody(for notification: Notification) -> String {
-        switch notification.type {
-        case .comment:
-            return "\(notification.senderUsername) comentó en tu momento"
-        case .mention:
-            return "\(notification.senderUsername) te mencionó"
-        case .like:
-            return "\(notification.senderUsername) le dio me gusta a tu momento"
-        case .reaction:
-            return "\(notification.senderUsername) reaccionó a tu momento"
-        case .newFollower:
-            return "\(notification.senderUsername) comenzó a seguirte"
-        case .followRequest:
-            return "\(notification.senderUsername) quiere seguirte"
-        case .mutualConnection:
-            return "Ahora tienes una conexión mutua con \(notification.senderUsername)"
-        case .profileVisit:
-            return "\(notification.visitCount ?? 1) visitas a tu perfil"
-        case .storyReaction:
-            return "\(notification.senderUsername) reaccionó a tu historia"
-        }
-    }
-    
-    private func getNotificationData(for notification: Notification) -> [String: Any] {
-        var data: [String: Any] = [
-            "type": notification.type.rawValue,
-            "senderId": notification.senderId,
-            "notificationId": notification.id
-        ]
-        
-        if let momentId = notification.momentId {
-            data["momentId"] = momentId
-        }
-        
-        if let storyId = notification.storyId {
-            data["storyId"] = storyId
-        }
-        
-        return data
     }
 }
 
-// MARK: - User Model Extension (temporal para compatibilidad)
+// Modelos auxiliares necesarios para el servicio
 extension NotificationService {
-    struct User {
+    struct User: Codable {
         let id: String
         let username: String
-        let email: String
         let profileImagePath: String?
-        let isVerified: Bool
-        let bio: String?
-    }
-}
-
-extension NotificationService {
-    func sendModerationNotification(to userId: String, title: String, message: String, contentType: String, contentId: String) {
-        // Implementar envío de notificación push
-        // Esta función debería conectar con tu servicio de notificaciones push
-        
-        // Guardar notificación en Firestore para mostrar en la app
-        let notificationData: [String: Any] = [
-            "title": title,
-            "message": message,
-            "type": "moderation",
-            "contentType": contentType,
-            "contentId": contentId,
-            "timestamp": Timestamp(date: Date()),
-            "read": false
-        ]
-        
-        Firestore.firestore()
-            .collection("users").document(userId)
-            .collection("notifications")
-            .addDocument(data: notificationData) { error in
-                if let error = error {
-                } else {
-                }
-            }
-    }
-}
-
-extension NotificationService {
-    // Solo enviar notificaciones a usuarios que pueden ver el contenido
-    func sendNotificationToAudience(
-        type: NotificationType,
-        contentId: String,
-        contentType: String,
-        authorId: String,
-        audience: ContentAudience,
-        customUsers: [String]? = nil,
-        customListId: String? = nil  // ⭐ NUEVO PARÁMETRO
-    ) {
-        // Obtener lista de usuarios que pueden ver el contenido
-        let privacyService = PrivacyService()
-        
-        switch audience {
-        case .everyone:
-            // Notificar a todos los seguidores
-            FirestoreService().fetchFollowers(userId: authorId) { result in
-                if case .success(let followers) = result {
-                    for follower in followers {
-                        self.sendNotificationIfAllowed(
-                            to: follower.id,
-                            from: authorId,
-                            type: type,
-                            contentId: contentId
-                        )
-                    }
-                }
-            }
-            
-        case .connections:
-            // Solo conexiones mutuas
-            FirestoreService().fetchMutualConnections(userId: authorId) { result in
-                if case .success(let connections) = result {
-                    for connection in connections {
-                        self.sendNotificationIfAllowed(
-                            to: connection.id,
-                            from: authorId,
-                            type: type,
-                            contentId: contentId
-                        )
-                    }
-                }
-            }
-            
-        case .bestFriends:
-            // Solo mejores amigos
-            FirestoreService().fetchUser(userId: authorId) { result in
-                if case .success(let user) = result {
-                    for friendId in user.bestFriends {
-                        self.sendNotificationIfAllowed(
-                            to: friendId,
-                            from: authorId,
-                            type: type,
-                            contentId: contentId
-                        )
-                    }
-                }
-            }
-            
-        case .custom:
-            // Lista personalizada simple
-            if let customUsers = customUsers {
-                for userId in customUsers {
-                    self.sendNotificationIfAllowed(
-                        to: userId,
-                        from: authorId,
-                        type: type,
-                        contentId: contentId
-                    )
-                }
-            }
-            
-        case .customList:
-            // ⭐ NUEVO CASO: Lista personalizada reutilizable
-            if let listId = customListId {
-                privacyService.getCustomListViewers(
-                    listId: listId,
-                    ownerId: authorId
-                ) { memberIds in
-                    for memberId in memberIds {
-                        self.sendNotificationIfAllowed(
-                            to: memberId,
-                            from: authorId,
-                            type: type,
-                            contentId: contentId
-                        )
-                    }
-                }
-            }
-            
-        case .onlyMe:
-            // No enviar notificaciones
-            break
-        }
-    }
-
-    
-    private func sendNotificationIfAllowed(
-        to userId: String,
-        from authorId: String,
-        type: NotificationType,
-        contentId: String
-    ) {
-        // ✅ Verificar preferencias de notificación del usuario
-        FirestoreService().fetchUser(userId: userId) { result in
-            if case .success(let user) = result,
-               user.notificationPreferences?[type.rawValue] ?? true {
-                // ✅ Enviar notificación
-                self.fetchUserProfile(userId: authorId) { authorUser in
-                    let notification = Notification(
-                        type: type,
-                        senderId: authorId,
-                        senderUsername: authorUser?.username ?? "Usuario",
-                        timestamp: Date(),
-                        isPending: true,
-                        momentId: type == .comment || type == .reaction ? contentId : nil,
-                        storyId: type == .storyReaction ? contentId : nil
-                    )
-                    
-                    self.saveNotification(notification, for: userId)
-                    // ✅ Cloud Functions maneja automáticamente las notificaciones push
-                }
-            }
-        }
     }
 }

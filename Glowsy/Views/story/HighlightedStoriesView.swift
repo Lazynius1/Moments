@@ -165,15 +165,7 @@ struct HighlightedStoryCard: View {
     }
 }
 
-// MARK: - Highlighted Story Model
-struct HighlightedStory: Identifiable {
-    let id: String
-    let title: String
-    let coverImageUrl: String?
-    let storiesCount: Int
-    let createdAt: Date
-    let stories: [Story]
-}
+
 
 // MARK: - Highlighted Stories ViewModel
 class HighlightedStoriesViewModel: ObservableObject {
@@ -187,11 +179,17 @@ class HighlightedStoriesViewModel: ObservableObject {
         
         isLoading = true
         
-        // TODO: Implementar carga de historias destacadas desde Firestore
-        // Por ahora, simulamos datos vacíos
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.isLoading = false
-            self.highlightedStories = []
+        firestoreService.fetchHighlights(userId: userId) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success(let highlights):
+                    self?.highlightedStories = highlights
+                case .failure(let error):
+                    print("Error loading highlights: \(error.localizedDescription)")
+                    self?.highlightedStories = []
+                }
+            }
         }
     }
 }

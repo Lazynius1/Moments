@@ -86,19 +86,19 @@ struct StickerPickerView: View {
         GeometryReader { geometry in
             ZStack {
                 // 🌌 FONDO GLASSMÓRFICO AVANZADO
-                InstagramGlassmorphicBackground()
+                MomentsGlassmorphicBackground()
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // 📱 HEADER ESTILO INSTAGRAM
-                    InstagramStyleHeader()
+                    MomentsStyleHeader()
                         .padding(.top, 10)
                     
                     // 📜 CONTENIDO PRINCIPAL
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             // 🎯 CATEGORÍAS EN GRID ESTILO INSTAGRAM
-                            InstagramCategoryGrid()
+                            MomentsCategoryGrid()
                                 .padding(.top, 20)
                             
                             // 📋 CONTENIDO DINÁMICO
@@ -129,10 +129,10 @@ struct StickerPickerView: View {
         }
     }
     
-    // MARK: - 🎨 COMPONENTES GLASSMÓRFICOS ESTILO INSTAGRAM
+    // MARK: - 🎨 COMPONENTES GLASSMÓRFICOS ESTILO MOMENTS
     
     @ViewBuilder
-    private func InstagramGlassmorphicBackground() -> some View {
+    private func MomentsGlassmorphicBackground() -> some View {
         ZStack {
             // Gradiente base dinámico
             LinearGradient(
@@ -150,31 +150,22 @@ struct StickerPickerView: View {
                 endPoint: .bottomTrailing
             )
             
-            // Orbes flotantes glassmórficos
-            ForEach(0..<8, id: \.self) { index in
+            // Orbes flotantes glassmórficos (Reducidos para minimalismo)
+            ForEach(0..<4, id: \.self) { index in
                 GlassmorphicFloatingOrb(
                     colors: selectedCategory.gradientColors,
-                    size: CGFloat.random(in: 120...250),
-                    x: CGFloat.random(in: -150...450),
-                    y: CGFloat.random(in: -200...900),
-                    duration: Double.random(in: 4...8),
-                    delay: Double(index) * 0.5
-                )
-            }
-            
-            // Partículas brillantes
-            ForEach(0..<15, id: \.self) { index in
-                SparkleParticle(
-                    x: CGFloat.random(in: 0...400),
-                    y: CGFloat.random(in: 0...800),
-                    delay: Double(index) * 0.3
+                    size: CGFloat.random(in: 150...300),
+                    x: CGFloat.random(in: -100...300),
+                    y: CGFloat.random(in: -100...600),
+                    duration: Double.random(in: 6...10),
+                    delay: Double(index) * 1.0
                 )
             }
         }
     }
     
     @ViewBuilder
-    private func InstagramStyleHeader() -> some View {
+    private func MomentsStyleHeader() -> some View {
         HStack(spacing: 16) {
             // Botón cerrar glassmórfico
             Button(action: {
@@ -292,93 +283,26 @@ struct StickerPickerView: View {
     }
     
     @ViewBuilder
-    private func InstagramCategoryGrid() -> some View {
+    private func MomentsCategoryGrid() -> some View {
         VStack(spacing: 20) {
             // Barra de búsqueda glassmórfica
-            InstagramSearchBar()
+            MomentsSearchBar()
             
-            // Grid de categorías estilo Instagram Stories
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8)
-            ], spacing: 12) {
-                
-                // FILA 1: Principales
-                InstagramCategoryPill(
-                    icon: "🔥",
-                    title: "GIF",
-                    category: .trending,
-                    isSelected: selectedCategory == .trending
-                )
-                
-                InstagramCategoryPill(
-                    icon: "😊",
-                    title: "Emoji",
-                    category: .emoji,
-                    isSelected: selectedCategory == .emoji
-                )
-                
-                InstagramCategoryPill(
-                    icon: "📍",
-                    title: "Lugar",
-                    category: .location,
-                    isSelected: selectedCategory == .location
-                )
-                
-                // FILA 2: Interactivos
-                InstagramCategoryPill(
-                    icon: "🏷️",
-                    title: "Mención",
-                    category: .mention,
-                    isSelected: selectedCategory == .mention
-                )
-                
-                InstagramCategoryPill(
-                    icon: "#",
-                    title: "Hashtag",
-                    category: .hashtag,
-                    isSelected: selectedCategory == .hashtag
-                )
-                
-                InstagramCategoryPill(
-                    icon: "❓",
-                    title: "Preguntas",
-                    category: .question,
-                    isSelected: selectedCategory == .question
-                )
-                
-                // FILA 3: Extras
-                InstagramCategoryPill(
-                    icon: "📊",
-                    title: "Votación",
-                    category: .poll,
-                    isSelected: selectedCategory == .poll
-                )
-                
-                InstagramCategoryPill(
-                    icon: "🌤️",
-                    title: "Clima",
-                    category: .weather,
-                    isSelected: selectedCategory == .weather
-                )
-                
-                InstagramCategoryPill(
-                    icon: "⏰",
-                    title: "Tiempo",
-                    category: .time,
-                    isSelected: selectedCategory == .time
-                )
-                
-                InstagramCategoryPill(
-                    icon: "🤳",
-                    title: "Selfie",
-                    category: .selfie,
-                    isSelected: selectedCategory == .selfie
-                )
+            // Selector de categorías horizontal (Cleaner & Minimalist)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 20) {
+                    ForEach(StickerCategory.allCases, id: \.self) { category in
+                        MomentsCategoryPill(
+                            icon: category.rawValue,
+                            title: category.displayName,
+                            category: category,
+                            isSelected: selectedCategory == category
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
             }
-            .padding(.horizontal, 20)
             
             // Header de sección si es trending
             if selectedCategory == .trending {
@@ -401,7 +325,7 @@ struct StickerPickerView: View {
     }
     
     @ViewBuilder
-    private func InstagramSearchBar() -> some View {
+    private func MomentsSearchBar() -> some View {
         HStack(spacing: 12) {
             // Icono de búsqueda con gradiente
             Image(systemName: "magnifyingglass")
@@ -471,7 +395,7 @@ struct StickerPickerView: View {
     }
     
     @ViewBuilder
-    private func InstagramCategoryPill(
+    private func MomentsCategoryPill(
         icon: String,
         title: String,
         category: StickerCategory,
@@ -577,13 +501,15 @@ struct StickerPickerView: View {
         switch selectedCategory {
         case .trending:
             if isLoadingGiphy {
-                InstagramLoadingView()
+                MomentsLoadingView()
             } else {
-                InstagramTrendingGrid()
+                VStack(spacing: 24) {
+                    MomentsTrendingGrid()
+                }
             }
             
         case .emoji:
-            InstagramEmojiGrid()
+            MomentsEmojiGrid()
             
         case .location:
             SmartLocationInputView { location, coordinate in
@@ -611,7 +537,7 @@ struct StickerPickerView: View {
             }
             
         case .weather:
-            InstagramStickerCard(
+            MomentsStickerCard(
                 title: "🌤️ Clima actual",
                 subtitle: "Muestra el tiempo de hoy",
                 category: .weather
@@ -620,7 +546,7 @@ struct StickerPickerView: View {
             }
             
         case .time:
-            InstagramStickerCard(
+            MomentsStickerCard(
                 title: "⏰ Hora y fecha",
                 subtitle: "Timestamp de este momento",
                 category: .time
@@ -628,19 +554,19 @@ struct StickerPickerView: View {
                 createTimeSticker()
             }
             
-        case .selfie:
-            InstagramStickerCard(
-                title: "🤳 Mini selfie",
-                subtitle: "Aparece en tu historia",
-                category: .selfie
-            ) {
-                createSelfieSticker()
-            }
+            case .selfie:
+                MomentsStickerCard(
+                    title: "🤳 Mini selfie",
+                    subtitle: "Aparece en tu historia",
+                    category: .selfie
+                ) {
+                    createSelfieSticker()
+                }
         }
     }
     
     @ViewBuilder
-    private func InstagramTrendingGrid() -> some View {
+    private func MomentsTrendingGrid() -> some View {
         let screenWidth = UIScreen.main.bounds.width
         let padding: CGFloat = 20
         let spacing: CGFloat = 8
@@ -678,7 +604,7 @@ struct StickerPickerView: View {
     }
     
     @ViewBuilder
-    private func InstagramEmojiGrid() -> some View {
+    private func MomentsEmojiGrid() -> some View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 6)
         
         LazyVGrid(columns: columns, spacing: 12) {
@@ -716,7 +642,7 @@ struct StickerPickerView: View {
     }
     
     @ViewBuilder
-    private func InstagramLoadingView() -> some View {
+    private func MomentsLoadingView() -> some View {
         VStack(spacing: 24) {
             // Spinner glassmórfico
             ZStack {
@@ -772,7 +698,7 @@ struct StickerPickerView: View {
     }
     
     @ViewBuilder
-    private func InstagramStickerCard(
+    private func MomentsStickerCard(
         title: String,
         subtitle: String,
         category: StickerCategory,
@@ -1781,7 +1707,7 @@ struct StickerPickerView: View {
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: width, height: height)
             
-            // ✅ FONDO BLANCO como Instagram
+            // ✅ FONDO BLANCO nativo
             let backgroundPath = UIBezierPath(roundedRect: rect, cornerRadius: height / 2)
             UIColor.white.setFill()
             backgroundPath.fill()
@@ -2789,7 +2715,7 @@ struct ModernMentionInputView: View {
                     Spacer()
                 }
                 
-                // Barra de búsqueda estilo Instagram
+                // Barra de búsqueda estilo Moments
                 HStack(spacing: 12) {
                     Image(systemName: isSearching ? "magnifyingglass" : (searchText.isEmpty ? "magnifyingglass" : "person.circle.fill"))
                         .font(.system(size: 16, weight: .medium))
@@ -3796,10 +3722,7 @@ extension StickerPickerView {
                 // ✅ Enviar notificación con storyId real
                 NotificationService.shared.sendMentionNotification(
                     to: userId,
-                    from: currentUserId,
-                    contentId: storyId, // ✅ Usar storyId real
-                    contentType: "story",
-                    content: "Te mencionó en una historia"
+                    storyId: storyId
                 )
                 
             }
@@ -3813,6 +3736,7 @@ extension StickerPickerView {
         }
         return nil
     }
+
 }
 
 // MARK: - ✅ CLAVE ASOCIADA PARA DELEGATE
@@ -3935,3 +3859,4 @@ struct ImagePicker: UIViewControllerRepresentable {
         }
     }
 }
+

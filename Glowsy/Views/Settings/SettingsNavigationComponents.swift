@@ -49,39 +49,21 @@ struct SettingsNavigationBar: View {
     }
 }
 
-// ✅ Fondo moderno reutilizable para subsecciones
+// ✅ Fondo moderno reutilizable para subsecciones (ahora negro sólido en dark mode)
 struct SettingsSubsectionBackground: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ZStack {
             if colorScheme == .dark {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color.black
             } else {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color(hex: "f8f9fa")
             }
             
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.05 : 0.02)
+                .opacity(colorScheme == .dark ? 0.02 : 0.02)
         }
         .ignoresSafeArea()
     }

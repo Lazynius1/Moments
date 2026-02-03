@@ -5,7 +5,8 @@
 "storyEditor.error.publishStart" = "No s'ha pogut iniciar la pujada de la història";
 
 /* Story Chains */
-"storyChains.createChain" = "Crear Cadena";
+"storyEditor.customAudience.single" = "%d persona";
+"storyEditor.customAudience.multiple" = "%d persones";
 "storyChains.chain" = "Cadena";
 "storyChains.chainTitle" = "Títol de la cadena";
 "storyChains.chainTitlePlaceholder" = "Introdueix el títol de la cadena";
@@ -20,8 +21,11 @@
 "storyChains.continueStory" = "Continuar Història";
 "storyChains.continuationAudience.title" = "Qui pot continuar aquesta cadena?";
 "storyChains.continuationAudience.navigationTitle" = "Audiència de Continuació";
+"storyChains.inheritedSettingsInfo" = "La configuració d'aquesta cadena va ser definida per l'autor original i no es pot canviar.";
+"storyChains.collaboratorNotice" = "Nota: Com que ets un col·laborador, s'apliquen les regles de la cadena establertes per l'autor.";
 
 /* Audience Types */
+"audience.title" = "Audiència";
 "audience.everyone" = "Tothom";
 "audience.connections" = "Conexions mútues";
 "audience.bestFriends" = "Millors Amics";
@@ -30,7 +34,17 @@
 
 /* Common Actions */
 "common.cancel" = "Cancel·lar";
+"common.delete" = "Eliminar";
 "common.done" = "Fet";
+"common.edit" = "Editar";
+"common.next" = "Següent";
+"common.photo" = "Foto";
+"common.video" = "Vídeo";
+"common.media" = "Mèdia";
+"common.text" = "Text";
+"common.location" = "Ubicació";
+"common.file" = "Fitxer";
+"common.close" = "Tancar";
 "storyChains.viewChain" = "Veure Cadena";
 "storyChains.part" = "Part %d de '%@'";
 "storyChains.loading" = "Carregant cadena...";
@@ -71,20 +85,34 @@
 "profile.bio.placeholder" = "Afegeix una bio per explicar a la gent sobre tu.";
 "profile.editButton" = "Editar Perfil";
 "profile.userList.visits" = "Visites";
-"profile.userList.admirers" = "Admiradors";
-"profile.userList.connections" = "Connexions";
+"profile.userList.admirers" = "Seguidors";
+"profile.userList.connections" = "Seguits";
 "profile.userList.mutuals" = "Mutus";
 "profile.stats.visits" = "Visites";
-"profile.stats.admirers" = "Admiradors";
-"profile.stats.connections" = "Connexions";
+"profile.stats.admirers" = "Seguidors";
+"profile.stats.connections" = "Seguits";
 "profile.stats.mutuals" = "Mutus";
 "profile.interests.title" = "Interessos";
 "profile.moments.title" = "Moments";
 "profile.moments.empty.title" = "Encara No Hi Ha Moments";
 "profile.moments.empty.subtitle" = "Comparteix el teu primer moment i apareixerà aquí.";
+"profile.tab.moments" = "Moments";
+"profile.tab.saved" = "Desats";
+"profile.saved.empty.title" = "Res Desat Encara";
+"profile.saved.empty.subtitle" = "Els moments que desis apareixeran aquí.";
+"profile.saved.loading" = "Carregant desats...";
 "profile.loading" = "Carregant perfil...";
 "profile.error.title" = "Ups, alguna cosa ha anat malament";
 "profile.error.retryButton" = "Tornar a provar";
+
+/* Scheduled Posts */
+"moment.scheduled.day" = "Programat en %d dia";
+"moment.scheduled.days" = "Programat en %d dies";
+"moment.scheduled.hour" = "Programat en %d hora";
+"moment.scheduled.hours" = "Programat en %d hores";
+"moment.scheduled.minute" = "Programat en %d minut";
+"moment.scheduled.minutes" = "Programat en %d minuts";
+"moment.scheduled.soon" = "Programat aviat";
 
 /* Profile Content */
 "profile.content.empty" = "Sense contingut";
@@ -100,8 +128,8 @@
 "profile.image.uploading" = "Imatge...";
 "profile.userList.mutuals" = "Connexions Mútuas";
 "profile.stats.visits" = "Visites";
-"profile.stats.admirers" = "Admiradors";
-"profile.stats.connections" = "Connexions";
+"profile.stats.admirers" = "Seguidors";
+"profile.stats.connections" = "Seguits";
 "profile.stats.mutuals" = "Mútues";
 
 /* UserListView */
@@ -148,7 +176,21 @@
 "creator.edit" = "Editar";
 "creator.share" = "Compartir";
 "creator.caption.placeholder" = "Escriu una llegenda...";
+"creator.tagPeople" = "Etiquetar persones";
+"creator.tag.instructions" = "Toca la foto per etiquetar persones";
+"creator.tag.search" = "Cercar usuari...";
+"creator.tag.selectUser" = "Seleccionar persona";
+"creator.tag.done" = "Fet";
+"creator.addLocation" = "Afegir ubicació";
+
+/* Profile */
+"profile.tab.moments" = "Moments";
+"profile.tab.saved" = "Desats";
+"profile.tab.tagged" = "Etiquetes";
+"profile.tagged.empty.title" = "No hi ha moments etiquetats";
+"profile.tagged.empty.description" = "Apareixeràs aquí quan algú t'etiqueti en un moment";
 "creator.publishing" = "Publicant moment...";
+"creator.uploading.success_fly" = "Moment compartit";
 "creator.advancedSettings" = "Configuració avançada";
 "creator.album.select" = "Seleccionar àlbum";
 "creator.camera" = "Càmera";
@@ -169,6 +211,11 @@
 "creator.hideReactionCount" = "Ocultar comptador de reaccions";
 "creator.hideReactionCount.subtitle" = "El botó de reaccions seguirà visible, però sense mostrar el número";
 "creator.dropToDelete" = "Deixar anar per eliminar";
+"creator.media_preview.hint" = "Mantén premut";
+"creator.scheduling.title" = "Programació";
+"creator.scheduling.enable" = "Programar publicació";
+"creator.scheduling.date" = "Data i hora";
+
 
 /* FeedView */
 "feed.delete.confirm" = "¿Estàs segur que vols eliminar aquest moment? Aquesta acció no es pot desfer.";
@@ -188,6 +235,20 @@
 "feed.seeLess" = "veure menys";
 "feed.loadingMoment" = "Carregant moment...";
 "feed.empty.following.title" = "El teu feed està buit";
+
+/* Nova Memory */
+"nova.memory.title" = "Memòria de Nova";
+"nova.memory.description" = "Gestiona el que la Nova sap sobre tu";
+"nova.memory.empty" = "La Nova encara no recorda res sobre tu";
+"nova.memory.empty.subtitle" = "Parla amb la Nova perquè et comenci a conèixer i recordar coses.";
+"nova.memory.clearAll" = "Esborrar tota la memòria";
+"nova.memory.clearAll.confirm" = "Esborrar tota la memòria?";
+"nova.memory.clearAll.message" = "La Nova oblidarà tot el que sap de tu. Aquesta acció no es pot desfer.";
+"nova.memory.section.preference" = "Preferències";
+"nova.memory.section.personal" = "Personal";
+"nova.memory.section.professional" = "Feina/Estudis";
+"nova.memory.section.interest" = "Interessos";
+"nova.memory.section.general" = "General";
 "feed.empty.following.description" = "Segueix a més usuaris per veure els seus moments aquí";
 "feed.empty.foryou.title" = "Descobreix nou contingut";
 "feed.empty.foryou.description" = "T'ensenyarem contingut basat en els teus interessos quan estigui disponible";
@@ -260,6 +321,10 @@
 "stories.noInteractions" = "L'autor no permet interaccions";
 "stories.contentUnavailable" = "Contingut no disponible";
 "stories.activity.title" = "Activitat de la història";
+"stories.activity.noViewers" = "Ningú ha vist aquesta història encara";
+"stories.activity.noReactions" = "Sense reaccions encara";
+"stories.activity.viewersTab" = "Vistes (%d)";
+"stories.activity.reactionsTab" = "Reaccions (%d)";
 "stories.ephemeral.expired" = "Moment efímer caducat";
 "stories.ephemeral.unavailable" = "La imatge ja no està disponible";
 "stories.replied" = "Has respost a la seva història";
@@ -322,6 +387,10 @@
 "notifications.message.comment.single" = "%@ ha comentat al teu moment.";
 "notifications.message.story.single" = "%@ ha reaccionat a la teva història.";
 "notifications.message.visit.single" = "%d persones han visitat el teu perfil avui.";
+"notifications.message.requestAccepted.multiple" = "%@ i %d més han acceptat la teva sol·licitud de seguiment.";
+"notifications.message.requestAccepted.single" = "%@ ha acceptat la teva sol·licitud de seguiment.";
+"notifications.message.tagged.single" = "%@ t'ha etiquetat en un moment.";
+"notifications.message.tagged.multiple" = "%@ i %d més t'han etiquetat en moments.";
 
 /* Messages */
 "messages.count" = "%d";
@@ -348,6 +417,15 @@
 "time.viewed" = "Va veure fa %@";
 "time.reacted" = "Va reaccionar fa %@";
 "time.relative" = "%@";
+"time.unit.yr" = "any";
+"time.unit.yrs" = "anys";
+"time.unit.mo" = "mes";
+"time.unit.mos" = "mesos";
+"time.unit.wk" = "setm.";
+"time.unit.d" = "d";
+"time.unit.h" = "h";
+"time.unit.min" = "min";
+"time.now" = "ara";
 
 /* Nova AI */
 "nova.you" = "Tu";
@@ -429,9 +507,11 @@
 "settings.privacy.hideMutual.description" = "Només tu podràs veure qui són els teus amics en comú";
 "settings.privacy.hideFollowing" = "Amagar la meva llista de seguits";
 "settings.privacy.hideFollowing.description" = "Només tu podràs veure a qui segueixes";
-"settings.privacy.hideAdmirers" = "Amagar els meus admiradors";
+"settings.privacy.hideAdmirers" = "Amagar els meus seguidors";
 "settings.privacy.hideAdmirers.description" = "Només tu podràs veure qui et segueix";
-"settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Nota: Amagar 'seguits' o 'admiradors' també amagarà 'connexions mútues' ja que no es poden calcular sense ambdues llistes. Sempre podràs canviar aquestes configuracions.";
+"settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Nota: Amagar 'seguits' o 'seguidors' també amagarà 'connexions mútues' ja que no es poden calcular sense ambdues llistes. Sempre podràs canviar aquestes configuracions.";
+"settings.privacy.readReceipts.title" = "Confirmacions de lectura";
+"settings.privacy.readReceipts.description" = "Si desactives les confirmacions de lectura, no podràs veure les de les altres persones.";
 "settings.logout" = "Tancar sessió";
 "settings.logout.confirm" = "Estàs segur que vols tancar sessió?";
 "settings.profile.username" = "Nom d'usuari";
@@ -460,6 +540,7 @@
 "creator.files.selected.count" = "%d fitxers seleccionats";
 "creator.advancedSettings" = "Configuració avançada";
 "creator.publishing" = "Publicant moment...";
+"creator.uploading.success_fly" = "Moment compartit";
 "creator.intensity" = "Intensitat";
 "creator.searching" = "Cercant...";
 "creator.location.useCurrent" = "Utilitzar ubicació actual";
@@ -493,6 +574,8 @@
 "login.resetPassword.description" = "T'enviarem un enllaç al teu correu";
 "login.resetPassword.sendLink" = "Enviar enllaç";
 "login.info.title" = "Informació";
+"conversationSettings.privacy.readReceipts.title" = "Confirmació de lectura";
+"conversationSettings.privacy.readReceipts.description" = "Si desactives el 'vist' en aquest xat, no podràs veure quan l'altra persona llegeix els teus missatges.";
 
 /* Register */
 "register.back" = "Enrere";
@@ -532,6 +615,8 @@
 "chat.error" = "Error";
 "chat.message.deleted" = "Aquest missatge va ser eliminat";
 "chat.recording" = "Enregistrant...";
+"chat.reply.you" = "Tu";
+"chat.reply.select_item" = "Respondre a un element";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversa no trobada";
@@ -548,6 +633,38 @@
 "messaging.startConversation" = "Iniciar conversa";
 "messaging.writeMessageToStart" = "Escriu un missatge per iniciar la conversa";
 "messaging.sendMessage" = "Enviar missatge";
+"chat.viewOnce.tapToView" = "Toca per veure";
+"chat.viewOnce.autoDelete" = "S'esborrarà en tancar";
+"chat.viewOnce.photo" = "Foto";
+"chat.viewOnce.video" = "Vídeo";
+"chat.viewOnce.media" = "Mèdia";
+"chat.viewOnce.photoOpened" = "Foto vista";
+"chat.viewOnce.videoOpened" = "Vídeo vist";
+"chat.viewOnce.mediaOpened" = "Mèdia vist";
+"chat.viewOnce.viewOnce" = "Veure una vegada";
+"chat.viewOnce.viewed" = "Vist";
+"chat.viewOnce.sent" = "Enviat";
+"chat.viewOnce.alreadyViewed" = "Ja vist";
+"chat.preview.photo" = "📷 Foto";
+"chat.preview.video" = "🎥 Vídeo";
+"chat.preview.audio" = "🎵 Àudio";
+"chat.preview.gif" = "🎞️ GIF";
+"chat.preview.sticker" = "😊 Sticker";
+"chat.preview.location" = "📍 Ubicació";
+"chat.preview.file" = "📎 Fitxer";
+"chat.preview.ephemeral" = "📸 Moment efímer";
+"chat.preview.sharedMoment" = "📷 Moment compartit";
+"chat.preview.viewOncePhoto" = "📷 Foto (veure una vegada)";
+"chat.preview.viewOnceVideo" = "🎥 Vídeo (veure una vegada)";
+"chat.status.sending" = "Enviant";
+"chat.status.sent" = "Enviat";
+"chat.status.delivered" = "Lliurat";
+"chat.status.read" = "Llegit";
+"chat.status.failed" = "Ha fallat";
+"chat.notification.viewOncePrompt" = "📸 T'ha enviat un missatge que s'esborrarà en veure'l";
+"chat.preview.newConversation" = "Nova conversa";
+"chat.preview.ephemeral_long" = "⏱️ Missatge temporal";
+"chat.preview.image" = "📷 Imatge";
 
 /* Message Requests */
 "messageRequests.request.title" = "Sol·licitud de missatge";
@@ -603,6 +720,23 @@
 "profileEditor.interests.empty.title" = "No has seleccionat interessos";
 "profileEditor.interests.empty.subtitle" = "Toca 'Editar' per afegir els teus interessos";
 "profileEditor.interests.select.title" = "Selecciona fins a 5 interessos";
+"profileEditor.category.recent" = "Recents";
+"profileEditor.category.photography" = "Fotografia";
+"profileEditor.category.selfies" = "Selfies";
+"profileEditor.category.albums" = "Àlbums";
+"profileEditor.album.selectTitle" = "Selecciona un àlbum";
+"profileEditor.album.photosCount" = "%d fotos";
+"profileEditor.album.default" = "Àlbum";
+"profileEditor.album.favorites" = "Preferits";
+"profileEditor.album.screenshots" = "Captures";
+"profileEditor.error.updateProfile" = "Error al actualitzar el perfil: %@";
+"profileEditor.error.uploadImage" = "Error al pujar la imatge: %@";
+"profileEditor.error.unauthenticated" = "Usuari no autenticat";
+"profileEditor.error.saveProfile" = "Error al desar: %@";
+"profileEditor.crop.loadingImage" = "Carregant imatge...";
+"profileEditor.crop.moveAndScale" = "Moure i escalar";
+"profileEditor.crop.otherPhotos" = "Altres fotos";
+"profileEditor.crop.processing" = "Processant...";
 "profileEditor.cancel" = "Cancel·lar";
 "profileEditor.save" = "Desar";
 "profileEditor.next" = "Següent";
@@ -620,6 +754,7 @@
 "audience.saved" = "Audiència guardada";
 "audience.predefined" = "Audiència predefinida";
 "audience.customLists" = "Llistes personalitzades";
+"audience.customLists.title" = "Llistes personalitzades";
 "audience.manage" = "Gestionar";
 "audience.loadingLists" = "Carregant llistes...";
 "audience.noCustomLists.title" = "Sense llistes personalitzades";
@@ -628,6 +763,7 @@
 "audience.manualSelection" = "Selecció manual";
 "audience.custom" = "Personalitzat";
 "audience.people.count" = "%d persones";
+"audience.people.count.short" = "%d persones";
 "audience.selectPeople" = "Seleccionar %d persones";
 
 /* Audience Types */
@@ -649,6 +785,41 @@
 /* Audience Actions */
 "audience.actions.selectPeople" = "Seleccionar persones";
 "audience.actions.cancel" = "Cancel·lar";
+"audience.create" = "Crear";
+"audience.list.placeholder" = "Nom de la llista";
+"audience.members.count.short" = "%d membres";
+"audience.list.name.example" = "Ex: Treball, Família, Gym...";
+"audience.personalization" = "Personalització";
+"audience.view.all" = "Veure-ho tot";
+"audience.create.title" = "Nova Llista";
+"audience.create.action" = "Crear";
+"audience.edit.title" = "Editar Llista";
+"audience.list.description.placeholder" = "Descriu aquesta llista...";
+"audience.members.count.long" = "%d persones a la llista";
+"common.save" = "Desar";
+"common.color" = "Color";
+"common.icon" = "Icona";
+"audience.list.add" = "Afegir";
+"audience.list.search" = "Cercar a la llista...";
+"audience.list.loadingMembers" = "Carregant membres...";
+"audience.list.noResults" = "No s'han trobat membres amb '%@'";
+"audience.list.empty" = "No hi ha membres en aquesta llista";
+"audience.list.emptyAlt" = "Toca 'Afegir' per afegir persones";
+"audience.list.membersShown" = "%d membres mostrats";
+"audience.list.searchresults" = "Resultats de cerca per a '%@'";
+"audience.list.deleteMember.title" = "Eliminar membre";
+"audience.list.deleteMember.message" = "¿Vols eliminar a %@ d'aquesta llista?";
+"audience.picker.title" = "Afegir Membres";
+"audience.picker.searchPlaceholder" = "Cercar persones...";
+"audience.picker.initialTitle" = "Cercar persones";
+"audience.picker.initialDescription" = "Escriu el nom d'usuari per trobar persones i afegir-les a la teva llista";
+"audience.picker.noResultsDescription" = "No s'han trobat persones amb '%@'";
+"audience.picker.selectedCount" = "%d seleccionades";
+"audience.picker.selectedDescription" = "Persones per afegir a la llista";
+"common.confirm" = "Confirmar";
+"common.searching" = "Cercant...";
+"common.noResults" = "Sense resultats";
+"common.clear" = "Netejar";
 
 /* Login Activity */
 "loginActivity.navigation.title" = "Activitat d'Inici";
@@ -919,7 +1090,7 @@
 /* Navigation Titles */
 "settings.title" = "Configuració";
 "settings.accountManagement" = "Gestió de compte";
-"settings.connectionPrivacy" = "Privadesa de Connexions";
+"settings.connectionPrivacy" = "Privadesa del perfil";
 "settings.notifications" = "Notificacions";
 "accountManagement.deleteAccount.title" = "Eliminar compte";
 "blockedUsers.title" = "Usuaris bloquejats";
@@ -937,7 +1108,7 @@
 "settings.sections.highlightedStories.subtitle" = "Gestionar les teves històries favorites";
 "settings.sections.contentVisibility" = "Visibilitat de contingut";
 "settings.sections.contentVisibility.subtitle" = "Gestionar qui pot veure el teu contingut";
-"settings.sections.connections" = "Connexions";
+"settings.sections.connections" = "Privadesa del perfil";
 "settings.sections.bestFriends" = "Millors amics";
 "settings.sections.bestFriends.subtitle" = "Gestionar llista de millors amics";
 "settings.sections.blockedAccounts" = "Comptes bloquejats";
@@ -1363,6 +1534,40 @@
 "dataExport.success.message" = "La teva sol·licitud de descàrrega ha estat enviada. Rebràs un email amb l'enllaç de descàrrega en les properes 24-48 hores.";
 "dataExport.ok" = "D'acord";
 
+/* Account Management */
+"accountManagement.section.title" = "Gestió del compte";
+"accountManagement.deactivate.title" = "Desactivar compte";
+"accountManagement.deactivate.subtitle" = "Amaga el teu perfil temporalment";
+"accountManagement.delete.title" = "Eliminar compte";
+"accountManagement.delete.subtitle" = "Eliminació permanent de totes les dades";
+"accountManagement.deactivate.message" = "El teu compte serà amagat però no eliminat. Pots reactivar-lo més tard iniciant sessió.";
+"accountManagement.delete.message" = "Aquesta acció no es pot desfer. Totes les teves dades seran eliminades permanentment.";
+"accountManagement.cancel" = "Cancel·lar";
+"accountManagement.deactivate" = "Desactivar";
+"accountManagement.continue" = "Continuar";
+"accountManagement.error.title" = "Error";
+"accountManagement.ok" = "D'acord";
+"accountManagement.userNotFound" = "No s'ha pogut obtenir l'usuari actual";
+"accountManagement.requiredText" = "ELIMINAR EL MEU COMPTE";
+"accountManagement.error.delete" = "Error eliminant compte: %@";
+"accountManagement.error.noEmail" = "No s'ha pogut obtenir el correu de l'usuari";
+"accountManagement.deleting" = "Eliminant...";
+"accountManagement.permanentDeletion" = "ELIMINACIÓ PERMANENT";
+"accountManagement.irreversible" = "Aquesta acció és irreversible";
+"accountManagement.willBeDeleted" = "S'eliminarà el següent:";
+"accountManagement.profileInfo" = "El teu perfil i informació personal";
+"accountManagement.storiesMoments" = "Totes les teves històries i moments";
+"accountManagement.conversations" = "Converses i missatges";
+"accountManagement.connections" = "Connexions i seguidors";
+"accountManagement.notifications" = "Notificacions i configuracions";
+"accountManagement.savedContent" = "Arxiu i contingut desat";
+"accountManagement.confirmPassword" = "Confirmar contrasenya";
+"accountManagement.currentPassword" = "Contrasenya actual";
+"accountManagement.writeExactly" = "Escriu exactament:";
+"accountManagement.writeHere" = "Escriu aquí";
+"accountManagement.understandIrreversible" = "Entenc que aquesta acció és irreversible i accepto l'eliminació permanent del meu compte i totes les meves dades.";
+"accountManagement.deleteAccountPermanently" = "Eliminar compte permanentment";
+
 /* Notifications */
 "notifications.error.unknown" = "S'ha produït un error desconegut";
 "notifications.empty.mentions" = "Sense mencions";
@@ -1394,6 +1599,19 @@
 
 /* Network Status - Offline Banners */
 "network.offline.title" = "Sense connexió a internet";
+
+/* In-App Banners */
+"banner.verb.like" = "li ha agradat el teu moment";
+"banner.verb.comment" = "ha comentat el teu moment";
+"banner.verb.reaction" = "ha reaccionat al teu moment";
+"banner.verb.follow" = "t'ha començat a seguir";
+"banner.verb.request" = "t'ha enviat una sol·licitud";
+"banner.verb.accepted" = "ha acceptat la teva sol·licitud";
+"banner.verb.mention" = "t'ha mencionat";
+"banner.verb.story" = "ha reaccionat a la teva història";
+"banner.verb.message" = "t'ha enviat un missatge";
+"notifications.message.message.single" = "%@ t'ha enviat un missatge";
+"notifications.message.message.multiple" = "%@ i %d persones més t'han enviat missatges";
 "network.offline.retry" = "Reintentar";
 "network.slow.title" = "Connexió lenta - Utilitzant mode optimitzat";
 
@@ -1423,6 +1641,7 @@
 "editMoment.save" = "Desar";
 "editMoment.description" = "Descripció";
 "editMoment.saving" = "Desant canvis...";
+"editMoment.placeholder" = "Escriu alguna cosa...";
 
 /* Interests */
 "interest.escritura" = "Escriptura";
@@ -1625,3 +1844,108 @@
 "auth.error.privacyPolicyRequired" = "Has d'acceptar les polítiques de privacitat.";
 "auth.error.usernameUnavailable" = "Nom d'usuari no disponible.";
 "auth.error.userIdNotFound" = "No s'ha pogut obtenir l'ID de l'usuari.";
+
+/* Notification Summary */
+"feed.summary.highlights" = "Novetats";
+"notifications.section.new" = "Noves";
+"notifications.section.this_week" = "Aquesta setmana";
+"notifications.section.this_month" = "Aquest mes";
+"notifications.section.earlier" = "Anteriors";
+"notifications.empty.comments" = "No hi ha comentaris encara";
+"notifications.empty.storyReactions" = "Sense reaccions a les teves històries";
+"notifications.empty.requests" = "No tens sol·licituds pendents";
+"notifications.empty.reactions" = "Encara no hi ha reaccions";
+"notifications.empty.follows" = "Encara no tens seguidors";
+"notifications.empty.default" = "No hi ha notificacions";
+"notifications.empty.mentions" = "Sense mencions encara";
+
+/* Whats New v2.2 */
+"whatsNew.title" = "The Profile & Connection Update";
+"whatsNew.subtitle" = "Moments v2.2.0";
+"whatsNew.nova.title" = "Destacats";
+"whatsNew.nova.description" = "Guarda les teves històries preferides al teu perfil per sempre.";
+"whatsNew.audioPro.title" = "Etichetat d'usuaris";
+"whatsNew.audioPro.description" = "Etiqueta els teus amics en fotos i vídeos de forma senzilla.";
+"whatsNew.smartGrid.title" = "Publicacions Programades";
+"whatsNew.smartGrid.description" = "Planifica els teus moments i deixa que es publiquin automàticament.";
+"whatsNew.glassStudio.title" = "Noves Pestanyes";
+"whatsNew.glassStudio.description" = "Explora fàcilment els teus moments, contingut desat i etiquetes.";
+"whatsNew.banners.title" = "Perfil Compartible";
+"whatsNew.banners.description" = "Comparteix el teu perfil fàcilment amb un codi QR.";
+"whatsNew.summary.title" = "Explorer Renovador";
+"whatsNew.summary.description" = "Una interfície més neta i fluida per descobrir contingut únic.";
+"whatsNew.maps.title" = "Renovació del Mapa";
+"whatsNew.maps.description" = "Nova experiència immersiva amb capçaleres de cristall i detalls refinats.";
+
+/* Best Friends */
+"bestFriends.title" = "Millors Amics";
+"bestFriends.empty.title" = "Sense millors amics";
+"bestFriends.empty.description" = "Afegeix amics des dels teus seguits per marcar-los com a millors amics.";
+"bestFriends.search.placeholder" = "Cercar a les llistes...";
+"bestFriends.section.mutuals" = "Amics en comú";
+"bestFriends.section.following" = "Seguits";
+"bestFriends.section.followers" = "Seguidors";
+"bestFriends.search.noResults" = "No s'han trobat resultats per a '%@'";
+"bestFriends.button.remove" = "Eliminar";
+"bestFriends.button.add" = "Afegir";
+"bestFriends.button.addGeneric" = "Agregar";
+"bestFriends.error.following" = "Error en carregar seguits: %@";
+"bestFriends.error.followers" = "Error en carregar seguidors: %@";
+"bestFriends.error.auth" = "Usuari no autenticat";
+"whatsNew.button" = "Explorar Moments 2.2";
+
+/* Modernized Settings Connection Privacy */
+"settings.privacy.connections.allPublic" = "Totes les connexions públiques";
+"settings.privacy.connections.hiddenCount.singular" = "1 llista oculta";
+"settings.privacy.connections.hiddenCount.plural" = "%d llistes ocultes";
+"settings.privacy.connections.allHidden" = "Totes les llistes ocultes";
+"settings.privacy.connections.configure" = "Configurar";
+
+/* Support Moments */
+"support.section.title" = "Donar suport a Moments";
+"support.badges.title" = "Badges de suport";
+"support.badges.subtitle.default" = "Badges únics + Subscripció Plus";
+"support.badges.subtitle.plusEnabled" = "Plus actiu - Explora badges disponibles";
+"support.badges.subtitle.badgesAndPlus" = "Plus + %d badges";
+"support.badges.subtitle.badgesOnly" = "%d badges + Subscripció Plus";
+"support.manageSubscription.title" = "Gestionar subscripció";
+"support.manageSubscription.subtitle" = "Configura la teva subscripció Plus";
+"support.view.title" = "Donar suport a Moments";
+"support.view.header.subtitle" = "Ajuda'ns a mantenir l'app gratuïta per a tothom";
+"support.view.plus.title" = "Moments Plus";
+"support.view.plus.active" = "ACTIU";
+"support.view.plus.popular" = "POPULAR";
+"support.view.features.noAds.title" = "Sense anuncis";
+"support.view.features.noAds.description" = "Experiència completament neta";
+"support.view.features.crown.title" = "Badge exclusiu";
+"support.view.features.crown.description" = "Mostra el teu suport al projecte";
+"support.view.features.development.title" = "Dona suport al desenvolupament";
+"support.view.features.development.description" = "Manté l'app gratuïta per a tothom";
+"support.view.plus.alreadyActive.title" = "Ja ets Moments Plus!";
+"support.view.plus.alreadyActive.description" = "Gràcies per donar suport al projecte";
+"support.view.plus.get.button" = "Obtenir Moments Plus - %@/mes";
+"support.view.badges.oneTime" = "Una sola vegada";
+"support.view.faq.title" = "Preguntes freqüents";
+"support.view.faq.q1" = "Per què badges de pagament?";
+"support.view.faq.a1" = "Els badges ens ajuden a mantenir Moments gratuït per a tothom. Són opcionals i purament per mostrar suport.";
+"support.view.thanks.title" = "Gràcies!";
+"support.view.thanks.message" = "El teu suport ens ajuda a mantenir Moments gratuït per a tothom.";
+"support.badgeCard.owned" = "POSEÏT";
+"support.view.faq.q2" = "Els badges donen avantatges?";
+"support.view.faq.a2" = "No. Els badges són només cosmètics. Creiem en mantenir l'experiència justa per a tothom.";
+"support.view.faq.q3" = "Puc amagar el meu badge?";
+"support.view.faq.a3" = "Sí, pots mostrar o amagar les teves badges en qualsevol moment des del teu perfil.";
+"support.view.faq.q4" = "Com cancel·lo la meva subscripció?";
+"support.view.faq.a4" = "Pots cancel·lar en qualsevol moment des de Configuració d'iOS > El teu nom > Subscripcions, o utilitzant el botó 'Gestionar subscripció' a dalt.";
+"support.badgePurchase.available" = "El teu badge \"%@\" ja està disponible al teu perfil.";
+"support.badgePurchase.exploreMore" = "Explorar més badges";
+
+/* Settings Groups */
+"settings.group.identity" = "Identitat i Connexió";
+"settings.group.security" = "Seguretat i Privadesa";
+"settings.group.activity" = "Contingut i Activitat";
+"settings.group.system" = "Sistema i Suport";
+
+/* Scheduled Posts */
+"profile.moments.scheduled" = "Programat";
+"profile.moments.scheduled.in" = "En %@";

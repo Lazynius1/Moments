@@ -13,6 +13,19 @@ struct EnhancedCameraPickerView: View {
     @State private var selectedItems: [PhotosPickerItem] = [] // ✅ Para PhotosPicker
     @State private var showGridLines = false // ✅ Para grid lines
     @State private var showPhotoPicker = false // ✅ Control del PhotosPicker
+    @State private var pressScale: CGFloat = 1.0
+    
+    private let signatureGradient = LinearGradient(
+        colors: [Color.blue, Color.purple, Color.pink],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    
+    private let ephemeralGradient = LinearGradient(
+        colors: [Color(hex: "FFB347"), Color(hex: "FFCC33")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
     
     enum CaptureMode: CaseIterable {
         case photo, video
@@ -116,13 +129,17 @@ struct EnhancedCameraPickerView: View {
                     Text(NSLocalizedString("camera.actions.cancel", comment: "Cancel camera action"))
                         .font(.custom("Poppins-Medium", size: 14))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(isEphemeralMode ? .black : .white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
-                    Capsule()
-                        .fill(Color.black.opacity(0.6))
-                        .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    ZStack {
+                        if isEphemeralMode {
+                            Capsule().fill(ephemeralGradient.opacity(0.2))
+                        }
+                        Capsule().fill(.ultraThinMaterial)
+                    }
+                    .overlay(Capsule().stroke(isEphemeralMode ? Color(hex: "FFCC33").opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1))
                 )
             }
             
@@ -136,9 +153,13 @@ struct EnhancedCameraPickerView: View {
                         .foregroundColor(.white)
                         .frame(width: 40, height: 40)
                         .background(
-                            Circle()
-                                .fill(Color.black.opacity(0.6))
-                                .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                            ZStack {
+                                if isEphemeralMode {
+                                    Circle().fill(ephemeralGradient.opacity(0.2))
+                                }
+                                Circle().fill(.ultraThinMaterial)
+                            }
+                            .overlay(Circle().stroke(isEphemeralMode ? Color(hex: "FFCC33").opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1))
                         )
                 }
             }
@@ -150,9 +171,13 @@ struct EnhancedCameraPickerView: View {
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
                     .background(
-                        Circle()
-                            .fill(Color.black.opacity(0.6))
-                            .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                        ZStack {
+                            if isEphemeralMode {
+                                Circle().fill(ephemeralGradient.opacity(0.2))
+                            }
+                            Circle().fill(.ultraThinMaterial)
+                        }
+                        .overlay(Circle().stroke(isEphemeralMode ? Color(hex: "FFCC33").opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1))
                     )
             }
             
@@ -168,12 +193,17 @@ struct EnhancedCameraPickerView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
-                    Capsule()
-                        .fill(isEphemeralMode ? Color.yellow : Color.black.opacity(0.6))
-                        .overlay(
-                            Capsule()
-                                .stroke(isEphemeralMode ? Color.yellow.opacity(0.8) : Color.white.opacity(0.2), lineWidth: 1)
-                        )
+                    ZStack {
+                        if isEphemeralMode {
+                            Capsule().fill(ephemeralGradient)
+                        } else {
+                            Capsule().fill(.ultraThinMaterial)
+                        }
+                    }
+                    .overlay(
+                        Capsule()
+                            .stroke(isEphemeralMode ? Color(hex: "FFCC33") : Color.white.opacity(0.2), lineWidth: 1)
+                    )
                 )
             }
         }
@@ -196,15 +226,24 @@ struct EnhancedCameraPickerView: View {
                         Text(mode.title)
                             .font(.custom("Poppins-SemiBold", size: 12))
                     }
-                    .foregroundColor(captureMode == mode ? .yellow : .white.opacity(0.7))
+                    .foregroundColor(captureMode == mode ? (isEphemeralMode ? Color(hex: "FFCC33") : Color.white) : .white.opacity(0.5))
                     .frame(width: 80, height: 60)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(captureMode == mode ? Color.yellow.opacity(0.2) : Color.clear)
-                            .overlay(
+                        ZStack {
+                            if captureMode == mode {
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(captureMode == mode ? Color.yellow : Color.clear, lineWidth: 2)
-                            )
+                                    .fill(isEphemeralMode ? ephemeralGradient.opacity(0.3) : signatureGradient.opacity(0.3))
+                                    .blur(radius: 8)
+                                    .offset(y: 2)
+                                
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.ultraThinMaterial)
+                            }
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(captureMode == mode ? (isEphemeralMode ? ephemeralGradient : signatureGradient) : LinearGradient(colors: [.clear], startPoint: .top, endPoint: .bottom), lineWidth: 2)
+                        )
                     )
                 }
                 .scaleEffect(captureMode == mode ? 1.1 : 1.0)
@@ -222,18 +261,26 @@ struct EnhancedCameraPickerView: View {
             Button(action: {
                 showPhotoPicker = true
             }) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.black.opacity(0.6))
-                    .frame(width: 50, height: 50)
-                    .overlay(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 54, height: 54)
+                    
+                    if isEphemeralMode {
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                    )
-                    .overlay(
-                        Image(systemName: "photo.stack")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white)
-                    )
+                            .fill(ephemeralGradient.opacity(0.1))
+                            .frame(width: 54, height: 54)
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isEphemeralMode ? Color(hex: "FFCC33").opacity(0.4) : Color.white.opacity(0.2), lineWidth: 1)
+                )
+                .overlay(
+                    Image(systemName: "photo.stack")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                )
             }
             
             // Main Capture Button
@@ -253,18 +300,26 @@ struct EnhancedCameraPickerView: View {
                 let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                 impactFeedback.impactOccurred()
             }) {
-                Circle()
-                    .fill(Color.black.opacity(0.6))
-                    .frame(width: 50, height: 50)
-                    .overlay(
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 54, height: 54)
+                    
+                    if isEphemeralMode {
                         Circle()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                    )
-                    .overlay(
-                        Image(systemName: showGridLines ? "grid.circle.fill" : "grid.circle")
-                            .font(.system(size: 20))
-                            .foregroundColor(showGridLines ? .yellow : .white)
-                    )
+                            .fill(ephemeralGradient.opacity(0.1))
+                            .frame(width: 54, height: 54)
+                    }
+                }
+                .overlay(
+                    Circle()
+                        .stroke(showGridLines ? (isEphemeralMode ? Color(hex: "FFCC33") : Color.white) : Color.white.opacity(0.2), lineWidth: 1)
+                )
+                .overlay(
+                    Image(systemName: showGridLines ? "grid.circle.fill" : "grid.circle")
+                        .font(.system(size: 22))
+                        .foregroundColor(showGridLines ? (isEphemeralMode ? Color(hex: "FFCC33") : .white) : .white.opacity(0.6))
+                )
             }
         }
         .padding(.bottom, 50)
@@ -277,25 +332,30 @@ struct EnhancedCameraPickerView: View {
                 HStack {
                     Spacer()
                     VStack(spacing: 6) {
-                        Image(systemName: "timer")
+                        Image(systemName: "sparkles")
                             .font(.system(size: 20))
-                            .foregroundColor(.yellow)
+                            .foregroundColor(Color(hex: "FFCC33"))
                         Text(NSLocalizedString("camera.ephemeral.deleteOnView", comment: "Ephemeral delete on view message"))
-                            .font(.custom("Poppins-Medium", size: 11))
-                            .foregroundColor(.yellow)
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .foregroundColor(Color(hex: "FFCC33"))
                         Text(NSLocalizedString("camera.ephemeral.onceOnly", comment: "Ephemeral once only message"))
-                            .font(.custom("Poppins-Regular", size: 9))
-                            .foregroundColor(.yellow.opacity(0.8))
+                            .font(.custom("Poppins-Medium", size: 10))
+                            .foregroundColor(Color(hex: "FFCC33").opacity(0.8))
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.black.opacity(0.8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.yellow.opacity(0.5), lineWidth: 1)
-                            )
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial)
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(ephemeralGradient.opacity(0.2))
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(ephemeralGradient.opacity(0.5), lineWidth: 1)
+                        )
+                        .shadow(color: Color(hex: "FFCC33").opacity(0.3), radius: 10, x: 0, y: 5)
                     )
                     .padding(.trailing, 20)
                     .padding(.top, 120)
@@ -378,44 +438,76 @@ struct EnhancedCaptureButton: View {
     @State private var recordingTime: TimeInterval = 0
     @State private var recordingTimer: Timer?
     
+    private let signatureGradient = LinearGradient(
+        colors: [Color.blue, Color.purple, Color.pink],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    
+    private let ephemeralGradient = LinearGradient(
+        colors: [Color(hex: "FFB347"), Color(hex: "FFCC33")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    
     var body: some View {
         Button(action: handleCapture) {
             ZStack {
+                // Glow Layer
+                Circle()
+                    .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
+                    .frame(width: 95, height: 95)
+                    .blur(radius: isRecording ? 15 : 0)
+                    .opacity(isRecording ? 0.4 : 0)
+                
                 // Outer Ring
                 Circle()
                     .stroke(
-                        isEphemeralMode ? Color.yellow : Color.white,
+                        isEphemeralMode ? ephemeralGradient : signatureGradient,
                         lineWidth: isRecording ? 6 : 4
                     )
                     .frame(width: 90, height: 90)
-                    .scaleEffect(isRecording ? 1.1 : 1.0)
+                
+                // Glass Ring
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 82, height: 82)
+                    .opacity(isRecording ? 0.3 : 1)
                 
                 // Inner Circle/Square
                 Group {
                     if isRecording {
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: 12)
                             .fill(Color.red)
                             .frame(width: 32, height: 32)
+                            .shadow(color: .red.opacity(0.5), radius: 10)
                     } else {
-                        Circle()
-                            .fill(isEphemeralMode ? Color.yellow : Color.white)
-                            .frame(width: 70, height: 70)
-                            .overlay(
-                                Image(systemName: captureMode.icon)
-                                    .font(.system(size: 24, weight: .medium))
-                                    .foregroundColor(isEphemeralMode ? .black : .black)
-                                    .opacity(captureMode == .photo ? 1 : 0)
-                            )
+                        ZStack {
+                            Circle()
+                                .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
+                            
+                            Image(systemName: captureMode.icon)
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.black)
+                                .opacity(captureMode == .photo ? 1 : 0)
+                        }
+                        .frame(width: 70, height: 70)
                     }
                 }
                 .scaleEffect(isRecording ? 0.8 : 1.0)
                 
-                // Recording Timer
+                Circle()
+                    .stroke(isEphemeralMode ? Color(hex: "FFCC33") : Color.white, lineWidth: 1)
+                    .frame(width: 100, height: 100)
+                    .opacity(0)
+                    .scaleEffect(0.8)
+                
+                // Recording Timer restored
                 if isRecording && captureMode == .video {
                     VStack {
                         Spacer()
                         Text(formatTime(recordingTime))
-                            .font(.custom("Poppins-Medium", size: 14))
+                            .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -426,13 +518,13 @@ struct EnhancedCaptureButton: View {
                                         Capsule().stroke(Color.white, lineWidth: 1)
                                     )
                             )
-                            .offset(y: 60)
+                            .offset(y: 65)
                     }
                 }
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isRecording)
-        .scaleEffect(isRecording ? 1.05 : 1.0)
+        .buttonStyle(CameraButtonStyle())
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isRecording)
     }
     
     private func handleCapture() {
@@ -781,3 +873,14 @@ extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
         }
     }
 }
+
+// ✅ CAMERA BUTTON STYLE
+struct CameraButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+

@@ -22,7 +22,7 @@ struct BestFriendsView: View {
                     contentView
                 }
             }
-            .navigationTitle("Mejores Amigos")
+            .navigationTitle(NSLocalizedString("bestFriends.title", comment: "Best Friends"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
@@ -74,11 +74,11 @@ struct BestFriendsView: View {
                 .foregroundColor(.secondary)
             
             VStack(spacing: 8) {
-                Text("Sin mejores amigos")
+                Text(NSLocalizedString("bestFriends.empty.title", comment: "No best friends"))
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(.primary)
                 
-                Text("Añade amigos desde tus conexiones para marcarlos como mejores amigos.")
+                Text(NSLocalizedString("bestFriends.empty.description", comment: "Add friends from your following to mark them as best friends."))
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -97,7 +97,7 @@ struct BestFriendsView: View {
                     .foregroundColor(.secondary)
                     .font(.system(size: 16))
                 
-                TextField("Buscar en listas...", text: $searchText)
+                TextField(NSLocalizedString("bestFriends.search.placeholder", comment: "Search lists..."), text: $searchText)
                     .textFieldStyle(PlainTextFieldStyle())
                     .font(.system(size: 16))
                 
@@ -127,7 +127,7 @@ struct BestFriendsView: View {
                 
                 // ✅ NUEVO: Sección de mejores amigos filtrados
                 if !filtered.bestFriends.isEmpty {
-                    Section(header: Text("Mejores Amigos").font(.custom("Poppins-SemiBold", size: 16))) {
+                    Section(header: Text(NSLocalizedString("bestFriends.title", comment: "Best Friends")).font(.custom("Poppins-SemiBold", size: 16))) {
                         ForEach(filtered.bestFriends) { user in
                             BestFriendRow(user: user, viewModel: viewModel)
                         }
@@ -136,7 +136,7 @@ struct BestFriendsView: View {
                 
                 // ✅ NUEVO: Sección de conexiones mutuas filtradas
                 if !filtered.mutualConnections.isEmpty {
-                    Section(header: Text("Conexiones Mutuas").font(.custom("Poppins-SemiBold", size: 16))) {
+                    Section(header: Text(NSLocalizedString("bestFriends.section.mutuals", comment: "Mutual Friends")).font(.custom("Poppins-SemiBold", size: 16))) {
                         ForEach(filtered.mutualConnections.filter { connection in
                             !viewModel.bestFriends.contains(where: { $0.id == connection.id })
                         }) { user in
@@ -147,7 +147,7 @@ struct BestFriendsView: View {
                 
                 // ✅ NUEVO: Sección de conexiones filtradas
                 if !filtered.connections.isEmpty {
-                    Section(header: Text("Conexiones").font(.custom("Poppins-SemiBold", size: 16))) {
+                    Section(header: Text(NSLocalizedString("bestFriends.section.following", comment: "Following")).font(.custom("Poppins-SemiBold", size: 16))) {
                         ForEach(filtered.connections.filter { connection in
                             !viewModel.bestFriends.contains(where: { $0.id == connection.id })
                         }) { user in
@@ -158,7 +158,7 @@ struct BestFriendsView: View {
                 
                 // ✅ NUEVO: Sección de admiradores filtrados
                 if !filtered.admirers.isEmpty {
-                    Section(header: Text("Admiradores").font(.custom("Poppins-SemiBold", size: 16))) {
+                    Section(header: Text(NSLocalizedString("bestFriends.section.followers", comment: "Followers")).font(.custom("Poppins-SemiBold", size: 16))) {
                         ForEach(filtered.admirers) { user in
                             AdmirerRow(user: user, viewModel: viewModel)
                         }
@@ -172,7 +172,7 @@ struct BestFriendsView: View {
                         HStack {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
-                            Text("No se encontraron resultados para '\(searchText)'")
+                            Text(String(format: NSLocalizedString("bestFriends.search.noResults", comment: "No results found for '%@'"), searchText))
                                 .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -203,7 +203,7 @@ struct BestFriendRow: View {
             Button(action: {
                 viewModel.removeBestFriend(userId: user.id)
             }) {
-                Text("Eliminar")
+                Text(NSLocalizedString("bestFriends.button.remove", comment: "Remove"))
                     .font(.custom("Poppins-SemiBold", size: 12))
                     .foregroundColor(.red)
                     .padding(.horizontal, 12)
@@ -234,7 +234,7 @@ struct ConnectionRow: View {
             Button(action: {
                 viewModel.addBestFriend(userId: user.id)
             }) {
-                Text("Añadir")
+                Text(NSLocalizedString("bestFriends.button.add", comment: "Add"))
                     .font(.custom("Poppins-SemiBold", size: 12))
                     .foregroundColor(.blue)
                     .padding(.horizontal, 12)
@@ -267,7 +267,7 @@ struct AdmirerRow: View {
             Button(action: {
                 viewModel.addBestFriend(userId: user.id)
             }) {
-                Text("Agregar")
+                Text(NSLocalizedString("bestFriends.button.addGeneric", comment: "Add"))
                     .font(.custom("Poppins-SemiBold", size: 12))
                     .foregroundColor(.orange)
                     .padding(.horizontal, 12)
@@ -330,7 +330,7 @@ class BestFriendsViewModel: ObservableObject {
 
     func fetchBestFriends() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            errorMessage = "Usuario no autenticado"
+            errorMessage = NSLocalizedString("bestFriends.error.auth", comment: "User not authenticated")
             showError = true
             return
         }
@@ -352,7 +352,7 @@ class BestFriendsViewModel: ObservableObject {
 
     func fetchConnections() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            errorMessage = "Usuario no autenticado"
+            errorMessage = NSLocalizedString("bestFriends.error.auth", comment: "User not authenticated")
             showError = true
             return
         }
@@ -369,7 +369,7 @@ class BestFriendsViewModel: ObservableObject {
             
             if let error = error {
                 DispatchQueue.main.async {
-                    self?.errorMessage = "Error al cargar seguidos: \(error.localizedDescription)"
+                    self?.errorMessage = String(format: NSLocalizedString("bestFriends.error.following", comment: "Error loading following: %@"), error.localizedDescription)
                     self?.showError = true
                     self?.isLoading = false
                 }
@@ -385,7 +385,7 @@ class BestFriendsViewModel: ObservableObject {
                 
                 if let error = error {
                     DispatchQueue.main.async {
-                        self?.errorMessage = "Error al cargar seguidores: \(error.localizedDescription)"
+                        self?.errorMessage = String(format: NSLocalizedString("bestFriends.error.followers", comment: "Error loading followers: %@"), error.localizedDescription)
                         self?.showError = true
                         self?.isLoading = false
                     }
@@ -491,7 +491,7 @@ class BestFriendsViewModel: ObservableObject {
 
     func addBestFriend(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            errorMessage = "Usuario no autenticado"
+            errorMessage = NSLocalizedString("bestFriends.error.auth", comment: "User not authenticated")
             showError = true
             return
         }
@@ -508,7 +508,7 @@ class BestFriendsViewModel: ObservableObject {
 
     func removeBestFriend(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            errorMessage = "Usuario no autenticado"
+            errorMessage = NSLocalizedString("bestFriends.error.auth", comment: "User not authenticated")
             showError = true
             return
         }

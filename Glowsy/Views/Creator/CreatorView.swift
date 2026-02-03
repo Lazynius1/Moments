@@ -24,140 +24,7 @@ class StoryUploadProgressManager: ObservableObject {
         progress = 0.0
     }
 }
-struct ProcessedMedia: Identifiable {
-    let id: String
-    var image: UIImage
-    var videoURL: URL?
-    let type: MediaType
-    var aspectRatio: AspectRatio
-    var recommendedAspectRatio: AspectRatio? // ✅ NUEVO: Aspect ratio detectado automáticamente (recomendado)
-    var hasEdits: Bool = false
-    var thumbnailURL: URL?
-    var videoDuration: Double?
-    var videoFileSize: Int64?
-    var videoResolution: String?
-    
-    enum MediaType {
-        case image, video
-    }
-    
-    enum AspectRatio {
-        case square          // 1:1
-        case portrait        // 4:5
-        case landscape       // 16:9
-        case nineBySixteen   // 9:16 (stories)
-        
-        var value: CGFloat {
-            switch self {
-            case .square: return 1.0
-            case .portrait: return 0.8  // 4:5
-            case .landscape: return 1.777 // 16:9
-            case .nineBySixteen: return 0.5625 // 9:16
-            }
-        }
-        
-        var displayName: String {
-            switch self {
-            case .square: return "1:1"
-            case .portrait: return "4:5"
-            case .landscape: return "16:9"
-            case .nineBySixteen: return "9:16"
-            }
-        }
-        
-        var ratio: CGFloat {
-            switch self {
-            case .square: return 1.0
-            case .portrait: return 4.0/5.0
-            case .landscape: return 16.0/9.0
-            case .nineBySixteen: return 9.0/16.0
-            }
-        }
-        
-        // ✅ NUEVO: Convertir un ratio numérico a AspectRatio
-        static func fromRatio(_ ratio: CGFloat) -> AspectRatio {
-            let tolerance: CGFloat = 0.15
-            
-            // Detectar ratios específicos
-            if abs(ratio - 0.5625) < tolerance {
-                return .nineBySixteen
-            }
-            if abs(ratio - 0.8) < tolerance {
-                return .portrait
-            }
-            if abs(ratio - 1.0) < tolerance {
-                return .square
-            }
-            if abs(ratio - 1.777) < tolerance {
-                return .landscape
-            }
-            
-            // Detección por rangos
-            if ratio < 0.65 {
-                return .nineBySixteen
-            } else if ratio < 0.85 {
-                return .portrait
-            } else if ratio < 1.15 {
-                return .square
-            } else {
-                return .landscape
-            }
-        }
-    }
-    
-    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false) {
-        self.id = id
-        self.image = image
-        self.videoURL = videoURL
-        self.type = type
-        self.aspectRatio = aspectRatio
-        self.recommendedAspectRatio = recommendedAspectRatio ?? aspectRatio // Si no se especifica, usar el aspectRatio como recomendado
-        self.hasEdits = hasEdits
-    }
-    
-    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil) {
-        self.id = UUID().uuidString
-        self.image = image
-        self.videoURL = videoURL
-        self.type = type
-        self.aspectRatio = aspectRatio
-        self.recommendedAspectRatio = recommendedAspectRatio ?? aspectRatio
-        self.hasEdits = false
-    }
-    
-    // Método `with` actualizado para aceptar todos los parámetros necesarios
-    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, image: UIImage? = nil) -> ProcessedMedia {
-        ProcessedMedia(
-            id: self.id,
-            image: image ?? self.image,
-            videoURL: videoURL ?? self.videoURL,
-            type: self.type,
-            aspectRatio: aspectRatio ?? self.aspectRatio,
-            recommendedAspectRatio: recommendedAspectRatio ?? self.recommendedAspectRatio,
-            hasEdits: hasEdits ?? self.hasEdits
-        )
-    }
-    
-    var isValidVideo: Bool {
-        return type == .video && videoURL != nil && FileManager.default.fileExists(atPath: videoURL!.path)
-    }
-    
-    var videoInfo: (duration: Double, fileSize: Int64)? {
-        guard let videoURL = videoURL, type == .video else { return nil }
-        
-        do {
-            let asset = AVAsset(url: videoURL)
-            let duration = asset.duration.seconds
-            
-            let fileAttributes = try FileManager.default.attributesOfItem(atPath: videoURL.path)
-            let fileSize = fileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-            
-            return (duration: duration, fileSize: fileSize)
-        } catch {
-            return nil
-        }
-    }
-}
+// ProcessedMedia moved to CreatorSharedModels.swift
 // MARK: - Drawing View Implementation
 
 import PencilKit
@@ -189,6 +56,11 @@ class DrawingViewController: UIViewController {
     private let toolPicker = PKToolPicker()
     private var selectedColor: UIColor = .white
     private var backgroundImageView: UIImageView?
+    
+    enum BrushType {
+        case pen, neon, marker, arrow
+    }
+    private var selectedBrush: BrushType = .pen
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -253,16 +125,18 @@ class DrawingViewController: UIViewController {
         
         // Tool buttons
         let penButton = createToolButton(imageName: "pencil", action: #selector(penSelected))
+        let neonButton = createToolButton(imageName: "sparkles", action: #selector(neonSelected))
         let markerButton = createToolButton(imageName: "highlighter", action: #selector(markerSelected))
+        let arrowButton = createToolButton(imageName: "arrow.up.right", action: #selector(arrowSelected))
         let eraserButton = createToolButton(imageName: "eraser", action: #selector(eraserSelected))
         let undoButton = createToolButton(imageName: "arrow.uturn.backward", action: #selector(undoTapped))
         let clearButton = createToolButton(imageName: "trash", action: #selector(clearTapped))
         
-        let toolStack = UIStackView(arrangedSubviews: [penButton, markerButton, eraserButton, undoButton, clearButton])
+        let toolStack = UIStackView(arrangedSubviews: [penButton, neonButton, markerButton, arrowButton, eraserButton, undoButton, clearButton])
         toolStack.translatesAutoresizingMaskIntoConstraints = false
         toolStack.axis = .horizontal
         toolStack.distribution = .equalSpacing
-        toolStack.spacing = 30
+        toolStack.spacing = 20
         bottomToolbar.addSubview(toolStack)
         
         // Color picker
@@ -368,11 +242,36 @@ class DrawingViewController: UIViewController {
     }
     
     @objc private func penSelected() {
-        canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: 3)
+        selectedBrush = .pen
+        updateCurrentTool()
+    }
+    
+    @objc private func neonSelected() {
+        selectedBrush = .neon
+        updateCurrentTool()
     }
     
     @objc private func markerSelected() {
-        canvasView.tool = PKInkingTool(.marker, color: selectedColor.withAlphaComponent(0.5), width: 20)
+        selectedBrush = .marker
+        updateCurrentTool()
+    }
+    
+    @objc private func arrowSelected() {
+        selectedBrush = .arrow
+        updateCurrentTool()
+    }
+    
+    private func updateCurrentTool() {
+        switch selectedBrush {
+        case .pen:
+            canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: 3)
+        case .neon:
+            canvasView.tool = PKInkingTool(.marker, color: selectedColor, width: 8)
+        case .marker:
+            canvasView.tool = PKInkingTool(.marker, color: selectedColor.withAlphaComponent(0.4), width: 25)
+        case .arrow:
+            canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: 4)
+        }
     }
     
     @objc private func eraserSelected() {
@@ -401,9 +300,7 @@ class DrawingViewController: UIViewController {
         }
         
         // Update current tool with new color
-        if let inkingTool = canvasView.tool as? PKInkingTool {
-            canvasView.tool = PKInkingTool(inkingTool.inkType, color: selectedColor, width: inkingTool.width)
-        }
+        updateCurrentTool()
     }
 }
 import SwiftUI
@@ -439,7 +336,7 @@ struct CreatorView: View {
         self.initialSticker = initialSticker
         self.openInStoryMode = openInStoryMode
     }
-    @State private var selectedMediaItems: [ProcessedMedia] = []
+    @State private var selectedMediaItems: [CreatorMedia] = []
     @State private var captionText: String = ""
     @State private var taggedUsers: [String] = []
     @State private var selectedLocation: CLLocationCoordinate2D?
@@ -450,6 +347,9 @@ struct CreatorView: View {
     @State private var pendingChainId: String? = nil
     @State private var pendingChainTitle: String? = nil
     @State private var pendingChainPosition: Int? = nil
+    
+    // ✅ Geometry Effect Namespace
+    @Namespace private var animation
     
     enum CreatorFlow {
         case typeSelection
@@ -475,13 +375,15 @@ struct CreatorView: View {
                 ContentTypeSelectionView(
                     contentType: $contentType,
                     currentFlow: $currentFlow,
-                    showCreatorView: $showCreatorView
+                    showCreatorView: $showCreatorView,
+                    animation: animation // ✅ Pass namespace
                 )
             case .mediaSelection:
                 MediaSelectionView(
                     selectedMediaItems: $selectedMediaItems,
                     currentFlow: $currentFlow,
-                    showCreatorView: $showCreatorView
+                    showCreatorView: $showCreatorView,
+                    animation: animation // ✅ Pass namespace
                 )
             case .mediaEditing:
                 MediaEditingView(
@@ -682,109 +584,439 @@ struct CreatorView: View {
         
     }
 }
-// MARK: - Content Type Selection
+// MARK: - Content Type Selection ("The Dial")
 struct ContentTypeSelectionView: View {
     @Binding var contentType: CreatorView.ContentType
     @Binding var currentFlow: CreatorView.CreatorFlow
+
     @Binding var showCreatorView: Bool
+    var animation: Namespace.ID // ✅ Accept Namespace
+    @Environment(\.colorScheme) var colorScheme
+    
+    // State
+    @State private var selectedMode: CreatorView.ContentType = .moment
+    @State private var recentImages: [UIImage] = [] // ✅ Changed to array for collage
+    @State private var shutterScale: CGFloat = 1.0
+    @State private var isBreathing: Bool = false // ✅ For collage animation
+    @State private var hasCameraPermission: Bool = false
+    
+    // Constants
+    private let dialModes: [CreatorView.ContentType] = [.moment, .story]
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button(action: {
-                    showCreatorView = false
-                }) {
-                    Image(systemName: "xmark")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                }
-                .padding()
+        ZStack {
+            // 1. Dynamic Background
+            backgroundLayer
+            
+            // 2. Content & Controls
+            VStack(spacing: 0) {
+                // Top Toolbar (Close)
+                topToolbar
                 
                 Spacer()
                 
-                Text("creator.title")
-                    .font(.headline)
+                // Center Shutter/Trigger
+                shutterButton
+                    .padding(.bottom, 60)
+                
+                // Bottom Dial Selector
+                dialSelector
+                    .padding(.bottom, 30)
+            }
+        }
+        .onAppear {
+            checkCameraPermission()
+            loadRecentPhotos()
+            // Start breathing animation
+            withAnimation(.easeInOut(duration: 10).repeatForever(autoreverses: true)) {
+                isBreathing = true
+            }
+        }
+    }
+    
+    // MARK: - Components
+    
+    private var backgroundLayer: some View {
+        ZStack {
+            // Base layer
+            Color.black.ignoresSafeArea()
+            
+            if selectedMode == .moment {
+                // Moment: Floating Collage Blur
+                if !recentImages.isEmpty {
+                    ZStack {
+                        ForEach(0..<recentImages.count, id: \.self) { index in
+                            FloatingImageView(image: recentImages[index], index: index)
+                        }
+                    }
+                    .ignoresSafeArea()
+                    .blur(radius: 8) // ✅ Reduced blur (was 40) to make photos recognizable
+                    .overlay(Color.black.opacity(0.15)) // ✅ Reduced opacity (was 0.3)
+                    .overlay(
+                        // Gradient fade from bottom
+                        LinearGradient(colors: [.black.opacity(0.8), .clear], startPoint: .bottom, endPoint: .center)
+                            .ignoresSafeArea()
+                    )
+                    .transition(.opacity.animation(.easeInOut(duration: 0.5)))
+                } else {
+                    // Placeholder
+                    Color.gray.opacity(0.1)
+                        .ignoresSafeArea()
+                }
+            } else {
+                // Story: Blurred Camera Feed or Gradient
+                if hasCameraPermission {
+                    BackgroundCameraView()
+                        .ignoresSafeArea()
+                        .blur(radius: 10) // ✅ Reduced blur (was 30) to see silhouettes
+                        .overlay(Color.black.opacity(0.1)) // ✅ Reduced opacity (was 0.2)
+                        .transition(.opacity.animation(.easeInOut(duration: 0.5)))
+                } else {
+                    // Fallback Gradient
+                    LinearGradient(
+                        colors: [Color.black, Color.purple.opacity(0.2), Color.pink.opacity(0.1)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                    .transition(.opacity.animation(.easeInOut(duration: 0.5)))
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.5), value: selectedMode)
+    }
+    
+    // ✅ NEW: Floating Image View Helper
+    private struct FloatingImageView: View {
+        let image: UIImage
+        let index: Int
+        
+        @State private var offset: CGSize = .zero
+        @State private var scale: CGFloat = 1.0
+        @State private var rotation: Double = 0
+        
+        var body: some View {
+            GeometryReader { geometry in
+                // Calculate quadrant position based on index
+                let quadrantX = index % 2 == 0 ? geometry.size.width * 0.25 : geometry.size.width * 0.75
+                let quadrantY = index < 2 ? geometry.size.height * 0.25 : geometry.size.height * 0.75
+                
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geometry.size.width * 0.6, height: geometry.size.height * 0.6) // Reduced size slightly to avoid total overlap
+                    .position(
+                        x: quadrantX + CGFloat.random(in: -30...30),
+                        y: quadrantY + CGFloat.random(in: -30...30)
+                    )
+                    .scaleEffect(scale)
+                    .rotationEffect(.degrees(rotation))
+                    .offset(offset)
+                    .opacity(0.8)
+                    .onAppear {
+                        // Randomize animation parameters for organic feel
+                        let duration = Double.random(in: 15...25)
+                        let delay = Double.random(in: 0...5)
+                        
+                        withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true).delay(delay)) {
+                            offset = CGSize(
+                                width: CGFloat.random(in: -100...100),
+                                height: CGFloat.random(in: -100...100)
+                            )
+                            scale = CGFloat.random(in: 1.1...1.4)
+                            rotation = Double.random(in: -10...10)
+                        }
+                    }
+            }
+        }
+    }
+    
+    private var topToolbar: some View {
+        HStack {
+            Button(action: {
+                withAnimation { showCreatorView = false }
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.white)
-                
-                Spacer()
-                
-                Color.clear
                     .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
-            .background(Color.black)
+            .padding(.leading)
             
             Spacer()
-            
-            // Options
-            VStack(spacing: 40) {
-                // Moment Option
-                Button(action: {
-                    contentType = .moment
-                    currentFlow = .mediaSelection
-                }) {
-                    VStack(spacing: 20) {
-                        ZStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.3), lineWidth: 2)
-                                .frame(width: 120, height: 120)
-                            
-                            Image(systemName: "square.grid.2x2")
-                                .font(.system(size: 50))
-                                .foregroundColor(.white)
-                        }
+        }
+        .padding(.top, 10)
+    }
+    
+    private var shutterButton: some View {
+        Button(action: {
+            confirmSelection()
+        }) {
+            ZStack {
+                if selectedMode == .moment {
+                    // Moment Shutter: Dynamic Memory Stack
+                    ZStack {
+                        // Card 1 (Bottom)
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.8))
+                            .frame(width: 60, height: 60)
+                            .rotationEffect(.degrees(-10))
+                            .offset(x: -5, y: 0)
                         
-                        VStack(spacing: 8) {
-                            Text("creator.moment.title")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                            
-                            Text("creator.moment.subtitle")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
+                        // Card 2 (Middle)
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: 60, height: 60)
+                            .rotationEffect(.degrees(5))
+                            .offset(x: 5, y: -2)
+                        
+                        // Card 3 (Top - Photo)
+                        Group {
+                            if let topImage = recentImages.first {
+                                Image(uiImage: topImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 65, height: 65)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.white, lineWidth: 2)
+                                    )
+                            } else {
+                                // Fallback
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white)
+                                    .frame(width: 65, height: 65)
+                                    .overlay(
+                                        Image(systemName: "photo.stack.fill")
+                                            .foregroundColor(.black)
+                                    )
+                            }
                         }
+                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
                     }
+                    .frame(width: 80, height: 80) // Hit area container
+                    .matchedGeometryEffect(id: "momentSource", in: animation) // ✅ Unfold Source
+                } else {
+                    // Story Shutter: Ring
+                    Circle()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.purple, .pink, .orange],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 5
+                        )
+                        .frame(width: 80, height: 80)
+                        .overlay(
+                            Circle()
+                                .fill(Color.white.opacity(0.2))
+                                .frame(width: 70, height: 70)
+                        )
+                        .shadow(color: .purple.opacity(0.4), radius: 15, x: 0, y: 0)
                 }
+            }
+        }
+        .scaleEffect(shutterScale)
+        .buttonStyle(PlainButtonStyle())
+        .onLongPressGesture(minimumDuration: 0.1, pressing: { pressing in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                shutterScale = pressing ? 0.9 : 1.0
+            }
+        }, perform: {})
+    }
+    
+    private var dialSelector: some View {
+        HStack(spacing: 30) {
+            ForEach(dialModes, id: \.self) { mode in
+                Button(action: {
+                    switchMode(to: mode)
+                }) {
+                    Text(titleFor(mode).uppercased())
+                        .font(.system(size: selectedMode == mode ? 16 : 14, weight: selectedMode == mode ? .bold : .medium))
+                        .foregroundColor(selectedMode == mode ? .white : .white.opacity(0.5))
+                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                        .padding(.vertical, 8)
+                        .overlay(
+                            // Indicator Dot
+                            Circle()
+                                .fill(.yellow)
+                                .frame(width: 4, height: 4)
+                                .offset(y: 15)
+                                .opacity(selectedMode == mode ? 1.0 : 0.0)
+                        )
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(Color.black.opacity(0.3)) // Subtle pill background
+        .clipShape(Capsule())
+    }
+    
+    // MARK: - Logic
+    
+    private func titleFor(_ mode: CreatorView.ContentType) -> String {
+        switch mode {
+        case .moment: return NSLocalizedString("creator.moment.title", comment: "Moment")
+        case .story: return NSLocalizedString("creator.story.title", comment: "Story")
+        }
+    }
+    
+    private func switchMode(to mode: CreatorView.ContentType) {
+        if selectedMode != mode {
+            let generator = UISelectionFeedbackGenerator()
+            generator.selectionChanged()
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedMode = mode
+            }
+        }
+    }
+    
+    private func confirmSelection() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        
+        withAnimation {
+            contentType = selectedMode
+            switch selectedMode {
+            case .moment:
+                currentFlow = .mediaSelection
+            case .story:
+                // ✅ Stop background camera session BEFORE opening real camera
+                NotificationCenter.default.post(name: NSNotification.Name("StopBackgroundCameraSession"), object: nil)
                 
-                // Story Option
-                Button(action: {
-                    contentType = .story
+                // ✅ Small delay to ensure session is fully released
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     currentFlow = .storyCamera
-                }) {
-                    VStack(spacing: 20) {
-                        ZStack {
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [.purple, .pink, .orange],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 3
-                                )
-                                .frame(width: 120, height: 120)
-                            
-                            Image(systemName: "circle.dashed")
-                                .font(.system(size: 50))
-                                .foregroundColor(.white)
-                        }
-                        
-                        VStack(spacing: 8) {
-                            Text("creator.story.title")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                            
-                            Text("creator.story.subtitle")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                    }
                 }
             }
-            
-            Spacer()
+        }
+    }
+    
+    private func loadRecentPhotos() {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 4
+        
+        let assets = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        let manager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .fastFormat // ✅ Optimized for speed (Medium Quality)
+        options.resizeMode = .fast
+        
+        // Use a temporary array to collect images, then update state
+        var loadedImages: [UIImage] = []
+        let processingGroup = DispatchGroup()
+        
+        assets.enumerateObjects { asset, _, _ in
+            processingGroup.enter()
+            manager.requestImage(for: asset, targetSize: CGSize(width: 300, height: 300), contentMode: .aspectFill, options: options) { image, info in
+                if let image = image {
+                    // Check if this is a degraded image (thumbnail)
+                    let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                    if !isDegraded {
+                        loadedImages.append(image)
+                    }
+                }
+                // Only leave if not degraded, OR just ensure we only use high quality format which calls once
+                processingGroup.leave()
+            }
+        }
+        
+        processingGroup.notify(queue: .main) {
+            withAnimation {
+                self.recentImages = loadedImages
+            }
+        }
+    }
+    
+    private func checkCameraPermission() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            hasCameraPermission = true
+        case .notDetermined:
+            // Don't request yet, just default to gradient to be non-intrusive
+            hasCameraPermission = false
+        default:
+            hasCameraPermission = false
+        }
+    }
+}
+
+// MARK: - Background Camera View Helper
+struct BackgroundCameraView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        let controller = UIViewController()
+        controller.view.backgroundColor = .black
+        
+        // Lightweight Session
+        let session = AVCaptureSession()
+        session.sessionPreset = .medium // Setup for performance since it's blurred
+        
+        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+              let input = try? AVCaptureDeviceInput(device: device) else {
+            return controller
+        }
+        
+        if session.canAddInput(input) {
+            session.addInput(input)
+        }
+        
+        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
+        previewLayer.videoGravity = .resizeAspectFill
+        previewLayer.frame = controller.view.bounds
+        controller.view.layer.addSublayer(previewLayer)
+        
+        // Store session and layer in Coordinator
+        context.coordinator.session = session
+        context.coordinator.previewLayer = previewLayer
+        
+        // ✅ Listen for stop notification
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("StopBackgroundCameraSession"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            context.coordinator.stopSession()
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            session.startRunning()
+        }
+        
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        if let layer = context.coordinator.previewLayer {
+            layer.frame = uiViewController.view.bounds
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator {
+        var session: AVCaptureSession?
+        var previewLayer: AVCaptureVideoPreviewLayer?
+        
+        // ✅ Stop session method
+        func stopSession() {
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.session?.stopRunning()
+                self?.session = nil
+            }
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+            stopSession()
         }
     }
 }
@@ -795,9 +1027,10 @@ import Photos
 import AVFoundation
 
 struct MediaSelectionView: View {
-    @Binding var selectedMediaItems: [ProcessedMedia]
+    @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
+    var animation: Namespace.ID // ✅ Accept Namespace
     
     @Environment(\.colorScheme) var colorScheme
     
@@ -833,6 +1066,7 @@ struct MediaSelectionView: View {
             mediaGridSection
         }
         .background(colorScheme == .dark ? Color.black : Color.white)
+        .matchedGeometryEffect(id: "momentSource", in: animation) // ✅ Unfold Target
         .onAppear {
             requestPhotoLibraryAccess()
         }
@@ -851,58 +1085,79 @@ struct MediaSelectionView: View {
                 currentFlow = .typeSelection
             }) {
                 Image(systemName: "chevron.left")
-                    .font(.title2)
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 40, height: 40)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
             
             Spacer()
             
-            Text("creator.newMoment")
-                .font(.custom("Poppins-SemiBold", size: 18))
+            Text(NSLocalizedString("creator.newMoment", comment: ""))
+                .font(.system(size: 17, weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Spacer()
             
-            Button(action: {
-                if !selectedAssetIDs.isEmpty {
+            if !selectedAssetIDs.isEmpty {
+                GlowSharePill(
+                    title: "creator.next",
+                    icon: "chevron.right",
+                    isSmall: true
+                ) {
                     processSelectedAssets()
                 }
-            }) {
-                Text("creator.next")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(selectedAssetIDs.isEmpty ? .gray : Color(hex: "00A896"))
+            } else {
+                Color.clear.frame(width: 40, height: 40)
             }
-            .disabled(selectedAssetIDs.isEmpty)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(colorScheme == .dark ? Color.black : Color.white)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+        .background(
+            (colorScheme == .dark ? Color.black : Color.white)
+                .ignoresSafeArea(edges: .top)
+        )
+        .zIndex(10)
     }
     
     // MARK: - Preview principal
     private var mainPreviewSection: some View {
         VStack(spacing: 0) {
             // Preview grande del archivo seleccionado
-            if let currentAssetID = selectedAssetIDs.first,
+            if let currentAssetID = selectedAssetIDs.last, // Usar el último seleccionado para el preview principal
                let currentAsset = mediaAssets.first(where: { $0.localIdentifier == currentAssetID }) {
                 
                 ZStack {
-                    (colorScheme == .dark ? Color.black : Color.white)
+                    // Fondo Cinemático (Blur)
+                    if let thumbnail = thumbnails[currentAssetID] {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: UIScreen.main.bounds.width, height: 320)
+                            .blur(radius: 30)
+                            .opacity(0.6)
+                            .overlay(Color.black.opacity(0.2))
+                    }
                     
                     if let thumbnail = thumbnails[currentAssetID] {
                         Image(uiImage: thumbnail)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 300)
-                            .clipped()
+                            .frame(height: 300)
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                            .padding(.vertical, 10)
                     } else {
                         ProgressView()
-                            .tint(Color(hex: "00A896"))
+                            .tint(.white)
                     }
                     
                     // Indicador de video
                     if currentAsset.mediaType == .video {
                         VStack {
+                            Spacer()
                             HStack {
                                 Spacer()
                                 HStack(spacing: 4) {
@@ -911,43 +1166,67 @@ struct MediaSelectionView: View {
                                     Text(formatDuration(currentAsset.duration))
                                         .font(.caption.bold())
                                 }
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundColor(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background((colorScheme == .dark ? Color.black : Color.white).opacity(0.7))
+                                .background(.black.opacity(0.5))
                                 .clipShape(Capsule())
-                                .padding(.trailing, 12)
-                                .padding(.top, 12)
+                                .padding(12)
+                            }
+                        }
+                    }
+                    
+                    // Botón para deseleccionar rápido
+                    VStack {
+                        HStack {
+                            Button(action: { toggleAssetSelection(currentAsset) }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .padding(12)
                             }
                             Spacer()
                         }
+                        Spacer()
                     }
                 }
-                .frame(height: 300)
-                .background(Color.black)
+                .frame(height: 320)
+                .clipped()
+                .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.95)), removal: .opacity))
             }
             
-            // Contador de selección
-            HStack {
-                Text("\(selectedAssetIDs.count) \(String(format: NSLocalizedString("creator.files.selected", comment: "Files selected")))")
-                    .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                if selectedAssetIDs.count > 1 {
-                    Text("creator.multiple")
-                        .font(.custom("Poppins-SemiBold", size: 12))
-                        .foregroundColor(Color(hex: "00A896"))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(hex: "00A896").opacity(0.2))
-                        .clipShape(Capsule())
+            // Carrusel de Multiselección
+            if selectedAssetIDs.count > 0 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedAssetIDs, id: \.self) { id in
+                            if let thumb = thumbnails[id] {
+                                ZStack {
+                                    Image(uiImage: thumb)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 50, height: 50)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(id == selectedAssetIDs.last ? Color.pink : Color.white.opacity(0.3), lineWidth: 2)
+                                        )
+                                }
+                                .onTapGesture {
+                                    // Mover al final para que sea el preview principal
+                                    if let index = selectedAssetIDs.firstIndex(of: id) {
+                                        let item = selectedAssetIDs.remove(at: index)
+                                        selectedAssetIDs.append(item)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
+                .background(colorScheme == .dark ? Color.black.opacity(0.4) : Color.gray.opacity(0.1))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(colorScheme == .dark ? Color.black : Color.white)
         }
     }
     
@@ -961,29 +1240,23 @@ struct MediaSelectionView: View {
             
             // Header con selector de álbum y botón de cámara
             HStack {
-                // Selector de álbum con dropdown
                 Button(action: {
                     showingAlbumPicker = true
                 }) {
                     HStack(spacing: 6) {
-                        Text(selectedAlbum?.title ?? "Recientes")
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                        Text(selectedAlbum?.title ?? NSLocalizedString("creator.album.recents", comment: "Recents"))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
                             .rotationEffect(.degrees(showingAlbumPicker ? 180 : 0))
-                            .animation(.easeInOut(duration: 0.2), value: showingAlbumPicker)
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
+                    .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
                     .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                    )
                 }
                 
                 Spacer()
@@ -994,13 +1267,15 @@ struct MediaSelectionView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 14))
-                        Text("creator.camera")
-                            .font(.custom("Poppins-Medium", size: 14))
+                        Text(NSLocalizedString("creator.camera", comment: ""))
+                            .font(.system(size: 14, weight: .bold))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color(hex: "00A896"))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)
+                    )
                     .clipShape(Capsule())
                 }
             }
@@ -1324,7 +1599,7 @@ struct MediaSelectionView: View {
                         // ✅ Detectar aspect ratio automáticamente
                         let detectedAspectRatio = detectAspectRatio(from: image)
                         
-                        let media = ProcessedMedia(
+                        let media = CreatorMedia(
                             id: assetID,
                             image: image,
                             videoURL: nil,
@@ -1393,7 +1668,7 @@ struct MediaSelectionView: View {
     // ✅ NUEVA FUNCIÓN: Detectar aspect ratio automáticamente SOLO para momentos
     // Reemplaza tu función detectAspectRatio en MediaSelectionView con esta versión mejorada
 
-    private func detectAspectRatio(from image: UIImage) -> ProcessedMedia.AspectRatio {
+    private func detectAspectRatio(from image: UIImage) -> CreatorMedia.AspectRatio {
         let imageRatio = image.size.width / image.size.height
         
         // ✅ MEJORADO: Tolerancia más amplia (15%) para detectar mejor ratios comunes
@@ -1655,7 +1930,7 @@ struct AlbumPickerView: View {
                             LinearGradient(
                                 colors: [
                                     Color.white.opacity(0.3),
-                                    Color(hex: "00A896").opacity(0.4)
+                                    Color.pink.opacity(0.4)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -1664,7 +1939,7 @@ struct AlbumPickerView: View {
                         )
                 )
         )
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 20, x: 0, y: 10)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.hidden)
         .interactiveDismissDisabled(false)
@@ -1683,8 +1958,8 @@ struct AlbumPickerView: View {
                 .padding(.bottom, 16)
             
             // Título centrado
-            Text("creator.album.select")
-                .font(.custom("Poppins-SemiBold", size: 18))
+            Text(NSLocalizedString("creator.album.select", comment: "Select Album"))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(.bottom, 20)
         }
@@ -1871,32 +2146,31 @@ struct MediaGridCell: View {
                 
                 // Overlay de selección
                 if isSelected {
-                    Color(hex: "00A896").opacity(0.3)
+                    Color.pink.opacity(0.3)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 0)
+                                .stroke(Color.pink, lineWidth: 3)
+                        )
                 }
                 
                 // Indicador de video
                 if asset.mediaType == .video {
                     VStack {
                         Spacer()
-                        HStack {
+                        HStack(spacing: 4) {
                             Image(systemName: "video.fill")
-                                .font(.caption)
+                                .font(.system(size: 10, weight: .bold))
                             Text(formatDuration(asset.duration))
-                                .font(.caption.bold())
-                            Spacer()
+                                .font(.system(size: 10, weight: .bold))
                         }
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.clear, Color.black.opacity(0.6)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
+                        .padding(.vertical, 3)
+                        .background(.black.opacity(0.5))
+                        .clipShape(Capsule())
+                        .padding(6)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 }
                 
                 // Número de selección
@@ -1906,21 +2180,20 @@ struct MediaGridCell: View {
                         if let number = selectionNumber {
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: "00A896"))
-                                    .frame(width: 24, height: 24)
+                                    .fill(LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(width: 22, height: 22)
+                                    .shadow(radius: 2)
                                 
                                 Text("\(number)")
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundColor(.white)
                             }
-                            .padding(.trailing, 6)
-                            .padding(.top, 6)
-                        } else if !isSelected {
+                            .padding(6)
+                        } else {
                             Circle()
                                 .stroke(Color.white, lineWidth: 2)
-                                .frame(width: 24, height: 24)
-                                .padding(.trailing, 6)
-                                .padding(.top, 6)
+                                .frame(width: 22, height: 22)
+                                .padding(6)
                         }
                     }
                     Spacer()
@@ -1940,7 +2213,7 @@ struct MediaGridCell: View {
 
 // MARK: - Media Editing View
 struct MediaEditingView: View {
-    @Binding var selectedMediaItems: [ProcessedMedia]
+    @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     
@@ -1948,226 +2221,299 @@ struct MediaEditingView: View {
     
     @State private var currentMediaIndex = 0
     @State private var showingCropView = false
-    @State private var showingFilterView = false
+    @State private var showingFilterToolbar = false // Nueva flag para el modo edición filtros
     @State private var appliedFilters: [String: FilterSettings] = [:]
     
+    // Filtro temporal para el modo edición (antes de aplicar)
+    @State private var tempFilterType: FilterService.FilterType = .normal
+    @State private var tempFilterIntensity: Double = 1.0
+    @State private var previewImage: UIImage? = nil
+    @State private var filterTask: Task<Void, Never>? = nil
+    
     // ✅ NUEVO: Aspect ratio recomendado (detectado automáticamente de la imagen original)
-    private var recommendedAspectRatio: ProcessedMedia.AspectRatio {
+    private var recommendedAspectRatio: CreatorMedia.AspectRatio {
         guard currentMediaIndex < selectedMediaItems.count else { return .square }
         // Usar el aspect ratio recomendado guardado, o el actual si no hay recomendado
         return selectedMediaItems[currentMediaIndex].recommendedAspectRatio ?? selectedMediaItems[currentMediaIndex].aspectRatio
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button(action: {
-                    currentFlow = .mediaSelection
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.title2)
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                }
-                
-                Spacer()
-                
-                Text("creator.edit")
-                    .font(.headline)
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Spacer()
-                
-                Button(action: {
-                    currentFlow = .captionAndDetails
-                }) {
-                    Text("creator.next")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.blue)
-                }
-            }
-            .padding()
-            .background(
-                colorScheme == .dark 
-                    ? Color.black.opacity(0.9)
-                    : Color.white
-            )
             
-            // Media preview
-            ZStack {
-                TabView(selection: $currentMediaIndex) {
-                    ForEach(selectedMediaItems.indices, id: \.self) { index in
-                        ZStack {
-                            // ✅ Adaptar fondo según colorScheme
-                            colorScheme == .dark ? Color.black : Color.white
-                            
-                            Image(uiImage: selectedMediaItems[index].image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .tag(index)
+            VStack(spacing: 0) {
+                // Header (Branded)
+                HStack {
+                    if showingFilterToolbar {
+                        Button(action: {
+                            cancelFilter()
+                        }) {
+                            Text(NSLocalizedString("common.cancel", comment: ""))
+                                .foregroundColor(.white)
+                                .font(.system(size: 16, weight: .medium))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Capsule())
+                        }
+                        
+                        Spacer()
+                        
+                        Text(NSLocalizedString("creator.edit", comment: ""))
+                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            applyFilter()
+                        }) {
+                            Text(NSLocalizedString("common.done", comment: ""))
+                                .foregroundColor(.pink)
+                                .font(.system(size: 16, weight: .bold))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.pink.opacity(0.1))
+                                .clipShape(Capsule())
+                        }
+                    } else {
+                        Button(action: {
+                            currentFlow = .mediaSelection
+                        }) {
+                            Image(systemName: "chevron.left")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .padding(10)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        
+                        Spacer()
+                        
+                        Text(NSLocalizedString("creator.edit", comment: ""))
+                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.5), radius: 5)
+                        
+                        Spacer()
+                        
+                        GlowSharePill(title: "creator.next", icon: "arrow.right", isLoading: false) {
+                            currentFlow = .captionAndDetails
                         }
                     }
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
+                .padding()
+                .background(
+                    LinearGradient(colors: [.black.opacity(0.6), .clear], startPoint: .top, endPoint: .bottom)
+                )
                 
-                // ✅ NUEVO: Texto "Dimensiones recomendadas" en la parte superior central del media
-                VStack {
-                    if recommendedAspectRatio != .square || (currentMediaIndex < selectedMediaItems.count && selectedMediaItems[currentMediaIndex].aspectRatio != recommendedAspectRatio) {
-                        Text("creator.recommendedDimensions")
-                            .font(.caption2)
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                ZStack {
-                                    // Material effect base
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(.ultraThinMaterial)
-                                        .opacity(0.7)
-                                    
-                                    // Fondo base adaptativo según colorScheme
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(
-                                            colorScheme == .dark 
-                                                ? Color.white.opacity(0.15)
-                                                : Color.black.opacity(0.15)
-                                        )
-                                }
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        colorScheme == .dark 
-                                            ? Color.white.opacity(0.2)
-                                            : Color.black.opacity(0.2),
-                                        lineWidth: 0.5
-                                    )
-                            )
-                            .padding(.top, 12)
-                    }
-                    Spacer()
-                }
-            }
-            
-            // Media thumbnails
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(selectedMediaItems.indices, id: \.self) { index in
-                        Button(action: {
-                            currentMediaIndex = index
-                        }) {
+                Spacer()
+                
+                // Media preview (con aspecto mejorado)
+                ZStack {
+                    TabView(selection: $currentMediaIndex) {
+                        ForEach(selectedMediaItems.indices, id: \.self) { index in
                             ZStack {
-                                Image(uiImage: selectedMediaItems[index].image)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(
-                                                currentMediaIndex == index 
-                                                    ? (colorScheme == .dark ? Color.white : Color.black)
-                                                    : Color.clear, 
-                                                lineWidth: 2
-                                            )
-                                    )
-                                
-                                if selectedMediaItems[index].hasEdits {
-                                    Image(systemName: "pencil.circle.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.white)
-                                        .background(Color.blue)
-                                        .clipShape(Circle())
-                                        .offset(x: 20, y: -20)
+                                if index == currentMediaIndex, let preview = previewImage, showingFilterToolbar {
+                                    Image(uiImage: preview)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                } else {
+                                    Image(uiImage: selectedMediaItems[index].image)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
                                 }
                             }
+                            .cornerRadius(12)
+                            .padding(.horizontal, 10)
+                            .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+                            .tag(index)
                         }
                     }
-                }
-                .padding(.horizontal)
-            }
-            .frame(height: 80)
-            .background(
-                colorScheme == .dark 
-                    ? Color.black.opacity(0.8)
-                    : Color.white
-            )
-            
-            // Aspect ratio selector
-            HStack(spacing: 20) {
-                Text("creator.format")
-                    .font(.caption)
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                ForEach([ProcessedMedia.AspectRatio.square, .portrait, .landscape], id: \.self) { ratio in
-                    Button(action: {
-                        if currentMediaIndex < selectedMediaItems.count {
-                            selectedMediaItems[currentMediaIndex].aspectRatio = ratio
-                            showingCropView = true
-                        }
-                    }) {
-                        VStack(spacing: 4) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(
-                                    selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? Color.blue : 
-                                    (ratio == recommendedAspectRatio ? Color.green.opacity(0.7) : (colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.5))), 
-                                    lineWidth: selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? 2.5 : 
-                                    (ratio == recommendedAspectRatio ? 2.2 : 2)
-                                )
-                                .frame(
-                                    width: ratio == .landscape ? 50 : (ratio == .square ? 40 : 32),
-                                    height: 40
-                                )
-                            
-                            Text(ratio.displayName)
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
+                    
+                    // Recommended Dimensions badge
+                    VStack {
+                        if recommendedAspectRatio != .square || (currentMediaIndex < selectedMediaItems.count && selectedMediaItems[currentMediaIndex].aspectRatio != recommendedAspectRatio) {
+                            Text("creator.recommendedDimensions")
                                 .font(.caption2)
-                                .foregroundColor(
-                                    selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? .blue : 
-                                    (ratio == recommendedAspectRatio ? .green.opacity(0.8) : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7)))
-                                )
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.5))
+                                .padding(.top, 12)
                         }
+                        Spacer()
                     }
                 }
                 
                 Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(
-                colorScheme == .dark 
-                    ? Color.black.opacity(0.8)
-                    : Color.white
-            )
-            
-            // Editing tools
-            HStack(spacing: 30) {
-                EditingToolButton(icon: "crop.rotate", title: "Recortar") {
-                    showingCropView = true
-                }
                 
-                EditingToolButton(icon: "slider.horizontal.3", title: "Filtros") {
-                    showingFilterView = true
+                // Bottom Area: Thumbnails, Format and Tools
+                VStack(spacing: 0) {
+                    if showingFilterToolbar {
+                        // Filter Mode View
+                        VStack(spacing: 20) {
+                            // Intensity Slider
+                            if tempFilterType != .normal {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("creator.intensity")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundColor(.white.opacity(0.8))
+                                        Spacer()
+                                        Text("\(Int(tempFilterIntensity * 100))%")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(.pink)
+                                    }
+                                    
+                                    Slider(value: $tempFilterIntensity, in: 0...1)
+                                        .tint(.pink)
+                                        .onChange(of: tempFilterIntensity) { _ in
+                                            updatePreviewTask()
+                                        }
+                                }
+                                .padding(.horizontal, 25)
+                            }
+                            
+                            // Filter Carousel
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 15) {
+                                    ForEach(FilterService.FilterType.allCases, id: \.self) { filter in
+                                        FilterOption(
+                                            image: selectedMediaItems[currentMediaIndex].image,
+                                            filter: filter,
+                                            isSelected: tempFilterType == filter
+                                        ) {
+                                            hapticFeedback(.light)
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                tempFilterType = filter
+                                                if filter == .normal {
+                                                    tempFilterIntensity = 1.0
+                                                }
+                                            }
+                                            updatePreviewTask()
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 25)
+                            }
+                            .frame(height: 140)
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.vertical, 20)
+                    } else {
+                        // Regular Edit Mode View
+                        VStack(spacing: 0) {
+                            // Media thumbnails
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(selectedMediaItems.indices, id: \.self) { index in
+                                        Button(action: {
+                                            withAnimation(.spring()) {
+                                                currentMediaIndex = index
+                                            }
+                                        }) {
+                                            ZStack {
+                                                Image(uiImage: selectedMediaItems[index].image)
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fill)
+                                                    .frame(width: 55, height: 55)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                    .opacity(currentMediaIndex == index ? 1.0 : 0.6)
+                                                    .scaleEffect(currentMediaIndex == index ? 1.05 : 0.95)
+                                                
+                                                if currentMediaIndex == index {
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .stroke(
+                                                            LinearGradient(colors: [.purple, .pink, .orange], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                                            lineWidth: 2
+                                                        )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                            .frame(height: 60)
+                            .padding(.bottom, 15)
+                            
+                            // Controls Row
+                            HStack(spacing: 0) {
+                                // Aspect ratio selector
+                                HStack(spacing: 20) {
+                                    ForEach([CreatorMedia.AspectRatio.square, .portrait, .landscape], id: \.self) { ratio in
+                                        Button(action: {
+                                            if currentMediaIndex < selectedMediaItems.count {
+                                                hapticFeedback(.light)
+                                                selectedMediaItems[currentMediaIndex].aspectRatio = ratio
+                                                showingCropView = true
+                                            }
+                                        }) {
+                                            VStack(spacing: 4) {
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .stroke(
+                                                        selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? Color.pink :
+                                                        (ratio == recommendedAspectRatio ? Color.green.opacity(0.6) : Color.white.opacity(0.3)),
+                                                        lineWidth: selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? 2 : 1
+                                                    )
+                                                    .frame(
+                                                        width: ratio == .landscape ? 35 : (ratio == .square ? 25 : 20),
+                                                        height: 25
+                                                    )
+                                                
+                                                Text(ratio.displayName)
+                                                    .font(.system(size: 8, weight: .medium))
+                                                    .foregroundColor(selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? .pink : .white.opacity(0.6))
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.leading, 20)
+                                
+                                Spacer()
+                                
+                                // Editing tools (Glassmorphic)
+                                HStack(spacing: 12) {
+                                    ToolIconButton(icon: "crop.rotate") { showingCropView = true }
+                                    ToolIconButton(icon: "paintbrush") {
+                                        enterFilterMode()
+                                    }
+                                }
+                                .padding(.trailing, 20)
+                            }
+                            .padding(.bottom, 30)
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .background(
+                    LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom)
+                )
+            }
+        .navigationBarHidden(true)
+        .background(
+            ZStack {
+                Color.black.ignoresSafeArea()
+                if currentMediaIndex < selectedMediaItems.count {
+                    Image(uiImage: selectedMediaItems[currentMediaIndex].image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                        .blur(radius: 40)
+                        .overlay(Color.black.opacity(0.4))
+                        .ignoresSafeArea()
                 }
             }
-            .padding()
-            .background(
-                colorScheme == .dark 
-                    ? Color.black
-                    : Color.white
-            )
-        }
-        .background(
-            colorScheme == .dark 
-                ? Color.black
-                : Color.white
         )
         .sheet(isPresented: $showingCropView) {
             if currentMediaIndex < selectedMediaItems.count {
                 // ✅ MEJORADO: Usar el aspect ratio recomendado si el usuario no ha seleccionado uno manualmente
                 let currentAspectRatio = selectedMediaItems[currentMediaIndex].aspectRatio
-                let aspectRatioToUse = currentAspectRatio == .square && recommendedAspectRatio != .square 
-                    ? recommendedAspectRatio 
+                let aspectRatioToUse = currentAspectRatio == .square && recommendedAspectRatio != .square
+                    ? recommendedAspectRatio
                     : currentAspectRatio
                 
                 CropViewWrapper(
@@ -2178,17 +2524,107 @@ struct MediaEditingView: View {
                     selectedMediaItems[currentMediaIndex].image = croppedImage
                     selectedMediaItems[currentMediaIndex].aspectRatio = newAspectRatio
                     selectedMediaItems[currentMediaIndex].hasEdits = true
+                    // ✅ Reset filter task and applied filters if needed when image changes
+                    updatePreviewTask()
                 }
             }
         }
-        .sheet(isPresented: $showingFilterView) {
-            FilterSelectionView(
-                image: selectedMediaItems[currentMediaIndex].image,
-                currentFilter: appliedFilters[selectedMediaItems[currentMediaIndex].id]
-            ) { filterSettings in
-                appliedFilters[selectedMediaItems[currentMediaIndex].id] = filterSettings
-                selectedMediaItems[currentMediaIndex].hasEdits = true
-                // Apply filter to image
+    }
+    
+    // MARK: - Filter Logic Integration
+    
+    private func enterFilterMode() {
+        guard currentMediaIndex < selectedMediaItems.count else { return }
+        let currentItem = selectedMediaItems[currentMediaIndex]
+        
+        // Cargar ajustes actuales si existen
+        if let settings = appliedFilters[currentItem.id],
+           let type = FilterService.FilterType(rawValue: settings.name) {
+            tempFilterType = type
+            tempFilterIntensity = settings.intensity
+        } else {
+            tempFilterType = .normal
+            tempFilterIntensity = 1.0
+        }
+        
+        withAnimation(.spring()) {
+            showingFilterToolbar = true
+        }
+        updatePreviewTask()
+    }
+    
+    private func cancelFilter() {
+        filterTask?.cancel()
+        withAnimation(.spring()) {
+            showingFilterToolbar = false
+            previewImage = nil
+        }
+    }
+    
+    private func applyFilter() {
+        guard currentMediaIndex < selectedMediaItems.count else { return }
+        let currentItemId = selectedMediaItems[currentMediaIndex].id
+        
+        // Guardar ajustes
+        let settings = FilterSettings(name: tempFilterType.rawValue, intensity: tempFilterIntensity)
+        appliedFilters[currentItemId] = settings
+        
+        // Aplicar permanentemente a la imagen de la lista si no es normal
+        if let preview = previewImage {
+            selectedMediaItems[currentMediaIndex].image = preview
+            selectedMediaItems[currentMediaIndex].hasEdits = true
+        }
+        
+        withAnimation(.spring()) {
+            showingFilterToolbar = false
+            previewImage = nil
+        }
+    }
+    
+    private func updatePreviewTask() {
+        guard currentMediaIndex < selectedMediaItems.count else { return }
+        let baseImage = selectedMediaItems[currentMediaIndex].image
+        
+        filterTask?.cancel()
+        
+        if tempFilterType == .normal {
+            previewImage = nil
+            return
+        }
+        
+        filterTask = Task.detached(priority: .userInitiated) {
+            let filtered = FilterService.shared.applyFilter(tempFilterType, to: baseImage, intensity: tempFilterIntensity)
+            
+            if !Task.isCancelled {
+                await MainActor.run {
+                    withAnimation(.linear(duration: 0.1)) {
+                        self.previewImage = filtered
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Media Stack Preview
+struct MediaStackPreview: View {
+    let items: [CreatorMedia]
+    
+    var body: some View {
+        ZStack {
+            ForEach(Array(items.prefix(3).enumerated().reversed()), id: \.element.id) { index, item in
+                Image(uiImage: item.image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 100, height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    .rotationEffect(.degrees(Double(index) * 3))
+                    .offset(x: CGFloat(index) * 4, y: CGFloat(index) * 2)
             }
         }
     }
@@ -2196,7 +2632,7 @@ struct MediaEditingView: View {
 
 // MARK: - Caption and Details View
 struct CaptionAndDetailsView: View {
-    @Binding var selectedMediaItems: [ProcessedMedia]
+    @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var captionText: String
     @Binding var taggedUsers: [String]
     @Binding var selectedLocation: CLLocationCoordinate2D?
@@ -2204,6 +2640,12 @@ struct CaptionAndDetailsView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     
+    // Total tags across all media
+    private var totalTagsCount: Int {
+        selectedMediaItems.reduce(0) { $0 + ($1.tags?.count ?? 0) }
+    }
+    
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var uploadService = BackgroundMomentUploadService.shared
     
     @State private var isPublishing = false
@@ -2211,6 +2653,17 @@ struct CaptionAndDetailsView: View {
     @State private var showingLocationPicker = false
     @State private var showingAudience = false
     @State private var audienceSetting: AudienceSetting = .everyone
+    @State private var customViewers: [String] = []
+    @State private var customListId: String? = nil
+    
+    // Interaction Settings (from AdvancedSettingsView)
+    @AppStorage("disableComments") private var disableComments = false
+    @AppStorage("hideLikeCounts") private var hideLikeCounts = false
+    @AppStorage("allowSharing") private var allowSharing = true
+    
+    // Scheduling (New)
+    @State private var isSchedulingEnabled = false
+    @State private var scheduledDate = Date().addingTimeInterval(3600) // Default to 1 hour from now
     
     // New variables for custom lists
     @State private var selectedListId: String?
@@ -2218,6 +2671,10 @@ struct CaptionAndDetailsView: View {
     @State private var customSelectedUsers: [String] = []
     
     @FocusState private var isCaptionFocused: Bool
+    @State private var isLaunching = false // 🔥 Control para la animación de lanzamiento
+    @State private var isPreviewingMedia = false
+    @State private var showingTagSelector = false
+    @State private var currentMediaTagIndex = 0
     
     enum AudienceSetting {
         case everyone
@@ -2225,6 +2682,7 @@ struct CaptionAndDetailsView: View {
         case admirers
         case bestFriends
         case custom
+        case onlyMe
         
         var title: String {
             switch self {
@@ -2233,6 +2691,7 @@ struct CaptionAndDetailsView: View {
             case .admirers: return NSLocalizedString("audience.type.connections", comment: "Connections audience type (admirers maps to connections)")
             case .bestFriends: return NSLocalizedString("audience.type.bestFriends", comment: "Best friends audience type")
             case .custom: return NSLocalizedString("audience.type.custom", comment: "Custom audience type")
+            case .onlyMe: return NSLocalizedString("audience.type.onlyMe", comment: "Only me audience type")
             }
         }
         
@@ -2243,6 +2702,7 @@ struct CaptionAndDetailsView: View {
             case .admirers: return "person.3"
             case .bestFriends: return "star"
             case .custom: return "gearshape"
+            case .onlyMe: return "lock.fill"
             }
         }
     }
@@ -2255,13 +2715,16 @@ struct CaptionAndDetailsView: View {
         case .admirers: return .connections
         case .bestFriends: return .bestFriends
         case .custom: return selectedListId != nil ? .customList : .custom
+        case .onlyMe: return .onlyMe
         }
     }
     
     var body: some View {
         NavigationView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                // 1. Immersive Background (Mosaic Blur)
+                SelectedMediaBlurView(mediaItems: selectedMediaItems)
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // Header
@@ -2282,137 +2745,238 @@ struct CaptionAndDetailsView: View {
                         
                         Spacer()
                         
-                        Button(action: {
+                        GlowSharePill(title: "creator.share", isLoading: isPublishing, action: {
                             publishMoment()
-                        }) {
-                            if isPublishing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .tint(.white)
-                            } else {
-                                Text("creator.share")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                        .disabled(isPublishing)
+                        })
                     }
                     .padding()
-                    .background(Color.black)
+
                     
                     ScrollView {
-                        VStack(spacing: 0) {
-                            // Caption section
-                            HStack(alignment: .top, spacing: 12) {
-                                // Media preview
-                                if let firstMedia = selectedMediaItems.first {
-                                    Image(uiImage: firstMedia.image)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 65, height: 65)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        VStack(spacing: 15) { // Tight spacing to bring options right under
+                            
+                            // SECTION 1: Caption & Media Preview
+                            HStack(alignment: .top, spacing: 30) { // Aumentado spacing de 20 a 30
+                                // Media Preview with "Press to Unfold" gesture
+                                ZStack {
+                                    MediaStackPreview(items: selectedMediaItems)
+                                        .frame(width: 100, height: 150)
+                                        .contentShape(Rectangle())
+                                        .scaleEffect(isPreviewingMedia ? 0.95 : 1.0)
+                                        .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                isPreviewingMedia = isPressing
+                                            }
+                                        }) {
+                                            // Action on complete
+                                        }
+                                    
+                                    // Helper hint
+                                    if !isPreviewingMedia {
+                                        Text("creator.media_preview.hint")
+                                            .font(.system(size: 8, weight: .bold)) // Un poco más pequeño y bold para legibilidad
+                                            .foregroundColor(.white.opacity(0.7))
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 3)
+                                            .background(.ultraThinMaterial)
+                                            .cornerRadius(6)
+                                            .offset(y: 60) // Bajado de 50 a 60 para que tape menos la imagen
+                                            .allowsHitTesting(false)
+                                    }
                                 }
                                 
-                                // Caption input
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ZStack(alignment: .topLeading) {
-                                        TextEditor(text: $captionText)
-                                            .font(.system(size: 16))
-                                            .foregroundColor(.white)
-                                            .scrollContentBackground(.hidden)
-                                            .background(Color.clear)
-                                            .frame(minHeight: 80)
-                                            .focused($isCaptionFocused)
-                                        
-                                        if captionText.isEmpty {
-                                            Text("creator.caption.placeholder")
-                                                .font(.system(size: 16))
-                                                .foregroundColor(.gray)
-                                                .padding(.top, 8)
-                                                .padding(.leading, 4)
-                                                .allowsHitTesting(false)
-                                        }
+                                // Caption Input
+                                ZStack(alignment: .topLeading) {
+                                    if captionText.isEmpty {
+                                        Text("creator.caption.placeholder")
+                                            .foregroundColor(.white.opacity(0.6))
+                                            .padding(.top, 8)
                                     }
                                     
-                                    if selectedMediaItems.count > 1 {
-                                        Text(String(format: NSLocalizedString("creator.files.selected.count", comment: "Files selected count"), selectedMediaItems.count))
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                    }
+                                    TextEditor(text: $captionText)
+                                        .scrollContentBackground(.hidden)
+                                        .foregroundColor(.white)
+                                        .frame(minHeight: 120) // Restored a bit of height
+                                        .tint(.white)
+                                        .focused($isCaptionFocused)
                                 }
-                                .frame(maxWidth: .infinity)
+                                .padding(.top, 4) // Tight top-only padding
                             }
-                            .padding()
+                            .padding(.horizontal)
+                            .padding(.top, 10) // Tighter top spacing from header
                             
-                            Divider()
-                                .background(Color.gray.opacity(0.3))
-                            
-                            // Options
+                            // SECTION 2: Options List
                             VStack(spacing: 0) {
                                 // Tag people
-                                OptionRow(
+                                MinimalOptionRow(
                                     icon: "person.crop.circle.badge.plus",
-                                    title: "Etiquetar personas",
-                                    value: taggedUsers.isEmpty ? nil : "\(taggedUsers.count) personas"
+                                    title: NSLocalizedString("creator.tagPeople", comment: "Tag people"),
+                                    value: totalTagsCount == 0 ? nil : String.localizedStringWithFormat(NSLocalizedString("audience.people.count", comment: ""), totalTagsCount)
                                 ) {
-                                    showingUserSearch = true
+                                    showingTagSelector = true
                                 }
                                 
+                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                
                                 // Add location
-                                OptionRow(
+                                MinimalOptionRow(
                                     icon: "location",
-                                    title: "Añadir ubicación",
+                                    title: NSLocalizedString("creator.addLocation", comment: "Add location"),
                                     value: locationName.isEmpty ? nil : locationName
                                 ) {
                                     showingLocationPicker = true
                                 }
                                 
-                                // Audience - ✅ ACTUALIZADO para mostrar lista personalizada
-                                OptionRow(
+                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                
+                                // Audience
+                                MinimalOptionRow(
                                     icon: getAudienceIcon(),
-                                    title: "Audiencia",
+                                    title: NSLocalizedString("audience.title", comment: "Audience title"),
                                     value: getAudienceText()
                                 ) {
                                     showingAudience = true
                                 }
                                 
-                                // Advanced settings
-                                NavigationLink(destination: AdvancedSettingsView()) {
+                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                
+                                // Advanced settings removed (moved to quick access)
+                            }
+                            .padding(.top, 10) // Pull options closer to preview
+                            
+                            // SECTION 3: Interaction Settings (Quick Access)
+                            VStack(spacing: 0) {
+                                Text("creator.interactions.title")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.leading, 16)
+                                    .padding(.bottom, 8)
+                                
+                                MinimalToggleRow(
+                                    icon: "bubble.left.and.bubble.right",
+                                    title: NSLocalizedString("creator.interactions.disableComments", comment: ""),
+                                    isOn: $disableComments
+                                )
+                                
+                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                
+                                MinimalToggleRow(
+                                    icon: "heart.slash",
+                                    title: NSLocalizedString("creator.visualization.hideReactions", comment: ""),
+                                    isOn: $hideLikeCounts
+                                )
+                                
+                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                
+                                MinimalToggleRow(
+                                    icon: "square.and.arrow.up",
+                                    title: NSLocalizedString("creator.interactions.allowSharing", comment: ""),
+                                    isOn: $allowSharing
+                                )
+                            }
+                            .padding(.top, 25)
+                            
+                            // SECTION 4: Scheduling
+                            VStack(spacing: 0) {
+                                Text("creator.scheduling.title")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.leading, 16)
+                                    .padding(.bottom, 8)
+                                
+                                MinimalToggleRow(
+                                    icon: "calendar.badge.clock",
+                                    title: NSLocalizedString("creator.scheduling.enable", comment: ""),
+                                    isOn: $isSchedulingEnabled
+                                )
+                                
+                                if isSchedulingEnabled {
+                                    Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                    
                                     HStack {
-                                        Image(systemName: "gearshape")
-                                            .foregroundColor(.white)
-                                            .frame(width: 30)
+                                        Image(systemName: "clock")
+                                            .foregroundColor(.white.opacity(0.7))
+                                            .frame(width: 24)
                                         
-                                        Text("creator.advancedSettings")
-                                            .foregroundColor(.white)
+                                        DatePicker(
+                                            NSLocalizedString("creator.scheduling.date", comment: ""),
+                                            selection: $scheduledDate,
+                                            in: Date()...,
+                                            displayedComponents: [.date, .hourAndMinute]
+                                        )
+                                        .colorScheme(.dark)
+                                        .accentColor(.pink)
+                                        .labelsHidden()
                                         
                                         Spacer()
                                         
-                                        Image(systemName: "chevron.right")
-                                            .foregroundColor(.gray)
-                                            .font(.caption)
+                                        Text(scheduledDate.formatted())
+                                            .font(.subheadline)
+                                            .foregroundColor(.white.opacity(0.7))
                                     }
-                                    .padding()
-                                    .background(Color.gray.opacity(0.1))
+                                    .padding(.vertical, 12)
+                                    .padding(.horizontal, 16)
                                 }
                             }
+                            .padding(.top, 25)
+                            .padding(.bottom, 30) // Extra bottom padding for the scroll
                         }
                     }
                 }
-                
-                if isPublishing {
-                    Color.black.opacity(0.5)
-                        .ignoresSafeArea()
-                    
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                            .tint(.white)
+
+                    if isPublishing && !isLaunching {
+                        Color.black.opacity(0.6)
+                            .ignoresSafeArea()
                         
-                        Text("creator.publishing")
-                            .foregroundColor(.white)
+                        VStack(spacing: 20) {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                                .tint(.white)
+                            
+                            Text("creator.publishing")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
                     }
-                }
+                    
+                    // 🔥 OVERLAY DE LANZAMIENTO (Cinematic Handoff)
+                    if isLaunching {
+                        ZStack {
+                            Color.black.ignoresSafeArea()
+                            
+                            VStack(spacing: 24) {
+                                Text(NSLocalizedString("creator.uploading.success_fly", comment: "Successfully shared"))
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .transition(.opacity)
+                    }
+                    
+                    // Full Screen Media Preview Overlay
+                    if isPreviewingMedia {
+                        Color.black.opacity(0.6)
+                            .ignoresSafeArea()
+                            .transition(.opacity)
+                            .zIndex(99)
+                        
+                        TabView {
+                            ForEach(selectedMediaItems) { item in
+                                Image(uiImage: item.image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .cornerRadius(20)
+                                    .padding()
+                                    .shadow(radius: 20)
+                            }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .always))
+                        .frame(height: 500)
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                        .zIndex(100)
+                    }
             }
             .navigationBarHidden(true)
         }
@@ -2426,7 +2990,6 @@ struct CaptionAndDetailsView: View {
             )
         }
         .sheet(isPresented: $showingAudience) {
-            // ✅ USAR EL SELECTOR MEJORADO
             AudienceSelectionView(
                 selectedAudience: convertToContentAudience(),
                 selectedListId: $selectedListId,
@@ -2434,13 +2997,127 @@ struct CaptionAndDetailsView: View {
                 customSelectedUsers: $customSelectedUsers
             )
             .onDisappear {
-                // Actualizar audienceSetting basado en la selección
                 updateAudienceSetting()
+            }
+            .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $showingTagSelector) {
+            if !selectedMediaItems.isEmpty {
+                PhotoTagSelectionView(mediaItem: $selectedMediaItems[currentMediaTagIndex])
             }
         }
     }
     
-    // ✅ NUEVAS FUNCIONES AUXILIARES
+    // ✅ FUNCIÓN ACTUALIZADA: Publicar momento con soporte para listas
+    private func publishMoment() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        isPublishing = true
+        
+        // Use local properties (managed by @AppStorage)
+        let finalDisableComments = disableComments
+        let finalHideLikeCounts = hideLikeCounts
+        let finalAllowSharing = allowSharing
+        let finalScheduledDate = isSchedulingEnabled ? scheduledDate : nil
+        
+        
+        // ✅ MEJORADO: Detectar aspect ratio del primer media item, priorizando el recomendado (detectado automáticamente)
+        var detectedAspectRatio = "1:1" // Default
+        if let firstMedia = selectedMediaItems.first {
+            // ✅ PRIORIDAD: Usar el aspect ratio recomendado si está disponible y es diferente de cuadrado
+            // Esto asegura que el aspect ratio detectado automáticamente se use incluso si el usuario no interactuó
+            if let recommended = firstMedia.recommendedAspectRatio, recommended != .square {
+                detectedAspectRatio = recommended.displayName
+            } else if firstMedia.aspectRatio != .square {
+                // Si no hay recomendado pero el actual no es cuadrado, usar el actual
+                detectedAspectRatio = firstMedia.aspectRatio.displayName
+            } else {
+                // Si ambos son cuadrado, verificar si realmente debería ser cuadrado detectando de nuevo
+                let imageRatio = firstMedia.image.size.width / firstMedia.image.size.height
+                let reDetected = CreatorMedia.AspectRatio.fromRatio(imageRatio)
+                if reDetected != .square {
+                    detectedAspectRatio = reDetected.displayName
+                } else {
+                    detectedAspectRatio = "1:1" // Realmente es cuadrado
+                }
+            }
+        }
+        
+        // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
+        // Combinar etiquetas espaciales con la lista legacy para notificaciones y búsquedas
+        let spatialTaggedUsers = selectedMediaItems.flatMap { $0.tags ?? [] }.map { $0.userId }
+        let allTaggedUsers = Array(Set(taggedUsers + spatialTaggedUsers))
+        
+        let uploadingMoment = uploadService.uploadMoment(
+            content: captionText,
+            mediaItems: selectedMediaItems,
+            taggedUsers: allTaggedUsers.isEmpty ? nil : allTaggedUsers,
+            location: locationName.isEmpty ? nil : locationName,
+            locationCoordinate: selectedLocation != nil ? Moment.LocationCoordinate(
+                latitude: selectedLocation!.latitude,
+                longitude: selectedLocation!.longitude
+            ) : nil,  // ✅ NUEVO: Convertir coordenadas a LocationCoordinate
+            audienceSetting: audienceSetting,
+            customViewers: customSelectedUsers.isEmpty ? nil : customSelectedUsers,
+            customListId: selectedListId,
+            aspectRatio: detectedAspectRatio,
+            disableComments: finalDisableComments,
+            hideLikeCounts: finalHideLikeCounts,
+            allowSharing: finalAllowSharing,
+            scheduledDate: finalScheduledDate
+        )
+        
+        // 🔥 CERRAR PANTALLA CON ANIMACIÓN CINEMÁTICA
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            self.isLaunching = true
+        }
+        
+        hapticNotification(.success)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            self.isPublishing = false
+            self.showCreatorView = false
+            
+            if uploadingMoment != nil {
+                // 🧹 Limpiar formulario para próximo uso
+                self.resetForm()
+                
+                // 📊 Analytics
+                AnalyticsService.shared.trackInteraction("moment_published_background", details: [
+                    "mediaCount": selectedMediaItems.count,
+                    "hasCaption": !captionText.isEmpty,
+                    "hasLocation": !locationName.isEmpty,
+                    "audienceType": audienceSetting.title
+                ])
+                
+            } else {
+                // ❌ Feedback háptico de error
+                let notificationFeedback = UINotificationFeedbackGenerator()
+                notificationFeedback.notificationOccurred(.error)
+                
+                // Revertir estado si falló el inicio del servicio
+                withAnimation {
+                    self.isLaunching = false
+                }
+            }
+        }
+    }
+    
+    // 🧹 NUEVA FUNCIÓN: Limpiar formulario después de publicar
+    private func resetForm() {
+        captionText = ""
+        taggedUsers = []
+        locationName = ""
+        selectedLocation = nil
+        customSelectedUsers = []
+        selectedListId = nil
+        selectedListName = nil
+        audienceSetting = .everyone
+    }
+
+    // MediaStackPreview eliminado (reemplazado por imagen grande inline)
+    
+    // ✅ FUNCIONES AUXILIARES RESTAURADAS
     private func getAudienceIcon() -> String {
         if audienceSetting == .custom && selectedListId != nil {
             return "list.bullet.rectangle"
@@ -2469,6 +3146,7 @@ struct CaptionAndDetailsView: View {
                 case .bestFriends: return .bestFriends
                 case .custom:
                     return selectedListId != nil ? .customList : .custom
+                case .onlyMe: return .onlyMe
                 }
             },
             set: { newValue in
@@ -2478,7 +3156,7 @@ struct CaptionAndDetailsView: View {
                 case .bestFriends: audienceSetting = .bestFriends
                 case .custom: audienceSetting = .custom
                 case .customList: audienceSetting = .custom
-                case .onlyMe: audienceSetting = .everyone // Fallback
+                case .onlyMe: audienceSetting = .onlyMe
                 }
             }
         )
@@ -2488,109 +3166,95 @@ struct CaptionAndDetailsView: View {
         // Esta función se llama cuando el sheet se cierra
         // La lógica ya está manejada por los bindings
     }
+
+    private func hapticNotification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(type)
+    }
+
+    // MARK: - 📍 MINIMAL OPTION ROW (Clean Design)
     
-    // ✅ FUNCIÓN ACTUALIZADA: Publicar momento con soporte para listas
-    private func publishMoment() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    struct MinimalOptionRow: View {
+        let icon: String
+        let title: String
+        let value: String?
+        let action: () -> Void
         
-        isPublishing = true
-        
-        let disableComments = UserDefaults.standard.object(forKey: "disableComments") as? Bool ?? false
-        let hideLikeCounts = UserDefaults.standard.object(forKey: "hideLikeCounts") as? Bool ?? false
-        let allowSharing = UserDefaults.standard.object(forKey: "allowSharing") as? Bool ?? true
-        
-        
-        // ✅ MEJORADO: Detectar aspect ratio del primer media item, priorizando el recomendado (detectado automáticamente)
-        var detectedAspectRatio = "1:1" // Default
-        if let firstMedia = selectedMediaItems.first {
-            // ✅ PRIORIDAD: Usar el aspect ratio recomendado si está disponible y es diferente de cuadrado
-            // Esto asegura que el aspect ratio detectado automáticamente se use incluso si el usuario no interactuó
-            if let recommended = firstMedia.recommendedAspectRatio, recommended != .square {
-                detectedAspectRatio = recommended.displayName
-            } else if firstMedia.aspectRatio != .square {
-                // Si no hay recomendado pero el actual no es cuadrado, usar el actual
-                detectedAspectRatio = firstMedia.aspectRatio.displayName
-            } else {
-                // Si ambos son cuadrado, verificar si realmente debería ser cuadrado detectando de nuevo
-                let imageRatio = firstMedia.image.size.width / firstMedia.image.size.height
-                let reDetected = ProcessedMedia.AspectRatio.fromRatio(imageRatio)
-                if reDetected != .square {
-                    detectedAspectRatio = reDetected.displayName
-                } else {
-                    detectedAspectRatio = "1:1" // Realmente es cuadrado
-                }
+        var body: some View {
+            Button(action: action) {
+                MinimalOptionRowContent(icon: icon, title: title, value: value)
             }
+            .pressAnimation()
         }
+    }
+
+    struct MinimalToggleRow: View {
+        let icon: String
+        let title: String
+        @Binding var isOn: Bool
         
-        
-        // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
-        let uploadingMoment = uploadService.uploadMoment(
-            content: captionText,
-            mediaItems: selectedMediaItems,
-            taggedUsers: taggedUsers.isEmpty ? nil : taggedUsers,
-            location: locationName.isEmpty ? nil : locationName,
-            locationCoordinate: selectedLocation != nil ? Moment.LocationCoordinate(
-                latitude: selectedLocation!.latitude,
-                longitude: selectedLocation!.longitude
-            ) : nil,  // ✅ NUEVO: Convertir coordenadas a LocationCoordinate
-            audienceSetting: audienceSetting,
-            customViewers: customSelectedUsers.isEmpty ? nil : customSelectedUsers,
-            customListId: selectedListId,
-            aspectRatio: detectedAspectRatio,
-            disableComments: disableComments,
-            hideLikeCounts: hideLikeCounts,
-            allowSharing: allowSharing
-        )
-        
-        // 🔥 CERRAR PANTALLA INMEDIATAMENTE
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            self.isPublishing = false
-            self.showCreatorView = false
-            
-            if uploadingMoment != nil {
+        var body: some View {
+            HStack(spacing: 16) {
+                // Icon
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+                    .frame(width: 32)
                 
-                // 🎉 Feedback háptico de éxito
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.impactOccurred()
+                Text(title)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
                 
-                // 🧹 Limpiar formulario para próximo uso
-                self.resetForm()
+                Spacer()
                 
-                // 📊 Analytics
-                AnalyticsService.shared.trackInteraction("moment_published_background", details: [
-                    "mediaCount": selectedMediaItems.count,
-                    "hasCaption": !captionText.isEmpty,
-                    "hasLocation": !locationName.isEmpty,
-                    "audienceType": audienceSetting.title
-                ])
-                
-            } else {
-                
-                // ❌ Feedback háptico de error
-                let notificationFeedback = UINotificationFeedbackGenerator()
-                notificationFeedback.notificationOccurred(.error)
-                
-                // Mostrar error (opcional)
-                // Podrías agregar una alerta aquí si quieres
+                Toggle("", isOn: $isOn)
+                    .labelsHidden()
+                    .tint(.pink)
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
     }
     
-    // 🧹 NUEVA FUNCIÓN: Limpiar formulario después de publicar
-    private func resetForm() {
-        captionText = ""
-        taggedUsers = []
-        locationName = ""
-        selectedLocation = nil
-        customSelectedUsers = []
-        selectedListId = nil
-        selectedListName = nil
-        audienceSetting = .everyone
+    struct MinimalOptionRowContent: View {
+        let icon: String
+        let title: String
+        let value: String?
         
+        var body: some View {
+            HStack(spacing: 16) {
+                // Icon
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+                    .frame(width: 32)
+                
+                Text(title)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                if let value = value {
+                    Text(value)
+                        .font(.system(size: 15))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle()) // Full width tap area
+        }
     }
 }
 
-extension ProcessedMedia.AspectRatio {
+extension CreatorMedia.AspectRatio {
     // ✅ NUEVO: Inicializar desde string guardado en Firestore
     init(from string: String?) {
         switch string {
@@ -2608,7 +3272,7 @@ extension ProcessedMedia.AspectRatio {
 
 // MARK: - Story Camera View
 struct StoryCameraView: View {
-    @Binding var selectedMediaItems: [ProcessedMedia]
+    @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     
@@ -2842,7 +3506,7 @@ struct StoryCameraView: View {
     }
     
     private func handleCapturedImage(_ image: UIImage) {
-        let processedMedia = ProcessedMedia(
+        let processedMedia = CreatorMedia(
             id: UUID().uuidString,
             image: image,
             videoURL: nil,
@@ -2866,7 +3530,7 @@ struct StoryCameraView: View {
                 let thumbnail = UIImage(cgImage: cgImage)
                 
                 await MainActor.run {
-                    let processedMedia = ProcessedMedia(
+                    let processedMedia = CreatorMedia(
                         id: UUID().uuidString,
                         image: thumbnail,
                         videoURL: videoURL,
@@ -3200,12 +3864,12 @@ class CameraPreviewView: UIView {
 // MARK: - Crop View Implementation
 struct CropViewWrapper: UIViewControllerRepresentable {
     let image: UIImage
-    let aspectRatio: ProcessedMedia.AspectRatio
+    let aspectRatio: CreatorMedia.AspectRatio
     let allowFreeCrop: Bool // ✅ NUEVO: Permitir crop libre (no bloquear ratio)
-    let onComplete: (UIImage, ProcessedMedia.AspectRatio) -> Void
+    let onComplete: (UIImage, CreatorMedia.AspectRatio) -> Void
     @Environment(\.dismiss) private var dismiss
     
-    init(image: UIImage, aspectRatio: ProcessedMedia.AspectRatio, allowFreeCrop: Bool = false, onComplete: @escaping (UIImage, ProcessedMedia.AspectRatio) -> Void) {
+    init(image: UIImage, aspectRatio: CreatorMedia.AspectRatio, allowFreeCrop: Bool = false, onComplete: @escaping (UIImage, CreatorMedia.AspectRatio) -> Void) {
         self.image = image
         self.aspectRatio = aspectRatio
         self.allowFreeCrop = allowFreeCrop
@@ -3282,11 +3946,11 @@ struct CropViewWrapper: UIViewControllerRepresentable {
         
         func cropViewController(_ cropViewController: TOCropViewController, didCropTo image: UIImage, with cropRect: CGRect, angle: Int) {
             // ✅ NUEVO: Si allowFreeCrop es true, detectar el aspect ratio final de la imagen recortada
-            let finalAspectRatio: ProcessedMedia.AspectRatio
+            let finalAspectRatio: CreatorMedia.AspectRatio
             if parent.allowFreeCrop {
                 // Detectar el aspect ratio de la imagen recortada
                 let imageRatio = image.size.width / image.size.height
-                finalAspectRatio = ProcessedMedia.AspectRatio.fromRatio(imageRatio)
+                finalAspectRatio = CreatorMedia.AspectRatio.fromRatio(imageRatio)
             } else {
                 // Usar el aspect ratio que estaba bloqueado
                 finalAspectRatio = parent.aspectRatio
@@ -3303,227 +3967,68 @@ struct CropViewWrapper: UIViewControllerRepresentable {
 }
 // MARK: - Filter Selection Implementation
 
-struct FilterSelectionView: View {
-    let image: UIImage
-    let currentFilter: FilterSettings?
-    let onSelect: (FilterSettings) -> Void
-    @Environment(\.dismiss) private var dismiss
-    
-    @State private var selectedFilter: FilterType = .original
-    @State private var filterIntensity: Double = 1.0
-    @State private var previewIntensity: Double = 1.0 // ✅ NUEVO: Valor para el preview (se actualiza con debounce)
-    @State private var intensityUpdateTask: Task<Void, Never>? // ✅ NUEVO: Task para cancelar actualizaciones pendientes
-    
-    enum FilterType: String, CaseIterable {
-        case original = "Original"
-        case clarendon = "Clarendon"
-        case gingham = "Gingham"
-        case moon = "Moon"
-        case lark = "Lark"
-        case reyes = "Reyes"
-        case juno = "Juno"
-        case slumber = "Slumber"
-        case crema = "Crema"
-        case ludwig = "Ludwig"
-        case aden = "Aden"
-        case perpetua = "Perpetua"
-        
-        var ciFilterName: String? {
-            switch self {
-            case .original: return nil
-            case .clarendon: return "CIPhotoEffectChrome"
-            case .gingham: return "CIPhotoEffectTransfer"
-            case .moon: return "CIPhotoEffectTonal"
-            case .lark: return "CIPhotoEffectProcess"
-            case .reyes: return "CIPhotoEffectFade"
-            case .juno: return "CIVignetteEffect"
-            case .slumber: return "CIPhotoEffectInstant"
-            case .crema: return "CISepiaTone"
-            case .ludwig: return "CIPhotoEffectNoir"
-            case .aden: return "CIColorMonochrome"
-            case .perpetua: return "CIPhotoEffectMono"
-            }
-        }
-    }
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Preview
-                ZStack {
-                    Color.black
-                    
-                    Image(uiImage: applyFilter(to: image, intensity: previewIntensity))
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
-                }
-                
-                // Intensity slider
-                if selectedFilter != .original {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("creator.intensity")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        
-                        HStack {
-                            Text("0")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                            
-                            Slider(value: $filterIntensity, in: 0...1)
-                                .tint(.white)
-                                .onChange(of: filterIntensity) { newValue in
-                                    // ✅ MEJORADO: Cancelar actualización anterior
-                                    intensityUpdateTask?.cancel()
-                                    
-                                    // ✅ MEJORADO: Actualizar preview con un pequeño delay para mejor rendimiento
-                                    intensityUpdateTask = Task {
-                                        try? await Task.sleep(nanoseconds: 16_000_000) // ~16ms (60fps)
-                                        if !Task.isCancelled {
-                                            await MainActor.run {
-                                                previewIntensity = newValue
-                                            }
-                                        }
-                                    }
-                                }
-                            
-                            Text("100")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .padding()
-                    .background(Color.black.opacity(0.5))
-                }
-                
-                // Filter options
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 15) {
-                        ForEach(FilterType.allCases, id: \.self) { filter in
-                            FilterOption(
-                                image: image,
-                                filter: filter,
-                                isSelected: selectedFilter == filter
-                            ) {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedFilter = filter
-                                    if filter == .original {
-                                        filterIntensity = 1.0
-                                        previewIntensity = 1.0
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding()
-                }
-                .background(Color.black)
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Aplicar") {
-                        let settings = FilterSettings(
-                            name: selectedFilter.rawValue,
-                            intensity: filterIntensity
-                        )
-                        onSelect(settings)
-                        dismiss()
-                    }
-                    .foregroundColor(.blue)
-                    .fontWeight(.semibold)
-                }
-            }
-            .toolbarBackground(Color.black, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-        }
-        .presentationDetents([.large])
-    }
-    
-    private func applyFilter(to inputImage: UIImage, intensity: Double? = nil) -> UIImage {
-        guard selectedFilter != .original,
-              let ciImage = CIImage(image: inputImage),
-              let filterName = selectedFilter.ciFilterName else {
-            return inputImage
-        }
-        
-        let filter = CIFilter(name: filterName)
-        filter?.setValue(ciImage, forKey: kCIInputImageKey)
-        
-        // ✅ MEJORADO: Usar el intensity pasado como parámetro o el del estado
-        let intensityValue = intensity ?? filterIntensity
-        
-        // Apply intensity for certain filters
-        if filterName == "CISepiaTone" || filterName == "CIColorMonochrome" {
-            filter?.setValue(intensityValue, forKey: kCIInputIntensityKey)
-        }
-        
-        guard let outputImage = filter?.outputImage else { return inputImage }
-        
-        // ✅ MEJORADO: Usar un contexto optimizado para mejor rendimiento
-        let context = CIContext(options: [.useSoftwareRenderer: false])
-        guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
-            return inputImage
-        }
-        
-        return UIImage(cgImage: cgImage)
-    }
-}
-
 struct FilterOption: View {
     let image: UIImage
-    let filter: FilterSelectionView.FilterType
+    let filter: FilterService.FilterType
     let isSelected: Bool
     let onTap: () -> Void
+    
+    @State private var previewImage: UIImage? = nil
     
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 8) {
                 ZStack {
-                    Image(uiImage: applyFilterThumbnail())
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
-                        )
+                    if let preview = previewImage {
+                        Image(uiImage: preview)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 80, height: 100) // Changed to 100 height for standard filter look
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    } else {
+                        Color.gray.opacity(0.2)
+                            .frame(width: 80, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                LinearGradient(colors: [.purple, .pink, .orange], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                lineWidth: 2
+                            )
+                            .frame(width: 80, height: 100) // Fix size of border
+                    }
                 }
+                .frame(width: 80, height: 100) // Constrain ZStack height
+                .shadow(color: isSelected ? .pink.opacity(0.3) : .clear, radius: 8)
                 
                 Text(filter.rawValue)
-                    .font(.caption)
+                    .font(.system(size: 11, weight: isSelected ? .bold : .medium))
                     .foregroundColor(isSelected ? .white : .gray)
             }
         }
+        .onAppear {
+            generatePreview()
+        }
     }
     
-    private func applyFilterThumbnail() -> UIImage {
-        guard filter != .original,
-              let ciImage = CIImage(image: image),
-              let filterName = filter.ciFilterName,
-              let ciFilter = CIFilter(name: filterName) else {
-            return image
+    private func generatePreview() {
+        // Generate a small thumbnail for the carousel to save memory
+        let size = CGSize(width: 100, height: 120) // Swapped to match new aspect ratio
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let thumb = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
         }
         
-        ciFilter.setValue(ciImage, forKey: kCIInputImageKey)
-        
-        guard let outputImage = ciFilter.outputImage else { return image }
-        
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
-            return image
+        Task.detached(priority: .background) {
+            let filtered = FilterService.shared.applyFilterToThumbnail(filter, to: thumb)
+            await MainActor.run {
+                withAnimation {
+                    self.previewImage = filtered
+                }
+            }
         }
-        
-        return UIImage(cgImage: cgImage)
     }
 }
 
@@ -3837,7 +4342,7 @@ struct LocationPickerView: View {
                     .disabled(isRequestingLocation)
                     
                     // Botón para actualizar ubicación si ya tenemos permisos
-                    if locationManager.authorizationStatus == .authorizedWhenInUse || 
+                    if locationManager.authorizationStatus == .authorizedWhenInUse ||
                        locationManager.authorizationStatus == .authorizedAlways {
                         Button(action: {
                             updateCurrentLocationAndNearbyPlaces()
@@ -3970,7 +4475,7 @@ struct LocationPickerView: View {
         showingNearbyPlaces = false
         
         // Usar ubicación del usuario si está disponible, si no usar la región del mapa
-        let searchRegion = locationManager.currentLocation != nil ? 
+        let searchRegion = locationManager.currentLocation != nil ?
             MKCoordinateRegion(
                 center: locationManager.currentLocation!.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
@@ -4117,7 +4622,7 @@ struct LocationPickerView: View {
         geocoder.reverseGeocodeLocation(location) { placemarks, error in
             DispatchQueue.main.async {
                 if let placemark = placemarks?.first {
-                    // Generar nombre limpio y conciso (estilo Instagram)
+                    // Generar nombre limpio y conciso (estilo nativo)
                     self.locationName = self.generateCleanLocationName(from: placemark)
                 } else {
                     self.locationName = "Ubicación actual"
@@ -4310,90 +4815,10 @@ struct LocationRow: View {
     }
 }
 
-// MARK: - Advanced Settings Implementation
-
-struct AdvancedSettingsView: View {
-    @AppStorage("disableComments") private var disableComments = false
-    @AppStorage("hideLikeCounts") private var hideLikeCounts = false
-    @AppStorage("allowSharing") private var allowSharing = true
-    @Environment(\.colorScheme) private var colorScheme
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    var body: some View {
-        ZStack {
-            // ✅ Fondo adaptativo
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    colorScheme == .dark ? Color.black : Color.white,
-                    colorScheme == .dark ? Color(hex: "1a1a2e").opacity(0.9) : Color.gray.opacity(0.1),
-                    colorScheme == .dark ? Color(hex: "16213e").opacity(0.8) : Color.gray.opacity(0.05)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            List {
-                Section(header: Text("creator.interactions.title")
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(adaptiveColors.secondary)) {
-                    Toggle(isOn: $disableComments) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("creator.interactions.disableComments")
-                                .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(adaptiveColors.primary)
-                            Text("creator.interactions.disableComments.description")
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(adaptiveColors.tertiary)
-                        }
-                    }
-                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
-                    
-                    Toggle(isOn: $allowSharing) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("creator.interactions.allowSharing")
-                                .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(adaptiveColors.primary)
-                            Text("creator.interactions.allowSharing.description")
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(adaptiveColors.tertiary)
-                        }
-                    }
-                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
-                }
-                
-                Section(header: Text("creator.visualization.title")
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(adaptiveColors.secondary)) {
-                    Toggle(isOn: $hideLikeCounts) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("creator.visualization.hideReactions")
-                            .font(.custom("Poppins-Medium", size: 16))
-                            .foregroundColor(adaptiveColors.primary)
-                        Text("creator.visualization.hideReactions.description")
-                            .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(adaptiveColors.tertiary)
-                        }
-                    }
-                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
-                }
-            }
-            .listStyle(InsetGroupedListStyle())
-            .scrollContentBackground(.hidden)
-        }
-        .navigationTitle(NSLocalizedString("creator.advancedSettings.title", comment: "Advanced Settings"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(colorScheme, for: .navigationBar)
-    }
-}
-
 // MARK: - Story Gallery Picker Implementation
 
 struct StoryGalleryPicker: View {
-    let onSelect: (ProcessedMedia) -> Void
+    let onSelect: (CreatorMedia) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     
@@ -4434,7 +4859,7 @@ struct StoryGalleryPicker: View {
                     onSelect: { image, videoURL in
                         if let image = image {
                             // ✅ Imagen seleccionada - ir directamente a edición
-                            let media = ProcessedMedia(
+                            let media = CreatorMedia(
                                 id: UUID().uuidString,
                                 image: image,
                                 videoURL: nil,
@@ -4467,7 +4892,7 @@ struct StoryGalleryPicker: View {
                                                     thumbnail = UIImage(systemName: "video.fill") ?? UIImage()
                                                 }
                                                 
-                                                let media = ProcessedMedia(
+                                                let media = CreatorMedia(
                                                     id: UUID().uuidString,
                                                     image: thumbnail,
                                                     videoURL: videoURL,
@@ -4867,7 +5292,7 @@ struct AlignmentButton: View {
 // MARK: - Camera Capture Implementation
 
 struct CameraCapture: UIViewControllerRepresentable {
-    let onCapture: (ProcessedMedia) -> Void
+    let onCapture: (CreatorMedia) -> Void
     @Environment(\.dismiss) private var dismiss
     
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -4896,8 +5321,8 @@ struct CameraCapture: UIViewControllerRepresentable {
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
                 // ✅ Detectar aspect ratio de la imagen capturada
-                let detectedRatio = ProcessedMedia.AspectRatio.fromRatio(image.size.width / image.size.height)
-                let media = ProcessedMedia(
+                let detectedRatio = CreatorMedia.AspectRatio.fromRatio(image.size.width / image.size.height)
+                let media = CreatorMedia(
                     id: UUID().uuidString,
                     image: image,
                     videoURL: nil,
@@ -4917,8 +5342,8 @@ struct CameraCapture: UIViewControllerRepresentable {
                     let thumbnail = UIImage(cgImage: cgImage)
                     
                     // ✅ Detectar aspect ratio del video capturado
-                    let detectedRatio = ProcessedMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
-                    let media = ProcessedMedia(
+                    let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
+                    let media = CreatorMedia(
                         id: UUID().uuidString,
                         image: thumbnail,
                         videoURL: videoURL,
@@ -5706,3 +6131,35 @@ extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
     }
 }
 
+
+// MARK: - 🎨 COMPONENTES PREMIUM COMPARTIDOS (The Cinematic Handoff)
+
+// GlowSharePill moved to CreatorSharedModels.swift
+
+@ViewBuilder
+fileprivate func ToolIconButton(icon: String, action: @escaping () -> Void) -> some View {
+    Button(action: {
+        hapticFeedback(.light)
+        action()
+    }) {
+        Image(systemName: icon)
+            .font(.system(size: 18))
+            .foregroundColor(.white)
+            .frame(width: 44, height: 44)
+            .background(.ultraThinMaterial)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+    }
+}
+
+fileprivate func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+    let generator = UIImpactFeedbackGenerator(style: style)
+    generator.prepare()
+    generator.impactOccurred()
+}
+
+fileprivate func hapticNotification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+    let generator = UINotificationFeedbackGenerator()
+    generator.prepare()
+    generator.notificationOccurred(type)
+}

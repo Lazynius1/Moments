@@ -581,38 +581,84 @@ struct IntegratedNativeAdView: View {
                                     .foregroundColor(.secondary)
                             )
                     }
-                    .frame(width: 40, height: 40)
+                    .frame(width: 36, height: 36)
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
                 } else {
                     Circle()
                         .fill(.ultraThinMaterial)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 36, height: 36)
                         .overlay(
                             Image(systemName: "app.fill")
                             .foregroundColor(.secondary)
                         )
                 }
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(nativeAd.advertiser ?? "Anunciante")
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(nativeAd.advertiser ?? "Anunciante")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(.primary)
+                        
+                        // ✅ Badge de Anuncio
+                        Text("Ad")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.gray.opacity(0.6))
+                            .clipShape(Capsule())
+                    }
+                    
+                    Text("Patrocinado")
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(.secondary)
                 }
                 
                 Spacer()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
             .padding(.vertical, 12)
             
-            IntegratedAdMediaView(nativeAd: nativeAd)
-                .frame(height: 400)
-            
+            ZStack(alignment: .bottomLeading) {
+                IntegratedAdMediaView(nativeAd: nativeAd)
+                    .frame(height: 400)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                
+                // ✅ Gradiente protector
+                LinearGradient(
+                    gradient: Gradient(colors: [.clear, .black.opacity(0.4), .black.opacity(0.7)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .allowsHitTesting(false)
+                
+                // ✅ Caption estilo Moment
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(nativeAd.headline ?? "")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    
+                    Text(nativeAd.body ?? "")
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(2)
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 20)
+                .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 1)
+            }
             // ✅ CORREGIDO: Botón SwiftUI eliminado - solo usamos el botón nativo de AdMob
         }
-        .background(Color(.systemBackground))
+        .background(colorScheme == .dark ? Color(hex: "121212") : Color.white)
         .cornerRadius(20)
-        .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
-        .padding(.horizontal, 16)
+        // ✅ Sistema de sombras multi-nivel (Efecto de profundidad premium)
+        .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
+        .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)
+        .padding(.horizontal, 8)
     }
 }
 

@@ -67,7 +67,9 @@ struct AudienceSelectionView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     ScrollView {
@@ -129,13 +131,11 @@ struct AudienceSelectionView: View {
                         VStack {
                             Spacer()
                             HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.white)
-                                
-                                Text("audience.saved")
-                                    .font(.custom("Poppins-Medium", size: 16))
-                                    .foregroundColor(.white)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("audience.saved")
+                                        .font(.custom("Poppins-Medium", size: 16))
+                                        .foregroundColor(.white)
+                                }
                             }
                             .padding(.horizontal, 20)
                             .padding(.vertical, 12)
@@ -166,60 +166,58 @@ struct AudienceSelectionView: View {
             .padding(.horizontal, 4)
             
             // ✅ Opciones con estilo ContextMenu
-            VStack(spacing: 8) {
-                AudienceOptionRowModern(
+            // ✅ Grid de opciones 2x2
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ], spacing: 12) {
+                AudienceGridCard(
                     audience: .everyone,
                     isSelected: selectedAudience == .everyone,
-                    customCount: nil,
                     onTap: {
                         selectedAudience = .everyone
-                        selectedListId = nil
-                        selectedListName = nil
-                        customSelectedUsers = []
+                        resetSelection()
                         showSaveFeedback()
                     }
                 )
                 
-                AudienceOptionRowModern(
+                AudienceGridCard(
                     audience: .connections,
                     isSelected: selectedAudience == .connections,
-                    customCount: nil,
                     onTap: {
                         selectedAudience = .connections
-                        selectedListId = nil
-                        selectedListName = nil
-                        customSelectedUsers = []
+                        resetSelection()
                         showSaveFeedback()
                     }
                 )
                 
-                AudienceOptionRowModern(
+                AudienceGridCard(
                     audience: .bestFriends,
                     isSelected: selectedAudience == .bestFriends,
-                    customCount: nil,
                     onTap: {
                         selectedAudience = .bestFriends
-                        selectedListId = nil
-                        selectedListName = nil
-                        customSelectedUsers = []
+                        resetSelection()
                         showSaveFeedback()
                     }
                 )
                 
-                AudienceOptionRowModern(
+                AudienceGridCard(
                     audience: .onlyMe,
                     isSelected: selectedAudience == .onlyMe,
-                    customCount: nil,
                     onTap: {
                         selectedAudience = .onlyMe
-                        selectedListId = nil
-                        selectedListName = nil
-                        customSelectedUsers = []
+                        resetSelection()
                         showSaveFeedback()
                     }
                 )
             }
         }
+    }
+
+    private func resetSelection() {
+        selectedListId = nil
+        selectedListName = nil
+        customSelectedUsers = []
     }
     
     private var customListsSection: some View {
@@ -250,24 +248,46 @@ struct AudienceSelectionView: View {
             } else if customLists.isEmpty {
                 emptyCustomListsViewModern
             } else {
-                VStack(spacing: 8) {
-                    ForEach(customLists) { list in
-                        CustomListRowModern(
-                            list: list,
-                            isSelected: selectedAudience == .customList && selectedListId == list.id,
-                            onTap: {
-                                selectedAudience = .customList
-                                selectedListId = list.id
-                                selectedListName = list.name
-                                customSelectedUsers = []
-                                showSaveFeedback()
-                            },
-                            onDelete: {
-                                listToDelete = list
-                                showingDeleteAlert = true
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        // ✅ Botón de Añadir rápido
+                        Button(action: { showingCreateList = true }) {
+                            VStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(hex: "00A896").opacity(0.1))
+                                        .frame(width: 48, height: 48)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundColor(Color(hex: "00A896"))
+                                }
+                                Text("audience.create")
+                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .foregroundColor(Color(hex: "00A896"))
                             }
-                        )
+                            .frame(width: 100, height: 140)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color(hex: "00A896").opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4]))
+                            )
+                        }
+                        
+                        ForEach(customLists) { list in
+                            CustomListCard(
+                                list: list,
+                                isSelected: selectedAudience == .customList && selectedListId == list.id,
+                                onTap: {
+                                    selectedAudience = .customList
+                                    selectedListId = list.id
+                                    selectedListName = list.name
+                                    customSelectedUsers = []
+                                    showSaveFeedback()
+                                }
+                            )
+                        }
                     }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 8)
                 }
             }
         }
@@ -357,7 +377,7 @@ struct AudienceSelectionView: View {
                         Circle()
                             .fill(selectedAudience == .custom && selectedListId == nil ?
                                   Color(hex: "00A896").opacity(0.15) :
-                                  (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)))
+                                  (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
                             .frame(width: 48, height: 48)
                         
                         Image(systemName: "person.crop.circle.badge.plus")
@@ -375,7 +395,7 @@ struct AudienceSelectionView: View {
                              NSLocalizedString("audience.description.custom", comment: "Custom audience description") :
                              String(format: NSLocalizedString("audience.people.count", comment: "People count"), customSelectedUsers.count))
                             .font(.custom("Poppins-Regular", size: 13))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                     }
                     
                     Spacer()
@@ -392,14 +412,14 @@ struct AudienceSelectionView: View {
                 }
                 .padding(16)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 16)
+                            RoundedRectangle(cornerRadius: 20)
                                 .stroke(
                                     selectedAudience == .custom && selectedListId == nil ?
-                                    Color(hex: "00A896").opacity(0.3) :
-                                    (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)),
+                                    Color(hex: "00A896").opacity(0.4) :
+                                    Color.clear,
                                     lineWidth: 1
                                 )
                         )
@@ -614,84 +634,132 @@ extension CustomAudienceList {
     ]
 }
 
-// MARK: - Fila de Opción de Audiencia (ESTILO MODERNO)
-struct AudienceOptionRowModern: View {
+// MARK: - Tarjeta de Audiencia en Grid
+struct AudienceGridCard: View {
     @Environment(\.colorScheme) var colorScheme
     let audience: ContentAudience
     let isSelected: Bool
-    let customCount: Int?
     let onTap: () -> Void
     
     @State private var isPressed = false
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 16) {
-                // ✅ Icono con estilo moderno
+            VStack(spacing: 12) {
+                // ✅ Icono con estilo moderno y burbuja
                 ZStack {
                     Circle()
                         .fill(isSelected ?
                               Color(hex: "00A896").opacity(0.15) :
-                              (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)))
-                        .frame(width: 48, height: 48)
+                              (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
+                        .frame(width: 56, height: 56)
                     
                     Image(systemName: audience.icon)
-                        .font(.system(size: 20, weight: .medium))
+                        .font(.system(size: 24, weight: .medium))
                         .foregroundColor(isSelected ?
                                        Color(hex: "00A896") : (colorScheme == .dark ? .white : .black))
                 }
                 
-                // ✅ Texto con mejor jerarquía
-                VStack(alignment: .leading, spacing: 2) {
+                // ✅ Texto
+                VStack(spacing: 4) {
                     Text(audience.title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.custom("Poppins-SemiBold", size: 15))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
                     
-                    if let count = customCount {
-                        Text("\(count) personas")
-                            .font(.custom("Poppins-Regular", size: 13))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
-                    } else {
-                        Text(audience.description)
-                            .font(.custom("Poppins-Regular", size: 13))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
-                    }
-                }
-                
-                Spacer()
-                
-                // ✅ Checkmark o chevron
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color(hex: "00A896"))
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4))
+                    Text(audience.description)
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(16)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .padding(.horizontal, 12)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 24)
                             .stroke(
                                 isSelected ?
-                                Color(hex: "00A896").opacity(0.3) :
-                                (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)),
-                                lineWidth: 1
+                                Color(hex: "00A896").opacity(0.4) :
+                                Color.clear,
+                                lineWidth: 1.5
                             )
                     )
             )
+            .shadow(color: isSelected ? Color(hex: "00A896").opacity(0.1) : Color.clear, radius: 10, x: 0, y: 5)
         }
         .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isPressed ? 0.98 : 1.0)
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = pressing
+            isPressed = pressing
+        }, perform: {})
+    }
+}
+
+
+
+// MARK: - Tarjeta de Lista Personalizada (Carousel)
+struct CustomListCard: View {
+    @Environment(\.colorScheme) var colorScheme
+    let list: CustomAudienceList
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 12) {
+                // ✅ Icono con color personalizado
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: list.color ?? "00A896").opacity(isSelected ? 0.2 : 0.1))
+                        .frame(width: 48, height: 48)
+                    
+                    Image(systemName: list.icon ?? "person.3.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(Color(hex: list.color ?? "00A896"))
+                }
+                
+                // ✅ Información de la lista
+                VStack(spacing: 2) {
+                    Text(list.name)
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
+                    
+                    Text("\(list.members.count) personas")
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                }
             }
+            .frame(width: 110, height: 140)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                isSelected ?
+                                Color(hex: list.color ?? "00A896").opacity(0.6) :
+                                Color.clear,
+                                lineWidth: 2
+                            )
+                    )
+            )
+            .shadow(color: isSelected ? Color(hex: list.color ?? "00A896").opacity(0.15) : Color.clear, radius: 8, x: 0, y: 4)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            isPressed = pressing
         }, perform: {})
     }
 }
@@ -1008,7 +1076,7 @@ struct CustomAudienceListsView: View {
                 Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
                 
                 if viewModel.isLoading {
-                    ProgressView("Cargando listas...")
+                    ProgressView(NSLocalizedString("common.loading", comment: ""))
                         .progressViewStyle(CircularProgressViewStyle())
                         .foregroundColor(.gray)
                 } else {
@@ -1021,11 +1089,11 @@ struct CustomAudienceListsView: View {
                     }
                 }
             }
-            .navigationTitle("Listas Personalizadas")
+            .navigationTitle(NSLocalizedString("audience.customLists.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") {
+                    Button(NSLocalizedString("common.close", comment: "")) {
                         dismiss()
                     }
                     .foregroundColor(.gray)
@@ -1041,19 +1109,21 @@ struct CustomAudienceListsView: View {
         }
         .sheet(isPresented: $showingCreateList) {
             CreateCustomListView()
+                .presentationBackground(.clear)
         }
         .sheet(item: $selectedList) { list in
             EditCustomListView(list: list)
+                .presentationBackground(.clear)
         }
-        .alert("Eliminar lista", isPresented: $showingDeleteAlert) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Eliminar", role: .destructive) {
+        .alert(NSLocalizedString("audience.deleteList.title", comment: ""), isPresented: $showingDeleteAlert) {
+            Button(NSLocalizedString("audience.actions.cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {
                 if let list = listToDelete {
                     viewModel.deleteList(list)
                 }
             }
         } message: {
-                            Text("audience.deleteList.confirm")
+            Text(NSLocalizedString("audience.deleteList.confirm", comment: ""))
         }
         .onAppear {
             viewModel.loadLists()
@@ -1066,18 +1136,18 @@ struct CustomAudienceListsView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
             
-                            Text("audience.noCustomLists.title")
+            Text(NSLocalizedString("audience.noCustomLists.title", comment: ""))
                 .font(.custom("Poppins-SemiBold", size: 20))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
-                            Text("audience.noCustomLists.description")
+            Text(NSLocalizedString("audience.noCustomLists.description", comment: ""))
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
             Button(action: { showingCreateList = true }) {
-                Label("Crear primera lista", systemImage: "plus.circle.fill")
+                Label(NSLocalizedString("audience.createFirstList", comment: ""), systemImage: "plus.circle.fill")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.white)
                     .padding()
@@ -1096,9 +1166,12 @@ struct CustomAudienceListsView: View {
     
     private var listContent: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 16),
+                GridItem(.flexible(), spacing: 16)
+            ], spacing: 16) {
                 ForEach(viewModel.lists) { list in
-                    ManageableCustomListRow(
+                    ManageableCustomListCard(
                         list: list,
                         onEdit: { selectedList = list },
                         onDelete: {
@@ -1108,73 +1181,101 @@ struct CustomAudienceListsView: View {
                     )
                 }
             }
-            .padding()
+            .padding(16)
         }
     }
 }
 
-// MARK: - Fila de Lista Administrable
-struct ManageableCustomListRow: View {
+// MARK: - Tarjeta de Lista Administrable (Grid)
+struct ManageableCustomListCard: View {
     @Environment(\.colorScheme) var colorScheme
     let list: CustomAudienceList
     let onEdit: () -> Void
     let onDelete: () -> Void
     
+    @State private var isPressed = false
+    
     var body: some View {
-        HStack(spacing: 16) {
-            // Icono
-            ZStack {
-                Circle()
-                    .fill(Color(hex: list.color ?? "00A896").opacity(0.2))
-                    .frame(width: 50, height: 50)
-                
-                Image(systemName: list.icon ?? "person.3.fill")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(Color(hex: list.color ?? "00A896"))
-            }
-            
-            // Información de la lista
-            VStack(alignment: .leading, spacing: 4) {
-                Text(list.name)
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 12))
-                    Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
-                        .font(.custom("Poppins-Regular", size: 13))
+        ZStack(alignment: .topTrailing) {
+            // Botón principal (Tap para editar, aunque aquí quizás mejor acción separada)
+            // En este caso, haremos que el tap principal sea editar, y un botón explícito para borrar.
+            Button(action: onEdit) {
+                VStack(spacing: 12) {
+                    // Icono con color personalizado
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: list.color ?? "00A896").opacity(0.15))
+                            .frame(width: 56, height: 56)
+                        
+                        Image(systemName: list.icon ?? "person.3.fill")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundColor(Color(hex: list.color ?? "00A896"))
+                    }
+                    
+                    // Información de la lista
+                    VStack(spacing: 4) {
+                        Text(list.name)
+                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .lineLimit(1)
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 11))
+                            Text(String(format: NSLocalizedString("audience.people.count", comment: ""), list.members.count))
+                                .font(.custom("Poppins-Regular", size: 12))
+                        }
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                    }
                 }
-                .foregroundColor(.gray)
-                
-                if let description = list.description, !description.isEmpty {
-                    Text(description)
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
-                        .lineLimit(2)
-                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+                        .shadow(color: colorScheme == .dark ? .black.opacity(0.2) : .black.opacity(0.05), radius: 8, x: 0, y: 4)
+                )
             }
+            .buttonStyle(PlainButtonStyle())
+            .scaleEffect(isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                isPressed = pressing
+            }, perform: {})
             
-            Spacer()
-            
-            // Botones de acción
-            HStack(spacing: 8) {
+            // Top action buttons
+            HStack {
                 Button(action: onEdit) {
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(Color(hex: "00A896"))
+                    ZStack {
+                        Circle()
+                            .fill(colorScheme == .dark ? Color(hex: "1C1C1E") : .white)
+                            .frame(width: 32, height: 32)
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "00A896"))
+                    }
                 }
+                
+                Spacer()
                 
                 Button(action: onDelete) {
-                    Image(systemName: "trash.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.red)
+                    ZStack {
+                        Circle()
+                            .fill(colorScheme == .dark ? Color(hex: "1C1C1E") : .white)
+                            .frame(width: 32, height: 32)
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.red)
+                    }
                 }
             }
+            .padding(10)
         }
-        .padding()
-        .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
-        .cornerRadius(16)
     }
 }
 
@@ -1251,157 +1352,232 @@ struct CreateCustomListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                // ✅ Fondo Dinámico con Gradiente (Glassmorphic)
+                Group {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea()
+                    
+                    if colorScheme == .dark {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(hex: selectedColor).opacity(0.15),
+                                Color.clear
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea()
+                    } else {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(hex: selectedColor).opacity(0.1),
+                                Color.clear
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea()
+                    }
+                }
                 
                 ScrollView {
-                    VStack(spacing: 24) {
-                        // Nombre de la lista
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("audience.list.name")
-                                .font(.custom("Poppins-SemiBold", size: 14))
-                                .foregroundColor(.gray)
-                            
-                            TextField("Ej: Trabajo, Familia, Amigos cercanos...", text: $listName)
-                                .font(.custom("Poppins-Regular", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .padding()
-                                .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                                .cornerRadius(12)
-                        }
+                    VStack(spacing: 32) {
+                        // ✅ Handle superior (estilo Modal)
+                        RoundedRectangle(cornerRadius: 2.5)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
+                            .frame(width: 40, height: 5)
+                            .padding(.top, 12)
                         
-                        // Descripción
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Descripción (opcional)")
-                                .font(.custom("Poppins-SemiBold", size: 14))
-                                .foregroundColor(.gray)
-                            
-                            TextField("Describe esta lista...", text: $listDescription)
-                                .font(.custom("Poppins-Regular", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .padding()
-                                .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        
-                        // Color e icono
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Personalización")
-                                .font(.custom("Poppins-SemiBold", size: 14))
-                                .foregroundColor(.gray)
-                            
-                            // Selector de color
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(CustomAudienceList.predefinedColors, id: \.self) { color in
-                                        Circle()
-                                            .fill(Color(hex: color))
-                                            .frame(width: 40, height: 40)
-                                            .overlay(
-                                                Circle()
-                                                    .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
-                                            )
-                                            .onTapGesture {
-                                                selectedColor = color
-                                            }
-                                    }
-                                }
-                            }
-                            
-                            // Selector de icono
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(CustomAudienceList.predefinedIcons, id: \.self) { icon in
-                                        ZStack {
-                                            Circle()
-                                                .fill(selectedIcon == icon ?
-                                                      Color(hex: selectedColor).opacity(0.2) :
-                                                      (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)))
-                                                .frame(width: 50, height: 50)
-                                            
-                                            Image(systemName: icon)
-                                                .foregroundColor(selectedIcon == icon ?
-                                                               Color(hex: selectedColor) : .gray)
-                                                .font(.system(size: 22))
-                                        }
-                                        .onTapGesture {
-                                            selectedIcon = icon
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Miembros
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("audience.members")
-                                    .font(.custom("Poppins-SemiBold", size: 14))
-                                    .foregroundColor(.gray)
+                        // ✅ Live Card Rediseñada (Glassmorphic)
+                        VStack(spacing: 20) {
+                            ZStack {
+                                // Glow de fondo
+                                Circle()
+                                    .fill(Color(hex: selectedColor).opacity(0.3))
+                                    .frame(width: 100, height: 100)
+                                    .blur(radius: 20)
                                 
-                                Spacer()
-                                
-                                Button(action: { showingMemberPicker = true }) {
-                                    Label("Agregar", systemImage: "plus.circle.fill")
-                                        .font(.custom("Poppins-Medium", size: 14))
-                                        .foregroundColor(Color(hex: "00A896"))
-                                }
-                            }
-                            
-                            if selectedMembers.isEmpty {
-                                Text("audience.noMembers")
-                                    .font(.custom("Poppins-Regular", size: 14))
-                                    .foregroundColor(.gray)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding()
-                                    .background(Color.white.opacity(0.05))
-                                    .cornerRadius(12)
-                            } else {
-                                // ✅ MEJORADO: Feedback visual mejorado para miembros seleccionados
-                                VStack(spacing: 8) {
-                                    HStack {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(Color(hex: selectedColor))
-                                        
-                                        Text("\(selectedMembers.count) personas seleccionadas")
-                                            .font(.custom("Poppins-Medium", size: 14))
-                                            .foregroundColor(.white)
-                                        
-                                        Spacer()
-                                    }
-                                    
-                                    Text("Toca 'Agregar' para modificar la selección")
-                                        .font(.custom("Poppins-Regular", size: 12))
-                                        .foregroundColor(.white.opacity(0.7))
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color(hex: selectedColor).opacity(0.2))
+                                // Círculo principal multi-capa
+                                ZStack {
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .frame(width: 86, height: 86)
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color(hex: selectedColor).opacity(0.4), lineWidth: 1)
+                                            Circle()
+                                                .stroke(
+                                                    LinearGradient(
+                                                        colors: [.white.opacity(0.5), .white.opacity(0.1)],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ),
+                                                    lineWidth: 1
+                                                )
                                         )
-                                )
+                                    
+                                    Circle()
+                                        .fill(Color(hex: selectedColor).opacity(0.1))
+                                        .frame(width: 60, height: 60)
+                                    
+                                    Image(systemName: selectedIcon)
+                                        .font(.system(size: 36, weight: .bold))
+                                        .foregroundColor(Color(hex: selectedColor))
+                                        .shadow(color: Color(hex: selectedColor).opacity(0.3), radius: 5, x: 0, y: 3)
+                                }
+                            }
+                            
+                            VStack(spacing: 6) {
+                                Text(listName.isEmpty ? NSLocalizedString("audience.list.placeholder", comment: "") : listName)
+                                    .font(.custom("Poppins-Bold", size: 24))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .multilineTextAlignment(.center)
+                                
+                                HStack(spacing: 6) {
+                                    Image(systemName: "person.2.fill")
+                                        .font(.system(size: 12))
+                                    Text(String(format: NSLocalizedString("audience.members.count.short", comment: ""), selectedMembers.count))
+                                        .font(.custom("Poppins-Medium", size: 14))
+                                }
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                             }
                         }
+                        .foregroundStyle(.primary)
+                        .padding(.vertical, 20)
+                        .frame(maxWidth: .infinity)
+                        
+                        // ✅ Configuración de la Lista
+                        VStack(spacing: 28) {
+                            // Nombre de la lista
+                            VStack(alignment: .leading, spacing: 12) {
+                                Label {
+                                    Text("audience.list.name")
+                                        .font(.custom("Poppins-SemiBold", size: 14))
+                                } icon: {
+                                    Image(systemName: "pencil.circle.fill")
+                                }
+                                .foregroundColor(Color(hex: "00A896"))
+                                .padding(.leading, 4)
+                                
+                                TextField(NSLocalizedString("audience.list.name.example", comment: ""), text: $listName)
+                                    .font(.custom("Poppins-Medium", size: 17))
+                                    .padding(18)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                    )
+                            }
+                            
+                            // Personalización (Colores e Iconos)
+                            VStack(alignment: .leading, spacing: 16) {
+                                Label {
+                                    Text(NSLocalizedString("audience.personalization", comment: ""))
+                                        .font(.custom("Poppins-SemiBold", size: 14))
+                                } icon: {
+                                    Image(systemName: "paintpalette.fill")
+                                }
+                                .foregroundColor(Color(hex: "00A896"))
+                                .padding(.leading, 4)
+                                
+                                // Selector de color
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 14) {
+                                        ForEach(CustomAudienceList.predefinedColors, id: \.self) { color in
+                                            Circle()
+                                                .fill(Color(hex: color))
+                                                .frame(width: 42, height: 42)
+                                                .overlay(
+                                                    Circle()
+                                                        .stroke(colorScheme == .dark ? .white : .black, lineWidth: selectedColor == color ? 3 : 0)
+                                                        .padding(2)
+                                                )
+                                                .scaleEffect(selectedColor == color ? 1.15 : 1.0)
+                                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedColor)
+                                                .onTapGesture {
+                                                    selectedColor = color
+                                                    hapticFeedback()
+                                                }
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 4)
+                                }
+                                
+                                // Selector de icono
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 14) {
+                                        ForEach(CustomAudienceList.predefinedIcons, id: \.self) { icon in
+                                            ZStack {
+                                                Circle()
+                                                    .fill(selectedIcon == icon ?
+                                                          Color(hex: selectedColor).opacity(0.15) :
+                                                          (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03)))
+                                                    .frame(width: 52, height: 52)
+                                                
+                                                Image(systemName: icon)
+                                                    .foregroundColor(selectedIcon == icon ?
+                                                                   Color(hex: selectedColor) : (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3)))
+                                                    .font(.system(size: 22, weight: .semibold))
+                                            }
+                                            .background(
+                                                Circle()
+                                                    .stroke(selectedIcon == icon ? Color(hex: selectedColor).opacity(0.3) : Color.clear, lineWidth: 2)
+                                            )
+                                            .scaleEffect(selectedIcon == icon ? 1.1 : 1.0)
+                                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedIcon)
+                                            .onTapGesture {
+                                                selectedIcon = icon
+                                                hapticFeedback()
+                                            }
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 4)
+                                }
+                            }
+                            
+                            // Miembros
+                            VStack(alignment: .leading, spacing: 18) {
+                                HStack {
+                                    Label {
+                                        Text("audience.members")
+                                            .font(.custom("Poppins-SemiBold", size: 14))
+                                    } icon: {
+                                        Image(systemName: "person.circle.fill")
+                                    }
+                                    .foregroundColor(Color(hex: "00A896"))
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: { showingMemberPicker = true }) {
+                                        HStack(spacing: 4) {
+                                            Text(NSLocalizedString("audience.view.all", comment: ""))
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 10, weight: .bold))
+                                        }
+                                        .font(.custom("Poppins-Medium", size: 13))
+                                        .foregroundColor(Color(hex: "00A896"))
+                                    }
+                                }
+                                .padding(.leading, 4)
+                                
+                                SuggestedMembersCarousel(selectedMembers: $selectedMembers)
+                            }
+                        }
+                        .padding(.horizontal, 4)
                     }
-                    .padding()
-                }
-            }
-            .navigationTitle("Nueva Lista")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
-                        dismiss()
-                    }
-                    .foregroundColor(colorScheme == .dark ? .gray : .gray)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 120) // Espacio para el botón de abajo
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Crear") {
+                // ✅ Botón de Acción Flotante
+                VStack {
+                    Spacer()
+                    
+                    Button(action: {
                         viewModel.createList(
                             name: listName,
                             description: listDescription,
@@ -1411,20 +1587,169 @@ struct CreateCustomListView: View {
                         ) {
                             dismiss()
                         }
+                    }) {
+                        HStack(spacing: 10) {
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 20))
+                                Text(NSLocalizedString("audience.create.action", comment: ""))
+                                    .font(.custom("Poppins-Bold", size: 16))
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            ZStack {
+                                if listName.isEmpty {
+                                    Color.gray.opacity(0.3)
+                                } else {
+                                    LinearGradient(
+                                        colors: [Color(hex: selectedColor), Color(hex: selectedColor).opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                }
+                            }
+                        )
+                        .foregroundColor(listName.isEmpty ? .gray : .white)
+                        .cornerRadius(24)
+                        .shadow(color: (listName.isEmpty ? Color.clear : Color(hex: selectedColor).opacity(0.3)), radius: 15, x: 0, y: 8)
                     }
-                    .foregroundColor(Color(hex: "00A896"))
-                    .fontWeight(.semibold)
-                    .disabled(listName.isEmpty)
+                    .disabled(listName.isEmpty || viewModel.isLoading)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 34)
                 }
+                .ignoresSafeArea(.keyboard)
             }
-            .toolbarBackground(Color(colorScheme == .dark ? .black : .white), for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingMemberPicker) {
             MemberPickerView(selectedMembers: $selectedMembers)
+                .presentationBackground(.clear)
+        }
+    }
+    
+    private func hapticFeedback() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+    }
+}
+
+// MARK: - Carousel de Miembros Sugeridos
+struct SuggestedMembersCarousel: View {
+    @Binding var selectedMembers: Set<String>
+    @State private var suggestedUsers: [AppUser] = []
+    @State private var isLoading = true
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                if isLoading {
+                    ForEach(0..<5) { _ in
+                        Circle()
+                            .fill(Color.gray.opacity(0.1))
+                            .frame(width: 60, height: 60)
+                    }
+                } else {
+                    ForEach(suggestedUsers) { user in
+                        SuggestedUserCircle(user: user, isSelected: selectedMembers.contains(user.id)) {
+                            if selectedMembers.contains(user.id) {
+                                selectedMembers.remove(user.id)
+                            } else {
+                                selectedMembers.insert(user.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear {
+            loadSuggestions()
+        }
+    }
+    
+    private func loadSuggestions() {
+        // Cargamos sugerencias basadas en conexiones mutuas (amigos)
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        FirestoreService().fetchMutualConnections(userId: userId) { result in
+            if case .success(let users) = result {
+                DispatchQueue.main.async {
+                    self.suggestedUsers = Array(users.prefix(10))
+                    self.isLoading = false
+                }
+            }
         }
     }
 }
+
+struct SuggestedUserCircle: View {
+    let user: AppUser
+    let isSelected: Bool
+    let onToggle: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            Button(action: onToggle) {
+                ZStack(alignment: .bottomTrailing) {
+                    Group {
+                        if let urlStr = user.profileImagePath, let url = URL(string: urlStr) {
+                            AsyncImage(url: url) { image in
+                                image.resizable()
+                            } placeholder: {
+                                Color.gray.opacity(0.2)
+                            }
+                        } else {
+                            ZStack {
+                                Color.gray.opacity(0.2)
+                                Text(user.username.prefix(1).uppercased())
+                                    .font(.custom("Poppins-Bold", size: 20))
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
+                    .frame(width: 60, height: 60)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(isSelected ? Color(hex: "00A896") : Color.clear, lineWidth: 2)
+                    )
+                    
+                    if isSelected {
+                        ZStack {
+                            Circle().fill(Color(hex: "00A896"))
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .frame(width: 18, height: 18)
+                        .offset(x: 2, y: 2)
+                    } else {
+                        ZStack {
+                            Circle().fill(Color.white)
+                            Image(systemName: "plus")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.black)
+                        }
+                        .frame(width: 18, height: 18)
+                        .offset(x: 2, y: 2)
+                        .shadow(radius: 2)
+                    }
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            Text(user.username)
+                .font(.custom("Poppins-Medium", size: 10))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+                .frame(width: 64)
+        }
+    }
+}
+
 
 // MARK: - Editar Lista (MEJORADA)
 struct EditCustomListView: View {
@@ -1456,38 +1781,104 @@ struct EditCustomListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                // ✅ Fondo Dinámico con Gradiente (Glassmorphic)
+                Group {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea()
+                    
+                    if colorScheme == .dark {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(hex: selectedColor).opacity(0.15),
+                                Color.clear
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea()
+                    } else {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(hex: selectedColor).opacity(0.1),
+                                Color.clear
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea()
+                    }
+                }
                 
                 ScrollView {
-                    VStack(spacing: 24) {
-                        // Información básica
-                        basicInfoSection
+                    VStack(spacing: 32) {
+                        // ✅ Handle superior
+                        RoundedRectangle(cornerRadius: 2.5)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
+                            .frame(width: 40, height: 5)
+                            .padding(.top, 12)
                         
-                        Divider().background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2))
+                        // ✅ Live Card Rediseñada (Glassmorphic)
+                        VStack(spacing: 20) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: selectedColor).opacity(0.3))
+                                    .frame(width: 90, height: 90)
+                                    .blur(radius: 15)
+                                
+                                ZStack {
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .frame(width: 76, height: 76)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(
+                                                    LinearGradient(
+                                                        colors: [.white.opacity(0.5), .white.opacity(0.1)],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                    
+                                    Image(systemName: selectedIcon)
+                                        .font(.system(size: 32, weight: .bold))
+                                        .foregroundColor(Color(hex: selectedColor))
+                                }
+                            }
+                            
+                            VStack(spacing: 4) {
+                                Text(listName.isEmpty ? NSLocalizedString("audience.list.placeholder", comment: "") : listName)
+                                    .font(.custom("Poppins-Bold", size: 22))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                
+                                Text(String(format: NSLocalizedString("audience.members.count.short", comment: ""), selectedMembers.count))
+                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                            }
+                        }
+                        .padding(.vertical, 24)
+                        .padding(.horizontal, 24)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 4)
                         
-                        // Personalización
-                        customizationSection
-                        
-                        Divider().background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2))
-                        
-                        // Gestión de miembros
-                        membersManagementSection
+                        VStack(spacing: 28) {
+                            basicInfoSection
+                            customizationSection
+                            membersManagementSection
+                        }
+                        .padding(.horizontal, 4)
                     }
-                    .padding()
-                }
-            }
-            .navigationTitle("Editar Lista")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
-                        dismiss()
-                    }
-                    .foregroundColor(.gray)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 120)
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Guardar") {
+                // ✅ Botón de Guardar Corregido
+                VStack {
+                    Spacer()
+                    
+                    Button(action: {
                         viewModel.updateList(
                             listId: list.id!,
                             name: listName,
@@ -1498,116 +1889,171 @@ struct EditCustomListView: View {
                         ) {
                             dismiss()
                         }
+                    }) {
+                        HStack(spacing: 10) {
+                            if viewModel.isLoading {
+                                ProgressView().tint(.white)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 20))
+                                Text(NSLocalizedString("common.save", comment: ""))
+                                    .font(.custom("Poppins-Bold", size: 16))
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(hex: selectedColor), Color(hex: selectedColor).opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .foregroundColor(.white)
+                        .cornerRadius(24)
+                        .shadow(color: Color(hex: selectedColor).opacity(0.3), radius: 15, x: 0, y: 8)
                     }
-                    .foregroundColor(Color(hex: "00A896"))
-                    .fontWeight(.semibold)
-                    .disabled(listName.isEmpty)
+                    .disabled(listName.isEmpty || viewModel.isLoading)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 34)
                 }
+                .ignoresSafeArea(.keyboard)
             }
+            .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingMemberPicker) {
             MemberPickerView(selectedMembers: $selectedMembers)
+                .presentationBackground(.clear)
         }
         .onAppear {
             loadCurrentMembers()
         }
-        .onChange(of: searchText) { newValue in
-            filterMembers()
-        }
-        .onChange(of: currentMembers) { _ in
-            filterMembers()
-        }
+    }
+    
+    private func hapticFeedback() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
     }
     
     private var basicInfoSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             // Nombre de la lista
-            VStack(alignment: .leading, spacing: 8) {
-                Text("audience.list.name")
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.gray)
+            VStack(alignment: .leading, spacing: 12) {
+                Label {
+                    Text("audience.list.name")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                } icon: {
+                    Image(systemName: "pencil.circle.fill")
+                }
+                .foregroundColor(Color(hex: "00A896"))
+                .padding(.leading, 4)
                 
-                TextField("Ej: Trabajo, Familia, Amigos cercanos...", text: $listName)
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(12)
+                TextField(NSLocalizedString("audience.list.name.example", comment: ""), text: $listName)
+                    .font(.custom("Poppins-Medium", size: 17))
+                    .padding(18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
             }
             
             // Descripción
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Descripción (opcional)")
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.gray)
+            VStack(alignment: .leading, spacing: 12) {
+                Label {
+                    Text(NSLocalizedString("audience.list.description", comment: ""))
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                } icon: {
+                    Image(systemName: "text.alignleft")
+                }
+                .foregroundColor(Color(hex: "00A896"))
+                .padding(.leading, 4)
                 
-                TextField("Describe esta lista...", text: $listDescription)
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(12)
+                TextField(NSLocalizedString("audience.list.description.placeholder", comment: ""), text: $listDescription)
+                    .font(.custom("Poppins-Medium", size: 17))
+                    .padding(18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
             }
         }
     }
     
     private var customizationSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Personalización")
-                .font(.custom("Poppins-SemiBold", size: 14))
-                .foregroundColor(.gray)
+        VStack(alignment: .leading, spacing: 20) {
+            Label {
+                Text(NSLocalizedString("audience.personalization", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 14))
+            } icon: {
+                Image(systemName: "paintpalette.fill")
+            }
+            .foregroundColor(Color(hex: "00A896"))
+            .padding(.leading, 4)
             
             // Selector de color
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Color")
-                    .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(.gray)
-                
+            VStack(alignment: .leading, spacing: 12) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 14) {
                         ForEach(CustomAudienceList.predefinedColors, id: \.self) { color in
                             Circle()
                                 .fill(Color(hex: color))
-                                .frame(width: 40, height: 40)
+                                .frame(width: 42, height: 42)
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
+                                        .stroke(colorScheme == .dark ? .white : .black, lineWidth: selectedColor == color ? 3 : 0)
+                                        .padding(2)
                                 )
+                                .scaleEffect(selectedColor == color ? 1.15 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedColor)
                                 .onTapGesture {
                                     selectedColor = color
+                                    hapticFeedback()
                                 }
                         }
                     }
+                    .padding(.vertical, 4)
                     .padding(.horizontal, 4)
                 }
             }
             
             // Selector de icono
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Icono")
-                    .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(.gray)
-                
+            VStack(alignment: .leading, spacing: 12) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 14) {
                         ForEach(CustomAudienceList.predefinedIcons, id: \.self) { icon in
                             ZStack {
                                 Circle()
                                     .fill(selectedIcon == icon ?
-                                          Color(hex: selectedColor).opacity(0.2) :
-                                          Color.white.opacity(0.1))
-                                    .frame(width: 50, height: 50)
+                                          Color(hex: selectedColor).opacity(0.15) :
+                                          (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03)))
+                                    .frame(width: 52, height: 52)
                                 
                                 Image(systemName: icon)
                                     .foregroundColor(selectedIcon == icon ?
-                                                   Color(hex: selectedColor) : .gray)
-                                    .font(.system(size: 22))
+                                                   Color(hex: selectedColor) : (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3)))
+                                    .font(.system(size: 22, weight: .semibold))
                             }
+                            .background(
+                                Circle()
+                                    .stroke(selectedIcon == icon ? Color(hex: selectedColor).opacity(0.3) : Color.clear, lineWidth: 2)
+                            )
+                            .scaleEffect(selectedIcon == icon ? 1.1 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedIcon)
                             .onTapGesture {
                                 selectedIcon = icon
+                                hapticFeedback()
                             }
                         }
                     }
+                    .padding(.vertical, 4)
                     .padding(.horizontal, 4)
                 }
             }
@@ -1615,69 +2061,56 @@ struct EditCustomListView: View {
     }
     
     private var membersManagementSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             // Header con contador y botón agregar
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Miembros")
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(.gray)
-                    Text("\(selectedMembers.count) personas en la lista")
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("audience.members", comment: ""))
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                        Text(String(format: NSLocalizedString("audience.members.count.long", comment: ""), selectedMembers.count))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(.gray)
+                    }
+                } icon: {
+                    Image(systemName: "person.2.circle.fill")
                 }
+                .foregroundColor(Color(hex: "00A896"))
                 
                 Spacer()
                 
                 Button(action: { showingMemberPicker = true }) {
-                    Label("Agregar", systemImage: "plus.circle.fill")
-                        .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(Color(hex: "00A896"))
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                        Text(NSLocalizedString("audience.list.add", comment: ""))
+                    }
+                    .font(.custom("Poppins-Medium", size: 14))
+                    .foregroundColor(Color(hex: "00A896"))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(hex: "00A896").opacity(0.1))
+                    .cornerRadius(12)
                 }
             }
-            
-            // Buscador dentro de la lista
-            if !currentMembers.isEmpty {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                        .font(.system(size: 16))
-                    
-                    TextField("Buscar en la lista...", text: $searchText)
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(8)
-            }
+            .padding(.leading, 4)
             
             // Lista de miembros actuales
             if isLoadingMembers {
                 HStack {
+                    Spacer()
                     ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Cargando miembros...")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.gray)
+                    Spacer()
                 }
                 .padding()
-            } else if filteredMembers.isEmpty && !currentMembers.isEmpty {
-                Text("No se encontraron miembros con '\(searchText)'")
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
             } else if currentMembers.isEmpty {
                 VStack(spacing: 12) {
-                    Image(systemName: "person.3.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.gray)
-                    Text("No hay miembros en esta lista")
+                    Image(systemName: "person.2.slash")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray.opacity(0.3))
+                    Text(NSLocalizedString("audience.list.empty", comment: ""))
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.gray)
-                    Text("Toca 'Agregar' para añadir personas")
+                    Text(NSLocalizedString("audience.list.emptyAlt", comment: ""))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray)
                 }
@@ -1693,7 +2126,7 @@ struct EditCustomListView: View {
                             .font(.system(size: 16))
                             .foregroundColor(Color(hex: selectedColor))
                         
-                        Text("\(filteredMembers.count) miembros mostrados")
+                        Text(String(format: NSLocalizedString("audience.list.membersShown", comment: ""), filteredMembers.count))
                             .font(.custom("Poppins-Medium", size: 14))
                             .foregroundColor(.white)
                         
@@ -1701,7 +2134,7 @@ struct EditCustomListView: View {
                     }
                     
                     if !searchText.isEmpty {
-                        Text("Resultados de búsqueda para '\(searchText)'")
+                        Text(String(format: NSLocalizedString("audience.list.searchresults", comment: ""), searchText))
                             .font(.custom("Poppins-Regular", size: 12))
                             .foregroundColor(.white.opacity(0.7))
                     }
@@ -1775,51 +2208,55 @@ struct MemberRowWithRemove: View {
     var body: some View {
         HStack(spacing: 12) {
             // Avatar
-            AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .overlay(
-                        Image(systemName: "person.fill")
+            Group {
+                if let urlStr = user.profileImagePath, let url = URL(string: urlStr) {
+                    AsyncImage(url: url) { image in
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.gray.opacity(0.1)
+                    }
+                } else {
+                    ZStack {
+                        Color.gray.opacity(0.1)
+                        Text(user.username.prefix(1).uppercased())
+                            .font(.custom("Poppins-Bold", size: 16))
                             .foregroundColor(.gray)
-                            .font(.system(size: 16))
-                    )
+                    }
+                }
             }
-            .frame(width: 36, height: 36)
+            .frame(width: 44, height: 44)
             .clipShape(Circle())
+            .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
             
             // Info del usuario
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.username)
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
             }
             
             Spacer()
             
-            // Botón eliminar
+            // Botón Eliminar
             Button(action: { showingRemoveAlert = true }) {
                 Image(systemName: "minus.circle.fill")
                     .font(.system(size: 20))
-                    .foregroundColor(.red)
+                    .foregroundColor(.red.opacity(0.7))
+            }
+            .alert(NSLocalizedString("audience.list.deleteMember.title", comment: ""), isPresented: $showingRemoveAlert) {
+                Button(NSLocalizedString("audience.actions.cancel", comment: ""), role: .cancel) {}
+                Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {
+                    onRemove()
+                }
+            } message: {
+                Text(String(format: NSLocalizedString("audience.list.deleteMember.message", comment: ""), user.username))
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
-        .cornerRadius(8)
-        .alert("Eliminar miembro", isPresented: $showingRemoveAlert) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Eliminar", role: .destructive) {
-                onRemove()
-            }
-        } message: {
-            Text("¿Eliminar a \(user.username) de esta lista?")
-        }
+        .padding(12)
+        .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
+        .cornerRadius(16)
     }
 }
 
@@ -1833,13 +2270,74 @@ struct MemberPickerView: View {
     @State private var isSearching = false
     @State private var hasSearched = false
     @StateObject private var firestoreService = FirestoreService()
+    @State private var selectedUsersData: [AppUser] = []
     
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                // ✅ Fondo Glassmorphic
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .ignoresSafeArea()
+                
+                if colorScheme == .dark {
+                    LinearGradient(
+                        colors: [Color(hex: "00A896").opacity(0.1), Color.clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                } else {
+                     LinearGradient(
+                        colors: [Color(hex: "00A896").opacity(0.05), Color.clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                }
                 
                 VStack(spacing: 0) {
+                    // Carrusel de Seleccionados
+                    if !selectedUsersData.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(selectedUsersData) { user in
+                                    VStack {
+                                        ZStack(alignment: .topTrailing) {
+                                            AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
+                                                image.resizable().aspectRatio(contentMode: .fill)
+                                            } placeholder: {
+                                                Circle().fill(Color.gray.opacity(0.3))
+                                            }
+                                            .frame(width: 48, height: 48)
+                                            .clipShape(Circle())
+                                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                            
+                                            Button(action: {
+                                                toggleSelection(user: user)
+                                            }) {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .foregroundColor(.white)
+                                                    .background(Circle().fill(Color.black.opacity(0.5)))
+                                            }
+                                            .offset(x: 4, y: -4)
+                                        }
+                                        
+                                        Text(user.username)
+                                            .font(.caption)
+                                            .lineLimit(1)
+                                            .frame(width: 60)
+                                            .foregroundColor(.primary)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                        }
+                        .background(.ultraThinMaterial)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    
                     // Barra de búsqueda
                     searchBar
                     
@@ -1860,18 +2358,18 @@ struct MemberPickerView: View {
                     }
                 }
             }
-            .navigationTitle("Agregar Miembros")
+            .navigationTitle(NSLocalizedString("audience.picker.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("audience.actions.cancel", comment: "")) {
                         dismiss()
                     }
                     .foregroundColor(.gray)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Confirmar") {
+                    Button(NSLocalizedString("common.confirm", comment: "")) {
                         // ✅ CONFIRMAR: Cerrar y guardar selección
                         dismiss()
                     }
@@ -1888,7 +2386,7 @@ struct MemberPickerView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
             
-            TextField("Buscar personas...", text: $searchText)
+            TextField(NSLocalizedString("audience.picker.searchPlaceholder", comment: ""), text: $searchText)
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .onSubmit {
@@ -1916,10 +2414,19 @@ struct MemberPickerView: View {
                 }
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
-        .padding()
+
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
     
     private var initialStateView: some View {
@@ -1930,11 +2437,11 @@ struct MemberPickerView: View {
                 .font(.system(size: 50))
                 .foregroundColor(.gray)
             
-            Text("Buscar personas")
+            Text(NSLocalizedString("audience.picker.initialTitle", comment: ""))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
-            Text("Escribe el nombre de usuario para encontrar personas y agregarlas a tu lista")
+            Text(NSLocalizedString("audience.picker.initialDescription", comment: ""))
                 .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -1949,7 +2456,7 @@ struct MemberPickerView: View {
             Spacer()
             ProgressView()
                 .scaleEffect(1.2)
-            Text("Buscando...")
+            Text(NSLocalizedString("common.searching", comment: ""))
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(.gray)
             Spacer()
@@ -1964,11 +2471,11 @@ struct MemberPickerView: View {
                 .font(.system(size: 50))
                 .foregroundColor(.gray)
             
-            Text("Sin resultados")
+            Text(NSLocalizedString("common.noResults", comment: ""))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(.white)
             
-            Text("No se encontraron personas con '\(searchText)'")
+            Text(String(format: NSLocalizedString("audience.picker.noResultsDescription", comment: ""), searchText))
                 .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -1984,11 +2491,7 @@ struct MemberPickerView: View {
                     user: user,
                     isSelected: selectedMembers.contains(user.id),
                     onToggle: {
-                        if selectedMembers.contains(user.id) {
-                            selectedMembers.remove(user.id)
-                        } else {
-                            selectedMembers.insert(user.id)
-                        }
+                        toggleSelection(user: user)
                     }
                 )
             }
@@ -2004,10 +2507,10 @@ struct MemberPickerView: View {
             
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(selectedMembers.count) seleccionadas")
+                    Text(String(format: NSLocalizedString("audience.picker.selectedCount", comment: ""), selectedMembers.count))
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(.white)
-                    Text("Personas para agregar a la lista")
+                    Text(NSLocalizedString("audience.picker.selectedDescription", comment: ""))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray)
                 }
@@ -2016,13 +2519,13 @@ struct MemberPickerView: View {
                 
                 // ✅ MEJORADO: Botones más claros y útiles
                 HStack(spacing: 12) {
-                    Button("Limpiar") {
+                    Button(NSLocalizedString("common.clear", comment: "")) {
                         selectedMembers.removeAll()
                     }
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(.red)
                     
-                    Button("Confirmar") {
+                    Button(NSLocalizedString("common.confirm", comment: "")) {
                         dismiss()
                     }
                     .font(.custom("Poppins-SemiBold", size: 14))
@@ -2037,7 +2540,7 @@ struct MemberPickerView: View {
                 }
             }
             .padding()
-            .background(Color.black)
+            .background(.ultraThinMaterial)
         }
     }
     
@@ -2053,6 +2556,19 @@ struct MemberPickerView: View {
                 case .failure(let error):
                     self.searchResults = []
                 }
+            }
+        }
+    }
+
+    
+    private func toggleSelection(user: AppUser) {
+        if selectedMembers.contains(user.id) {
+            selectedMembers.remove(user.id)
+            selectedUsersData.removeAll(where: { $0.id == user.id })
+        } else {
+            selectedMembers.insert(user.id)
+            if !selectedUsersData.contains(where: { $0.id == user.id }) {
+                selectedUsersData.append(user)
             }
         }
     }
@@ -2213,8 +2729,12 @@ struct UserSelectionRowEnhanced: View {
                                 .foregroundColor(.gray)
                         )
                 }
-                .frame(width: 44, height: 44)
+                .frame(width: 50, height: 50)
                 .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(isSelected ? Color(hex: "00A896") : Color.clear, lineWidth: 2)
+                )
                 
                 // Info del usuario
                 VStack(alignment: .leading, spacing: 2) {
@@ -2222,6 +2742,10 @@ struct UserSelectionRowEnhanced: View {
                         .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
+                }
+                
+                if user.isVerified {
+                     VerifiedBadge(size: 14)
                 }
                 
                 Spacer()
@@ -2253,11 +2777,13 @@ struct UserSelectionRowEnhanced: View {
 
 // MARK: - ViewModels
 class CreateListViewModel: ObservableObject {
+    @Published var isLoading = false
     private let db = Firestore.firestore()
     
     func createList(name: String, description: String, members: [String], color: String, icon: String, completion: @escaping () -> Void) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
+        isLoading = true
         let newList = CustomAudienceList(
             name: name,
             description: description.isEmpty ? nil : description,
@@ -2269,23 +2795,27 @@ class CreateListViewModel: ObservableObject {
         do {
             try db.collection("users").document(userId)
                 .collection("customAudienceLists")
-                .addDocument(from: newList) { error in
+                .addDocument(from: newList) { [weak self] error in
+                    self?.isLoading = false
                     if let error = error {
                     } else {
                         completion()
                     }
                 }
         } catch {
+            isLoading = false
         }
     }
 }
 
 class EditListViewModel: ObservableObject {
+    @Published var isLoading = false
     private let db = Firestore.firestore()
     
     func updateList(listId: String, name: String, description: String, members: [String], color: String, icon: String, completion: @escaping () -> Void) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
+        isLoading = true
         let updateData: [String: Any] = [
             "name": name,
             "description": description.isEmpty ? FieldValue.delete() : description,
@@ -2298,7 +2828,8 @@ class EditListViewModel: ObservableObject {
         db.collection("users").document(userId)
             .collection("customAudienceLists")
             .document(listId)
-            .updateData(updateData) { error in
+            .updateData(updateData) { [weak self] error in
+                self?.isLoading = false
                 if let error = error {
                 } else {
                     completion()

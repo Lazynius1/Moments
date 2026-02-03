@@ -1,4 +1,6 @@
-"NSCameraUsageDescription" = "Permet usar la càmera per fer fotos i vídeos i compartir-los.";
-"NSMicrophoneUsageDescription" = "Permet usar el micròfon per gravar àudio a les teves històries.";
-"NSLocationWhenInUseUsageDescription" = "Permet usar la teva ubicació per etiquetar publicacions i mostrar contingut proper.";
-"NSUserTrackingUsageDescription" = "Permet el seguiment per personalitzar anuncis. Ens ajuda a mantenir l'app gratuïta.";
+"NSCameraUsageDescription" = "Permet usar la càmera per capturar fotos i vídeos per a les teves històries, moments i perfil.";
+"NSMicrophoneUsageDescription" = "Permet usar el micròfon per gravar àudio a les teves històries i missatges de veu.";
+"NSLocationWhenInUseUsageDescription" = "Permet usar la teva ubicació per etiquetar publicacions, mostrar contingut proper i millorar les suggerències de Nova AI.";
+"NSUserTrackingUsageDescription" = "Aquest identificador s'utilitzarà per mostrar-te anuncis personalitzats i millorar la teva experiència a l'aplicació.";
+"NSPhotoLibraryUsageDescription" = "Permet l'accés a la teva galeria per pujar fotos a les teves històries, canviar la teva foto de perfil i permetre que Nova AI analitzi les teves imatges.";
+"NSPhotoLibraryAddUsageDescription" = "Permet desar fotos i vídeos (com el teu codi QR o històries editades) directament a la teva galeria.";

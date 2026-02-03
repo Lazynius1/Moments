@@ -39,12 +39,6 @@ class NovaSuggestionService {
                 lang: lang
             ))
             
-            // 4. Generar sugerencias basadas en memoria e intereses
-            suggestions.append(contentsOf: generateMemoryBasedSuggestions(
-                userMemory: userMemory,
-                userData: userData,
-                lang: lang
-            ))
             
             // 5. Generar sugerencias basadas en contexto temporal
             suggestions.append(contentsOf: generateTimeBasedSuggestions(lang: lang))
@@ -167,42 +161,6 @@ class NovaSuggestionService {
         return suggestions
     }
     
-    // MARK: - Sugerencias basadas en Memoria
-    private func generateMemoryBasedSuggestions(
-        userMemory: NovaMemory?,
-        userData: AppUser?,
-        lang: NovaLanguage
-    ) -> [DynamicSuggestion] {
-        var suggestions: [DynamicSuggestion] = []
-        
-        // Basado en intereses
-        if let interests = userData?.interests, !interests.isEmpty {
-            let topInterest = interests.first ?? ""
-            suggestions.append(DynamicSuggestion(
-                text: String(format: getLocalizedText(key: "suggestions.contentAbout", lang: lang), topInterest),
-                icon: "lightbulb.fill",
-                priority: 6,
-                category: .personalized,
-                action: "Dame ideas de contenido sobre \(topInterest)"
-            ))
-        }
-        
-        // Basado en preferencias de comunicación
-        if let memory = userMemory {
-            let communicationStyle = memory.facts.first { $0.content.contains("comunicación") }?.content ?? ""
-            if communicationStyle.contains("formal") {
-                suggestions.append(DynamicSuggestion(
-                    text: getLocalizedText(key: "suggestions.professionalTips", lang: lang),
-                    icon: "briefcase.fill",
-                    priority: 5,
-                    category: .personalized,
-                    action: "Dame consejos profesionales para mi perfil"
-                ))
-            }
-        }
-        
-        return suggestions
-    }
     
     // MARK: - Sugerencias basadas en Tiempo
     private func generateTimeBasedSuggestions(lang: NovaLanguage) -> [DynamicSuggestion] {

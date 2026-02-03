@@ -7,6 +7,8 @@ import SwiftUI
 class AudioRecordingManager: ObservableObject {
     static let shared = AudioRecordingManager()
     
+    @Published var audioPower: Float = 0.0
+    private var powerTimer: Timer?
     private var audioRecorder: AVAudioRecorder?
     private var recordingSession: AVAudioSession?
     
@@ -15,12 +17,14 @@ class AudioRecordingManager: ObservableObject {
     }
     
     private func setupAudioSession() {
-        recordingSession = AVAudioSession.sharedInstance()
+        let session = AVAudioSession.sharedInstance()
+        self.recordingSession = session
         
         do {
-            try recordingSession?.setCategory(.playAndRecord, mode: .default)
-            try recordingSession?.setActive(true)
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+            try session.setActive(true)
         } catch {
+            print("Failed to set up audio session: \(error.localizedDescription)")
         }
     }
     
@@ -28,24 +32,52 @@ class AudioRecordingManager: ObservableObject {
         let audioFilename = getDocumentsDirectory().appendingPathComponent("recording.m4a")
         
         // ✅ Configuración de ALTA CALIDAD como WhatsApp/Telegram
-        let settings = [
+        let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 48000,        // ✅ 48kHz (4x mejor que antes)
-            AVNumberOfChannelsKey: 1,       // Mono (perfecto para voz)
-            AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue, // ✅ Máxima calidad
-            AVEncoderBitRateKey: 128000,    // ✅ 128 kbps (muy buena calidad)
-            AVLinearPCMBitDepthKey: 16,     // ✅ 16-bit depth
-            AVEncoderAudioQualityForVBRKey: AVAudioQuality.max.rawValue // ✅ VBR de máxima calidad
+            AVSampleRateKey: 44100.0,        // ✅ CD Quality (standard for voice)
+            AVNumberOfChannelsKey: 1,       // Mono
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            AVEncoderBitRateKey: 64000,     // 64kbps is perfect for AAC mono voice
         ]
         
         do {
             audioRecorder = try AVAudioRecorder(url: audioFilename, settings: settings)
+            audioRecorder?.isMeteringEnabled = true // ✅ ENABLE METERING for waveforms
             audioRecorder?.record()
+            
+            // Start power monitoring
+            startPowerMonitoring()
         } catch {
+            print("Could not start recording: \(error.localizedDescription)")
         }
     }
     
+    private func startPowerMonitoring() {
+        powerTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            guard let self = self, let recorder = self.audioRecorder, recorder.isRecording else { return }
+            recorder.updateMeters()
+            
+            // Convert decibels to power 0.0 - 1.0 range
+            let decibels = recorder.averagePower(forChannel: 0)
+            let level = self.normalizedPowerLevel(fromDecibels: decibels)
+            
+            DispatchQueue.main.async {
+                self.audioPower = Float(level)
+            }
+        }
+    }
+    
+    private func normalizedPowerLevel(fromDecibels decibels: Float) -> Float {
+        if decibels < -60.0 { return 0.0 }
+        if decibels >= 0.0 { return 1.0 }
+        return (decibels + 60.0) / 60.0
+    }
+    
     func stopRecording(completion: @escaping (Data?) -> Void) {
+        powerTimer?.invalidate()
+        powerTimer = nil
+        audioPower = 0.0
+        
         audioRecorder?.stop()
         
         let audioFilename = getDocumentsDirectory().appendingPathComponent("recording.m4a")
@@ -97,11 +129,60 @@ class SimpleProximityManager: ObservableObject {
     }
 }
 
+// MARK: - Waveform Visualization Components
+struct VisualWaveformView: View {
+    let levels: [Float]
+    let color: Color
+    let activeColor: Color
+    let progress: Double
+    
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<levels.count, id: \.self) { index in
+                let level = levels[index]
+                let isActive = Double(index) / Double(levels.count) <= progress
+                
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(isActive ? activeColor : color)
+                    .frame(width: 3, height: max(6, CGFloat(level) * 30))
+                    .animation(.easeInOut(duration: 0.1), value: isActive)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: level)
+            }
+        }
+    }
+}
+
+struct LiveWaveformView: View {
+    @ObservedObject var manager = AudioRecordingManager.shared
+    @State private var levels: [Float] = Array(repeating: 0.1, count: 20)
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<levels.count, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(color)
+                    .frame(width: 3, height: max(4, CGFloat(levels[index]) * 35))
+            }
+        }
+        .onReceive(manager.$audioPower) { power in
+            withAnimation(.linear(duration: 0.05)) {
+                levels.removeFirst()
+                levels.append(power)
+            }
+        }
+    }
+}
+
 // MARK: - Audio Message con Proximidad Simple
 struct GlassmorphicAudioMessage: View {
     let audioUrl: String?
     let duration: Double
     let isCurrentUser: Bool
+    let isSending: Bool
+    let progress: Double?
+    let adaptiveColors: AdaptiveColors // ✅ Pass adaptive colors
+    
     @State private var isPlaying = false
     @State private var currentTime: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
@@ -110,118 +191,120 @@ struct GlassmorphicAudioMessage: View {
     @State private var isCheckingAvailability = true
     @State private var showErrorMessage = false
     
+    // Generar niveles "estáticos" pero consistentes para el waveform
+    @State private var waveformLevels: [Float] = (0..<25).map { _ in Float.random(in: 0.2...0.8) }
+    
     @StateObject private var proximityManager = SimpleProximityManager()
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         HStack(spacing: 12) {
             // Play/Pause button
             Button(action: togglePlayback) {
-                Group {
+                ZStack {
                     if isCheckingAvailability {
                         ProgressView()
                             .scaleEffect(0.8)
-                            .tint(.white)
+                            .tint(isCurrentUser ? .white : adaptiveColors.primary)
                     } else {
                         Image(systemName: getPlayButtonIcon())
-                            .font(.system(size: 32))
+                            .font(.system(size: 28))
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    
+                    if isSending, let uploadProgress = progress {
+                        MediaProgressRing(progress: uploadProgress, size: 36, lineWidth: 2)
                     }
                 }
-                .foregroundColor(isAudioAvailable ? .white : .white.opacity(0.5))
-                .frame(width: 32, height: 32)
+                .foregroundColor(isCurrentUser ? .white : adaptiveColors.primary)
+                .frame(width: 36, height: 36)
             }
             .disabled(!isAudioAvailable || isCheckingAvailability)
             
             VStack(alignment: .leading, spacing: 4) {
                 if isCheckingAvailability {
-                    // Loading state
-                    HStack {
-                        ForEach(0..<20, id: \.self) { index in
+                    HStack(spacing: 3) {
+                        ForEach(0..<20, id: \.self) { _ in
                             Rectangle()
-                                .fill(Color.white.opacity(0.3))
-                                .frame(width: 3, height: CGFloat.random(in: 8...24))
+                                .fill(isCurrentUser ? Color.white.opacity(0.3) : adaptiveColors.primary.opacity(0.2))
+                                .frame(width: 3, height: 12)
                         }
                     }
                     .frame(height: 24)
                     
-                    Text("Cargando...")
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.white.opacity(0.7))
+                    Text("chat.loading")
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(isCurrentUser ? .white.opacity(0.7) : adaptiveColors.messageTextColor.opacity(0.5))
                         
                 } else if isAudioAvailable {
-                    // Available audio
+                    VisualWaveformView(
+                        levels: waveformLevels,
+                        color: isCurrentUser ? Color.white.opacity(0.3) : adaptiveColors.primary.opacity(0.2),
+                        activeColor: isCurrentUser ? .white : adaptiveColors.primary,
+                        progress: currentTime / (duration > 0 ? duration : 1)
+                    )
+                    .frame(height: 30)
+                    
                     HStack {
-                        ForEach(0..<20, id: \.self) { index in
-                            Rectangle()
-                                .fill(Color.white.opacity(currentTime / duration > Double(index) / 20 ? 0.8 : 0.3))
-                                .frame(width: 3, height: CGFloat.random(in: 8...24))
-                                .animation(.easeInOut(duration: 0.1), value: currentTime)
+                        Text(formatDuration(isPlaying ? currentTime : duration))
+                        Spacer()
+                        if !isPlaying && duration > 0 {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 10))
                         }
                     }
-                    .frame(height: 24)
+                    .font(.custom("Poppins-Medium", size: 11))
+                    .foregroundColor(isCurrentUser ? .white.opacity(0.8) : adaptiveColors.messageTextColor.opacity(0.6))
                     
-                    // Duration (sin icono de proximidad)
-                    Text(formatDuration(isPlaying ? currentTime : duration))
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.white.opacity(0.7))
                 } else {
-                    // Error state
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 14))
                             .foregroundColor(.orange)
                         
-                        Text("Audio no disponible")
+                        Text("chat.audio.unavailable")
                             .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(isCurrentUser ? .white.opacity(0.7) : adaptiveColors.messageTextColor.opacity(0.5))
                     }
-                    
-                    Text("Este mensaje fue eliminado")
-                        .font(.custom("Poppins-Regular", size: 10))
-                        .foregroundColor(.white.opacity(0.5))
-                        .italic()
                 }
             }
+            .frame(width: 140) // Fixed width for waveform consistency
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(
-            Group {
+            ZStack {
                 if isCurrentUser {
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color(hex: "00A896").opacity(getBackgroundOpacity()))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                        )
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(LinearGradient(
+                            colors: [Color(hex: "4F46E5"), Color(hex: "3B82F6")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
                 } else {
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.white.opacity(getBackgroundOpacity()))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                        )
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(adaptiveColors.messageBubbleBackground)
                         .background(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 18)
                                 .fill(.ultraThinMaterial)
                         )
                 }
             }
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(isCurrentUser ? Color.white.opacity(0.2) : adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
+        )
         .onAppear {
             checkAudioAvailability()
+            // Consistencia visual: si tenemos una duración guardada, generar un waveform basado en el ID del mensaje si fuera posible, si no random
         }
         .onDisappear {
             stopPlayback()
         }
         .onChange(of: proximityManager.isNearEar) { isNear in
-            // Cambiar ruta cuando cambia proximidad
             guard isPlaying else { return }
             switchAudioRoute(toEarpiece: isNear)
-        }
-        .alert("Audio No Disponible", isPresented: $showErrorMessage) {
-            Button("OK") { }
-        } message: {
-            Text("Este mensaje de audio ha sido eliminado y ya no está disponible para reproducir.")
         }
     }
     

@@ -110,6 +110,8 @@ class NovaMemoryService {
             Si no hay hechos de una categoría, escribe "NINGUNO".
             Máximo 2 hechos por categoría.
             
+            ⚠️ REGLA CRÍTICA: NO extraigas información que YA SE CONOCE (mira la sección de HECHOS YA CONOCIDOS). Solo extrae hechos NUEVOS o ACTUALIZACIONES importantes.
+            
             CONVERSACIÓN:
             \(conversationText)
             """
@@ -145,6 +147,8 @@ class NovaMemoryService {
             
             If no facts exist for a category, write "NONE".
             Maximum 2 facts per category.
+            
+            ⚠️ CRITICAL RULE: DO NOT extract information that is ALREADY KNOWN (see the ALREADY KNOWN FACTS section). Only extract NEW facts or important UPDATES.
             
             CONVERSATION:
             \(conversationText)
@@ -182,8 +186,76 @@ class NovaMemoryService {
             Si no hi ha fets d'una categoria, escriu "CAP".
             Màxim 2 fets per categoria.
             
+            ⚠️ REGLA CRÍTICA: NO extreguis informació que JA ES CONEIX (mira la secció de FETS JA CONEGUTS). Només extreu fets NOUS o ACTUALITZACIONS importants.
+            
             CONVERSA:
             \(conversationText)
+            """
+        }
+    }
+    
+    // 🧹 PROMPT PARA LIMPIEZA SEMÁNTICA (Deduplicación y Contradicciones)
+    private func semanticCleanupPrompt(for factsList: String, lang: NovaLanguage) -> String {
+        switch lang {
+        case .es:
+            return """
+            Eres un experto en gestión de memoria de IA. Tu tarea es analizar una lista de hechos conocidos sobre un usuario y detectar DUPLICADOS SEMÁNTICOS y CONTRADICCIONES.
+            
+            LISTA DE HECHOS:
+            \(factsList)
+            
+            REGLAS:
+            1. IDENTIDAD: Si dos hechos dicen lo mismo con palabras distintas (ej: "Se llama Juan" y "El usuario es Juan"), quédate con el más claro.
+            2. CONTRADICCIÓN: Si dos hechos se contradicen (ej: "Vive en Madrid" y "Se ha mudado a París"), quédate con el más reciente (normalmente el de número ID más alto o el que parezca más actual).
+            3. CATEGORÍA: Asegúrate de que los hechos estén en la categoría correcta.
+            
+            REQUERIMIENTO DE SALIDA:
+            Responde ÚNICAMENTE con una lista de acciones en este formato exacto:
+            DELETE: id
+            REPLACE: id WITH: nuevo contenido
+            KEEP: id
+            
+            Utiliza los números ID de la lista. NO incluyas corchetes [] ni explicaciones. Solo la lista de acciones.
+            """
+        case .en:
+            return """
+            You are an AI memory management expert. Your task is to analyze a list of facts about a user and detect SEMANTIC DUPLICATES and CONTRADICTIONS.
+            
+            FACT LIST:
+            \(factsList)
+            
+            RULES:
+            1. IDENTITY: If two facts say the same thing in different words (e.g., "Name is John" and "User is called John"), keep the clearest one.
+            2. CONTRADICTION: If two facts contradict each other (e.g., "Lives in Madrid" and "Moved to Paris"), keep the most recent or relevant one (highest ID number usually).
+            3. CATEGORY: Ensure facts are in the correct category.
+            
+            OUTPUT REQUIREMENT:
+            Respond ONLY with a list of actions in this exact format:
+            DELETE: id
+            REPLACE: id WITH: new content
+            KEEP: id
+            
+            Use the ID numbers from the list. DO NOT include brackets [] or explanations. Only the list of actions.
+            """
+        case .ca:
+            return """
+            Ets un expert en gestió de memòria d'IA. La teva tasca és analitzar una llista de fets coneguts sobre un usuari i detectar DUPLICATS SEMÀNTICS i CONTRADICCIONS.
+            
+            LLISTA DE FETS:
+            \(factsList)
+            
+            REGLES:
+            1. IDENTITAT: Si dos fets diuen el mateix amb paraules diferents (ex: "Es diu Joan" i "L'usuari és en Joan"), queda't amb el més clar.
+            2. CONTRADICCIÓ: Si dos fets es contradiuen (ex: "Viu a Madrid" i "S'ha mudat a París"), queda't amb el més recent.
+            3. CATEGORIA: Assegura't que els fets estiguin a la categoria correcta.
+            
+            REQUERIMENT DE SORTIDA:
+            Respon ÚNICAMENT amb una llista d'accions en aquest format exacte:
+            DELETE: id
+            REPLACE: id WITH: nou contingut
+            KEEP: id
+            
+            Utilitza els números ID de la llista. NO incloguis claudàtors [] ni explicacions. Només la llista d'accions.
             """
         }
     }
@@ -212,7 +284,23 @@ class NovaMemoryService {
             }
             
             // 🔄 MIGRACIÓN AUTOMÁTICA de memoria antigua a nueva estructura
-            if let memory = NovaMemory(dictionary: data) {
+            if var memory = NovaMemory(dictionary: data) {
+                // 🔍 RAG: Verificar si faltan embeddings y generarlos al vuelo
+                let factsWithoutEmbedding = memory.facts.filter { $0.embedding == nil }
+                if !factsWithoutEmbedding.isEmpty {
+                    LogConfig.log("🔧 Generando embeddings para \(factsWithoutEmbedding.count) hechos (background)...", category: "Memory")
+                    
+                    // Ejecutar enriquecimiento de embeddings en background para no bloquear UI
+                    DispatchQueue.global(qos: .utility).async {
+                        let enrichedFacts = self.enrichFactsWithEmbeddings(memory.facts)
+                        var enrichedMemory = memory
+                        enrichedMemory.facts = enrichedFacts
+                        
+                        // Persistir la actualización silenciosamente
+                        self.saveMemory(enrichedMemory) { _ in }
+                    }
+                }
+                
                 LogConfig.log("✅ Memoria nueva cargada: \(memory.facts.count) hechos categorizados", category: "Memory")
                 completion(.success(memory))
             } else if let oldFacts = data["facts"] as? [String] {
@@ -268,7 +356,7 @@ class NovaMemoryService {
     }
     
     // MARK: - 🧠 EXTRACCIÓN INTELIGENTE MEJORADA
-    func extractFactsFromConversation(_ messages: [ChatMessage], userId: String, completion: @escaping ([NovaFact]) -> Void) {
+    func extractFactsFromConversation(_ messages: [ChatMessage], userId: String, existingFacts: [NovaFact] = [], completion: @escaping ([NovaFact]) -> Void) {
         // ✅ PREVENIR MÚLTIPLES LLAMADAS SIMULTÁNEAS
         guard !isProcessingMemory else {
             LogConfig.log("⚠️ Ya se está procesando memoria - evitando duplicado", category: "Memory")
@@ -301,7 +389,10 @@ class NovaMemoryService {
         if !quickPreferences.isEmpty {
             LogConfig.log("⚡ Preferencias detectadas rápidamente: \(quickPreferences.count)", category: "Memory")
             isProcessingMemory = false
-            completion(quickPreferences)
+            
+            // 🔍 RAG: Generar embeddings
+            let enrichedPreferences = self.enrichFactsWithEmbeddings(quickPreferences)
+            completion(enrichedPreferences)
             return
         }
         
@@ -324,7 +415,20 @@ class NovaMemoryService {
         
         // PROMPT MEJORADO para categorización automática (multilingüe)
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        let prompt = categorizationPrompt(for: conversationText, lang: lang)
+        var prompt = categorizationPrompt(for: conversationText, lang: lang)
+        
+        // Añadir hechos ya conocidos al prompt para evitar duplicados
+        if !existingFacts.isEmpty {
+            let knownFactsLabel: String
+            switch lang {
+            case .es: knownFactsLabel = "\n\n📌 HECHOS YA CONOCIDOS (NO REPETIR):"
+            case .en: knownFactsLabel = "\n\n📌 ALREADY KNOWN FACTS (DO NOT REPEAT):"
+            case .ca: knownFactsLabel = "\n\n📌 FETS JA CONEGUTS (NO REPETIR):"
+            }
+            
+            let existingFactsList = existingFacts.map { "- \($0.content)" }.joined(separator: "\n")
+            prompt += "\(knownFactsLabel)\n\(existingFactsList)"
+        }
         
         Task {
             do {
@@ -340,10 +444,13 @@ class NovaMemoryService {
                 // Parsear respuesta categorizada
                 let facts = self.parseCategorizatedResponse(responseText)
                 
+                // 🔍 RAG: Generar embeddings
+                let enrichedFacts = self.enrichFactsWithEmbeddings(facts)
+                
                 DispatchQueue.main.async {
                     self.isProcessingMemory = false
-                    LogConfig.log("✅ Extraídos \(facts.count) hechos categorizados", category: "Memory")
-                    completion(facts)
+                    LogConfig.log("✅ Extraídos \(enrichedFacts.count) hechos categorizados", category: "Memory")
+                    completion(enrichedFacts)
                 }
             } catch {
                 LogConfig.log("❌ Error extrayendo hechos: \(error.localizedDescription)", category: "Memory")
@@ -484,7 +591,10 @@ class NovaMemoryService {
             migratedFacts.append(fact)
         }
         
-        let memory = NovaMemory(userId: userId).addingFacts(migratedFacts)
+        // 🔍 RAG: Generar embeddings para memoria migrada
+        let enrichedFacts = enrichFactsWithEmbeddings(migratedFacts)
+        
+        let memory = NovaMemory(userId: userId).addingFacts(enrichedFacts)
         
         // Guardar memoria migrada
         saveMemory(memory) { result in
@@ -543,15 +653,153 @@ class NovaMemoryService {
         LogConfig.log("🔄 Actualizando memoria con \(facts.count) nuevos hechos categorizados", category: "Memory")
         
         loadMemory(for: userId) { [weak self] result in
+            guard let self = self else { return }
+            
             switch result {
             case .success(let memory):
+                // 1. Añadir nuevos hechos (deduplicación básica por texto)
                 let updatedMemory = memory.addingFacts(facts)
-                self?.saveMemory(updatedMemory, completion: completion)
+                
+                // 2. Realizar limpieza semántica (IA)
+                self.consolidateMemorySemantically(updatedMemory) { consolidatedMemory in
+                    // 3. Aplicar decaimiento temporal
+                    let finalMemory = self.performTemporalDecay(on: consolidatedMemory)
+                    
+                    // 4. Guardar
+                    self.saveMemory(finalMemory, completion: completion)
+                }
                 
             case .failure(let error):
                 completion(.failure(error))
             }
         }
+    }
+    
+    /// Realiza una limpieza profunda de la memoria usando IA
+    func consolidateMemorySemantically(_ memory: NovaMemory, completion: @escaping (NovaMemory) -> Void) {
+        guard memory.facts.count > 1 else {
+            completion(memory)
+            return
+        }
+        
+        LogConfig.log("🧠 Iniciando consolidación semántica de \(memory.facts.count) hechos...", category: "Memory")
+        
+        // 🆔 Mapeo de índices para evitar truncamiento de UUIDs por parte de la IA
+        var indexMapping: [String: String] = [:]
+        var factsWithIndices: [String] = []
+        for (index, fact) in memory.facts.enumerated() {
+            let displayId = "\(index + 1)"
+            indexMapping[displayId] = fact.id
+            factsWithIndices.append("[\(displayId)] (\(fact.type.rawValue)): \(fact.content)")
+        }
+        let factsList = factsWithIndices.joined(separator: "\n")
+        
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        let prompt = semanticCleanupPrompt(for: factsList, lang: lang)
+        
+        LogConfig.log("📝 PROMPT DE CONSOLIDACIÓN CON ÍNDICES:\n\(prompt)", category: "Memory")
+        
+        Task {
+            do {
+                let response = try await model.generateContent(prompt)
+                guard let text = response.text else {
+                    LogConfig.log("⚠️ Respuesta de IA vacía en consolidación", category: "Memory")
+                    completion(memory)
+                    return
+                }
+                
+                LogConfig.log("🤖 RESPUESTA IA:\n\(text)", category: "Memory")
+                
+                let consolidated = self.applyConsolidationActions(text, to: memory, mapping: indexMapping)
+                LogConfig.log("✅ Consolidación completada. De \(memory.facts.count) a \(consolidated.facts.count) hechos.", category: "Memory")
+                completion(consolidated)
+            } catch {
+                LogConfig.log("❌ Error en consolidación semántica: \(error.localizedDescription)", category: "Memory")
+                completion(memory)
+            }
+        }
+    }
+    
+    private func applyConsolidationActions(_ aiResponse: String, to memory: NovaMemory, mapping: [String: String]) -> NovaMemory {
+        var currentMemory = memory
+        let lines = aiResponse.components(separatedBy: .newlines)
+        
+        var idsToDelete: [String] = []
+        var actionsCount = 0
+        
+        for line in lines {
+            let cleanLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if cleanLine.isEmpty { continue }
+            
+            LogConfig.log("⚙️ Procesando línea de acción: \(cleanLine)", category: "Memory")
+            
+            if cleanLine.hasPrefix("DELETE:") {
+                let indexId = cleanLine.replacingOccurrences(of: "DELETE:", with: "")
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "[] ").union(.whitespacesAndNewlines))
+                
+                if let realId = mapping[indexId] {
+                    idsToDelete.append(realId)
+                    actionsCount += 1
+                }
+            } else if cleanLine.hasPrefix("REPLACE:") {
+                let contentPart = cleanLine.replacingOccurrences(of: "REPLACE:", with: "")
+                let parts = contentPart.components(separatedBy: " WITH:")
+                if parts.count == 2 {
+                    let indexId = parts[0].trimmingCharacters(in: CharacterSet(charactersIn: "[] ").union(.whitespacesAndNewlines))
+                    let content = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    if let realId = mapping[indexId] {
+                        currentMemory = currentMemory.replacingFact(withId: realId, withNewContent: content)
+                        LogConfig.log("🔄 Reemplazando hecho \(realId) con nuevo contenido", category: "Memory")
+                        actionsCount += 1
+                    }
+                }
+            } else if cleanLine.hasPrefix("KEEP:") {
+                LogConfig.log("📌 Manteniendo hecho: \(cleanLine)", category: "Memory")
+            }
+        }
+        
+        if !idsToDelete.isEmpty {
+            LogConfig.log("🗑 Borrando \(idsToDelete.count) hechos reales", category: "Memory")
+            currentMemory = currentMemory.removingFacts(withIds: idsToDelete)
+        }
+        
+        LogConfig.log("📊 Resumen de acciones aplicadas: \(actionsCount)", category: "Memory")
+        return currentMemory
+    }
+    
+    private func performTemporalDecay(on memory: NovaMemory) -> NovaMemory {
+        let now = Date()
+        let oneDay: TimeInterval = 24 * 60 * 60
+        
+        let filteredFacts = memory.facts.filter { fact in
+            // Regla de decaimiento:
+            // 1. Hechos en categorías transitorias (general/interés temporal?)
+            // Por ahora, solo borramos hechos de tipo 'general' que tengan más de 7 días 
+            // a menos que tengan alta importancia.
+            
+            if fact.type == .general && fact.importance < 3 {
+                let age = now.timeIntervalSince(fact.timestamp)
+                if age > oneDay * 7 {
+                    LogConfig.log("📅 Decaimiento: Eliminando hecho antiguo '\(fact.content)'", category: "Memory")
+                    return false
+                }
+            }
+            
+            return true
+        }
+        
+        if filteredFacts.count == memory.facts.count {
+            return memory
+        }
+        
+        return NovaMemory(
+            id: memory.id,
+            userId: memory.userId,
+            facts: filteredFacts,
+            lastUpdated: now,
+            createdAt: memory.createdAt
+        )
     }
     
     // MARK: - 🔥 NUEVAS FUNCIONES DE ANÁLISIS DE FLUJO DE CONVERSACIÓN
@@ -817,5 +1065,16 @@ class NovaMemoryService {
         case ("pref.high_engagement", .ca): return "S'involucra molt en les converses"
         default: return key
         }
+    }
+    
+    // MARK: - 🔍 HELPER RAG
+    private func enrichFactsWithEmbeddings(_ facts: [NovaFact]) -> [NovaFact] {
+        var enriched = facts
+        for i in 0..<enriched.count {
+            if let vector = NovaEmbeddingService.shared.generateEmbedding(for: enriched[i].content) {
+                enriched[i].embedding = vector
+            }
+        }
+        return enriched
     }
 }

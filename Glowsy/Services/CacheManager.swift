@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import Kingfisher
 
-// ✅ CACHE MANAGER INTELIGENTE MEJORADO (estilo Instagram/TikTok)
+// ✅ CACHE MANAGER INTELIGENTE MEJORADO
 class CacheManager: ObservableObject {
     static let shared = CacheManager()
     private let userDefaults = UserDefaults.standard
@@ -51,7 +51,7 @@ class CacheManager: ObservableObject {
     }
     
     private func startIntelligentCleanup() {
-        // Verificar cada 12 horas (como Instagram)
+        // Verificar cada 12 horas
         Timer.scheduledTimer(withTimeInterval: 12 * 60 * 60, repeats: true) { _ in
             self.performIntelligentCleanup()
         }
@@ -67,7 +67,7 @@ class CacheManager: ObservableObject {
             return true
         }
         
-        // Limpiar cada 12-24 horas (como Instagram)
+        // Limpiar periódicamente (cada 12-24 horas)
         let oneDayAgo = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         return lastCleanup < oneDayAgo
     }

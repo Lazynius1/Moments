@@ -36,25 +36,39 @@ struct NovaFact: Identifiable{
     let content: String
     let type: NovaFactType
     let timestamp: Date
-    let importance: Int  // 1-5, donde 5 es más importante
+    let importance: Int
+    var lastVerified: Date
+    var lastProbedAt: Date? // 🆕 Para rastrear cuándo Nova mencionó esto por última vez
+    var embedding: [Double]? // 🔍 RAG: Vector semántico
     
-    init(content: String, type: NovaFactType, importance: Int = 3) {
-        self.id = UUID().uuidString
+    init(id: String = UUID().uuidString, content: String, type: NovaFactType, timestamp: Date = Date(), importance: Int = 3, lastVerified: Date = Date(), lastProbedAt: Date? = nil, embedding: [Double]? = nil) {
+        self.id = id
         self.content = content
         self.type = type
-        self.timestamp = Date()
+        self.timestamp = timestamp
         self.importance = max(1, min(5, importance)) // Clamp entre 1-5
+        self.lastVerified = lastVerified
+        self.lastProbedAt = lastProbedAt
+        self.embedding = embedding
     }
     
     // Para compatibilidad con Firestore
     var dictionary: [String: Any] {
-        return [
+        var dict: [String: Any] = [
             "id": id,
             "content": content,
             "type": type.rawValue,
             "timestamp": Timestamp(date: timestamp),
-            "importance": importance
+            "importance": importance,
+            "lastVerified": Timestamp(date: lastVerified),
+            "lastProbedAt": lastProbedAt != nil ? Timestamp(date: lastProbedAt!) : NSNull()
         ]
+        
+        if let embedding = embedding {
+            dict["embedding"] = embedding
+        }
+        
+        return dict
     }
     
     init?(dictionary: [String: Any]) {
@@ -62,21 +76,106 @@ struct NovaFact: Identifiable{
               let content = dictionary["content"] as? String,
               let typeString = dictionary["type"] as? String,
               let type = NovaFactType(rawValue: typeString),
-              let timestamp = dictionary["timestamp"] as? Timestamp,
-              let importance = dictionary["importance"] as? Int else {
+              let timestamp = (dictionary["timestamp"] as? Timestamp)?.dateValue() else {
             return nil
         }
         
         self.id = id
         self.content = content
         self.type = type
-        self.timestamp = timestamp.dateValue()
-        self.importance = importance
+        self.timestamp = timestamp
+        self.importance = dictionary["importance"] as? Int ?? 3
+        self.lastVerified = (dictionary["lastVerified"] as? Timestamp)?.dateValue() ?? timestamp
+        self.lastProbedAt = (dictionary["lastProbedAt"] as? Timestamp)?.dateValue()
+        self.embedding = dictionary["embedding"] as? [Double]
     }
     
     // Score para ordenamiento (mayor = más importante)
     var relevanceScore: Int {
         return (type.priority * 10) + importance
+    }
+    
+    // Contenido normalizado para comparaciones (sin indicadores de categoría o prefijos comunes)
+    var normalizedContent: String {
+        let text = content.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Prefijos comunes a eliminar en varios idiomas
+        let prefixes = [
+            "vive en ", "viu a ", "lives in ",
+            "trabaja de ", "trabaja como ", "treballa de ", "works as ",
+            "le gusta ", "li agrada ", "likes ",
+            "es un ", "es una ", "és un ", "és una ", "is a ", "is an ",
+            "tiene ", "té ", "has "
+        ]
+        
+        var normalized = text
+        for prefix in prefixes {
+            if normalized.hasPrefix(prefix) {
+                normalized = String(normalized.dropFirst(prefix.count))
+            }
+        }
+        
+        // Eliminar puntuación al final
+        while normalized.hasSuffix(".") || normalized.hasSuffix("!") || normalized.hasSuffix("?") {
+            normalized = String(normalized.dropLast())
+        }
+        
+        return normalized.trimmingCharacters(in: .whitespaces)
+    }
+}
+
+// MARK: - 🎭 PERFIL DE COMPORTAMIENTO (NUEVO)
+struct NovaBehaviorProfile: Codable {
+    var averageMessageLength: Double // Palabras por mensaje
+    var emojiFrequency: Double       // Emojis por mensaje
+    var vocabularyComplexity: Int    // 1-10 (Simple -> Complejo)
+    var sentimentTrend: Double       // -1.0 (Negativo) a 1.0 (Positivo)
+    var lastUpdated: Date
+    
+    // Valores por defecto (Usuario promedio)
+    static var `default`: NovaBehaviorProfile {
+        return NovaBehaviorProfile(
+            averageMessageLength: 10.0,
+            emojiFrequency: 0.2,
+            vocabularyComplexity: 5,
+            sentimentTrend: 0.2, // Ligeramente positivo por defecto
+            lastUpdated: Date()
+        )
+    }
+    
+    // Para compatibilidad con Firestore
+    var dictionary: [String: Any] {
+        return [
+            "averageMessageLength": averageMessageLength,
+            "emojiFrequency": emojiFrequency,
+            "vocabularyComplexity": vocabularyComplexity,
+            "sentimentTrend": sentimentTrend,
+            "lastUpdated": Timestamp(date: lastUpdated)
+        ]
+    }
+    
+    init(averageMessageLength: Double, emojiFrequency: Double, vocabularyComplexity: Int, sentimentTrend: Double, lastUpdated: Date) {
+        self.averageMessageLength = averageMessageLength
+        self.emojiFrequency = emojiFrequency
+        self.vocabularyComplexity = vocabularyComplexity
+        self.sentimentTrend = sentimentTrend
+        self.lastUpdated = lastUpdated
+    }
+    
+    init?(dictionary: [String: Any]) {
+        guard let avgMsgLen = dictionary["averageMessageLength"] as? Double,
+              let emojiFreq = dictionary["emojiFrequency"] as? Double,
+              let vocabComp = dictionary["vocabularyComplexity"] as? Int,
+              let sentiment = dictionary["sentimentTrend"] as? Double,
+              let updatedTimestamp = dictionary["lastUpdated"] as? Timestamp else {
+            return nil
+        }
+        
+        self.averageMessageLength = avgMsgLen
+        self.emojiFrequency = emojiFreq
+        self.vocabularyComplexity = vocabComp
+        self.sentimentTrend = sentiment
+        self.lastUpdated = updatedTimestamp.dateValue()
     }
 }
 
@@ -84,16 +183,32 @@ struct NovaFact: Identifiable{
 struct NovaMemory: Identifiable {
     let id: String
     let userId: String
-    let facts: [NovaFact]            // Hechos categorizados
-    let lastUpdated: Date
+    var facts: [NovaFact]            // Hechos categorizados
+    var lastUpdated: Date
     let createdAt: Date
     
+    // 🎭 Perfil de Comportamiento (NUEVO)
+    var behaviorProfile: NovaBehaviorProfile?
+    
+    // Spark activo para esta sesión (transitorio)
+    var activeSpark: NovaFact? = nil
+    
+    init(id: String = UUID().uuidString, userId: String, facts: [NovaFact] = [], lastUpdated: Date = Date(), createdAt: Date = Date(), behaviorProfile: NovaBehaviorProfile? = nil) {
+        self.id = id
+        self.userId = userId
+        self.facts = facts
+        self.lastUpdated = lastUpdated
+        self.createdAt = createdAt
+        self.behaviorProfile = behaviorProfile
+    }
+
     init(userId: String) {
         self.id = UUID().uuidString
         self.userId = userId
         self.facts = []
         self.lastUpdated = Date()
         self.createdAt = Date()
+        self.behaviorProfile = .default
     }
     
     // Para Firestore
@@ -103,7 +218,8 @@ struct NovaMemory: Identifiable {
             "userId": userId,
             "facts": facts.map { $0.dictionary },
             "lastUpdated": Timestamp(date: lastUpdated),
-            "createdAt": Timestamp(date: createdAt)
+            "createdAt": Timestamp(date: createdAt),
+            "behaviorProfile": behaviorProfile?.dictionary ?? NovaBehaviorProfile.default.dictionary
         ]
     }
     
@@ -122,6 +238,12 @@ struct NovaMemory: Identifiable {
         self.facts = factsData.compactMap { NovaFact(dictionary: $0) }
         self.createdAt = createdTimestamp.dateValue()
         self.lastUpdated = lastUpdatedTimestamp.dateValue()
+        
+        if let behaviorData = dictionary["behaviorProfile"] as? [String: Any] {
+            self.behaviorProfile = NovaBehaviorProfile(dictionary: behaviorData)
+        } else {
+            self.behaviorProfile = .default
+        }
     }
     
     // MARK: - 🔧 Métodos Mejorados
@@ -143,7 +265,79 @@ struct NovaMemory: Identifiable {
             userId: userId,
             facts: balancedFacts,
             lastUpdated: Date(),
-            createdAt: createdAt
+            createdAt: createdAt,
+            behaviorProfile: behaviorProfile
+        )
+    }
+    
+    /// Elimina un hecho específico por ID
+    func removingFact(withId id: String) -> NovaMemory {
+        let updatedFacts = facts.filter { $0.id != id }
+        return NovaMemory(
+            id: self.id,
+            userId: self.userId,
+            facts: updatedFacts,
+            lastUpdated: Date(),
+            createdAt: self.createdAt,
+            behaviorProfile: self.behaviorProfile
+        )
+    }
+    
+    /// Elimina múltiples hechos por sus IDs
+    func removingFacts(withIds ids: [String]) -> NovaMemory {
+        let updatedFacts = facts.filter { !ids.contains($0.id) }
+        return NovaMemory(
+            id: self.id,
+            userId: self.userId,
+            facts: updatedFacts,
+            lastUpdated: Date(),
+            createdAt: self.createdAt,
+            behaviorProfile: self.behaviorProfile
+        )
+    }
+    
+    /// Reemplaza un hecho existente o actualiza su contenido
+    func replacingFact(withId id: String, withNewContent content: String) -> NovaMemory {
+        let updatedFacts = facts.map { fact in
+            if fact.id == id {
+                return NovaFact(
+                    id: fact.id,
+                    content: content,
+                    type: fact.type,
+                    timestamp: fact.timestamp,
+                    importance: fact.importance,
+                    lastVerified: Date()
+                )
+            }
+            return fact
+        }
+        return NovaMemory(
+            id: self.id,
+            userId: self.userId,
+            facts: updatedFacts,
+            lastUpdated: Date(),
+            createdAt: self.createdAt,
+            behaviorProfile: self.behaviorProfile
+        )
+    }
+    
+    /// Actualiza el timestamp de la última vez que se usó un hecho
+    func markingFactAsProbed(id: String) -> NovaMemory {
+        let updatedFacts = facts.map { fact in
+            if fact.id == id {
+                var newFact = fact
+                newFact.lastProbedAt = Date()
+                return newFact
+            }
+            return fact
+        }
+        return NovaMemory(
+            id: self.id,
+            userId: self.userId,
+            facts: updatedFacts,
+            lastUpdated: Date(),
+            createdAt: self.createdAt,
+            behaviorProfile: self.behaviorProfile
         )
     }
     
@@ -173,12 +367,17 @@ struct NovaMemory: Identifiable {
         let labels: (userInfo: String, prefs: String, personal: String, work: String, interests: String, rules: String, rule1: String, rule2: String, rule3: String, rule4: String)
         switch lang {
         case .es:
-            labels = ("INFORMACIÓN SOBRE EL USUARIO:", "⚙️ PREFERENCIAS:", "👤 PERSONAL:", "💼 TRABAJO/ESTUDIOS:", "❤️ INTERESES:", "INSTRUCCIONES IMPORTANTES:", "- Usa esta información naturalmente, sin mencionar que la \"recuerdas\"", "- Si hay un nombre preferido, úsalo SIEMPRE en lugar del username", "- Aplica las preferencias de comunicación automáticamente", "- Esta información es SOBRE el usuario, no sobre ti (Nova)")
+            labels = ("INFORMACIÓN SOBRE EL USUARIO:", "⚙️ PREFERENCIAS:", "👤 PERSONAL:", "💼 TRABAJO/ESTUDIOS:", "❤️ INTERESES:", "INSTRUCCIONES IMPORTANTES:", "- Usa esta información naturalmente, sin mencionar que la \"recuerdas\"", "- Si hay un nombre preferido, úsalo SIEMPRE en lugar del username", "- Aplica las preferencias de comunicación automáticamente", "- NO repitas información estática (como ubicación) en cada mensaje. Úsala solo si es relevante.")
         case .en:
-            labels = ("USER INFORMATION:", "⚙️ PREFERENCES:", "👤 PERSONAL:", "💼 WORK/STUDIES:", "❤️ INTERESTS:", "IMPORTANT INSTRUCTIONS:", "- Use this information naturally, without mentioning that you \"remember\" it", "- If there's a preferred name, ALWAYS use it instead of the username", "- Apply communication preferences automatically", "- This information is ABOUT the user, not about you (Nova)")
+            labels = ("USER INFORMATION:", "⚙️ PREFERENCES:", "👤 PERSONAL:", "💼 WORK/STUDIES:", "❤️ INTERESTS:", "IMPORTANT INSTRUCTIONS:", "- Use this information naturally, without mentioning that you \"remember\" it", "- If there's a preferred name, ALWAYS use it instead of the username", "- Apply communication preferences automatically", "- DO NOT repeat static info (like location) in every message. Use it only if relevant.")
         case .ca:
-            labels = ("INFORMACIÓ SOBRE L'USUARI:", "⚙️ PREFERÈNCIES:", "👤 PERSONAL:", "💼 FEINA/ESTUDIS:", "❤️ INTERESSOS:", "INSTRUCCIONS IMPORTANTS:", "- Utilitza aquesta informació de manera natural, sense esmentar que la \"recordes\"", "- Si hi ha un nom preferit, fes-lo servir SEMPRE en lloc del username", "- Aplica les preferències de comunicació automàticament", "- Aquesta informació és SOBRE l'usuari, no sobre tu (Nova)")
+            labels = ("INFORMACIÓ SOBRE L'USUARI:", "⚙️ PREFERÈNCIES:", "👤 PERSONAL:", "💼 FEINA/ESTUDIS:", "❤️ INTERESSOS:", "INSTRUCCIONS IMPORTANTS:", "- Utilitza aquesta informació de manera natural, sense esmentar que la \"recordes\"", "- Si hi ha un nom preferit, fes-lo servir SEMPRE en lloc del username", "- Aplica les preferències de comunicació automàticament", "- NO repeteixis informació estàtica (com la ubicació) a cada missatge. Utilitza-la només si és rellevant.")
         }
+        
+        
+        // 🔍 SELECCIONAR UN "SPARK" CONVERSACIONAL (Usar el activo)
+        let spark = activeSpark
+        
         var context = "\(labels.userInfo)\n\n"
         
         // 🎯 PREFERENCIAS PRIMERO (muy importante)
@@ -195,7 +394,9 @@ struct NovaMemory: Identifiable {
         let personalFacts = facts.filter { $0.type == .personal }
         if !personalFacts.isEmpty {
             context += "\(labels.personal)\n"
-            for fact in personalFacts.prefix(3) {
+            // Variar los hechos personales que se muestran si hay muchos
+            let selectedFacts = personalFacts.count > 3 ? Array(personalFacts.shuffled().prefix(3)) : personalFacts
+            for fact in selectedFacts {
                 context += "- \(fact.content)\n"
             }
             context += "\n"
@@ -229,7 +430,126 @@ struct NovaMemory: Identifiable {
         \(labels.rule4)
         """
         
+        // 🔥 INYECTAR EL SPARK SI EXISTE
+        if let spark = spark {
+            let refinedContent = refineSparkContent(spark.content, lang: lang)
+            let sparkInstruction = lang == .es ? "🔥 TEMA DE CONVERSACIÓN SUGERIDO: '\(refinedContent)'. Si la conversación decae o es relevante, menciona esto CASUALMENTE (ej: 'Por cierto, ¿cómo va lo de...?'). No lo fuerces." : (lang == .ca ? "🔥 TEMA DE CONVERSA SUGGERIT: '\(refinedContent)'. Si la conversa decau o és rellevant, esmenta això CASUALMENT. No ho forcis." : "🔥 SUGGESTED CONVERSATION TOPIC: '\(refinedContent)'. If the conversation lulls or it fits, mention this CASUALLY (e.g., 'By the way, how is...?'). Don't force it.")
+            context += "\n\n\(sparkInstruction)"
+        }
+        
         return context
+    }
+    
+    /// Selecciona un hecho aleatorio para ser el Spark activo
+    mutating func selectRandomSpark() {
+        // Solo hechos personales, profesionales o intereses
+        let candidates = facts.filter {
+            ($0.type == .personal || $0.type == .professional || $0.type == .interest) &&
+            $0.importance >= 3
+        }
+        
+        // Filtrar los que ya se han usado recientemente (últimas 24h)
+        let freshCandidates = candidates.filter {
+            guard let lastProbed = $0.lastProbedAt else { return true }
+            return Date().timeIntervalSince(lastProbed) > 86400 // 24 horas
+        }
+        
+        // 🛡️ FILTRO DE SENSIBILIDAD Y COMPLEJIDAD
+        let safeCandidates = freshCandidates.filter {
+            isContentSafeForProactiveRecall($0.content) &&
+            !isGrammaticallyComplex($0.content)
+        }
+        
+        // Devolver uno aleatorio de los top 5 más relevantes
+        self.activeSpark = safeCandidates.sorted { $0.relevanceScore > $1.relevanceScore }.prefix(5).randomElement()
+    }
+    
+    /// 🛡️ Comprueba si el contenido es seguro para sacar como tema de conversación
+    func isContentSafeForProactiveRecall(_ content: String) -> Bool {
+        let lowercased = content.lowercased()
+        
+        let blacklist = [
+            // Salud / Muerte / Dolor
+            "broken", "pain", "sick", "hospital", "died", "death", "kill", "hurt", "injury",
+            "enfermo", "dolor", "hospital", "muerte", "murió", "matar", "herida", "lesión", "falleció",
+            "malalt", "mort", "ferida", "lesió",
+            
+            // Emociones Negativas Fuertes
+            "hate", "furious", "depressed", "anxiety", "lonely", "suicide",
+            "odio", "furioso", "deprimido", "ansiedad", "solo", "suicidio", "triste",
+            "odi", "furiós", "deprimit", "ansietat", "sol",
+            
+            // Situaciones Complejas / Crisis
+            "breakup", "divorce", "fired", "broke up", "ex-",
+            "ruptura", "divorcio", "despedido", "cortamos", "exnovi", "exmarido", "exmujer",
+            "trencament", "divorci", "acomiadat"
+        ]
+        
+        for term in blacklist {
+            if lowercased.contains(term) {
+                print("🚫 Spark rechazado por seguridad ('\(term)'): \(content)")
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    /// 🛡️ Evitar hechos gramaticalmente complejos o demasiado largos
+    func isGrammaticallyComplex(_ content: String) -> Bool {
+        let words = content.components(separatedBy: .whitespacesAndNewlines)
+        
+        // 1. Demasiado largo (> 12 palabras es difícil de meter casualmente)
+        if words.count > 12 { return true }
+        
+        // 2. Conectores complejos que sugieren múltiples oraciones
+        let complexConnectors = [" y ", " and ", " i ", " pero ", " but ", " aunque ", " although ", " porque ", " because "]
+        for connector in complexConnectors {
+            if content.lowercased().contains(connector) {
+                // Si tiene conectores, mejor evitarlo para spark (puede ser una frase compuesta rara)
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    /// 🎨 Refina el contenido del hecho para que suene mejor en una frase "Por cierto, qué tal..."
+    private func refineSparkContent(_ content: String, lang: NovaLanguage) -> String {
+        var text = content
+        let lower = text.lowercased()
+        
+        // Prefijos comunes a eliminar para convertir oración en "tópico"
+        // Ej: "Juego al tenis" -> "el tenis"
+        // Ej: "Trabajo en Apple" -> "tu trabajo en Apple"
+        
+        switch lang {
+        case .es:
+            if lower.hasPrefix("me gusta ") { text = String(text.dropFirst(9)) }
+            else if lower.hasPrefix("odio ") { text = String(text.dropFirst(5)) }
+            else if lower.hasPrefix("juego a ") { text = String(text.dropFirst(8)) }
+            else if lower.hasPrefix("soy ") { text = "tu faceta de " + String(text.dropFirst(4)) }
+            else if lower.hasPrefix("trabajo en ") { text = "tu trabajo en " + String(text.dropFirst(11)) }
+            else if lower.hasPrefix("vivo en ") { text = "la vida en " + String(text.dropFirst(8)) }
+            
+        case .en:
+            if lower.hasPrefix("i like ") { text = String(text.dropFirst(7)) }
+            else if lower.hasPrefix("i hate ") { text = String(text.dropFirst(7)) }
+            else if lower.hasPrefix("i play ") { text = String(text.dropFirst(7)) }
+            else if lower.hasPrefix("i am ") { text = "being " + String(text.dropFirst(5)) }
+            else if lower.hasPrefix("i work at ") { text = "your work at " + String(text.dropFirst(10)) }
+            else if lower.hasPrefix("i live in ") { text = "life in " + String(text.dropFirst(10)) }
+            
+        case .ca:
+            if lower.hasPrefix("m'agrada ") { text = String(text.dropFirst(9)) }
+            else if lower.hasPrefix("odio ") { text = String(text.dropFirst(5)) }
+            else if lower.hasPrefix("jugo a ") { text = String(text.dropFirst(7)) }
+            else if lower.hasPrefix("soc ") { text = "la teva faceta de " + String(text.dropFirst(4)) }
+            else if lower.hasPrefix("treballo a ") { text = "la teva feina a " + String(text.dropFirst(11)) }
+            else if lower.hasPrefix("visc a ") { text = "la vida a " + String(text.dropFirst(7)) }
+        }
+        
+        return text
     }
     
     /// Verificar si está vacía
@@ -378,36 +698,35 @@ struct NovaMemory: Identifiable {
         return nil
     }
     
-    // Inicializador interno para actualizaciones
-    private init(id: String, userId: String, facts: [NovaFact], lastUpdated: Date, createdAt: Date) {
-        self.id = id
-        self.userId = userId
-        self.facts = facts
-        self.lastUpdated = lastUpdated
-        self.createdAt = createdAt
-    }
 }
 
 // MARK: - 🔧 EXTENSIONES ÚTILES
 extension Array where Element == NovaFact {
     func removingDuplicatesByContent() -> [NovaFact] {
-        var seen = Set<String>()
-        return compactMap { fact in
-            let normalized = fact.content.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        var result: [NovaFact] = []
+        
+        for fact in self {
+            let normalized = fact.normalizedContent
             
-            // Considerar duplicados si el contenido es muy similar
-            let similarExists = seen.contains { existingContent in
-                let similarity = normalized.similarityScore(to: existingContent)
-                return similarity > 0.8  // 80% de similitud = duplicado
+            // Si el contenido es demasiado corto, probablemente sea basura
+            if normalized.count < 3 { continue }
+            
+            // Verificar si ya existe algo muy similar en el resultado
+            let exists = result.contains { existing in
+                // Si son del mismo tipo, ser más estrictos con la similitud
+                if existing.type == fact.type {
+                    let similarity = normalized.similarityScore(to: existing.normalizedContent)
+                    return similarity > 0.7 // 70% de similitud es suficiente con normalización
+                }
+                return false
             }
             
-            if similarExists {
-                return nil
+            if !exists {
+                result.append(fact)
             }
-            
-            seen.insert(normalized)
-            return fact
         }
+        
+        return result
     }
 }
 

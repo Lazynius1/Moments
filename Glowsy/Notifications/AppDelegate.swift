@@ -100,8 +100,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             // Solo actualizar badge, sin mostrar banner
             completionHandler([.badge])
         } else {
-            // Mostrar notificación normal
-            completionHandler([.banner, .sound, .badge])
+            // Mostrar notificación normal (SOLO sonido y badge, el banner lo manejamos nosotros)
+            completionHandler([.sound, .badge])
         }
         
         // ✅ Actualizar badge service cuando llegue notificación

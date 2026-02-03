@@ -48,9 +48,9 @@ struct SplashScreenView: View {
                 
                 Spacer()
                 
-                // Loading indicator al estilo Instagram
+                // Loading indicator optimizado
                 VStack(spacing: 20) {
-                    InstagramStyleLoader()
+                    MomentsLoader()
                     
                     Text("splash.loading")
                         .font(.system(size: 16, weight: .medium))
@@ -157,8 +157,8 @@ struct SplashFloatingOrbView: View {
     }
 }
 
-// MARK: - Instagram Style Loader
-struct InstagramStyleLoader: View {
+// MARK: - Moments Loader
+struct MomentsLoader: View {
     @State private var progress: CGFloat = 0.0
     @State private var rotation: Double = 0
     

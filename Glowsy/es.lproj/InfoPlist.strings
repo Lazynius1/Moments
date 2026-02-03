@@ -1,4 +1,6 @@
-"NSCameraUsageDescription" = "Permite usar la cámara para hacer fotos y vídeos y compartirlos.";
-"NSMicrophoneUsageDescription" = "Permite usar el micrófono para grabar audio en tus historias.";
-"NSLocationWhenInUseUsageDescription" = "Permite usar tu ubicación para etiquetar publicaciones y mostrar contenido cercano.";
-"NSUserTrackingUsageDescription" = "Permite el seguimiento para personalizar anuncios. Nos ayuda a mantener la app gratuita.";
+"NSCameraUsageDescription" = "Permite usar la cámara para capturar fotos y vídeos para tus historias, momentos y perfil.";
+"NSMicrophoneUsageDescription" = "Permite usar el micrófono para grabar audio en tus historias y mensajes de voz.";
+"NSLocationWhenInUseUsageDescription" = "Permite usar tu ubicación para etiquetar publicaciones, mostrar contenido cercano y mejorar las sugerencias de Nova AI.";
+"NSUserTrackingUsageDescription" = "Este identificador se usará para mostrarte anuncios personalizados y mejorar tu experiencia en la app.";
+"NSPhotoLibraryUsageDescription" = "Permite el acceso a tu galería para subir fotos a tus historias, cambiar tu foto de perfil y permitir que Nova AI analice tus imágenes.";
+"NSPhotoLibraryAddUsageDescription" = "Permite guardar fotos y vídeos (como tu código QR o historias editadas) directamente en tu galería.";

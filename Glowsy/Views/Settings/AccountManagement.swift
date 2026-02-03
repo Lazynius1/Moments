@@ -20,10 +20,10 @@ struct AccountManagementSection: View {
                 icon: "pause.circle",
                 title: NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account title"),
                 subtitle: NSLocalizedString("accountManagement.deactivate.subtitle", comment: "Deactivate account subtitle"),
-                isDestructive: false,
                 action: {
                     showDeactivateConfirmation = true
-                }
+                },
+                isDestructive: false
             )
             
             // Delete account
@@ -31,10 +31,10 @@ struct AccountManagementSection: View {
                 icon: "trash.circle",
                 title: NSLocalizedString("accountManagement.delete.title", comment: "Delete account title"),
                 subtitle: NSLocalizedString("accountManagement.delete.subtitle", comment: "Delete account subtitle"),
-                isDestructive: true,
                 action: {
                     showDeleteConfirmation = true
-                }
+                },
+                isDestructive: true
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -143,7 +143,7 @@ struct AccountManagementSection: View {
                             // Account deleted successfully
                             break
                         case .failure(let fastError):
-                            self.errorMessage = "Error eliminando cuenta: \(fastError.localizedDescription)"
+                            self.errorMessage = String(format: NSLocalizedString("accountManagement.error.delete", comment: "Error deleting account"), fastError.localizedDescription)
                             self.showError = true
                         }
                     }
@@ -419,7 +419,7 @@ class AccountManagementService {
         
         // Re-authenticate user first
         guard let email = user.email else {
-            let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener el email del usuario"])
+            let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.noEmail", comment: "No email error")])
             completion(.failure(error))
             return
         }
@@ -519,7 +519,7 @@ class AccountManagementService {
     func deleteAccountFast(user: User, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
         
         guard let email = user.email else {
-            let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener el email del usuario"])
+            let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.noEmail", comment: "No email error")])
             completion(.failure(error))
             return
         }

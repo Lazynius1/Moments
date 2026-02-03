@@ -114,7 +114,7 @@ class ChatService: ObservableObject {
         for doc in documents {
             let data = doc.data()
             
-            // ✅ Filtrar mensajes eliminados para el usuario actual (estilo Instagram)
+            // ✅ Filtrar mensajes eliminados para el usuario actual (estilo nativo)
             if let deletedFor = data["deletedFor"] as? [String],
                let currentUserId = Auth.auth().currentUser?.uid,
                deletedFor.contains(currentUserId) {
@@ -320,7 +320,8 @@ class ChatService: ObservableObject {
     }
     
     func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
-        uploadMedia(data: mediaData, type: type, conversationId: conversationId) { [weak self] result in
+        let finalMessageId = messageId ?? UUID().uuidString
+        uploadMedia(data: mediaData, type: type, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let (mediaUrl, thumbnailUrl)):
                 let finalMessageId = messageId ?? UUID().uuidString
@@ -388,7 +389,8 @@ class ChatService: ObservableObject {
     }
     
     func sendAudioMessage(conversationId: String, senderId: String, audioData: Data, duration: Double, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
-        uploadMedia(data: audioData, type: .audio, conversationId: conversationId) { [weak self] result in
+        let finalMessageId = messageId ?? UUID().uuidString
+        uploadMedia(data: audioData, type: .audio, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let (mediaUrl, _)):
                 let finalMessageId = messageId ?? UUID().uuidString
@@ -789,7 +791,7 @@ class ChatService: ObservableObject {
                         "deletedAt": FieldValue.serverTimestamp()
                     ], forDocument: doc.reference)
                     
-                    // ✅ Marcar TODOS los mensajes como eliminados para este usuario (estilo Instagram)
+                    // ✅ Marcar TODOS los mensajes como eliminados para este usuario (estilo nativo)
                     self.markAllMessagesAsDeletedForUser(conversationId: doc.documentID, userId: user1Id)
                 }
 
@@ -803,7 +805,7 @@ class ChatService: ObservableObject {
             }
     }
     
-    // ✅ NUEVA FUNCIÓN: Restaurar conversación eliminada (estilo Instagram)
+    // ✅ NUEVA FUNCIÓN: Restaurar conversación eliminada (estilo nativo)
     func restoreConversation(conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
         
         db.collection("conversations")
@@ -940,7 +942,7 @@ class ChatService: ObservableObject {
                 for doc in documents {
                     let data = doc.data()
                     
-                    // ✅ Filtrar conversaciones eliminadas para este usuario (estilo Instagram)
+                    // ✅ Filtrar conversaciones eliminadas para este usuario (estilo nativo)
                     if let deletedFor = data["deletedFor"] as? [String], deletedFor.contains(userId) {
                         continue
                     }
@@ -1002,19 +1004,31 @@ class ChatService: ObservableObject {
             }
     }
     // MARK: - Media Upload
-    func uploadMedia(data: Data, type: MessageType, conversationId: String, completion: @escaping (Result<(mediaUrl: String, thumbnailUrl: String?), Error>) -> Void) {
-        let fileName = "\(UUID().uuidString).\(getFileExtension(for: type))"
+    func uploadMedia(data: Data, type: MessageType, conversationId: String, messageId: String? = nil, completion: @escaping (Result<(mediaUrl: String, thumbnailUrl: String?), Error>) -> Void) {
+        let ext = getFileExtension(for: type)
+        let fileName = "\(UUID().uuidString).\(ext)"
+        print("📤 ChatService: uploadMedia for type \(type) - Generated extension: \(ext)")
         let storageRef = storage.reference().child("conversations/\(conversationId)/\(fileName)")
         
         let metadata = StorageMetadata()
         metadata.contentType = getContentType(for: type)
 
-        storageRef.putData(data, metadata: metadata) { [weak self] _, error in
-            if let error = error {
-                completion(.failure(error))
-                return
+        let uploadTask = storageRef.putData(data, metadata: metadata)
+        
+        // ✅ Track progress if messageId is provided
+        if let msgId = messageId {
+            uploadTask.observe(.progress) { snapshot in
+                let percentComplete = Double(snapshot.progress?.completedUnitCount ?? 0) / Double(snapshot.progress?.totalUnitCount ?? 1)
+                
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("MediaUploadProgress"),
+                    object: nil,
+                    userInfo: ["messageId": msgId, "progress": percentComplete]
+                )
             }
-            
+        }
+
+        uploadTask.observe(.success) { _ in
             storageRef.downloadURL { url, error in
                 if let error = error {
                     completion(.failure(error))
@@ -1027,12 +1041,18 @@ class ChatService: ObservableObject {
                 }
                 
                 if type == .video {
-                    self?.generateVideoThumbnail(from: data) { thumbnailUrl in
+                    self.generateVideoThumbnail(from: data) { thumbnailUrl in
                         completion(.success((mediaUrl: mediaUrl, thumbnailUrl: thumbnailUrl)))
                     }
                 } else {
                     completion(.success((mediaUrl: mediaUrl, thumbnailUrl: nil)))
                 }
+            }
+        }
+        
+        uploadTask.observe(.failure) { snapshot in
+            if let error = snapshot.error {
+                completion(.failure(error))
             }
         }
     }
@@ -1043,27 +1063,61 @@ class ChatService: ObservableObject {
     
     // MARK: - Message Status
     func markMessagesAsRead(conversationId: String, messageIds: [String], readerId: String, completion: @escaping (Error?) -> Void) {
-        let batch = db.batch()
         
-        for messageId in messageIds {
-            let messageRef = db.collection("conversations")
-                .document(conversationId)
-                .collection("messages")
-                .document(messageId)
+        // ✅ Verificar configuración de privacidad antes de marcar como leído
+        db.collection("users").document(readerId).getDocument { [weak self] userSnapshot, userError in
+            guard let self = self else { return }
             
-            batch.updateData([
-                "isRead": true,
-                "status": MessageStatus.read.rawValue
-            ], forDocument: messageRef)
-        }
-        
-        let conversationRef = db.collection("conversations").document(conversationId)
-        batch.updateData(["readStatus.\(readerId)": true], forDocument: conversationRef)
-        
-        batch.commit { error in
-            if let error = error {
+            let userSettings = userSnapshot?.data()
+            let globalEnabled = userSettings?["showReadReceipts"] as? Bool ?? true
+            
+            if !globalEnabled {
+                // Si está desactivado globalmente, no marcamos como leído en Firestore
+                completion(nil)
+                return
             }
-            completion(error)
+            
+            self.db.collection("conversations").document(conversationId).getDocument { convSnapshot, convError in
+                let convData = convSnapshot?.data()
+                let preferences = convData?["readReceiptPreferences"] as? [String: Bool] ?? [:]
+                
+                // Prioridad 1: Ajuste específico del chat para este usuario
+                let finalEnabled: Bool
+                if let chatPreference = preferences[readerId] {
+                    finalEnabled = chatPreference
+                } else {
+                    // Prioridad 2: Fallback al ajuste global
+                    finalEnabled = globalEnabled
+                }
+                
+                if !finalEnabled {
+                    // Si el visto está desactivado (por chat o global), no marcamos como leído
+                    completion(nil)
+                    return
+                }
+                
+                // Si todo está habilitado, procedemos con el batch original
+                let batch = self.db.batch()
+                
+                for messageId in messageIds {
+                    let messageRef = self.db.collection("conversations")
+                        .document(conversationId)
+                        .collection("messages")
+                        .document(messageId)
+                    
+                    batch.updateData([
+                        "isRead": true,
+                        "status": MessageStatus.read.rawValue
+                    ], forDocument: messageRef)
+                }
+                
+                let conversationRef = self.db.collection("conversations").document(conversationId)
+                batch.updateData(["readStatus.\(readerId)": true], forDocument: conversationRef)
+                
+                batch.commit { error in
+                    completion(error)
+                }
+            }
         }
     }
     
@@ -1463,7 +1517,7 @@ class ChatService: ObservableObject {
                 "readStatus": readStatus
             ]
             
-            // ✅ Restaurar conversación para participantes que la habían eliminado (estilo Instagram)
+            // ✅ Restaurar conversación para participantes que la habían eliminado (estilo nativo)
             if !participantsToRestore.isEmpty {
                 updateData["deletedFor"] = FieldValue.arrayRemove(participantsToRestore)
             }
@@ -1691,19 +1745,22 @@ class ChatService: ObservableObject {
     
     // MARK: - Helper Methods
     private func getFileExtension(for type: MessageType) -> String {
+        print("📤 ChatService: getFileExtension requested for type: \(type)")
         switch type {
-        case .image, .gif: return "jpg"
-        case .video: return "mp4"
+        case .image, .gif, .viewOnceImage: return "jpg"
+        case .video, .viewOnceVideo: return "mp4"
         case .audio: return "m4a"
         case .file: return "pdf"
-        default: return "txt"
+        default: 
+            print("📤 ChatService: getFileExtension falling back to default (txt) for type: \(type)")
+            return "txt"
         }
     }
     
     private func getContentType(for type: MessageType) -> String {
         switch type {
-        case .image: return "image/jpeg"
-        case .video: return "video/mp4"
+        case .image, .viewOnceImage: return "image/jpeg"
+        case .video, .viewOnceVideo: return "video/mp4"
         case .audio: return "audio/m4a"
         case .gif: return "image/gif"
         case .file: return "application/pdf"
@@ -1888,13 +1945,16 @@ extension ChatService {
         senderId: String,
         mediaData: Data,
         mediaType: EnhancedCameraPickerView.MediaType,
+        messageId: String? = nil,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         // Determinar el tipo de mensaje
         let messageType: MessageType = mediaType == .image ? .viewOnceImage : .viewOnceVideo
         
+        let finalMessageId = messageId ?? UUID().uuidString
+        
         // Subir media primero
-        uploadMedia(data: mediaData, type: messageType, conversationId: conversationId) { [weak self] result in
+        uploadMedia(data: mediaData, type: messageType, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let (mediaUrl, thumbnailUrl)):
                 let messageId = UUID().uuidString
@@ -1965,7 +2025,8 @@ extension ChatService {
             guard var viewedBy = messageDocument.data()?["viewedBy"] as? [String] else {
                 transaction.updateData([
                     "viewedBy": [viewerId],
-                    "isViewed": true
+                    "isViewed": true,
+                    "status": MessageStatus.read.rawValue // ✅ ACTUALIZAR STATUS A LEÍDO
                 ], forDocument: messageRef)
                 return nil
             }
@@ -1974,7 +2035,8 @@ extension ChatService {
                 viewedBy.append(viewerId)
                 transaction.updateData([
                     "viewedBy": viewedBy,
-                    "isViewed": true
+                    "isViewed": true,
+                    "status": MessageStatus.read.rawValue // ✅ ACTUALIZAR STATUS A LEÍDO
                 ], forDocument: messageRef)
             }
             
@@ -1995,7 +2057,7 @@ extension ChatService {
             "senderId": message.senderId,
             "type": message.type.rawValue,
             "timestamp": FieldValue.serverTimestamp(),
-            "status": message.status.rawValue,
+            "status": MessageStatus.sent.rawValue, // ✅ FORZAR ESTADO ENVIADO INICIALMENTE
             "isRead": message.isRead,
             "isDeleted": message.isDeleted,
             "isViewed": message.isViewed
@@ -2039,9 +2101,21 @@ extension ChatService {
         
         messageRef.setData(customData) { [weak self] error in
             if let error = error {
+                self?.updateLocalMessageStatus(
+                    conversationId: message.conversationId,
+                    messageId: message.id,
+                    status: .failed
+                )
                 completion(.failure(error))
                 return
             }
+            
+            // ✅ Marcar como enviado inmediatamente en Firestore
+            self?.updateMessageStatus(
+                conversationId: message.conversationId,
+                messageId: message.id,
+                status: .sent
+            ) { _ in }
             
             
             // Actualizar conversación con preview

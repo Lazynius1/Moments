@@ -34,6 +34,8 @@ struct MomentDetailView: View {
     
     // ✅ NUEVO: Estado para navegación al perfil
     @State private var navigateToProfile: Bool = false
+    @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
+    
 
     init(moment: Moment) {
         self.moment = moment
@@ -51,18 +53,13 @@ struct MomentDetailView: View {
                     .ignoresSafeArea(.all)
                     .opacity(backgroundOpacity)
                 
-                // ✅ Header centrado como ModernMomentDetailView
-                modernHeaderSection
-                    .padding(.horizontal, 20)
-                    .padding(.top, safeAreaTop + 12)
+                // ✅ Header fijo superior pegado al notch
+                modernHeaderSection(safeAreaTop: safeAreaTop)
                     .zIndex(10)
-                    .offset(x: dragOffset * 0.3)
                     .opacity(backgroundOpacity)
                 
-                // ✅ Contenido principal con drag
+                // ✅ Contenido principal
                 VStack(spacing: 0) {
-                    Spacer().frame(height: safeAreaTop + 80) // Espacio para el header
-                    
                     if viewModel.isLoading {
                         MomentLoadingStateView()
                     } else if let errorMessage = viewModel.errorMessage {
@@ -70,9 +67,10 @@ struct MomentDetailView: View {
                             dismiss()
                         }
                     } else {
-                        contentScrollView
+                        contentScrollView(safeAreaBottom: safeAreaBottom)
                     }
                 }
+                .padding(.top, safeAreaTop + 65) // Ajustado para que el contenido empiece debajo del header fijo
                 .offset(x: dragOffset)
                 .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                 
@@ -114,6 +112,8 @@ struct MomentDetailView: View {
         .sheet(isPresented: $showingCommentsSheet) {
             ModernCommentsView(moment: moment)
                 .environmentObject(FirestoreService())
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showEditSheet) {
             EditMomentView(
@@ -195,120 +195,90 @@ struct MomentDetailView: View {
     private var modernBackgroundView: some View {
         ZStack {
             if colorScheme == .dark {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color.black.opacity(0.4)
             } else {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color.white.opacity(0.1)
             }
             
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.05 : 0.02)
+                .opacity(colorScheme == .dark ? 0.3 : 0.2)
+                .ignoresSafeArea()
         }
     }
     
-    private var modernHeaderSection: some View {
-        HStack {
-            Spacer()
+    private func modernHeaderSection(safeAreaTop: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            // Relleno notch
+            Color.clear
+                .frame(height: max(20, safeAreaTop - 10))
             
-            HStack(spacing: 12) {
-                Button(action: {
-                    if !moment.authorId.isEmpty {
-                        navigateToProfile = true
-                    }
-                }) {
-                    AsyncProfileImageView(userId: moment.authorId)
-                        .frame(width: 45, height: 45)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(PlainButtonStyle())
+            HStack {
+                Spacer()
                 
-                VStack(spacing: 2) {
-                    HStack(spacing: 4) {
-                        Button(action: {
-                            if !moment.authorId.isEmpty {
-                                navigateToProfile = true
-                            }
-                        }) {
-                            Text(moment.username)
-                                .font(.custom("Poppins-SemiBold", size: 20))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                HStack(spacing: 10) {
+                    Button(action: {
+                        if !moment.authorId.isEmpty {
+                            navigateToProfile = true
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        // ✅ INSIGNIA DE VERIFICADO
-                        VerifiedBadgeView(userId: moment.authorId, size: 16)
-                    }
-                    
-                    Text(timeAgo(from: moment.timestamp))
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray.opacity(0.8))
-                }
-            }
-
-            Spacer()
-            
-            // ✅ Botón de menú contextual
-            Button(action: {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    showContextMenu = true
-                }
-            }) {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.4), Color.gray.opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
+                    }) {
+                        AsyncProfileImageView(userId: moment.authorId)
+                            .frame(width: 38, height: 38)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(.white.opacity(0.15), lineWidth: 0.5)
                             )
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 4) {
+                            Button(action: {
+                                if !moment.authorId.isEmpty {
+                                    navigateToProfile = true
+                                }
+                            }) {
+                                Text(moment.username)
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .foregroundColor(.primary)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            VerifiedBadgeView(userId: moment.authorId, size: 13)
+                        }
+                        
+                        Text(moment.timestamp.timeAgoDisplay())
+                            .font(.custom("Poppins-Regular", size: 10))
+                            .foregroundColor(.secondary.opacity(0.7))
+                    }
+                }
+
+                Spacer()
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            
+            Divider()
+                .background(Color.white.opacity(0.04))
         }
-        .padding(.horizontal, 20)
+        .background(.ultraThinMaterial)
     }
     
-    private var contentScrollView: some View {
+    private func contentScrollView(safeAreaBottom: CGFloat) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
                 // ✅ Contenido del momento con aspect ratio dinámico
                 momentContentCard
                 
-                // ✅ Comentarios inline (mantener para que la vista no se vea vacía)
+                // ✅ Comentarios inline
                 if !moment.disableComments {
                     inlineCommentsSection
                 }
                 
-                // Espaciado para el teclado
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(height: keyboardHeight)
+                // Espaciado para el área segura inferior
+                Color.clear
+                    .frame(height: safeAreaBottom + 40)
             }
         }
         .coordinateSpace(name: "scroll")
@@ -384,6 +354,7 @@ struct MomentDetailView: View {
             EnhancedCarouselView(
                 mediaItems: mediaItems,
                 currentIndex: $currentImageIndex,
+                showTags: $showTags, // ✅ PASAR binding
                 aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                 allMoments: [moment], // Solo el momento actual
                 currentMoment: moment // El momento actual
@@ -410,6 +381,78 @@ struct MomentDetailView: View {
                     .padding(.top, 20)
                     Spacer()
                 }
+            }
+            
+            // ✅ NUEVO: BOTONES DE ETIQUETAS (Nivel superior del card)
+            let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
+            if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                // Esquina superior izquierda
+                VStack {
+                    HStack {
+                        Button(action: {
+                            withAnimation(.spring()) {
+                                showTags.toggle()
+                            }
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(showTags ? Color(hex: "00A896") : Color.black.opacity(0.6))
+                                    .frame(width: 32, height: 32)
+                                    .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
+                                Image(systemName: "tag.fill")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
+                        }
+                        .padding(.leading, 12)
+                        .padding(.top, 12)
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .zIndex(100)
+
+                // Esquina inferior izquierda (encima del caption)
+                VStack {
+                    Spacer()
+                    HStack {
+                        Button(action: {
+                            withAnimation(.spring()) {
+                                showTags.toggle()
+                            }
+                        }) {
+                            ZStack {
+                                // Background Glass
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                    .frame(width: 36, height: 36)
+                                
+                                // Border Gradient Glass
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1.5
+                                    )
+                                    .frame(width: 36, height: 36)
+                                
+                                // Icon tinted if active
+                                Image(systemName: showTags ? "person.fill" : "person.circle.fill")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                            }
+                            .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                        }
+                        .padding(.leading, 12)
+                        .padding(.bottom, moment.content.isEmpty ? 15 : 60) // En Explore el caption está abajo
+                        Spacer()
+                    }
+                }
+                .zIndex(110)
             }
         }
     }
@@ -493,27 +536,18 @@ struct MomentDetailView: View {
     // ✅ Cálculo de altura con aspect ratio dinámico
     private var cardHeight: CGFloat {
         let maxWidth = UIScreen.main.bounds.width - 30
+        guard maxWidth > 0 else { return 400 }
         
-        guard maxWidth > 0 else {
-            return 400 // Fallback seguro
-        }
-        
-        let aspectRatio: CGFloat
-        if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
-            aspectRatio = detectedAspectRatio
-        } else {
-            aspectRatio = aspectRatioType.exactRatio
-        }
-        
+        let aspectRatio: CGFloat = (detectedAspectRatio > 0 && detectedAspectRatio.isFinite) ? detectedAspectRatio : aspectRatioType.exactRatio
         let calculatedHeight = maxWidth / aspectRatio
-        guard calculatedHeight > 0 && calculatedHeight.isFinite else {
-            return aspectRatioType.maxHeight
+        
+        // Para Reels, dejamos que crezca más libremente como en el perfil
+        if aspectRatioType == .reels {
+            let maxReelsHeight = UIScreen.main.bounds.height * 0.75
+            return min(calculatedHeight, maxReelsHeight)
         }
         
-        let maxAllowedHeight = min(aspectRatioType.maxHeight, UIScreen.main.bounds.height * 0.6)
-        let finalHeight = min(calculatedHeight, maxAllowedHeight)
-        let safeHeight = max(finalHeight, 200)
-        return safeHeight
+        return min(calculatedHeight, aspectRatioType.maxHeight)
     }
     
     private var momentContentText: some View {
@@ -719,10 +753,10 @@ struct MomentDetailView: View {
         
         var maxHeight: CGFloat {
             switch self {
-            case .square: return 400
-            case .portrait: return 500
-            case .landscape: return 280
-            case .reels: return 600
+            case .square: return 450
+            case .portrait: return 550
+            case .landscape: return 300
+            case .reels: return 1000 // Inmersivo
             }
         }
         
@@ -730,8 +764,8 @@ struct MomentDetailView: View {
             switch self {
             case .square: return 1.0
             case .portrait: return 0.8
-            case .landscape: return 1.78
-            case .reels: return 0.5625
+            case .landscape: return 16.0/9.0
+            case .reels: return 9.0/16.0
             }
         }
     }
@@ -929,7 +963,7 @@ struct InlineCommentRow: View {
                         .font(.custom("Poppins-Regular", size: 11))
                         .foregroundColor(.gray.opacity(0.6))
                     
-                    Text(timeAgo(from: comment.timestamp))
+                    Text(comment.timestamp.timeAgoDisplay())
                         .font(.custom("Poppins-Regular", size: 11))
                         .foregroundColor(.gray.opacity(0.6))
                 }
@@ -968,13 +1002,8 @@ struct InlineCommentRow: View {
                 )
         )
     }
-    
-    private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
 }
+    
 
 // MARK: - Botón de Reacciones Vertical (Expansión hacia arriba)
 struct VerticalReactionButton: View {

@@ -576,7 +576,7 @@ extension PrivacyService {
     }
     
     // ✅ FUNCIÓN CORREGIDA: Verificar audiencia personalizada
-    private func checkCustomAudience(contentType: String, contentId: String, authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
+     func checkCustomAudience(contentType: String, contentId: String, authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
         
         db.collection("users").document(authorId)
             .collection("customAudiences")

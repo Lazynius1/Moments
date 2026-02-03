@@ -10,147 +10,228 @@ struct EditMomentView: View {
     @State private var isSaving = false
     
     var body: some View {
-        NavigationView {
+        ZStack {
+            // MARK: - 1. Immersive Background
+            GeometryReader { proxy in
+                if let imagePath = moment.imagePath, let url = URL(string: imagePath) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                            .blur(radius: 40)
+                            .overlay(Color.black.opacity(0.6)) // Slightly darker for better contrast
+                    } placeholder: {
+                        darkGradientBackground
+                    }
+                } else {
+                    darkGradientBackground
+                }
+            }
+            .ignoresSafeArea()
+            
+            // MARK: - 2. Main Content
             VStack(spacing: 0) {
-                // Header
+                // Header Flotante
                 HStack {
-                    Button(NSLocalizedString("editMoment.cancel", comment: "Cancel button in edit moment view")) {
-                        dismiss()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                            )
                     }
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                     
                     Spacer()
                     
-                    Text(NSLocalizedString("editMoment.title", comment: "Title for edit moment view"))
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    Text(NSLocalizedString("editMoment.title", comment: "Title"))
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                     
                     Spacer()
                     
-                    Button(NSLocalizedString("editMoment.save", comment: "Save button in edit moment view")) {
-                        saveChanges()
+                    Button(action: { saveChanges() }) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(
+                                Circle()
+                                    .fill(editedContent != moment.content ? Color(hex: "00A896") : Color.gray.opacity(0.5))
+                            )
+                            .shadow(radius: 5)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
                     }
-                    .foregroundColor(editedContent != moment.content ? Color(hex: "00A896") : .gray)
                     .disabled(editedContent == moment.content || isSaving)
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(colorScheme == .dark ? .ultraThinMaterial : .regularMaterial)
-                
-                Divider()
-                    .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                
-                // Contenido principal
-                VStack(spacing: 20) {
-                    // Preview de la imagen si existe
-                    if let imagePath = moment.imagePath,
-                       let url = URL(string: imagePath) {
-                        AsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 200)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        } placeholder: {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .frame(height: 200)
-                                .overlay(
-                                    ProgressView()
-                                        .tint(Color(hex: "00A896"))
-                                )
-                        }
-                    }
-                    
-                    // Editor de texto
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("editMoment.description", comment: "Description label in edit moment view"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                        
-                        TextEditor(text: $editedContent)
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .background(Color.clear)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(colorScheme == .dark ? .ultraThinMaterial : .regularMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2),
-                                                Color(hex: "00A896").opacity(0.3)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                            .frame(minHeight: 120)
-                    }
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
                 .padding(.top, 20)
-            }
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        }
-        .overlay(
-            // Loading overlay
-            Group {
-                if isSaving {
-                    ZStack {
-                        Color.black.opacity(0.5)
-                            .ignoresSafeArea()
+                .padding(.bottom, 10)
+                
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 30) { // Espacio entre imagen y texto
                         
-                        VStack(spacing: 16) {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(1.2)
-                                .tint(Color(hex: "00A896"))
-                            
-                            Text(NSLocalizedString("editMoment.saving", comment: "Saving changes text in edit moment view"))
-                                .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(.white)
+                        // 1. Imagen Flotante (Multi-image Stack)
+                        MomentMediaStackPreview(moment: moment)
+                            .frame(height: 350) // Dedicated height for the stack
+                            .padding(.horizontal, 20)
+                        
+                        // Pie de página explicativo
+                        Text(NSLocalizedString("editMoment.description", comment: "Description"))
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(.white.opacity(0.6))
+                            .shadow(radius: 2)
+                        
+                        // 2. Editor de Texto (En contenedor Glassmorphic AÚN MÁS sutil)
+                        VStack(alignment: .leading, spacing: 8) {
+                            ZStack(alignment: .topLeading) {
+                                if editedContent.isEmpty {
+                                    Text(NSLocalizedString("editMoment.placeholder", comment: "Placeholder"))
+                                        .font(.custom("Poppins-Regular", size: 18))
+                                        .foregroundColor(.white.opacity(0.5))
+                                        .padding(.top, 8)
+                                        .padding(.leading, 5)
+                                }
+                                
+                                TextEditor(text: $editedContent)
+                                    .font(.custom("Poppins-Regular", size: 18))
+                                    .foregroundColor(.white)
+                                    .scrollContentBackground(.hidden)
+                                    .background(Color.clear)
+                                    .frame(minHeight: 120)
+                            }
                         }
-                        .padding(.horizontal, 40)
-                        .padding(.vertical, 24)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .padding(20)
+                        .background(Color.black.opacity(0.2)) // ✅ Más sutil que ultraThinMaterial
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 0.5) // ✅ Borde apenas visible
+                        )
+                        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2) // ✅ Sombra muy suavizada
+                        .padding(.horizontal, 16)
+                        
+
                     }
+                    .padding(.top, 10)
+                    .padding(.bottom, 40)
                 }
             }
+            
+            // Loading Overlay Immersivo
+            if isSaving {
+                Color.black.opacity(0.6)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .tint(.white)
+                    
+                    Text(NSLocalizedString("editMoment.saving", comment: "Saving"))
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+    }
+    
+    private var darkGradientBackground: some View {
+        LinearGradient(
+            colors: [Color(hex: "0F2027"), Color(hex: "203A43"), Color(hex: "2C5364")],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
         )
     }
     
     private func saveChanges() {
         guard editedContent != moment.content else { return }
         
-        isSaving = true
+        withAnimation {
+            isSaving = true
+        }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        // Simular operacion de red para feedback visual
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             onSave(editedContent)
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                isSaving = false
-                dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation {
+                    isSaving = false
+                    dismiss()
+                }
             }
+        }
+    }
+}
+
+// MARK: - Helper Views
+
+struct MomentMediaStackPreview: View {
+    let moment: Moment
+    
+    // Computed property to get items to display (id, url)
+    private var mediaItemsToDisplay: [(String, String)] {
+        if let items = moment.mediaItems, !items.isEmpty {
+            return items.prefix(3).map { ($0.id, $0.url) }
+        } else if let path = moment.imagePath {
+            // Fallback for legacy usage or single image moments
+            return [(UUID().uuidString, path)]
+        }
+        return []
+    }
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Show items in reverse order so the first one is on top
+                ForEach(Array(mediaItemsToDisplay.enumerated().reversed()), id: \.element.0) { index, item in
+                    let (_, urlString) = item
+                    
+                    if let url = URL(string: urlString) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit) // Ensure full content visibility
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                    )
+                                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                            case .empty, .failure:
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .overlay(
+                                        ProgressView()
+                                            .tint(.white)
+                                    )
+                                    .cornerRadius(16)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        // Stack visual effects
+                        .frame(width: geometry.size.width * 0.85) // Slightly smaller width for stack effect
+                        .rotationEffect(.degrees(Double(index) * 3)) // Rotate background cards
+                        .offset(x: CGFloat(index) * 10, y: CGFloat(index) * 5) // Offset background cards
+                        .zIndex(Double(-index)) // Ensure correct stacking order
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

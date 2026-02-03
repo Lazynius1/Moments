@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import FirebaseAuth
+import FirebaseFirestore // ✅ NUEVO: Para fetchTaggedMoments
 import WidgetKit
 import FirebaseStorage
 import Kingfisher
@@ -50,6 +51,81 @@ struct ProfileColors {
     static let blue = Color(hex: "6B73FF")
 }
 
+// MARK: - ✅ NUEVO: Enum para tabs del perfil
+enum ProfileTabType: String, CaseIterable {
+    case moments = "Moments"
+    case saved = "Guardados"
+    case tagged = "Etiquetas" // ✅ NUEVO
+    
+    var icon: String {
+        switch self {
+        case .moments: return "square.grid.2x2"
+        case .saved: return "bookmark"
+        case .tagged: return "person.crop.rectangle" // ✅ NUEVO
+        }
+    }
+    
+    var localizedTitle: String {
+        switch self {
+        case .moments: return NSLocalizedString("profile.tab.moments", comment: "Moments tab")
+        case .saved: return NSLocalizedString("profile.tab.saved", comment: "Saved tab")
+        case .tagged: return NSLocalizedString("profile.tab.tagged", comment: "Tagged tab") // ✅ NUEVO
+        }
+    }
+}
+
+// MARK: - ✅ NUEVO: Pill Tabs Component
+struct ProfilePillTabs: View {
+    @Binding var selectedTab: ProfileTabType
+    @Namespace private var animation
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(ProfileTabType.allCases, id: \.self) { tab in
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedTab = tab
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 14, weight: .medium))
+                        
+                        Text(tab.localizedTitle)
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                    }
+                    .foregroundColor(selectedTab == tab ? .white : ProfileColors.textSecondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        ZStack {
+                            if selectedTab == tab {
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [ProfileColors.accent, ProfileColors.blue],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .matchedGeometryEffect(id: "TAB_INDICATOR", in: animation)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        .padding(4)
+        .background(ProfileColors.cardBackground)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .stroke(ProfileColors.borderColor, lineWidth: 1)
+        )
+        .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+    }
+}
 
 struct ProfileView: View {
     @EnvironmentObject var authService: AuthService
@@ -69,7 +145,11 @@ struct ProfileView: View {
     @State private var selectedMomentIndex = 0
     @State private var showingReportSheet = false
     @State private var showingBlockConfirmation = false
-    @State private var showingThemeSelector = false
+    @State private var showingThemeSelector = false // ✅ NUEVO: Estado para selector de tema
+    // ✅ NUEVO: Estado para código QR
+    @State private var isShowingQRCode = false
+    @State private var selectedProfileTab: ProfileTabType = .moments  // ✅ NUEVO: Tab selector
+    @State private var showProfileImageFullscreen = false // ✅ NUEVO: Estado para ver foto grande
     
 
     enum UserListType: Identifiable {
@@ -128,7 +208,10 @@ struct ProfileView: View {
                         scrollOffset: $scrollOffset,
                         showMomentDetail: $showMomentDetail,
                         selectedMomentIndex: $selectedMomentIndex,
-                        showingThemeSelector: $showingThemeSelector
+                        showingThemeSelector: $showingThemeSelector,
+                        selectedProfileTab: $selectedProfileTab,  // ✅ NUEVO
+                        showingQRCode: $isShowingQRCode, // ✅ NUEVO: Binding
+                        showProfileImageFullscreen: $showProfileImageFullscreen // ✅ NUEVO
                     )
 
                 }
@@ -141,11 +224,11 @@ struct ProfileView: View {
                     ModernEditProfileView(
                         selectedPhoto: $selectedPhoto,
                         newBio: $newBio,
-                        onSave: { photo, bio in
+                        onSave: { photo, bio, website in
                             if let photo = photo {
                                 viewModel.uploadProfilePicture(item: photo)
                             }
-                            viewModel.updateBio(newBio: bio)
+                            viewModel.updateProfileDetails(bio: bio, websiteUrl: website)
                         }
                     )
                 }
@@ -154,10 +237,24 @@ struct ProfileView: View {
                         ProfileThemeSelector(user: currentUser)
                     }
                 }
+                .sheet(isPresented: $isShowingQRCode) {
+                    QRCodeView()
+                }
+                .sheet(isPresented: $showProfileImageFullscreen) {
+                    if let profileImagePath = viewModel.userProfile?.profileImagePath {
+                        ProfileImageViewer(
+                            profileImagePath: profileImagePath,
+                            username: viewModel.userProfile?.username ?? "Yo"
+                        )
+                        .presentationDetents([.fraction(0.99)])
+                        .presentationDragIndicator(.hidden)
+                        .presentationBackground(.clear)
+                    }
+                }
                 
                 .fullScreenCover(isPresented: $showMomentDetail) {
                     ModernMomentDetailView(
-                        moments: viewModel.moments,
+                        moments: selectedProfileTab == .tagged ? viewModel.taggedMoments : viewModel.moments,
                         initialIndex: selectedMomentIndex,
                         onDismiss: {
                             showMomentDetail = false
@@ -349,6 +446,11 @@ struct ModernProfileContentView: View {
     @Binding var showMomentDetail: Bool
     @Binding var selectedMomentIndex: Int
     @Binding var showingThemeSelector: Bool
+    @Binding var selectedProfileTab: ProfileTabType  // ✅ NUEVO: Tab selector
+    @Binding var showingQRCode: Bool // ✅ NUEVO: Binding para QR
+    @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
+    @StateObject private var savedMomentsViewModel = SavedMomentsViewModel()  // ✅ NUEVO: Guardados
+    @State private var showingFullInfo = false // ✅ NUEVO: Para colapsar Stats/Interests
 
     var body: some View {
         if viewModel.isLoading {
@@ -371,9 +473,20 @@ struct ModernProfileContentView: View {
                             newBio: $newBio,
                             showStoryViewer: $showStoryViewer,
                             selectedStoryIndex: $selectedStoryIndex,
-                            showingThemeSelector: $showingThemeSelector
+                            showingThemeSelector: $showingThemeSelector,
+                            showingQRCode: $showingQRCode,
+                            showProfileImageFullscreen: $showProfileImageFullscreen
+
                         )
                         .padding(.top, safeAreaTop + 10)
+                        .padding(.bottom, 16)
+                        
+                        // ✅ NUEVO: Destacadas Compactas (Justo después del header/bio)
+                        ProfileHighlightsView(
+                            userId: viewModel.userProfile?.id ?? "",
+                            isOwnProfile: viewModel.userProfile?.id == Auth.auth().currentUser?.uid,
+                            isCompact: true
+                        )
                         .padding(.bottom, 20)
                         
                         if viewModel.isRefreshing {
@@ -381,72 +494,187 @@ struct ModernProfileContentView: View {
                                 .padding(.bottom, 16)
                         }
                         
-                        ModernStatsSection(
-                            viewModel: viewModel,
-                            showingUserList: $showingUserList
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 25)
-                        
-                        if let interests = viewModel.userProfile?.interests, !interests.isEmpty {
-                            ModernInterestsView(interests: interests)
+                        // ✅ SECCIÓN DE INFO COLAPSABLE
+                        VStack(spacing: 0) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    showingFullInfo.toggle()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "info.circle.fill")
+                                        .font(.system(size: 14))
+                                    Text(NSLocalizedString("profile.moreInfo", comment: "More info"))
+                                        .font(.custom("Poppins-Medium", size: 13))
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .rotationEffect(.degrees(showingFullInfo ? 180 : 0))
+                                }
+                                .foregroundColor(ProfileColors.textSecondary)
                                 .padding(.horizontal, 20)
-                                .padding(.bottom, 30)
-                                .frame(maxWidth: UIScreen.main.bounds.width)
+                                .padding(.vertical, 12)
+                                .background(ProfileColors.cardBackground.opacity(0.5))
+                                .cornerRadius(12)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, showingFullInfo ? 20 : 25)
+                            
+                            if showingFullInfo {
+                                ModernStatsSection(
+                                    viewModel: viewModel,
+                                    showingUserList: $showingUserList
+                                )
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 25)
+                                .transition(.asymmetric(
+                                    insertion: .opacity.combined(with: .move(edge: .top)),
+                                    removal: .opacity.combined(with: .move(edge: .top))
+                                ))
+                                
+                                if let interests = viewModel.userProfile?.interests, !interests.isEmpty {
+                                    ModernInterestsView(interests: interests)
+                                        .padding(.horizontal, 20)
+                                        .padding(.bottom, 25)
+                                        .frame(maxWidth: UIScreen.main.bounds.width)
+                                        .transition(.opacity)
+                                }
+                            }
                         }
+
                         
                         VStack(spacing: 0) {
+                            // ✅ NUEVO: Pill Tabs para cambiar entre Moments y Guardados
                             HStack {
-                                Text("profile.moments.title")
-                                    .font(.custom("Poppins-SemiBold", size: 20))
-                                    .foregroundColor(ProfileColors.textPrimary) // <- CAMBIO AQUÍ
+                                ProfilePillTabs(selectedTab: $selectedProfileTab)
                                 
                                 Spacer()
                                 
-                                Text("\(viewModel.moments.count)")
+                                // Contador del tab seleccionado
+                                Text("\(selectedProfileTab == .moments ? viewModel.moments.count : savedMomentsViewModel.moments.count)")
                                     .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(ProfileColors.textSecondary) // <- CAMBIO AQUÍ
+                                    .foregroundColor(ProfileColors.textSecondary)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
-                                    .background(ProfileColors.cardBackground) // <- CAMBIO AQUÍ
+                                    .background(ProfileColors.cardBackground)
                                     .clipShape(Capsule())
                                     .overlay(
                                         Capsule()
-                                            .stroke(ProfileColors.borderColor, lineWidth: 0.5) // <- CAMBIO AQUÍ
+                                            .stroke(ProfileColors.borderColor, lineWidth: 0.5)
                                     )
                             }
                             .padding(.horizontal, 20)
                             .padding(.bottom, 16)
                             .frame(maxWidth: UIScreen.main.bounds.width)
                             
-                            if viewModel.moments.isEmpty {
-                                ModernEmptyMomentsView()
-                                    .padding(.horizontal, 20)
-                                    .frame(maxWidth: UIScreen.main.bounds.width - 40)
-                            } else {
-                                GeometryReader { geometry in
-                                    let spacing: CGFloat = 4
-                                    let columns = 3
-                                    let totalSpacing = spacing * CGFloat(columns - 1) + 16
-                                    let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
-                                    
-                                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
-                                        // ✅ CORREGIDO: Usar enumerated para obtener índices
-                                        ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                                            ModernMomentThumbnail(
-                                                moment: moment,
-                                                size: itemWidth,
-                                                onTap: {
-                                                    // ✅ NUEVO: Al tocar abrir vista detallada con scroll
+                            // ✅ NUEVO: Contenido basado en el tab seleccionado
+                            switch selectedProfileTab {
+                            case .moments:
+                                if viewModel.moments.isEmpty {
+                                    ModernEmptyMomentsView()
+                                        .padding(.horizontal, 20)
+                                        .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                                } else {
+                                    GeometryReader { geometry in
+                                        let spacing: CGFloat = 4
+                                        let columns = 3
+                                        let totalSpacing = spacing * CGFloat(columns - 1) + 16
+                                        let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
+                                        
+                                        LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
+                                            ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
+                                                ModernMomentThumbnail(
+                                                    moment: moment,
+                                                    size: itemWidth,
+                                                    onTap: {
+                                                        selectedMomentIndex = index
+                                                        showMomentDetail = true
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        .padding(.horizontal, 8)
+                                    }
+                                    .frame(height: calculateGridHeight(itemCount: viewModel.moments.count))
+                                }
+                                
+                            case .saved:
+                                // ✅ NUEVO: Contenido real de guardados
+                                ProfileSavedContent(
+                                    viewModel: savedMomentsViewModel,
+                                    showMomentDetail: $showMomentDetail,
+                                    selectedMomentIndex: $selectedMomentIndex
+                                )
+                                .onAppear {
+                                    if savedMomentsViewModel.moments.isEmpty && !savedMomentsViewModel.isLoading {
+                                        savedMomentsViewModel.loadSavedMoments()
+                                    }
+                                }
+                            
+                            case .tagged:
+                                // ✅ NUEVO: Contenido de momentos donde has sido etiquetado
+                                VStack {
+                                    if viewModel.isLoadingTagged {
+                                        ProgressView()
+                                            .tint(.white)
+                                            .frame(height: 400)
+                                    } else if viewModel.taggedMoments.isEmpty {
+                                        VStack(spacing: 16) {
+                                            Image(systemName: "person.crop.rectangle")
+                                                .font(.system(size: 56))
+                                                .foregroundColor(.white.opacity(0.5))
+                                            
+                                            Text(NSLocalizedString("profile.tagged.empty.title", comment: ""))
+                                                .font(.title3)
+                                                .fontWeight(.semibold)
+                                                .foregroundColor(.white)
+                                            
+                                            Text(NSLocalizedString("profile.tagged.empty.description", comment: ""))
+                                                .font(.caption)
+                                                .foregroundColor(.white.opacity(0.7))
+                                                .multilineTextAlignment(.center)
+                                                .padding(.horizontal, 32)
+                                        }
+                                        .frame(height: 400)
+                                    } else {
+                                        LazyVGrid(columns: [
+                                            GridItem(.flexible(), spacing: 4),
+                                            GridItem(.flexible(), spacing: 4),
+                                            GridItem(.flexible(), spacing: 4)
+                                        ], spacing: 4) {
+                                            ForEach(Array(viewModel.taggedMoments.enumerated()), id: \.element.id) { index, moment in
+                                                Button(action: {
                                                     selectedMomentIndex = index
                                                     showMomentDetail = true
+                                                }) {
+                                                    if let imagePath = moment.imagePath, let url = URL(string: imagePath) {
+                                                        AsyncImage(url: url) { image in
+                                                            image
+                                                                .resizable()
+                                                                .aspectRatio(contentMode: .fill)
+                                                        } placeholder: {
+                                                            Rectangle()
+                                                                .fill(Color.gray.opacity(0.3))
+                                                        }
+                                                        .frame(width: (UIScreen.main.bounds.width - 16) / 3, height: (UIScreen.main.bounds.width - 16) / 3)
+                                                        .clipped()
+                                                        .cornerRadius(4)
+                                                    }
                                                 }
-                                            )
+                                            }
                                         }
+                                        .padding(.horizontal, 8)
+                                        .frame(height: calculateGridHeight(itemCount: viewModel.taggedMoments.count))
                                     }
-                                    .padding(.horizontal, 8)
                                 }
-                                .frame(height: calculateGridHeight(itemCount: viewModel.moments.count))
+                                .onAppear {
+                                    if viewModel.taggedMoments.isEmpty && !viewModel.isLoadingTagged,
+                                       let userId = viewModel.userProfile?.id {
+                                        viewModel.fetchTaggedMoments(userId: userId)
+                                    }
+                                }
                             }
                         }
                         .frame(maxWidth: UIScreen.main.bounds.width)
@@ -575,6 +803,9 @@ struct ModernProfileHeader: View {
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
     @Binding var showingThemeSelector: Bool
+    @Binding var showingQRCode: Bool
+    @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
+
     @Environment(\.colorScheme) var colorScheme
     @State private var profileImage: UIImage?
     @State private var isLoadingImage = false
@@ -705,6 +936,9 @@ struct ModernProfileHeader: View {
                 if storyViewModel.hasActiveStory, let userId = Auth.auth().currentUser?.uid {
                     showStoryViewer = true
                     selectedStoryIndex = 0
+                } else {
+                    // ✅ Si no hay historia, mostrar foto en grande
+                    showProfileImageFullscreen = true
                 }
             }
             
@@ -746,6 +980,28 @@ struct ModernProfileHeader: View {
                 // Bio expandible adaptativa
                 VStack(spacing: 8) {
                     ExpandableBioView(bio: viewModel.userProfile?.bio ?? "Añade una biografía")
+                    
+                    // ✅ NUEVO: Link in Bio
+                    if let websiteUrl = viewModel.userProfile?.websiteUrl, !websiteUrl.isEmpty, 
+                       let url = URL(string: websiteUrl.hasPrefix("http") ? websiteUrl : "https://\(websiteUrl)") {
+                        Link(destination: url) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 12, weight: .semibold))
+                                
+                                Text(websiteUrl.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""))
+                                    .font(.custom("Poppins-Medium", size: 13))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                            }
+                            .foregroundColor(Color(hex: "00A896")) // Color acento
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 12)
+                            .background(Color(hex: "00A896").opacity(0.1))
+                            .clipShape(Capsule())
+                        }
+                        .padding(.top, 2)
+                    }
                 }
             }
             
@@ -778,6 +1034,30 @@ struct ModernProfileHeader: View {
                             )
                     )
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                }
+                
+                // ✅ NUEVO: Botón de compartir perfil (QR)
+                Button(action: {
+                    showingQRCode = true
+                }) {
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(ProfileColors.textPrimary)
+                        .frame(width: 44, height: 44)
+                        .background(ProfileColors.materialBackground)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [ProfileColors.borderColor, ProfileColors.accent.opacity(0.3)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                        .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 
                 // ✅ TEMPORALMENTE OCULTO: Botón de tema del perfil (solo si tiene badges)
@@ -961,7 +1241,8 @@ struct ModernStatsSection: View {
                     showingUserList = stat.2
                 }) {
                     VStack(spacing: 6) {
-                        Text("\(stat.1)")
+                        // ✅ NUEVO: Contador animado
+                        AnimatedCounterView(value: stat.1)
                             .font(.custom("Poppins-Bold", size: 18))
                             .foregroundColor(ProfileColors.textPrimary)
                         
@@ -991,6 +1272,53 @@ struct ModernStatsSection: View {
                 }
                 .scaleEffect(1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showingUserList)
+            }
+        }
+    }
+}
+
+// MARK: - ✅ NUEVO: Contador animado con efecto count-up
+struct AnimatedCounterView: View {
+    let value: Int
+    @State private var displayedValue: Int = 0
+    @State private var hasAnimated = false
+    
+    var body: some View {
+        Text("\(displayedValue)")
+            .onAppear {
+                guard !hasAnimated else { return }
+                hasAnimated = true
+                animateCounter()
+            }
+            .onChange(of: value) { newValue in
+                // Re-animar cuando el valor cambia
+                animateCounter()
+            }
+    }
+    
+    private func animateCounter() {
+        // Si el valor es 0, mostrar directamente
+        guard value > 0 else {
+            displayedValue = 0
+            return
+        }
+        
+        // Duración total de la animación
+        let duration: Double = 0.8
+        
+        // Número de steps (más para números grandes)
+        let steps = min(value, 20)
+        let stepDuration = duration / Double(steps)
+        
+        // Animar cada step
+        for step in 0...steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(step)) {
+                withAnimation(.easeOut(duration: 0.1)) {
+                    // Calcular valor con ease-out
+                    let progress = Double(step) / Double(steps)
+                    let easedProgress = 1 - pow(1 - progress, 3) // Ease out cubic
+                    displayedValue = Int(Double(value) * easedProgress)
+                }
             }
         }
     }
@@ -1115,6 +1443,28 @@ struct ModernMomentThumbnail: View {
                                 .background(Color.black.opacity(0.6))
                                 .clipShape(Circle())
                                 .padding(6)
+                        }
+                        Spacer()
+                    }
+                }
+                
+                // ✅ NUEVO: Indicador de publicación programada (Solo para el autor)
+                if moment.isScheduled && moment.authorId == Auth.auth().currentUser?.uid {
+                    VStack {
+                        HStack {
+                            HStack(spacing: 4) {
+                                Image(systemName: "clock.fill")
+                                    .font(.system(size: 10, weight: .bold))
+                                Text(moment.scheduledRemainingText)
+                                    .font(.custom("Poppins-Bold", size: 9))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Capsule())
+                            .padding(6)
+                            Spacer()
                         }
                         Spacer()
                     }
@@ -1382,6 +1732,324 @@ struct ModernEmptyMomentsView: View {
         )
     }
 }
+
+// MARK: - ✅ NUEVO: Placeholder para Guardados
+struct ProfileSavedPlaceholder: View {
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(ProfileColors.materialBackground)
+                    .frame(width: 80, height: 80)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        ProfileColors.blue.opacity(0.4),
+                                        ProfileColors.borderColor
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2
+                            )
+                    )
+                
+                Image(systemName: "bookmark.circle")
+                    .font(.system(size: 40))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [ProfileColors.blue, ProfileColors.textSecondary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            
+            VStack(spacing: 8) {
+                Text(NSLocalizedString("profile.saved.empty.title", comment: "No saved content"))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(ProfileColors.textPrimary)
+                
+                Text(NSLocalizedString("profile.saved.empty.subtitle", comment: "Your saved moments will appear here"))
+                    .font(.custom("Poppins-Regular", size: 14))
+                    .foregroundColor(ProfileColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 50)
+        .background(ProfileColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            ProfileColors.borderColor,
+                            ProfileColors.blue.opacity(0.2)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+    }
+}
+
+// MARK: - ✅ NUEVO: Contenido real de guardados en perfil
+struct ProfileSavedContent: View {
+    @ObservedObject var viewModel: SavedMomentsViewModel
+    @Binding var showMomentDetail: Bool
+    @Binding var selectedMomentIndex: Int
+    @State private var showingSavedMomentDetail = false
+    @State private var selectedSavedMomentIndex = 0
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        if viewModel.isLoading {
+            // Estado de carga
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                Text(NSLocalizedString("profile.saved.loading", comment: "Loading saved"))
+                    .font(.custom("Poppins-Medium", size: 14))
+                    .foregroundColor(ProfileColors.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 50)
+        } else if viewModel.moments.isEmpty {
+            // Estado vacío
+            ProfileSavedPlaceholder()
+                .padding(.horizontal, 20)
+        } else {
+            // Grid con momentos guardados
+            GeometryReader { geometry in
+                let spacing: CGFloat = 4
+                let columns = 3
+                let totalSpacing = spacing * CGFloat(columns - 1) + 16
+                let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
+                    ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
+                        ProfileSavedMomentThumbnail(
+                            moment: moment,
+                            size: itemWidth,
+                            onTap: {
+                                selectedSavedMomentIndex = index
+                                showingSavedMomentDetail = true
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 8)
+            }
+            .frame(height: calculateSavedGridHeight(itemCount: viewModel.moments.count))
+            .fullScreenCover(isPresented: $showingSavedMomentDetail) {
+                ModernSavedMomentsDetailView(
+                    moments: viewModel.moments,
+                    initialIndex: selectedSavedMomentIndex,
+                    onDismiss: {
+                        showingSavedMomentDetail = false
+                    },
+                    onRemoveMoment: { moment in
+                        if let momentId = moment.id {
+                            viewModel.removeMoment(momentId: momentId)
+                        }
+                    }
+                )
+            }
+        }
+    }
+    
+    private func calculateSavedGridHeight(itemCount: Int) -> CGFloat {
+        let columns = 3
+        let rows = ceil(Double(itemCount) / Double(columns))
+        let spacing: CGFloat = 4
+        let itemWidth = (UIScreen.main.bounds.width - 16 - (spacing * 2)) / 3
+        return CGFloat(rows) * itemWidth + (CGFloat(rows - 1) * spacing)
+    }
+}
+
+// MARK: - Thumbnail para momento guardado
+struct ProfileSavedMomentThumbnail: View {
+    let moment: Moment
+    let size: CGFloat
+    let onTap: () -> Void
+    @Environment(\.colorScheme) var colorScheme
+    
+    // Estados para miniaturas de video
+    @State private var videoThumbnail: UIImage?
+    @State private var isLoadingVideoThumbnail = false
+    
+    var body: some View {
+        Button(action: onTap) {
+            ZStack {
+                // --- CONTENIDO MEDIA ---
+                if let mediaItem = moment.mediaItems?.first {
+                    if mediaItem.type == .video {
+                        videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
+                    } else {
+                        imageView(url: mediaItem.url)
+                    }
+                } else if let imagePath = moment.imagePath {
+                    imageView(url: imagePath)
+                } else if let videoUrl = moment.videoUrl {
+                    videoView(videoURL: videoUrl, thumbnailURL: moment.thumbnailUrl)
+                } else {
+                    // Momento de texto
+                    textMomentView()
+                }
+                
+                // --- INDICADORES ---
+                
+                // Play indicator si es video
+                if isVideo {
+                    VStack {
+                        HStack {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 8))
+                                .foregroundColor(.white)
+                                .padding(4)
+                                .background(Circle().fill(.black.opacity(0.3)))
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                    .padding(6)
+                }
+                
+                // Badge de guardado
+                VStack {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "bookmark.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(4)
+                            .background(Circle().fill(ProfileColors.blue.opacity(0.8)))
+                    }
+                    Spacer()
+                }
+                .padding(4)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+    
+    private var isVideo: Bool {
+        if let firstMedia = moment.mediaItems?.first {
+            return firstMedia.type == .video
+        }
+        return moment.videoUrl != nil
+    }
+    
+    @ViewBuilder
+    private func imageView(url: String) -> some View {
+        KFImage(URL(string: url))
+            .placeholder {
+                Rectangle()
+                    .fill(ProfileColors.borderColor.opacity(0.3))
+                    .overlay(ProgressView().scaleEffect(0.8))
+            }
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(width: size, height: size)
+            .clipped()
+    }
+    
+    @ViewBuilder
+    private func videoView(videoURL: String, thumbnailURL: String?) -> some View {
+        ZStack {
+            if let thumb = thumbnailURL, let url = URL(string: thumb) {
+                // Usar thumbnail del servidor
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+                    .clipped()
+            } else if let generated = videoThumbnail {
+                // Usar thumbnail generado localmente
+                Image(uiImage: generated)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+                    .clipped()
+            } else {
+                // Cargando o fallback
+                Rectangle()
+                    .fill(ProfileColors.borderColor.opacity(0.3))
+                    .frame(width: size, height: size)
+                    .overlay(
+                        VStack(spacing: 4) {
+                            if isLoadingVideoThumbnail {
+                                ProgressView().scaleEffect(0.6).tint(.white)
+                            } else {
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                        }
+                    )
+                    .onAppear {
+                        loadVideoThumbnail(from: videoURL)
+                    }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func textMomentView() -> some View {
+        ZStack {
+            LinearGradient(
+                colors: [ProfileColors.blue.opacity(0.8), ProfileColors.accent.opacity(0.6)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            
+            Text(moment.content)
+                .font(.custom("Poppins-Medium", size: 10))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(4)
+                .padding(6)
+        }
+        .frame(width: size, height: size)
+    }
+    
+    private func loadVideoThumbnail(from urlString: String) {
+        guard videoThumbnail == nil, !isLoadingVideoThumbnail, let url = URL(string: urlString) else { return }
+        
+        isLoadingVideoThumbnail = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let asset = AVAsset(url: url)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2)
+            
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
+                let uiImage = UIImage(cgImage: cgImage)
+                
+                DispatchQueue.main.async {
+                    self.videoThumbnail = uiImage
+                    self.isLoadingVideoThumbnail = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isLoadingVideoThumbnail = false
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Vista de carga
 struct ModernLoadingView: View {
     @State private var isAnimating = false
@@ -1494,7 +2162,8 @@ struct ExpandableBioView: View {
                                 let limitedHeight = geometry.size.height
                                 
                                 DispatchQueue.main.async {
-                                    needsExpansion = bio.count > 100
+                                    // Mejor cálculo: si supera 100 caracteres o tiene más de 2 saltos de línea
+                                    needsExpansion = bio.count > 100 || bio.filter { $0 == "\n" }.count > 2
                                 }
                             }
                         })
@@ -1596,6 +2265,8 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     @Published var mutualConnections: [AppUser] = []
     @Published var admirers: [AppUser] = []
     @Published var moments: [Moment] = []
+    @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
+    @Published var isLoadingTagged: Bool = false // ✅ NUEVO
     @Published var isLoading: Bool = true
     @Published var errorMessage: String?
     @Published var profileImagePath: String?
@@ -1818,6 +2489,36 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
             }
         }
+    }
+
+    // ✅ NUEVO: Cargar momentos donde el usuario ha sido etiquetado
+    func fetchTaggedMoments(userId: String) {
+        isLoadingTagged = true
+        
+        // Buscar todos los momentos donde el usuario aparece en taggedUsers
+        let db = Firestore.firestore()
+        db.collectionGroup("moments")
+            .whereField("taggedUsers", arrayContains: userId)
+            .order(by: "timestamp", descending: true)
+            .limit(to: 50)
+            .getDocuments { [weak self] (snapshot: QuerySnapshot?, error: Error?) in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    self.isLoadingTagged = false
+                    
+                    if let error = error {
+                        print("❌ Error loading tagged moments: \\(error)")
+                        return
+                    }
+                    
+                    if let documents = snapshot?.documents {
+                        self.taggedMoments = documents.compactMap { doc -> Moment? in
+                            try? doc.data(as: Moment.self)
+                        }
+                    }
+                }
+            }
     }
 
     // ✅ FUNCIÓN CORREGIDA: Refresh con delay para Firestore
@@ -2054,17 +2755,17 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     }
 
     // ✅ FUNCIÓN EXISTENTE: Update bio (sin cambios)
-    func updateBio(newBio: String) {
+    func updateProfileDetails(bio: String?, websiteUrl: String?) {
         guard let userId = Auth.auth().currentUser?.uid else {
             self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
             return
         }
 
-        self.firestoreService.updateBio(userId: userId, bio: newBio) { [weak self] error in
+        self.firestoreService.updateProfileDetails(userId: userId, bio: bio, websiteUrl: websiteUrl) { [weak self] error in
             guard let self = self else { return }
             if let error = error {
                 DispatchQueue.main.async {
-                    self.errorMessage = "Error al actualizar la bio: \(error.localizedDescription)"
+                    self.errorMessage = "Error al actualizar el perfil: \(error.localizedDescription)"
                 }
             } else {
                 self.fetchProfile(userId: userId)
@@ -2073,6 +2774,11 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 }
             }
         }
+    }
+    
+    // Mantenemos updateBio por compatibilidad, pero redirigimos
+    func updateBio(newBio: String) {
+        updateProfileDetails(bio: newBio, websiteUrl: nil)
     }
 }
 

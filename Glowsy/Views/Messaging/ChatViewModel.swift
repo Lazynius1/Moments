@@ -10,6 +10,7 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var typingUsers: Set<String> = []
     @Published var isLoading = false
     @Published var error: String?
+    @Published var uploadProgress: [String: Double] = [:] // ✅ Media upload progress (0.0 - 1.0)
     @Published var isTyping = false {
         didSet {
             handleTypingIndicator()
@@ -66,6 +67,23 @@ class EnhancedChatViewModel: ObservableObject {
             // ✅ Usar la nueva función para actualizar el array
             self?.updateMessageInArray(messageId: messageId, newStatus: status)
         }
+        
+        // ✅ Progress Listener
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("MediaUploadProgress"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let userInfo = notification.userInfo,
+                  let messageId = userInfo["messageId"] as? String,
+                  let progress = userInfo["progress"] as? Double else {
+                return
+            }
+            
+            DispatchQueue.main.async {
+                self?.uploadProgress[messageId] = progress
+            }
+        }
     }
     
     // ✅ NUEVA: Función para preservar mensajes temporales
@@ -109,7 +127,7 @@ class EnhancedChatViewModel: ObservableObject {
     }
     
     // ✅ NUEVA: Función para actualizar el array de manera que SwiftUI lo detecte
-    private func updateMessageInArray(messageId: String, newStatus: MessageStatus) {
+    func updateMessageInArray(messageId: String, newStatus: MessageStatus) {
         // ✅ Bloquear listener temporalmente
         isUpdatingLocalMessage = true
         
@@ -129,9 +147,9 @@ class EnhancedChatViewModel: ObservableObject {
                 // ✅ FORZAR actualización de SwiftUI
                 self.objectWillChange.send()
                 
-                // ✅ FORZAR actualización de groupedMessages si es InstagramChatViewModel
-                if let instagramViewModel = self as? InstagramChatViewModel {
-                    instagramViewModel.updateGroupedMessages()
+                // ✅ FORZAR actualización de groupedMessages si es MomentsChatViewModel
+                if let momentsViewModel = self as? MomentsChatViewModel {
+                    momentsViewModel.updateGroupedMessages()
                 }
                 
                 // ✅ Desbloquear listener después de un delay
@@ -151,15 +169,15 @@ class EnhancedChatViewModel: ObservableObject {
     private func cleanupLocalStates() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
             self.localMessageStates.removeAll()
+            self.uploadProgress.removeAll() // ✅ Clean up progress too
         }
     }
     
-    // ✅ HELPER: Reconstruir lista completa de mensajes
     private func rebuildMessagesList() {
-        // 1. Unir históricos + tiempo real
-        let allMessages = historicalMessages + realTimeMessages
+        // 1. Unir real-time + históricos (PRIORIDAD AL REAL-TIME para cambios de estado)
+        let allMessages = realTimeMessages + historicalMessages
         
-        // 2. Deduplicar por ID
+        // 2. Deduplicar por ID (se queda con el primero que encuentre, que ahora es el real-time)
         var seenIds = Set<String>()
         let uniqueMessages = allMessages.filter { seenIds.insert($0.id).inserted }
         
@@ -172,8 +190,8 @@ class EnhancedChatViewModel: ObservableObject {
         self.messages = finalMessages
         
         // ✅ Forzar actualización de groupedMessages
-        if let instagramViewModel = self as? InstagramChatViewModel {
-            instagramViewModel.updateGroupedMessages()
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.updateGroupedMessages()
         }
     }
     
@@ -345,9 +363,9 @@ class EnhancedChatViewModel: ObservableObject {
             // ✅ FORZAR actualización de SwiftUI
             self.objectWillChange.send()
             
-            // ✅ FORZAR actualización de groupedMessages si es InstagramChatViewModel
-            if let instagramViewModel = self as? InstagramChatViewModel {
-                instagramViewModel.updateGroupedMessages()
+            // ✅ FORZAR actualización de groupedMessages si es MomentsChatViewModel
+            if let momentsViewModel = self as? MomentsChatViewModel {
+                momentsViewModel.updateGroupedMessages()
             }
         }
         
@@ -400,9 +418,9 @@ class EnhancedChatViewModel: ObservableObject {
             // ✅ FORZAR actualización de SwiftUI
             self.objectWillChange.send()
             
-            // ✅ FORZAR actualización de groupedMessages si es InstagramChatViewModel
-            if let instagramViewModel = self as? InstagramChatViewModel {
-                instagramViewModel.updateGroupedMessages()
+            // ✅ FORZAR actualización de groupedMessages si es MomentsChatViewModel
+            if let momentsViewModel = self as? MomentsChatViewModel {
+                momentsViewModel.updateGroupedMessages()
             }
         }
         
@@ -467,6 +485,12 @@ class EnhancedChatViewModel: ObservableObject {
         // Agregar mensaje temporal a la lista local
         DispatchQueue.main.async {
             self.messages.append(tempMessage)
+            
+            // ✅ FORZAR actualización
+            self.objectWillChange.send()
+            if let momentsVM = self as? MomentsChatViewModel {
+                momentsVM.updateGroupedMessages()
+            }
         }
         
         chatService.sendMediaMessage(

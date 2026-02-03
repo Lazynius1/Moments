@@ -22,7 +22,7 @@ struct MessageRequestsView: View {
             ZStack {
                 // Background adaptativo como MessagingView
                 if colorScheme == .dark {
-                    // Negro elegante tipo Instagram - más suave
+                    // Negro elegante y sofisticado - más suave
                     Color(hex: "1A1A1A")
                         .ignoresSafeArea()
                 } else {

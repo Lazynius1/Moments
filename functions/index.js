@@ -996,6 +996,94 @@ exports.onMentionNotification = onDocumentCreated('users/{userId}/notifications/
   }
 });
 
+// 🏷️ ETIQUETAS EN FOTOS
+exports.onPhotoTagNotification = onDocumentCreated('users/{userId}/notifications/{notificationId}', async (event) => {
+  const snap = event.data;
+  const { userId, notificationId } = event.params;
+  const notification = snap.data();
+
+  // Solo procesar notificaciones de etiquetas en fotos
+  if (notification.type !== 'photoTag') return null;
+
+  try {
+    const [senderDoc, userDoc] = await Promise.all([
+      admin.firestore().doc(`users/${notification.senderId}`).get(),
+      admin.firestore().doc(`users/${userId}`).get()
+    ]);
+
+    if (!senderDoc.exists || !userDoc.exists) return null;
+
+    const senderData = senderDoc.data();
+    const userData = userDoc.data();
+
+    if (!validateUserData(senderData) || !validateUserData(userData)) {
+      console.warn('⚠️ Datos de usuario incompletos para etiqueta en foto');
+      return null;
+    }
+
+    if (!senderData.isActive || !userData.isActive) return null;
+
+    const fcmToken = userData.fcmToken;
+    if (!fcmToken) return null;
+
+    const cleanImageUrl = senderData.profileImagePath
+      ? senderData.profileImagePath.replace(':443', '')
+      : null;
+
+    // ✅ Idempotencia por notificación de etiqueta
+    const tagRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
+    const done = await admin.firestore().runTransaction(async (tx) => {
+      const tSnap = await tx.get(tagRef);
+      if (!tSnap.exists) return true;
+      if (tSnap.get('processed') === true) return true;
+      tx.update(tagRef, { processed: true });
+      return false;
+    });
+    if (done) return null;
+
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: `${senderData.username} te etiquetó en un momento`,
+        body: 'Toca para ver el momento',
+        image: cleanImageUrl
+      },
+      data: {
+        type: 'photo_tag',
+        senderId: notification.senderId,
+        userId: userId,
+        targetType: 'moment',
+        targetId: notification.momentId || '',
+        senderUsername: senderData.username,
+        senderProfileImage: senderData.profileImagePath || ''
+      },
+      apns: {
+        payload: {
+          aps: {
+            badge: 1,
+            sound: 'default',
+            'mutable-content': 1,
+            'thread-id': `photo_tags_${userId}` // ✅ Agrupación para etiquetas
+          }
+        }
+      }
+    };
+
+    try {
+      await admin.messaging().send(message);
+      console.log(`✅ Notificación de etiqueta enviada: ${senderData.username} -> ${userData.username}`);
+    } catch (error) {
+      if (error.code === 'messaging/registration-token-not-registered') {
+        await removeInvalidToken(userId, fcmToken);
+      }
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('❌ Error sending photo tag notification:', error);
+  }
+});
+
 // 🔔 ELIMINAR REACCIONES DE MOMENTOS
 exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{momentId}/reactions/{reactionId}', async (event) => {
   const snap = event.data;

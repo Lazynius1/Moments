@@ -5,6 +5,7 @@ struct TabBarView: View {
     @StateObject private var authService = AuthService()
     @StateObject private var exploreViewModel = ExploreViewModel()
     @StateObject private var navigationService = NotificationNavigationService.shared
+    @StateObject private var firestoreService = FirestoreService() // ✅ Service para resolver usuarios
     @State private var selectedTab: Int = 0
     @State private var previousSelectedTab: Int = 0
     @State private var showCreatorView: Bool = false
@@ -19,42 +20,28 @@ struct TabBarView: View {
                 if #available(iOS 26.0, *) {
                     // Nueva API iOS 26 con efecto Liquid Glass y gota de agua nativo
                     modernTabView
+                        .overlay(alignment: .top) {
+                            InAppBannerView() // ✅ NUEVO: Banners in-app
+                        }
                 } else {
                     // Implementación legacy para versiones anteriores
                     legacyTabView
+                        .overlay(alignment: .top) {
+                            InAppBannerView() // ✅ NUEVO: Banners in-app
+                        }
                 }
             } else {
                 LoginView()
                     .environmentObject(authService)
             }
         }
+        .onAppear {
+            // ✅ Activar listener para banners in-app
+            InAppNotificationService.shared.startListing()
+        }
         .onOpenURL { url in
-            // ✅ Manejar deep links desde el widget
-            guard url.scheme == "moments" else { return }
-            
-            if url.host == "story", url.path == "/create" {
-                // Abrir creator en modo historia
-                openCreatorInStoryMode = true
-                showCreatorView = true
-                isCreatingStory = true
-            } else if url.host == "profile", url.path == "/visits" {
-                // Abrir perfil y mostrar visitas
-                selectedTab = 4
-                // ✅ Delay para asegurar que ProfileView esté cargado antes de mostrar el sheet
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowProfileVisits"), object: nil)
-                }
-            } else if url.host == "messages" {
-                // Abrir mensajes
-                NotificationCenter.default.post(name: NSNotification.Name("ShowMessages"), object: nil)
-            } else if url.host == "notifications" {
-                // Abrir notificaciones
-                NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
-            } else if url.host == "stories" {
-                // Abrir feed y mostrar historias
-                selectedTab = 0
-                NotificationCenter.default.post(name: NSNotification.Name("ShowStories"), object: nil)
-            }
+            // ✅ Manejar deep links desde el widget y QR (Lógica extraída)
+            handleDeepLink(url)
         }
     }
     
@@ -132,6 +119,9 @@ struct TabBarView: View {
             exploreViewModel: exploreViewModel,
             navigationService: navigationService
         )
+        .overlay(alignment: .top) {
+            InAppBannerView() // ✅ NUEVO: Banners in-app
+        }
     }
     
     // MARK: - Legacy Tab View (iOS < 26)
@@ -197,6 +187,9 @@ struct TabBarView: View {
             exploreViewModel: exploreViewModel,
             navigationService: navigationService
         )
+        .overlay(alignment: .top) {
+            InAppBannerView() // ✅ NUEVO: Banners in-app
+        }
     }
     
     // ✅ SIMPLIFICADO: Función para manejar navegación desde notificaciones
@@ -222,7 +215,7 @@ struct TabBarView: View {
         case .storyChain(let chainId, let chainTitle):
             selectedTab = 0
             NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToStoryChain"), 
+                name: NSNotification.Name("NavigateToStoryChain"),
                 object: nil,
                 userInfo: ["chainId": chainId, "chainTitle": chainTitle]
             )
@@ -247,6 +240,53 @@ struct TabBarView: View {
                 "source": "push_notification"
             ]
         )
+    }
+    
+    // ✅ NUEVO: Manejador de Deep Links extraído para evitar errores de compilador
+    private func handleDeepLink(_ url: URL) {
+        // Verificar esquema
+        guard let scheme = url.scheme, (scheme == "moments" || scheme == "glowsy") else { return }
+        
+        if url.host == "story", url.path == "/create" {
+            // Abrir creator en modo historia
+            openCreatorInStoryMode = true
+            showCreatorView = true
+            isCreatingStory = true
+        } else if url.host == "profile" {
+            // Manejo de perfiles
+            if url.path == "/visits" {
+                // Abrir perfil propio y mostrar visitas
+                selectedTab = 4
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowProfileVisits"), object: nil)
+                }
+            } else if url.pathComponents.count > 1 {
+                // Es un perfil de usuario: glowsy://profile/username
+                let username = url.lastPathComponent
+                
+                // Resolver ID de usuario y navegar
+                firestoreService.fetchUserByUsername(username) { result in
+                    switch result {
+                    case .success(let user):
+                        DispatchQueue.main.async {
+                            NotificationCenter.default.post(name: NSNotification.Name("ShowUserProfile"), object: user.id)
+                        }
+                    case .failure(let error):
+                        print("Error resolving username from deep link: \(error.localizedDescription)")
+                    }
+                }
+            }
+        } else if url.host == "messages" {
+            // Abrir mensajes
+            NotificationCenter.default.post(name: NSNotification.Name("ShowMessages"), object: nil)
+        } else if url.host == "notifications" {
+            // Abrir notificaciones
+            NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
+        } else if url.host == "stories" {
+            // Abrir feed y mostrar historias
+            selectedTab = 0
+            NotificationCenter.default.post(name: NSNotification.Name("ShowStories"), object: nil)
+        }
     }
 }
 
@@ -473,7 +513,7 @@ extension View {
                     case .storyChain(let chainId, let chainTitle):
                         selectedTab.wrappedValue = 0
                         NotificationCenter.default.post(
-                            name: NSNotification.Name("NavigateToStoryChain"), 
+                            name: NSNotification.Name("NavigateToStoryChain"),
                             object: nil,
                             userInfo: ["chainId": chainId, "chainTitle": chainTitle]
                         )
@@ -518,7 +558,7 @@ extension View {
                     selectedTab.wrappedValue = 0
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         NotificationCenter.default.post(
-                            name: NSNotification.Name("NavigateToStoryChainInFeed"), 
+                            name: NSNotification.Name("NavigateToStoryChainInFeed"),
                             object: nil,
                             userInfo: ["chainId": chainId, "chainTitle": chainTitle]
                         )
