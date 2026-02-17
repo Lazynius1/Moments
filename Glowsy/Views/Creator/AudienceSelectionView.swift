@@ -141,7 +141,7 @@ struct AudienceSelectionView: View {
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 25)
-                                    .fill(Color(hex: "00A896"))
+                                    .fill(Color(hex: "007AFF"))
                                     .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                             )
                             .padding(.bottom, 100)
@@ -231,7 +231,7 @@ struct AudienceSelectionView: View {
                 Button(action: { showingManageLists = true }) {
                     Text("audience.manage")
                         .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "007AFF"))
                 }
             }
             .padding(.horizontal, 4)
@@ -255,20 +255,20 @@ struct AudienceSelectionView: View {
                             VStack(spacing: 12) {
                                 ZStack {
                                     Circle()
-                                        .fill(Color(hex: "00A896").opacity(0.1))
+                                        .fill(Color(hex: "007AFF").opacity(0.1))
                                         .frame(width: 48, height: 48)
                                     Image(systemName: "plus")
                                         .font(.system(size: 20, weight: .semibold))
-                                        .foregroundColor(Color(hex: "00A896"))
+                                        .foregroundColor(Color(hex: "007AFF"))
                                 }
                                 Text("audience.create")
                                     .font(.custom("Poppins-Medium", size: 14))
-                                    .foregroundColor(Color(hex: "00A896"))
+                                    .foregroundColor(Color(hex: "007AFF"))
                             }
                             .frame(width: 100, height: 140)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color(hex: "00A896").opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4]))
+                                    .stroke(Color(hex: "007AFF").opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4]))
                             )
                         }
                         
@@ -297,12 +297,12 @@ struct AudienceSelectionView: View {
         VStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: "00A896").opacity(0.1))
+                    .fill(Color(hex: "007AFF").opacity(0.1))
                     .frame(width: 60, height: 60)
                 
                 Image(systemName: "list.bullet.rectangle")
                     .font(.system(size: 24))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "007AFF"))
             }
             
             VStack(spacing: 4) {
@@ -323,15 +323,15 @@ struct AudienceSelectionView: View {
                     Text("audience.createFirstList")
                         .font(.custom("Poppins-Medium", size: 14))
                 }
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "007AFF"))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(Color(hex: "00A896").opacity(0.1))
+                        .fill(Color(hex: "007AFF").opacity(0.1))
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1)
+                                .stroke(Color(hex: "007AFF").opacity(0.3), lineWidth: 1)
                         )
                 )
             }
@@ -346,7 +346,7 @@ struct AudienceSelectionView: View {
                             LinearGradient(
                                 colors: [
                                     colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1),
-                                    Color(hex: "00A896").opacity(0.2)
+                                    Color(hex: "007AFF").opacity(0.2)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -376,14 +376,14 @@ struct AudienceSelectionView: View {
                     ZStack {
                         Circle()
                             .fill(selectedAudience == .custom && selectedListId == nil ?
-                                  Color(hex: "00A896").opacity(0.15) :
+                                  Color(hex: "007AFF").opacity(0.15) :
                                   (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
                             .frame(width: 48, height: 48)
                         
                         Image(systemName: "person.crop.circle.badge.plus")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(selectedAudience == .custom && selectedListId == nil ?
-                                             Color(hex: "00A896") : (colorScheme == .dark ? .white : .black))
+                                             Color(hex: "007AFF") : (colorScheme == .dark ? .white : .black))
                     }
                     
                     VStack(alignment: .leading, spacing: 2) {
@@ -403,7 +403,7 @@ struct AudienceSelectionView: View {
                     if selectedAudience == .custom && selectedListId == nil {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 24))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "007AFF"))
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 14, weight: .medium))
@@ -418,7 +418,7 @@ struct AudienceSelectionView: View {
                             RoundedRectangle(cornerRadius: 20)
                                 .stroke(
                                     selectedAudience == .custom && selectedListId == nil ?
-                                    Color(hex: "00A896").opacity(0.4) :
+                                    Color(hex: "007AFF").opacity(0.4) :
                                     Color.clear,
                                     lineWidth: 1
                                 )
@@ -650,14 +650,14 @@ struct AudienceGridCard: View {
                 ZStack {
                     Circle()
                         .fill(isSelected ?
-                              Color(hex: "00A896").opacity(0.15) :
+                              Color(hex: "007AFF").opacity(0.15) :
                               (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
                         .frame(width: 56, height: 56)
                     
                     Image(systemName: audience.icon)
                         .font(.system(size: 24, weight: .medium))
                         .foregroundColor(isSelected ?
-                                       Color(hex: "00A896") : (colorScheme == .dark ? .white : .black))
+                                       Color(hex: "007AFF") : (colorScheme == .dark ? .white : .black))
                 }
                 
                 // ✅ Texto
@@ -685,13 +685,13 @@ struct AudienceGridCard: View {
                         RoundedRectangle(cornerRadius: 24)
                             .stroke(
                                 isSelected ?
-                                Color(hex: "00A896").opacity(0.4) :
+                                Color(hex: "007AFF").opacity(0.4) :
                                 Color.clear,
                                 lineWidth: 1.5
                             )
                     )
             )
-            .shadow(color: isSelected ? Color(hex: "00A896").opacity(0.1) : Color.clear, radius: 10, x: 0, y: 5)
+            .shadow(color: isSelected ? Color(hex: "007AFF").opacity(0.1) : Color.clear, radius: 10, x: 0, y: 5)
         }
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -863,14 +863,14 @@ struct AudienceOptionRow: View {
                 ZStack {
                     Circle()
                         .fill(isSelected ?
-                              Color(hex: "00A896").opacity(0.2) :
+                              Color(hex: "007AFF").opacity(0.2) :
                               (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)))
                         .frame(width: 48, height: 48)
                     
                     Image(systemName: audience.icon)
                         .font(.system(size: 20, weight: .medium))
                         .foregroundColor(isSelected ?
-                                       Color(hex: "00A896") : (colorScheme == .dark ? .white : .black))
+                                       Color(hex: "007AFF") : (colorScheme == .dark ? .white : .black))
                 }
                 
                 // Texto
@@ -896,21 +896,21 @@ struct AudienceOptionRow: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "007AFF"))
                 }
             }
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(isSelected ?
-                          Color(hex: "00A896").opacity(0.1) :
+                          Color(hex: "007AFF").opacity(0.1) :
                           (colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(
                         isSelected ?
-                        Color(hex: "00A896").opacity(0.5) :
+                        Color(hex: "007AFF").opacity(0.5) :
                         (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)),
                         lineWidth: 1
                     )
@@ -990,7 +990,7 @@ struct CustomAudienceSelector: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color(hex: "00A896"))
+                            .background(Color(hex: "007AFF"))
                             .cornerRadius(12)
                     }
                     .padding()

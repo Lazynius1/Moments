@@ -77,7 +77,7 @@ struct CreatorMedia: Identifiable {
     
     // MARK: - Initializers & Helpers
     
-    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, tags: [PhotoTag]? = nil) {
+    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil) {
         self.id = id
         self.image = image
         self.videoURL = videoURL
@@ -85,10 +85,11 @@ struct CreatorMedia: Identifiable {
         self.aspectRatio = aspectRatio
         self.recommendedAspectRatio = recommendedAspectRatio ?? aspectRatio
         self.hasEdits = hasEdits
+        self.thumbnailURL = thumbnailURL
         self.tags = tags
     }
     
-    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil) {
+    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil) {
         self.id = UUID().uuidString
         self.image = image
         self.videoURL = videoURL
@@ -96,9 +97,10 @@ struct CreatorMedia: Identifiable {
         self.aspectRatio = aspectRatio
         self.recommendedAspectRatio = recommendedAspectRatio ?? aspectRatio
         self.hasEdits = false
+        self.thumbnailURL = thumbnailURL
     }
     
-    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil) -> CreatorMedia {
+    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil) -> CreatorMedia {
         CreatorMedia(
             id: self.id,
             image: image ?? self.image,
@@ -107,6 +109,7 @@ struct CreatorMedia: Identifiable {
             aspectRatio: aspectRatio ?? self.aspectRatio,
             recommendedAspectRatio: recommendedAspectRatio ?? self.recommendedAspectRatio,
             hasEdits: hasEdits ?? self.hasEdits,
+            thumbnailURL: thumbnailURL ?? self.thumbnailURL,
             tags: tags ?? self.tags
         )
     }

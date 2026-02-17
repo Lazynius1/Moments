@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import AuthenticationServices
 
 struct SettingsProfileColors {
     static var background: Color {
@@ -40,7 +41,7 @@ struct SettingsProfileColors {
     }
     
     // Colores específicos que se mantienen
-    static let accent = Color(hex: "00A896")
+    static let accent = Color(hex: "4F46E5")
     static let purple = Color(hex: "9B59B6")
     static let blue = Color(hex: "6B73FF")
 }
@@ -139,7 +140,7 @@ struct SettingsView: View {
                                     Circle()
                                         .stroke(
                                             LinearGradient(
-                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -149,7 +150,7 @@ struct SettingsView: View {
                             
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(Color(hex: "4F46E5"))
                         }
                     }
                 }
@@ -277,7 +278,7 @@ struct SettingsView: View {
     private var modernLoadingView: some View {
         VStack(spacing: 20) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "00A896")))
+                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "4F46E5")))
                 .scaleEffect(1.5)
             
                             Text("settings.loading")
@@ -498,12 +499,12 @@ struct SettingsRow: View {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(isDestructive ? Color.red.opacity(0.1) : Color(hex: "00A896").opacity(0.15))
+                    .fill(isDestructive ? Color.red.opacity(0.1) : Color(hex: "4F46E5").opacity(0.15))
                     .frame(width: 40, height: 40)
                 
                 Image(systemName: icon)
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(isDestructive ? .red : Color(hex: "00A896"))
+                    .foregroundColor(isDestructive ? .red : Color(hex: "4F46E5"))
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -560,10 +561,10 @@ struct AdvancedAccountSection: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "00A896").opacity(0.15))
+                        .fill(Color(hex: "4F46E5").opacity(0.15))
                         .frame(width: 40, height: 40)
                     Image(systemName: "gear.circle.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 18, weight: .medium))
                 }
                 
@@ -659,7 +660,7 @@ struct AdvancedAccountManagementView: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -669,7 +670,7 @@ struct AdvancedAccountManagementView: View {
                         
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                     }
                 }
             }
@@ -869,10 +870,10 @@ struct PrivacySection: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "00A896").opacity(0.2))
+                        .fill(Color(hex: "4F46E5").opacity(0.2))
                         .frame(width: 40, height: 40)
                     Image(systemName: "lock.circle")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 18, weight: .medium))
                 }
                 
@@ -888,7 +889,7 @@ struct PrivacySection: View {
                 Spacer()
                 
                 Toggle("", isOn: $isPrivate)
-                    .tint(Color(hex: "00A896"))
+                    .tint(Color(hex: "4F46E5"))
                     .onChange(of: isPrivate) { newValue in
                         viewModel.updatePrivacySettings(isPrivate: newValue)
                     }
@@ -946,10 +947,10 @@ struct PrivacySection: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "00A896").opacity(0.2))
+                        .fill(Color(hex: "4F46E5").opacity(0.2))
                         .frame(width: 40, height: 40)
                     Image(systemName: "checkmark.circle")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 18, weight: .medium))
                 }
                 
@@ -965,7 +966,7 @@ struct PrivacySection: View {
                 Spacer()
                 
                 Toggle("", isOn: $showReadReceipts)
-                    .tint(Color(hex: "00A896"))
+                    .tint(Color(hex: "4F46E5"))
                     .onChange(of: showReadReceipts) { newValue in
                         viewModel.updateReadReceiptsPrivacy(enabled: newValue)
                     }
@@ -1007,7 +1008,7 @@ struct ConnectionVisibilityView: View {
             ) {
                 HStack {
                     Image(systemName: "eye.slash.circle.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 20))
                     
                     VStack(alignment: .leading, spacing: 2) {
@@ -1030,13 +1031,13 @@ struct ConnectionVisibilityView: View {
                             impact.impactOccurred()
                         }
                     ))
-                        .tint(Color(hex: "00A896"))
+                        .tint(Color(hex: "4F46E5"))
                 }
                 .padding(.vertical, 4)
                 
                 HStack {
                     Image(systemName: "eye.slash.circle.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 20))
                     
                     VStack(alignment: .leading, spacing: 2) {
@@ -1059,13 +1060,13 @@ struct ConnectionVisibilityView: View {
                             impact.impactOccurred()
                         }
                     ))
-                        .tint(Color(hex: "00A896"))
+                        .tint(Color(hex: "4F46E5"))
                 }
                 .padding(.vertical, 4)
                 
                 HStack {
                     Image(systemName: "eye.slash.circle.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 20))
                     
                     VStack(alignment: .leading, spacing: 2) {
@@ -1088,7 +1089,7 @@ struct ConnectionVisibilityView: View {
                             impact.impactOccurred()
                         }
                     ))
-                        .tint(Color(hex: "00A896"))
+                        .tint(Color(hex: "4F46E5"))
                 }
                 .padding(.vertical, 4)
             }
@@ -1114,7 +1115,7 @@ struct ConnectionVisibilityView: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -1124,7 +1125,7 @@ struct ConnectionVisibilityView: View {
                         
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                     }
                 }
             }
@@ -1135,8 +1136,14 @@ struct ConnectionVisibilityView: View {
 }
 
 struct SecuritySection: View {
+    @EnvironmentObject var authService: AuthService
     @Binding var isShowingPasswordChange: Bool
     @Binding var isShowingLoginActivity: Bool
+    
+    // Para el linking
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showAlert = false
     
     var body: some View {
         VStack(spacing: 8) {
@@ -1153,9 +1160,137 @@ struct SecuritySection: View {
                 subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
                 action: { isShowingLoginActivity = true }
             )
+            
+            // ✅ NUEVO: Vincular con Apple
+            if !authService.isAppleLinked {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        ZStack {
+                            Circle()
+                                .fill(Color.primary.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "applelogo")
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("settings.security.appleId")
+                                .font(.custom("Poppins-Medium", size: 16))
+                            Text("settings.security.appleId.description")
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    if isLoading {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .frame(height: 44)
+                    } else {
+                        SignInWithAppleButton(.continue) { request in
+                            let nonce = authService.startAppleSignIn()
+                            request.requestedScopes = [.fullName, .email]
+                            request.nonce = nonce
+                        } onCompletion: { result in
+                            handleAppleLinkingResult(result)
+                        }
+                        .signInWithAppleButtonStyle(Color.primary == .white ? .white : .black)
+                        .frame(height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(.ultraThinMaterial.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .alert("Error", isPresented: $showAlert) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(errorMessage ?? "Error desconocido")
+                }
+            } else {
+                HStack {
+                    ZStack {
+                        Circle()
+                            .fill(Color.green.opacity(0.1))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "applelogo")
+                            .font(.system(size: 18))
+                            .foregroundColor(.green)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("settings.security.appleId")
+                            .font(.custom("Poppins-Medium", size: 16))
+                        Text("settings.security.appleId.linked")
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(.gray)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(.ultraThinMaterial.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         }
         .padding(.horizontal, 12)
         .padding(.bottom, 12)
+    }
+    
+    private func handleAppleLinkingResult(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let authorization):
+            if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                guard let nonce = authService.currentNonce else {
+                    errorMessage = NSLocalizedString("settings.security.appleId.error.nonce", comment: "Security error (nonce)")
+                    showAlert = true
+                    return
+                }
+                
+                guard let appleIDToken = appleIDCredential.identityToken else {
+                    errorMessage = NSLocalizedString("settings.security.appleId.error.token", comment: "Could not obtain Apple token")
+                    showAlert = true
+                    return
+                }
+                
+                guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+                    errorMessage = NSLocalizedString("settings.security.appleId.error.invalidToken", comment: "Invalid Apple token")
+                    showAlert = true
+                    return
+                }
+                
+                isLoading = true
+                authService.linkWithApple(idToken: idTokenString, nonce: nonce) { result in
+                    isLoading = false
+                    switch result {
+                    case .success:
+                        // Refrescar UI (isAppleLinked cambiará automáticamente)
+                        let impact = UINotificationFeedbackGenerator()
+                        impact.notificationOccurred(.success)
+                    case .failure(let error):
+                        errorMessage = error.localizedDescription
+                        showAlert = true
+                    }
+                }
+            }
+        case .failure(let error):
+            // Si el usuario cancela, no mostramos error
+            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+                errorMessage = error.localizedDescription
+                showAlert = true
+            }
+        }
     }
 }
 
@@ -1422,21 +1557,26 @@ struct NotificationSettingsView: View {
                 Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
                 
                 Form {
-                    Section("Horario de notificaciones") {
-                        Toggle("Establecer horario", isOn: $isScheduleEnabled)
+                    Section(NSLocalizedString("settings.notifications.schedule.title", comment: "Notification Schedule")) {
+                        Toggle(NSLocalizedString("settings.notifications.schedule.enable", comment: "Set schedule"), isOn: $isScheduleEnabled)
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .tint(Color(hex: "00A896"))
+                            .tint(Color(hex: "4F46E5"))
+                            .onChange(of: isScheduleEnabled) { enabled in
+                                if !enabled {
+                                    viewModel.clearActiveHours()
+                                }
+                            }
                         
                         if isScheduleEnabled {
-                            DatePicker("Hora de inicio",
+                            DatePicker(NSLocalizedString("settings.notifications.schedule.start", comment: "Start time"),
                                        selection: $startTime,
                                        displayedComponents: .hourAndMinute)
                                 .datePickerStyle(.compact)
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
-                            DatePicker("Hora de fin",
+                            DatePicker(NSLocalizedString("settings.notifications.schedule.end", comment: "End time"),
                                        selection: $endTime,
                                        displayedComponents: .hourAndMinute)
                                 .datePickerStyle(.compact)
@@ -1446,7 +1586,7 @@ struct NotificationSettingsView: View {
                             Button(action: {
                                 viewModel.updateActiveHours(startTime: startTime, endTime: endTime)
                             }) {
-                                Text("settings.schedule.save")
+                                Text(NSLocalizedString("settings.schedule.save", comment: "Save schedule"))
                                     .font(.custom("Poppins-SemiBold", size: 14))
                                     .frame(maxWidth: .infinity)
                                     .padding()
@@ -1454,7 +1594,7 @@ struct NotificationSettingsView: View {
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(hex: "00A896").opacity(0.5), lineWidth: 1.5)
+                                            .stroke(Color(hex: "4F46E5").opacity(0.5), lineWidth: 1.5)
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
@@ -1462,7 +1602,7 @@ struct NotificationSettingsView: View {
                     }
                     .listRowBackground(SettingsListRowBackground())
                     
-                    Section("Tipos de notificaciones") {
+                    Section(NSLocalizedString("settings.notifications.types.title", comment: "Notification Types")) {
                         ForEach(NotificationType.allCases, id: \.rawValue) { type in
                             Toggle(type.displayName, isOn: Binding(
                                 get: { viewModel.notificationPreferences[type.rawValue] ?? true },
@@ -1470,28 +1610,34 @@ struct NotificationSettingsView: View {
                             ))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .tint(Color(hex: "00A896"))
+                            .tint(Color(hex: "4F46E5"))
                         }
                     }
                     .listRowBackground(SettingsListRowBackground())
                     
-                    Section("Configuración avanzada") {
-                        Toggle("Solo comentarios de mejores amigos", isOn: Binding(
-                            get: { viewModel.notificationPreferences["commentsBestFriendsOnly"] ?? false },
-                            set: { viewModel.updateNotificationPreference(type: "commentsBestFriendsOnly", isEnabled: $0) }
+                    Section(content: {
+                        Toggle(NSLocalizedString("settings.notifications.mutualsOnly", comment: "Mutuals comments only"), isOn: Binding(
+                            get: { viewModel.notificationPreferences["commentsMutualsOnly"] ?? false },
+                            set: { viewModel.updateNotificationPreference(type: "commentsMutualsOnly", isEnabled: $0) }
                         ))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .tint(Color(hex: "00A896"))
+                        .tint(Color(hex: "4F46E5"))
                         
-                        Toggle("Silenciar likes en publicaciones antiguas", isOn: Binding(
-                            get: { viewModel.notificationPreferences["muteOldPostLikes"] ?? false },
-                            set: { viewModel.updateNotificationPreference(type: "muteOldPostLikes", isEnabled: $0) }
+                        Toggle(NSLocalizedString("settings.notifications.muteOldReactions", comment: "Mute reactions on old posts"), isOn: Binding(
+                            get: { viewModel.notificationPreferences["muteOldPostReactions"] ?? false },
+                            set: { viewModel.updateNotificationPreference(type: "muteOldPostReactions", isEnabled: $0) }
                         ))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .tint(Color(hex: "00A896"))
-                    }
+                        .tint(Color(hex: "4F46E5"))
+                    }, header: {
+                        Text(NSLocalizedString("settings.notifications.advanced.title", comment: "Advanced Settings"))
+                    }, footer: {
+                        Text(NSLocalizedString("settings.notifications.oldPostsExplain", comment: "Old posts explanation"))
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    })
                     .listRowBackground(SettingsListRowBackground())
                 }
                 .scrollContentBackground(.hidden)
@@ -1510,7 +1656,7 @@ struct NotificationSettingsView: View {
                                     Circle()
                                         .stroke(
                                             LinearGradient(
-                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -1520,7 +1666,7 @@ struct NotificationSettingsView: View {
                             
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(Color(hex: "4F46E5"))
                         }
                     }
                 }
@@ -1585,10 +1731,10 @@ struct OnlineStatusSection: View {
                         Image(systemName: "chevron.up.down")
                             .font(.system(size: 10, weight: .bold))
                     }
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color(hex: "00A896").opacity(0.1))
+                    .background(Color(hex: "4F46E5").opacity(0.1))
                     .clipShape(Capsule())
                 }
             }
@@ -1628,8 +1774,8 @@ class SettingsViewModel: ObservableObject {
                     NotificationType.mutualConnection.rawValue: true,
                     NotificationType.profileVisit.rawValue: true,
                     NotificationType.comment.rawValue: true,
-                    "commentsBestFriendsOnly": false,
-                    "muteOldPostLikes": false
+                    "commentsMutualsOnly": false,
+                    "muteOldPostReactions": false
                 ]
                 completion(.success(user))
             case .failure(let error):
@@ -1667,6 +1813,15 @@ class SettingsViewModel: ObservableObject {
         let endHour = dateFormatter.string(from: endTime)
         firestoreService.updateActiveHours(userId: userId, startHour: startHour, endHour: endHour) { error in
             if let error = error {
+            }
+        }
+    }
+
+    func clearActiveHours() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        firestoreService.clearActiveHours(userId: userId) { error in
+            if let error = error {
+                // Handle error
             }
         }
     }

@@ -51,7 +51,7 @@ enum ReactionType: String, CaseIterable {
     
     var color: Color {
         switch self {
-        case .vibe: return Color(hex: "00A896") // Tu color principal
+        case .vibe: return Color(hex: "007AFF") // Tu color principal
         case .fire: return .red
         case .real: return .purple
         case .mood: return .yellow
@@ -172,8 +172,8 @@ struct ModernReactionButton: View {
                                     LinearGradient(
                                         colors: hasReacted ?
                                         [currentReaction?.color.opacity(0.6) ?? Color.white.opacity(0.3),
-                                         currentReaction?.color.opacity(0.8) ?? Color(hex: "00A896").opacity(0.3)] :
-                                        [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.3)],
+                                         currentReaction?.color.opacity(0.8) ?? Color(hex: "007AFF").opacity(0.3)] :
+                                        [Color.white.opacity(0.3), Color(hex: "007AFF").opacity(0.3)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -418,7 +418,7 @@ struct ReactionPickerView: View {
                     RoundedRectangle(cornerRadius: 25)
                         .stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.5)],
+                                colors: [Color.white.opacity(0.3), Color(hex: "007AFF").opacity(0.5)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),

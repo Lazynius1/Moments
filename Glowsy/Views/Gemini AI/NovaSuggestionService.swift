@@ -121,6 +121,10 @@ class NovaSuggestionService {
                         ))
                     }
                 }
+                
+            case .echoAvailable:
+                // 🌊 Sugerencia de Echo disponible (manejado por banners push)
+                break
             }
         }
         

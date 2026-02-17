@@ -13,7 +13,7 @@ struct SuspendedAccountView: View {
     
     var body: some View {
         ZStack {
-            EnhancedBackgroundView()
+            LiquidAuroraBackground()
             
             ScrollView {
                 VStack(spacing: 40) {
@@ -122,7 +122,7 @@ struct EnhancedSuspendedHeader: View {
             }
             
             VStack(spacing: 16) {
-                Text("Cuenta Suspendida")
+                Text(NSLocalizedString("suspended.title", comment: "Suspended Account"))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
@@ -134,7 +134,7 @@ struct EnhancedSuspendedHeader: View {
                     .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     .multilineTextAlignment(.center)
                 
-                Text("Tu cuenta ha sido temporalmente suspendida")
+                Text(NSLocalizedString("suspended.subtitle", comment: "Account temporarily suspended"))
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
                     .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
@@ -159,27 +159,57 @@ struct EnhancedSuspensionInfo: View {
     @Binding var isVisible: Bool
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 28) {  // Aumentado de 20 a 28
             // Razón de la suspensión
             if let reason = reason, !reason.isEmpty {
-                EnhancedInfoCard(
-                    icon: "doc.text.fill",
-                    title: "Motivo de la suspensión",
-                    content: reason,
-                    color: .orange,
-                    delay: 0.2
-                )
+                LiquidGlassCard(cornerRadius: 20) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(.orange)
+                            
+                            Text(NSLocalizedString("suspended.reason", comment: "Suspension reason"))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                        }
+                        
+                        Text(reason)
+                            .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
+                            .foregroundColor(.white.opacity(0.9))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineSpacing(6)  // Aumentado de 4 a 6
+                    }
+                    .padding(24)
+                }
             }
             
             // Fecha de expiración
             if let expiresAt = expiresAt {
-                EnhancedInfoCard(
-                    icon: "clock.fill",
-                    title: "Tu cuenta será reactivada",
-                    content: formatExpirationDate(expiresAt),
-                    color: .blue,
-                    delay: 0.4
-                )
+                LiquidGlassCard(cornerRadius: 20) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(.blue)
+                            
+                            Text(NSLocalizedString("suspended.expires", comment: "Account will be reactivated"))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                        }
+                        
+                        Text(formatExpirationDate(expiresAt))
+                            .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
+                            .foregroundColor(.white.opacity(0.9))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineSpacing(6)  // Aumentado de 4 a 6
+                    }
+                    .padding(24)
+                }
                 
                 // Enhanced countdown timer
                 EnhancedCountdownTimer(expiresAt: expiresAt)
@@ -187,25 +217,55 @@ struct EnhancedSuspensionInfo: View {
                     .opacity(isVisible ? 1.0 : 0.0)
                     .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.6), value: isVisible)
             } else {
-                EnhancedInfoCard(
-                    icon: "infinity",
-                    title: "Suspensión permanente",
-                    content: "Contacta con soporte para más información",
-                    color: .red,
-                    delay: 0.4
-                )
+                LiquidGlassCard(cornerRadius: 20) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "infinity")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(.red)
+                            
+                            Text(NSLocalizedString("suspended.permanent", comment: "Permanent suspension"))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                        }
+                        
+                        Text(NSLocalizedString("suspended.permanentMessage", comment: "Contact support message"))
+                            .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
+                            .foregroundColor(.white.opacity(0.9))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineSpacing(6)  // Aumentado de 4 a 6
+                    }
+                    .padding(24)
+                }
             }
             
             // Información adicional
-            EnhancedInfoCard(
-                icon: "info.circle.fill",
-                title: "¿Qué puedes hacer?",
-                content: "Si consideras que esta suspensión es un error, puedes enviar una apelación formal. Nuestro equipo revisará tu caso detalladamente.",  // Texto actualizado
-                color: .green,
-                delay: 0.6
-            )
+            LiquidGlassCard(cornerRadius: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.green)
+                        
+                        Text(NSLocalizedString("suspended.whatCanDo", comment: "What can you do"))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                    }
+                    
+                    Text(NSLocalizedString("suspended.whatCanDoMessage", comment: "Appeal information"))
+                        .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
+                        .foregroundColor(.white.opacity(0.9))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineSpacing(6)  // Aumentado de 4 a 6
+                }
+                .padding(24)
+            }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 20)  // Padding general del contenedor
     }
     
     private func formatExpirationDate(_ date: Date) -> String {
@@ -218,91 +278,6 @@ struct EnhancedSuspensionInfo: View {
 }
 
 // MARK: - Enhanced Info Card Component
-struct EnhancedInfoCard: View {
-    let icon: String
-    let title: String
-    let content: String
-    let color: Color
-    let delay: Double
-    @State private var isVisible = false
-    @State private var glowIntensity: Double = 0.3
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(color.opacity(0.2))
-                        .frame(width: 40, height: 40)
-                        .shadow(color: color.opacity(glowIntensity), radius: 8, x: 0, y: 0)
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(color)
-                }
-                
-                Text(title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                
-                Spacer()
-            }
-            
-            Text(content)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(4)
-        }
-        .padding(24)
-        .background(
-            ZStack {
-                // Enhanced glass morphism effect
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        .white.opacity(0.15),
-                                        .white.opacity(0.05)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
-                
-                // Enhanced border gradient
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                color.opacity(0.4),
-                                color.opacity(0.1),
-                                .clear
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            }
-        )
-        .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 8)
-        .shadow(color: color.opacity(0.2), radius: 20, x: 0, y: 10)
-        .offset(y: isVisible ? 0 : 30)
-        .opacity(isVisible ? 1.0 : 0.0)
-        .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(delay), value: isVisible)
-        .onAppear {
-            isVisible = true
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                glowIntensity = 0.6
-            }
-        }
-    }
-}
 
 // MARK: - Enhanced Countdown Timer
 struct EnhancedCountdownTimer: View {
@@ -314,14 +289,14 @@ struct EnhancedCountdownTimer: View {
     var body: some View {
         if timeRemaining > 0 {
             VStack(spacing: 12) {
-                Text("Tiempo restante")
+                Text(NSLocalizedString("suspended.timeRemaining", comment: "Time remaining"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white.opacity(0.8))
                 
                 HStack(spacing: 24) {
-                    EnhancedTimeComponent(value: days, label: "días", color: .blue)
-                    EnhancedTimeComponent(value: hours, label: "horas", color: .purple)
-                    EnhancedTimeComponent(value: minutes, label: "min", color: .pink)
+                    EnhancedTimeComponent(value: days, label: NSLocalizedString("suspended.days", comment: "days"), color: .blue)
+                    EnhancedTimeComponent(value: hours, label: NSLocalizedString("suspended.hours", comment: "hours"), color: .purple)
+                    EnhancedTimeComponent(value: minutes, label: NSLocalizedString("suspended.minutes", comment: "minutes"), color: .pink)
                 }
             }
             .padding(20)
@@ -435,132 +410,34 @@ struct EnhancedSuspendedActionButtons: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // ✅ NUEVO: Botón para ver estado de apelaciones
-            EnhancedViewAppealsButton(action: {
-                showAppealsStatus = true
-            })
+            // Ver estado de apelaciones
+            LiquidGlassButton(
+                title: NSLocalizedString("suspended.viewAppeals", comment: "View appeals status"),
+                icon: "doc.text.magnifyingglass",
+                action: { showAppealsStatus = true },
+                gradientColors: [.blue, .cyan]
+            )
             
-            EnhancedContactSupportButton(action: {
-                showContactForm = true
-            })
+            // Apelar suspensión
+            LiquidGlassButton(
+                title: NSLocalizedString("suspended.appeal", comment: "Appeal suspension"),
+                icon: "envelope.fill",
+                action: { showContactForm = true },
+                gradientColors: [.orange, .red]
+            )
             
-            EnhancedSuspendedLogoutButton(action: logoutAction)
+            // Cerrar sesión
+            LiquidGlassButton(
+                title: NSLocalizedString("suspended.logout", comment: "Sign out"),
+                icon: "rectangle.portrait.and.arrow.right",
+                action: { logoutAction() },
+                gradientColors: [.gray, .gray.opacity(0.7)]
+            )
         }
         .padding(.horizontal, 20)
         .offset(y: isVisible ? 0 : 30)
         .opacity(isVisible ? 1.0 : 0.0)
         .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.8), value: isVisible)
-    }
-}
-// MARK: - ✅ NUEVO: Botón para ver estado de apelaciones
-struct EnhancedViewAppealsButton: View {
-    let action: () -> Void
-    @State private var isPressed = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.system(size: 16, weight: .medium))
-                Text("Ver Estado de Apelaciones")
-                    .font(.system(size: 18, weight: .semibold))
-            }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color(red: 0.2, green: 0.4, blue: 0.9),  // Azul
-                            Color(red: 0.1, green: 0.6, blue: 0.8)   // Azul turquesa
-                        ]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .shadow(color: .blue.opacity(0.3), radius: isPressed ? 5 : 15, x: 0, y: isPressed ? 2 : 8)
-                .scaleEffect(isPressed ? 0.98 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        )
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
-    }
-}
-
-// MARK: - Enhanced Contact Support Button
-struct EnhancedContactSupportButton: View {
-    let action: () -> Void
-    @State private var isPressed = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: "scale.3d")  // Cambiar icono a balanza
-                    .font(.system(size: 16, weight: .medium))
-                Text("Apelar Suspensión")  // Cambiar texto
-                    .font(.system(size: 18, weight: .semibold))
-            }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color(red: 0.55, green: 0.25, blue: 0.82),  // Cambiar a colores púrpura
-                            Color(red: 0.78, green: 0.31, blue: 0.75)
-                        ]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .shadow(color: .purple.opacity(0.3), radius: isPressed ? 5 : 15, x: 0, y: isPressed ? 2 : 8)  // Cambiar sombra
-                .scaleEffect(isPressed ? 0.98 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        )
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
-    }
-}
-
-
-// MARK: - Enhanced Suspended Logout Button
-struct EnhancedSuspendedLogoutButton: View {
-    let action: () -> Void
-    @State private var isPressed = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: "arrow.right.square.fill")
-                    .font(.system(size: 16, weight: .medium))
-                Text("Cerrar Sesión")
-                    .font(.system(size: 16, weight: .semibold))
-            }
-            .foregroundColor(.white.opacity(0.8))
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(isPressed ? 0.15 : 0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-                .scaleEffect(isPressed ? 0.98 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        )
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
     }
 }
 
@@ -578,7 +455,7 @@ struct EnhancedContactSupportView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                EnhancedBackgroundView()
+                LiquidAuroraBackground()
                 
                 ScrollView {
                     VStack(spacing: 30) {
@@ -901,19 +778,45 @@ struct EnhancedSendSupportButton: View {
 struct SuspendedAccountView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            // Suspensión temporal
+            // Suspensión corta (3 días)
             SuspendedAccountView(
-                reason: "Publicación de contenido inapropiado que viola nuestras normas comunitarias",
+                reason: "Publicación de contenido sensible sin la etiqueta de advertencia correspondiente. Por favor, revisa nuestras normas sobre contenido sensible.",
                 expiresAt: Calendar.current.date(byAdding: .day, value: 3, to: Date())
             )
             .environmentObject(AuthService())
+            .previewDisplayName("3 días - Contenido Sensible")
+            
+            // Suspensión media (7 días)
+            SuspendedAccountView(
+                reason: "Comportamiento spam detectado: envío masivo de mensajes no solicitados a otros usuarios. Segunda advertencia.",
+                expiresAt: Calendar.current.date(byAdding: .day, value: 7, to: Date())
+            )
+            .environmentObject(AuthService())
+            .previewDisplayName("7 días - Spam")
+            
+            // Suspensión larga (30 días)
+            SuspendedAccountView(
+                reason: "Acoso reiterado hacia otros usuarios y uso de lenguaje ofensivo. Violación seria de nuestras normas comunitarias.",
+                expiresAt: Calendar.current.date(byAdding: .day, value: 30, to: Date())
+            )
+            .environmentObject(AuthService())
+            .previewDisplayName("30 días - Acoso")
             
             // Suspensión permanente
             SuspendedAccountView(
-                reason: "Múltiples violaciones graves de las normas de la comunidad",
+                reason: "Múltiples violaciones graves de las normas de la comunidad incluyendo contenido inapropiado, acoso persistente y evasión de suspensiones previas.",
                 expiresAt: nil
             )
             .environmentObject(AuthService())
+            .previewDisplayName("Permanente")
+            
+            // Suspensión sin razón específica
+            SuspendedAccountView(
+                reason: nil,
+                expiresAt: Calendar.current.date(byAdding: .hour, value: 12, to: Date())
+            )
+            .environmentObject(AuthService())
+            .previewDisplayName("Sin razón - 12 horas")
         }
     }
 }

@@ -100,7 +100,7 @@ struct QRCodeView: View {
                             LinearGradient(
                                 colors: [
                                     Color.white.opacity(0.3),
-                                    Color(hex: "00A896").opacity(0.4)
+                                    Color(hex: "4F46E5").opacity(0.4)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing

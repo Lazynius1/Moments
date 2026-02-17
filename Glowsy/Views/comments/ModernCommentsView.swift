@@ -18,6 +18,7 @@ struct ModernCommentsView: View {
     @State private var isLoading = true
     @State private var commentsListener: ListenerRegistration?
     @EnvironmentObject private var firestoreService: FirestoreService
+    @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     
@@ -665,6 +666,23 @@ struct ModernCommentsView: View {
     private func addComment(content: String, parentCommentId: String?) {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
         
+        // ✅ OPTIMISTIC UPDATE: Add a temporary pending comment
+        let currentUser = authService.currentUser
+        let pendingComment = Comment(
+            id: UUID().uuidString,
+            authorId: userId,
+            username: currentUser?.username ?? NSLocalizedString("common.me", comment: "Me"),
+            content: content,
+            timestamp: Date(),
+            profileImagePath: currentUser?.profileImagePath,
+            reactions: [:],
+            parentCommentId: parentCommentId,
+            isPending: true
+        )
+        
+        withAnimation {
+            self.comments.append(pendingComment)
+        }
         
         AnalyticsService.shared.trackInteraction("comment_created", details: [
             "momentId": momentId,
@@ -681,8 +699,12 @@ struct ModernCommentsView: View {
         ) { result in
             switch result {
             case .success:
-                DispatchQueue.main.async {
-                    self.fetchComments()
+                // Si estamos online, el listener actualizará la lista.
+                // Si estamos offline, el comentario se queda como "pending" hasta que se sincronice.
+                if NetworkMonitor.shared.isConnected {
+                    DispatchQueue.main.async {
+                        self.fetchComments()
+                    }
                 }
                 
                 // 🔥 Moderación silenciosa en segundo plano
@@ -694,7 +716,10 @@ struct ModernCommentsView: View {
                 )
                 
             case .failure(_):
-                break
+                // En caso de error, remover el optimista
+                DispatchQueue.main.async {
+                    self.comments.removeAll { $0.id == pendingComment.id }
+                }
             }
         }
     }
@@ -827,6 +852,11 @@ struct ModernCommentsView: View {
             switch result {
             case .success:
                 DispatchQueue.main.async {
+                    // ✅ Optimistic update
+                    withAnimation {
+                        self.comments.removeAll { $0.id == commentId }
+                        self.comments.removeAll { $0.parentCommentId == commentId }
+                    }
                     self.fetchComments()
                 }
             case .failure(_):
@@ -1221,9 +1251,17 @@ struct EnhancedModernCommentRow: View {
                 .foregroundColor(.gray.opacity(0.6))
             
             // ✅ Timestamp relativo
-            Text(timeAgo(from: comment.timestamp))
-                .font(.custom("Poppins-Regular", size: nestingLevel == 0 ? 12 : 11))
-                .foregroundColor(.gray.opacity(0.6))
+            HStack(spacing: 4) {
+                Text(timeAgo(from: comment.timestamp))
+                    .font(.custom("Poppins-Regular", size: nestingLevel == 0 ? 12 : 11))
+                    .foregroundColor(.gray.opacity(0.6))
+                
+                if comment.isPending == true {
+                    Image(systemName: "clock")
+                        .font(.system(size: 10))
+                        .foregroundColor(.gray.opacity(0.6))
+                }
+            }
             
             Spacer()
             

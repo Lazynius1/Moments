@@ -260,6 +260,7 @@ enum MessageType: String, CaseIterable, Codable {
 
 // MARK: - Message Status
 enum MessageStatus: String, Codable {
+    case pending = "pending"
     case sending = "sending"
     case sent = "sent"
     case delivered = "delivered"
@@ -268,6 +269,7 @@ enum MessageStatus: String, Codable {
     
     var displayName: String {
         switch self {
+        case .pending: return NSLocalizedString("chat.status.pending", comment: "")
         case .sending: return NSLocalizedString("chat.status.sending", comment: "")
         case .sent: return NSLocalizedString("chat.status.sent", comment: "")
         case .delivered: return NSLocalizedString("chat.status.delivered", comment: "")
@@ -278,7 +280,7 @@ enum MessageStatus: String, Codable {
     
     var iconName: String {
         switch self {
-        case .sending: return "clock"
+        case .pending, .sending: return "clock"
         case .sent: return "checkmark"
         case .delivered: return "checkmark.circle"
         case .read: return "checkmark.circle.fill"

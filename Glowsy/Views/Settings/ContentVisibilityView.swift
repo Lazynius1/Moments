@@ -46,12 +46,12 @@ struct ContentVisibilityView: View {
                             HStack(spacing: 16) {
                                 ZStack {
                                     Circle()
-                                        .fill(Color(hex: "00A896").opacity(0.2))
+                                        .fill(Color(hex: "4F46E5").opacity(0.2))
                                         .frame(width: 48, height: 48)
                                     
                                     Image(systemName: "gear")
                                         .font(.system(size: 20, weight: .medium))
-                                        .foregroundColor(Color(hex: "00A896"))
+                                        .foregroundColor(Color(hex: "4F46E5"))
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 4) {
@@ -137,7 +137,7 @@ struct ContentVisibilityView: View {
                         NavigationLink(destination: CustomAudienceListsView()) {
                             HStack {
                                 Image(systemName: "list.bullet.rectangle")
-                                    .foregroundColor(Color(hex: "00A896"))
+                                    .foregroundColor(Color(hex: "4F46E5"))
                                     .font(.system(size: 18))
                                     .frame(width: 24)
                                 
@@ -176,7 +176,7 @@ struct ContentVisibilityView: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -186,7 +186,7 @@ struct ContentVisibilityView: View {
                         
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                     }
                 }
             }
@@ -232,7 +232,7 @@ struct ContentVisibilityView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
                     .font(.system(size: 20))
                 
                 Text(title)
@@ -251,12 +251,12 @@ struct ContentVisibilityView: View {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: "00A896").opacity(0.2))
+                    .fill(Color(hex: "4F46E5").opacity(0.2))
                     .frame(width: 48, height: 48)
                 
                 Image(systemName: audience.icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
             }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -312,7 +312,7 @@ struct StoryInteractionSettingsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Image(systemName: "info.circle")
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                             .font(.system(size: 18))
                         
                         Text(NSLocalizedString("contentVisibility.interactionsConfig.title", comment: "Configure interactions title"))
@@ -328,7 +328,7 @@ struct StoryInteractionSettingsView: View {
                 .padding(20)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(hex: "00A896").opacity(0.1))
+                        .fill(Color(hex: "4F46E5").opacity(0.1))
                 )
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -398,7 +398,7 @@ struct StoryInteractionSettingsView: View {
                         viewModel.saveStoryInteractionSettings()
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
                     .fontWeight(.semibold)
                 }
             }
@@ -419,12 +419,12 @@ struct InteractionToggleRow: View {
             // Ícono
             ZStack {
                 Circle()
-                    .fill(Color(hex: "00A896").opacity(isOn ? 0.2 : 0.1))
+                    .fill(Color(hex: "4F46E5").opacity(isOn ? 0.2 : 0.1))
                     .frame(width: 44, height: 44)
                 
                 Image(systemName: icon)
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(isOn ? Color(hex: "00A896") : .gray)
+                    .foregroundColor(isOn ? Color(hex: "4F46E5") : .gray)
             }
             
             // Texto
@@ -443,7 +443,7 @@ struct InteractionToggleRow: View {
             
             // Toggle
             Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
+                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "4F46E5")))
         }
         .padding(16)
         .background(
@@ -480,7 +480,7 @@ struct StoryAudienceSelector: View {
                         viewModel.saveStorySettings()
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
                     .fontWeight(.semibold)
                 }
             }
@@ -510,7 +510,7 @@ struct PostAudienceSelector: View {
                         viewModel.savePostSettings()
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
                     .fontWeight(.semibold)
                 }
             }
@@ -685,7 +685,7 @@ struct HiddenFromView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "info.circle")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                     
                     Text(NSLocalizedString("contentVisibility.info.title", comment: "Information title"))
                         .font(.custom("Poppins-SemiBold", size: 16))
@@ -699,7 +699,7 @@ struct HiddenFromView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "00A896").opacity(0.1))
+                    .fill(Color(hex: "4F46E5").opacity(0.1))
             )
             .padding(.horizontal)
             
@@ -850,7 +850,7 @@ struct UserRowView: View {
             Button(action: onTap) {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 20))
                 } else {
                     Image(systemName: "circle")

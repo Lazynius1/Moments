@@ -20,7 +20,7 @@ struct DataExportView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "doc.zipper")
                             .font(.system(size: 50))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                         
                         Text(NSLocalizedString("dataExport.title", comment: "Data export title"))
                             .font(.custom("Poppins-Bold", size: 24))
@@ -37,7 +37,7 @@ struct DataExportView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Image(systemName: "info.circle.fill")
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(Color(hex: "4F46E5"))
                             
                             Text(NSLocalizedString("dataExport.whatIncludes.title", comment: "What includes download title"))
                                 .font(.custom("Poppins-SemiBold", size: 16))
@@ -57,7 +57,7 @@ struct DataExportView: View {
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(hex: "00A896").opacity(0.1))
+                            .fill(Color(hex: "4F46E5").opacity(0.1))
                     )
                     .padding(.horizontal)
                     
@@ -192,7 +192,7 @@ struct DataExportView: View {
                         .padding(.vertical, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(viewModel.canRequestExport ? Color(hex: "00A896") : Color.gray)
+                                .fill(viewModel.canRequestExport ? Color(hex: "4F46E5") : Color.gray)
                         )
                     }
                     .disabled(!viewModel.canRequestExport || viewModel.isProcessing)
@@ -225,7 +225,7 @@ struct DataExportView: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -235,7 +235,7 @@ struct DataExportView: View {
                         
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                     }
                 }
             }
@@ -266,7 +266,7 @@ struct DataIncludeRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "4F46E5"))
                 .font(.system(size: 16))
                 .frame(width: 24)
             
@@ -299,7 +299,7 @@ struct ExportOptionCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: icon)
-                        .foregroundColor(isSelected ? Color(hex: "00A896") : .gray)
+                        .foregroundColor(isSelected ? Color(hex: "4F46E5") : .gray)
                         .font(.system(size: 20))
                     
                     Text(title)
@@ -310,7 +310,7 @@ struct ExportOptionCard: View {
                     
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                             .font(.system(size: 20))
                     } else {
                         Image(systemName: "circle")
@@ -331,7 +331,7 @@ struct ExportOptionCard: View {
                     
                     Text(estimatedSize)
                         .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                     
                     Spacer()
                 }
@@ -342,7 +342,7 @@ struct ExportOptionCard: View {
                     .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(isSelected ? Color(hex: "00A896") : Color.gray.opacity(0.3), lineWidth: isSelected ? 2 : 1)
+                            .stroke(isSelected ? Color(hex: "4F46E5") : Color.gray.opacity(0.3), lineWidth: isSelected ? 2 : 1)
                     )
             )
         }
@@ -373,10 +373,10 @@ struct FormatButton: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color(hex: "00A896") : Color(colorScheme == .dark ? .white : .black).opacity(0.05))
+                    .fill(isSelected ? Color(hex: "4F46E5") : Color(colorScheme == .dark ? .white : .black).opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(isSelected ? Color(hex: "00A896") : Color.gray.opacity(0.3), lineWidth: 1)
+                            .stroke(isSelected ? Color(hex: "4F46E5") : Color.gray.opacity(0.3), lineWidth: 1)
                     )
             )
         }

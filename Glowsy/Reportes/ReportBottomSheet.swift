@@ -305,31 +305,30 @@ struct ReportBottomSheet: View {
         
         isSubmitting = true
         
-        let reportData: [String: Any] = [
-            "reporterId": currentUserId,
-            "reportedUserId": authorId,
-            "reportedContentType": moment != nil ? "moment" : "story", // ✅ DINÁMICO
-            "reportedContentId": contentId,
-            "category": category.rawValue,
-            "description": additionalDetails.trimmingCharacters(in: .whitespacesAndNewlines),
-            "status": "pending",
-            "priority": category.priority.rawValue,
-            "timestamp": FieldValue.serverTimestamp(),
-            "resolvedAt": NSNull(),
-            "moderatorId": NSNull(),
-            "moderatorNotes": ""
-        ]
+        let reporterId = currentUserId
+        let reportedUserId = authorId
+        let reportedContentType = moment != nil ? "moment" : "story"
+        let reportedContentId = contentId
+        let categoryRaw = category.rawValue
+        let description = additionalDetails.trimmingCharacters(in: .whitespacesAndNewlines)
+        let priority = category.priority.rawValue
         
-        Firestore.firestore().collection("reports").addDocument(data: reportData) { error in
+        Task {
+            // ✅ Usar LocalPersistenceService para soporte Offline
+            await LocalPersistenceService.shared.reportContent(
+                reporterId: reporterId,
+                reportedUserId: reportedUserId,
+                reportedContentType: reportedContentType,
+                reportedContentId: reportedContentId,
+                category: categoryRaw,
+                description: description,
+                priority: priority
+            )
+            
             DispatchQueue.main.async {
                 self.isSubmitting = false
-                
-                if let error = error {
-                    // Aquí podrías mostrar un mensaje de error
-                } else {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                        self.showSuccessMessage = true
-                    }
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                    self.showSuccessMessage = true
                 }
             }
         }

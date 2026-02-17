@@ -1,10 +1,14 @@
+import WidgetKit
 import FirebaseAuth
 import FirebaseFirestore
 import FirebaseStorage
 import Combine
 import Foundation
 import UIKit
+import AuthenticationServices
+import CryptoKit
 
+@MainActor
 class AuthService: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var currentUser: AppUser?
@@ -16,6 +20,14 @@ class AuthService: ObservableObject {
     
     // ✅ NUEVO: Flag público para controlar el flujo de registro (observado por las vistas)
     @Published var isRegistering: Bool = false
+    
+    // ✅ NUEVO: Para Sign in with Apple
+    @Published var currentNonce: String?
+    
+    // ✅ NUEVO: Verificar si Apple está vinculado
+    var isAppleLinked: Bool {
+        return currentFirebaseUser?.providerData.contains { $0.providerID == "apple.com" } ?? false
+    }
     
     // ✅ NUEVO: Queue serial para thread safety
     private let authQueue = DispatchQueue(label: "com.moments.auth", qos: .userInteractive)
@@ -30,20 +42,44 @@ class AuthService: ObservableObject {
         case completing
     }
     
-    // ✅ NUEVO: Computed properties thread-safe
     var isInRegistrationProcess: Bool {
         return authQueue.sync {
             return _registrationState != .idle
         }
     }
     
-    private var authStateHandle: AuthStateDidChangeListenerHandle?
+    // ✅ NUEVO: Transition Lock para evitar que el listener interfiera durante handovers críticos
+    private var _transitionLock: Bool = false
+    
+    var isTransitionLocked: Bool {
+        return authQueue.sync {
+            return _transitionLock
+        }
+    }
+    
+    // ✅ NOEL: No declarar handle aquí para evitar aislamiento en deinit
+    // private var authStateHandle: AuthStateDidChangeListenerHandle?
     private let db = Firestore.firestore()
     private let storage = FirebaseStorage.Storage.storage().reference()
     private let firestoreService = FirestoreService()
     
-    // ✅ NUEVO: Listener de suspensión en tiempo real
-    private var suspensionListener: ListenerRegistration?
+    // ✅ NUEVO: Clase para manejar los listeners de forma no aislada (necesario para deinit)
+    private final class CleanupHolder {
+        var suspensionRegistration: ListenerRegistration?
+        var authHandle: AuthStateDidChangeListenerHandle?
+        
+        func removeAll() {
+            suspensionRegistration?.remove()
+            suspensionRegistration = nil
+            if let handle = authHandle {
+                Auth.auth().removeStateDidChangeListener(handle)
+                authHandle = nil
+            }
+        }
+    }
+    
+    // ✅ NUEVO: Holder de limpieza (nonisolated let para permitir acceso en deinit)
+    nonisolated private let cleanupHolder = CleanupHolder()
     
     // ✅ Estados de autenticación detallados
     enum AuthState: Equatable {
@@ -71,13 +107,26 @@ class AuthService: ObservableObject {
     }
     
     init() {
-        authStateHandle = Auth.auth().addStateDidChangeListener { [weak self] auth, user in
+        cleanupHolder.authHandle = Auth.auth().addStateDidChangeListener { [weak self] auth, user in
             guard let self = self else { return }
             
             
-            // ✅ THREAD-SAFE: Verificar estado de registro
+            // ✅ THREAD-SAFE: Verificar estado de registro y LOCK
             let registrationState = self.authQueue.sync { self._registrationState }
             let isAuthProcessingEnabled = self.authQueue.sync { self._isAuthProcessingEnabled }
+            let isTransitionLocked = self.authQueue.sync { self._transitionLock }
+            
+            // ✅ CRÍTICO: Si hay un LOCK de transición, IGNORAR CUALQUIER CAMBIO
+            if isTransitionLocked {
+                // Solo actualizamos el usuario interno silenciosamente si es necesario
+                if let user = user {
+                    DispatchQueue.main.async {
+                         // Evitar disparar cambios de UI
+                        self.currentFirebaseUser = user
+                    }
+                }
+                return
+            }
             
             
             // ✅ CRÍTICO: Si está en proceso de registro O procesamiento deshabilitado, pausar
@@ -126,6 +175,9 @@ class AuthService: ObservableObject {
                                 self.authState = .authenticated
                                 self.startSuspensionListener()
                                 
+                                // ✅ SwiftData: Guardar usuario actual para acceso offline
+                                LocalPersistenceService.shared.saveCurrentUser(userData)
+                                
                             } else {
                                 self.forceLogout()
                             }
@@ -153,6 +205,41 @@ class AuthService: ObservableObject {
             
             // Para todas las demás activaciones (después del chequeo inicial o un login/registro real)
             if let user = user {
+                // ✅ CRÍTICO: Si ya estamos logueados con el MISMO usuario, NO resetear el estado.
+                // Esto evita el parpadeo o logout involuntario cuando Firebase actualiza el token o el perfil.
+                if self.isLoggedIn && self.currentFirebaseUser?.uid == user.uid {
+                    DispatchQueue.main.async {
+                        self.currentFirebaseUser = user
+                    }
+                    return
+                }
+
+                // ✅ MODO OPTIMISTA 2.0: Si tenemos perfil en caché, entrar DIRECTAMENTE.
+                // No esperamos al NetworkMonitor porque puede tardar unos ms en detectar offline.
+                if let cachedUser = LocalPersistenceService.shared.loadUser(userId: user.uid) {
+                    DispatchQueue.main.async {
+                        print("📶 AuthService: Login Optimista (Caché detectada)")
+                        self.isLoggedIn = true
+                        self.currentUser = cachedUser
+                        self.currentFirebaseUser = user
+                        self.authState = .authenticated
+                        self.isVerifyingAccount = false
+                    }
+                    
+                    // Verificar en background si hay cambios (suspensiones, etc)
+                    self.checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
+                        if isSuspended {
+                             DispatchQueue.main.async { self.forceLogout() }
+                             return
+                        }
+                        if isActive, let userData = userData {
+                            DispatchQueue.main.async { self.currentUser = userData }
+                        }
+                    }
+                    return
+                }
+
+                // Si NO hay caché o estamos forzando verificación (Online)
                 DispatchQueue.main.async {
                     self.authState = .verifyingAccount
                     self.isVerifyingAccount = true
@@ -185,6 +272,9 @@ class AuthService: ObservableObject {
                             
                             // ✅ NUEVO: Iniciar listener de suspensión
                             self.startSuspensionListener()
+                            
+                            // ✅ Sincronizar datos de perfil para el widget
+                            self.syncProfileDataToWidget(userData: userData)
                             
                         } else {
                             self.isLoggedIn = false
@@ -273,9 +363,6 @@ class AuthService: ObservableObject {
     }
     
     deinit {
-        if let handle = authStateHandle {
-            Auth.auth().removeStateDidChangeListener(handle)
-        }
         stopSuspensionListener()
     }
     
@@ -285,7 +372,6 @@ class AuthService: ObservableObject {
             return
         }
         
-        
         DispatchQueue.main.async {
             self.authState = .verifyingAccount
             self.isVerifyingAccount = true
@@ -294,6 +380,9 @@ class AuthService: ObservableObject {
         
         // ✅ Dar tiempo para que Firestore esté completamente listo
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            
+            // NO limpiar el estado aquí. Mantener .completing para bloquear el listener default.
+            
             self.checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
                 DispatchQueue.main.async {
                     self.isVerifyingAccount = false
@@ -303,24 +392,79 @@ class AuthService: ObservableObject {
                     }
                     
                     if isActive, let userData = userData {
+                        // ✅ ÉXITO: Primero establecemos estado autenticado
                         self.isLoggedIn = true
                         self.currentUser = userData
                         self.currentFirebaseUser = user
                         self.isAccountDeactivated = false
                         self.deactivatedUserData = nil
                         self.authState = .authenticated
+                        
                         self.startSuspensionListener()
                         
-                        // ✅ Limpiar estado de registro
-                        self.authQueue.async {
-                            self._registrationState = .idle
+                        // ✅ CRÍTICO: No limpiar isRegistering inmediatamente.
+                        // Esperamos a que TabBarView desmonte LoginView completamente.
+                        // Si lo ponemos a false ahora, el fullScreenCover se cierra antes de que TabBarView cambie.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.isRegistering = false
+                            self.authQueue.async {
+                                self._registrationState = .idle
+                                self._isAuthProcessingEnabled = true
+                            }
                         }
-                        self.isRegistering = false
+                        
+                        self.objectWillChange.send()
+                        
+                        // ✅ NUEVO: Liberar el Transition Lock después de un tiempo seguro
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            self.authQueue.async {
+                                self._transitionLock = false
+                            }
+                        }
                         
                     } else {
-                        self.authState = .deactivated
-                        self.isAccountDeactivated = true
-                        self.deactivatedUserData = userData
+                        // Si falla, reintentar una vez más
+                        self.retryUserFetchForNewUser(userId: user.uid) { success, user, suspended in
+                            DispatchQueue.main.async {
+                                if success, let user = user {
+                                    self.isLoggedIn = true
+                                    self.currentUser = user
+                                    self.currentFirebaseUser = Auth.auth().currentUser
+                                    self.authState = .authenticated
+                                    self.startSuspensionListener()
+                                    
+                                    // Limpiar flags en retry success CON DELAY
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                        self.isRegistering = false
+                                        self.authQueue.async {
+                                            self._registrationState = .idle
+                                            self._isAuthProcessingEnabled = true
+                                        }
+                                    }
+                                    
+                                    // ✅ NUEVO: Liberar Lock en retry
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                        self.authQueue.async {
+                                            self._transitionLock = false
+                                        }
+                                    }
+                                    
+                                } else {
+                                    // Si falla definitivamente, entonces limpiamos para mostrar error
+                                    self.authState = .deactivated
+                                    self.isAccountDeactivated = true
+                                    self.deactivatedUserData = userData
+                                    
+                                    self.isRegistering = false
+                                    self.authQueue.async {
+                                        self._registrationState = .idle
+                                        self._isAuthProcessingEnabled = true
+                                        // Liberar lock inmediatamente en fallo
+                                        self._transitionLock = false
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -333,7 +477,8 @@ class AuthService: ObservableObject {
             }
             
             
-            suspensionListener = db.collection("users").document(userId)
+            
+            let registration = db.collection("users").document(userId)
                 .addSnapshotListener { [weak self] snapshot, error in
                     if let error = error {
                         return
@@ -359,11 +504,12 @@ class AuthService: ObservableObject {
                         }
                     }
                 }
+            
+            cleanupHolder.suspensionRegistration = registration
         }
         
-        func stopSuspensionListener() {
-            suspensionListener?.remove()
-            suspensionListener = nil
+        nonisolated func stopSuspensionListener() {
+            cleanupHolder.removeAll()
         }
         
         // ✅ Login mejorado con mejor manejo de estados
@@ -424,62 +570,99 @@ class AuthService: ObservableObject {
             }
         }
         
-        // ✅ FUNCIÓN CORREGIDA: Verificar estado y suspensión con retry para registro
-        private func checkAccountStatus(userId: String, completion: @escaping (Bool, AppUser?, Bool) -> Void) {
+    // ✅ FUNCIÓN CORREGIDA: Verificar estado y suspensión con retry para registro
+    private func checkAccountStatus(userId: String, completion: @escaping (Bool, AppUser?, Bool) -> Void) {
+        
+        // ✅ THREAD-SAFE: Verificar estado de registro
+        let registrationState = authQueue.sync { _registrationState }
+        
+        // ✅ CRÍTICO: Si estamos registrando, usar sistema de retry
+        if registrationState == .registering || self.isRegistering {
+            retryUserFetch(userId: userId, maxRetries: 5, completion: completion)
+            return
+        }
+        
+        // ✅ NUEVO: Si estamos offline, cargar perfil de SwiftData inmediatamente
+        if !NetworkMonitor.shared.isConnected {
+            print("📶 AuthService: Modo Offline detectado, cargando perfil local")
+            let cachedUser = LocalPersistenceService.shared.loadUser(userId: userId)
+            completion(true, cachedUser, false) // Retornamos el usuario cacheado si existe
+            return
+        }
+
+        // ✅ SAFE COMPLETION WRAPPER: Evita que el timeout y la red disparen dos veces
+        var hasCompleted = false
+        let userIdToFetch = userId
+        let safeCompletion: (Bool, AppUser?, Bool) -> Void = { isActive, userData, isSuspended in
+            if !hasCompleted {
+                hasCompleted = true
+                completion(isActive, userData, isSuspended)
+            }
+        }
+        
+        // ✅ TIMEOUT DE SEGURIDAD: 3 segundos max para verificación
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            if !hasCompleted {
+                print("⚠️ AuthService: Timeout en verificación (\(userIdToFetch)), activando vía rápida")
+                self?.firestoreService.fetchUser(userId: userIdToFetch) { result in
+                    switch result {
+                    case .success(let user):
+                        safeCompletion(true, user, false)
+                    case .failure:
+                        safeCompletion(true, nil, false)
+                    }
+                }
+            }
+        }
+
+        // PRIMERO verificar suspensión (solo para usuarios existentes)
+        checkUserSuspension(userId: userId) { [weak self] isSuspended, reason, expiresAt in
+            if hasCompleted { return }
             
-            // ✅ THREAD-SAFE: Verificar estado de registro
-            let registrationState = authQueue.sync { _registrationState }
-            
-            
-            // ✅ CRÍTICO: Si estamos registrando, usar sistema de retry
-            if registrationState == .registering || self.isRegistering {
-                retryUserFetch(userId: userId, maxRetries: 5, completion: completion)
+            if isSuspended {
+                DispatchQueue.main.async {
+                    self?.authState = .suspended(reason: reason, expiresAt: expiresAt)
+                }
+                
+                safeCompletion(false, nil, true)
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    do { try Auth.auth().signOut() } catch {}
+                }
                 return
             }
             
-            // PRIMERO verificar suspensión (solo para usuarios existentes)
-            checkUserSuspension(userId: userId) { [weak self] isSuspended, reason, expiresAt in
-                if isSuspended {
+            // Si no está suspendido, verificar estado normal
+            self?.firestoreService.fetchUser(userId: userId) { result in
+                DispatchQueue.main.async {
+                    if hasCompleted { return }
                     
-                    DispatchQueue.main.async {
-                        self?.authState = .suspended(reason: reason, expiresAt: expiresAt)
-                    }
-                    
-                    completion(false, nil, true)
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        do {
-                            try Auth.auth().signOut()
-                        } catch {
-                        }
-                    }
-                    return
-                }
-                
-                // Si no está suspendido, verificar estado normal
-                self?.firestoreService.fetchUser(userId: userId) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success(let appUser):
-                            let isActive = appUser.isActive
-                            completion(isActive, appUser, false)
-                            
-                        case .failure(let error):
-                            
-                            // ✅ Verificar nuevamente si estamos en registro
-                            let currentRegistrationState = self?.authQueue.sync { self?._registrationState } ?? .idle
-                            
-                            if currentRegistrationState == .registering || self?.isRegistering == true {
-                                completion(false, nil, false)
+                    switch result {
+                    case .success(let appUser):
+                        safeCompletion(appUser.isActive, appUser, false)
+                        
+                    case .failure(let error):
+                        // ✅ Verificar nuevamente si estamos en registro (para evitar falsos negativos)
+                        let currentRegistrationState = self?.authQueue.sync { self?._registrationState } ?? .idle
+                        
+                        if currentRegistrationState == .registering || self?.isRegistering == true {
+                            safeCompletion(false, nil, false)
+                        } else {
+                            // ✅ OFFLINE MODE: Si falla por red (offline), PERMITIR ACCESO
+                            let nsError = error as NSError
+                            if nsError.domain == FirestoreErrorDomain && (nsError.code == FirestoreErrorCode.unavailable.rawValue || nsError.code == FirestoreErrorCode.deadlineExceeded.rawValue) {
+                                print("⚠️ Offline Mode: Skipping strict account check")
+                                safeCompletion(true, nil, false)
                             } else {
                                 self?.forceLogout()
-                                completion(false, nil, false)
+                                safeCompletion(false, nil, false)
                             }
                         }
                     }
                 }
             }
         }
+    }
         
         // ✅ NUEVA FUNCIÓN: Retry con backoff exponencial para usuarios en registro
         private func retryUserFetch(userId: String, maxRetries: Int, retryCount: Int = 0, completion: @escaping (Bool, AppUser?, Bool) -> Void) {
@@ -529,6 +712,17 @@ class AuthService: ObservableObject {
         }
         
         // ✅ NUEVA FUNCIÓN: Limpiar estado y forzar logout
+        // ✅ Sincronizar datos básicos del perfil con el Widget
+        private func syncProfileDataToWidget(userData: AppUser?) {
+            guard let userData = userData else { return }
+            let defaults = UserDefaults(suiteName: "group.com.glowsyapp")
+            defaults?.set(userData.username, forKey: "widget_user_name")
+            defaults?.set(userData.profileImagePath, forKey: "widget_user_profile_image")
+            
+            // Forzar recarga del widget
+            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+        }
+
         private func forceLogout() {
             DispatchQueue.main.async {
                 self.isLoggedIn = false
@@ -544,6 +738,7 @@ class AuthService: ObservableObject {
                 self.authQueue.async {
                     self._registrationState = .idle
                     self._isAuthProcessingEnabled = true
+                    self._transitionLock = false
                 }
             }
         }
@@ -564,7 +759,14 @@ class AuthService: ObservableObject {
         // ✅ NUEVA FUNCIÓN: Verificar suspensión de usuario
         public func checkUserSuspension(userId: String, completion: @escaping (Bool, String?, Date?) -> Void) {
             
-            db.collection("users").document(userId).getDocument { snapshot, error in
+            // ✅ NUEVO: Si estamos offline, usar caché local o asumir que no está suspendido
+        // para evitar esperas de timeout innecesarias.
+        if !NetworkMonitor.shared.isConnected {
+            completion(false, nil, nil)
+            return
+        }
+
+        db.collection("users").document(userId).getDocument { snapshot, error in
                 guard let data = snapshot?.data() else {
                     completion(false, nil, nil)
                     return
@@ -610,10 +812,11 @@ class AuthService: ObservableObject {
         // ✅ MODIFICAR: Completar registro con estado thread-safe
         func completeRegistration() {
             
-            // ✅ THREAD-SAFE: Cambiar a estado de finalización
+            // ✅ THREAD-SAFE: Cambiar a estado de finalización y ACTIVAR LOCK
             authQueue.async {
                 self._registrationState = .completing
                 self._isAuthProcessingEnabled = true
+                self._transitionLock = true
             }
             
             DispatchQueue.main.async {
@@ -626,6 +829,45 @@ class AuthService: ObservableObject {
                 }
             }
         }
+    
+    // ✅ NUEVA FUNCIÓN: Completar registro para logins sociales (Apple)
+    func completeSocialRegistration(username: String, interests: [String], profileImage: UIImage?, completion: @escaping (Result<Void, Error>) -> Void) {
+        // ✅ USAR AUTH DIRECTAMENTE: A veces el @Published currentFirebaseUser tarda un ciclo en actualizarse
+        let firebaseUser = Auth.auth().currentUser
+        
+        guard let userId = firebaseUser?.uid else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se encontró el ID de usuario de Firebase"])))
+            return
+        }
+        
+        guard let email = firebaseUser?.email else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se encontró el Email del usuario de Firebase"])))
+            return
+        }
+        
+        // 1. Upload imagen si hay
+        uploadProfileImageIfNeeded(image: profileImage, userId: userId) { [weak self] profileImagePath in
+            guard let self = self else { return }
+            
+            // 2. Crear usuario en Firestore
+            self.firestoreService.createUser(
+                userId: userId,
+                username: username,
+                email: email,
+                interests: interests,
+                profileImagePath: profileImagePath
+            ) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    // 3. Todo listo, devolver éxito
+                // NO llamamos a completeRegistration() aquí. Dejamos que la Vista lo haga 
+                // para sincronizarlo con la animación (igual que en RegisterView).
+                completion(.success(()))
+                }
+            }
+        }
+    }
     
     // ✅ REGISTRO CORREGIDO - Establecer flags SÍNCRONAMENTE antes de crear usuario
     func register(username: String, email: String, password: String, interests: [String], privacyPolicyAccepted: Bool, profileImage: UIImage?, completion: @escaping (Result<Void, Error>) -> Void) {
@@ -990,4 +1232,133 @@ class AuthService: ObservableObject {
             
             return NSError(domain: "", code: nsError.code, userInfo: [NSLocalizedDescriptionKey: errorMessage])
         }
+
+    // MARK: - Sign in with Apple Logic
+    
+    func startAppleSignIn() -> String {
+        let nonce = randomNonceString()
+        currentNonce = nonce
+        return sha256(nonce)
     }
+    
+    // ✅ NUEVA FUNCIÓN: Vincular cuenta existente con Apple
+    func linkWithApple(idToken: String, nonce: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idToken, rawNonce: nonce)
+        
+        Auth.auth().currentUser?.link(with: credential) { [weak self] authResult, error in
+            if let error = error {
+                completion(.failure(self?.mapAuthError(error) ?? error))
+            } else {
+                // Actualizar usuario interno para reflejar los nuevos providerData
+                DispatchQueue.main.async {
+                    self?.currentFirebaseUser = authResult?.user
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+    
+    func signInWithApple(idToken: String, nonce: String, fullName: String?, email: String?, completion: @escaping (Result<Bool, Error>) -> Void) {
+        
+        // 1. ACTIVAR LOCK: Silenciar listener global inmediatamente
+        authQueue.async {
+            self._transitionLock = true
+        }
+        
+        let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idToken, rawNonce: nonce)
+        
+        Auth.auth().signIn(with: credential) { [weak self] authResult, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                // Liberar lock en error
+                self.authQueue.async { self._transitionLock = false }
+                completion(.failure(self.mapAuthError(error)))
+                return
+            }
+            
+            guard let user = authResult?.user else {
+                self.authQueue.async { self._transitionLock = false }
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Auth failed"])))
+                return
+            }
+            
+            // Verificar si el usuario ya existe en Firestore
+            // El lock sigue activo, por lo que el listener global ignorará los eventos de Auth
+            self.checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
+                DispatchQueue.main.async {
+                    if isSuspended {
+                        // Manejar usuario suspendido
+                        self.authQueue.async { self._transitionLock = false }
+                        completion(.success(false))
+                        return
+                    }
+                    
+                    if isActive, let userData = userData {
+                        // USUARIO EXISTENTE: Login normal MANUAL
+                        // Hidratamos el estado nosotros mismos para saltarnos el listener
+                        self.isLoggedIn = true
+                        self.currentUser = userData
+                        self.currentFirebaseUser = user
+                        self.isAccountDeactivated = false
+                        self.deactivatedUserData = nil
+                        self.authState = .authenticated
+                        
+                        // Iniciar listeners
+                        self.startSuspensionListener()
+                        
+                        // Liberar lock ahora que el estado es consistente
+                        self.authQueue.async { self._transitionLock = false }
+                        
+                        completion(.success(true))
+                    } else {
+                        // USUARIO NUEVO: Preparar registro
+                        // 1. Establecer flags de registro PROTEGIDOS
+                        self.authQueue.async {
+                            self._registrationState = .registering
+                            self._isAuthProcessingEnabled = false
+                            
+                            // 2. Transición atómica: Cambiamos de Lock -> Registering
+                            // Al quitar el lock, ya estamos en .registering, así que el listener seguirá bloqueado
+                            self._transitionLock = false
+                        }
+                        
+                        self.isRegistering = true
+                        self.currentFirebaseUser = user
+                        
+                        completion(.success(false)) 
+                    }
+                }
+            }
+        }
+    }
+    
+    private func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remainingLength = length
+        
+        while remainingLength > 0 {
+            let randoms: [UInt8] = (0..<16).map { _ in UInt8.random(in: 0...255) }
+            
+            randoms.forEach { random in
+                if remainingLength == 0 { return }
+                
+                if random < charset.count {
+                    result.append(charset[Int(random)])
+                    remainingLength -= 1
+                }
+            }
+        }
+        
+        return result
+    }
+    
+    private func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        let hashString = hashedData.compactMap { String(format: "%02x", $0) }.joined()
+        return hashString
+    }
+}

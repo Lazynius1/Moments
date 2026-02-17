@@ -49,7 +49,7 @@ struct SidebarMenuView: View {
                                 .clipShape(Circle())
                                 .overlay(
                                     Circle()
-                                        .stroke(Color(hex: "00A896").opacity(0.7), lineWidth: 1)
+                                        .stroke(Color(hex: "007AFF").opacity(0.7), lineWidth: 1)
                                 )
                         }
                     }
@@ -87,7 +87,7 @@ struct SidebarMenuView: View {
                         Rectangle().fill(.ultraThinMaterial)
                         LinearGradient(
                             colors: [
-                                Color(hex: "00A896").opacity(0.3),
+                                Color(hex: "007AFF").opacity(0.3),
                                 Color.purple.opacity(0.2),
                                 Color.blue.opacity(0.2)
                             ],
@@ -105,7 +105,7 @@ struct SidebarMenuView: View {
                             LinearGradient(
                                 colors: [
                                     Color.white.opacity(0.9),
-                                    Color(hex: "00A896").opacity(0.8)
+                                    Color(hex: "007AFF").opacity(0.8)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -185,7 +185,7 @@ struct SidebarMenuView: View {
         HStack(spacing: 12) {
             Image(systemName: iconForDestination(destination))
                 .font(.system(size: 20))
-                .foregroundColor(isSelected ? .white : Color(hex: "00A896"))
+                .foregroundColor(isSelected ? .white : Color(hex: "007AFF"))
             Text(destination.rawValue)
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(isSelected ? .white : .white.opacity(0.9))
@@ -197,7 +197,7 @@ struct SidebarMenuView: View {
                 Rectangle().fill(.ultraThinMaterial)
                 if isSelected {
                     LinearGradient(
-                        colors: [Color(hex: "00A896").opacity(0.7), Color(hex: "00A896").opacity(0.5)],
+                        colors: [Color(hex: "007AFF").opacity(0.7), Color(hex: "007AFF").opacity(0.5)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -209,7 +209,7 @@ struct SidebarMenuView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    isSelected ? Color.white.opacity(0.8) : Color(hex: "00A896").opacity(0.7),
+                    isSelected ? Color.white.opacity(0.8) : Color(hex: "007AFF").opacity(0.7),
                     lineWidth: 1.5
                 )
         )

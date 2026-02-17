@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseAuth
+import FirebaseCore
 import FirebaseFirestore
 
 // MARK: - 🔥 NUEVA ESTRUCTURA PARA CONFIGURACIÓN DINÁMICA
@@ -110,8 +111,8 @@ class CommentModerationService {
     
     static let shared = CommentModerationService()
     
-    private let apiKey = "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"
-    private let baseURL = "https://api.openai.com/v1/moderations"
+    private let functionsRegion = "europe-southwest1"
+    private let moderationFunctionName = "proxyOpenAIModeration"
     
     // 🔥 CACHE DE CONFIGURACIÓN
     private var cachedSettings: ModerationSettings?
@@ -186,7 +187,7 @@ class CommentModerationService {
         let settings = await loadModerationSettings()
         
         // 2. Llamar a OpenAI
-        let request = createModerationRequest(for: text)
+        let request = try await createModerationRequest(for: text)
         let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -206,16 +207,45 @@ class CommentModerationService {
     }
     
     // MARK: - Crear request (sin cambios)
-    private func createModerationRequest(for text: String) -> URLRequest {
-        var request = URLRequest(url: URL(string: baseURL)!)
+    private func createModerationRequest(for text: String) async throws -> URLRequest {
+        guard let projectID = FirebaseApp.app()?.options.projectID,
+              let url = URL(string: "https://\(functionsRegion)-\(projectID).cloudfunctions.net/\(moderationFunctionName)") else {
+            throw CommentsModerationError.invalidResponse
+        }
+        
+        let idToken = try await fetchIDToken()
+        
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let body = ["input": text]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         return request
+    }
+    
+    private func fetchIDToken() async throws -> String {
+        guard let user = Auth.auth().currentUser else {
+            throw CommentsModerationError.notAuthenticated
+        }
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            user.getIDTokenForcingRefresh(false) { token, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                
+                guard let token = token else {
+                    continuation.resume(throwing: CommentsModerationError.notAuthenticated)
+                    return
+                }
+                
+                continuation.resume(returning: token)
+            }
+        }
     }
     
     // MARK: - 🔥 PROCESAR RESULTADO CON CONFIGURACIÓN DINÁMICA
@@ -467,6 +497,7 @@ enum CommentsModerationError: Error {
     case apiError
     case invalidResponse
     case networkError
+    case notAuthenticated
     
     var localizedDescription: String {
         switch self {
@@ -476,6 +507,8 @@ enum CommentsModerationError: Error {
             return "Respuesta inválida del servidor"
         case .networkError:
             return "Error de conexión"
+        case .notAuthenticated:
+            return "Usuario no autenticado"
         }
     }
 }

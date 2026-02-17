@@ -28,7 +28,7 @@ struct MessageRequestsView: View {
                 } else {
                     // Modo claro: mantener el diseño original
                     LinearGradient(
-                        gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
+                        gradient: Gradient(colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -37,7 +37,7 @@ struct MessageRequestsView: View {
                     // Floating blobs for depth
                     GeometryReader { geometry in
                         Circle()
-                            .fill(Color(hex: "00A896").opacity(0.4))
+                            .fill(Color(hex: "007AFF").opacity(0.4))
                             .frame(width: 300, height: 300)
                             .blur(radius: 100)
                             .offset(x: -100, y: -100)
@@ -351,7 +351,7 @@ struct RequestDetailView: View {
         NavigationView {
             ZStack {
                 LinearGradient(
-                    gradient: Gradient(colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
+                    gradient: Gradient(colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )

@@ -48,18 +48,19 @@ struct InAppBannerView: View {
         }) {
             HStack(spacing: 12) {
                 AsyncProfileImageView(userId: notification.senderId)
-                    .frame(width: 38, height: 38)
+                    .frame(width: 42, height: 42)
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
                 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     // Header: Username + Verb
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Text(notification.senderUsername)
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.custom("Poppins-Bold", size: 14))
                             .foregroundColor(.primary)
                         
                         Text(verbFor(notification.type))
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.custom("Poppins-Medium", size: 13))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
@@ -70,17 +71,16 @@ struct InAppBannerView: View {
                             if let content = notification.reaction {
                                 if let type = ReactionType(rawValue: content) {
                                     Text(type.icon)
-                                        .font(.system(size: 16))
+                                        .font(.system(size: 18))
                                 } else {
                                     Text(content)
                                         .font(.system(size: 14))
                                 }
                             }
                         } else if let content = notification.reaction, !content.isEmpty {
-                            // Comentario, Mención o Mensaje
                             Text(content)
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
+                                .font(.custom("Poppins-Regular", size: 13))
+                                .foregroundColor(.secondary.opacity(0.8))
                                 .lineLimit(1)
                         }
                     }
@@ -88,38 +88,63 @@ struct InAppBannerView: View {
                 
                 Spacer()
                 
-                // Icono tipo de notificación O PREVIEW DE IMAGEN
+                // Icon or Preview
                 if let previewPath = contentPreviewImage, let url = URL(string: previewPath) {
                     KFImage(url)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 32, height: 32)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(colorFor(notification.type).opacity(0.3), lineWidth: 1)
                         )
                 } else {
-                    Image(systemName: notification.type.systemIconName)
-                        .font(.system(size: 16))
-                        .foregroundColor(colorFor(notification.type))
+                    ZStack {
+                        Circle()
+                            .fill(colorFor(notification.type).opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        
+                        Image(systemName: notification.type.systemIconName)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(colorFor(notification.type))
+                    }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
             .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-                    .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                ZStack {
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                    
+                    Capsule()
+                        .fill(colorFor(notification.type).opacity(0.05))
+                }
+                .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 10)
             )
             .overlay(
                 Capsule()
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                colorFor(notification.type).opacity(0.6),
+                                colorFor(notification.type).opacity(0.1),
+                                colorFor(notification.type).opacity(0.6)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+                    .blur(radius: 0.5)
             )
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
         }
         .buttonStyle(PlainButtonStyle())
         .onAppear {
+            // Haptic Sync using the Manager
+            HapticManager.shared.notification(.success)
             loadImages(for: notification)
         }
         .onChange(of: notification.id) { _ in
@@ -210,6 +235,10 @@ struct InAppBannerView: View {
             if let conversationId = notification.momentId { // momentId guarda conversationId temporalmente
                 navigationService.navigateToConversation(conversationId: conversationId)
             }
+        case .echoSuggestion:
+            if let echoId = notification.echoId {
+                navigationService.pendingNavigation = .echoSuggestion(echoId)
+            }
         default:
             break
         }
@@ -226,6 +255,7 @@ struct InAppBannerView: View {
         case .mention: return NSLocalizedString("banner.verb.mention", value: "mentioned you", comment: "")
         case .storyReaction: return NSLocalizedString("banner.verb.story", value: "reacted to your story", comment: "")
         case .message: return NSLocalizedString("banner.verb.message", value: "sent you a message", comment: "")
+        case .echoSuggestion: return NSLocalizedString("banner.verb.echoSuggestion", value: "is near you! Create an Echo", comment: "")
         default: return "interacted"
         }
     }
@@ -236,6 +266,7 @@ struct InAppBannerView: View {
         case .reaction: return .purple
         case .comment: return .blue
         case .newFollower: return .green
+        case .echoSuggestion: return .orange // Nova Spark vibe
         default: return .gray
         }
     }

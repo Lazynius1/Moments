@@ -12,6 +12,9 @@ struct TabBarView: View {
     @State private var isCreatingStory: Bool = false
     @State private var openCreatorInStoryMode: Bool = false // ✅ Para abrir desde widget en modo historia
     @State private var hasPreloadedExplore: Bool = false
+    @State private var showEchoInvitation: Bool = false // 🌊 Sugerencia de Echo
+    @State private var pendingEchoId: String = ""
+    @State private var showEchoViewer: Bool = false      // 🌊 Visor de Echo
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -53,14 +56,17 @@ struct TabBarView: View {
             set: { newValue in
                 if newValue == 2 {
                     // Si se selecciona el tab de crear, abrir CreatorView
+                    HapticManager.shared.mediumImpact()
                     showCreatorView = true
                     isCreatingStory = true
                     // Mantener el tab anterior seleccionado visualmente
                     selectedTab = previousSelectedTab
                 } else if newValue == 0 && selectedTab == 0 {
                     // ✅ NUEVO: Si se toca Home cuando ya está seleccionado, scroll al inicio y refrescar
+                    HapticManager.shared.lightImpact()
                     NotificationCenter.default.post(name: NSNotification.Name("ScrollFeedToTop"), object: nil)
                 } else {
+                    HapticManager.shared.selection()
                     selectedTab = newValue
                     previousSelectedTab = newValue
                 }
@@ -116,6 +122,9 @@ struct TabBarView: View {
             isCreatingStory: $isCreatingStory,
             openCreatorInStoryMode: $openCreatorInStoryMode,
             hasPreloadedExplore: $hasPreloadedExplore,
+            showEchoInvitation: $showEchoInvitation,
+            pendingEchoId: $pendingEchoId,
+            showEchoViewer: $showEchoViewer,
             exploreViewModel: exploreViewModel,
             navigationService: navigationService
         )
@@ -184,6 +193,9 @@ struct TabBarView: View {
             isCreatingStory: $isCreatingStory,
             openCreatorInStoryMode: $openCreatorInStoryMode,
             hasPreloadedExplore: $hasPreloadedExplore,
+            showEchoInvitation: $showEchoInvitation,
+            pendingEchoId: $pendingEchoId,
+            showEchoViewer: $showEchoViewer,
             exploreViewModel: exploreViewModel,
             navigationService: navigationService
         )
@@ -227,6 +239,14 @@ struct TabBarView: View {
         case .notifications(let filter):
             selectedTab = 4
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToNotifications"), object: filter)
+            
+        case .echoSuggestion(let echoId):
+            self.pendingEchoId = echoId
+            self.showEchoInvitation = true
+            
+        case .echo(let echoId):
+            self.pendingEchoId = echoId
+            self.showEchoViewer = true
         }
         
         // ✅ Limpiar navegación pendiente
@@ -324,8 +344,10 @@ struct CustomTabBar: View {
             ) {
                 if selectedTab == 0 {
                     // ✅ NUEVO: Si ya está en Home, scroll al inicio y refrescar
+                    HapticManager.shared.lightImpact()
                     NotificationCenter.default.post(name: NSNotification.Name("ScrollFeedToTop"), object: nil)
                 } else {
+                    HapticManager.shared.selection()
                     selectedTab = 0
                 }
             }
@@ -338,6 +360,7 @@ struct CustomTabBar: View {
                 activeColor: activeColor,
                 inactiveColor: inactiveColor
             ) {
+                HapticManager.shared.selection()
                 selectedTab = 1
             }
             
@@ -358,6 +381,7 @@ struct CustomTabBar: View {
                 activeColor: activeColor,
                 inactiveColor: inactiveColor
             ) {
+                HapticManager.shared.selection()
                 selectedTab = 3
             }
             
@@ -369,6 +393,7 @@ struct CustomTabBar: View {
                 activeColor: activeColor,
                 inactiveColor: inactiveColor
             ) {
+                HapticManager.shared.selection()
                 selectedTab = 4
             }
         }
@@ -422,6 +447,7 @@ struct CreateButton: View {
     
     var body: some View {
         Button(action: {
+            HapticManager.shared.mediumImpact()
             showCreatorView = true
             DispatchQueue.main.async {
                 selectedTab = previousSelectedTab
@@ -459,6 +485,9 @@ extension View {
         isCreatingStory: Binding<Bool>,
         openCreatorInStoryMode: Binding<Bool>,
         hasPreloadedExplore: Binding<Bool>,
+        showEchoInvitation: Binding<Bool>,
+        pendingEchoId: Binding<String>,
+        showEchoViewer: Binding<Bool>,
         exploreViewModel: ExploreViewModel,
         navigationService: NotificationNavigationService
     ) -> some View {
@@ -525,6 +554,14 @@ extension View {
                     case .notifications(let filter):
                         selectedTab.wrappedValue = 4
                         NotificationCenter.default.post(name: NSNotification.Name("NavigateToNotifications"), object: filter)
+                        
+                    case .echoSuggestion(let echoId):
+                        pendingEchoId.wrappedValue = echoId
+                        showEchoInvitation.wrappedValue = true
+                        
+                    case .echo(let echoId):
+                        pendingEchoId.wrappedValue = echoId
+                        showEchoViewer.wrappedValue = true
                     }
                     
                     navigationService.clearPendingNavigation()
@@ -602,6 +639,24 @@ extension View {
                 .onDisappear {
                     // ✅ Resetear el flag cuando se cierra el creator
                     openCreatorInStoryMode.wrappedValue = false
+                }
+            }
+            .sheet(isPresented: showEchoInvitation) {
+                if !pendingEchoId.wrappedValue.isEmpty {
+                    EchoInvitationView(
+                        echoId: pendingEchoId.wrappedValue,
+                        isPresented: showEchoInvitation,
+                        onAccept: { echoId in
+                            // ✅ Navegar al Echo Viewer después de aceptar
+                            pendingEchoId.wrappedValue = echoId
+                            showEchoViewer.wrappedValue = true
+                        }
+                    )
+                }
+            }
+            .fullScreenCover(isPresented: showEchoViewer) {
+                if !pendingEchoId.wrappedValue.isEmpty {
+                    EchoViewerUI(echoId: pendingEchoId.wrappedValue)
                 }
             }
     }

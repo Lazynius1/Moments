@@ -2,6 +2,8 @@ import FirebaseFirestore
 import FirebaseAuth
 
 class PrivacyService {
+    static let shared = PrivacyService()
+    
     private let db: Firestore
     private let firestoreService = FirestoreService()
 

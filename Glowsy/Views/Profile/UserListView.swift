@@ -39,7 +39,7 @@ struct UserListView<ViewModel: UserListViewModel>: View {
                             LinearGradient(
                                 colors: [
                                     Color.white.opacity(0.3),
-                                    Color(hex: "00A896").opacity(0.4)
+                                    Color(hex: "007AFF").opacity(0.4)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -144,7 +144,7 @@ struct UserListView<ViewModel: UserListViewModel>: View {
                     .font(.system(size: 32, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.gray.opacity(0.6), Color(hex: "00A896").opacity(0.4)],
+                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -180,7 +180,7 @@ struct UserListView<ViewModel: UserListViewModel>: View {
                     .font(.system(size: 32, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.gray.opacity(0.6), Color(hex: "00A896").opacity(0.4)],
+                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -333,7 +333,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
     private var avatarView: some View {
         ZStack {
             Circle()
-                .fill(Color(hex: "00A896").opacity(0.15))
+                .fill(Color(hex: "007AFF").opacity(0.15))
                 .frame(width: 48, height: 48)
             
             if let profileImagePath = user.profileImagePath, let url = URL(string: profileImagePath) {
@@ -399,13 +399,13 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(hex: "00A896").opacity(0.8))
+                            .fill(Color(hex: "007AFF").opacity(0.8))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
                     )
-                    .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 4, x: 0, y: 2)
+                    .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
                 }
             } else if title == "Conexiones" || title == "Conexiones Mutuas" {
                 Button(action: {

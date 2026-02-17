@@ -499,17 +499,11 @@ struct ReelVideoView: View {
                     ModernContextMenuOverlay(
                         moment: video.moment,
                         isPresented: $showContextMenu,
-                        showShareSheet: $showShareSheet,
                         onEdit: {
                             // No implementado en reels por ahora
                         },
                         onDelete: {
                             showDeleteAlert = true
-                        },
-                        onShare: {
-                            if video.moment.allowSharing {
-                                showShareSheet = true
-                            }
                         },
                         onReport: {
                             showReportSheet = true
@@ -717,6 +711,8 @@ struct ReelVideoView: View {
                 if let error = error {
                     // Aquí podrías mostrar un alert de error
                 } else {
+                    // ✅ SwiftData: Eliminar del caché local
+                    LocalPersistenceService.shared.deleteMoment(momentId: momentId)
                     // Cerrar el reels viewer
                     onClose()
                 }

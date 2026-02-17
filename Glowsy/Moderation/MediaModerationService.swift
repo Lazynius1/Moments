@@ -1,6 +1,8 @@
 import Foundation
 import UIKit
 import AVFoundation
+import FirebaseAuth
+import FirebaseCore
 import FirebaseFirestore
 
 // MARK: - MediaModerationService.swift
@@ -53,13 +55,9 @@ struct MediaModerationResult {
 class MediaModerationService {
     static let shared = MediaModerationService()
 
-    private let sightengineUser = "208616776"
-    private let sightengineSecret = "tBgwREigE3caEC8UHEya9ZkpdUM5rtTd"
-    private let sightengineBaseURL = "https://api.sightengine.com/1.0/check.json"
-    
-    // Mantenemos speech por si se usa en audio moderación, pero Sightengine también puede hacerlo
-    private let speechAPIKey = "AIzaSyAfaYObVRF4G5Dk2ir2w7qMhhR57LaP-u4" 
-    private let speechBaseURL = "https://speech.googleapis.com/v1/speech:recognize"
+    private let functionsRegion = "europe-southwest1"
+    private let sightengineFunctionName = "proxySightengineFrame"
+    private let speechFunctionName = "proxySpeechToText"
     
     // ✅ NUEVO: Queues dedicados para operaciones pesadas
     private let moderationQueue = DispatchQueue(label: "moderation.heavy.operations", qos: .background)
@@ -70,6 +68,22 @@ class MediaModerationService {
     private let taskLock = NSLock()
 
     private init() {}
+    
+    private func cloudFunctionURL(functionName: String) -> URL? {
+        guard let projectID = FirebaseApp.app()?.options.projectID else { return nil }
+        return URL(string: "https://\(functionsRegion)-\(projectID).cloudfunctions.net/\(functionName)")
+    }
+    
+    private func fetchIDToken(completion: @escaping (String?) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            completion(nil)
+            return
+        }
+        
+        user.getIDTokenForcingRefresh(false) { token, _ in
+            completion(token)
+        }
+    }
 
     // MARK: - 🔥 FUNCIÓN PRINCIPAL: Moderación completamente en background
     func moderateMedia(
@@ -454,68 +468,53 @@ class MediaModerationService {
         timestamp: Double,
         completion: @escaping ([String: Any]?) -> Void
     ) {
-        // Sightengine prefiere multipart/form-data para imágenes
-        let boundary = "Boundary-\(UUID().uuidString)"
-        guard let url = URL(string: sightengineBaseURL) else {
+        guard let url = cloudFunctionURL(functionName: sightengineFunctionName),
+              let jsonData = try? JSONSerialization.data(withJSONObject: [
+                "frameBase64": frameData.base64EncodedString()
+              ]) else {
             completion(nil)
             return
         }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-
-        var body = Data()
         
-        // Parámetros
-        let parameters = [
-            "api_user": sightengineUser,
-            "api_secret": sightengineSecret,
-            "models": "nudity-2.1,face-attributes,scam,offensive"
-        ]
-        
-        for (key, value) in parameters {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(value)\r\n".data(using: .utf8)!)
-        }
-        
-        // Imagen
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"media\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        body.append(frameData)
-        body.append("\r\n".data(using: .utf8)!)
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-
-        request.httpBody = body
-        request.timeoutInterval = 20.0
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
+        fetchIDToken { token in
+            guard let token = token else {
                 completion(nil)
                 return
             }
-
-            guard let data = data else {
-                completion(nil)
-                return
-            }
-
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let status = json["status"] as? String, status == "failure" {
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.httpBody = jsonData
+            request.timeoutInterval = 20.0
+            
+            URLSession.shared.dataTask(with: request) { data, _, error in
+                if error != nil {
+                    completion(nil)
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(nil)
+                    return
+                }
+                
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        if let status = json["status"] as? String, status == "failure" {
+                            completion(nil)
+                            return
+                        }
+                        completion(json)
+                    } else {
                         completion(nil)
-                        return
                     }
-                    completion(json)
-                } else {
+                } catch {
                     completion(nil)
                 }
-            } catch {
-                completion(nil)
-            }
-        }.resume()
+            }.resume()
+        }
     }
 
     // MARK: - 🎵 EXTRACCIÓN Y ANÁLISIS DE AUDIO LIGERO (NUEVO)
@@ -649,69 +648,71 @@ class MediaModerationService {
     ) {
 
         let base64Audio = audioData.base64EncodedString()
-        let requestBody: [String: Any] = [
-            "config": [
-                "encoding": "LINEAR16",
-                "sampleRateHertz": 44100,
-                "languageCode": "es-ES",
-                "enableAutomaticPunctuation": true,
-                "model": "latest_short"
-            ],
-            "audio": [
-                "content": base64Audio
-            ]
-        ]
-
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody),
-              let url = URL(string: "\(speechBaseURL)?key=\(speechAPIKey)") else {
+        
+        guard let url = cloudFunctionURL(functionName: speechFunctionName),
+              let jsonData = try? JSONSerialization.data(withJSONObject: [
+                "audioBase64": base64Audio
+              ]) else {
             completion(.failure(StorageError.invalidData))
             return
         }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = jsonData
-        request.timeoutInterval = 15.0 // ✅ TIMEOUT REDUCIDO
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            // ... (resto de la función igual)
-            if let error = error {
-                completion(.failure(error))
+        
+        fetchIDToken { token in
+            guard let token = token else {
+                completion(.failure(NSError(
+                    domain: "MediaModerationAuthError",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"]
+                )))
                 return
             }
-
-            guard let data = data else {
-                completion(.failure(StorageError.invalidData))
-                return
-            }
-
-            do {
-                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.httpBody = jsonData
+            request.timeoutInterval = 15.0 // ✅ TIMEOUT REDUCIDO
+            
+            URLSession.shared.dataTask(with: request) { data, _, error in
+                // ... (resto de la función igual)
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let data = data else {
                     completion(.failure(StorageError.invalidData))
                     return
                 }
-
-                if let errorJson = json["error"] as? [String: Any],
-                   let errorMessage = errorJson["message"] as? String {
-                    completion(.failure(NSError(domain: "SpeechToTextError", code: 0, userInfo: [NSLocalizedDescriptionKey: errorMessage])))
-                    return
+                
+                do {
+                    guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                        completion(.failure(StorageError.invalidData))
+                        return
+                    }
+                    
+                    if let errorJson = json["error"] as? [String: Any],
+                       let errorMessage = errorJson["message"] as? String {
+                        completion(.failure(NSError(domain: "SpeechToTextError", code: 0, userInfo: [NSLocalizedDescriptionKey: errorMessage])))
+                        return
+                    }
+                    
+                    guard let results = json["results"] as? [[String: Any]],
+                          let firstResult = results.first,
+                          let alternatives = firstResult["alternatives"] as? [[String: Any]],
+                          let firstAlternative = alternatives.first,
+                          let transcript = firstAlternative["transcript"] as? String else {
+                        completion(.success(""))
+                        return
+                    }
+                    
+                    completion(.success(transcript))
+                } catch {
+                    completion(.failure(error))
                 }
-
-                guard let results = json["results"] as? [[String: Any]],
-                      let firstResult = results.first,
-                      let alternatives = firstResult["alternatives"] as? [[String: Any]],
-                      let firstAlternative = alternatives.first,
-                      let transcript = firstAlternative["transcript"] as? String else {
-                    completion(.success(""))
-                    return
-                }
-
-                completion(.success(transcript))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+            }.resume()
+        }
     }
 
     // MARK: - RESTO DE FUNCIONES (SIN CAMBIOS PERO MANTENIENDO NOMBRES ORIGINALES)

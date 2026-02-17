@@ -307,13 +307,13 @@ struct SupportStatsCard: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(LinearGradient(
-                    colors: [Color(hex: "00A896").opacity(0.1), Color(hex: "02C39A").opacity(0.05)],
+                    colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.05)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color(hex: "00A896").opacity(0.2), lineWidth: 1)
+                        .stroke(Color(hex: "007AFF").opacity(0.2), lineWidth: 1)
                 )
         )
     }
@@ -388,7 +388,7 @@ struct BadgeCollectionView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 10)
-                            .background(Color(hex: "00A896"))
+                            .background(Color(hex: "007AFF"))
                             .clipShape(Capsule())
                     }
                 }
@@ -489,7 +489,7 @@ struct BadgeToggleCard: View {
                 
                 Text(currentIsVisible ? "Visible" : "Oculto")
                     .font(.custom("Poppins-Regular", size: 10))
-                    .foregroundColor(currentIsVisible ? Color(hex: "00A896") : .gray)
+                    .foregroundColor(currentIsVisible ? Color(hex: "007AFF") : .gray)
             }
             
             // ✅ NUEVO: Botón de guardar
@@ -513,7 +513,7 @@ struct BadgeToggleCard: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color(hex: "00A896"))
+                    .background(Color(hex: "007AFF"))
                     .clipShape(Capsule())
                 }
                 .disabled(isUpdating)
@@ -527,7 +527,7 @@ struct BadgeToggleCard: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(
-                            currentIsVisible ? Color(hex: "00A896").opacity(0.3) : Color.gray.opacity(0.2),
+                            currentIsVisible ? Color(hex: "007AFF").opacity(0.3) : Color.gray.opacity(0.2),
                             lineWidth: 1
                         )
                 )
@@ -672,7 +672,7 @@ struct PlusBadgeToggleCard: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color(hex: "00A896"))
+                    .background(Color(hex: "007AFF"))
                     .clipShape(Capsule())
                 }
                 .disabled(isUpdating)

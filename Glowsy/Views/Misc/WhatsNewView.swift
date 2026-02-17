@@ -18,7 +18,7 @@ struct WhatsNewView: View {
             GeometryReader { geometry in
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "00A896").opacity(colorScheme == .dark ? 0.25 : 0.1))
+                        .fill(Color(hex: "4F46E5").opacity(colorScheme == .dark ? 0.25 : 0.1))
                         .frame(width: geometry.size.width * 0.8)
                         .blur(radius: 80)
                         .offset(x: -geometry.size.width * 0.2, y: -geometry.size.height * 0.1)
@@ -45,7 +45,7 @@ struct WhatsNewView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 80, height: 80)
-                        .shadow(color: Color(hex: "00A896").opacity(0.4), radius: 20, x: 0, y: 0)
+                        .shadow(color: Color(hex: "4F46E5").opacity(0.4), radius: 20, x: 0, y: 0)
                         .scaleEffect(appearAnimation ? 1.0 : 0.6)
                         .opacity(appearAnimation ? 1.0 : 0.0)
                     
@@ -54,7 +54,7 @@ struct WhatsNewView: View {
                             .font(.custom("Poppins-Bold", size: 30))
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [Color(hex: "00A896"), Color(hex: "4F46E5")],
+                                    colors: [Color(hex: "4F46E5"), Color(hex: "4F46E5")],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -74,59 +74,35 @@ struct WhatsNewView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 26) {
                         WhatsNewFeatureRow(
-                            icon: "heart.circle",
-                            color: Color(hex: "00A896"),
-                            title: NSLocalizedString("whatsNew.nova.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.nova.description", comment: ""),
+                            icon: "rectangle.portrait.on.rectangle.portrait",
+                            color: Color(hex: "4F46E5"),
+                            title: NSLocalizedString("whatsNew.echoes.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.echoes.description", comment: ""),
                             delay: 0.1
                         )
                         
                         WhatsNewFeatureRow(
-                            icon: "person.crop.square",
-                            color: Color(hex: "4F46E5"),
-                            title: NSLocalizedString("whatsNew.audioPro.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.audioPro.description", comment: ""),
+                            icon: "wifi.slash",
+                            color: .orange,
+                            title: NSLocalizedString("whatsNew.apple.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.apple.description", comment: ""),
                             delay: 0.2
                         )
                         
                         WhatsNewFeatureRow(
-                            icon: "calendar.badge.clock",
+                            icon: "photo.stack",
                             color: Color(hex: "9333EA"),
-                            title: NSLocalizedString("whatsNew.smartGrid.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.smartGrid.description", comment: ""),
+                            title: NSLocalizedString("whatsNew.redesign.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.redesign.description", comment: ""),
                             delay: 0.3
                         )
                         
                         WhatsNewFeatureRow(
-                            icon: "square.grid.2x2",
+                            icon: "bolt.fill",
                             color: .pink,
-                            title: NSLocalizedString("whatsNew.glassStudio.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.glassStudio.description", comment: ""),
+                            title: NSLocalizedString("whatsNew.performance.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.performance.description", comment: ""),
                             delay: 0.4
-                        )
-
-                        WhatsNewFeatureRow(
-                            icon: "qrcode",
-                            color: .cyan,
-                            title: NSLocalizedString("whatsNew.banners.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.banners.description", comment: ""),
-                            delay: 0.5
-                        )
-
-                        WhatsNewFeatureRow(
-                            icon: "magnifyingglass",
-                            color: .teal,
-                            title: NSLocalizedString("whatsNew.summary.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.summary.description", comment: ""),
-                            delay: 0.6
-                        )
-                        
-                        WhatsNewFeatureRow(
-                            icon: "map",
-                            color: .orange,
-                            title: NSLocalizedString("whatsNew.maps.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.maps.description", comment: ""),
-                            delay: 0.7
                         )
                     }
                     .padding(.horizontal, 24)
@@ -213,4 +189,8 @@ struct WhatsNewFeatureRow: View {
             }
         }
     }
+}
+
+#Preview {
+    WhatsNewView()
 }

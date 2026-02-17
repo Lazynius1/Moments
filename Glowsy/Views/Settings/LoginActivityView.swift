@@ -25,7 +25,7 @@ struct LoginActivityView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Image(systemName: "shield.checkered")
-                                        .foregroundColor(Color(hex: "00A896"))
+                                        .foregroundColor(Color(hex: "4F46E5"))
                                         .font(.system(size: 20))
                                     
                                     Text("loginActivity.title")
@@ -40,7 +40,7 @@ struct LoginActivityView: View {
                             .padding()
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "00A896").opacity(0.1))
+                                    .fill(Color(hex: "4F46E5").opacity(0.1))
                             )
                             .padding(.horizontal)
                             
@@ -116,7 +116,7 @@ struct LoginActivityView: View {
                                     Circle()
                                         .stroke(
                                             LinearGradient(
-                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -126,7 +126,7 @@ struct LoginActivityView: View {
                             
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(Color(hex: "4F46E5"))
                         }
                     }
                 }
@@ -310,7 +310,7 @@ struct SecurityTipsSection: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "lightbulb.fill")
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
                 
                 Text("loginActivity.securityTips")
                     .font(.custom("Poppins-SemiBold", size: 16))
@@ -347,7 +347,7 @@ struct SecurityTipsSection: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(hex: "00A896").opacity(0.1))
+                .fill(Color(hex: "4F46E5").opacity(0.1))
         )
     }
 }
@@ -360,7 +360,7 @@ struct LoginSecurityTipRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "4F46E5"))
                 .font(.system(size: 12))
             
             Text(text)

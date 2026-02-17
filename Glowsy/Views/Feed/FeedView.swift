@@ -1,62 +1,3 @@
-// ✅ NUEVO: Sistema de colores adaptativos
-struct AdaptiveColors {
-    let colorScheme: ColorScheme
-    
-    var background: Color {
-        colorScheme == .dark ? .black : .white
-    }
-    
-    // Colores principales
-    var primary: Color {
-        colorScheme == .dark ? .white : .black
-    }
-    
-    var secondary: Color {
-        colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7)
-    }
-    
-    var tertiary: Color {
-        colorScheme == .dark ? .gray.opacity(0.6) : .gray.opacity(0.8)
-    }
-    
-    // Colores de acento
-    var accent: Color {
-        Color(hex: "00A896")
-    }
-    
-    var accentSecondary: Color {
-        colorScheme == .dark ? Color(hex: "00A896").opacity(0.3) : Color(hex: "00A896").opacity(0.6)
-    }
-    
-    // Colores de fondo
-    var cardBackground: Material {
-        .ultraThinMaterial
-    }
-    
-    var overlayStroke: [Color] {
-        colorScheme == .dark ?
-        [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)] :
-        [Color.black.opacity(0.1), Color(hex: "00A896").opacity(0.4)]
-    }
-    
-    // Colores para botones
-    var buttonStroke: [Color] {
-        colorScheme == .dark ?
-        [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.3)] :
-        [Color.black.opacity(0.2), Color(hex: "00A896").opacity(0.5)]
-    }
-    
-    var buttonGradient: [Color] {
-        colorScheme == .dark ?
-        [Color(hex: "00A896"), Color.white.opacity(0.8)] :
-        [Color(hex: "00A896"), Color.black.opacity(0.7)]
-    }
-    
-    // Sombras
-    var shadowColor: Color {
-        colorScheme == .dark ? .black.opacity(0.1) : .black.opacity(0.15)
-    }
-}
 
 struct LocationMapData {
     let name: String
@@ -129,16 +70,25 @@ struct FeedView: View {
     @State private var showDeleteAlert = false
     @State private var showReportSheet = false
     @State private var editedContent = ""
-    // ✨ NUEVO: Variables para ReactionsListSheet
-
     @State private var isDeleting = false
+    
+    // ✅ LONG PRESS PEEK: Estado para overlay a nivel del feed
+    @State private var peekImageURL: String? = nil
+    @State private var peekAspectRatio: CGFloat = 1.0
+    @State private var isPeeking = false
     
     @State private var targetConversationId: String? = nil
     @State private var targetMomentId: String? = nil
     @State private var showMomentDetail = false
     @State private var targetMomentUserId: String? = nil
+    @State private var showExplore = false // ✅ NUEVO
     
-
+    // 🌊 ECHOES: Estados para indicadores
+    @State private var pendingEchoes: [Echo] = []
+    @State private var showEchoHistory = false
+    @State private var showPendingEchoInvitation = false
+    @State private var selectedPendingEchoId: String = ""
+    @State private var pendingEchoesListener: ListenerRegistration?
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -154,43 +104,52 @@ struct FeedView: View {
             // ✅ Pill flotante sobre el contenido
             floatingFeedSelector
             
-            // ✅ NUEVO: Banners de estado de red
-            VStack {
-                Spacer()
-                    .frame(height: 80) // ✅ Espacio para el header (ajustado a 80)
-                
-                OfflineBanner(networkMonitor: networkMonitor) {
-                    // Reintentar conexión usando forceRefresh (ya recarga todo)
-                    forceRefresh()
+            // ✅ NUEVO: Banners de estado de red (COMO OVERLAY)
+                .overlay(
+                    VStack {
+                        OfflineBanner(networkMonitor: networkMonitor) {
+                            forceRefresh()
+                        }
+                        SlowConnectionBanner(networkMonitor: networkMonitor)
+                    }
+                    .padding(.top, 60)
+                    .frame(maxWidth: .infinity, alignment: .top)
+                    , alignment: .top
+                )
+            
+            // ✅ LONG PRESS PEEK: Overlay a pantalla completa
+            if isPeeking, let imageURL = peekImageURL {
+                ZStack {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea()
+                    
+                    KFImage(URL(string: imageURL))
+                        .resizable()
+                        .scaledToFill()
+                        .frame(
+                            width: UIScreen.main.bounds.width - 32,
+                            height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
                 }
-                
-                SlowConnectionBanner(networkMonitor: networkMonitor)
-                
-                Spacer()
+                .transition(.opacity)
+                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
+                .allowsHitTesting(false)
+                .zIndex(998)
             }
-            .zIndex(999)
                 
                 if showGlobalContextMenu, let moment = selectedMomentForMenu {
                     ModernContextMenuOverlay(
                         moment: moment,
                         isPresented: $showGlobalContextMenu,
-                        showShareSheet: $showShareSheet,
                         onEdit: {
                             editedContent = moment.content
                             showEditSheet = true
-
                         },
                         onDelete: {
                             showDeleteAlert = true
-
-                        },
-                        onShare: {
-                            if privacyService.canShareMoment(moment) {
-                                showShareSheet = true
-                                // Share sheet abierto
-                            } else {
-                                // No se puede compartir momento privado
-                            }
                         },
                         onReport: {
                             showReportSheet = true
@@ -242,6 +201,21 @@ struct FeedView: View {
                 AnalyticsService.shared.trackScreenView("FeedView")
                 AnalyticsService.shared.trackFeatureUsage("feed")
                 loadInitialData()
+                
+                // ✅ PREFETCHING POR COMPORTAMIENTO (ESTRATEGIA 2 - LOCAL)
+                // Precargamos las historias de los primeros 5 círculos que YA aparecen en pantalla.
+                // Como 'storyUsers' ya ha sido filtrado por la lógica de visibilidad del servidor y la app,
+                // estamos 100% seguros de que solo precargamos contenido que el usuario TIENE permiso de ver.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    let topStoryUsers = storyUsers.prefix(5)
+                    for user in topStoryUsers {
+                        // Solo precargamos si tiene historias y no es el usuario actual
+                        if user.hasStory && user.userId != Auth.auth().currentUser?.uid {
+                            FirestoreService.shared.prefetchStoriesForUser(userId: user.userId)
+                        }
+                    }
+                }
+                
                 startTimeUpdate()
                 
                 setupServiceConnections()
@@ -251,6 +225,9 @@ struct FeedView: View {
                 
                 // ✅ SETUP DE LISTENERS
                 badgeService.setupListeners()
+                
+                // 🌊 ECHOES: Cargar invitaciones pendientes
+                setupPendingEchoesListener()
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     notificationSummaryService.checkShouldShowSummary(
@@ -275,6 +252,12 @@ struct FeedView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowNotifications"))) { _ in
                 showNotifications = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowCreatorView"))) { _ in
+                showCreatorView = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowExploreView"))) { _ in
+                showExplore = true
             }
         .onDisappear {
             // cleanupListeners() // ❌ ELIMINAR
@@ -320,6 +303,9 @@ struct FeedView: View {
             }
             .sheet(isPresented: $showExploreWithHashtag) {
                 ExploreView(initialSearchQuery: selectedHashtag)
+            }
+            .sheet(isPresented: $showExplore) {
+                ExploreView()
             }
             .fullScreenCover(isPresented: $showingLocationMap) {
                 LocationMapView(
@@ -451,6 +437,23 @@ struct FeedView: View {
                     UserProfileView(userId: selectedUserId)
                 }
             }
+            // 🌊 ECHOES: Sheet para invitación pendiente
+            .sheet(isPresented: $showPendingEchoInvitation) {
+                if !selectedPendingEchoId.isEmpty {
+                    EchoInvitationView(
+                        echoId: selectedPendingEchoId,
+                        isPresented: $showPendingEchoInvitation,
+                        onAccept: { echoId in
+                            // Navegar al visor tras aceptar
+                            NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
+                        }
+                    )
+                }
+            }
+            // 🌊 ECHOES: Sheet para historial
+            .sheet(isPresented: $showEchoHistory) {
+                EchoHistoryView()
+            }
         // 🔗 STORY CHAINS: Eliminado en Feed; centralizado en StoryModels
     }
     
@@ -477,6 +480,17 @@ struct FeedView: View {
                 DispatchQueue.main.async {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
+            }
+        }
+    }
+    
+    // 🌊 ECHOES: Configurar listener para invitaciones pendientes
+    private func setupPendingEchoesListener() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        pendingEchoesListener = EchoService.shared.fetchPendingEchoes(userId: userId) { echoes in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.pendingEchoes = echoes
             }
         }
     }
@@ -571,27 +585,117 @@ struct FeedView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // ✅ NUEVO: Pill flotante sobre el contenido
+    // ✅ NUEVO: Pill flotante sobre el contenido con indicadores de Echo
     private var floatingFeedSelector: some View {
         VStack {
             Spacer()
                 .frame(height: 100) // Espacio del header
             
-            SegmentedFeedToggle(selectedFeedType: $selectedFeedType)
-                .padding(.horizontal, 12)
-                .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
-                .onChange(of: selectedFeedType) { newFeedType in
-                    // ✅ NUEVO: Guardar la preferencia del usuario
-                    UserDefaults.standard.selectedFeedType = newFeedType
-                    
-                    // ✅ Cambiar tipo de feed cuando se selecciona
-                    if let userId = Auth.auth().currentUser?.uid {
-                        viewModel.switchFeedType(to: newFeedType, userId: userId)
+            HStack(spacing: 12) {
+                // 🌊 IZQUIERDA: Indicador de Echoes pendientes
+                if !pendingEchoes.isEmpty {
+                    Button(action: {
+                        if let firstPending = pendingEchoes.first, let echoId = firstPending.id {
+                            selectedPendingEchoId = echoId
+                            showPendingEchoInvitation = true
+                        }
+                    }) {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.orange, .yellow],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 36, height: 36)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [.orange.opacity(0.6), .yellow.opacity(0.4)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                )
+                            
+                            // Badge con número
+                            Text("\(pendingEchoes.count)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 16, height: 16)
+                                .background(Color.orange)
+                                .clipShape(Circle())
+                                .offset(x: 4, y: -4)
+                        }
                     }
-                    
-                    // ✅ NUEVO: Track analytics para preferencias
-                    AnalyticsService.shared.trackFeatureUsage("feed_type_changed_to_\(newFeedType.rawValue)")
+                    .buttonStyle(PlainButtonStyle())
+                    .transition(.scale.combined(with: .opacity))
                 }
+                
+                // Centro: Feed Toggle
+                FloatingGlassFeedToggle(selectedFeedType: $selectedFeedType)
+                
+                // 🌊 DERECHA: Botón historial de Echoes
+                Button(action: {
+                    showEchoHistory = true
+                }) {
+                    // Icono de obturador dividido en 2 colores
+                    ZStack {
+                        // Mitad izquierda - Naranja
+                        Image(systemName: "camera.aperture")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .orange, location: 0),
+                                        .init(color: .orange, location: 0.5),
+                                        .init(color: .purple.opacity(0.8), location: 0.5),
+                                        .init(color: .purple, location: 1)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    }
+                    .frame(width: 36, height: 36)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.orange.opacity(0.5), .purple.opacity(0.5)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.horizontal, 12)
+            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+            .onChange(of: selectedFeedType) { newFeedType in
+                // ✅ NUEVO: Guardar la preferencia del usuario
+                UserDefaults.standard.selectedFeedType = newFeedType
+                
+                // ✅ Cambiar tipo de feed cuando se selecciona
+                if let userId = Auth.auth().currentUser?.uid {
+                    viewModel.switchFeedType(to: newFeedType, userId: userId)
+                }
+                
+                // ✅ NUEVO: Track analytics para preferencias
+                AnalyticsService.shared.trackFeatureUsage("feed_type_changed_to_\(newFeedType.rawValue)")
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pendingEchoes.count)
             
             Spacer()
         }
@@ -734,88 +838,121 @@ struct FeedView: View {
     // ✅ Contenido del scroll
     private var scrollableContent: some View {
         ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: false) {
-                let screenHeight = UIScreen.main.bounds.height
-                let headerHeight = 100.0
-                let progressBarHeight = uploadService.uploadingMoments.isEmpty ? 0.0 : 50.0
-                let segmentedToggleHeight = 35.0
-                let tabbarHeight = 50.0
-                let availableHeight = screenHeight - headerHeight - progressBarHeight - segmentedToggleHeight - tabbarHeight - 60
-                
-                LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                    // ✅ Espacio para que el primer post empiece debajo del header
-                    Spacer()
-                        .frame(height: headerHeight + segmentedToggleHeight + 35)
+            ZStack {
+                ScrollView(.vertical, showsIndicators: false) {
+                    let screenHeight = UIScreen.main.bounds.height
+                    let headerHeight = 100.0
+                    let progressBarHeight = uploadService.uploadingMoments.isEmpty ? 0.0 : 50.0
+                    let segmentedToggleHeight = 35.0
+                    let tabbarHeight = 50.0
+                    let availableHeight = screenHeight - headerHeight - progressBarHeight - segmentedToggleHeight - tabbarHeight - 60
                     
-                    ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                        VStack(spacing: max(15, screenHeight * 0.02)) {
-                            
-                            ModernPostCardView(
-                                moment: moment,
-                                availableHeight: availableHeight,
-                                colorScheme: colorScheme,
-                                onComment: {
-                                    selectedMoment = moment
-                                    showingComments = true
-                                },
-                                onNearEnd: {
-                                    if moment.id == viewModel.moments.last?.id,
-                                       let userId = Auth.auth().currentUser?.uid {
-                                        viewModel.loadMoreMoments(userId: userId)
+                    LazyVStack(spacing: max(15, screenHeight * 0.02)) {
+                        // ✅ Espacio para que el primer post empiece debajo del header
+                        Spacer()
+                            .frame(height: headerHeight + segmentedToggleHeight + 35)
+                        
+                        ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
+                            VStack(spacing: max(15, screenHeight * 0.02)) {
+                                
+                                ModernPostCardView(
+                                    moment: moment,
+                                    availableHeight: availableHeight,
+                                    colorScheme: colorScheme,
+                                    onComment: {
+                                        selectedMoment = moment
+                                        showingComments = true
+                                    },
+                                    onNearEnd: {
+                                        if moment.id == viewModel.moments.last?.id,
+                                           let userId = Auth.auth().currentUser?.uid {
+                                            viewModel.loadMoreMoments(userId: userId)
+                                        }
+                                    },
+                                    onHashtagTap: { hashtag in
+                        
+                                        selectedHashtag = "#\(hashtag)"
+                                        showExploreWithHashtag = true
+                                    },
+                                    onLocationTap: { locationName, coordinate in
+                                        DispatchQueue.main.async {
+                                            self.selectedLocationName = locationName
+                                            self.selectedLocationCoordinate = coordinate
+                                            self.showingLocationMap = true
+                                        }
+                                    },
+                                    // ✅ NUEVO: Callback para mostrar menú contextual global
+                                    onContextMenu: { moment in
+    
+                                        selectedMomentForMenu = moment
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                            showGlobalContextMenu = true
+                                        }
+                                    },
+                                    onTagTap: { userId in
+                                        // ✅ Tag Navigation
+                                        selectedUserId = userId
+                                        showUserProfile = true
+                                    },
+                                    onPeek: { imageURL, ratio, isPressing in
+                                        // ✅ PREFETCHING POR INTENCIÓN (ESTRATEGIA 3)
+                                        // Si el usuario empieza a presionar (Peek), cargamos la versión de alta resolución proactivamente
+                                        if isPressing, let url = URL(string: imageURL) {
+                                            KingfisherManager.shared.retrieveImage(with: url) { _ in }
+                                        }
+                                        
+                                        // ✅ LONG PRESS PEEK (Visual)
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                            if isPressing {
+                                                peekImageURL = imageURL
+                                                peekAspectRatio = ratio
+                                                isPeeking = true
+                                            } else {
+                                                isPeeking = false
+                                            }
+                                        }
                                     }
-                                },
-                                onHashtagTap: { hashtag in
-                    
-                                    selectedHashtag = "#\(hashtag)"
-                                    showExploreWithHashtag = true
-                                },
-                                onLocationTap: { locationName, coordinate in
-                                    DispatchQueue.main.async {
-                                        self.selectedLocationName = locationName
-                                        self.selectedLocationCoordinate = coordinate
-                                        self.showingLocationMap = true
+                                )
+                                .onAppear {
+                                    // ✅ PREFETCHING DE LISTA (ESTRATEGIA 1)
+                                    // Cuando un post aparece, precargamos las imágenes de los siguientes 5
+                                    let nextIndex = index + 1
+                                    let prefetchRange = nextIndex..<(nextIndex + 5)
+                                    let urlsToPrefetch = viewModel.moments[safe: prefetchRange].compactMap { moment -> URL? in
+                                        guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
+                                        return URL(string: firstMedia)
                                     }
-                                },
-                                // ✅ NUEVO: Callback para mostrar menú contextual global
-                                onContextMenu: { moment in
-
-                                    selectedMomentForMenu = moment
-                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                        showGlobalContextMenu = true
+                                    if !urlsToPrefetch.isEmpty {
+                                        ImagePrefetcher(urls: urlsToPrefetch).start()
                                     }
-                                },
-                                onTagTap: { userId in
-                                    // ✅ Tag Navigation
-                                    selectedUserId = userId
-                                    showUserProfile = true
                                 }
-                            )
-                            .id(index)
-                            .environmentObject(firestoreService)
-                            .environmentObject(viewModel)
-
-                            let adInterval = selectedFeedType == .forYou ? 3 : 5
-                            if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
-                                SmartNativeAdView()
-                                    .onAppear {
-                                        AnalyticsService.shared.trackFeatureUsage("native_ad_shown")
-
-                                    }
+                                .environmentObject(firestoreService)
+                                .environmentObject(viewModel)
+    
+                                let adInterval = selectedFeedType == .forYou ? 3 : 5
+                                if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
+                                    SmartNativeAdView()
+                                        .onAppear {
+                                            AnalyticsService.shared.trackFeatureUsage("native_ad_shown")
+    
+                                        }
+                                }
                             }
                         }
+    
+                        if viewModel.isLoadingMore {
+                            ModernLoadingMoreView(colorScheme: colorScheme)
+                                .padding(.vertical, 15)
+                        }
                     }
-
-                    if viewModel.isLoadingMore {
-                        ModernLoadingMoreView(colorScheme: colorScheme)
-                            .padding(.vertical, 15)
-                    }
-
-                    if viewModel.moments.isEmpty && !viewModel.isLoading {
-                        ModernEmptyFeedView(feedType: selectedFeedType, colorScheme: colorScheme)
-                            .padding(.vertical, 50)
-                    }
+                    .padding(.vertical, 15)
                 }
-                .padding(.vertical, 15)
+                
+                // ✅ ESTADO VACÍO: Fuera del ScrollView para control total de la atmósfera
+                if viewModel.moments.isEmpty && !viewModel.isLoading {
+                    ModernEmptyFeedView(feedType: selectedFeedType)
+                        .zIndex(10)
+                }
             }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -870,6 +1007,7 @@ struct FeedView: View {
                 ZStack {
                     AsyncProfileImageView(userId: userId)
                         .frame(width: 50, height: 50)
+                        .clipShape(Circle())
                         .overlay(
                             StorySegmentedRing(
                                 storyCount: storyCount,
@@ -879,10 +1017,13 @@ struct FeedView: View {
                                 isOwnStory: isOwnStory,
                                 colorScheme: colorScheme,
                                 ringSize: 50,
-                                lineWidth: 2.5
+                                lineWidth: 3.0, // ✅ Grosor ligeramente mayor para Tier 1
+                                hapticsEnabled: true
                             )
                         )
                 }
+                .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
+                .padding(2) // ✅ Margen de seguridad
             }
         }
     }
@@ -921,14 +1062,16 @@ struct FeedView: View {
                         .frame(width: 50, height: 50)
                         .clipShape(Circle())
                         .overlay(
-                            // ✅ Usar StorySegmentedRing para mostrar segmentos
                             StorySegmentedRing(
                                 storyCount: storyCount,
                                 hasStory: hasStory,
                                 hasUnseenStory: false, // Tu propia historia siempre está vista
                                 storyViewedStatus: Array(repeating: true, count: storyCount), // ✅ Todas las historias propias están "vistas"
                                 isOwnStory: true, // ✅ Es tu propia historia
-                                colorScheme: colorScheme
+                                colorScheme: colorScheme,
+                                ringSize: 50,
+                                lineWidth: 3.0, // ✅ Consistente con RealStoryCircle
+                                hapticsEnabled: true
                             )
                         )
                     
@@ -957,10 +1100,17 @@ struct FeedView: View {
                         statusIcon(for: uploadingStory.status)
                             .font(.system(size: 18))
                             .foregroundColor(.white)
+                            .onChange(of: uploadingStory.status) { oldStatus, newStatus in
+                                if newStatus == .completed {
+                                    // ✅ Haptic Tier 1 al completar la subida
+                                    StorySegmentedRing.triggerHaptic()
+                                }
+                            }
                             
                     }
-                    // ❌ QUITADO: Plus button eliminado completamente
                 }
+                .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
+                .padding(2) // ✅ Margen de seguridad
             }
             .scaleEffect(storyUploadService.uploadingStory?.status == .failed ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: storyUploadService.uploadingStory?.status)
@@ -1019,7 +1169,7 @@ struct FeedView: View {
                 .background(.ultraThinMaterial)
                 .overlay(
                     Rectangle()
-                        .fill(Color(hex: "00A896").opacity(0.3))
+                        .fill(Color(hex: "007AFF").opacity(0.3))
                         .frame(height: 2),
                     alignment: .bottom
                 )
@@ -1194,7 +1344,7 @@ struct FeedView: View {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(progressColor)
                             .frame(width: geometry.size.width * uploadingMoment.uploadProgress, height: 3)
-                            .shadow(color: (uploadingMoment.status == .uploading ? Color(hex: "00A896") : Color.orange).opacity(0.5), radius: 4)
+                            .shadow(color: (uploadingMoment.status == .uploading ? Color(hex: "007AFF") : Color.orange).opacity(0.5), radius: 4)
                             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: uploadingMoment.uploadProgress)
                     }
                 }
@@ -1256,7 +1406,7 @@ struct FeedView: View {
             switch uploadingMoment.status {
             case .uploading:
                 return LinearGradient(
-                    colors: [Color(hex: "00A896"), Color(hex: "00D2B4")],
+                    colors: [Color(hex: "007AFF"), Color(hex: "00D2B4")],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -1759,7 +1909,7 @@ struct ModernLoadingMoreView: View {
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
+                        colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -1793,76 +1943,6 @@ struct ModernLoadingMoreView: View {
 }
 
 // ✅ Estado vacío moderno
-struct ModernEmptyFeedView: View {
-    let feedType: FeedType
-    let colorScheme: ColorScheme  // ✅ AGREGAR parámetro
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 100, height: 100)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: adaptiveColors.buttonStroke,  // ✅ CAMBIAR
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                    )
-                
-                Image(systemName: feedType.icon)
-                    .font(.system(size: 50))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: adaptiveColors.buttonGradient,  // ✅ CAMBIAR
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            
-            VStack(spacing: 8) {
-                Text(emptyTitle)
-                    .font(.custom("Poppins-SemiBold", size: 20))
-                    .foregroundColor(adaptiveColors.primary)  // ✅ CAMBIAR esta línea
-                
-                Text(emptyDescription)
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(adaptiveColors.tertiary)  // ✅ CAMBIAR esta línea
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-        }
-        .padding(.horizontal, 20)
-    }
-    
-    private var emptyTitle: String {
-        switch feedType {
-        case .following:
-            return NSLocalizedString("feed.empty.following.title", comment: "Empty following feed title")
-        case .forYou:
-            return NSLocalizedString("feed.empty.foryou.title", comment: "Empty for you feed title")
-        }
-    }
-    
-    private var emptyDescription: String {
-        switch feedType {
-        case .following:
-            return NSLocalizedString("feed.empty.following.description", comment: "Empty following feed description")
-        case .forYou:
-            return NSLocalizedString("feed.empty.foryou.description", comment: "Empty for you feed description")
-        }
-    }
-}
 
 
 // ✅ ACTUALIZADO: ModernPostCardView con círculo de historia en el header
@@ -1876,10 +1956,11 @@ struct ModernPostCardView: View {
     let onLocationTap: (String, CLLocationCoordinate2D?) -> Void
     let onContextMenu: (Moment) -> Void
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation Callback
+    var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
     @EnvironmentObject private var firestoreService: FirestoreService
     @EnvironmentObject private var feedViewModel: FeedViewModel
     @State private var currentImageIndex = 0
-    @State private var detectedAspectRatio: CGFloat = 1.0
+    @State private var detectedAspectRatio: CGFloat
     @State private var isFollowing: Bool = false
     @State private var isSaved: Bool = false
     @State private var isFollowLoading: Bool = false
@@ -1887,12 +1968,67 @@ struct ModernPostCardView: View {
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
     @State private var showTags: Bool = false // ✅ NUEVO: Estado global para etiquetas en el post
+    @State private var isImmersive: Bool = false // ✅ NUEVO: Modo inmersivo
+    @State private var realAspectRatio: CGFloat = 1.0 // ✅ Ratio real sin cap (para long press reveal)
     
     // ✅ ACTUALIZADO: AspectRatioType mejorado con soporte para reels
     @State private var aspectRatioType: AspectRatioType = .square
     @State private var cachedCardHeight: CGFloat?
     @State private var lastCalculatedSize: CGSize = .zero
     @State private var isFirstAppear = true
+    
+    init(moment: Moment,
+         availableHeight: CGFloat,
+         colorScheme: ColorScheme,
+         onComment: @escaping () -> Void,
+         onNearEnd: @escaping () -> Void,
+         onHashtagTap: @escaping (String) -> Void,
+         onLocationTap: @escaping (String, CLLocationCoordinate2D?) -> Void,
+         onContextMenu: @escaping (Moment) -> Void,
+         onTagTap: ((String) -> Void)? = nil,
+         onPeek: ((String, CGFloat, Bool) -> Void)? = nil) {
+        
+        self.moment = moment
+        self.availableHeight = availableHeight
+        self.colorScheme = colorScheme
+        self.onComment = onComment
+        self.onNearEnd = onNearEnd
+        self.onHashtagTap = onHashtagTap
+        self.onLocationTap = onLocationTap
+        self.onContextMenu = onContextMenu
+        self.onTagTap = onTagTap
+        self.onPeek = onPeek
+        
+        // ✅ CRÍTICO: Inicialización estática con metadatos SIEMPRE
+        // Evitamos que el layout "baile" al cargar confiando en la DB
+        if let ratioStr = moment.aspectRatio, !ratioStr.isEmpty {
+            let ratio = ProcessedMedia.AspectRatio(from: ratioStr).value
+            let safeRatio = (ratio > 0 && ratio.isFinite) ? ratio : 1.0
+            
+            // ✅ Guardar el ratio REAL para el long press reveal
+            _realAspectRatio = State(initialValue: safeRatio)
+            
+            // ✅ REGLA INSTAGRAM: Todo contenido más vertical que 4:5 se cropea en el feed.
+            // Vídeos se ven completos al hacer tap (Reels viewer).
+            let displayRatio: CGFloat
+            if safeRatio < 0.8 {
+                displayRatio = 0.8
+            } else {
+                displayRatio = safeRatio
+            }
+            
+            _detectedAspectRatio = State(initialValue: displayRatio)
+            
+            if displayRatio < 0.7 { _aspectRatioType = State(initialValue: .reels) }
+            else if displayRatio < 0.9 { _aspectRatioType = State(initialValue: .portrait) }
+            else if displayRatio < 1.3 { _aspectRatioType = State(initialValue: .square) }
+            else { _aspectRatioType = State(initialValue: .landscape) }
+        } else {
+            _detectedAspectRatio = State(initialValue: 1.0)
+            _realAspectRatio = State(initialValue: 1.0)
+            _aspectRatioType = State(initialValue: .square)
+        }
+    }
     
     // ✅ Estados para el círculo de historia en el header
     @State private var hasStory: Bool = false
@@ -1970,10 +2106,8 @@ struct ModernPostCardView: View {
             return cached
         }
         
-        // ✅ RECALCULAR solo cuando sea necesario
         let newHeight = calculateCardHeight(for: currentSize)
         
-        // ✅ GUARDAR en cache (sin trigger re-render)
         DispatchQueue.main.async {
             if self.cachedCardHeight != newHeight {
                 self.cachedCardHeight = newHeight
@@ -1986,49 +2120,21 @@ struct ModernPostCardView: View {
     
     private func calculateCardHeight(for containerSize: CGSize) -> CGFloat {
         let maxWidth = containerSize.width
+        guard maxWidth > 0 else { return 300 }
         
-        // ✅ Validar que maxWidth sea positivo
-        guard maxWidth > 0 else {
-
-            return 300 // Fallback seguro
-        }
+        let ratio = (detectedAspectRatio > 0 && detectedAspectRatio.isFinite) ? detectedAspectRatio : 1.0
+        let idealHeight = maxWidth / ratio
         
-        // ✅ Validar aspect ratio detectado
-        let aspectRatio: CGFloat
-        if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
-            aspectRatio = detectedAspectRatio
-        } else {
-            aspectRatio = aspectRatioType.exactRatio
-        }
-        
-        // ✅ Calcular altura ideal basada en el aspect ratio
-        let idealHeight = maxWidth / aspectRatio
-        
-        // ✅ Validar que la altura calculada sea válida
-        guard idealHeight > 0 && idealHeight.isFinite else {
-
-            return aspectRatioType.maxHeight // Usar altura máxima como fallback
-        }
-        
-        // ✅ Aplicar límites seguros
-        let maxAllowedHeight = min(aspectRatioType.maxHeight, containerSize.height)
-        let finalHeight = min(idealHeight, maxAllowedHeight)
-        
-        // ✅ Validación final - asegurar altura mínima
-        let safeHeight = max(finalHeight, 200) // Mínimo 200pt
-        
-        // ✅ SOLO LOGEAR EN PRIMERA CARGA (no en cada recálculo)
-        if isFirstAppear {
-    
-        }
-        
-        return safeHeight
+        let maxAllowed = containerSize.height * 0.95
+        return max(min(idealHeight, maxAllowed), 150)
     }
 
     var body: some View {
         VStack(spacing: 12) {
             // Header del post con círculo de historia
             postHeaderView
+                .opacity(isImmersive ? 0 : 1)
+                .animation(.easeInOut(duration: 0.3), value: isImmersive)
             
             // Contenido principal
             ZStack(alignment: .bottom) {
@@ -2040,56 +2146,43 @@ struct ModernPostCardView: View {
                         aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                         allMoments: feedViewModel.moments,
                         currentMoment: moment,
-                        onTagTap: onTagTap // ✅ Propagate to parent
+                        onTagTap: onTagTap, // ✅ Propagate to parent
+                        isImmersive: $isImmersive // ✅ NUEVO: Faltaba este parámetro
                     )
                     .frame(height: max(cardHeight, 200))
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
+                    .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isImmersive)
                     // ✅ NUEVO: Sistema de sombras multi-nivel (Efecto de profundidad premium)
                     .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
                     .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)
                     .onAppear {
                         detectAspectRatio()
                     }
-                    
-                    // ✅ NUEVO: Función para colores de indicadores
-                    .onReceive(Just(currentImageIndex)) { _ in
-                        // Trigger animation when index changes
-                    }
-                    
-                    // ✅ NUEVO: Botón simple de menú contextual (sin overlay local)
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Button(action: {
-
-                                onContextMenu(moment) // ✅ Llamar al callback del FeedView
-                            }) {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 36, height: 36)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: [Color.white.opacity(0.4), Color.gray.opacity(0.3)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 1
-                                            )
-                                    )
-                                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                    // ✅ NUEVO: Gesto para Modo Inmersivo
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.1)
+                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                            .onEnded { value in
+                                // No hacemos nada en onEnded si queremos que sea momentáneo al soltar
                             }
-                            .buttonStyle(PlainButtonStyle())
-                            .padding(.top, 16)
-                            .padding(.trailing, 16)
+                    )
+                    .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            self.isImmersive = isPressing
+                            if isPressing {
+                                HapticManager.shared.mediumImpact()
+                                // ✅ PEEK: Comunicar imagen al FeedView para overlay
+                                if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
+                                    let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+                                    if let item = currentItem, item.type == .image {
+                                        onPeek?(item.url, realAspectRatio, true)
+                                    }
+                                }
+                            } else {
+                                onPeek?("", 1.0, false)
+                            }
                         }
-                        Spacer()
-                    }
+                    }, perform: {})
                     
                     if mediaItems.count > 1 {
                         VStack {
@@ -2099,12 +2192,13 @@ struct ModernPostCardView: View {
                                         .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
                                         .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
                                         .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                                 }
                             }
                             .padding(.top, 20) // ✅ Más arriba para mejor visibilidad
                             Spacer()
                         }
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
                     
                     let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
@@ -2124,22 +2218,12 @@ struct ModernPostCardView: View {
                                             .fill(.ultraThinMaterial)
                                             .frame(width: 38, height: 38)
                                         
-                                        // Border Gradient Glass
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 1.5
-                                            )
                                             .frame(width: 38, height: 38)
                                         
                                         // Icon tinted if active
                                         Image(systemName: showTags ? "person.fill" : "person.circle.fill")
                                             .font(.system(size: 16, weight: .bold))
-                                            .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                                            .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
                                     }
                                     .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                                 }
@@ -2149,6 +2233,8 @@ struct ModernPostCardView: View {
                             }
                         }
                         .zIndex(110)
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
                     
                     // ✅ NUEVO: Indicador de aspect ratio (solo para debug si está habilitado)
@@ -2182,6 +2268,8 @@ struct ModernPostCardView: View {
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .allowsHitTesting(false)
+                    .opacity(isImmersive ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.3), value: isImmersive)
 
                     if !moment.content.isEmpty {
                         VStack {
@@ -2198,8 +2286,11 @@ struct ModernPostCardView: View {
                                 Spacer()
                             }
                             .padding(.horizontal, 12)
+                            .padding(.trailing, 140) // ✅ Más espacio de seguridad
                             .padding(.bottom, 20)
                         }
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
                 }
                 
@@ -2209,7 +2300,9 @@ struct ModernPostCardView: View {
                     isSaveLoading: $isSaveLoading,
                     commentCount: $commentCount,
                     onComment: onComment,
-                    onSave: toggleSave
+                    onSave: toggleSave,
+                    onContextMenu: { onContextMenu(moment) }, // ✅ NUEVO
+                    isImmersive: $isImmersive // ✅ NUEVO
                 )
                 .environmentObject(firestoreService)
             }
@@ -2232,13 +2325,7 @@ struct ModernPostCardView: View {
 
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-            // ✅ INVALIDAR cache cuando cambia orientación
-            DispatchQueue.main.async {
-                cachedCardHeight = nil
-                lastCalculatedSize = .zero
-            }
-        }
+
         .fullScreenCover(isPresented: $showSpecificUserStories) {
             StoriesView(startWithUserId: Binding(
                 get: { moment.authorId },
@@ -2401,7 +2488,6 @@ struct ModernPostCardView: View {
             .getDocuments { snapshot, error in
                 
                 if let error = error {
-
                     DispatchQueue.main.async {
                         self.hasStory = false
                         self.hasUnseenStory = false
@@ -2457,7 +2543,6 @@ struct ModernPostCardView: View {
                         self.hasStory = isAnyStoryVisible
                         self.hasUnseenStory = hasUnseenStory
                         self.isLoadingStory = false
-
                     }
                 }
             }
@@ -2486,34 +2571,31 @@ struct ModernPostCardView: View {
             let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
             let expectedRatioValue = aspectRatioFromDB.value
             
-            // ✅ MEJORADO: Solo actualizar si el valor actual es diferente o no está establecido
-            // Esto evita recálculos innecesarios al refrescar
-            if detectedAspectRatio != expectedRatioValue || detectedAspectRatio == 0 || detectedAspectRatio == 1.0 {
+            // ✅ REGLA INSTAGRAM: Todo contenido más vertical que 4:5 se cropea
+            let displayRatio: CGFloat
+            if expectedRatioValue < 0.8 && expectedRatioValue > 0 {
+                displayRatio = 0.8
+            } else if expectedRatioValue > 0 && expectedRatioValue.isFinite {
+                displayRatio = expectedRatioValue
+            } else {
+                displayRatio = 1.0
+            }
+            
+            // Solo actualizar si el valor actual es diferente
+            if detectedAspectRatio != displayRatio {
                 DispatchQueue.main.async {
-                    // ✅ Validar que el valor sea finito y positivo
-                    if expectedRatioValue > 0 && expectedRatioValue.isFinite {
-                        self.detectedAspectRatio = expectedRatioValue
-                        
-                        // ✅ INVALIDAR cache para recalcular con nuevo ratio
-                        self.cachedCardHeight = nil
-                    } else {
-                        self.detectedAspectRatio = 1.0 // Fallback a square
-                    }
+                    self.realAspectRatio = expectedRatioValue // ✅ Siempre guardar el real
+                    self.detectedAspectRatio = displayRatio
+                    self.cachedCardHeight = nil
                     
-                    // Clasificar el tipo con ratios exactos
-                    switch aspectRatioFromDB {
-                    case .landscape:
-                        self.aspectRatioType = .landscape
-                    case .portrait:
-                        self.aspectRatioType = .portrait
-                    case .square:
-                        self.aspectRatioType = .square
-                    case .nineBySixteen:
-                        self.aspectRatioType = .reels
-                    }
+                    // Clasificar el tipo
+                    if displayRatio < 0.7 { self.aspectRatioType = .reels }
+                    else if displayRatio < 0.9 { self.aspectRatioType = .portrait }
+                    else if displayRatio < 1.3 { self.aspectRatioType = .square }
+                    else { self.aspectRatioType = .landscape }
                 }
             }
-            return // ✅ IMPORTANTE: No hacer detección si ya tenemos el aspect ratio guardado
+            return
         }
         
         // ✅ SOLO FALLBACK: Si NO hay aspect ratio guardado, detectar una sola vez
@@ -2547,14 +2629,12 @@ struct ModernPostCardView: View {
                             self.detectedAspectRatio = ratio
                             self.classifyAspectRatio(ratio)
                         } else {
-
                             self.detectedAspectRatio = 1.0
                             self.aspectRatioType = .square
                         }
                     }
                 }
                 .onFailure { error in
-
                     DispatchQueue.main.async {
                         self.detectedAspectRatio = 0.8 // Fallback a 4:5
                         self.aspectRatioType = .portrait
@@ -2568,7 +2648,6 @@ struct ModernPostCardView: View {
             DispatchQueue.main.async {
                 self.detectedAspectRatio = 0.5625 // 9÷16 = 0.5625
                 self.aspectRatioType = .reels
-
             }
             
             if let url = URL(string: firstItem.url) {
@@ -2583,7 +2662,6 @@ struct ModernPostCardView: View {
                             DispatchQueue.main.async {
                                 self.detectedAspectRatio = videoRatio
                                 self.classifyAspectRatio(videoRatio)
-
                             }
                         }
                     } catch {
@@ -2648,7 +2726,7 @@ struct ModernPostCardView: View {
                 DispatchQueue.main.async {
                     self.isSaved = saved
                 }
-            case .failure(let error):
+            case .failure(_):
                 break
             }
         }
@@ -2691,15 +2769,22 @@ struct ModernPostCardView: View {
     private func toggleFollow() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
+        // ✅ OPTIMISTIC UPDATE
+        let previousState = isFollowing
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            self.isFollowing.toggle()
+        }
+        
         isFollowLoading = true
         
-        if isFollowing {
+        if previousState {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
                 DispatchQueue.main.async {
                     self.isFollowLoading = false
-                    if error == nil {
+                    if let error = error {
+                        // Revert on error
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = false
+                            self.isFollowing = true
                         }
                     }
                 }
@@ -2708,9 +2793,10 @@ struct ModernPostCardView: View {
             firestoreService.followUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
                 DispatchQueue.main.async {
                     self.isFollowLoading = false
-                    if error == nil {
+                    if let error = error {
+                        // Revert on error
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = true
+                            self.isFollowing = false
                         }
                     }
                 }
@@ -2722,228 +2808,24 @@ struct ModernPostCardView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
+        // ✅ OPTIMISTIC UPDATE
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            self.isSaved.toggle()
+        }
+        
         isSaveLoading = true
         
         firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
             DispatchQueue.main.async {
                 self.isSaveLoading = false
                 if let error = error {
-                } else {
+                    // Revert on error
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                         self.isSaved.toggle()
                     }
                 }
             }
         }
-    }
-}
-
-// ✅ ACTUALIZADO: ModernActionButtons con sistema de reactions
-struct ModernActionButtons: View {
-    let moment: Moment
-    @Binding var isSaved: Bool
-    @Binding var isSaveLoading: Bool
-    @Binding var commentCount: Int
-    let onComment: () -> Void
-    let onSave: () -> Void
-    
-    @EnvironmentObject private var firestoreService: FirestoreService
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Spacer()
-            
-            VStack(spacing: 12) {
-                // ✅ REACCIONES: Siempre mostrar el botón, pero controlar el contador
-                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
-                EpicReactionButton(
-                    moment: moment,
-                    showCount: moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts
-                )
-                    .environmentObject(firestoreService)
-                
-                // ✅ COMENTARIOS: Solo mostrar si están habilitados
-                if !moment.disableComments {
-                    Button(action: onComment) {
-                        VStack(spacing: 4) {
-                            ZStack {
-                                Circle()
-                                    .fill(.ultraThinMaterial)
-                                    .frame(width: 50, height: 50)
-                                    .overlay(
-                                        Circle()
-                                             .stroke(
-                                                LinearGradient(
-                                                    colors: commentCount > 0 ?
-                                                    [Color.white.opacity(0.6), Color.white.opacity(0.6)] :
-                                                    [Color.white.opacity(0.3), Color.white.opacity(0.3)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
-                                    )
-                                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                                
-                                Image(systemName: commentCount > 0 ? "bubble.left.fill" : "bubble.left")
-                                    .font(.system(size: 22, weight: .medium))
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: commentCount > 0 ?
-                                            [Color.blue, Color.purple] :
-                                            [Color.white.opacity(0.8), Color.white],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            }
-                            
-                            if commentCount > 0 {
-                                Text("\(commentCount)")
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                        }
-                    }
-
-                    .scaleEffect(commentCount > 0 ? 1.05 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: commentCount)
-                }
-                
-                // ✅ GUARDAR: Solo mostrar si está permitido compartir
-                if moment.allowSharing {
-                    Button(action: onSave) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 50, height: 50)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: isSaved ?
-                                                [Color.yellow.opacity(0.6), Color.orange.opacity(0.6)] :
-                                                [Color.white.opacity(0.3), Color.white.opacity(0.3)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
-                                        )
-                                )
-                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                            
-                            if isSaveLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .scaleEffect(0.8)
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                    .font(.system(size: 22, weight: .medium))
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: isSaved ?
-                                            [Color.yellow, Color.orange] :
-                                            [Color.white.opacity(0.8), Color.white],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            }
-                        }
-                    }
-                    .scaleEffect(isSaved ? 1.1 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSaved)
-                    .disabled(isSaveLoading)
-                }
-                
-                // ✅ NUEVO: Mensaje informativo si todas las interacciones están deshabilitadas
-                if moment.disableComments && moment.hideLikeCounts && !moment.allowSharing {
-                    VStack(spacing: 8) {
-                        Image(systemName: "eye.slash")
-                            .font(.system(size: 20))
-                            .foregroundColor(.gray.opacity(0.6))
-                        
-                        Text("feed.noInteractions")
-                            .font(.custom("Poppins-Regular", size: 10))
-                            .foregroundColor(.gray.opacity(0.6))
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.vertical, 12)
-                }
-            }
-        }
-        .padding(.trailing, 20)
-        .padding(.bottom, 20)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CommentAdded"))) { notification in
-            if let momentId = notification.object as? String, momentId == moment.id {
-                // Los comentarios se actualizan automáticamente via listeners en FeedViewModel
-            }
-        }
-    }
-}
-
-// ✅ MANTENER: ModernFollowButton (igual que antes)
-struct ModernFollowButton: View {
-    let isFollowing: Bool
-    let isLoading: Bool
-    let colorScheme: ColorScheme  // ✅ AGREGAR parámetro
-    let action: () -> Void
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.8)
-                        .tint(colorScheme == .dark ? .white : .white)
-                } else {
-                    Image(systemName: isFollowing ? "person.fill.checkmark" : "person.fill.badge.plus")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                
-                Text(isFollowing ? "feed.following" : "feed.follow")
-                    .font(.custom("Poppins-SemiBold", size: 13))
-            }
-            .foregroundColor(.white)  // El texto del botón siempre blanco porque el fondo es de color
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(
-                        LinearGradient(
-                            colors: isFollowing ?
-                            [Color.gray.opacity(0.6), Color.gray.opacity(0.8)] :
-                            [adaptiveColors.accent, adaptiveColors.accent.opacity(0.8)],  // ✅ CAMBIAR
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        LinearGradient(
-                            colors: colorScheme == .dark ?
-                            [Color.white.opacity(0.3), Color.white.opacity(0.1)] :
-                            [Color.white.opacity(0.5), Color.white.opacity(0.2)],  // ✅ CAMBIAR
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: adaptiveColors.accent.opacity(0.3), radius: 4, x: 0, y: 2)  // ✅ CAMBIAR
-        }
-        .disabled(isLoading)
-        .scaleEffect(isLoading ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isLoading)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isFollowing)
     }
 }
 // ✅ COMPONENTES AUXILIARES (reusables)
@@ -2957,6 +2839,7 @@ struct EnhancedCarouselView: View {
     let allMoments: [Moment] // ✅ NUEVO: Todos los momentos del feed
     let currentMoment: Moment // ✅ NUEVO: Momento actual
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
+    @Binding var isImmersive: Bool // ✅ NUEVO
     
     var body: some View {
         GeometryReader { geometry in
@@ -2968,7 +2851,8 @@ struct EnhancedCarouselView: View {
                         allMoments: allMoments, // ✅ PASAR todos los momentos
                         currentMoment: currentMoment, // ✅ PASAR momento actual
                         showTags: $showTags, // ✅ PASAR binding
-                        onTagTap: onTagTap // ✅ Propagate
+                        onTagTap: onTagTap, // ✅ Propagate
+                        isImmersive: $isImmersive // ✅ NUEVO
                     )
                     .tag(index)
                     .frame(width: geometry.size.width)
@@ -2993,26 +2877,29 @@ struct MediaItemView: View {
     let currentMoment: Moment
     @Binding var showTags: Bool // ✅ AHORA ES BINDING
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
+    @Binding var isImmersive: Bool // ✅ NUEVO
     
     @State private var showReelsViewer = false
     @State private var isVisible = false
     
     var body: some View {
         ZStack { // ✅ CAMBIADO: ZStack para que el overlay esté ENCIMA
+            // ✅ SKELETON: Reserva el espacio exacto del ratio con cristal
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+
             if item.type == .image {
                 // Imágenes igual que antes
                 KFImage(URL(string: item.url))
                     .placeholder {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(.ultraThinMaterial)
-                            .overlay(ProgressView().tint(Color(hex: "00A896")))
-                            .aspectRatio(aspectRatio, contentMode: .fit)
+                        // Sin ruedas verdes, el skeleton de cristal está debajo
+                        Color.clear
                     }
                     .setProcessor(DownsamplingImageProcessor(size: CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width * aspectRatio)))
                     .scaleFactor(UIScreen.main.scale)
                     .cacheOriginalImage()
                     .resizable()
-                    .aspectRatio(aspectRatio, contentMode: .fill)
+                    .scaledToFill() // ✅ INSTAGRAM: Proporciones naturales, el contenedor cropea el exceso
                     .clipped()
                     .contentShape(Rectangle()) // ✅ Asegurar área de tap
                     .simultaneousGesture( // ✅ USAR simultaneousGesture para mayor fiabilidad en TabView
@@ -3038,7 +2925,8 @@ struct MediaItemView: View {
                         } else {
                             openReelsViewer() 
                         }
-                    }
+                    },
+                    isImmersive: $isImmersive // ✅ NUEVO
                 )
             }
             
@@ -3083,6 +2971,7 @@ struct CroppedVideoPlayer: View {
     let aspectRatio: CGFloat
     let currentMoment: Moment
     let onTap: () -> Void
+    @Binding var isImmersive: Bool // ✅ NUEVO
     
     @StateObject private var globalManager = GlobalVideoManager.shared
     @State private var isVisible = false
@@ -3237,49 +3126,55 @@ struct CroppedVideoPlayer: View {
                         .padding(.bottom, 12)
                     }
                     .zIndex(100) // ✅ Asegurar que todos los controles estén por encima del overlay
+                    .opacity(isImmersive ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.3), value: isImmersive)
                 }
             } else {
                 // ✅ VIDEOS HORIZONTALES: Mantener diseño actual
-                ModernVideoPlayer(
-                    url: item.url,
-                    aspectRatio: feedDisplayRatio,
-                    videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
-                    hideMuteButton: false // ✅ Mostrar botón de mute para videos horizontales
-                )
-                
-                // ✅ INDICADORES sutiles para videos horizontales
-                VStack {
-                    HStack {
+                ZStack {
+                    ModernVideoPlayer(
+                        url: item.url,
+                        aspectRatio: feedDisplayRatio,
+                        videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                        hideMuteButton: false // ✅ Mostrar botón de mute para videos horizontales
+                    )
+                    
+                    // ✅ INDICADORES sutiles para videos horizontales
+                    VStack {
+                        HStack {
+                            Spacer()
+                            
+                            if let duration = currentMoment.videoDuration {
+                                Text(formatDuration(duration))
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(6)
+                                    .padding(.trailing, 8)
+                                    .padding(.top, 8)
+                            }
+                        }
+                        
                         Spacer()
                         
-                        if let duration = currentMoment.videoDuration {
-                            Text(formatDuration(duration))
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Color.black.opacity(0.6))
+                        HStack {
+                            Spacer()
+                            
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.7))
+                                .padding(6)
+                                .background(Color.black.opacity(0.4))
                                 .cornerRadius(6)
                                 .padding(.trailing, 8)
-                                .padding(.top, 8)
+                                .padding(.bottom, 8)
                         }
                     }
-                    
-                    Spacer()
-                    
-                    HStack {
-                        Spacer()
-                        
-                        Image(systemName: "arrow.up.right.square")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                            .padding(6)
-                            .background(Color.black.opacity(0.4))
-                            .cornerRadius(6)
-                            .padding(.trailing, 8)
-                            .padding(.bottom, 8)
-                    }
+                    .opacity(isImmersive ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.3), value: isImmersive)
                 }
             }
         }
@@ -3485,6 +3380,7 @@ extension Range where Bound == String.Index {
 }
 // MARK: - FeedViewModel CORREGIDO - Versión que funciona
 
+@MainActor
 class FeedViewModel: ObservableObject {
     @Published var moments: [Moment] = []
     @Published var isLoading: Bool = false
@@ -3518,6 +3414,38 @@ class FeedViewModel: ObservableObject {
         performCleanup() // Usar la nueva función de cleanup
     }
 
+    @MainActor
+    func refreshMoments(userId: String) async {
+        lastDocument = nil
+        clearListeners()
+        
+        // ✅ OFFLINE: Al refrescar, mantenemos lo que hay hasta que llegue lo nuevo
+        // No borramos las listas inmediatamente para evitar parpadeos
+        
+        fetchMoments(userId: userId, feedType: currentFeedType)
+        
+        // ✅ Esperar a que se complete la operación inicial
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 segundos
+    }
+    
+    // MARK: - Caching Logic (Offline Support)
+    
+    private func getCacheKey(for type: FeedType) -> String {
+        return "cached_feed_\(type == .following ? "following" : "foryou")"
+    }
+    
+    private func saveFeedToCache(moments: [Moment], type: FeedType, sync: Bool = false) {
+        // ✅ SwiftData: Guardar en DB local para experiencia offline
+        Task { @MainActor in
+            LocalPersistenceService.shared.saveFeedMoments(moments, sync: sync)
+        }
+    }
+    
+    private func loadFeedFromCache(type: FeedType) -> [Moment] {
+        // ✅ SwiftData: Leer desde DB local (instantáneo)
+        return LocalPersistenceService.shared.loadFeedMoments()
+    }
+
     // MARK: - Main Functions
     
     func fetchMoments(userId: String, feedType: FeedType? = nil) {
@@ -3528,6 +3456,22 @@ class FeedViewModel: ObservableObject {
             self.currentFeedType = targetFeedType
             self.isLoading = true
             self.errorMessage = nil
+            
+            // ✅ OFFLINE: Cargar caché inmediatamente
+            let cached = self.loadFeedFromCache(type: targetFeedType)
+            if !cached.isEmpty && self.moments.isEmpty {
+                self.moments = cached
+                
+                if targetFeedType == .following {
+                    self.followingMoments = cached
+                } else {
+                    self.forYouMoments = cached
+                }
+                
+                // Precargar videos del caché
+                let videoUrls = cached.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                VideoPreloader.shared.preloadAssets(urls: videoUrls)
+            }
         }
         
         // Limpiar listeners anteriores
@@ -3539,24 +3483,6 @@ class FeedViewModel: ObservableObject {
         case .forYou:
             fetchForYouMoments(userId: userId)
         }
-    }
-    
-    @MainActor
-    func refreshMoments(userId: String) async {
-        lastDocument = nil
-        clearListeners()
-        
-        switch currentFeedType {
-        case .following:
-            followingMoments = []
-        case .forYou:
-            forYouMoments = []
-        }
-        
-        fetchMoments(userId: userId, feedType: currentFeedType)
-        
-        // ✅ Esperar a que se complete la operación inicial
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 segundos
     }
     
 
@@ -3735,48 +3661,45 @@ class FeedViewModel: ObservableObject {
         for targetUserId in userIds {
             group.enter()
             
-            firestoreService.fetchMoments(for: targetUserId) { result in
+            firestoreService.fetchMoments(for: targetUserId) { [weak self] result in
                 defer { group.leave() }
                 
                 if case .success(let moments) = result {
                     let limitedMoments = Array(moments.prefix(limitPerUser))
                     
-                    self.momentsQueue.async(flags: .barrier) {
+                    self?.momentsQueue.async(flags: .barrier) {
                         allMoments.append(contentsOf: limitedMoments)
                     }
-                    
-                    // Configurar listeners (ELIMINADO: ahora es lazy en ModernPostCardView)
-                    // for moment in limitedMoments {
-                    //    if let momentId = moment.id {
-                    //        self.listenForCommentUpdates(momentId: momentId, authorId: targetUserId)
-                    //    }
-                    // }
                 }
             }
         }
         
-        group.notify(queue: .main) {
-            let sortedMoments = self.momentsQueue.sync {
+        group.notify(queue: .main) { [weak self] in
+            let sortedMoments = self?.momentsQueue.sync {
                 allMoments.sorted { $0.timestamp > $1.timestamp }
-            }
+            } ?? []
             
             let finalMoments = feedType == .forYou ?
                 Array(sortedMoments.shuffled().prefix(60)) :
                 Array(sortedMoments.prefix(40))
             
             // Aplicar filtros de privacidad
-            self.filterMomentsForPrivacy(viewerId: userId, moments: finalMoments) { filteredMoments in
+            self?.filterMomentsForPrivacy(viewerId: userId, moments: finalMoments) { filteredMoments in
                 DispatchQueue.main.async {
-                    self.isLoading = false
+                    self?.isLoading = false
                     
                     switch feedType {
                     case .following:
-                        self.followingMoments = filteredMoments
+                        self?.followingMoments = filteredMoments
                     case .forYou:
-                        self.forYouMoments = filteredMoments
+                        self?.forYouMoments = filteredMoments
                     }
                     
-                    self.moments = filteredMoments
+                    self?.moments = filteredMoments
+                    
+                    // ✅ OFFLINE: Guardar en caché para la próxima vez
+                    // Como es el fetch inicial, usamos sync: true para limpiar momentos borrados
+                    self?.saveFeedToCache(moments: filteredMoments, type: feedType, sync: true)
                     
                     // ✅ INSTANT PLAYBACK: Preload videos
                     let videoUrls = filteredMoments
@@ -3797,7 +3720,7 @@ class FeedViewModel: ObservableObject {
         for targetUserId in userIds {
             group.enter()
             
-            firestoreService.fetchMoments(for: targetUserId) { result in
+            firestoreService.fetchMoments(for: targetUserId) { [weak self] result in
                 defer { group.leave() }
                 
                 if case .success(let moments) = result {
@@ -3808,33 +3731,29 @@ class FeedViewModel: ObservableObject {
                     
                     let limitedMoments = Array(filteredMoments.prefix(limitPerUser))
                     
-                    self.momentsQueue.async(flags: .barrier) {
+                    self?.momentsQueue.async(flags: .barrier) {
                         newMoments.append(contentsOf: limitedMoments)
                     }
-                    
-                    // Configurar listeners
-                    // Configurar listeners
-                    // (ELIMINADO: ahora es lazy en ModernPostCardView)
                 }
             }
         }
         
-        group.notify(queue: .main) {
-            let sortedNewMoments = self.momentsQueue.sync {
+        group.notify(queue: .main) { [weak self] in
+            let sortedNewMoments = self?.momentsQueue.sync {
                 newMoments.sorted { $0.timestamp > $1.timestamp }
-            }
+            } ?? []
             
-            self.filterMomentsForPrivacy(viewerId: userId, moments: sortedNewMoments) { filteredMoments in
+            self?.filterMomentsForPrivacy(viewerId: userId, moments: sortedNewMoments) { filteredMoments in
                 DispatchQueue.main.async {
-                    self.isLoadingMore = false
+                    self?.isLoadingMore = false
                     
                     if feedType == .forYou {
                         let shuffledMoments = filteredMoments.shuffled()
-                        self.forYouMoments.append(contentsOf: shuffledMoments)
-                        self.moments.append(contentsOf: shuffledMoments)
+                        self?.forYouMoments.append(contentsOf: shuffledMoments)
+                        self?.moments.append(contentsOf: shuffledMoments)
                     } else {
-                        self.followingMoments.append(contentsOf: filteredMoments)
-                        self.moments.append(contentsOf: filteredMoments)
+                        self?.followingMoments.append(contentsOf: filteredMoments)
+                        self?.moments.append(contentsOf: filteredMoments)
                     }
                     
                     // ✅ INSTANT PLAYBACK: Preload videos
@@ -3997,7 +3916,7 @@ class FeedViewModel: ObservableObject {
     }
     
     // MARK: - Listeners
-    private func clearListeners() {
+    nonisolated private func clearListeners() {
         // ✅ MEJORADO: Limpieza thread-safe
         listenersQueue.async(flags: .barrier) {
             // Cancelar todos los updates pendientes
@@ -4225,7 +4144,7 @@ class FeedViewModel: ObservableObject {
     }
     
     // ✅ NUEVO: Función de cleanup mejorada para deinit
-    private func performCleanup() {
+    nonisolated private func performCleanup() {
         listenersQueue.async(flags: .barrier) {
             // Cancelar todos los updates pendientes
             self.pendingUpdates.values.forEach { $0.cancel() }
@@ -4428,3 +4347,11 @@ extension FeedViewModel {
     }
 }
 
+
+extension Array {
+    subscript(safe range: Range<Index>) -> ArraySlice<Element> {
+        let start = Swift.max(range.lowerBound, startIndex)
+        let end = Swift.min(range.upperBound, endIndex)
+        return self[start..<end]
+    }
+}

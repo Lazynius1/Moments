@@ -10,6 +10,7 @@ import MapKit
 import AVFoundation
 
 // MARK: - StoryViewModel
+@MainActor
 class StoryViewModel: ObservableObject {
     @Published var stories: [String: [Story]] = [:]
     @Published var hasActiveStory: Bool = false
@@ -22,8 +23,9 @@ class StoryViewModel: ObservableObject {
     @Published var preloadedVideos: [String: AVPlayer] = [:] // storyId: AVPlayer
 
     private let firestoreService = FirestoreService()
-    private let chatService = ChatService()
+    private let chatService = ChatService.shared
     private let privacyService = PrivacyService()
+    private var isFirstFetch = true
     
     // ✅ PRELOADING: Configuración
     private let maxPreloadedStories = 3 // Máximo 3 historias precargadas
@@ -32,100 +34,112 @@ class StoryViewModel: ObservableObject {
     // MARK: - Obtener historias para un usuario específico
     func fetchStoriesForSpecificUser(userId: String, viewerId: String) {
         guard !userId.isEmpty else {
-            DispatchQueue.main.async {
-                self.stories = [:]
-            }
+            self.stories = [:]
             return
         }
         guard !viewerId.isEmpty else {
-            DispatchQueue.main.async {
-                self.stories = [:]
-            }
+            self.stories = [:]
             return
         }
         
 
         
+        // ✅ SwiftData: Cargar historias del caché local inmediatamente
+        let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
+        if !cachedStories.isEmpty {
+            self.stories[userId] = cachedStories
+            self.hasActiveStory = true
+        }
+        
         firestoreService.db.collection("users").document(userId).collection("stories")
             .whereField("expirationDate", isGreaterThan: Date())
             .order(by: "timestamp", descending: false)
             .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self.stories = [:]
-                    }
-                    return
-                }
-                // ✅ CORREGIDO: Mantener el orden original de Firestore
-                var allStories: [Story] = []
-                
-                // Primero, procesar todas las historias para obtener visibilidad
-                for doc in snapshot?.documents ?? [] {
-                    let data = doc.data()
-                    // Handle legacy fields for backwards compatibility
-                    var mediaItem: MediaItem?
-                    if let mediaItemData = data["mediaItem"] as? [String: Any],
-                       let typeString = mediaItemData["type"] as? String,
-                       let type = MediaItem.MediaType(rawValue: typeString),
-                       let url = mediaItemData["url"] as? String {
-                        mediaItem = MediaItem(type: type, url: url)
-                    } else if let imagePath = data["imagePath"] as? String, !imagePath.isEmpty {
-                        mediaItem = MediaItem(type: .image, url: imagePath)
-                    } else if let videoUrl = data["videoUrl"] as? String, !videoUrl.isEmpty {
-                        mediaItem = MediaItem(type: .video, url: videoUrl)
-                    }
-                    guard let mediaItem = mediaItem else {
-                        continue
-                    }
-                    var updatedData = data
-                    updatedData["mediaItem"] = ["type": mediaItem.type.rawValue, "url": mediaItem.url]
-                    updatedData["id"] = doc.documentID
-                    do {
-                        let story = try Firestore.Decoder().decode(Story.self, from: updatedData)
-                        allStories.append(story)
-                    } catch {
-                        continue
-                    }
-                }
-                
-                // Ahora verificar visibilidad manteniendo el orden
-                let group = DispatchGroup()
-                var storyVisibilityResults: [String: Bool] = [:]
-                
-                for story in allStories {
-                    group.enter()
-                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
-                        if let storyId = story.id {
-                            storyVisibilityResults[storyId] = canView
-                        }
-                        group.leave()
-                    }
-                }
-                group.notify(queue: .main) {
-                    // ✅ CORREGIDO: Construir array final manteniendo el orden original
-                    let userStories = allStories.filter { story in
-                        guard let storyId = story.id else { return false }
-                        return storyVisibilityResults[storyId] == true
-                    }
-                    
-                    if userStories.isEmpty {
-                        DispatchQueue.main.async {
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    if let error = error {
+                        // Si falla Firestore y no hay caché, limpiar
+                        if self.stories[userId] == nil {
                             self.stories = [:]
                         }
                         return
                     }
+                    // ✅ CORREGIDO: Mantener el orden original de Firestore
+                    var allStories: [Story] = []
                     
-                    DispatchQueue.main.async {
-                        self.stories = [userId: userStories]
-                        // Fetch reactions and viewers for each story
-                        for story in userStories {
-                            if let storyId = story.id {
-                                self.fetchReactions(for: userId, storyId: storyId)
-                                self.fetchViewers(for: userId, storyId: storyId) { _ in }
-                            }
+                    // Primero, procesar todas las historias para obtener visibilidad
+                    for doc in snapshot?.documents ?? [] {
+                        let data = doc.data()
+                        // Handle legacy fields for backwards compatibility
+                        var mediaItem: MediaItem?
+                        if let mediaItemData = data["mediaItem"] as? [String: Any],
+                           let typeString = mediaItemData["type"] as? String,
+                           let type = MediaItem.MediaType(rawValue: typeString),
+                           let url = mediaItemData["url"] as? String {
+                            mediaItem = MediaItem(type: type, url: url)
+                        } else if let imagePath = data["imagePath"] as? String, !imagePath.isEmpty {
+                            mediaItem = MediaItem(type: .image, url: imagePath)
+                        } else if let videoUrl = data["videoUrl"] as? String, !videoUrl.isEmpty {
+                            mediaItem = MediaItem(type: .video, url: videoUrl)
                         }
-                        self.prefetchImages()
+                        guard let mediaItem = mediaItem else {
+                            continue
+                        }
+                        var updatedData = data
+                        updatedData["mediaItem"] = ["type": mediaItem.type.rawValue, "url": mediaItem.url]
+                        updatedData["id"] = doc.documentID
+                        do {
+                            let story = try Firestore.Decoder().decode(Story.self, from: updatedData)
+                            allStories.append(story)
+                        } catch {
+                            continue
+                        }
+                    }
+                    
+                    // Ahora verificar visibilidad manteniendo el orden
+                    let group = DispatchGroup()
+                    var storyVisibilityResults: [String: Bool] = [:]
+                    
+                    for story in allStories {
+                        group.enter()
+                        self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
+                            if let storyId = story.id {
+                                storyVisibilityResults[storyId] = canView
+                            }
+                            group.leave()
+                        }
+                    }
+                    group.notify(queue: .main) {
+                        Task { @MainActor in
+                            // ✅ CORREGIDO: Construir array final manteniendo el orden original
+                            let userStories = allStories.filter { story in
+                                guard let storyId = story.id else { return false }
+                                return storyVisibilityResults[storyId] == true
+                            }
+                            
+                            if userStories.isEmpty {
+                                self.stories.removeValue(forKey: userId)
+                                // ✅ SwiftData: Limpiar caché si ya no hay historias para este usuario
+                                LocalPersistenceService.shared.deleteStories(for: userId)
+                                return
+                            }
+                            
+                            self.stories = [userId: userStories]
+                            
+                            // ✅ SwiftData: Actualizar caché local para este usuario
+                            // Primero borramos lo anterior de este usuario para evitar "ghost stories"
+                            LocalPersistenceService.shared.deleteStories(for: userId)
+                            LocalPersistenceService.shared.saveStories(userStories)
+                            
+                            // Fetch reactions and viewers for each story
+                            for story in userStories {
+                                if let storyId = story.id {
+                                    self.fetchReactions(for: userId, storyId: storyId)
+                                    self.fetchViewers(for: userId, storyId: storyId) { _ in }
+                                }
+                            }
+                            self.prefetchImages()
+                        }
                     }
                 }
             }
@@ -166,57 +180,59 @@ class StoryViewModel: ObservableObject {
                 .whereField("expirationDate", isGreaterThan: Date())
                 .order(by: "timestamp", descending: false)
                 .getDocuments { [weak self] snapshot, error in
-                    guard let self = self else {
-                        group.leave()
-                        return
-                    }
-                    
-                    if let error = error {
-                        group.leave()
-                        return
-                    }
-
-                    let userStories = snapshot?.documents.compactMap { doc -> Story? in
-                        var data = doc.data()
-                        // Handle legacy fields for backwards compatibility
-                        var mediaItem: MediaItem?
-                        if let mediaItemData = data["mediaItem"] as? [String: Any],
-                           let typeString = mediaItemData["type"] as? String,
-                           let type = MediaItem.MediaType(rawValue: typeString),
-                           let url = mediaItemData["url"] as? String {
-                            mediaItem = MediaItem(type: type, url: url)
-                        } else if let imagePath = data["imagePath"] as? String, !imagePath.isEmpty {
-                            mediaItem = MediaItem(type: .image, url: imagePath)
-                        } else if let videoUrl = data["videoUrl"] as? String, !videoUrl.isEmpty {
-                            mediaItem = MediaItem(type: .video, url: videoUrl)
+                    Task { @MainActor in
+                        guard let self = self else {
+                            group.leave()
+                            return
+                        }
+                        
+                        if let _ = error {
+                            group.leave()
+                            return
                         }
 
-                        guard let mediaItem = mediaItem else { return nil }
+                        let userStories = snapshot?.documents.compactMap { doc -> Story? in
+                            var data = doc.data()
+                            // Handle legacy fields for backwards compatibility
+                            var mediaItem: MediaItem?
+                            if let mediaItemData = data["mediaItem"] as? [String: Any],
+                               let typeString = mediaItemData["type"] as? String,
+                               let type = MediaItem.MediaType(rawValue: typeString),
+                               let url = mediaItemData["url"] as? String {
+                                mediaItem = MediaItem(type: type, url: url)
+                            } else if let imagePath = data["imagePath"] as? String, !imagePath.isEmpty {
+                                mediaItem = MediaItem(type: .image, url: imagePath)
+                            } else if let videoUrl = data["videoUrl"] as? String, !videoUrl.isEmpty {
+                                mediaItem = MediaItem(type: .video, url: videoUrl)
+                            }
 
-                        data["mediaItem"] = ["type": mediaItem.type.rawValue, "url": mediaItem.url]
-                        data["id"] = doc.documentID // Ensure ID is set
+                            guard let mediaItem = mediaItem else { return nil }
 
-                        do {
-                            let story = try Firestore.Decoder().decode(Story.self, from: data)
-                            // ✅ CORREGIDO: Por ahora retornar la historia sin verificación de privacidad
-                            // La verificación se hará después de forma asíncrona
-                            return story
-                        } catch {
-                            return nil
-                        }
-                    } ?? []
+                            data["mediaItem"] = ["type": mediaItem.type.rawValue, "url": mediaItem.url]
+                            data["id"] = doc.documentID // Ensure ID is set
 
-                    if !userStories.isEmpty {
-                        allStories[userId] = userStories
-                        // Fetch reactions and viewers for each story
-                        for story in userStories {
-                            if let storyId = story.id {
-                                self.fetchReactions(for: userId, storyId: storyId)
-                                self.fetchViewers(for: userId, storyId: storyId) { _ in }
+                            do {
+                                let story = try Firestore.Decoder().decode(Story.self, from: data)
+                                // ✅ CORREGIDO: Por ahora retornar la historia sin verificación de privacidad
+                                // La verificación se hará después de forma asíncrona
+                                return story
+                            } catch {
+                                return nil
+                            }
+                        } ?? []
+
+                        if !userStories.isEmpty {
+                            allStories[userId] = userStories
+                            // Fetch reactions and viewers for each story
+                            for story in userStories {
+                                if let storyId = story.id {
+                                    self.fetchReactions(for: userId, storyId: storyId)
+                                    self.fetchViewers(for: userId, storyId: storyId) { _ in }
+                                }
                             }
                         }
+                        group.leave()
                     }
-                    group.leave()
                 }
         }
 
@@ -238,7 +254,7 @@ class StoryViewModel: ObservableObject {
             
             for story in stories {
                 self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         if canView {
                             userFilteredStories.append(story)
                         }
@@ -247,7 +263,9 @@ class StoryViewModel: ObservableObject {
                         
                         // Si procesamos todas las historias del usuario
                         if processedCount == stories.count {
-                            if !userFilteredStories.isEmpty {
+                            if userFilteredStories.isEmpty {
+                                filteredStories[userId] = []
+                            } else {
                                 filteredStories[userId] = userFilteredStories
                             }
                             group.leave()
@@ -258,8 +276,22 @@ class StoryViewModel: ObservableObject {
         }
         
         group.notify(queue: .main) {
-            self.stories = filteredStories
-            self.prefetchImages()
+            Task { @MainActor in
+                self.stories = filteredStories
+                
+                // ✅ SwiftData: Guardar historias en caché local por cada usuario
+                // Usar sync: true solo en la primera carga global para purgar inconsistencias
+                if self.isFirstFetch {
+                    LocalPersistenceService.shared.saveStories(filteredStories.flatMap { $0.value }, sync: true)
+                    self.isFirstFetch = false
+                } else {
+                    for (_, uStories) in filteredStories {
+                        LocalPersistenceService.shared.saveStories(uStories)
+                    }
+                }
+                
+                self.prefetchImages()
+            }
         }
     }
 
@@ -563,16 +595,26 @@ class StoryViewModel: ObservableObject {
                         // Continuar aunque falle el borrado del media
                     }
                     
-                    // ✅ TERCERO: Eliminar la historia de Firestore
-                    self.firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
-                        .delete { firestoreError in
-                            if let firestoreError = firestoreError {
-                                completion(firestoreError)
-                            } else {
-                                self.checkActiveStories(userId: userId)
-                                completion(nil)
-                            }
-                        }
+                     // ✅ TERCERO: Eliminar la historia de Firestore
+                     self.firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
+                         .delete { firestoreError in
+                             if let firestoreError = firestoreError {
+                                 completion(firestoreError)
+                             } else {
+                                 // ✅ SwiftData: Actualizar caché local eliminando la historia borrada de forma global
+                                 if var userStories = self.stories[userId] {
+                                     userStories.removeAll { $0.id == storyId }
+                                     self.stories[userId] = userStories
+                                 }
+                                 
+                                 // ✅ SURGICAL DELETION: Eliminar del caché global por ID
+                                 LocalPersistenceService.shared.deleteStory(storyId: storyId)
+                                 completion(nil)
+                                 
+                                 self.checkActiveStories(userId: userId)
+                                 completion(nil)
+                             }
+                         }
                 }
             }
     }
@@ -702,12 +744,14 @@ class StoryViewModel: ObservableObject {
 
     // NUEVA función para enviar notificación de reacción
     private func sendStoryReactionNotification(to storyAuthorId: String, storyId: String, reaction: String, from senderId: String) {
-        NotificationService.shared.sendInteractionNotification(
-            type: .storyReaction,
-            to: storyAuthorId,
-            storyId: storyId,
-            reaction: reaction
-        )
+        Task { @MainActor in
+            NotificationService.shared.sendInteractionNotification(
+                type: .storyReaction,
+                to: storyAuthorId,
+                storyId: storyId,
+                reaction: reaction
+            )
+        }
     }
     
     private func createNewConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
@@ -774,7 +818,18 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
-        let player = AVPlayer(url: url)
+        
+        // ✅ AUDIO FIX: Activar sesión de audio para que suene aunque esté en silencio
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, options: [])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        
+        // ✅ USAR VIDEOPRELOADER PARA INICIO INSTANTÁNEO
+        let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
+        
+        // ✅ LOOP FIX: Usar AVQueuePlayer + AVPlayerLooper
+        let player = AVQueuePlayer(items: [playerItem])
+        context.coordinator.playerLooper = AVPlayerLooper(player: player, templateItem: playerItem)
+        
         controller.player = player
         controller.showsPlaybackControls = false
         controller.videoGravity = .resizeAspect // Inicial por defecto
@@ -782,6 +837,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         context.coordinator.player = player
         context.coordinator.onProgressUpdate = onProgressUpdate
         context.coordinator.onVideoComplete = onVideoComplete
+        context.coordinator.currentURL = url // ✅ Track initial URL
         
         // ✅ CONFIGURAR OBSERVERS PARA PROGRESO
         context.coordinator.setupObservers()
@@ -793,21 +849,29 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
-        // ✅ MEJORADO: Manejar cambios de URL
-        if let currentURL = uiViewController.player?.currentItem?.asset as? AVURLAsset,
-           currentURL.url != url {
-            // URL cambió, recrear player
+        // ✅ CRITICAL FIX: Use Coordinator's tracked URL instead of asset URL to avoid infinite loops
+        // caused by mismatch between remote URL (view) and local cache URL (AVPlayer asset).
+        if context.coordinator.currentURL != url {
+             // URL changed, recreate player
             
-            // ✅ CLEANUP AUDIO DEL PLAYER ANTERIOR
+            // 1. CLEANUP OLD PLAYER
+            context.coordinator.cleanupObservers()
             uiViewController.player?.pause()
             uiViewController.player?.isMuted = true
             
-            let newPlayer = AVPlayer(url: url)
+            // 2. CREATE NEW PLAYER
+            let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
+            let newPlayer = AVQueuePlayer(items: [playerItem])
+            context.coordinator.playerLooper = AVPlayerLooper(player: newPlayer, templateItem: playerItem)
+            
             uiViewController.player = newPlayer
             context.coordinator.player = newPlayer
+            
+            // 3. UPDATE COORDINATOR
+            context.coordinator.currentURL = url
             context.coordinator.setupObservers()
             
-            // 🎯 RECONFIGURAR GRAVITY PARA NUEVO VIDEO
+            // 4. CONFIGURE GRAVITY
             context.coordinator.configureVideoGravity(for: uiViewController)
         }
         
@@ -817,18 +881,13 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         if isPlaying && !playerIsPlaying {
             // ✅ Solo reproducir si no está reproduciéndose
             if let player = uiViewController.player, player.currentItem != nil {
+                player.isMuted = false // ✅ ASEGURAR SONIDO AL VOLVER
                 player.play()
             }
         } else if !isPlaying && playerIsPlaying {
             // ✅ Solo pausar si está reproduciéndose
             uiViewController.player?.pause()
-            uiViewController.player?.isMuted = true
-        }
-        
-        // ✅ RESET PROGRESO CUANDO CAMBIA URL
-        if let currentURL = uiViewController.player?.currentItem?.asset as? AVURLAsset,
-           currentURL.url != url {
-            context.coordinator.onProgressUpdate?(0.0)
+            uiViewController.player?.isMuted = true // ✅ SILENCIAR AL PAUSAR
         }
     }
 
@@ -839,12 +898,17 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     class Coordinator: NSObject {
         var parent: GlassmorphicStoryVideoPlayer
         var player: AVPlayer?
+        var playerLooper: AVPlayerLooper? // ✅ LOOP REF
         var timeObserver: Any?
         var onProgressUpdate: ((Double) -> Void)?
         var onVideoComplete: (() -> Void)?
+        var currentURL: URL? // ✅ Track the intended URL
+
+        var completionObserver: NSObjectProtocol? // ✅ Track observer for cleanup
 
         init(_ parent: GlassmorphicStoryVideoPlayer) {
             self.parent = parent
+            self.currentURL = parent.url // Initialize with current URL
         }
         
         // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN DEL VIDEO
@@ -855,13 +919,21 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             controller.videoGravity = .resizeAspect
         }
         
-        func setupObservers() {
-            // ✅ LIMPIAR OBSERVERS ANTERIORES
+        func cleanupObservers() {
             if let observer = timeObserver {
                 player?.removeTimeObserver(observer)
                 timeObserver = nil
             }
-            
+            // ✅ LIMPIAR OBSERVER DE COMPLETACIÓN
+            if let observer = completionObserver {
+                NotificationCenter.default.removeObserver(observer)
+                completionObserver = nil
+            }
+            // Fallback for selector-based observers if any
+            NotificationCenter.default.removeObserver(self)
+        }
+        
+        func setupObservers() {
             // ✅ RESET PROGRESO AL CONFIGURAR OBSERVERS
             onProgressUpdate?(0.0)
             
@@ -869,8 +941,8 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             timeObserver = player?.addPeriodicTimeObserver(
                 forInterval: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
                 queue: .main
-            ) { time in
-                guard let currentItem = self.player?.currentItem else { return }
+            ) { [weak self] time in
+                guard let self = self, let currentItem = self.player?.currentItem else { return }
                 
                 let duration = currentItem.duration
                 if CMTIME_IS_VALID(duration) && !CMTIME_IS_INDEFINITE(duration) {
@@ -883,32 +955,28 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
                 }
             }
             
-            // ✅ OBSERVER DE COMPLETACIÓN
-            NotificationCenter.default.addObserver(
+            // ✅ OBSERVER DE COMPLETACIÓN (Para progress bar reset, el loop lo hace AVPlayerLooper)
+            completionObserver = NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
                 object: player?.currentItem,
                 queue: .main
-            ) { _ in
-                self.onVideoComplete?()
+            ) { [weak self] _ in
+                // El loop es automático, pero notificamos para resetear UI si hace falta
+                self?.onProgressUpdate?(0.0)
+                // self?.onVideoComplete?() // Opcional, si queremos acción al terminar loop
             }
         }
         
         deinit {
-            // ✅ CLEANUP COMPLETO
-            if let observer = timeObserver {
-                player?.removeTimeObserver(observer)
-            }
-            NotificationCenter.default.removeObserver(self)
+            cleanupObservers() // ✅ Ensure observers are removed
+            
             player?.pause()
             player?.isMuted = true
             player?.replaceCurrentItem(with: nil)
             player = nil
             
             // ✅ CLEANUP DE AUDIO SESSION
-            do {
-                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            } catch {
-            }
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
     }
 }
@@ -932,6 +1000,9 @@ struct GlassmorphicStoryViewer: View {
     @State private var progress: Double = 0.0
     @State private var imageTimer: Timer? = nil
     @State private var isPaused: Bool = false
+    @State private var showMomentDetail: Bool = false
+    @State private var targetMomentId: String? = nil
+    @State private var targetMomentUserId: String? = nil
     @State private var currentStoryId: String? = nil
     @State private var messageText: String = ""
     @State private var showReactions: Bool = false
@@ -1029,6 +1100,98 @@ struct GlassmorphicStoryViewer: View {
         
         return false
     }
+    
+    private func stickerContentRect(containerSize: CGSize) -> CGRect {
+        let resolvedContainerSize = CGSize(
+            width: max(containerSize.width, 1),
+            height: max(containerSize.height, 1)
+        )
+        let mediaAspectRatio = Self.parseAspectRatio(story.aspectRatio)
+            ?? (resolvedContainerSize.width / resolvedContainerSize.height)
+        let contentMode: SwiftUI.ContentMode = Self.isHorizontalAspectRatio(story.aspectRatio) ? .fit : .fill
+        
+        return Self.contentRect(
+            containerSize: resolvedContainerSize,
+            mediaAspectRatio: mediaAspectRatio,
+            contentMode: contentMode
+        )
+    }
+    
+    private static func parseAspectRatio(_ aspectRatio: String?) -> CGFloat? {
+        guard let aspectRatio else { return nil }
+        let components = aspectRatio.split(separator: ":")
+        guard components.count == 2,
+              let widthValue = Double(components[0]),
+              let heightValue = Double(components[1]) else {
+            return nil
+        }
+        
+        let width = CGFloat(widthValue)
+        let height = CGFloat(heightValue)
+        guard
+              width > 0,
+              height > 0 else {
+            return nil
+        }
+        return width / height
+    }
+    
+    private static func contentRect(
+        containerSize: CGSize,
+        mediaAspectRatio: CGFloat,
+        contentMode: SwiftUI.ContentMode
+    ) -> CGRect {
+        let containerWidth = max(containerSize.width, 1)
+        let containerHeight = max(containerSize.height, 1)
+        let containerAspectRatio = containerWidth / containerHeight
+        
+        let isFit = contentMode == .fit
+        let mediaIsWider = mediaAspectRatio > containerAspectRatio
+        
+        let width: CGFloat
+        let height: CGFloat
+        
+        if isFit {
+            if mediaIsWider {
+                width = containerWidth
+                height = containerWidth / max(mediaAspectRatio, 0.0001)
+            } else {
+                height = containerHeight
+                width = containerHeight * mediaAspectRatio
+            }
+        } else {
+            if mediaIsWider {
+                height = containerHeight
+                width = containerHeight * mediaAspectRatio
+            } else {
+                width = containerWidth
+                height = containerWidth / max(mediaAspectRatio, 0.0001)
+            }
+        }
+        
+        return CGRect(
+            x: (containerWidth - width) / 2,
+            y: (containerHeight - height) / 2,
+            width: width,
+            height: height
+        )
+    }
+    
+    private func stickerDisplayPosition(_ sticker: StickerItem, containerSize: CGSize) -> CGPoint {
+        let contentRect = stickerContentRect(containerSize: containerSize)
+        return CGPoint(
+            x: contentRect.minX + (sticker.position.x * contentRect.width),
+            y: contentRect.minY + (sticker.position.y * contentRect.height)
+        )
+    }
+    
+    private func stickerForDisplay(_ sticker: StickerItem, containerSize: CGSize) -> StickerItem {
+        let contentRect = stickerContentRect(containerSize: containerSize)
+        let scaleFactor = max(contentRect.width, 1) / 375.0
+        var displaySticker = sticker
+        displaySticker.scale = sticker.scale * scaleFactor
+        return displaySticker
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -1041,18 +1204,15 @@ struct GlassmorphicStoryViewer: View {
                 // MARK: - 2. STICKERS (Fijos en sus posiciones)
                 if !storyStickers.isEmpty {
                     ForEach(storyStickers, id: \.id) { sticker in
-                        StoryStickerView(
-                            sticker: sticker,
-                            screenSize: geometry.size,
-                            storyId: story.id ?? "",
-                            userId: story.authorId,
-                            onPauseStory: pauseStory,
-                            onResumeStory: resumeStory
-                        )
-                        .position(
-                            x: sticker.position.x * geometry.size.width / 375,
-                            y: sticker.position.y * geometry.size.height / 812
-                        )
+                    StoryStickerView(
+                        sticker: stickerForDisplay(sticker, containerSize: screenSize),
+                        screenSize: geometry.size,
+                        storyId: story.id ?? "",
+                        userId: story.authorId,
+                        onPauseStory: pauseStory,
+                        onResumeStory: resumeStory
+                    )
+                    .position(stickerDisplayPosition(sticker, containerSize: screenSize))
                     }
                 }
                 
@@ -1122,6 +1282,33 @@ struct GlassmorphicStoryViewer: View {
                     GlassmorphicSuccessMessage(text: successMessageText)
                         .transition(.scale.combined(with: .opacity))
                         .zIndex(10)
+                }
+            }
+            .sheet(isPresented: $showMomentDetail) {
+                if let momentId = targetMomentId, let userId = targetMomentUserId {
+                    MomentDetailFromNotificationView(
+                        momentId: momentId,
+                        userId: userId,
+                        isPresented: $showMomentDetail
+                    )
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMomentFromStory"))) { notification in
+                if let userInfo = notification.userInfo,
+                   let momentId = userInfo["momentId"] as? String,
+                   let userId = userInfo["userId"] as? String {
+                    self.targetMomentId = momentId
+                    self.targetMomentUserId = userId
+                    self.showMomentDetail = true
+                    self.pauseStory()
+                }
+            }
+            .onChange(of: showMomentDetail) { oldValue, newValue in
+                if !newValue {
+                    // Reanudar cuando se cierra el detalle
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        self.resumeStory()
+                    }
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
@@ -1753,7 +1940,7 @@ struct GlassmorphicStoryViewer: View {
                                     .foregroundColor(.white)
                                     .font(.system(size: 18))
                                     .frame(width: 44, height: 44)
-                                    .background(Color(hex: "00A896"))
+                                    .background(Color(hex: "007AFF"))
                                     .clipShape(Circle())
                             }
                             .frame(width: 54, height: 54)
@@ -1897,7 +2084,7 @@ struct GlassmorphicStoryViewer: View {
                     // Fondo glassmorphism con esquinas uniformes
                     RoundedRectangle(cornerRadius: 30)
                         .fill(Color.white.opacity(0.1))
-                        .background(.ultraThinMaterial)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30))
                     
                     // Borde glassmorphism con esquinas uniformes
                     RoundedRectangle(cornerRadius: 30)
@@ -2016,22 +2203,6 @@ struct GlassmorphicStoryViewer: View {
                     }
                     .frame(width: screenSize.width, height: screenSize.height)
                 }
-            }
-            
-            // ✅ STICKERS SUPERPUESTOS (usando cache)
-            if !storyStickers.isEmpty {
-                ForEach(storyStickers, id: \.id) { sticker in
-                    StoryStickerView(
-                        sticker: sticker,
-                        screenSize: screenSize,
-                        storyId: story.id ?? "",
-                        userId: story.authorId,
-                        onPauseStory: pauseStory,
-                        onResumeStory: resumeStory
-                    )
-                        
-                }
-                
             }
         }
         .clipped() // Ensure content doesn't overflow
@@ -2178,22 +2349,26 @@ struct GlassmorphicStoryViewer: View {
                     }
                 }
                 
-                // DISMISS HANDLE
+                // DISMISS HANDLE OR RESUME
                 if isDragging {
+                    let translation = value.translation.height
+                    
+                    // ✅ CRITICAL FIX: Set isDragging to false BEFORE calling resumeStory,
+                    // otherwise resumeStory() guard will block the resume.
+                    isDragging = false 
+                    
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        if value.translation.height > screenSize.height * 0.3 {
+                        if translation > screenSize.height * 0.3 {
                             dismiss()
                         } else {
                             dragOffset = 0
                             resumeStory()
                         }
                     }
-                    isDragging = false
                 } else if !isTextFieldFocused {
-                    // RESUME STORY (Si no estamos escribiendo)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                         resumeStory()
-                    }
+                    // RESUME STORY (Hold to pause release)
+                    // ✅ Remove async delay for snappier feel
+                    resumeStory()
                 }
             }
     }
@@ -2868,7 +3043,7 @@ struct GlassmorphicSuccessMessage: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "007AFF"))
                 .font(.system(size: 20))
             
             Text(text)
@@ -3332,7 +3507,7 @@ struct StoryTextReplyContent: View {
                 .foregroundColor(.white)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(isCurrentUser ? Color(hex: "00A896").opacity(0.8) : Color.white.opacity(0.15))
+                        .fill(isCurrentUser ? Color(hex: "007AFF").opacity(0.8) : Color.white.opacity(0.15))
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
                                 .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
@@ -3434,7 +3609,7 @@ struct StoryReplyPreview: View {
                     HStack(spacing: 4) {
                         Image(systemName: storyMediaType == "video" ? "play.rectangle.fill" : "photo.fill")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "007AFF"))
                         
                         Text(storyMediaType == "video" ? "Video" : "Foto")
                             .font(.custom("Poppins-Regular", size: 11))
@@ -4114,7 +4289,7 @@ struct InteractivePollSticker: View {
     var body: some View {
         ZStack {
             // ✅ Fondo con gradiente elegante (colores de la app)
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 28)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -4127,7 +4302,7 @@ struct InteractivePollSticker: View {
                     )
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 28)
                         .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
                 )
             
@@ -4454,20 +4629,198 @@ struct StoryStickerView: View {
     
     var body: some View {
         // ✅ SOLUCIÓN DEFINITIVA: Solo una renderización
-        if sticker.isAnimated, let gifURL = sticker.gifURL {
-            // Solo GIF animado
+        if sticker.type == .shareMoment {
+            // ✅ SHARE MOMENT UNIFICADO (FOTO Y VIDEO)
+            // Renderizamos siempre el header y caption, independientemente de si es animado o no
             Button(action: {
                 handleStickerTap()
             }) {
-                AnimatedStickerView(sticker: sticker, size: CGSize(width: 100 * sticker.scale, height: 100 * sticker.scale))
-                    .frame(width: 100 * sticker.scale, height: 100 * sticker.scale)
+                ZStack {
+                    // 1. Capa base: Imagen estática
+                    Image(uiImage: sticker.image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+                    
+                    // 2. Capa animada: Video (si existe)
+                    if let videoURL = sticker.videoURL {
+                         StickerVideoPlayer(url: videoURL)
+                            .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+                            .allowsHitTesting(false)
+                    }
+                    
+                    // 3. OVERLAYS (Header + Caption) - SIEMPRE VISIBLES
+                    ZStack(alignment: .top) {
+                        Color.clear // Contenedor transparente para alinear
+                        
+                        // Header Overlay (Username + Profile)
+                        HStack(spacing: 10 * sticker.scale) {
+                            // Profile Image
+                            if let interactionData = sticker.interactionData,
+                               let userId = interactionData.userId {
+                                AsyncProfileImageView(userId: userId)
+                                    .frame(width: 34 * sticker.scale, height: 34 * sticker.scale)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: [.white.opacity(0.5), .clear],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1 * sticker.scale
+                                            )
+                                    )
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                                    .frame(width: 34 * sticker.scale, height: 34 * sticker.scale)
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(sticker.interactionData?.username ?? "User")
+                                    .font(.custom("Poppins-Bold", size: 13 * sticker.scale))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12 * sticker.scale)
+                        .padding(.vertical, 10 * sticker.scale)
+                        .background(
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .mask(
+                                    LinearGradient(
+                                        colors: [.black, .black, .clear],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        )
+                        
+                        // Caption Overlay (Bottom)
+                        if let caption = sticker.interactionData?.caption, !caption.isEmpty {
+                            VStack {
+                                Spacer()
+                                Text(caption)
+                                    .font(.custom("Poppins-Medium", size: 9 * sticker.scale))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8 * sticker.scale)
+                                    .padding(.vertical, 4 * sticker.scale)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Capsule())
+                                    .padding(.bottom, 10 * sticker.scale)
+                            }
+                        }
+                        
+                        // Gallery Indicator Overlay (Top Right)
+                        if (sticker.interactionData?.mediaCount ?? 0) > 1 {
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "square.on.square.fill")
+                                        .font(.system(size: 11 * sticker.scale, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(6 * sticker.scale)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8 * sticker.scale))
+                                        .padding(12 * sticker.scale)
+                                        .padding(.top, 42 * sticker.scale) // Below header text
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+                .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+                .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
             }
             .buttonStyle(PlainButtonStyle())
             .rotationEffect(sticker.rotation)
-            .position(
-                x: sticker.position.x * screenSize.width / 375,
-                y: sticker.position.y * screenSize.height / 812
-            )
+            
+        } else if sticker.isAnimated {
+            // ✅ SOLUCIÓN: Usar la imagen de base siempre para que el diseño del widget sea visible
+            // Si hay un video/gif, se dibuja EL MISMO DISEÑO pero con el media animado encima
+            Button(action: {
+                handleStickerTap()
+            }) {
+                ZStack {
+                    // 1. Capa base: Imagen estática (diseño del sticker capturado)
+                    // Esto asegura que el sticker sea visible instantáneamente
+                    Image(uiImage: sticker.image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+                    
+                    // 2. Capa animada: Video o GIF encima
+                    if let videoURL = sticker.videoURL {
+                        ZStack(alignment: .top) {
+                            // ✅ NUEVO PLAYER ROBUSTO PARA STICKERS
+                            StickerVideoPlayer(url: videoURL)
+                                .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+                                .allowsHitTesting(false)
+                            
+                            // Header Overlay (Username)
+                            // Header Overlay (Username)
+                            // Header Overlay (Username)
+                            if let interactionData = sticker.interactionData, let username = interactionData.username {
+                                // GENERIC HEADER (Fallback)
+                                HStack(spacing: 8 * sticker.scale) {
+                                    Circle()
+                                        .fill(.white.opacity(0.1))
+                                        .frame(width: 24 * sticker.scale, height: 24 * sticker.scale)
+                                        .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.5 * sticker.scale))
+                                    
+                                    Text(username)
+                                        .font(.custom("Poppins-Bold", size: 10 * sticker.scale))
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 10 * sticker.scale)
+                                .padding(.vertical, 8 * sticker.scale)
+                                .background(
+                                    Rectangle()
+                                        .fill(.ultraThinMaterial)
+                                        .mask(
+                                            LinearGradient(
+                                                colors: [.black, .black, .clear],
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
+                                )
+                            }
+                            
+                            // Caption Overlay (Bottom)
+                            if let caption = sticker.interactionData?.caption, !caption.isEmpty {
+                                VStack {
+                                    Spacer()
+                                    Text(caption)
+                                        .font(.custom("Poppins-Medium", size: 9 * sticker.scale))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8 * sticker.scale)
+                                        .padding(.vertical, 4 * sticker.scale)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(Capsule())
+                                        .padding(.bottom, 10 * sticker.scale)
+                                }
+                            }
+                        }
+                    } else if let gifURL = sticker.gifURL {
+                        AnimatedStickerView(sticker: sticker, size: CGSize(width: 100 * sticker.scale, height: 100 * sticker.scale))
+                            .frame(width: 100 * sticker.scale, height: 100 * sticker.scale)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale)) // ✅ Recorte global de 28pt
+                .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .rotationEffect(sticker.rotation)
         } else if sticker.type == .poll, let pollData = sticker.interactionData?.pollData {
             // ✅ POLL INTERACTIVO: Diseño completo e interactivo
             InteractivePollSticker(
@@ -4485,10 +4838,6 @@ struct StoryStickerView: View {
             .frame(width: 280, height: 180)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
-            .position(
-                x: sticker.position.x * screenSize.width / 375,
-                y: sticker.position.y * screenSize.height / 812
-            )
         } else if sticker.type == .question, let questionText = sticker.interactionData?.questionText {
             // ✅ QUESTION INTERACTIVO: Diseño completo e interactivo
             InteractiveQuestionSticker(
@@ -4501,10 +4850,6 @@ struct StoryStickerView: View {
             .frame(width: 280, height: 120)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
-            .position(
-                x: sticker.position.x * screenSize.width / 375,
-                y: sticker.position.y * screenSize.height / 812
-            )
         } else if sticker.type == .location, let locationName = sticker.interactionData?.location {
             // ✅ LOCATION INTERACTIVO: Diseño completo e interactivo
             InteractiveLocationSticker(
@@ -4516,10 +4861,6 @@ struct StoryStickerView: View {
             .frame(height: 40)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
-            .position(
-                x: sticker.position.x * screenSize.width / 375,
-                y: sticker.position.y * screenSize.height / 812
-            )
         } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
             // ✅ HASHTAG INTERACTIVO: Diseño completo e interactivo
             InteractiveHashtagSticker(
@@ -4530,10 +4871,6 @@ struct StoryStickerView: View {
             .frame(height: 40)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
-            .position(
-                x: sticker.position.x * screenSize.width / 375,
-                y: sticker.position.y * screenSize.height / 812
-            )
         } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
             // ✅ WEATHER ANIMADO: Diseño animado según clima
             AnimatedWeatherSticker(
@@ -4543,13 +4880,40 @@ struct StoryStickerView: View {
             .frame(width: 140, height: 50)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
-            .position(
-                x: sticker.position.x * screenSize.width / 375,
-                y: sticker.position.y * screenSize.height / 812
-            )
             .onAppear {
 
             }
+        } else if sticker.type == .time {
+            // ✅ TIME STICKER (Liquid Glass Real)
+            // Reconstruimos el diseño usando SwiftUI puro para tener blur real
+            ZStack {
+                // 1. Fondo Glass
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(.ultraThinMaterial) // Blur real
+                    .environment(\.colorScheme, .dark) // Forzar modo oscuro para el material
+                
+                // 2. Fondo Base (para tinte oscuro)
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color.black.opacity(0.2))
+                
+                // 3. Brillo y Borde
+                RoundedRectangle(cornerRadius: 28)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                
+                VStack(spacing: -2) { // Spacing ajustado
+                    Text(sticker.interactionData?.questionText ?? "") // Hora
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text(sticker.interactionData?.caption ?? "") // Fecha
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+            }
+            .frame(width: 160, height: 56)
+            .scaleEffect(sticker.scale)
+            .rotationEffect(sticker.rotation)
+            
         } else {
             // Solo imagen estática
             // Solo imagen estática
@@ -4559,15 +4923,12 @@ struct StoryStickerView: View {
                 Image(uiImage: sticker.image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    // ✅ FIX: Usar tamaño real de la imagen escalado
                     .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+                    .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
             }
             .buttonStyle(PlainButtonStyle())
+            .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
             .rotationEffect(sticker.rotation)
-            .position(
-                x: sticker.position.x * screenSize.width / 375,
-                y: sticker.position.y * screenSize.height / 812
-            )
         }
     }
     
@@ -4598,6 +4959,19 @@ struct StoryStickerView: View {
         case .location:
             // ✅ ESTILO NATIVO: El location es interactivo directamente, no necesita tap aquí
             break
+            
+        case .shareMoment:
+            if let interactionData = sticker.interactionData,
+               let momentId = interactionData.momentId,
+               let userId = interactionData.userId {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("OpenMomentFromStory"),
+                        object: nil,
+                        userInfo: ["momentId": momentId, "userId": userId]
+                    )
+                }
+            }
             
         default:
             break
@@ -4702,7 +5076,7 @@ struct InteractiveQuestionSticker: View {
             }
             .frame(width: 280, height: 120)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 28)
                     .fill(
                         LinearGradient(
                             colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8), Color.pink.opacity(0.8)],
@@ -4712,7 +5086,7 @@ struct InteractiveQuestionSticker: View {
                     )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 28)
                     .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
             )
         }
@@ -4941,10 +5315,10 @@ struct InteractiveLocationSticker: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
+                    RoundedRectangle(cornerRadius: 28)
                         .fill(.ultraThinMaterial.opacity(0.3))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 28)
                                 .stroke(
                                     LinearGradient(
                                         colors: [Color.blue.opacity(0.6), Color.purple.opacity(0.6)],
@@ -5001,10 +5375,10 @@ struct InteractiveHashtagSticker: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
+                    RoundedRectangle(cornerRadius: 28)
                         .fill(.ultraThinMaterial.opacity(0.3))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 28)
                                 .stroke(
                                     LinearGradient(
                                         colors: [Color.pink.opacity(0.6), Color.orange.opacity(0.6)],
@@ -5088,10 +5462,10 @@ struct AnimatedWeatherSticker: View {
     
     // MARK: - Background del sticker
     private var weatherBackground: some View {
-        RoundedRectangle(cornerRadius: 20)
+        RoundedRectangle(cornerRadius: 28)
             .fill(getWeatherGradientColors(for: weatherSymbol)[0].opacity(0.3))
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 28)
                     .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
             )
     }
@@ -5545,5 +5919,93 @@ class KeyboardIgnoringHostingController<Content: View>: UIHostingController<Cont
     override var additionalSafeAreaInsets: UIEdgeInsets {
         get { .zero }
         set { /* Ignore changes from keyboard */ }
+    }
+}
+
+// MARK: - 🎥 NUEVO REPRODUCTOR DEDICADO PARA STICKERS
+// Diseñado específicamente para el visor de historias, manejando el ciclo de vida y loop correctamente.
+struct StickerVideoPlayer: UIViewRepresentable {
+    let url: URL
+    
+    func makeUIView(context: Context) -> StickerPlayerUIView {
+        let view = StickerPlayerUIView(frame: .zero)
+        return view
+    }
+    
+    func updateUIView(_ uiView: StickerPlayerUIView, context: Context) {
+        // Asegurar que se reproduzca al actualizar si la URL cambió o la vista se recargó
+        uiView.play(url: url)
+    }
+    
+    class StickerPlayerUIView: UIView {
+        private let playerLayer = AVPlayerLayer()
+        private var player: AVPlayer?
+        private var playerItem: AVPlayerItem?
+        private var loopObserver: NSObjectProtocol?
+        
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            setupLayer()
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        private func setupLayer() {
+            playerLayer.videoGravity = .resizeAspectFill
+            playerLayer.backgroundColor = UIColor.clear.cgColor // ✅ Transparente para ver la base estática
+            layer.addSublayer(playerLayer)
+        }
+        
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            playerLayer.frame = bounds
+        }
+        
+        func play(url: URL) {
+            // Evitar recrear si es la misma URL
+            if let currentUrl = (player?.currentItem?.asset as? AVURLAsset)?.url, currentUrl == url {
+                if player?.timeControlStatus != .playing {
+                    player?.play()
+                }
+                return
+            }
+            
+            // Limpiar observador anterior
+            if let observer = loopObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            
+            let item = AVPlayerItem(url: url)
+            playerItem = item
+            
+            let newPlayer = AVPlayer(playerItem: item)
+            newPlayer.isMuted = true // ✅ Muteado por defecto para evitar conflictos de audio
+            newPlayer.automaticallyWaitsToMinimizeStalling = false // Intentar reproducir ASAP
+            
+            player = newPlayer
+            playerLayer.player = newPlayer
+            
+            newPlayer.play()
+            
+            // ✅ Loop Infinito Robust
+            loopObserver = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: item,
+                queue: .main
+            ) { [weak newPlayer] _ in
+                newPlayer?.seek(to: .zero)
+                newPlayer?.play()
+            }
+        }
+        
+        deinit {
+            if let observer = loopObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            player?.pause()
+            player = nil
+        }
     }
 }

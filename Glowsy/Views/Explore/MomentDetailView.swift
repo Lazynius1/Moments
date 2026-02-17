@@ -35,6 +35,7 @@ struct MomentDetailView: View {
     // ✅ NUEVO: Estado para navegación al perfil
     @State private var navigateToProfile: Bool = false
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
+    @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     
 
     init(moment: Moment) {
@@ -79,16 +80,12 @@ struct MomentDetailView: View {
                     ModernContextMenuOverlay(
                         moment: moment,
                         isPresented: $showContextMenu,
-                        showShareSheet: $showShareSheet,
                         onEdit: {
                             editedContent = moment.content
                             showEditSheet = true
                         },
                         onDelete: {
                             showDeleteAlert = true
-                        },
-                        onShare: {
-                            showShareSheet = true
                         },
                         onReport: {
                             showReportSheet = true
@@ -225,10 +222,6 @@ struct MomentDetailView: View {
                         AsyncProfileImageView(userId: moment.authorId)
                             .frame(width: 38, height: 38)
                             .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(.white.opacity(0.15), lineWidth: 0.5)
-                            )
                     }
                     .buttonStyle(PlainButtonStyle())
                     
@@ -291,13 +284,16 @@ struct MomentDetailView: View {
                 momentImageView
                 
                 // ✅ Botones de acción estilo feed
-                ModernDetailActionButtons(
+                // ✅ Glow Rail (Mismo que en Feed)
+                ModernActionButtons(
                     moment: moment,
                     isSaved: $viewModel.isSaved,
                     isSaveLoading: .constant(false),
                     commentCount: .constant(viewModel.comments.count),
                     onComment: { showingCommentsSheet = true },
-                    onSave: viewModel.toggleSave
+                    onSave: viewModel.toggleSave,
+                    onContextMenu: { showContextMenu = true },
+                    isImmersive: $isImmersive
                 )
                 .environmentObject(FirestoreService())
             }
@@ -357,8 +353,22 @@ struct MomentDetailView: View {
                 showTags: $showTags, // ✅ PASAR binding
                 aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                 allMoments: [moment], // Solo el momento actual
-                currentMoment: moment // El momento actual
+                currentMoment: moment, // El momento actual
+                isImmersive: $isImmersive // ✅ NUEVO
             )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.1)
+                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                    .onEnded { _ in }
+            )
+            .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    self.isImmersive = isPressing
+                    if isPressing {
+                        HapticManager.shared.mediumImpact()
+                    }
+                }
+            }, perform: {})
             .frame(height: cardHeight)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
@@ -386,32 +396,6 @@ struct MomentDetailView: View {
             // ✅ NUEVO: BOTONES DE ETIQUETAS (Nivel superior del card)
             let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
             if let tags = currentMediaItem?.tags, !tags.isEmpty {
-                // Esquina superior izquierda
-                VStack {
-                    HStack {
-                        Button(action: {
-                            withAnimation(.spring()) {
-                                showTags.toggle()
-                            }
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(showTags ? Color(hex: "00A896") : Color.black.opacity(0.6))
-                                    .frame(width: 32, height: 32)
-                                    .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
-                                Image(systemName: "tag.fill")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
-                        }
-                        .padding(.leading, 12)
-                        .padding(.top, 12)
-                        Spacer()
-                    }
-                    Spacer()
-                }
-                .zIndex(100)
 
                 // Esquina inferior izquierda (encima del caption)
                 VStack {
@@ -432,7 +416,7 @@ struct MomentDetailView: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                            colors: showTags ? [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -443,12 +427,12 @@ struct MomentDetailView: View {
                                 // Icon tinted if active
                                 Image(systemName: showTags ? "person.fill" : "person.circle.fill")
                                     .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                                    .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
                             }
                             .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                         }
                         .padding(.leading, 12)
-                        .padding(.bottom, moment.content.isEmpty ? 15 : 60) // En Explore el caption está abajo
+                        .padding(.bottom, 12) // ✅ REDUCIDO: Pegado más abajo (antes 60/15)
                         Spacer()
                     }
                 }
@@ -549,7 +533,7 @@ struct MomentDetailView: View {
         
         return min(calculatedHeight, aspectRatioType.maxHeight)
     }
-    
+
     private var momentContentText: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
@@ -557,7 +541,8 @@ struct MomentDetailView: View {
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                     .multilineTextAlignment(.leading)
-                    .lineLimit(isContentExpanded ? nil : 1)
+                    .padding(.trailing, 0) // ✅ ELIMINADO: No necesita padding de 140 aquí
+                    .lineLimit(isContentExpanded ? nil : 3) // ✅ AUMENTADO: Mostrar más líneas por defecto
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .animation(.easeInOut(duration: 0.3), value: isContentExpanded)
                     .onAppear {
@@ -574,7 +559,7 @@ struct MomentDetailView: View {
                     }) {
                         Text(isContentExpanded ? "ver menos" : "ver más")
                             .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "007AFF"))
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -585,10 +570,6 @@ struct MomentDetailView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                )
         )
         .padding(.horizontal, 16)
         .padding(.top, 12)
@@ -604,7 +585,7 @@ struct MomentDetailView: View {
             HStack {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.system(size: 18))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "007AFF"))
                 
                 Text("momentDetail.comments")
                     .font(.custom("Poppins-SemiBold", size: 20))
@@ -618,13 +599,13 @@ struct MomentDetailView: View {
                         .padding(.vertical, 4)
                         .background(
                             LinearGradient(
-                                colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                                colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .clipShape(Capsule())
-                        .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 4, x: 0, y: 2)
+                        .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
                 }
                 
                 Spacer()
@@ -648,10 +629,7 @@ struct MomentDetailView: View {
                         Circle()
                             .fill(.ultraThinMaterial)
                             .frame(width: 60, height: 60)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
-                            )
+                            .frame(width: 60, height: 60)
                         
                         Image(systemName: "bubble.left")
                             .font(.system(size: 24))
@@ -691,17 +669,6 @@ struct MomentDetailView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 20)
                         .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.2), Color.white.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
                         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
                 )
                 .padding(.horizontal, 16)
@@ -717,21 +684,17 @@ struct MomentDetailView: View {
                             HStack(spacing: 8) {
                                 Text(String(format: NSLocalizedString("momentDetail.viewRemainingComments", comment: "View remaining comments"), viewModel.comments.count - 3))
                                     .font(.custom("Poppins-SemiBold", size: 14))
-                                    .foregroundColor(Color(hex: "00A896"))
+                                    .foregroundColor(Color(hex: "007AFF"))
                                 
                                 Image(systemName: "arrow.right")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(Color(hex: "00A896"))
+                                    .foregroundColor(Color(hex: "007AFF"))
                             }
                             .padding(.horizontal, 18)
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
                                     .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1)
-                                    )
                             )
                             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
@@ -852,21 +815,26 @@ struct MomentDetailView: View {
         guard let momentId = moment.id else { return }
         
         isDeleting = true
-        let firestoreService = FirestoreService()
+        isDeleting = true
         
-        firestoreService.deleteMoment(
-            userId: moment.authorId,
-            momentId: momentId
-        ) { error in
+        let userId = moment.authorId
+        let imagePath = moment.imagePath
+        let videoUrl = moment.videoUrl
+        
+        Task {
+            // ✅ OFFLINE-FIRST: Eliminar localmente y poner en cola
+            await LocalPersistenceService.shared.deleteMoment(
+                momentId: momentId,
+                userId: userId,
+                imagePath: imagePath,
+                videoUrl: videoUrl
+            )
+            
             DispatchQueue.main.async {
                 self.isDeleting = false
-                
-                if let error = error {
-                } else {
-                    self.dismiss()
-                }
-            }
-        }
+        self.dismiss()
+    }
+}
     }
 }
 
@@ -895,7 +863,7 @@ struct ExploreModernFollowButton: View {
                 Text(isFollowing ? "Siguiendo" : "Seguir")
                     .font(.custom("Poppins-SemiBold", size: 13))
             }
-            .foregroundColor(isFollowing ? Color(hex: "00A896") : .white)
+            .foregroundColor(isFollowing ? Color(hex: "007AFF") : .white)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(
@@ -905,13 +873,13 @@ struct ExploreModernFollowButton: View {
                             .fill(.ultraThinMaterial)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color(hex: "00A896").opacity(0.4), lineWidth: 1)
+                                    .stroke(Color(hex: "007AFF").opacity(0.4), lineWidth: 1)
                             )
                     } else {
                         RoundedRectangle(cornerRadius: 16)
                             .fill(
                                 LinearGradient(
-                                    colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                                    colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -920,7 +888,7 @@ struct ExploreModernFollowButton: View {
                 }
             )
             .shadow(
-                color: isFollowing ? .clear : Color(hex: "00A896").opacity(0.4),
+                color: isFollowing ? .clear : Color(hex: "007AFF").opacity(0.4),
                 radius: isFollowing ? 0 : 6,
                 x: 0,
                 y: isFollowing ? 0 : 3
@@ -1523,6 +1491,10 @@ class MomentDetailViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    // ✅ Optimistic update for offline support
+                    self?.comments.removeAll { $0.id == commentId }
+                    
+                    // Still fetch to be safe (no-op if offline)
                     self?.fetchComments()
                 case .failure(let error):
                     self?.errorMessage = "Error al eliminar comentario: \(error.localizedDescription)"

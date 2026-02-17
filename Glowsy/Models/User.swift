@@ -59,6 +59,12 @@ struct AppUser: Identifiable, Codable {
     let notificationPreferences: [String: Bool]?
     let bestFriends: [String]
     let websiteUrl: String? // ✅ NUEVO: Campo para website en bio
+    
+    // ✅ NUEVO: Contadores para perfil (para carga instantánea)
+    let followersCount: Int
+    let followingCount: Int
+    let momentsCount: Int
+
 
     
     // ✅ NUEVO: Campo para estado de cuenta
@@ -108,6 +114,11 @@ struct AppUser: Identifiable, Codable {
         case bestFriends
         case websiteUrl // ✅ NUEVO
 
+        case followersCount
+        case followingCount
+        case momentsCount
+
+
         case isActive
         case deactivatedAt
         case deactivatedBy
@@ -143,6 +154,11 @@ struct AppUser: Identifiable, Codable {
         self.notificationPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .notificationPreferences)
         self.bestFriends = (try container.decodeIfPresent([String].self, forKey: .bestFriends)) ?? []
         self.websiteUrl = try container.decodeIfPresent(String.self, forKey: .websiteUrl) // ✅ NUEVO
+        
+        self.followersCount = (try container.decodeIfPresent(Int.self, forKey: .followersCount)) ?? 0
+        self.followingCount = (try container.decodeIfPresent(Int.self, forKey: .followingCount)) ?? 0
+        self.momentsCount = (try container.decodeIfPresent(Int.self, forKey: .momentsCount)) ?? 0
+
 
         
         // ✅ NUEVO: Decodificación de campos de activación
@@ -204,6 +220,11 @@ struct AppUser: Identifiable, Codable {
         notificationPreferences: [String: Bool]?,
         bestFriends: [String],
         websiteUrl: String? = nil, // ✅ NUEVO
+        
+        followersCount: Int = 0,
+        followingCount: Int = 0,
+        momentsCount: Int = 0,
+
 
         isActive: Bool = true,
         deactivatedAt: Date? = nil,
@@ -237,6 +258,11 @@ struct AppUser: Identifiable, Codable {
         self.notificationPreferences = notificationPreferences
         self.bestFriends = bestFriends
         self.websiteUrl = websiteUrl // ✅ NUEVO
+
+        self.followersCount = followersCount
+        self.followingCount = followingCount
+        self.momentsCount = momentsCount
+
 
         self.isActive = isActive
         self.deactivatedAt = deactivatedAt
@@ -489,16 +515,8 @@ extension AppUser {
         return Calendar.current.dateComponents([.day], from: deactivatedAt, to: Date()).day
     }
     
-    var followersCount: Int {
-        // Esta propiedad se podría calcular dinámicamente o almacenar como campo
-        // Por ahora retornamos 0, pero se puede implementar con un contador
-        return 0
-    }
-    
-    var followingCount: Int {
-        // Similar al anterior
-        return 0
-    }
+    // Temporarily keeping as placeholders or moving to stored properties above
+
     
     var hasActiveStory: Bool {
         // Se podría verificar si tiene historias activas

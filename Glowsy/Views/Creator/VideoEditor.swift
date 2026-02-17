@@ -44,6 +44,11 @@ struct SocialVideoEditorView: View {
     @State private var timelineThumbnails: [UIImage] = []
     @State private var isGeneratingThumbnails = false
     
+    // Estados para thumbnail picker
+    @State private var showingThumbnailPicker = false
+    @State private var selectedThumbnailTime: Double = 0
+    @State private var customThumbnailImage: UIImage? = nil
+    
     enum PlaybackSpeed: String, CaseIterable {
         case slow = "0.3x"
         case normal = "1x"
@@ -196,6 +201,16 @@ struct SocialVideoEditorView: View {
             Button(NSLocalizedString("videoEditor.ok", comment: "OK")) { }
         } message: {
             Text(errorMessage)
+        }
+        .fullScreenCover(isPresented: $showingThumbnailPicker) {
+            ThumbnailPickerView(
+                videoURL: currentVideo?.videoURL,
+                selectedTime: $selectedThumbnailTime,
+                selectedImage: $customThumbnailImage,
+                onDismiss: {
+                    showingThumbnailPicker = false
+                }
+            )
         }
     }
     
@@ -676,7 +691,7 @@ struct SocialVideoEditorView: View {
             }
             
             // Botones principales
-            HStack(spacing: 30) {
+            HStack(spacing: 15) {
                 // Velocidad
                 controlButton(
                     icon: playbackSpeed.icon,
@@ -701,11 +716,23 @@ struct SocialVideoEditorView: View {
                     }
                 )
                 
+                // Portada
+                controlButton(
+                    icon: "photo.on.rectangle",
+                    title: "Portada",
+                    subtitle: customThumbnailImage == nil ? "Auto" : "Manual",
+                    action: {
+                        if !isProcessing {
+                            showingThumbnailPicker = true
+                        }
+                    }
+                )
+                
                 // Volumen
-                VStack(spacing: 8) {
+                VStack(spacing: 4) {
                     HStack {
                         Image(systemName: volume == 0 ? "speaker.slash.fill" : "speaker.wave.3.fill")
-                            .font(.body)
+                            .font(.system(size: 14))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .onTapGesture {
                                 toggleVolume()
@@ -714,11 +741,11 @@ struct SocialVideoEditorView: View {
                         Slider(value: $volume, in: 0...1.0)
                             .accentColor(colorScheme == .dark ? .white : .black)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
                     .background(.ultraThinMaterial)
                     .clipShape(Capsule())
-                    .frame(width: 180)
+                    .frame(width: 120)
                 }
             }
             .padding(.horizontal)
@@ -1319,7 +1346,28 @@ struct SocialVideoEditorView: View {
                 
                 
                 // PASO 3: Generar thumbnail PRIMERO
-                let (thumbnailURL, thumbnailImage) = try await generateThumbnail(from: asset, targetSize: targetSize)
+                let thumbnailURL: URL
+                let thumbnailImage: UIImage
+                
+                if let customImg = customThumbnailImage {
+                    // Si el usuario eligió una portada manualmente, usar esa
+                    thumbnailImage = customImg
+                    
+                    let tempDir = FileManager.default.temporaryDirectory
+                    let customURL = tempDir.appendingPathComponent("thumbnail_custom_\(UUID().uuidString).jpg")
+                    
+                    guard let jpegData = customImg.jpegData(compressionQuality: 0.8) else {
+                        throw ProcessingError.thumbnailGenerationFailed
+                    }
+                    
+                    try jpegData.write(to: customURL)
+                    thumbnailURL = customURL
+                } else {
+                    // Si no hay portada manual, generar una automática
+                    let result = try await generateThumbnail(from: asset, targetSize: targetSize)
+                    thumbnailURL = result.0
+                    thumbnailImage = result.1
+                }
                 
                 // PASO 4: Comprimir video si es necesario
                 let finalVideoURL: URL
@@ -1712,5 +1760,199 @@ struct VideoPlayerWrapper: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         uiViewController.player = player
+    }
+}
+
+// MARK: - Thumbnail Picker View
+struct ThumbnailPickerView: View {
+    let videoURL: URL?
+    @Binding var selectedTime: Double
+    @Binding var selectedImage: UIImage?
+    var onDismiss: () -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    @State private var currentTime: Double = 0
+    @State private var duration: Double = 0
+    @State private var previewImage: UIImage?
+    @State private var isGenerating = false
+    @State private var imageGenerator: AVAssetImageGenerator?
+    
+    // Timeline thumbnails para el scrubber
+    @State private var timelineThumbnails: [UIImage] = []
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Preview Area
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.black.opacity(0.1))
+                        .aspectRatio(9/16, contentMode: .fit) // Referencia visual
+                    
+                    if let image = previewImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .cornerRadius(12)
+                            .shadow(radius: 10)
+                    } else if isGenerating {
+                        ProgressView()
+                            .tint(.pink)
+                    }
+                }
+                .padding()
+                .frame(maxHeight: 500)
+                
+                Spacer()
+                
+                // Scrubber Section
+                VStack(spacing: 12) {
+                    Text("Desliza para seleccionar la portada")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                    
+                    ZStack(alignment: .leading) {
+                        // Background Timeline
+                        HStack(spacing: 0) {
+                            if timelineThumbnails.isEmpty {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.1))
+                                    .frame(height: 60)
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                ForEach(0..<timelineThumbnails.count, id: \.self) { index in
+                                    Image(uiImage: timelineThumbnails[index])
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 60)
+                                        .clipped()
+                                }
+                            }
+                        }
+                        .frame(height: 60)
+                        .cornerRadius(8)
+                        .opacity(0.6)
+                        
+                        // Scrubber Slider Custom
+                        Slider(value: $currentTime, in: 0...max(duration, 0.1))
+                            .accentColor(.pink)
+                            .onChange(of: currentTime) { newValue in
+                                generateFrame(at: newValue)
+                            }
+                    }
+                    .padding(.horizontal)
+                    
+                    Text(formatTime(currentTime))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.pink)
+                }
+                .padding(.bottom, 40)
+            }
+            .navigationTitle("Seleccionar Portada")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancelar") {
+                        onDismiss()
+                    }
+                    .foregroundColor(.primary)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Listo") {
+                        selectedTime = currentTime
+                        selectedImage = previewImage
+                        onDismiss()
+                    }
+                    .fontWeight(.bold)
+                    .foregroundColor(.pink)
+                }
+            }
+            .onAppear {
+                setupGenerator()
+                loadDurationAndGenerateTimeline()
+            }
+        }
+    }
+    
+    private func setupGenerator() {
+        guard let url = videoURL else { return }
+        let asset = AVAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+        self.imageGenerator = generator
+    }
+    
+    private func loadDurationAndGenerateTimeline() {
+        guard let url = videoURL else { return }
+        let asset = AVAsset(url: url)
+        
+        Task {
+            do {
+                let duration = try await asset.load(.duration)
+                let durationSeconds = CMTimeGetSeconds(duration)
+                
+                await MainActor.run {
+                    self.duration = durationSeconds
+                    // Generar thumbnails para el fondo del scrubber
+                    generateTimelineThumbnails(for: asset, duration: durationSeconds)
+                    // Generar primer frame
+                    generateFrame(at: 0)
+                }
+            } catch {
+                print("Error loading asset duration: \(error)")
+            }
+        }
+    }
+    
+    private func generateFrame(at time: Double) {
+        guard let generator = imageGenerator else { return }
+        
+        let cmTime = CMTime(seconds: time, preferredTimescale: 600)
+        
+        Task {
+            do {
+                let (cgImage, _) = try await generator.image(at: cmTime)
+                let image = UIImage(cgImage: cgImage)
+                await MainActor.run {
+                    self.previewImage = image
+                    self.isGenerating = false
+                }
+            } catch {
+                print("Error generating frame: \(error)")
+            }
+        }
+    }
+    
+    private func generateTimelineThumbnails(for asset: AVAsset, duration: Double) {
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 150, height: 150)
+        
+        let count = 10
+        var times: [NSValue] = []
+        let step = duration / Double(count)
+        
+        for i in 0..<count {
+            let time = CMTime(seconds: Double(i) * step, preferredTimescale: 600)
+            times.append(NSValue(time: time))
+        }
+        
+        generator.generateCGImagesAsynchronously(forTimes: times) { _, cgImage, _, _, _ in
+            if let cgImage = cgImage {
+                let image = UIImage(cgImage: cgImage)
+                DispatchQueue.main.async {
+                    self.timelineThumbnails.append(image)
+                }
+            }
+        }
+    }
+    
+    private func formatTime(_ time: Double) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }

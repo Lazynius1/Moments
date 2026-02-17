@@ -21,7 +21,7 @@ struct ConversationSettingsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
+                // background
                 LinearGradient(
                     gradient: Gradient(colors: adaptiveColors.chatBackground),
                     startPoint: .topLeading,
@@ -29,13 +29,29 @@ struct ConversationSettingsView: View {
                 )
                 .ignoresSafeArea()
                 
+                // Animated floating gradients (como el feed)
+                GeometryReader { _ in
+                    Circle()
+                        .fill(adaptiveColors.accent.opacity(0.15))
+                        .frame(width: 300, height: 300)
+                        .blur(radius: 80)
+                        .offset(x: -100, y: -100)
+                    
+                    Circle()
+                        .fill(Color.blue.opacity(0.15))
+                        .frame(width: 300, height: 300)
+                        .blur(radius: 80)
+                        .offset(x: 200, y: 400)
+                }
+                .ignoresSafeArea()
+                
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
                         // Header
                         conversationHeader
                         
                         // Settings sections
-                        VStack(spacing: 16) {
+                        VStack(spacing: 20) {
                             // Conversation Info
                             conversationInfoSection
                             
@@ -47,21 +63,36 @@ struct ConversationSettingsView: View {
                             
                             // Actions
                             actionsSection
+                            
+                            Spacer(minLength: 50)
                         }
                         .padding(.horizontal, 16)
                     }
                 }
             }
-            .navigationTitle("Ajustes de conversación")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("conversationSettings.close", comment: "Close")) {
+                    Button(action: {
+                        HapticManager.shared.lightImpact()
                         dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(adaptiveColors.primary)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
                     }
-                    .foregroundColor(adaptiveColors.primary)
+                }
+                
+                ToolbarItem(placement: .principal) {
+                    Text("conversationSettings.title")
+                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .foregroundColor(adaptiveColors.primary)
                 }
             }
+            .navigationBarBackButtonHidden(true)
         }
         .onAppear {
             viewModel.loadConversationData(conversation: conversation)
@@ -89,134 +120,199 @@ struct ConversationSettingsView: View {
     
     // MARK: - Header
     private var conversationHeader: some View {
-        VStack(spacing: 16) {
-            // Avatar
+        ZStack {
+            // Fondo difuminado basado en el avatar (efecto inmersivo)
             if let avatarUrl = conversation.otherParticipantProfileImagePath {
                 KFImage(URL(string: avatarUrl))
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(adaptiveColors.primary, lineWidth: 2)
-                    )
-            } else {
-                Circle()
-                    .fill(adaptiveColors.primary.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(adaptiveColors.primary)
-                    )
+                    .frame(height: 220)
+                    .blur(radius: 40)
+                    .opacity(0.3)
+                    .clipped()
             }
             
-            // Name
-            Text(conversation.otherParticipantUsername ?? "Usuario")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundColor(adaptiveColors.messageTextColor)
-            
-            // Status (no mostrar si es invisible)
-            if otherUserStatus != .invisible {
-                HStack(spacing: 8) {
-                    Image(systemName: otherUserStatus.icon)
-                        .foregroundColor(otherUserStatus.color)
-                        .font(.system(size: 12))
+            VStack(spacing: 16) {
+                // Avatar con borde premium
+                ZStack {
+                    if let avatarUrl = conversation.otherParticipantProfileImagePath {
+                        KFImage(URL(string: avatarUrl))
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 100, height: 100)
+                            .clipShape(Circle())
+                            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                    } else {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 100, height: 100)
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(adaptiveColors.primary)
+                            )
+                    }
+                }
+                
+                VStack(spacing: 6) {
+                    // Name
+                    Text(conversation.otherParticipantUsername ?? "Usuario")
+                        .font(.custom("Poppins-Bold", size: 24))
+                        .foregroundColor(adaptiveColors.primary)
                     
-                    Text(otherUserStatus.displayName)
-                        .font(.subheadline)
-                        .foregroundColor(adaptiveColors.timestampColor)
-                    
-                    if otherUserStatus != .online, let lastSeen = otherUserLastSeen {
-                        Text("• \(onlineStatusService.formatLastSeen(lastSeen))")
-                            .font(.caption)
-                            .foregroundColor(adaptiveColors.timestampColor.opacity(0.7))
+                    // Status (no mostrar si es invisible)
+                    if otherUserStatus != .invisible {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(otherUserStatus == .online ? Color.green : Color.gray.opacity(0.5))
+                                .frame(width: 8, height: 8)
+                            
+                            Text(otherUserStatus == .online ? NSLocalizedString("online", comment: "") : NSLocalizedString("offline", comment: ""))
+                                .font(.custom("Poppins-Medium", size: 14))
+                                .foregroundColor(adaptiveColors.secondary)
+                            
+                            if otherUserStatus != .online, let lastSeen = otherUserLastSeen {
+                                Text("• \(onlineStatusService.formatLastSeen(lastSeen))")
+                                    .font(.custom("Poppins-Regular", size: 13))
+                                    .foregroundColor(adaptiveColors.tertiary)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial.opacity(0.5))
+                        .clipShape(Capsule())
                     }
                 }
             }
+            .padding(.top, 40)
+            .padding(.bottom, 20)
         }
-        .padding(.top, 20)
     }
     
     // MARK: - Conversation Info Section
     private var conversationInfoSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("conversationSettings.conversationInfo")
-                .font(.headline)
-                .foregroundColor(adaptiveColors.messageTextColor)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(adaptiveColors.accent)
+                Text(NSLocalizedString("conversationSettings.conversationInfo", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(adaptiveColors.primary)
+            }
             
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 ChatInfoRow(
                     icon: "calendar",
-                    title: "Creada",
+                    title: NSLocalizedString("conversationSettings.created", comment: "Created"),
                     value: viewModel.conversationCreatedDate
                 )
                 
+                Divider().background(Color.white.opacity(0.05))
+                
                 ChatInfoRow(
-                    icon: "message",
-                    title: "Mensajes",
+                    icon: "message.fill",
+                    title: NSLocalizedString("conversationSettings.messages", comment: "Messages"),
                     value: "\(viewModel.totalMessages)"
                 )
                 
+                Divider().background(Color.white.opacity(0.05))
+                
                 ChatInfoRow(
-                    icon: "photo",
-                    title: "Fotos compartidas",
+                    icon: "photo.fill",
+                    title: NSLocalizedString("conversationSettings.sharedPhotos", comment: "Shared photos"),
                     value: "\(viewModel.sharedPhotos)"
                 )
                 
+                Divider().background(Color.white.opacity(0.05))
+                
                 ChatInfoRow(
-                    icon: "video",
-                    title: "Videos compartidos",
+                    icon: "video.fill",
+                    title: NSLocalizedString("conversationSettings.sharedVideos", comment: "Shared videos"),
                     value: "\(viewModel.sharedVideos)"
                 )
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(adaptiveColors.cardBackground)
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .padding(18)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(
+                    LinearGradient(
+                        colors: adaptiveColors.overlayStroke,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
         )
     }
     
     // MARK: - Shared Media Section
     private var sharedMediaSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-                            Text("conversationSettings.sharedMedia")
-                .font(.headline)
-                .foregroundColor(adaptiveColors.messageTextColor)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .foregroundColor(adaptiveColors.accent)
+                Text(NSLocalizedString("conversationSettings.sharedMedia", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(adaptiveColors.primary)
+                
+                Spacer()
+                
+                if !viewModel.sharedMedia.isEmpty {
+                    Button(action: {
+                        HapticManager.shared.lightImpact()
+                        viewModel.showAllMedia = true
+                    }) {
+                        Text(NSLocalizedString("common.viewAll", comment: "View all"))
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(adaptiveColors.accent)
+                    }
+                }
+            }
             
             if viewModel.sharedMedia.isEmpty {
-                Text("conversationSettings.noSharedMedia")
-                    .font(.subheadline)
-                    .foregroundColor(adaptiveColors.timestampColor)
-                    .padding(.vertical, 8)
+                HStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 30))
+                            .foregroundColor(adaptiveColors.tertiary)
+                        Text(NSLocalizedString("conversationSettings.noSharedMedia", comment: ""))
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+                    .padding(.vertical, 20)
+                    Spacer()
+                }
             } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                    ForEach(viewModel.sharedMedia.prefix(9), id: \.id) { media in
-                        SharedMediaThumbnail(media: media) {
-                            viewModel.selectedMedia = media
-                            viewModel.showFullScreenMedia = true
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(viewModel.sharedMedia.prefix(10), id: \.id) { media in
+                            SharedMediaThumbnail(media: media) {
+                                HapticManager.shared.lightImpact()
+                                viewModel.selectedMedia = media
+                                viewModel.showFullScreenMedia = true
+                            }
                         }
                     }
                 }
-                
-                if viewModel.sharedMedia.count > 9 {
-                    Button(String(format: NSLocalizedString("conversationSettings.viewAllMedia", comment: "View all media"), viewModel.sharedMedia.count)) {
-                        viewModel.showAllMedia = true
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(adaptiveColors.primary)
-                }
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(adaptiveColors.cardBackground)
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .padding(18)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(
+                    LinearGradient(
+                        colors: adaptiveColors.overlayStroke,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
         )
     }
     
@@ -224,85 +320,143 @@ struct ConversationSettingsView: View {
     
     // MARK: - Privacy Settings Section
     private var privacySettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("conversationSettings.privacy")
-                .font(.headline)
-                .foregroundColor(adaptiveColors.messageTextColor)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "lock.shield.fill")
+                    .foregroundColor(adaptiveColors.accent)
+                Text(NSLocalizedString("conversationSettings.privacy", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(adaptiveColors.primary)
+            }
             
-            VStack(spacing: 8) {
-                Toggle("Notificaciones", isOn: $viewModel.notificationsEnabled)
-                    .toggleStyle(SwitchToggleStyle(tint: adaptiveColors.primary))
-                    .onChange(of: viewModel.notificationsEnabled) { _ in
-                        viewModel.toggleNotifications()
+            VStack(spacing: 16) {
+                Toggle(isOn: $viewModel.notificationsEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.notifications", comment: "Notifications"))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.notifications.desc", comment: "Receive alerts for new messages"))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
                     }
-                
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("conversationSettings.privacy.readReceipts.title")
-                            .foregroundColor(adaptiveColors.messageTextColor)
-                        Text("conversationSettings.privacy.readReceipts.description")
-                            .font(.caption)
-                            .foregroundColor(adaptiveColors.timestampColor.opacity(0.7))
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: $viewModel.readReceiptsEnabled)
-                        .tint(adaptiveColors.primary)
-                        .onChange(of: viewModel.readReceiptsEnabled) { _ in
-                            viewModel.toggleReadReceipts()
-                        }
+                }
+                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "00A896")))
+                .onChange(of: viewModel.notificationsEnabled) { _ in
+                    HapticManager.shared.lightImpact()
+                    viewModel.toggleNotifications()
                 }
                 
-                Toggle("Indicador de escritura", isOn: $viewModel.typingIndicatorEnabled)
-                    .toggleStyle(SwitchToggleStyle(tint: adaptiveColors.primary))
-                    .onChange(of: viewModel.typingIndicatorEnabled) { _ in
-                        viewModel.toggleTypingIndicator()
+                Divider().background(Color.white.opacity(0.05))
+                
+                Toggle(isOn: $viewModel.readReceiptsEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.privacy.readReceipts.title", comment: ""))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.privacy.readReceipts.description", comment: ""))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
                     }
+                }
+                .toggleStyle(SwitchToggleStyle(tint: adaptiveColors.accent))
+                .onChange(of: viewModel.readReceiptsEnabled) { _ in
+                    HapticManager.shared.lightImpact()
+                    viewModel.toggleReadReceipts()
+                }
+                
+                Divider().background(Color.white.opacity(0.05))
+                
+                Toggle(isOn: $viewModel.typingIndicatorEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.typingIndicator", comment: "Typing indicator"))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.typingIndicator.desc", comment: "Show when you are typing"))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+                }
+                .toggleStyle(SwitchToggleStyle(tint: adaptiveColors.accent))
+                .onChange(of: viewModel.typingIndicatorEnabled) { _ in
+                    HapticManager.shared.lightImpact()
+                    viewModel.toggleTypingIndicator()
+                }
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(adaptiveColors.cardBackground)
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .padding(18)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(
+                    LinearGradient(
+                        colors: adaptiveColors.overlayStroke,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
         )
     }
     
     // MARK: - Actions Section
     private var actionsSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Button(action: {
+                HapticManager.shared.mediumImpact()
                 viewModel.clearConversation()
             }) {
                 HStack {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red)
+                    ZStack {
+                        Circle()
+                            .fill(Color.red.opacity(0.1))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.red)
+                    }
+                    
                     Text(NSLocalizedString("conversationSettings.clearConversation", comment: "Clear conversation"))
+                        .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(.red)
+                    
                     Spacer()
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.red.opacity(0.1))
+                .padding(12)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.red.opacity(0.2), lineWidth: 0.5)
                 )
             }
             
             Button(action: {
+                HapticManager.shared.mediumImpact()
                 viewModel.blockUser()
             }) {
                 HStack {
-                    Image(systemName: "slash.circle")
-                        .foregroundColor(.orange)
+                    ZStack {
+                        Circle()
+                            .fill(Color.orange.opacity(0.1))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "slash.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.orange)
+                    }
+                    
                     Text(NSLocalizedString("conversationSettings.blockUser", comment: "Block user"))
+                        .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(.orange)
+                    
                     Spacer()
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.orange.opacity(0.1))
+                .padding(12)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.orange.opacity(0.2), lineWidth: 0.5)
                 )
             }
         }
@@ -334,17 +488,24 @@ struct ChatInfoRow: View {
     
     var body: some View {
         HStack {
-            Image(systemName: icon)
-                .foregroundColor(adaptiveColors.primary)
-                .frame(width: 20)
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "00A896").opacity(0.1))
+                    .frame(width: 32, height: 32)
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(adaptiveColors.accent)
+            }
             
             Text(title)
-                .foregroundColor(adaptiveColors.messageTextColor)
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(adaptiveColors.secondary)
             
             Spacer()
             
             Text(value)
-                .foregroundColor(adaptiveColors.timestampColor)
+                .font(.custom("Poppins-SemiBold", size: 14))
+                .foregroundColor(adaptiveColors.primary)
         }
     }
 }
@@ -362,12 +523,13 @@ struct SharedMediaThumbnail: View {
         KFImage(URL(string: media.thumbnailUrl))
             .resizable()
             .aspectRatio(contentMode: .fill)
-            .frame(width: 80, height: 80)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(width: 100, height: 100)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(adaptiveColors.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
+            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             .onTapGesture {
                 onTap()
             }
@@ -391,7 +553,7 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var showNotificationAlert = false
     @Published var notificationAlertMessage = ""
     
-    private let chatService = ChatService()
+    private let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
     private var currentConversation: Conversation?
     
@@ -611,7 +773,7 @@ struct AllSharedMediaView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
+                // background
                 LinearGradient(
                     gradient: Gradient(colors: adaptiveColors.chatBackground),
                     startPoint: .topLeading,
@@ -619,10 +781,21 @@ struct AllSharedMediaView: View {
                 )
                 .ignoresSafeArea()
                 
+                // Animated floating gradients
+                GeometryReader { _ in
+                    Circle()
+                        .fill(adaptiveColors.accent.opacity(0.12))
+                        .frame(width: 250, height: 250)
+                        .blur(radius: 70)
+                        .offset(x: -50, y: 100)
+                }
+                .ignoresSafeArea()
+                
                 ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
                         ForEach(sharedMedia, id: \.id) { media in
                             SharedMediaThumbnail(media: media) {
+                                HapticManager.shared.lightImpact()
                                 selectedMedia = media
                                 showFullScreenMedia = true
                             }
@@ -631,16 +804,29 @@ struct AllSharedMediaView: View {
                     .padding(16)
                 }
             }
-            .navigationTitle("Contenido compartido")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("conversationSettings.close", comment: "Close")) {
+                    Button(action: {
+                        HapticManager.shared.lightImpact()
                         dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(adaptiveColors.primary)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
                     }
-                    .foregroundColor(adaptiveColors.primary)
+                }
+                
+                ToolbarItem(placement: .principal) {
+                    Text(NSLocalizedString("conversationSettings.sharedMedia", comment: ""))
+                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .foregroundColor(adaptiveColors.primary)
                 }
             }
+            .navigationBarBackButtonHidden(true)
         }
         .sheet(isPresented: $showFullScreenMedia) {
             if let selectedMedia = selectedMedia {

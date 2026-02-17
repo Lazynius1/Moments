@@ -81,6 +81,19 @@ struct GlowsyWidgetExtensionLiveActivity: Widget {
         return completionEmojis.randomElement() ?? "😊"
     }
     
+    // ✅ Refinement: Rotating Aurora Orb (Premium micro-animation)
+    private var rotatingAuroraOrb: some View {
+        Circle()
+            .fill(storyRingGradient)
+            .frame(width: 8, height: 8)
+            .blur(radius: 2)
+            .phaseAnimator([0, 360]) { content, phase in
+                content.rotationEffect(.degrees(phase))
+            } animation: { _ in
+                .linear(duration: 3).repeatForever(autoreverses: false)
+            }
+    }
+    
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: StoryUploadActivityAttributes.self) { context in
             // Lock screen/banner UI
@@ -209,11 +222,18 @@ struct GlowsyWidgetExtensionLiveActivity: Widget {
                             .trim(from: 0, to: context.state.progress)
                             .stroke(storyRingGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                             .rotationEffect(.degrees(-90))
+                        
+                        // ✅ Refinement: Rotating Orb
+                        if context.state.status == "uploading" {
+                            rotatingAuroraOrb
+                                .offset(y: -7)
+                                .rotationEffect(.degrees(context.state.progress * 360))
+                        }
                     }
                     .frame(width: 14, height: 14)
                     
                     Text("\(context.state.percentage)%")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(storyRingGradient)
                         .monospacedDigit()
                 }
@@ -258,6 +278,19 @@ struct MomentUploadLiveActivity: Widget {
     // ✅ Función para obtener un emoji aleatorio
     private func getCompletionEmoji() -> String {
         return completionEmojis.randomElement() ?? "😊"
+    }
+    
+    // ✅ Refinement: Rotating Aurora Orb (shared)
+    private var rotatingAuroraOrb: some View {
+        Circle()
+            .fill(storyRingGradient)
+            .frame(width: 8, height: 8)
+            .blur(radius: 2)
+            .phaseAnimator([0, 360]) { content, phase in
+                content.rotationEffect(.degrees(phase))
+            } animation: { _ in
+                .linear(duration: 3).repeatForever(autoreverses: false)
+            }
     }
     
     var body: some WidgetConfiguration {
@@ -391,11 +424,18 @@ struct MomentUploadLiveActivity: Widget {
                             .trim(from: 0, to: context.state.progress)
                             .stroke(storyRingGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                             .rotationEffect(.degrees(-90))
+                        
+                        // ✅ Refinement: Rotating Orb
+                        if context.state.status == "uploading" {
+                            rotatingAuroraOrb
+                                .offset(y: -7)
+                                .rotationEffect(.degrees(context.state.progress * 360))
+                        }
                     }
                     .frame(width: 14, height: 14)
                     
                     Text("\(context.state.percentage)%")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(storyRingGradient)
                         .monospacedDigit()
                 }

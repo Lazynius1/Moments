@@ -79,116 +79,107 @@ class NovaMemoryService {
         switch lang {
         case .es:
             return """
-            Analiza esta conversación y extrae hechos importantes sobre el usuario, categorizándolos:
+            Analiza esta conversación y extrae "Nuances" (matices) y rasgos de personalidad del usuario.
             
-            CATEGORÍAS Y EJEMPLOS:
-            🔸 PREFERENCE: Preferencias de comunicación, nombres, estilos
-               - "Llámame Pepito" → "Prefiere que le llamen Pepito"
-               - "Háblame de forma casual" → "Prefiere comunicación casual"
-               - "No me gusta el tono formal" → "Prefiere tono informal"
+            ⚠️ REGLA DE TONO: No escribas como una base de datos. Escribe como un amigo observador, cálido y un poco poético. Evita términos como "El usuario...", "Prefiere...", "Tiene...".
             
-            🔸 PERSONAL: Información personal permanente
-               - "Vivo en Madrid" → "Vive en Madrid"
-               - "Tengo 25 años" → "Tiene 25 años"
-               - "Tengo un perro" → "Tiene un perro"
+            CATEGORÍAS Y EJEMPLOS LÍQUIDOS:
+            🔸 PREFERENCE: Estilos, nombres y vibras de comunicación
+               - "Llámame Pepito" → "Te gusta que te llamen Pepito, suena cercano"
+               - "Háblame casual" → "Prefieres una vibra relajada y sin filtros"
             
-            🔸 PROFESSIONAL: Trabajo, estudios, carrera
-               - "Soy desarrollador" → "Trabaja como desarrollador"
-               - "Estudio medicina" → "Estudia medicina"
-               - "Trabajo en Google" → "Trabaja en Google"
+            🔸 PERSONAL: Esencia e identidad (vida, hogar, rutinas)
+               - "Vivo en Madrid" → "El cielo de Madrid es tu escenario diario"
+               - "Despierto a las 3 AM" → "Eres un alma nocturna que encuentra paz en la madrugada"
             
-            🔸 INTEREST: Hobbies, gustos, aficiones
-               - "Me encanta el fútbol" → "Le gusta el fútbol"
-               - "Soy fan de Marvel" → "Es fan de Marvel"
+            🔸 PROFESSIONAL: Pasiones, proyectos y camino profesional
+               - "Soy desarrollador" → "Construyes mundos digitales línea a línea"
+               - "Estudio medicina" → "Te estás preparando para cuidar de los demás"
+            
+            🔸 INTEREST: Lo que hace vibrar tu corazón (hobbies, gustos)
+               - "Me encanta el fútbol" → "Vives la emoción del fútbol con intensidad"
+               - "Fan de Marvel" → "Te pierdes en las historias épicas de los superhéroes"
             
             FORMATO DE RESPUESTA:
-            PREFERENCE: [hecho si existe]
-            PERSONAL: [hecho si existe]
-            PROFESSIONAL: [hecho si existe]
-            INTEREST: [hecho si existe]
+            PREFERENCE: [insight si existe]
+            PERSONAL: [insight si existe]
+            PROFESSIONAL: [insight si existe]
+            INTEREST: [insight si existe]
             
-            Si no hay hechos de una categoría, escribe "NINGUNO".
-            Máximo 2 hechos por categoría.
-            
-            ⚠️ REGLA CRÍTICA: NO extraigas información que YA SE CONOCE (mira la sección de HECHOS YA CONOCIDOS). Solo extrae hechos NUEVOS o ACTUALIZACIONES importantes.
+            Si no hay nuevos matices, escribe "NINGUNO". 
+            Máximo 2 por categoría. Solo extrae hechos NUEVOS o cambios importantes de vibra.
             
             CONVERSACIÓN:
             \(conversationText)
             """
         case .en:
             return """
-            Analyze this conversation and extract important facts about the user, categorizing them:
+            Analyze this conversation and extract "Nuances" and personality traits of the user.
             
-            CATEGORIES AND EXAMPLES:
-            🔸 PREFERENCE: Communication preferences, names, styles
-               - "Call me Joey" → "Prefers to be called Joey"
-               - "Talk to me casually" → "Prefers casual communication"
-               - "I don't like formal tone" → "Prefers informal tone"
+            ⚠️ TONE RULE: Do not write like a database. Write like an observant, warm, and slightly poetic friend. Avoid terms like "The user...", "Prefers...", "Has...".
             
-            🔸 PERSONAL: Permanent personal information
-               - "I live in Madrid" → "Lives in Madrid"
-               - "I'm 25" → "Is 25 years old"
-               - "I have a dog" → "Has a dog"
+            LIQUID CATEGORIES AND EXAMPLES:
+            🔸 PREFERENCE: Communication styles, names, and vibes
+               - "Call me Joey" → "You like being called Joey, it feels closer"
+               - "Talk to me casually" → "You prefer a relaxed, unfiltered vibe"
             
-            🔸 PROFESSIONAL: Job, studies, career
-               - "I'm a developer" → "Works as a developer"
-               - "I study medicine" → "Studies medicine"
-               - "I work at Google" → "Works at Google"
+            🔸 PERSONAL: Essence and identity (life, home, routines)
+               - "I live in Madrid" → "The Madrid sky is your daily backdrop"
+               - "I wake up at 3 AM" → "You're a night owl who finds peace in the early hours"
             
-            🔸 INTEREST: Hobbies, likes, passions
-               - "I love football" → "Likes football"
-               - "I'm a Marvel fan" → "Is a Marvel fan"
+            🔸 PROFESSIONAL: Passions, projects, and career path
+               - "I'm a developer" → "You build digital worlds line by line"
+               - "I study medicine" → "You're preparing yourself to care for others"
+            
+            🔸 INTEREST: What makes your heart beat (hobbies, likes)
+               - "I love football" → "You live the excitement of football intensely"
+               - "Marvel fan" → "You lose yourself in the epic stories of superheroes"
             
             RESPONSE FORMAT:
-            PREFERENCE: [fact if any]
-            PERSONAL: [fact if any]
-            PROFESSIONAL: [fact if any]
-            INTEREST: [fact if any]
+            PREFERENCE: [insight if any]
+            PERSONAL: [insight if any]
+            PROFESSIONAL: [insight if any]
+            INTEREST: [insight if any]
             
-            If no facts exist for a category, write "NONE".
-            Maximum 2 facts per category.
-            
-            ⚠️ CRITICAL RULE: DO NOT extract information that is ALREADY KNOWN (see the ALREADY KNOWN FACTS section). Only extract NEW facts or important UPDATES.
+            If no new nuances exist, write "NONE".
+            Maximum 2 per category. Only extract NEW facts or important changes in vibe.
             
             CONVERSATION:
             \(conversationText)
             """
         case .ca:
             return """
-            Analitza aquesta conversa i extreu fets importants sobre l'usuari, categoritzant-los:
+            Analitza aquesta conversa i extreu "Nuances" (matisos) i trets de personalitat de l'usuari.
             
-            CATEGORIES I EXEMPLES:
-            🔸 PREFERENCE: Preferències de comunicació, noms, estils
-               - "Digues-me Pep" → "Prefereix que li diguin Pep"
-               - "Parla'm de forma casual" → "Prefereix comunicació casual"
-               - "No m'agrada el to formal" → "Prefereix to informal"
+            ⚠️ REGLA DE TO: No escriguis com una base de dades. Escriu com un amic observador, càlid i una mica poètic. Evita termes com "L'usuari...", "Prefereix...", "Té...".
             
-            🔸 PERSONAL: Informació personal permanent
-               - "Visc a Madrid" → "Viu a Madrid"
-               - "Tinc 25 anys" → "Té 25 anys"
-               - "Tinc un gos" → "Té un gos"
+            CATEGORIES I EXEMPLES LÍQUIDS:
+            🔸 PREFERENCE: Estils, noms i rics de comunicació
+               - "Digues-me Pep" → "T'agrada que et diguin Pep, sona proper"
+               - "Parla'm de forma casual" → "Prefereixes una vibra relaxada i sense filtres"
             
-            🔸 PROFESSIONAL: Feina, estudis, carrera
-               - "Sóc desenvolupador" → "Treballa com a desenvolupador"
-               - "Estudio medicina" → "Estudia medicina"
-               - "Treballo a Google" → "Treballa a Google"
+            🔸 PERSONAL: Essència i identitat (vida, llar, rutines)
+               - "Visc a Madrid" → "El cel de Madrid és el teu escenari diari"
+               - "Em llevo a les 3 AM" → "Ets una ànima nocturna que troba pau a la matinada"
             
-            🔸 INTEREST: Aficions, gustos, passions
-               - "M'encanta el futbol" → "Li agrada el futbol"
-               - "Sóc fan de Marvel" → "És fan de Marvel"
+            🔸 PROFESSIONAL: Passions, projectes i camí professional
+               - "Sóc desenvolupador" → "Construeixes mons digitals línia a línia"
+               - "Estudio medicina" → "T'estàs preparant per cuidar dels altres"
+            
+            🔸 INTEREST: El que fa vibrar el teu cor (aficions, gustos)
+               - "M'encanta el futbol" → "Vius l'emoció del futbol amb intensitat"
+               - "Fan de Marvel" → "Et perds en les històries èpiques dels superherois"
             
             FORMAT DE RESPOSTA:
-            PREFERENCE: [fet si existeix]
-            PERSONAL: [fet si existeix]
-            PROFESSIONAL: [fet si existeix]
-            INTEREST: [fet si existeix]
+            PREFERENCE: [insight si existeix]
+            PERSONAL: [insight si existeix]
+            PROFESSIONAL: [insight si existeix]
+            INTEREST: [insight si existeix]
             
-            Si no hi ha fets d'una categoria, escriu "CAP".
-            Màxim 2 fets per categoria.
+            Si no hi ha nous matisos, escriu "CAP".
+            Màxim 2 per categoria. Només extreu fets NOUS o canvis importants de vibra.
             
-            ⚠️ REGLA CRÍTICA: NO extreguis informació que JA ES CONEIX (mira la secció de FETS JA CONEGUTS). Només extreu fets NOUS o ACTUALITZACIONS importants.
-            
-            CONVERSA:
+            CONVERSACIÓ:
             \(conversationText)
             """
         }

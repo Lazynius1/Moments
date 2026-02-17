@@ -186,6 +186,7 @@ struct Comment: Identifiable, Codable, Equatable {
     let parentCommentId: String?
     let isEdited: Bool?              // NUEVO CAMPO
     let editedTimestamp: Date?
+    var isPending: Bool? = false     // NUEVO CAMPO PARA OFFLINE
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -199,9 +200,10 @@ struct Comment: Identifiable, Codable, Equatable {
         case parentCommentId
         case isEdited
         case editedTimestamp
+        case isPending               // NUEVO
     }
 
-    init(id: String? = nil, authorId: String, username: String, content: String, timestamp: Date, profileImagePath: String? = nil, updatedAt: Date? = nil, reactions: [String: [String]] = [:], parentCommentId: String? = nil, isEdited: Bool? = nil, editedTimestamp: Date? = nil) {
+    init(id: String? = nil, authorId: String, username: String, content: String, timestamp: Date, profileImagePath: String? = nil, updatedAt: Date? = nil, reactions: [String: [String]] = [:], parentCommentId: String? = nil, isEdited: Bool? = nil, editedTimestamp: Date? = nil, isPending: Bool? = false) {
         self.id = id
         self.authorId = authorId
         self.username = username
@@ -213,7 +215,7 @@ struct Comment: Identifiable, Codable, Equatable {
         self.parentCommentId = parentCommentId
         self.isEdited = isEdited
         self.editedTimestamp = editedTimestamp
-
+        self.isPending = isPending
     }
 
     init(from decoder: Decoder) throws {
@@ -395,6 +397,102 @@ struct Moment: Identifiable, Codable, Equatable {
         case trendingScore, engagementRate
     }
     
+    // ✅ MANUAL CODABLE: Necesario para que JSONEncoder no falle con @DocumentID
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // ✅ FIX: Manejar ID para Firestore (@DocumentID) y JSON (String)
+        if let docID = try? container.decode(DocumentID<String>.self, forKey: .id) {
+            self._id = docID
+        } else {
+            self.id = try container.decodeIfPresent(String.self, forKey: .id)
+        }
+        
+        // Campos obligatorios con fallbacks seguros
+        self.authorId = (try? container.decode(String.self, forKey: .authorId)) ?? ""
+        self.username = (try? container.decode(String.self, forKey: .username)) ?? ""
+        self.content = (try? container.decode(String.self, forKey: .content)) ?? ""
+        self.imagePath = try container.decodeIfPresent(String.self, forKey: .imagePath)
+        self.videoUrl = try container.decodeIfPresent(String.self, forKey: .videoUrl)
+        
+        // Manejo flexible de fechas (Firestore Timestamp o Double/Date)
+        if let timestamp = try? container.decode(Timestamp.self, forKey: .timestamp) {
+            self.timestamp = timestamp.dateValue()
+        } else if let doubleValue = try? container.decode(Double.self, forKey: .timestamp) {
+            self.timestamp = Date(timeIntervalSince1970: doubleValue)
+        } else {
+            self.timestamp = (try? container.decode(Date.self, forKey: .timestamp)) ?? Date()
+        }
+        
+        self.reactions = (try? container.decode([String: [String]].self, forKey: .reactions)) ?? [:]
+        self.commentCount = (try? container.decode(Int.self, forKey: .commentCount)) ?? 0
+        self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
+        self.taggedUsers = try container.decodeIfPresent([String].self, forKey: .taggedUsers)
+        self.location = try container.decodeIfPresent(String.self, forKey: .location)
+        self.locationCoordinate = try container.decodeIfPresent(LocationCoordinate.self, forKey: .locationCoordinate)
+        self.audience = try container.decodeIfPresent(String.self, forKey: .audience)
+        self.mediaItems = try container.decodeIfPresent([MediaItem].self, forKey: .mediaItems)
+        self.aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio)
+        self.customListId = try container.decodeIfPresent(String.self, forKey: .customListId)
+        self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
+        self.videoDuration = try container.decodeIfPresent(Double.self, forKey: .videoDuration)
+        self.videoFileSize = try container.decodeIfPresent(Int64.self, forKey: .videoFileSize)
+        self.videoResolution = try container.decodeIfPresent(String.self, forKey: .videoResolution)
+        
+        if let scheduledTimestamp = try? container.decodeIfPresent(Timestamp.self, forKey: .scheduledDate) {
+            self.scheduledDate = scheduledTimestamp.dateValue()
+        } else {
+            self.scheduledDate = try container.decodeIfPresent(Date.self, forKey: .scheduledDate)
+        }
+        
+        self.disableComments = (try? container.decodeIfPresent(Bool.self, forKey: .disableComments)) ?? false
+        self.hideLikeCounts = (try? container.decodeIfPresent(Bool.self, forKey: .hideLikeCounts)) ?? false
+        self.allowSharing = (try? container.decodeIfPresent(Bool.self, forKey: .allowSharing)) ?? true
+        self.trendingScore = try container.decodeIfPresent(Double.self, forKey: .trendingScore)
+        self.engagementRate = try container.decodeIfPresent(Double.self, forKey: .engagementRate)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // 🔥 CRUCIAL: Codificar el ID como String normal (evita error DocumentID con JSONEncoder)
+        try container.encodeIfPresent(id, forKey: .id)
+        
+        try container.encode(authorId, forKey: .authorId)
+        try container.encode(username, forKey: .username)
+        try container.encode(content, forKey: .content)
+        try container.encodeIfPresent(imagePath, forKey: .imagePath)
+        try container.encodeIfPresent(videoUrl, forKey: .videoUrl)
+        
+        // Codificar fecha como Timestamp para compatibilidad con Firestore
+        try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
+        
+        try container.encode(reactions, forKey: .reactions)
+        try container.encode(commentCount, forKey: .commentCount)
+        try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)
+        try container.encodeIfPresent(taggedUsers, forKey: .taggedUsers)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(locationCoordinate, forKey: .locationCoordinate)
+        try container.encodeIfPresent(audience, forKey: .audience)
+        try container.encodeIfPresent(mediaItems, forKey: .mediaItems)
+        try container.encodeIfPresent(aspectRatio, forKey: .aspectRatio)
+        try container.encodeIfPresent(customListId, forKey: .customListId)
+        try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
+        try container.encodeIfPresent(videoDuration, forKey: .videoDuration)
+        try container.encodeIfPresent(videoFileSize, forKey: .videoFileSize)
+        try container.encodeIfPresent(videoResolution, forKey: .videoResolution)
+        
+        if let scheduledDate = scheduledDate {
+            try container.encode(Timestamp(date: scheduledDate), forKey: .scheduledDate)
+        }
+        
+        try container.encode(disableComments, forKey: .disableComments)
+        try container.encode(hideLikeCounts, forKey: .hideLikeCounts)
+        try container.encode(allowSharing, forKey: .allowSharing)
+        try container.encodeIfPresent(trendingScore, forKey: .trendingScore)
+        try container.encodeIfPresent(engagementRate, forKey: .engagementRate)
+    }
+
     static func == (lhs: Moment, rhs: Moment) -> Bool {
         return lhs.id == rhs.id
     }
@@ -711,7 +809,7 @@ struct Story: Identifiable, Codable {
                 } else {
                     stickerImage = UIImage(systemName: "chart.bar") ?? UIImage()
                 }
-            case .time, .weather, .emoji, .sticker, .generic, .selfie, .questionResponse:
+            case .time, .weather, .emoji, .sticker, .generic, .selfie, .questionResponse, .shareMoment:
                 // ✅ INTENTAR DECODIFICAR IMAGEN BASE64
                 // Usar UIScreen.main.scale para restaurar el tamaño lógico (puntos) original
                 if let data = Data(base64Encoded: stickerData.content),
@@ -744,7 +842,11 @@ struct Story: Identifiable, Codable {
                 locationCoordinate: locationCoordinate,
                 pollData: stickerData.pollOptions,
                 questionText: stickerData.questionText,
-                weatherSymbol: weatherSymbol
+                weatherSymbol: weatherSymbol,
+                caption: stickerData.caption,
+                profileImagePath: stickerData.profileImagePath,
+                momentId: stickerData.momentId,
+                mediaCount: stickerData.mediaCount
             )
             
             // Crear StickerItem con las transformaciones aplicadas
@@ -752,38 +854,48 @@ struct Story: Identifiable, Codable {
             
             // ✅ MANEJAR STICKERS ANIMADOS
             var gifURL: URL? = nil
+            var videoURL: URL? = nil
             
-            // Intentar obtener la URL del GIF desde gifURL o desde content
+            // 1. Intentar obtener la URL del GIF
             if let gifURLString = stickerData.gifURL, let url = URL(string: gifURLString) {
                 gifURL = url
-            } else if stickerData.isAnimated, let url = URL(string: stickerData.content) {
-                // Si no hay gifURL pero isAnimated es true, intentar usar content como URL
-                gifURL = url
+            } else if stickerData.isAnimated && stickerData.content.hasPrefix("http") && (stickerData.content.contains(".gif") || stickerData.content.contains("giphy")) {
+                // Fallback for older stickers where URL was in content
+                gifURL = URL(string: stickerData.content)
             }
             
-            if stickerData.isAnimated, let finalGifURL = gifURL {
-                // Crear sticker animado con GIF
+            // 2. Intentar obtener la URL del Vídeo
+            if let videoURLString = stickerData.videoURL, let url = URL(string: videoURLString) {
+                videoURL = url
+            }
+            
+            if stickerData.isAnimated {
+                // Crear sticker animado con GIF o Video
+                // ✅ FIX ID: No usar content (Base64) como ID, usar combo estable
+                let stableId = "\(stickerData.type)_\(stickerData.position.x)_\(stickerData.position.y)"
                 stickerItem = StickerItem(
-                    image: stickerImage, // ✅ Usar imagen recreada
-                    gifURL: finalGifURL,
+                    id: stableId,
+                    image: stickerImage,
                     position: stickerData.position,
+                    scale: stickerData.scale,
+                    rotation: Angle(radians: stickerData.rotation),
+                    gifURL: gifURL,
+                    videoURL: videoURL,
+                    isAnimated: true,
                     type: StickerItem.StickerType(rawValue: stickerData.type) ?? .generic,
                     interactionData: interactionData
                 )
             } else {
                 // Crear sticker estático
                 stickerItem = StickerItem(
-                    image: stickerImage, // ✅ Usar imagen recreada
+                    image: stickerImage,
                     position: stickerData.position,
                     type: StickerItem.StickerType(rawValue: stickerData.type) ?? .generic,
                     interactionData: interactionData
                 )
+                stickerItem.scale = stickerData.scale
+                stickerItem.rotation = Angle(radians: stickerData.rotation)
             }
-            
-            // Aplicar transformaciones
-            stickerItem.scale = stickerData.scale
-            stickerItem.rotation = Angle(radians: stickerData.rotation)
-            
             
             return stickerItem
         }
@@ -847,6 +959,7 @@ struct Story: Identifiable, Codable {
         // Placeholder para encuesta
         return UIImage(systemName: "chart.bar") ?? UIImage()
     }
+    
 }
 
 // Modelo para almacenar datos de stickers
@@ -867,16 +980,21 @@ struct StickerData: Codable {
     let questionText: String?
     let pollOptions: [String]?
     let weatherSymbol: String? // ✅ NUEVA: Para stickers de clima
+    let caption: String? // ✅ NUEVA: Para pie de foto en momentos compartidos
+    let profileImagePath: String? // ✅ NUEVA: Ruta de imagen de perfil para reconstrucción
+    let momentId: String? // ✅ NUEVA: Para navegación
+    let mediaCount: Int? // ✅ NUEVA: Para indicador de galería
     
     // ✅ NUEVAS PROPIEDADES para animación
     let isAnimated: Bool
     let gifURL: String? // URL como String para Codable
+    let videoURL: String? // ✅ NUEVA: URL del vídeo del sticker
 
     
     init(type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
-         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil,
-         isAnimated: Bool = false, gifURL: String? = nil) {
+         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
+         isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
         self.type = type
         self.content = content
         self.position = position
@@ -891,8 +1009,13 @@ struct StickerData: Codable {
         self.questionText = questionText
         self.pollOptions = pollOptions
         self.weatherSymbol = weatherSymbol
+        self.caption = caption
+        self.profileImagePath = profileImagePath
+        self.momentId = momentId
+        self.mediaCount = mediaCount
         self.isAnimated = isAnimated
         self.gifURL = gifURL
+        self.videoURL = videoURL
     }
     
     // ✅ INICIALIZADOR PERSONALIZADO para compatibilidad hacia atrás
@@ -928,6 +1051,10 @@ struct StickerData: Codable {
         self.questionText = try container.decodeIfPresent(String.self, forKey: .questionText)
         self.pollOptions = try container.decodeIfPresent([String].self, forKey: .pollOptions)
         self.weatherSymbol = try container.decodeIfPresent(String.self, forKey: .weatherSymbol)
+        self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
+        self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
+        self.momentId = try container.decodeIfPresent(String.self, forKey: .momentId)
+        self.mediaCount = try container.decodeIfPresent(Int.self, forKey: .mediaCount)
         
         // ✅ COMPATIBILIDAD HACIA ATRÁS: Detectar stickers animados basándose en el contenido
         let decodedIsAnimated = try container.decodeIfPresent(Bool.self, forKey: .isAnimated) ?? false
@@ -943,10 +1070,11 @@ struct StickerData: Codable {
             
             self.isAnimated = isGifFromContent || isGifFromType
             self.gifURL = isGifFromContent ? self.content : nil
-            
+            self.videoURL = nil
         } else {
             self.isAnimated = decodedIsAnimated
             self.gifURL = decodedGifURL
+            self.videoURL = try container.decodeIfPresent(String.self, forKey: .videoURL)
         }
     }
     
@@ -969,41 +1097,47 @@ struct StickerData: Codable {
             questionText: interactionData?.questionText,
             pollOptions: interactionData?.pollData,
             weatherSymbol: interactionData?.weatherSymbol,
+            caption: stickerItem.interactionData?.caption,
+            profileImagePath: stickerItem.interactionData?.profileImagePath,
+            momentId: stickerItem.interactionData?.momentId,
+            mediaCount: stickerItem.interactionData?.mediaCount,
             isAnimated: stickerItem.isAnimated,
-            gifURL: stickerItem.gifURL?.absoluteString
+            gifURL: stickerItem.gifURL?.absoluteString,
+            videoURL: stickerItem.videoURL?.absoluteString
         )
         
         return stickerData
     }
     
-    // ✅ FUNCIÓN extractContent ACTUALIZADA para incluir música
+    // ✅ FUNCIÓN extractContent ACTUALIZADA para incluir música y renderizar imágenes a Base64
     private static func extractContent(from sticker: StickerItem) -> String {
-        // Para stickers interactivos, usar los datos de interacción
-        if let interactionData = sticker.interactionData {
-            switch sticker.type {
-            case .mention:
-                return "@\(interactionData.username ?? "")"
-            case .hashtag:
-                return "#\(interactionData.hashtag ?? "")"
-            case .location:
-                return interactionData.location ?? ""
-            case .question:
-                return interactionData.questionText ?? ""
-            case .poll:
-                return interactionData.pollData?.joined(separator: "|") ?? ""
-            case .weather:
-                return interactionData.weatherSymbol ?? "🌤️"
-            default:
-                break
+        // 1. PRIORIDAD: Shared Moments y otros que requieren Base64 para el template visual
+        // Esto garantiza que el sticker se vea perfecto en el visor aunque no cargue el media aún
+        if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment].contains(sticker.type) {
+            if let jpegData = sticker.image.jpegData(compressionQuality: 0.6) {
+                return jpegData.base64EncodedString()
             }
         }
         
-        // Para stickers animados, guardar la URL del GIF como contenido
+        // 2. Stickers interactivos: Guardar metadatos en content por compatibilidad con versiones antiguas
+        if let interactionData = sticker.interactionData {
+            switch sticker.type {
+            case .mention: return "@\(interactionData.username ?? "")"
+            case .hashtag: return "#\(interactionData.hashtag ?? "")"
+            case .location: return interactionData.location ?? ""
+            case .question: return interactionData.questionText ?? ""
+            case .poll: return interactionData.pollData?.joined(separator: "|") ?? ""
+            case .weather: return interactionData.weatherSymbol ?? "🌤️"
+            default: break
+            }
+        }
+        
+        // 3. Stickers animados (GIFs): Guardar URL como contenido principal si existe
         if sticker.isAnimated, let gifURL = sticker.gifURL {
             return gifURL.absoluteString
         }
         
-        // Para otros tipos de stickers, usar un identificador basado en el tipo
+        // 4. Fallback: Identificador basado en tipo
         return "sticker_\(sticker.type.rawValue)"
     }
 }
@@ -1029,6 +1163,11 @@ extension StickerData {
         case weatherSymbol
         case isAnimated
         case gifURL
+        case videoURL
+        case caption
+        case profileImagePath
+        case momentId
+        case mediaCount
     }
     
     func encode(to encoder: Encoder) throws {
@@ -1050,6 +1189,11 @@ extension StickerData {
         try container.encodeIfPresent(weatherSymbol, forKey: .weatherSymbol)
         try container.encode(isAnimated, forKey: .isAnimated)
         try container.encodeIfPresent(gifURL, forKey: .gifURL)
+        try container.encodeIfPresent(videoURL, forKey: .videoURL)
+        try container.encodeIfPresent(caption, forKey: .caption)
+        try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)
+        try container.encodeIfPresent(momentId, forKey: .momentId)
+        try container.encodeIfPresent(mediaCount, forKey: .mediaCount)
     }
 }
 
@@ -1068,6 +1212,7 @@ extension StickerItem.StickerType {
         case .generic: return "generic"
         case .weather: return "weather"
         case .time: return "time"
+        case .shareMoment: return "shareMoment"
         case .selfie: return "selfie"
         }
     }
@@ -1085,6 +1230,7 @@ extension StickerItem.StickerType {
         case "generic": self = .generic
         case "weather": self = .weather
         case "time": self = .time
+        case "shareMoment": self = .shareMoment
         case "selfie": self = .selfie
         default: return nil
         }
@@ -1106,6 +1252,7 @@ struct Notification: Identifiable, Codable {
     let storyAuthorId: String?
     let reaction: String?
     let commentId: String? // ✅ NUEVO: Para identificar comentarios específicos
+    let echoId: String? // ✅ NUEVO: Para identificar el Echo sugerido
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -1122,6 +1269,7 @@ struct Notification: Identifiable, Codable {
         case reactionType // ✅ COMPATIBILIDAD: El servidor usa este campo para momentos
         case commentText  // ✅ COMPATIBILIDAD: El servidor usa este campo para comentarios
         case commentId
+        case echoId
     }
 
     init(id: String? = nil,
@@ -1135,7 +1283,8 @@ struct Notification: Identifiable, Codable {
          storyId: String? = nil,
          storyAuthorId: String? = nil,
          reaction: String? = nil,
-         commentId: String? = nil) {
+         commentId: String? = nil,
+         echoId: String? = nil) {
         
         self.id = id
         self.type = type
@@ -1149,6 +1298,7 @@ struct Notification: Identifiable, Codable {
         self.storyAuthorId = storyAuthorId
         self.reaction = reaction
         self.commentId = commentId
+        self.echoId = echoId
     }
 
     init(from decoder: Decoder) throws {
@@ -1181,6 +1331,7 @@ struct Notification: Identifiable, Codable {
         }
         
         self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
+        self.echoId = try container.decodeIfPresent(String.self, forKey: .echoId)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1197,6 +1348,7 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(storyAuthorId, forKey: .storyAuthorId)
         try container.encodeIfPresent(reaction, forKey: .reaction)
         try container.encodeIfPresent(commentId, forKey: .commentId)
+        try container.encodeIfPresent(echoId, forKey: .echoId)
     }
 }
 
@@ -1213,10 +1365,11 @@ enum NotificationType: String, Codable, CaseIterable {
     case storyReaction = "storyReaction"
     case message = "message" // ✅ NUEVO: Para mensajes directos (DM)
     case photoTag = "photoTag" // ✅ NUEVO: Para etiquetas en fotos
+    case echoSuggestion = "echoSuggestion" // 🌊 NUEVO: Sugerencia de Echo (Nova Spark)
 
     var displayName: String {
         switch self {
-        case .like: return "Me gusta" // Para comentarios
+        case .like: return "Reacción" // Para comentarios
         case .reaction: return "Reacción" // ✅ NUEVO: Para momentos
         case .comment: return "Comentario"
         case .mention: return "Menciones" // ✅ NUEVO
@@ -1228,6 +1381,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .storyReaction: return "Reacción a historia"
         case .message: return "Mensajes"
         case .photoTag: return "Etiquetas en fotos"
+        case .echoSuggestion: return "Sugerencia de Echo"
         }
     }
     
@@ -1245,6 +1399,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .storyReaction: return "face.smiling"
         case .message: return "envelope.fill"
         case .photoTag: return "person.crop.rectangle"
+        case .echoSuggestion: return "sparkles.rectangle.stack"
         }
     }
 }

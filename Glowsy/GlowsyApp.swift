@@ -10,6 +10,7 @@ struct GlowsyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var ephemeralCleanupManager = EphemeralCleanupManager()
     @StateObject private var cacheManager = CacheManager.shared
+    @StateObject private var offlineSyncService = OfflineSyncService.shared
     @State private var showSplash = true
     @State private var showWhatsNew = false
     @AppStorage("lastVersionPrompted") private var lastVersionPrompted: String = "1.0.0"
@@ -63,14 +64,19 @@ struct GlowsyApp: App {
                                     
                                     // Configurar caches con tamaños más moderados
                                     let memoryCapacity = 20 * 1024 * 1024
-                                    let diskCapacity = 150 * 1024 * 1024  // ✅ AJUSTADO: 150MB (más conservador)
+                                    let diskCapacity = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
                                     let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
                                     URLCache.shared = cache
                                     
                                     let kingfisherCache = KingfisherManager.shared.cache
                                     kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
-                                    kingfisherCache.diskStorage.config.sizeLimit = 150 * 1024 * 1024  // ✅ AJUSTADO: 150MB (más conservador)
-                                    kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(1)  // ✅ MÁS AGRESIVO: 1 día en lugar de 3
+                                    kingfisherCache.diskStorage.config.sizeLimit = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
+                                    kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(7)  // ✅ ALINEADO CON SWIFTDATA: 7 días de persistencia
+                                    
+                                    // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
+                                    Task { @MainActor in
+                                        LocalPersistenceService.shared.cleanupOldData()
+                                    }
                                 }
                             }
                             
@@ -95,6 +101,9 @@ struct GlowsyApp: App {
                             AnalyticsService.shared.applicationDidBecomeActive()
                             // ✅ NUEVO: Marcar mensajes pendientes como entregados (respaldo si notificación no llegó)
                             ChatService.shared.markAllPendingMessagesAsDelivered()
+                            
+                            // ✅ WIDGET FIX: Forzar actualización del widget al abrir la app
+                            NotificationBadgeService.shared.refreshAllCounts()
                         }
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                             AnalyticsService.shared.applicationWillResignActive()

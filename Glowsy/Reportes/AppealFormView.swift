@@ -29,7 +29,7 @@ struct AppealFormView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                EnhancedBackgroundView()
+                LiquidAuroraBackground()
                 
                 if showSuccessView {
                     AppealSuccessView(

@@ -17,7 +17,7 @@ struct SettingsNavigationBar: View {
                             Circle()
                                 .stroke(
                                     LinearGradient(
-                                        colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                        colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -27,7 +27,7 @@ struct SettingsNavigationBar: View {
                     
                     Image(systemName: "chevron.left")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                 }
             }
             

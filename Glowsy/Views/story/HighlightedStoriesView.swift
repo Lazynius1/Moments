@@ -47,7 +47,7 @@ struct HighlightedStoriesView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(Color(hex: "00A896"))
+                        .background(Color(hex: "007AFF"))
                         .cornerRadius(25)
                     }
                     .padding()
@@ -77,7 +77,7 @@ struct HighlightedStoriesView: View {
                                     Circle()
                                         .stroke(
                                             LinearGradient(
-                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                colors: [Color(hex: "007AFF").opacity(0.3), Color(hex: "007AFF").opacity(0.1)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -87,7 +87,7 @@ struct HighlightedStoriesView: View {
                             
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(Color(hex: "007AFF"))
                         }
                     }
                 }
@@ -97,7 +97,7 @@ struct HighlightedStoriesView: View {
                         // TODO: Implementar creación de nueva destacada
                     }
                     .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "007AFF"))
                 }
             }
             .onAppear {
@@ -121,7 +121,7 @@ struct HighlightedStoryCard: View {
                     .frame(width: 60, height: 60)
                     .overlay(
                         Image(systemName: "star.fill")
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "007AFF"))
                             .font(.system(size: 24))
                     )
                 

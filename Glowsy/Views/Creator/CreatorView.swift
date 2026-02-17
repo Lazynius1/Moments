@@ -305,6 +305,7 @@ class DrawingViewController: UIViewController {
 }
 import SwiftUI
 import PhotosUI
+import Kingfisher
 import UniformTypeIdentifiers
 import AVFoundation
 import AVKit
@@ -325,16 +326,33 @@ struct CreatorView: View {
     @Binding var isCreatingStory: Bool
     @Binding var showCreatorView: Bool
     let initialSticker: StickerItem? // ✅ NUEVO: Sticker inicial
+    let initialMedia: [CreatorMedia]? // ✅ NUEVO: Media inicial (foto/video de fondo)
     let openInStoryMode: Bool // ✅ NUEVO: Abrir directamente en modo historia
     
     @State private var currentFlow: CreatorFlow = .typeSelection
     @State private var contentType: ContentType = .moment
     
-    init(isCreatingStory: Binding<Bool>, showCreatorView: Binding<Bool>, initialSticker: StickerItem? = nil, openInStoryMode: Bool = false) {
+    init(isCreatingStory: Binding<Bool>, showCreatorView: Binding<Bool>, initialSticker: StickerItem? = nil, initialMedia: [CreatorMedia]? = nil, openInStoryMode: Bool = false) {
         self._isCreatingStory = isCreatingStory
         self._showCreatorView = showCreatorView
         self.initialSticker = initialSticker
+        self.initialMedia = initialMedia
         self.openInStoryMode = openInStoryMode
+        
+        // ✅ Inicialización de estado sincronizada
+        if initialSticker != nil || initialMedia != nil {
+            print("🏗 CreatorView INIT - Has Sticker or Media")
+            _contentType = State(initialValue: .story)
+            _currentFlow = State(initialValue: .storyEditing)
+            _responseSticker = State(initialValue: initialSticker)
+            _selectedMediaItems = State(initialValue: initialMedia ?? [])
+        } else if openInStoryMode {
+            print("🏗 CreatorView INIT - Store Mode (No Sticker)")
+            _contentType = State(initialValue: .story)
+            _currentFlow = State(initialValue: .storyCamera)
+        } else {
+            print("🏗 CreatorView INIT - Default Mode")
+        }
     }
     @State private var selectedMediaItems: [CreatorMedia] = []
     @State private var captionText: String = ""
@@ -426,8 +444,21 @@ struct CreatorView: View {
             }
         }
         .onChange(of: contentType) { _, newType in
+            // ✅ SEGURIDAD CRÍTICA: No cambiar el flujo si ya estamos editando (especialmente con Stickers)
+            if initialSticker != nil || responseSticker != nil {
+                if currentFlow == .storyEditing { return }
+            }
+            
+            // ✅ EVITAR RESET: Si ya estamos en edición o cámara story, no sobrescribir el flujo
+            guard currentFlow == .typeSelection else { return }
+            
             if newType == .story {
-                currentFlow = .storyCamera
+                // ✅ FIX: Si hay un sticker, ir al editor en lugar de la cámara
+                if initialSticker != nil || responseSticker != nil {
+                    currentFlow = .storyEditing
+                } else {
+                    currentFlow = .storyCamera
+                }
                 isCreatingStory = true
             } else {
                 currentFlow = .mediaSelection
@@ -435,18 +466,40 @@ struct CreatorView: View {
             }
         }
         .onAppear {
+            print("🏗 CreatorView onAppear - CurrentFlow: \(currentFlow), Sticker: \(String(describing: initialSticker))")
             setupResponseStickerListener()
             setupContinueChainListener()
             
-            // ✅ AGREGAR STICKER INICIAL SI EXISTE
-            if let initialSticker = initialSticker {
-                responseSticker = initialSticker
+            // ✅ PRIORIDAD MÁXIMA: Si hay un sticker inicial, FORZAR el editor
+            if let sticker = initialSticker {
+                if responseSticker == nil { responseSticker = sticker }
+                print("🏗 Forcing StoryEditing due to sticker")
+                
+                // Force update even if already set, to trigger UI
                 contentType = .story
                 currentFlow = .storyEditing
+                
+                // ✅ FIX: Ensure there is a background media item for publishStory to work
+                if selectedMediaItems.isEmpty {
+                    print("🎨 Generating default background for sticker story")
+                    let gradientImage = createDefaultGradientImage()
+                    let mediaItem = CreatorMedia(
+                        type: .image,
+                        image: gradientImage,
+                        videoURL: nil,
+                        aspectRatio: .nineBySixteen
+                    )
+                    selectedMediaItems = [mediaItem]
+                }
+                
                 isCreatingStory = true
             } else if openInStoryMode {
-                // ✅ Abrir directamente en modo historia (desde widget)
-                contentType = .story
+                print("🏗 Forcing StoryCamera due to openInStoryMode")
+                isCreatingStory = true
+                if currentFlow == .typeSelection {
+                    contentType = .story
+                    currentFlow = .storyCamera
+                }
             }
         }
         .onDisappear {
@@ -570,7 +623,6 @@ struct CreatorView: View {
         currentFlow = .storyEditing
         isCreatingStory = true
     }
-    
     // ✅ FUNCIÓN PARA LIMPIAR VIDEO Y AUDIO
     private func cleanupVideoAndAudio() {
         // ✅ Limpiar los media items seleccionados
@@ -581,7 +633,33 @@ struct CreatorView: View {
         
         // ✅ Notificar limpieza de video
         NotificationCenter.default.post(name: NSNotification.Name("CleanupVideoPlayer"), object: nil)
+    }
+
+    // ✅ Helper to create gradient image for sticker-only stories
+    private func createDefaultGradientImage() -> UIImage {
+        let size = UIScreen.main.bounds.size
+        let renderer = UIGraphicsImageRenderer(size: size)
         
+        return renderer.image { context in
+            let colors = [
+                UIColor(Color(hex: "4158D0") ?? .blue).cgColor,
+                UIColor(Color(hex: "C850C0") ?? .purple).cgColor,
+                UIColor(Color(hex: "FFCC70") ?? .pink).cgColor
+            ]
+            
+            let gradient = sectionGradient(colors: colors, size: size)
+            gradient.render(in: context.cgContext)
+        }
+    }
+    
+    private func sectionGradient(colors: [CGColor], size: CGSize) -> CAGradientLayer {
+        let layer = CAGradientLayer()
+        layer.frame = CGRect(origin: .zero, size: size)
+        layer.colors = colors
+        layer.startPoint = CGPoint(x: 0, y: 0)
+        layer.endPoint = CGPoint(x: 1, y: 1)
+        return layer
+        return layer
     }
 }
 // MARK: - Content Type Selection ("The Dial")
@@ -1325,7 +1403,7 @@ struct MediaSelectionView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
-                .tint(Color(hex: "00A896"))
+                .tint(Color(hex: "007AFF"))
             
                             Text("creator.gallery.loading")
                 .font(.custom("Poppins-Medium", size: 16))
@@ -5696,11 +5774,68 @@ struct StickerOverlayView: View {
     var body: some View {
         ZStack {
             // ✅ SOLUCIÓN DEFINITIVA: Renderizado idéntico al Viewer
-            if sticker.isAnimated, let gifURL = sticker.gifURL {
-                // GIF Animado
-                AnimatedStickerView(sticker: sticker, size: CGSize(width: 100 * scale, height: 100 * scale))
-                    .frame(width: 100 * scale, height: 100 * scale)
-                    .allowsHitTesting(false)
+            if sticker.isAnimated {
+                if let videoURL = sticker.videoURL {
+                    // ✅ VIDEO STICKER (Loop)
+                    ZStack(alignment: .top) {
+                        StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
+                            .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                            .allowsHitTesting(false)
+                        
+                        // Header Overlay (Username)
+                        if let interactionData = sticker.interactionData, let username = interactionData.username {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(.white.opacity(0.1))
+                                    .frame(width: 24, height: 24)
+                                    .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.5))
+                                
+                                Text(username)
+                                    .font(.custom("Poppins-Bold", size: 10))
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(
+                                Rectangle()
+                                    .fill(.ultraThinMaterial)
+                                    .mask(
+                                        LinearGradient(
+                                            colors: [.black, .black, .clear],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                            )
+                        }
+                        
+                        // Caption Overlay (Bottom)
+                        if let caption = sticker.interactionData?.caption, !caption.isEmpty {
+                            VStack {
+                                Spacer()
+                                Text(caption)
+                                    .font(.custom("Poppins-Medium", size: 9))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Capsule())
+                                    .padding(.bottom, 10)
+                            }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 28))
+                    .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                }
+                else if let gifURL = sticker.gifURL {
+                    // GIF Animado
+                    AnimatedStickerView(sticker: sticker, size: CGSize(width: 100, height: 100))
+                        .frame(width: 100, height: 100)
+                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                        .allowsHitTesting(false)
+                }
             } else if sticker.type == .poll, let pollData = sticker.interactionData?.pollData {
                 // POLL INTERACTIVO
                 InteractivePollSticker(
@@ -5745,7 +5880,113 @@ struct StickerOverlayView: View {
                 )
                 .frame(height: 40)
                 .allowsHitTesting(false)
+            } else if sticker.type == .shareMoment {
+                // ✅ SHARE MOMENT: Renderizado dinámico de overlays (Header + Caption)
+                ZStack(alignment: .top) {
+                    // 1. Imagen base (Captura limpia del marco glass + media)
+                    Image(uiImage: sticker.image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                    
+                    // 2. Video Overlay (si existe)
+                    if let videoURL = sticker.videoURL {
+                        StickerVideoPlayer(url: videoURL)
+                           .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                           .allowsHitTesting(false)
+                    }
+                    
+                    // 3. Dynamic Overlays (Mismo diseño que en el Viewer)
+                    ZStack(alignment: .top) {
+                        Color.clear // Contenedor
+                        
+                        // Header (Username + Profile)
+                        HStack(spacing: 10) {
+                            if let interactionData = sticker.interactionData,
+                               let userId = interactionData.userId {
+                                AsyncProfileImageView(userId: userId)
+                                    .frame(width: 34, height: 34)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: [.white.opacity(0.5), .clear],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1
+                                            )
+                                    )
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                                    .frame(width: 34, height: 34)
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(sticker.interactionData?.username ?? "User")
+                                    .font(.custom("Poppins-Bold", size: 13))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .mask(
+                                    LinearGradient(
+                                        colors: [.black, .black, .clear],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        )
+                        
+                        // Caption Overlay (Bottom)
+                        if let caption = sticker.interactionData?.caption, !caption.isEmpty {
+                            VStack {
+                                Spacer()
+                                Text(caption)
+                                    .font(.custom("Poppins-Medium", size: 9))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Capsule())
+                                    .padding(.bottom, 10)
+                            }
+                        }
+                        
+                        // Gallery Indicator (Top Right)
+                        if (sticker.interactionData?.mediaCount ?? 0) > 1 {
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "square.on.square.fill")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(6)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .padding(12)
+                                        .padding(.top, 42) // Below header text
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                    .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 28))
+                .allowsHitTesting(false)
+                
             } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
+
                 // WEATHER ANIMADO
                 AnimatedWeatherSticker(
                     weatherSymbol: weatherSymbol,
@@ -5753,13 +5994,40 @@ struct StickerOverlayView: View {
                 )
                 .frame(width: 140, height: 50)
                 .allowsHitTesting(false)
+            } else if sticker.type == .time {
+                // TIME STICKER TRANSLÚCIDO (Live Blur)
+                // ✅ DISEÑO LIQUID GLASS REAL con UltraThinMaterialDark
+                ZStack {
+                    // Fondo Glass Dark
+                    RoundedRectangle(cornerRadius: 28)
+                        .fill(.ultraThinMaterial) // Blur real
+                        .environment(\.colorScheme, .dark) // Forzar Dark Mode para el material
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 28)
+                                .stroke(.white.opacity(0.2), lineWidth: 1) // Borde sutil
+                        )
+                    
+                    // Contenido (Hora y Fecha)
+                    VStack(spacing: 0) {
+                        Text(Date.now.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                        
+                        Text(Date.now.formatted(date: .numeric, time: .omitted))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                }
+                .frame(width: 160, height: 60)
+                .allowsHitTesting(false)
             } else {
-                // STICKER ESTÁTICO / IMAGEN (Time, Emoji, etc.)
+                // STICKER ESTÁTICO / IMAGEN (Emoji, Generic, etc.)
                 // ✅ FIX: Usar tamaño natural de la imagen
                 Image(uiImage: sticker.image)
                     .resizable()
                     .aspectRatio(contentMode: .fit) // Asegurar aspecto correcto
                     .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                    .clipShape(RoundedRectangle(cornerRadius: 28))
                     .allowsHitTesting(false)
             }
         }
@@ -5791,9 +6059,28 @@ struct StickerOverlayView: View {
             // ✅ PINCH TO SCALE - Completamente libre, rango amplio
             MagnificationGesture()
                 .onChanged { value in
-                     // ✅ PERMITIR ESCALAR TODO (eliminada restricción anterior)
                     let newScale = sticker.scale * value
-                    scale = min(max(newScale, 0.2), 5.0) // Rango muy amplio
+                    
+                    // ✅ FIX 2: Límite más agresivo y robusto basado en el tamaño en PANTALLA
+                    // El límite anterior de 8192px era de textura, pero en pantallas 3x (iPhone Pro)
+                    // una vista de 3000pt ya son 9000px, superando el límite de 8192px en algunos disp.
+                    //
+                    // Limitamos el tamaño visual máximo a 2048 puntos (aprox 2.5x la altura de la pantalla)
+                    // Esto asegura que incluso en 3x (6144px) estemos seguros.
+                    
+                    let maxDimension: CGFloat = 2048
+                    let currentWidth = sticker.image.size.width
+                    let currentHeight = sticker.image.size.height
+                    
+                    let maxScaleWidth = maxDimension / max(currentWidth, 1)
+                    let maxScaleHeight = maxDimension / max(currentHeight, 1)
+                    
+                    let safeMaxScale = min(maxScaleWidth, maxScaleHeight)
+                    
+                    // Mantenemos un mínimo razonable de 5.0, pero si la imagen es gigante, safeMaxScale lo bajará
+                    let finalMaxScale = max(min(5.0, safeMaxScale), 0.5) // Asegurar que al menos permita 0.5x
+                    
+                    scale = min(max(newScale, 0.2), finalMaxScale)
                 }
                 .onEnded { value in
                     // ✅ ACTUALIZAR DIRECTAMENTE EL BINDING

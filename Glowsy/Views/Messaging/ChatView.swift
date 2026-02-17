@@ -59,6 +59,9 @@ struct GlassmorphicChatView: View {
     @State private var storyCount: Int = 0
     @State private var storyViewedStatus: [Bool] = []
     
+    // ✅ REACCIONES: Nuevo estado para Overlay
+    @State private var reactionMessageOverlay: EnhancedMessage? = nil
+    
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
@@ -98,27 +101,6 @@ struct GlassmorphicChatView: View {
                 viewModel.handlePhotoPickerItem(item)
             }
             selectedItems = []
-        }
-        .sheet(item: $showingMessageOptions) { message in
-            GlassmorphicMessageOptionsSheet(
-                message: message,
-                isCurrentUser: message.senderId == viewModel.currentUserId,
-                onDelete: {
-                    viewModel.deleteMessageWithCleanup(message)
-                },
-                onReply: {
-                    replyingTo = message
-                    showingMessageOptions = nil
-                },
-                onCopy: {
-                    UIPasteboard.general.string = message.content
-                    showingMessageOptions = nil
-                },
-                onReaction: { emoji in
-                    viewModel.addReaction(to: message, emoji: emoji)
-                    showingMessageOptions = nil
-                }
-            )
         }
         .sheet(isPresented: $showingConversationSettings) {
             ConversationSettingsView(conversation: viewModel.conversation)
@@ -170,6 +152,50 @@ struct GlassmorphicChatView: View {
         .onDisappear {
             onDisappearActions()
         }
+        .onChange(of: showingMessageOptions) { newValue in
+            if newValue == nil {
+                withAnimation { reactionMessageOverlay = nil }
+            }
+        }
+        // ✅ REACCIONES Y OPCIONES: Overlay global premium
+        .overlay(
+            Group {
+                if let message = showingMessageOptions {
+                    GlassmorphicMessageOptionsMenu(
+                        message: message,
+                        isCurrentUser: message.senderId == viewModel.currentUserId,
+                        onDeleteForEveryone: {
+                            viewModel.deleteMessageForEveryone(message)
+                            showingMessageOptions = nil
+                        },
+                        onDeleteForMe: {
+                            viewModel.deleteMessageForMe(message)
+                            showingMessageOptions = nil
+                        },
+                        onEdit: {
+                            editingMessage = message
+                            messageText = message.content ?? ""
+                            showingMessageOptions = nil
+                        },
+                        onReply: {
+                            replyingTo = message
+                            showingMessageOptions = nil
+                        },
+                        onCopy: {
+                            UIPasteboard.general.string = message.content
+                            showingMessageOptions = nil
+                        },
+                        onReaction: { emoji in
+                            viewModel.addReaction(to: message, emoji: emoji)
+                            showingMessageOptions = nil
+                        },
+                        onDismiss: {
+                            showingMessageOptions = nil
+                        }
+                    )
+                }
+            }
+        )
     }
     
     // ✅ ACTUALIZADO: Navigation bar con navegación al perfil
@@ -225,7 +251,7 @@ struct GlassmorphicChatView: View {
                         HStack(spacing: 4) {
                             Text(viewModel.conversation.otherParticipantUsername ?? "Usuario")
                                 .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(adaptiveColors.primary)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                             // ✅ INSIGNIA DE VERIFICADO
                             VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId ?? "", size: 14)
@@ -323,18 +349,34 @@ struct GlassmorphicChatView: View {
                 .padding(.vertical, 10)
             }
             .onChange(of: viewModel.messages.last?.id) { lastMessageId in
-                // ✅ Solo hacer scroll si cambia el ÚLTIMO mensaje (nuevo mensaje)
-                // Esto evita el scroll al cargar historial (donde cambia el PRIMER mensaje)
-                withAnimation {
-                    proxy.scrollTo(lastMessageId ?? "typing", anchor: .bottom)
+                // ✅ SCROLL INTELIGENTE:
+                // Solo auto-scrolleamos si:
+                // 1. El último mensaje es NUESTRO (queremos ver lo que enviamos)
+                // 2. O si ya estábamos cerca del fondo (queremos seguir la conversación)
+                
+                let isLastMessageMine = viewModel.messages.last?.senderId == viewModel.currentUserId
+                
+                if isLastMessageMine {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        proxy.scrollTo(lastMessageId ?? "typing", anchor: .bottom)
+                    }
+                } else {
+                    // Si el mensaje es de otro, solo scrolleamos si estamos "cerca" del fondo
+                    // Por ahora, como no tenemos fácil acceso al offset del ScrollView,
+                    // scrolleamos siempre que el chat esté visible y no estemos cargando historial.
+                    if !viewModel.isLoadingMore {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            proxy.scrollTo(lastMessageId ?? "typing", anchor: .bottom)
+                        }
+                    }
                 }
             }
         }
     }
     
-    // ✅ REFACTORIZADO: Sección de barra de respuesta
+    // ✅ REFACTORIZADO: Sección de barra de respuesta o edición
     private var replyBarSection: some View {
-        Group {
+        VStack(spacing: 0) {
             if let replyingTo = replyingTo {
                 GlassmorphicReplyBar(
                     message: replyingTo,
@@ -342,6 +384,27 @@ struct GlassmorphicChatView: View {
                 ) {
                     self.replyingTo = nil
                 }
+            }
+            
+            if let editingMessage = editingMessage {
+                HStack {
+                    Image(systemName: "pencil")
+                        .foregroundColor(adaptiveColors.primary)
+                    Text("chat.editing.title")
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(adaptiveColors.primary)
+                    Spacer()
+                    Button(action: {
+                        self.editingMessage = nil
+                        self.messageText = ""
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(adaptiveColors.primary.opacity(0.6))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial.opacity(0.5))
             }
         }
     }
@@ -355,16 +418,23 @@ struct GlassmorphicChatView: View {
             recordingTime: recordingTime,
             onSend: {
                 let messageToSend = messageText
-                let replyToMessageId = replyingTo?.id
                 
                 guard !messageToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     return
                 }
                 
-                messageText = ""
-                replyingTo = nil
+                if let editingMessage = editingMessage {
+                    // Save edit
+                    viewModel.editMessage(editingMessage, newContent: messageToSend)
+                    self.editingMessage = nil
+                } else {
+                    // Send new message
+                    let replyToMessageId = replyingTo?.id
+                    viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
+                    replyingTo = nil
+                }
                 
-                viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
+                messageText = ""
             },
             onCamera: {
                 showEnhancedCamera = true
@@ -375,8 +445,8 @@ struct GlassmorphicChatView: View {
             onStartVoiceRecording: {
                 startVoiceRecording()
             },
-            onStopVoiceRecording: {
-                stopVoiceRecording()
+            onStopVoiceRecording: { shouldSend in
+                stopVoiceRecording(shouldSend: shouldSend)
             }
         )
         .focused($isTextFieldFocused)
@@ -423,9 +493,11 @@ struct GlassmorphicChatView: View {
                     .padding(.horizontal, -8)
                     .padding(.vertical, -4)
             )
-            .scaleEffect(highlightedMessageId == message.id ? 1.03 : 1.0)
-            .onLongPressGesture {
-                showingMessageOptions = message
+            .onLongPressGesture(minimumDuration: 0.3) {
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    showingMessageOptions = message
+                }
             }
             
         case .mediaCluster(let clusterMessages):
@@ -642,7 +714,7 @@ struct GlassmorphicChatView: View {
             
             // Límite máximo de 60 segundos
             if recordingTime >= 60.0 {
-                stopVoiceRecording()
+                stopVoiceRecording(shouldSend: true)
             }
         }
         
@@ -650,7 +722,7 @@ struct GlassmorphicChatView: View {
         AudioRecordingManager.shared.startRecording()
     }
     
-    private func stopVoiceRecording() {
+    private func stopVoiceRecording(shouldSend: Bool) {
         isRecordingVoice = false
         recordingTimer?.invalidate()
         recordingTimer = nil
@@ -658,12 +730,13 @@ struct GlassmorphicChatView: View {
         // ✅ Track voice recording completion
         AnalyticsService.shared.trackInteraction("voice_recording_completed", details: [
             "conversationId": viewModel.conversation.id,
-            "duration": recordingTime
+            "duration": recordingTime,
+            "didSend": shouldSend
         ])
         
         // Aquí obtendrías los datos del audio grabado
         AudioRecordingManager.shared.stopRecording { audioData in
-            if let audioData = audioData {
+            if shouldSend, let audioData = audioData {
                 viewModel.sendAudioMessage(audioData, duration: recordingTime)
             }
         }
@@ -791,8 +864,8 @@ struct ChatGlassmorphicBackground: View {
                 Circle()
                     .fill(
                         colorScheme == .dark ?
-                        Color(hex: "00A896").opacity(0.2) :
-                        Color(hex: "00A896").opacity(0.08)
+                        adaptiveColors.accent.opacity(0.2) :
+                        adaptiveColors.accent.opacity(0.08)
                     )
                     .frame(width: 250, height: 250)
                     .blur(radius: colorScheme == .dark ? 80 : 60)
@@ -1558,7 +1631,7 @@ struct GlassmorphicInputBar: View {
     let onCamera: () -> Void
     let onMedia: () -> Void
     let onStartVoiceRecording: () -> Void
-    let onStopVoiceRecording: () -> Void
+    let onStopVoiceRecording: (Bool) -> Void
     @Environment(\.colorScheme) var colorScheme
     
     private var adaptiveColors: AdaptiveColors {
@@ -1584,7 +1657,7 @@ struct GlassmorphicInputBar: View {
             // Text field with glass effect
             if !isRecordingVoice {
                 HStack(spacing: 8) {
-                    TextField("Mensaje...", text: $text, axis: .vertical)
+                    TextField(LocalizedStringKey("chat.input.placeholder"), text: $text, axis: .vertical)
                         .font(.custom("Poppins-Regular", size: 15))
                         .foregroundColor(adaptiveColors.primary)
                         .accentColor(.white)
@@ -1633,10 +1706,10 @@ struct GlassmorphicInputBar: View {
                     recordingTime: recordingTime,
                     adaptiveColors: adaptiveColors,
                     onCancel: {
-                        onStopVoiceRecording()
+                        onStopVoiceRecording(false)
                     },
                     onSend: {
-                        onStopVoiceRecording()
+                        onStopVoiceRecording(true)
                     }
                 )
             }
@@ -1963,6 +2036,10 @@ struct MessageStatusIcon: View {
     
     var body: some View {
         switch status {
+        case .pending:
+            Image(systemName: "clock")
+                .font(.system(size: 10))
+                .foregroundColor(adaptiveColors.timestampColor.opacity(0.8))
         case .sending:
             HStack(spacing: 2) {
                 ProgressView()
@@ -2002,200 +2079,6 @@ struct MessageStatusIcon: View {
                     .foregroundColor(.red)
             }
         }
-    }
-}
-
-// MARK: - Message Options Sheet
-struct GlassmorphicMessageOptionsSheet: View {
-    let message: EnhancedMessage
-    let isCurrentUser: Bool
-    let onDelete: () -> Void
-    let onReply: () -> Void
-    let onCopy: () -> Void
-    let onReaction: (String) -> Void
-    @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    let reactionEmojis = ["❤️", "😂", "😮", "😢", "😡", "👍"]
-    
-    var body: some View {
-        ZStack {
-            // Background adaptativo
-            (colorScheme == .dark ? Color.black.opacity(0.4) : Color.black.opacity(0.3))
-                .ignoresSafeArea()
-                .onTapGesture { dismiss() }
-            
-            VStack(spacing: 0) {
-                // Handle
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(adaptiveColors.messageTextColor.opacity(0.4))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 12)
-                    .padding(.bottom, 20)
-                
-                // ✅ Solo mostrar reacciones si el mensaje NO está eliminado
-                if !message.isDeleted {
-                    // Quick reactions
-                    HStack(spacing: 16) {
-                        ForEach(reactionEmojis, id: \.self) { emoji in
-                            Button(action: {
-                                AnalyticsService.shared.trackInteraction("message_reaction_added", details: [
-                                    "reactionEmoji": emoji,
-                                    "messageType": message.type.rawValue
-                                ])
-                                onReaction(emoji)
-                                dismiss()
-                            }) {
-                                Text(emoji)
-                                    .font(.system(size: 35))
-                                    .scaleEffect(1.0)
-                                    .frame(width: 50, height: 50)
-                                    .background(adaptiveColors.messageBubbleBackground)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 1)
-                                    )
-                                    .shadow(color: adaptiveColors.primary.opacity(0.2), radius: 4, x: 0, y: 2)
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, 20)
-                }
-                
-                // Actions
-                VStack(spacing: 8) {
-                    // ✅ Solo mostrar responder si NO está eliminado
-                    if !message.isDeleted {
-                        GlassActionButton(
-                            title: "Responder",
-                            icon: "arrowshape.turn.up.left",
-                            adaptiveColors: adaptiveColors
-                        ) {
-                            AnalyticsService.shared.trackInteraction("message_reply_tapped")
-                            onReply()
-                            dismiss()
-                        }
-                    }
-                    
-                    // ✅ Solo mostrar copiar para texto y si NO está eliminado
-                    if message.type == .text && !message.isDeleted {
-                        GlassActionButton(
-                            title: "Copiar",
-                            icon: "doc.on.doc",
-                            adaptiveColors: adaptiveColors
-                        ) {
-                            AnalyticsService.shared.trackInteraction("message_copied")
-                            onCopy()
-                            dismiss()
-                        }
-                    }
-                    
-                    // ✅ Solo el usuario actual puede eliminar Y solo si NO está ya eliminado
-                    if isCurrentUser && !message.isDeleted {
-                        GlassActionButton(
-                            title: "Eliminar",
-                            icon: "trash",
-                            isDestructive: true,
-                            adaptiveColors: adaptiveColors
-                        ) {
-                            AnalyticsService.shared.trackInteraction("message_deleted")
-                            onDelete()
-                            dismiss()
-                        }
-                    }
-                    
-                    // ✅ Si está eliminado, mostrar info
-                    if message.isDeleted {
-                        HStack {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 18))
-                                .frame(width: 24)
-                            Text("chat.message.deleted")
-                                .font(.custom("Poppins-Regular", size: 16))
-                            Spacer()
-                        }
-                        .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(adaptiveColors.messageBubbleBackground)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 1)
-                        )
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
-            }
-            .background(
-                ZStack {
-                    // Fondo base adaptativo
-                    Rectangle()
-                        .fill(
-                            colorScheme == .dark ?
-                            Color.black.opacity(0.8) :
-                            Color.white.opacity(0.95)
-                        )
-                    
-                    // Material effect
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .opacity(colorScheme == .dark ? 0.3 : 0.7)
-                }
-            )
-            .cornerRadius(20)
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 1)
-            )
-            .shadow(color: adaptiveColors.primary.opacity(0.1), radius: 20, x: 0, y: 10)
-            .padding(.horizontal, 20)
-        }
-        .onAppear {
-            AnalyticsService.shared.trackInteraction("message_options_opened", details: [
-                "messageType": message.type.rawValue,
-                "isCurrentUser": isCurrentUser,
-                "isDeleted": message.isDeleted
-            ])
-        }
-    }
-}
-
-struct GlassActionButton: View {
-    let title: String
-    let icon: String
-    var isDestructive: Bool = false
-    let adaptiveColors: AdaptiveColors
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 18))
-                    .frame(width: 24)
-                Text(title)
-                    .font(.custom("Poppins-Regular", size: 16))
-                Spacer()
-            }
-            .foregroundColor(isDestructive ? Color.red : adaptiveColors.messageTextColor)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(adaptiveColors.messageBubbleBackground)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -2279,10 +2162,48 @@ struct FullScreenImageView: View {
 }
 
 // MARK: - Enhanced MomentsChatViewModel with Better Audio Deletion
+// MARK: - Glassmorphic Reactions Overlay
+struct GlassmorphicReactionsOverlay: View {
+    let emojis = ["❤️", "😂", "😮", "😢", "😡", "👍"]
+    let onReaction: (String) -> Void
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            ForEach(emojis, id: \.self) { emoji in
+                Button(action: {
+                    onReaction(emoji)
+                }) {
+                    Text(emoji)
+                        .font(.system(size: 26))
+                        .scaleEffect(1.0)
+                        .padding(8)
+                        .background(.ultraThinMaterial.opacity(0.8))
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+        .transition(.asymmetric(
+            insertion: .scale.combined(with: .opacity).animation(.spring(response: 0.3, dampingFraction: 0.7)),
+            removal: .scale.combined(with: .opacity).animation(.easeOut(duration: 0.2))
+        ))
+    }
+}
+
 class MomentsChatViewModel: EnhancedChatViewModel {
     @Published var groupedMessages: [(Date, [EnhancedMessage])] = []
     @Published var messagesSentThisSession: Int = 0
-    private let chatService = ChatService() // ✅ Agregar ChatService
+    private let chatService = ChatService.shared // ✅ Cambiar a Shared
     
     override init(conversation: Conversation) {
         super.init(conversation: conversation)
@@ -2342,24 +2263,32 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         messagesSentThisSession += 1
     }
     
-    // MARK: - Enhanced Delete Message with Cleanup
-    func deleteMessageWithCleanup(_ message: EnhancedMessage) {
-        // Track deletion
-        AnalyticsService.shared.trackInteraction("message_deleted", details: [
+    // MARK: - Enhanced Delete Message Actions
+    override func deleteMessageForEveryone(_ message: EnhancedMessage) {
+        AnalyticsService.shared.trackInteraction("message_deleted_everyone", details: [
             "messageType": message.type.rawValue,
             "messageId": message.id,
             "conversationId": conversation.id
         ])
         
-        // Use the enhanced delete method from ChatService
-        chatService.deleteMessageWithCleanup(conversationId: message.conversationId, messageId: message.id) { error in
-            if let error = error {
-            } else {
+        chatService.deleteMessageWithCleanup(conversationId: message.conversationId, messageId: message.id) { _ in }
+        objectWillChange.send()
+    }
+    
+    override func deleteMessageForMe(_ message: EnhancedMessage) {
+        AnalyticsService.shared.trackInteraction("message_deleted_me", details: [
+            "messageType": message.type.rawValue,
+            "messageId": message.id,
+            "conversationId": conversation.id
+        ])
+        
+        chatService.deleteMessageForMe(conversationId: message.conversationId, messageId: message.id, userId: currentUserId) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.messages.removeAll { $0.id == message.id }
+                self?.updateGroupedMessages()
+                self?.objectWillChange.send()
             }
         }
-        
-        // Force UI update
-        objectWillChange.send()
     }
     
     // MARK: - New Media Message Functions
@@ -2397,8 +2326,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(_):
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                case .success(let sentMessage):
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = "Error al enviar imagen: \(error.localizedDescription)"
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
@@ -2445,8 +2374,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(_):
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                case .success(let sentMessage):
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = "Error al enviar audio: \(error.localizedDescription)"
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
@@ -2497,9 +2426,9 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(_):
-                    // ✅ SOLO cambiar el estado, no reemplazar
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                case .success(let sentMessage):
+                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = "Error al enviar mensaje: \(error.localizedDescription)"
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
@@ -2590,7 +2519,7 @@ struct VoiceRecordingBar: View {
                     .font(.system(size: 18))
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
-                    .background(Color(hex: "00A896"))
+                    .background(adaptiveColors.accent)
                     .clipShape(Circle())
             }
         }
@@ -2943,5 +2872,193 @@ struct ScaleButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
             .opacity(configuration.isPressed ? 0.9 : 1.0)
+    }
+}
+// MARK: - Premium Unified Message Options Menu
+struct GlassmorphicMessageOptionsMenu: View {
+    let message: EnhancedMessage
+    let isCurrentUser: Bool
+    let onDeleteForEveryone: () -> Void
+    let onDeleteForMe: () -> Void
+    let onEdit: () -> Void
+    let onReply: () -> Void
+    let onCopy: () -> Void
+    let onReaction: (String) -> Void
+    let onDismiss: () -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    @State private var animateIn = false
+    
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+    
+    let reactionEmojis = ["❤️", "😂", "😮", "😢", "😡", "👍"]
+    
+    var body: some View {
+        ZStack {
+            // Background Blur & Tint
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(animateIn ? 1 : 0)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    handleDismiss()
+                }
+            
+            VStack(spacing: 20) {
+                // 1. Reactions Capsule
+                HStack(spacing: 15) {
+                    ForEach(reactionEmojis, id: \.self) { emoji in
+                        Button(action: {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            onReaction(emoji)
+                        }) {
+                            Text(emoji)
+                                .font(.system(size: 30))
+                                .scaleEffect(animateIn ? 1.0 : 0.5)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule()
+                        .fill(adaptiveColors.messageBubbleBackground)
+                        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 1)
+                )
+                .scaleEffect(animateIn ? 1.0 : 0.8)
+                .opacity(animateIn ? 1 : 0)
+                
+                // 2. Message Actions Card
+                VStack(spacing: 1) {
+                    if !message.isDeleted {
+                        MenuRow(title: "chat.action.reply", icon: "arrowshape.turn.up.left", adaptiveColors: adaptiveColors) {
+                            onReply()
+                        }
+                        
+                        Divider().background(adaptiveColors.messageBubbleStroke)
+                        
+                        if isCurrentUser && message.type == .text {
+                            MenuRow(title: "chat.action.edit", icon: "pencil", adaptiveColors: adaptiveColors) {
+                                onEdit()
+                            }
+                            Divider().background(adaptiveColors.messageBubbleStroke)
+                        }
+                        
+                        if message.type == .text {
+                            MenuRow(title: "chat.action.copy", icon: "doc.on.doc", adaptiveColors: adaptiveColors) {
+                                onCopy()
+                            }
+                            Divider().background(adaptiveColors.messageBubbleStroke)
+                        }
+                        
+                        MenuRow(title: "chat.action.deleteForMe", icon: "trash", isDestructive: true, adaptiveColors: adaptiveColors) {
+                            onDeleteForMe()
+                        }
+                        
+                        if isCurrentUser && !message.isRead && isWithinDeleteLimit(message.timestamp) {
+                            Divider().background(adaptiveColors.messageBubbleStroke)
+                            MenuRow(title: "chat.action.deleteForEveryone", icon: "trash.fill", isDestructive: true, adaptiveColors: adaptiveColors) {
+                                onDeleteForEveryone()
+                            }
+                        }
+                    }
+                }
+                .frame(width: 250)
+                .background(
+                    RoundedRectangle(cornerRadius: 22)
+                        .fill(adaptiveColors.messageBubbleBackground)
+                        .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 8)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22)
+                        .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 1)
+                )
+                .offset(y: animateIn ? 0 : 20)
+                .opacity(animateIn ? 1 : 0)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                animateIn = true
+            }
+        }
+    }
+    
+    private func handleDismiss() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            animateIn = false
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            onDismiss()
+        }
+    }
+    
+    private func isWithinDeleteLimit(_ timestamp: Date) -> Bool {
+        return Date().timeIntervalSince(timestamp) < 7200
+    }
+}
+
+struct MenuRow: View {
+    let title: LocalizedStringKey
+    let icon: String
+    var isDestructive: Bool = false
+    let adaptiveColors: AdaptiveColors
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        }) {
+            HStack {
+                Text(title)
+                    .font(.custom("Poppins-Regular", size: 16))
+                Spacer()
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+            }
+            .foregroundColor(isDestructive ? .red : adaptiveColors.messageTextColor)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct GlassActionButton: View {
+    let title: LocalizedStringKey
+    let icon: String
+    var isDestructive: Bool = false
+    let adaptiveColors: AdaptiveColors
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .frame(width: 24)
+                Text(title)
+                    .font(.custom("Poppins-Regular", size: 16))
+                Spacer()
+            }
+            .foregroundColor(isDestructive ? Color.red : adaptiveColors.messageTextColor)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(adaptiveColors.messageBubbleBackground)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }

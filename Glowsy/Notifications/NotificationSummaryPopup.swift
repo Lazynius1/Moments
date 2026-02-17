@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 class NotificationSummaryService: ObservableObject {
     static let shared = NotificationSummaryService()
     

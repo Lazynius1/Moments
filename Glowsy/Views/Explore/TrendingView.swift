@@ -498,13 +498,13 @@ struct TrendingAdaptiveColors {
     }
     
     var accent: Color {
-        Color(hex: "00A896")
+        Color(hex: "007AFF")
     }
     
     var overlayStroke: [Color] {
         colorScheme == .dark ?
-        [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)] :
-        [Color.black.opacity(0.1), Color(hex: "00A896").opacity(0.4)]
+        [Color.white.opacity(0.2), Color(hex: "007AFF").opacity(0.3)] :
+        [Color.black.opacity(0.1), Color(hex: "007AFF").opacity(0.4)]
     }
     
     var shadowColor: Color {

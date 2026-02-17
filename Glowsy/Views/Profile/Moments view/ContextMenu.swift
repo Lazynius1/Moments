@@ -2,6 +2,10 @@ import SwiftUI
 import FirebaseAuth
 
 // MARK: - ✅ Menú Contextual Moderno (Botón de entrada)
+import FirebaseFirestore
+import Kingfisher
+import AVFoundation
+
 struct ModernMomentContextMenu: View {
     let moment: Moment
     @State private var showActionSheet = false
@@ -62,12 +66,11 @@ struct ModernMomentContextMenu: View {
                 ReportBottomSheet(moment: moment)
             }
             
-            // ✅ Overlay del menú contextual con animación
+            // ✅ Overlay del menú contextual unificado (con Sharing integrado)
             if showActionSheet {
                 ModernContextMenuOverlay(
                     moment: moment,
                     isPresented: $showActionSheet,
-                    showShareSheet: $showShareSheet,
                     onEdit: {
                         editedContent = moment.content
                         showEditSheet = true
@@ -75,17 +78,12 @@ struct ModernMomentContextMenu: View {
                     onDelete: {
                         showDeleteAlert = true
                     },
-                    onShare: {
-                        if privacyService.canShareMoment(moment) {
-                            showShareSheet = true
-                        }
-                    },
                     onReport: {
                         showReportSheet = true
                     },
                     onCopyLink: {
                         if let momentId = moment.id {
-                            UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
+                            UIPasteboard.general.string = "https://momentsapp.app/moment/\(momentId)"
                         }
                     }
                 )
@@ -93,17 +91,7 @@ struct ModernMomentContextMenu: View {
                     insertion: .move(edge: .bottom).combined(with: .opacity),
                     removal: .move(edge: .bottom).combined(with: .opacity)
                 ))
-                .zIndex(1000) // ✅ Asegurar que aparezca encima de todo
-            }
-            
-            // ✅ NUEVO: Share sheet como overlay directo
-            if showShareSheet {
-                ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
-                    ))
-                    .zIndex(1001)
+                .zIndex(1000)
             }
         }
     }
@@ -136,6 +124,7 @@ struct ModernMomentContextMenu: View {
                 
                 if let error = error {
                 } else {
+                    LocalPersistenceService.shared.deleteMoment(momentId: momentId)
                 }
             }
         }
@@ -143,13 +132,28 @@ struct ModernMomentContextMenu: View {
 }
 
 // MARK: - ✅ Overlay del Menú Contextual Moderno
+enum ContextMenuViewState {
+    case main
+    case sharing
+    case messaging
+    case preparingStory
+    // case creator // ❌ Eliminado: Ahora se usa fullScreenCover
+}
+
 struct ModernContextMenuOverlay: View {
     let moment: Moment
     @Binding var isPresented: Bool
-    @Binding var showShareSheet: Bool
+    
+    @State private var viewState: ContextMenuViewState = .main
+    
+    // ✅ ESTADOS PARA HISTORIA
+    @State private var createdSticker: StickerItem?
+    @State private var backgroundMedia: [CreatorMedia]? = nil
+    @State private var errorMessage: String?
+    @State private var showCreatorFullScreen = false // ✅ NUEVO: Control fullScreen
+    
     let onEdit: () -> Void
     let onDelete: () -> Void
-    let onShare: () -> Void
     let onReport: () -> Void
     let onCopyLink: () -> Void
     
@@ -164,66 +168,302 @@ struct ModernContextMenuOverlay: View {
     }
     
     var body: some View {
-            ZStack {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            isPresented = false
-                        }
-                    }
-                
-                VStack {
-                    Spacer()
-                    ModernContextMenuContent(
-                        moment: moment,
-                        isMyMoment: isMyMoment,
-                        canShare: canShare,
-                        onEdit: {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                isPresented = false
-                            }
-                            onEdit()
-                        },
-                        onDelete: {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                isPresented = false
-                            }
-                            onDelete()
-                        },
-                        onShare: {
-                            if privacyService.canShareMoment(moment) {
-                                showShareSheet = true
-                            }
-                        },
-                        onReport: {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                isPresented = false
-                            }
-                            onReport()
-                        },
-                        onCopyLink: {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                isPresented = false
-                            }
-                            onCopyLink()
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                            impactFeedback.impactOccurred()
-                        },
-                        onCancel: {
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                isPresented = false
-                            }
-                        }
-                    )
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
-                    ))
+        ZStack {
+            Color.black.opacity(viewState == .preparingStory ? 0.4 : 0.01)
+                .ignoresSafeArea()
+                .overlay(
+                    Color.black.opacity(viewState == .main || viewState == .sharing ? 0.3 : 0.0)
+                )
+                .onTapGesture {
+                    handleBack()
                 }
+            
+            VStack {
+                Spacer()
+                
+                ZStack {
+                    switch viewState {
+                    case .main:
+                        ModernContextMenuContent(
+                            moment: moment,
+                            isMyMoment: isMyMoment,
+                            canShare: canShare,
+                            onEdit: {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    isPresented = false
+                                }
+                                onEdit()
+                            },
+                            onDelete: {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    isPresented = false
+                                }
+                                onDelete()
+                            },
+                            onShare: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .sharing
+                                }
+                            },
+                            onReport: {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    isPresented = false
+                                }
+                                onReport()
+                            },
+                            onCopyLink: {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    isPresented = false
+                                }
+                                onCopyLink()
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                            },
+                            onCancel: {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    isPresented = false
+                                }
+                            }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .opacity)
+                        ))
+                        
+                    case .sharing:
+                        MainActionsView(
+                            moment: moment,
+                            onClose: {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    isPresented = false
+                                }
+                            },
+                            onSendMessage: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .messaging
+                                }
+                            },
+                            onAddToStory: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .preparingStory
+                                    preFetchAndRender()
+                                }
+                            },
+                            onExternalShare: { shareExternally() }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
+                        
+                    case .messaging:
+                        ModernShareSheet(
+                            moment: moment,
+                            onBack: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .sharing
+                                }
+                            },
+                            onDismiss: {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    isPresented = false
+                                }
+                            }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
+                        
+                    case .preparingStory:
+                        PreparingStoryOverlay(errorMessage: errorMessage, onCancel: {
+                            withAnimation(.spring()) {
+                                viewState = .sharing
+                            }
+                        })
+                        .transition(.opacity)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 32)
+                        .fill(.ultraThinMaterial)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 20)
+            }
+        }
+        // ✅ FULL SCREEN COVER para el editor de historias (Flujo clásico)
+        .fullScreenCover(isPresented: $showCreatorFullScreen, onDismiss: {
+            // Al cerrar el editor, cerramos también el menú
+            isPresented = false
+        }) {
+            if let sticker = createdSticker {
+                CreatorView(
+                    isCreatingStory: .constant(true),
+                    showCreatorView: $showCreatorFullScreen,
+                    initialSticker: sticker,
+                    initialMedia: backgroundMedia,
+                    openInStoryMode: false
+                )
+                .id(sticker.id)
             }
         }
     }
+    
+    private func handleBack() {
+        switch viewState {
+        case .main:
+            withAnimation(.easeOut(duration: 0.3)) { isPresented = false }
+        case .sharing:
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .main }
+        case .messaging:
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .sharing }
+        case .preparingStory:
+            withAnimation(.spring()) { viewState = .sharing }
+        }
+    }
+    
+    // ✅ LÓGICA DE COMPARTIR INTEGRADA (Copiada de share.swift para consistencia)
+    private func shareExternally() {
+        guard let momentId = moment.id else { return }
+        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
+        let shareUrl = URL(string: "https://momentsapp.app/moment/\(momentId)")!
+        
+        let activityController = UIActivityViewController(
+            activityItems: [shareText, shareUrl],
+            applicationActivities: nil
+        )
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            if let popover = activityController.popoverPresentationController {
+                popover.sourceView = window
+                popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+            window.rootViewController?.present(activityController, animated: true)
+        }
+        
+        withAnimation(.easeOut(duration: 0.3)) { isPresented = false }
+    }
+    
+    // ✅ MÉTODOS DE RENDERIZADO INTEGRADOS
+    private func preFetchAndRender() {
+        guard let imageUrlString = moment.imagePath ?? moment.videoUrl,
+              let contentUrl = URL(string: imageUrlString) else {
+            errorMessage = "No se pudo obtener la imagen del momento"
+            return
+        }
+        
+        // 1. Obtener la ruta de la foto de perfil desde Firestore
+        let db = Firestore.firestore()
+        db.collection("users").document(moment.authorId).getDocument { snapshot, error in
+            if let error = error {
+                print("❌ Error fetching profile path: \(error.localizedDescription)")
+                // Continuamos aunque falle la de perfil, usará placeholder
+                renderSticker(urls: [contentUrl])
+                return
+            }
+            
+            var urlsToPrefetch = [contentUrl]
+            if let data = snapshot?.data(), let profilePath = data["profileImagePath"] as? String, let profileUrl = URL(string: profilePath) {
+                urlsToPrefetch.append(profileUrl)
+            }
+            
+            renderSticker(urls: urlsToPrefetch)
+        }
+    }
+    
+    private func renderSticker(urls: [URL]) {
+        // 2. Pre-fetch todas las imágenes para tenerlas en caché
+        ImagePrefetcher(urls: urls) { _, _, _ in
+            // 3. Obtener las imágenes reales de Kingfisher caché
+            DispatchQueue.main.async {
+                var profileImg: UIImage? = nil
+                var contentImg: UIImage? = nil
+                
+                let group = DispatchGroup()
+                
+                // Cargar imagen de perfil
+                if urls.count > 1 {
+                    group.enter()
+                    KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
+                        if let image = try? result.get().image {
+                            profileImg = image
+                        }
+                        group.leave()
+                    }
+                }
+                
+                // Cargar imagen de contenido
+                group.enter()
+                KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
+                    if let image = try? result.get().image {
+                        contentImg = image
+                    }
+                    group.leave()
+                }
+                
+                group.notify(queue: .main) {
+                    self.performFinalRender(profile: profileImg, content: contentImg)
+                }
+            }
+        }.start()
+    }
+    
+    private func performFinalRender(profile: UIImage?, content: UIImage?) {
+        // Asumiendo que ShareMomentSticker está disponible globalmente
+        let stickerView = ShareMomentSticker(moment: moment, profileImage: profile, contentImage: content, renderClean: true)
+            .environment(\.colorScheme, .dark)
+            .frame(width: 260)
+        
+        let renderer = ImageRenderer(content: stickerView)
+        renderer.scale = UIScreen.main.scale
+        
+        if let uiImage = renderer.uiImage {
+            let position = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2)
+            
+            let interactionData = StickerItem.StickerInteractionData(
+                username: moment.username,
+                userId: moment.authorId,
+                hashtag: nil,
+                location: nil,
+                locationCoordinate: nil,
+                pollData: nil,
+                questionText: nil,
+                weatherSymbol: nil,
+                caption: moment.content.isEmpty ? nil : moment.content,
+                profileImagePath: moment.profileImagePath,
+                momentId: moment.id,
+                mediaCount: moment.mediaItems?.count ?? 1
+            )
+            
+            let sticker = StickerItem(
+                image: uiImage,
+                position: position,
+                type: .shareMoment,
+                interactionData: interactionData,
+                videoURL: moment.videoUrl != nil ? URL(string: moment.videoUrl!) : nil
+            )
+            
+            self.createdSticker = sticker
+            self.backgroundMedia = nil
+            
+            // Opcional: Ocultar el estado de carga
+             withAnimation {
+                 self.viewState = .sharing // Volver a sharing
+             }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // ✅ Abrir en FullScreenCover (Comportamiento clásico)
+                self.showCreatorFullScreen = true
+            }
+        } else {
+            errorMessage = "Error al generar el sticker"
+        }
+    }
+}
 
 // MARK: - ✅ Contenido del Menú Contextual
 struct ModernContextMenuContent: View {
@@ -237,11 +477,13 @@ struct ModernContextMenuContent: View {
     let onCopyLink: () -> Void
     let onCancel: () -> Void
     
+    @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
         VStack(spacing: 0) {
             // ✅ Handle superior
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.white.opacity(0.4))
+                .fill(colorScheme == .dark ? Color.white.opacity(0.4) : Color.black.opacity(0.2))
                 .frame(width: 40, height: 5)
                 .padding(.top, 12)
                 .padding(.bottom, 20)
@@ -255,17 +497,13 @@ struct ModernContextMenuContent: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(moment.username)
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text("Momento • \(formatRelativeTime(moment.timestamp))")
                         .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
                 }
                 
-                Spacer()
-                
-                // ✅ Indicador de privacidad
-                PrivacyIndicator(audience: moment.audience ?? "everyone")
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
@@ -291,7 +529,7 @@ struct ModernContextMenuContent: View {
                     )
                     
                     Divider()
-                        .background(Color.white.opacity(0.2))
+                        .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
                         .padding(.vertical, 8)
                 }
                 
@@ -324,7 +562,7 @@ struct ModernContextMenuContent: View {
                 // ✅ Reportar (solo si no es mi momento)
                 if !isMyMoment {
                     Divider()
-                        .background(Color.white.opacity(0.2))
+                        .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
                         .padding(.vertical, 8)
                     
                     ContextMenuButton(
@@ -344,15 +582,15 @@ struct ModernContextMenuContent: View {
                 onCancel()
             }
             .font(.custom("Poppins-SemiBold", size: 16))
-            .foregroundColor(.white)
+            .foregroundColor(colorScheme == .dark ? .white : .black)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
             .background(
                 RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
                     )
             )
             .padding(.horizontal, 20)
@@ -361,20 +599,6 @@ struct ModernContextMenuContent: View {
         .background(
             RoundedRectangle(cornerRadius: 20)
                 .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.3),
-                                    Color(hex: "00A896").opacity(0.4)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
         )
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
     }
@@ -395,6 +619,7 @@ struct ContextMenuButton: View {
     let action: () -> Void
     
     @State private var isPressed = false
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         Button(action: action) {
@@ -412,26 +637,26 @@ struct ContextMenuButton: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text(subtitle)
                         .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.3))
             }
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isPressed ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
+                    .fill(backgroundColor)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                            .stroke(borderColor, lineWidth: 0.5)
                     )
             )
         }
@@ -443,6 +668,18 @@ struct ContextMenuButton: View {
             }
         }, perform: {})
     }
+    
+    private var backgroundColor: Color {
+        if isPressed {
+            return colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
+        } else {
+            return colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)
+        }
+    }
+    
+    private var borderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
+    }
 }
 
 // MARK: - ✅ Botón deshabilitado con explicación
@@ -451,6 +688,8 @@ struct ContextMenuButtonDisabled: View {
     let title: String
     let subtitle: String
     let iconColor: Color
+    
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack(spacing: 16) {
@@ -467,70 +706,26 @@ struct ContextMenuButtonDisabled: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
                 
                 Text(subtitle)
                     .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.3))
             }
             
             Spacer()
             
             Image(systemName: "lock.fill")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.white.opacity(0.3))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.2))
         }
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.02))
+                .fill(colorScheme == .dark ? Color.white.opacity(0.02) : Color.black.opacity(0.02))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
-                )
-        )
-    }
-}
-
-// MARK: - ✅ Indicador de privacidad
-struct PrivacyIndicator: View {
-    let audience: String
-    
-    private var audienceInfo: (icon: String, color: Color, text: String) {
-        switch audience {
-        case "everyone":
-            return ("globe", .green, NSLocalizedString("privacyIndicator.public", comment: "Public privacy level"))
-        case "connections":
-            return ("person.2", .blue, NSLocalizedString("privacyIndicator.connections", comment: "Connections privacy level"))
-        case "bestFriends":
-            return ("star.fill", .yellow, NSLocalizedString("privacyIndicator.bestFriends", comment: "Best friends privacy level"))
-        case "custom":
-            return ("person.3", .purple, NSLocalizedString("privacyIndicator.custom", comment: "Custom privacy level"))
-        case "customList":
-            return ("list.bullet", .orange, NSLocalizedString("privacyIndicator.customList", comment: "Custom list privacy level"))
-        default:
-            return ("globe", .green, NSLocalizedString("privacyIndicator.public", comment: "Public privacy level"))
-        }
-    }
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: audienceInfo.icon)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(audienceInfo.color)
-            
-            Text(audienceInfo.text)
-                .font(.custom("Poppins-Medium", size: 12))
-                .foregroundColor(.white.opacity(0.8))
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(audienceInfo.color.opacity(0.15))
-                .overlay(
-                    Capsule()
-                        .stroke(audienceInfo.color.opacity(0.3), lineWidth: 1)
+                        .stroke(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05), lineWidth: 0.5)
                 )
         )
     }

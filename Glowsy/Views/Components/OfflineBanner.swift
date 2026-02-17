@@ -4,103 +4,199 @@ struct OfflineBanner: View {
     @ObservedObject var networkMonitor: NetworkMonitor
     let onRetry: () -> Void
     
+    // ✅ Estado local para auto-ocultación (TRUE por defecto para que avise al entrar)
+    @State private var isVisible = true
+    
     var body: some View {
-        if !networkMonitor.isConnected {
-            VStack(spacing: 0) {
+        Group {
+            if !networkMonitor.isConnected {
+                // Animación de entrada/salida
+                if isVisible {
                 HStack(spacing: 12) {
-                    Image(systemName: "wifi.slash")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                    // ✅ Icono con círculo traslúcido (Match exacto Mockup)
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.primary)
+                    }
                     
                     Text("network.offline.title")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Button(action: onRetry) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 14, weight: .medium))
-                            Text("network.offline.retry")
-                                .font(.custom("Poppins-Medium", size: 12))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.2))
-                        .cornerRadius(16)
-                    }
+                        .font(.custom("Poppins-SemiBold", size: 17)) // Más cuerpo al texto
+                        .foregroundColor(.primary)
+                        .padding(.trailing, 12) // Margen derecho para balancear la cápsula
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.leading, 8)   // Menos padding a la izquierda (el círculo ya tiene su espacio)
+                .padding(.vertical, 8)
                 .background(
-                    LinearGradient(
-                        colors: [Color(hex: "#5b2c6f").opacity(0.9), Color(hex: "#007bff").opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                        // ✅ ESTILO MOCKUP PURO: Solo Blur + Glow
+                        ZStack {
+                            // SIN FONDO NEGRO (Solo el blur material)
+                            
+                            // Glow interno rojo suave
+                            RadialGradient(
+                                gradient: Gradient(colors: [Color.red.opacity(0.2), Color.clear]),
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 150
+                            )
+                            
+                            // Blur real
+                            BlurView(style: .systemUltraThinMaterial)
+                        }
                     )
-                )
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                
-                Spacer()
+                    .clipShape(Capsule())
+                    // Borde de cristal
+                    .overlay(
+                        Capsule()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.3), Color.white.opacity(0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+                    // ✅ Glow ambiente
+                    .shadow(color: Color.red.opacity(0.35), radius: 40, x: 0, y: 20)
+                    .padding(.horizontal, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .onAppear {
+                        // ✅ Auto-ocultar después de 4 segundos
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                            withAnimation(.spring()) {
+                                isVisible = false
+                            }
+                        }
+                    }
+                    .onTapGesture {
+                        onRetry()
+                    }
+                } else {
+                    // Botón discreto para recuperar el banner si sigue offline
+                    Button(action: {
+                        withAnimation(.spring()) {
+                            isVisible = true
+                        }
+                    }) {
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary.opacity(0.6))
+                            .padding(8)
+                            .background(Color.black.opacity(0.4))
+                            .clipShape(Circle())
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                    .padding(.top, 4)
+                }
             }
-            .transition(.move(edge: .top).combined(with: .opacity))
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: networkMonitor.isConnected)
+        }
+        .onChange(of: networkMonitor.isConnected) { connected in
+            if !connected {
+                // Si se pierde la conexión, mostrar banner siempre
+                withAnimation(.spring()) {
+                    isVisible = true
+                }
+            }
         }
     }
 }
 
 struct SlowConnectionBanner: View {
     @ObservedObject var networkMonitor: NetworkMonitor
+    @State private var isVisible = true
     
     var body: some View {
-        if networkMonitor.isSlowConnection {
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    Image(systemName: "tortoise")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
-                    
-                    Text("network.slow.title")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Image(systemName: networkMonitor.connectionType.icon)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    LinearGradient(
-                        colors: [Color(hex: "#007bff").opacity(0.9), Color(hex: "#40dfcf").opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
+        Group {
+            if networkMonitor.isSlowConnection {
+                if isVisible {
+                    HStack(spacing: 12) {
+                        // ✅ Icono con círculo traslúcido
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.15))
+                                .frame(width: 44, height: 44)
+                            
+                            Image(systemName: "tortoise.fill")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.yellow)
+                        }
+                        
+                        Text("network.slow.title")
+                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .foregroundColor(.primary)
+                        
+                        Spacer(minLength: 12)
+                        
+                        Button(action: {
+                            withAnimation { isVisible = false }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.primary.opacity(0.7))
+                                .padding(8)
+                        }
+                    }
+                    .padding(.leading, 8)
+                    .padding(.trailing, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        ZStack {
+                            // SIN FONDO NEGRO
+                            
+                            RadialGradient(
+                                gradient: Gradient(colors: [Color.orange.opacity(0.2), Color.clear]),
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 150
+                            )
+                            
+                            BlurView(style: .systemUltraThinMaterial)
+                        }
                     )
-                )
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                
-                Spacer()
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.3), Color.white.opacity(0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(color: Color.orange.opacity(0.35), radius: 40, x: 0, y: 20)
+                    .padding(.horizontal, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                            withAnimation { isVisible = false }
+                        }
+                    }
+                }
             }
-            .transition(.move(edge: .top).combined(with: .opacity))
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: networkMonitor.isSlowConnection)
+        }
+        .onChange(of: networkMonitor.isSlowConnection) { slow in
+            if slow {
+                withAnimation { isVisible = true }
+            }
         }
     }
 }
 
+
+
 #Preview {
-    VStack {
-        OfflineBanner(networkMonitor: NetworkMonitor.shared) {
+    ZStack {
+        Color.blue
+        VStack {
+            OfflineBanner(networkMonitor: NetworkMonitor.shared) {}
+            SlowConnectionBanner(networkMonitor: NetworkMonitor.shared)
         }
-        
-        SlowConnectionBanner(networkMonitor: NetworkMonitor.shared)
-        
-        Spacer()
     }
-    .padding()
 }

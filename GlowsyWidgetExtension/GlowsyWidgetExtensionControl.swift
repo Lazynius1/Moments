@@ -2,6 +2,7 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+@available(iOS 18.0, *)
 struct GlowsyWidgetExtensionControl: ControlWidget {
     static let kind: String = "com.glowsyapp.GlowsyWidgetExtension"
 
@@ -23,6 +24,7 @@ struct GlowsyWidgetExtensionControl: ControlWidget {
     }
 }
 
+@available(iOS 18.0, *)
 extension GlowsyWidgetExtensionControl {
     struct Value {
         var isRunning: Bool
@@ -41,6 +43,7 @@ extension GlowsyWidgetExtensionControl {
     }
 }
 
+@available(iOS 18.0, *)
 struct TimerConfiguration: ControlConfigurationIntent {
     static let title: LocalizedStringResource = "Timer Name Configuration"
 
@@ -48,6 +51,7 @@ struct TimerConfiguration: ControlConfigurationIntent {
     var timerName: String
 }
 
+@available(iOS 18.0, *)
 struct StartTimerIntent: SetValueIntent {
     static let title: LocalizedStringResource = "Start a timer"
 
