@@ -5,6 +5,7 @@ import PhotosUI
 import SwiftUI
 import UIKit
 
+@MainActor
 class EnhancedChatViewModel: ObservableObject {
     @Published var messages: [EnhancedMessage] = []
     @Published var typingUsers: Set<String> = []
@@ -34,10 +35,13 @@ class EnhancedChatViewModel: ObservableObject {
     
     let conversation: Conversation
     let currentUserId: String
-    private let chatService = ChatService()
+    private let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
     private var cancellables = Set<AnyCancellable>()
     private var typingTimer: Timer?
+    
+    // ✅ NUEVO: Flag para detectar la primera carga de Firestore y limpiar el caché local (sync: true)
+    private var isFirstFetch = true
     
     init(conversation: Conversation) {
         self.conversation = conversation
@@ -128,21 +132,14 @@ class EnhancedChatViewModel: ObservableObject {
     
     // ✅ NUEVA: Función para actualizar el array de manera que SwiftUI lo detecte
     func updateMessageInArray(messageId: String, newStatus: MessageStatus) {
-        // ✅ Bloquear listener temporalmente
-        isUpdatingLocalMessage = true
-        
         // ✅ Guardar estado local con prioridad
         localMessageStates[messageId] = newStatus
         
         if let index = messages.firstIndex(where: { $0.id == messageId }) {
-            // ✅ FORZAR actualización de SwiftUI
+            // ✅ Actualizar en el hilo principal
             DispatchQueue.main.async {
-                // Crear una copia completamente nueva del array
-                var updatedMessages = Array(self.messages)
-                updatedMessages[index].status = newStatus
-                
-                // Reemplazar el array completo
-                self.messages = updatedMessages
+                // Modificar el mensaje existente (es una clase, así que se refleja)
+                self.messages[index].status = newStatus
                 
                 // ✅ FORZAR actualización de SwiftUI
                 self.objectWillChange.send()
@@ -151,16 +148,6 @@ class EnhancedChatViewModel: ObservableObject {
                 if let momentsViewModel = self as? MomentsChatViewModel {
                     momentsViewModel.updateGroupedMessages()
                 }
-                
-                // ✅ Desbloquear listener después de un delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self.isUpdatingLocalMessage = false
-                }
-            }
-        } else {
-            // ✅ Desbloquear listener si no se encontró el mensaje
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.isUpdatingLocalMessage = false
             }
         }
     }
@@ -224,42 +211,20 @@ class EnhancedChatViewModel: ObservableObject {
     
     // ✅ NUEVA: Función para reemplazar mensaje temporal
     private func replaceTemporaryMessage(messageId: String, with sentMessage: EnhancedMessage) {
-        // ✅ Bloquear listener temporalmente
-        isUpdatingLocalMessage = true
-        
         // ✅ Limpiar estado local ya que el mensaje se ha enviado
         localMessageStates.removeValue(forKey: messageId)
         
         if let index = messages.firstIndex(where: { $0.id == messageId }) {
-            
-            // Crear una copia del array para forzar la actualización
-            var updatedMessages = messages
-            updatedMessages[index] = sentMessage
-            
-            // Actualizar el array completo
             DispatchQueue.main.async {
-                self.messages = updatedMessages
-                
-                // ✅ Programar limpieza de estados locales
+                self.messages[index] = sentMessage
                 self.cleanupLocalStates()
-                
-                // ✅ Desbloquear listener después de un delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    self.isUpdatingLocalMessage = false
-                }
+                self.objectWillChange.send()
             }
         } else {
-            // Agregar el mensaje enviado si no se encuentra el temporal
             DispatchQueue.main.async {
                 self.messages.append(sentMessage)
-                
-                // ✅ Programar limpieza de estados locales
                 self.cleanupLocalStates()
-                
-                // ✅ Desbloquear listener después de un delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self.isUpdatingLocalMessage = false
-                }
+                self.objectWillChange.send()
             }
         }
     }
@@ -272,15 +237,20 @@ class EnhancedChatViewModel: ObservableObject {
             return
         }
         
-        
-        // ✅ SOLO LLAMAR UNA VEZ
-        if chatService.activeListeners[conversationId] == nil {
-                    chatService.listenToMessages(conversationId: conversationId) { [weak self] result in
+        // ✅ SwiftData: Carga historial local para apertura instantánea (Instagram-like)
+        let cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
+        if !cachedMessages.isEmpty {
             DispatchQueue.main.async {
-                // ✅ NO actualizar si estamos modificando mensajes locales
-                guard let self = self, !self.isUpdatingLocalMessage else {
-                    return
-                }
+                self.historicalMessages = cachedMessages
+                self.rebuildMessagesList()
+            }
+        }
+        
+        // ✅ SOLO LLAMAR UNA VEZ EL LISTENER DE FIRESTORE
+        if chatService.activeListeners[conversationId] == nil {
+            chatService.listenToMessages(conversationId: conversationId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
                 
                 switch result {
                 case .success(let messages):
@@ -298,6 +268,10 @@ class EnhancedChatViewModel: ObservableObject {
                     self.realTimeMessages = messages
                     self.rebuildMessagesList()
                     
+                    // ✅ SwiftData: Persistir historial actualizado
+                    LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId, sync: self.isFirstFetch)
+                    self.isFirstFetch = false
+                    
                     // ✅ SOLO marcar como leído si el chat está VISIBLE al usuario
                     if self.isChatVisible {
                         self.markUnreadMessagesAsRead(messages)
@@ -308,7 +282,6 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
         }
-        
         chatService.listenToTypingIndicators(conversationId: conversationId)
         
         chatService.$typingUsers
@@ -379,8 +352,8 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ SOLO cambiar el estado, no reemplazar
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -434,8 +407,8 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ SOLO cambiar el estado, no reemplazar
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -503,8 +476,8 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ SOLO cambiar el estado, no reemplazar
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -548,8 +521,8 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ SOLO cambiar el estado, no reemplazar
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -594,8 +567,8 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ SOLO cambiar el estado, no reemplazar
-                    self?.updateMessageInArray(messageId: messageId, newStatus: .sent)
+                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -607,7 +580,7 @@ class EnhancedChatViewModel: ObservableObject {
     
     // MARK: - Message Actions
     
-    func deleteMessage(_ message: EnhancedMessage) {
+    func deleteMessageForEveryone(_ message: EnhancedMessage) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
@@ -619,6 +592,33 @@ class EnhancedChatViewModel: ObservableObject {
             if let error = error {
                 DispatchQueue.main.async {
                     self?.error = error.localizedDescription
+                }
+            }
+        }
+    }
+    
+    func deleteMessageForMe(_ message: EnhancedMessage) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            return
+        }
+        
+        chatService.deleteMessageForMe(
+            conversationId: conversationId,
+            messageId: message.id,
+            userId: currentUserId
+        ) { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.error = error.localizedDescription
+                }
+            } else {
+                // Locally remove the message immediately for better UX
+                DispatchQueue.main.async {
+                    self?.messages.removeAll { $0.id == message.id }
+                    if let momentsVM = self as? MomentsChatViewModel {
+                        momentsVM.updateGroupedMessages()
+                    }
+                    self?.objectWillChange.send()
                 }
             }
         }

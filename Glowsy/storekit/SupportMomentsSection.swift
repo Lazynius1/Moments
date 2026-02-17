@@ -111,7 +111,7 @@ struct SupportMomentsView: View {
             ZStack {
                 Circle()
                     .fill(LinearGradient(
-                        colors: [Color(hex: "00A896"), Color(hex: "02C39A")],
+                        colors: [Color(hex: "007AFF"), Color(hex: "02C39A")],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ))
@@ -415,7 +415,7 @@ struct SmartBadgeCard: View {
                     } else {
                         Text(badge.price)
                             .font(.custom("Poppins-Bold", size: 16))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "007AFF"))
                     }
                     
                     Text(badge.description)
@@ -455,7 +455,7 @@ struct FeatureRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "007AFF"))
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 2) {

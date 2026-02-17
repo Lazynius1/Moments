@@ -3,7 +3,11 @@
 "widget.createStory.subtitle" = "Tap to create in Moments";
 "widget.metrics.visits" = "Visits";
 "widget.metrics.messages" = "Messages";
-"widget.metrics.notifications" = "Notifs";
+"widget.metrics.notifications" = "Notifications";
+"widget.echoes.singular" = "1 friend nearby";
+"widget.echoes.plural" = "%d friends nearby";
+"widget.tags.singular" = "1 new tag";
+"widget.tags.plural" = "%d new tags";
 "widget.visits.singular" = "1 person visited your profile today";
 "widget.visits.plural" = "%d people visited your profile today";
 "widget.messages.singular" = "You have 1 unread message";
@@ -14,6 +18,8 @@
 "widget.stories.plural" = "%d new stories";
 "widget.messageRequests.singular" = "1 pending message request";
 "widget.messageRequests.plural" = "%d pending message requests";
+
+"widget.allCaughtUp" = "All caught up";
 
 /* Live Activities */
 "liveActivity.uploadingStory" = "Uploading story";

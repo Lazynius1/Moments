@@ -1,0 +1,61 @@
+================================================================================
+ECHOES FEATURE DOCUMENTATION & PROGRESS GUIDE 🌊
+================================================================================
+Glowsy (Moments) App - Rethink & Integration
+Last Updated: 2026-02-04 (v2.3)
+================================================================================
+
+1. FEATURE OVERVIEW
+--------------------------------------------------------------------------------
+"Echoes" is a collaborative story feature. It detects when friends 
+are in the same location (500m) and time window (24 hours) to 
+propose a shared story perspective.
+
+Key concept: Social experiences from all angles. 
+Privacy: Strictly follows app-wide audience filters.
+
+2. TECHNICAL ARCHITECTURE (v2.3 Final)
+--------------------------------------------------------------------------------
+A. DETECTION (Client-Side):
+   When a user uploads a new moment, the app checks for nearby friends' moments.
+   - Window: 500 meters GPS radius.
+   - Time: Last 24 hours.
+   - Friends: Mutual connections only.
+
+B. DELIVERY:
+   - In-App Banner: Nova-style "Spark" banner for real-time delivery.
+   - Push Notification: type: echo_suggestion for offline delivery.
+   - Deduplication: Merges overlapping moment uploads into a single Echo.
+
+C. INTERFACE & NAVIGATION:
+   - Invitation Modal: Glassmorphic EchoInvitationView.
+   - Viewer (2D): Advanced EchoViewerUI.
+     - Horizontal Swipe: Change participant perspective (Ripple Effect).
+     - Vertical Swipe: Navigate through a single friend's multiple moments.
+   - Privacy Threshold: Requires 2+ participants to "Accept" before content unlocks.
+
+3. DATA MODELS
+--------------------------------------------------------------------------------
+- Echo: hostId, participants (status), location, createdAt, moments.
+- EchoMomentRef: Enhanced with aspectRatio and thumbnailUrl for instant loading.
+
+4. CORE FILES & COMPONENTS
+--------------------------------------------------------------------------------
+- Models/EchoModels.swift: Data structures.
+- Services/EchoService.swift: Overlap detection & merge logic.
+- ViewModels/EchoViewModel.swift: 2D state management & preloading.
+- Views/Echoes/EchoViewerUI.swift: Immersive 2D visualizer.
+
+5. FINAL CHECKLIST (v2.3)
+--------------------------------------------------------------------------------
+[x] Phase 1-6: Core Foundation (Detection, FCM, Basic UI)
+[x] Phase 8-9: Preloading & Orientation Handling
+[x] Phase 10-11: Full Localization (EN/ES/CA) & Branding
+[x] Phase 12-15: Strict Privacy, thresholds & real-time Sync
+[x] Phase 16-18: 2D Navigation & Full-Screen Immersion (100% immersive)
+[x] Phase 21: Unified Carousel Canvas (Feed stability)
+[x] Phase 22: Release Docs & Patch Notes
+
+================================================================================
+Everything implemented as per v2.3 specs. Feature is stable and localized.
+================================================================================

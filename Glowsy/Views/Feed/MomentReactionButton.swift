@@ -30,7 +30,7 @@ struct EpicReactionButton: View {
     @EnvironmentObject private var firestoreService: FirestoreService
     
     var body: some View {
-        VStack(spacing: 4) {
+        ZStack(alignment: .topTrailing) {
             Button(action: {
                 if hasReacted {
                     removeReactionWithAnimation()
@@ -42,40 +42,26 @@ struct EpicReactionButton: View {
                     // ✨ Ripple effect de fondo
                     if showRipple {
                         Circle()
-                            .fill(currentReaction?.color.opacity(0.3) ?? Color(hex: "00A896").opacity(0.3))
-                            .frame(width: 80, height: 80)
+                            .fill(currentReaction?.color.opacity(0.3) ?? Color.white.opacity(0.3))
+                            .frame(width: 70, height: 70)
                             .scaleEffect(showRipple ? 1.5 : 0.5)
                             .opacity(showRipple ? 0 : 1)
                             .animation(.easeOut(duration: 0.6), value: showRipple)
                     }
                     
-                    // ✨ Círculo principal con efectos
+                    // ✨ Círculo principal con efectos (SIN BORDE)
                     Circle()
                         .fill(.ultraThinMaterial)
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: hasReacted ?
-                                        [currentReaction?.color.opacity(0.8) ?? Color.white.opacity(0.3),
-                                         currentReaction?.color ?? Color(hex: "00A896")] :
-                                        [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: hasReacted ? 2.5 : 1.5
-                                )
-                        )
+                        .frame(width: 44, height: 44)
                         .shadow(
                             color: hasReacted ?
-                            (currentReaction?.color.opacity(0.4) ?? Color(hex: "00A896").opacity(0.4)) :
+                            (currentReaction?.color.opacity(0.4) ?? .black.opacity(0.2)) :
                             .black.opacity(0.1),
                             radius: hasReacted ? 8 : 4,
                             x: 0, y: hasReacted ? 4 : 2
                         )
                     
-                    // ✨ Emoji con animaciones mega épicas
+                    // ✨ Emoji
                     Text(hasReacted ? (currentReaction?.filledIcon ?? "❤️") : "♡")
                         .font(.system(size: 24, weight: .heavy))
                         .foregroundStyle(
@@ -86,24 +72,19 @@ struct EpicReactionButton: View {
                                 endPoint: .bottomTrailing
                             ) :
                             LinearGradient(
-                                colors: [Color.blue, Color.purple, Color.pink],
+                                colors: [.white, .white.opacity(0.8)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .scaleEffect(pulseScale)
                         .rotationEffect(.degrees(rotationAngle))
-                        .shadow(
-                            color: hasReacted ?
-                            (currentReaction?.color.opacity(0.6) ?? Color(hex: "00A896").opacity(0.6)) : Color.black.opacity(0.1),
-                            radius: hasReacted ? 4 : 2
-                        )
                     
-                    // ✨ Partículas optimizadas
+                    // ✨ Partículas
                     if showParticles {
                         ForEach(0..<6, id: \.self) { index in
                             ParticleView(
-                                color: currentReaction?.color ?? Color(hex: "00A896"),
+                                color: currentReaction?.color ?? .white,
                                 angle: Double(index) * 60,
                                 show: $showParticles
                             )
@@ -118,34 +99,28 @@ struct EpicReactionButton: View {
                 isPressed = pressing
             }, perform: {})
             .onLongPressGesture(minimumDuration: 0.5) {
-                // ✨ Long press en el botón principal también muestra la lista
                 showReactionsList()
             }
             
-            // ✨ Contador animado con Long Press
+            // ✨ Contador como Badge Interactivo (SIN BORDE)
             if showCount && reactionCount > 0 {
-                Text("\(reactionCount)")
-                    .font(.custom("Poppins-Bold", size: 12))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(currentReaction?.color.opacity(0.8) ?? Color(hex: "00A896").opacity(0.8))
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                            )
-                    )
-                    .scaleEffect(hasReacted ? 1.1 : 1.0)
-                    .animation(.bouncy(duration: 0.4), value: reactionCount)
-                    .onLongPressGesture(minimumDuration: 0.5) {
-                        // ✨ NUEVO: Long press para mostrar quién reaccionó
-                        showReactionsList()
-                    }
+                Button(action: showReactionsList) {
+                    Text("\(reactionCount)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(currentReaction?.color ?? Color.gray.opacity(0.6))
+                        )
+                }
+                .offset(x: 4, y: -4)
+                .transition(.scale.combined(with: .opacity))
             }
-            
-            // ✨ Epic Reaction Picker con Scroll Horizontal
+        }
+        .overlay(alignment: .bottom) {
+            // ✨ Epic Reaction Picker (COMO OVERLAY para no deformar)
             if showReactionPicker {
                 EpicReactionPickerView(
                     onReactionSelected: { reaction in
@@ -226,8 +201,7 @@ struct EpicReactionButton: View {
     
     // ✨ ANIMACIONES ÉPICAS (mantenidas igual)
     private func showPickerWithAnimation() {
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
+        HapticManager.shared.mediumImpact()
         
         withAnimation(.bouncy(duration: 0.5, extraBounce: 0.2)) {
             showReactionPicker = true
@@ -248,22 +222,32 @@ struct EpicReactionButton: View {
     }
     
     private func addReactionWithAnimation(_ reactionType: ReactionType) {
-        let successFeedback = UINotificationFeedbackGenerator()
-        successFeedback.notificationOccurred(.success)
+        HapticManager.shared.notification(.success)
         
         withAnimation(.easeInOut(duration: 0.2)) {
             showReactionPicker = false
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.triggerExplosionAnimation()
-            self.addReactionToFirebase(reactionType)
+        // ✅ OPTIMISTIC UPDATE: Update local state immediately (No delay)
+        self.triggerExplosionAnimation()
+        
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+            self.hasReacted = true
+            self.currentReaction = reactionType
+            self.reactionCount += 1
         }
+        
+        self.addReactionToFirebase(reactionType)
     }
     
     private func removeReactionWithAnimation() {
-        let selectionFeedback = UISelectionFeedbackGenerator()
-        selectionFeedback.selectionChanged()
+        HapticManager.shared.selection()
+        
+        // ✅ OPTIMISTIC REMOVAL: Update local state immediately (No delay)
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+            self.hasReacted = false
+            self.reactionCount = max(0, self.reactionCount - 1)
+        }
         
         removeReactionFromFirebase()
     }
@@ -306,8 +290,7 @@ struct EpicReactionButton: View {
     
     // ✨ NUEVO: Mostrar lista de reacciones via Sheet local
     private func showReactionsList() {
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
+        HapticManager.shared.lightImpact()
         
         // Mostrar sheet local
         showReactionsSheet = true
@@ -398,6 +381,8 @@ struct EpicReactionPickerView: View {
     
     @StateObject private var usageTracker: UserReactionUsageTracker
     
+    @Environment(\.colorScheme) var colorScheme
+
     init(onReactionSelected: @escaping (ReactionType) -> Void, onClose: @escaping () -> Void) {
         self.onReactionSelected = onReactionSelected
         self.onClose = onClose
@@ -413,8 +398,7 @@ struct EpicReactionPickerView: View {
                 HStack(spacing: 12) {
                     ForEach(Array(usageTracker.getReactionsOrderedByUsage().enumerated()), id: \.offset) { index, reaction in
                         Button(action: {
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                            impactFeedback.impactOccurred()
+                            HapticManager.shared.lightImpact()
                             
                             // Incrementar uso de esta reacción
                             usageTracker.incrementUsage(for: reaction)
@@ -475,15 +459,15 @@ struct EpicReactionPickerView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
             }
             
             // ✨ Botón de cerrar
             Button(action: onClose) {
-                Text("Cerrar")
+                Text(NSLocalizedString("common.close", comment: ""))
                     .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                     .padding(.horizontal, 24)
                     .padding(.vertical, 8)
                     .background(
@@ -491,27 +475,21 @@ struct EpicReactionPickerView: View {
                             .fill(.ultraThinMaterial)
                             .overlay(
                                 Capsule()
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                    .stroke(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3), lineWidth: 1)
                             )
                     )
             }
             .padding(.bottom, 16)
         }
         .background(
-            RoundedRectangle(cornerRadius: 25)
+            RoundedRectangle(cornerRadius: 30)
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.5)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.5
-                        )
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color.white.opacity(0.1))
                 )
         )
+        .frame(width: 280) // ✅ Ancho explícito para que no se vea estrecho en el overlay
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .offset(y: -90)
         .onAppear {
@@ -604,20 +582,6 @@ struct ReactionsListSheet: View {
         .background(
             RoundedRectangle(cornerRadius: 20)
                 .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.3),
-                                    Color(hex: "00A896").opacity(0.4)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
         )
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .presentationDetents([.medium, .large])
@@ -628,7 +592,7 @@ struct ReactionsListSheet: View {
     // MARK: - Header
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
-            Text("Reacciones")
+            Text(NSLocalizedString("reactions.title", value: "Reacciones", comment: "Title for reactions sheet"))
                 .font(.custom("Poppins-Bold", size: 22))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
@@ -648,7 +612,7 @@ struct ReactionsListSheet: View {
             ProgressView()
                 .progressViewStyle(CircularProgressViewStyle())
                 .scaleEffect(1.2)
-                .tint(Color(hex: "00A896"))
+                .tint(.white)
             
             Text("Cargando reacciones...")
                 .font(.custom("Poppins-Medium", size: 16))
@@ -688,7 +652,7 @@ struct ReactionsListSheet: View {
                     .font(.system(size: 32, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.gray.opacity(0.6), Color(hex: "00A896").opacity(0.4)],
+                            colors: [Color.white.opacity(0.6), Color.white.opacity(0.4)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -792,7 +756,7 @@ struct ReactionsListSheet: View {
             // Avatar del usuario con estilo moderno
             ZStack {
                 Circle()
-                    .fill(Color(hex: "00A896").opacity(0.15))
+                    .fill(Color.gray.opacity(0.15))
                     .frame(width: 40, height: 40)
                 
                 AsyncImage(url: URL(string: userProfiles[userId]?.profileImagePath ?? "")) { image in
@@ -909,37 +873,41 @@ struct ReactionsListSheet: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(0.8)
-                        .tint(Color(hex: "00A896"))
+                        .tint(colorScheme == .dark ? .white : .black)
                 } else {
                     HStack(spacing: 6) {
                         Image(systemName: isFollowing ? "person.badge.minus" : "person.badge.plus")
                             .font(.system(size: 12, weight: .medium))
-                        Text(isFollowing ? "Dejar" : "Seguir")
+                        Text(isFollowing ? NSLocalizedString("userListView.unfollowButton", comment: "") : NSLocalizedString("userListView.followButton", comment: ""))
                             .font(.custom("Poppins-SemiBold", size: 12))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(isFollowing ? .red : (colorScheme == .dark ? .white : .black))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(isFollowing ? 
-                                Color.red.opacity(0.2) : 
-                                Color(hex: "00A896").opacity(0.8)
-                            )
-                            .overlay(
+                        ZStack {
+                            if isFollowing {
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        isFollowing ? 
-                                            Color.red.opacity(0.3) : 
-                                            Color.white.opacity(0.2),
-                                        lineWidth: 1
-                                    )
-                            )
+                                    .fill(Color.red.opacity(0.1))
+                            } else {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.ultraThinMaterial)
+                            }
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    isFollowing ? 
+                                        Color.red.opacity(0.3) : 
+                                        (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1)),
+                                    lineWidth: 1
+                                )
+                        )
                     )
                     .shadow(
                         color: isFollowing ? 
-                            .red.opacity(0.2) : 
-                            Color(hex: "00A896").opacity(0.3),
+                            .red.opacity(0.1) : 
+                            .black.opacity(0.1),
                         radius: isFollowing ? 2 : 4,
                         x: 0,
                         y: isFollowing ? 1 : 2
@@ -1009,8 +977,8 @@ struct ReactionsListSheet: View {
                 .foregroundColor(.gray)
                 .font(.system(size: 16))
             
-            TextField("Buscar usuarios...", text: $searchText)
-                .font(.custom("Poppins-Regular", size: 16))
+            TextField(NSLocalizedString("userListView.search.placeholder", comment: ""), text: $searchText)
+                    .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .textFieldStyle(PlainTextFieldStyle())
             
@@ -1044,19 +1012,17 @@ struct ReactionsListSheet: View {
             dismiss()
             onDismiss()
         }) {
-            Text("Cerrar")
+            Text(NSLocalizedString("common.close", comment: ""))
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "00A896"), Color(hex: "02C39A")],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
                         )
                 )
         }

@@ -1,8 +1,10 @@
 import FirebaseFirestore
 import Combine
 import FirebaseAuth
+import Kingfisher
 
 class FirestoreService: ObservableObject {
+    static let shared = FirestoreService() // Singleton
     let db: Firestore
     @Published var savedMomentIds: [String] = []
     private var followingCache: [String: Bool] = [:]
@@ -239,6 +241,25 @@ class FirestoreService: ObservableObject {
     }
 
     func toggleSaveMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+        // ✅ OFFLINE SUPPORT
+        if !NetworkMonitor.shared.isConnected {
+            let payload = SavePayload(userId: userId, momentId: momentId)
+            if let data = try? JSONEncoder().encode(payload) {
+                let action = CachedAction(
+                    id: UUID().uuidString,
+                    type: CachedAction.ActionType.save.rawValue,
+                    payloadData: data
+                )
+                
+                Task {
+                    await LocalPersistenceService.shared.saveAction(action)
+                    print("💾 FirestoreService: Guardado (save) en outbox (offline)")
+                    completion(nil) // Éxito optimista
+                }
+                return
+            }
+        }
+
         let savedMomentRef = db.collection("users").document(userId).collection("savedMoments").document(momentId)
         db.runTransaction({ [weak self] (transaction, errorPointer) -> Any? in
             let snapshot: DocumentSnapshot
@@ -413,8 +434,8 @@ class FirestoreService: ObservableObject {
                 NotificationType.profileVisit.rawValue: true,
                 NotificationType.comment.rawValue: true,
                 NotificationType.storyReaction.rawValue: true,
-                "commentsBestFriendsOnly": false,
-                "muteOldPostLikes": false
+                "commentsMutualsOnly": false,
+                "muteOldPostReactions": false
             ],
             bestFriends: [],
             // ✅ CAMPOS DE ESTADO DE CUENTA
@@ -521,7 +542,11 @@ class FirestoreService: ObservableObject {
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "El userId está vacío"])))
             return
         }
-        db.collection("users").document(userId).getDocument { snapshot, error in
+        
+        // ✅ NUEVO: Si estamos offline, intentar obtener el documento SOLO de la caché para evitar delays
+        let source: FirestoreSource = NetworkMonitor.shared.isConnected ? .default : .cache
+        
+        db.collection("users").document(userId).getDocument(source: source) { snapshot, error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -708,8 +733,9 @@ class FirestoreService: ObservableObject {
             defer { group.leave() }
             switch result {
             case .success(let users):
-                // ✅ Use compactMap to safely unwrap the optional IDs
-                followingIds = Set(users.compactMap { $0.id })
+                // Simplificamos para evitar cualquier problema de índice o cierre complejo
+                let ids = users.map { $0.id }
+                followingIds = Set(ids)
             case .failure(let error):
                 fetchError = error
             }
@@ -720,8 +746,8 @@ class FirestoreService: ObservableObject {
             defer { group.leave() }
             switch result {
             case .success(let users):
-                // ✅ Use compactMap here as well
-                followerIds = Set(users.compactMap { $0.id })
+                let ids = users.map { $0.id }
+                followerIds = Set(ids)
             case .failure(let error):
                 fetchError = error
             }
@@ -740,8 +766,8 @@ class FirestoreService: ObservableObject {
                 return
             }
             
-            // Now 'mutualIds' is correctly of type [String]
-            self.fetchUsers(userIds: mutualIds, completion: completion)
+            // Usamos fetchUsersByIdsClean que ya tiene lógica de chunking
+            self.fetchUsersByIdsClean(userIds: mutualIds, completion: completion)
         }
     }
 
@@ -938,11 +964,50 @@ class FirestoreService: ObservableObject {
                                 "rotation": sticker.rotation
                             ]
                             
+                            // ✅ INCLUIR CAMPOS DE INTERACCIÓN
+                            if let username = sticker.username {
+                                stickerData["username"] = username
+                            }
+                            if let userId = sticker.userId {
+                                stickerData["userId"] = userId
+                            }
+                            if let hashtag = sticker.hashtag {
+                                stickerData["hashtag"] = hashtag
+                            }
+                            if let location = sticker.location {
+                                stickerData["location"] = location
+                            }
+                            if let questionText = sticker.questionText {
+                                stickerData["questionText"] = questionText
+                            }
+                            if let pollOptions = sticker.pollOptions {
+                                stickerData["pollOptions"] = pollOptions
+                            }
+                            
+                            if let weatherSymbol = sticker.weatherSymbol {
+                                stickerData["weatherSymbol"] = weatherSymbol
+                            }
+                            if let caption = sticker.caption {
+                                stickerData["caption"] = caption
+                            }
+                            if let profileImagePath = sticker.profileImagePath {
+                                stickerData["profileImagePath"] = profileImagePath
+                            }
+                            if let momentId = sticker.momentId {
+                                stickerData["momentId"] = momentId
+                            }
+                            if let mediaCount = sticker.mediaCount {
+                                stickerData["mediaCount"] = mediaCount
+                            }
+                            
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN
                             if sticker.isAnimated {
                                 stickerData["isAnimated"] = true
                                 if let gifURL = sticker.gifURL {
                                     stickerData["gifURL"] = String(describing: gifURL)
+                                }
+                                if let videoURL = sticker.videoURL {
+                                    stickerData["videoURL"] = videoURL
                                 }
                             }
                             
@@ -1275,8 +1340,43 @@ class FirestoreService: ObservableObject {
     }
     
     // ✅ FUNCIÓN addComment CORREGIDA - Asegura que parentCommentId se guarde correctamente
-    func addComment(to momentId: String, userId: String, authorId: String, content: String, parentCommentId: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
-        let commentId = UUID().uuidString
+    func addComment(to momentId: String, userId: String, authorId: String, content: String, parentCommentId: String? = nil, commentId: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
+        
+        // ✅ Usar el ID proporcionado o generar uno nuevo
+        let commentId = commentId ?? UUID().uuidString
+        
+        // ✅ OFFLINE SUPPORT
+        if !NetworkMonitor.shared.isConnected {
+            let payload = CommentPayload(
+                momentId: momentId,
+                authorId: userId,
+                senderId: authorId,
+                content: content,
+                parentCommentId: parentCommentId,
+                commentId: commentId // ✅ Persistir el ID
+            )
+            
+            if let data = try? JSONEncoder().encode(payload) {
+                let action = CachedAction(
+                    id: UUID().uuidString,
+                    type: CachedAction.ActionType.comment.rawValue,
+                    payloadData: data
+                )
+                
+                Task {
+                    await LocalPersistenceService.shared.saveAction(action)
+                    // ✅ Optimistic UI: Incrementar contador localmente
+                    await MainActor.run {
+                        LocalPersistenceService.shared.updateCommentCountLocally(momentId: momentId, increment: 1)
+                    }
+                    print("💾 FirestoreService: Comentario guardado en outbox (offline)")
+                    completion(.success(()))
+                }
+                return
+            }
+        }
+        
+        // Code below uses commentId naturally
         let now = Date()
         
         // Get current user's username
@@ -1285,6 +1385,11 @@ class FirestoreService: ObservableObject {
             
             switch result {
             case .success(let user):
+                // ✅ Optimistic UI: Incrementar contador localmente (Background)
+                Task(priority: .background) { @MainActor in
+                    LocalPersistenceService.shared.updateCommentCountLocally(momentId: momentId, increment: 1)
+                }
+                
                 // ✅ DATOS DEL COMENTARIO CON ESTRUCTURA CORRECTA
                 var commentData: [String: Any] = [
                     "authorId": authorId,
@@ -1382,6 +1487,36 @@ class FirestoreService: ObservableObject {
     }
     
     func deleteComment(to momentId: String, commentId: String, userId: String, authorId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        // ✅ Optimistic UI: Decrementar contador localmente
+        Task(priority: .background) { @MainActor in
+            LocalPersistenceService.shared.updateCommentCountLocally(momentId: momentId, increment: -1)
+        }
+        
+        // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
+        if !NetworkMonitor.shared.isConnected {
+            let payload = DeleteCommentPayload(
+                momentId: momentId,
+                commentId: commentId,
+                userId: userId,
+                authorId: authorId
+            )
+            
+            if let data = try? JSONEncoder().encode(payload) {
+                let action = CachedAction(
+                    id: UUID().uuidString,
+                    type: CachedAction.ActionType.deleteComment.rawValue,
+                    payloadData: data
+                )
+                
+                Task {
+                    await LocalPersistenceService.shared.saveAction(action)
+                    print("💾 FirestoreService: Borrado de comentario guardado en outbox (offline)")
+                    completion(.success(())) // Éxito optimista
+                }
+                return
+            }
+        }
+
         let batch = db.batch()
         
         // Delete comment
@@ -1430,13 +1565,15 @@ class FirestoreService: ObservableObject {
                         // ✅ Limpiar notificaciones de las respuestas
                         if let replyAuthorId = nestedDoc.data()["authorId"] as? String {
                             // Notificación al autor del comentario padre (que se está borrando)
-                            NotificationService.shared.removeNotification(
-                                type: .comment,
-                                senderId: replyAuthorId,
-                                recipientId: authorId, // El autor del comentario padre
-                                momentId: momentId,
-                                commentId: nestedDoc.documentID
-                            )
+                            Task { @MainActor in
+                                NotificationService.shared.removeNotification(
+                                    type: .comment,
+                                    senderId: replyAuthorId,
+                                    recipientId: authorId, // El autor del comentario padre
+                                    momentId: momentId,
+                                    commentId: nestedDoc.documentID
+                                )
+                            }
                         }
                     }
                     
@@ -1446,13 +1583,15 @@ class FirestoreService: ObservableObject {
                             completion(.failure(batchError))
                         } else {
                             // ✅ Limpiar notificación del comentario principal
-                            NotificationService.shared.removeNotification(
-                                type: .comment,
-                                senderId: authorId,
-                                recipientId: userId, // El dueño del momento
-                                momentId: momentId,
-                                commentId: commentId
-                            )
+                            Task { @MainActor in
+                                NotificationService.shared.removeNotification(
+                                    type: .comment,
+                                    senderId: authorId,
+                                    recipientId: userId, // El dueño del momento
+                                    momentId: momentId,
+                                    commentId: commentId
+                                )
+                            }
                             completion(.success(()))
                         }
                     }
@@ -1467,14 +1606,16 @@ class FirestoreService: ObservableObject {
             guard let data = snapshot?.data(),
                   let parentAuthorId = data["authorId"] as? String else { return }
             
-            NotificationService.shared.sendInteractionNotification(
-                type: .comment,
-                to: parentAuthorId,
-                momentId: momentId,
-                commentId: parentCommentId,
-                reaction: content, // ✅ Pasar contenido para el banner
-                senderUsername: fromUsername
-            )
+            Task { @MainActor in
+                NotificationService.shared.sendInteractionNotification(
+                    type: .comment,
+                    to: parentAuthorId,
+                    momentId: momentId,
+                    commentId: parentCommentId,
+                    reaction: content, // ✅ Pasar contenido para el banner
+                    senderUsername: fromUsername
+                )
+            }
         }
     }
     
@@ -1497,44 +1638,136 @@ class FirestoreService: ObservableObject {
                 guard let documents = snapshot?.documents, let userDoc = documents.first else { return }
                 
                 let mentionedUserId = userDoc.documentID
-                NotificationService.shared.sendInteractionNotification(
-                    type: .mention,
-                    to: mentionedUserId,
-                    momentId: momentId,
-                    reaction: content, // ✅ Pasar contenido para el banner
-                    senderUsername: fromUsername
-                )
+                Task { @MainActor in
+                    NotificationService.shared.sendInteractionNotification(
+                        type: .mention,
+                        to: mentionedUserId,
+                        momentId: momentId,
+                        reaction: content, // ✅ Pasar contenido para el banner
+                        senderUsername: fromUsername
+                    )
+                }
             }
         }
     }
     
     func fetchSuggestedUsers(completion: @escaping (Result<[AppUser], Error>) -> Void) {
-        self.db.collection("users")
-            .limit(to: 10)
-            .getDocuments(source: .default) { snapshot, error in
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion(.success([]))
+            return
+        }
+        
+        // Primero intentamos obtener conexiones mutuas por prioridad
+        fetchMutualConnections(userId: currentUserId) { result in
+            switch result {
+            case .success(let mutuals):
+                if mutuals.count >= 5 {
+                    // Si hay suficientes mutuos, devolvemos esos más algunos aleatorios
+                    self.db.collection("users")
+                        .limit(to: 20)
+                        .getDocuments { snapshot, error in
+                            var allUsers = mutuals
+                            if let documents = snapshot?.documents {
+                                let randomUsers = documents.compactMap { try? $0.data(as: AppUser.self) }
+                                    .filter { user in 
+                                        !mutuals.contains(where: { $0.id == user.id }) && 
+                                        user.id != currentUserId 
+                                    }
+                                allUsers.append(contentsOf: randomUsers)
+                            }
+                            completion(.success(Array(allUsers.prefix(20))))
+                        }
+                } else {
+                    // Si no, simplemente devolvemos una lista más amplia
+                    self.db.collection("users")
+                        .limit(to: 30)
+                        .getDocuments { snapshot, error in
+                            if let error = error {
+                                completion(.failure(error))
+                                return
+                            }
+                            let users = snapshot?.documents.compactMap { try? $0.data(as: AppUser.self) }
+                                .filter { $0.id != currentUserId }
+                            completion(.success(users ?? []))
+                        }
+                }
+            case .failure:
+                // Fallback a lista simple si fallan las conexiones mutuas
+                self.db.collection("users")
+                    .limit(to: 30)
+                    .getDocuments { snapshot, error in
+                        if let error = error {
+                            completion(.failure(error))
+                            return
+                        }
+                        let users = snapshot?.documents.compactMap { try? $0.data(as: AppUser.self) }
+                            .filter { $0.id != currentUserId }
+                        completion(.success(users ?? []))
+                    }
+            }
+        }
+    }
+    
+    // ✅ NUEVO: Buscar usuarios por prefijo de username (Búsqueda Real)
+    func searchUsers(query: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
+        let cleanQuery = query.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanQuery.isEmpty else {
+            completion(.success([]))
+            return
+        }
+        
+        let currentUserId = Auth.auth().currentUser?.uid
+        
+        db.collection("users")
+            .whereField("username", isGreaterThanOrEqualTo: cleanQuery)
+            .whereField("username", isLessThanOrEqualTo: cleanQuery + "\u{f8ff}")
+            .limit(to: 30)
+            .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
                 
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
+                let users = snapshot?.documents.compactMap { doc -> AppUser? in
+                    try? doc.data(as: AppUser.self)
+                }.filter { $0.id != currentUserId } ?? []
                 
-                let users = documents.compactMap { doc -> AppUser? in
-                    do {
-                        return try doc.data(as: AppUser.self)
-                    } catch {
-                        return nil
-                    }
-                }.filter { $0.id != Auth.auth().currentUser?.uid }
                 completion(.success(users))
             }
     }
     
     // ✅ MÉTODO CORREGIDO para FirestoreService.swift - REEMPLAZAR el método existente
     func addReaction(to momentId: String, reaction: String, userId: String, authorId: String, completion: @escaping (Error?) -> Void) {
+        // ✅ Optimistic UI: Actualizar caché local en background (no bloquea el return)
+        Task(priority: .background) { @MainActor in
+            LocalPersistenceService.shared.toggleMomentReactionLocally(momentId: momentId, reaction: reaction, userId: userId)
+        }
+        
+        // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
+        if !NetworkMonitor.shared.isConnected {
+            let payload = ReactionPayload(
+                momentId: momentId,
+                reaction: reaction,
+                authorId: authorId,
+                userId: userId
+            )
+            
+            if let data = try? JSONEncoder().encode(payload) {
+                let action = CachedAction(
+                    id: UUID().uuidString,
+                    type: CachedAction.ActionType.reaction.rawValue,
+                    payloadData: data
+                )
+                
+                Task {
+                    await LocalPersistenceService.shared.saveAction(action)
+                    print("💾 FirestoreService: Reacción guardada en outbox (offline)")
+                    completion(nil) // Éxito optimista
+                }
+                return
+            }
+        }
+
         // ✅ CAMBIO PRINCIPAL: Usar la subcolección de reacciones
         let reactionRef = db.collection("users").document(authorId)
             .collection("moments").document(momentId)
@@ -1565,13 +1798,15 @@ class FirestoreService: ObservableObject {
                         } else {
                             // ✅ LIMPIEZA DE NOTIFICACIÓN (Deshacer reacción)
                             if userId != authorId {
-                                NotificationService.shared.removeNotification(
-                                    type: .reaction,
-                                    senderId: userId,
-                                    recipientId: authorId,
-                                    momentId: momentId,
-                                    reaction: reaction
-                                )
+                                Task { @MainActor in
+                                    NotificationService.shared.removeNotification(
+                                        type: .reaction,
+                                        senderId: userId,
+                                        recipientId: authorId,
+                                        momentId: momentId,
+                                        reaction: reaction
+                                    )
+                                }
                             }
                             completion(nil)
                         }
@@ -1797,10 +2032,12 @@ class FirestoreService: ObservableObject {
                 batch.commit { error in
                     if error == nil {
                         // ✅ Notificar al solicitante que su solicitud fue aceptada
-                        NotificationService.shared.sendInteractionNotification(
-                            type: .requestAccepted, // Usar nuevo tipo
-                            to: senderId
-                        )
+                        Task { @MainActor in
+                            NotificationService.shared.sendInteractionNotification(
+                                type: .requestAccepted, // Usar nuevo tipo
+                                to: senderId
+                            )
+                        }
                     }
                     completion(nil)
                 }
@@ -1889,9 +2126,39 @@ class FirestoreService: ObservableObject {
 
     // MARK: - FUNCIÓN FOLLOWUSER ACTUALIZADA CON CACHE MANAGEMENT
     func followUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
+        // ✅ Optimistic UI: Actualizar conexiones localmente (Low priority background)
+        Task(priority: .background) { @MainActor in
+            LocalPersistenceService.shared.toggleFollowLocally(currentUserId: currentUserId, targetUserId: targetUserId, isFollow: true)
+        }
+        
         guard currentUserId != targetUserId else {
             completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No puedes seguirte a ti mismo"]))
             return
+        }
+        
+        // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
+        if !NetworkMonitor.shared.isConnected {
+            let payload = FollowActionPayload(
+                followerId: currentUserId,
+                followedId: targetUserId,
+                followedUsername: "", // Se puede dejar vacío y dejar que el sync lo resuelva
+                isFollow: true
+            )
+            
+            if let data = try? JSONEncoder().encode(payload) {
+                let action = CachedAction(
+                    id: "follow_\(currentUserId)_\(targetUserId)",
+                    type: CachedAction.ActionType.follow.rawValue,
+                    payloadData: data
+                )
+                
+                Task {
+                    await LocalPersistenceService.shared.saveAction(action)
+                    print("💾 FirestoreService: Follow guardado en outbox (offline)")
+                    completion(nil) // Éxito optimista
+                }
+                return
+            }
         }
         
         // Limpiar cache antes de la operación
@@ -1976,19 +2243,40 @@ class FirestoreService: ObservableObject {
 
     // MARK: - FUNCIÓN UNFOLLOWUSER CORREGIDA CON CACHE MANAGEMENT
     func unfollowUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        
-        // Verificar que los IDs no estén vacíos
-        guard !currentUserId.isEmpty, !targetUserId.isEmpty else {
-            let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "IDs de usuario vacíos"])
-            completion(error)
-            return
+        // ✅ Optimistic UI: Actualizar conexiones localmente (Low priority background)
+        Task(priority: .background) { @MainActor in
+            LocalPersistenceService.shared.toggleFollowLocally(currentUserId: currentUserId, targetUserId: targetUserId, isFollow: false)
         }
         
-        // Verificar que no sean el mismo usuario
         guard currentUserId != targetUserId else {
             let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No puedes dejar de seguirte a ti mismo"])
             completion(error)
             return
+        }
+        
+        // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
+        if !NetworkMonitor.shared.isConnected {
+            let payload = FollowActionPayload(
+                followerId: currentUserId,
+                followedId: targetUserId,
+                followedUsername: "",
+                isFollow: false
+            )
+            
+            if let data = try? JSONEncoder().encode(payload) {
+                let action = CachedAction(
+                    id: "unfollow_\(currentUserId)_\(targetUserId)",
+                    type: CachedAction.ActionType.follow.rawValue,
+                    payloadData: data
+                )
+                
+                Task {
+                    await LocalPersistenceService.shared.saveAction(action)
+                    print("💾 FirestoreService: Unfollow guardado en outbox (offline)")
+                    completion(nil) // Éxito optimista
+                }
+                return
+            }
         }
         
         // LIMPIAR CACHE ANTES DE VERIFICAR
@@ -2033,11 +2321,13 @@ class FirestoreService: ObservableObject {
                     self.followingCache.removeValue(forKey: cacheKey)
                     
                     // ✅ LIMPIEZA DE NOTIFICACIÓN (Unfollow)
-                    NotificationService.shared.removeNotification(
-                        type: .newFollower,
-                        senderId: currentUserId,
-                        recipientId: targetUserId
-                    )
+                    Task { @MainActor in
+                        NotificationService.shared.removeNotification(
+                            type: .newFollower,
+                            senderId: currentUserId,
+                            recipientId: targetUserId
+                        )
+                    }
                     
                     // VERIFICACIÓN POST-UNFOLLOW CON DELAY (sin cache)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -2192,7 +2482,14 @@ class FirestoreService: ObservableObject {
                 }
                 
                 // Buscar datos completos de usuarios
-                self.fetchUsersByIdsClean(userIds: followingIds, completion: completion)
+                self.fetchUsersByIdsClean(userIds: followingIds) { result in
+                    if case .success(let users) = result {
+                    Task { @MainActor in
+                        LocalPersistenceService.shared.saveFollowing(userId: userId, following: users)
+                    }
+                    }
+                    completion(result)
+                }
             }
     }
 
@@ -2217,10 +2514,9 @@ class FirestoreService: ObservableObject {
             db.collection("users")
                 .whereField(FieldPath.documentID(), in: batch)
                 .getDocuments { snapshot, error in
-                    defer { group.leave() }
-                    
                     if let error = error {
-                        syncQueue.async { capturedError = error }
+                        syncQueue.sync { capturedError = error }
+                        group.leave()
                         return
                     }
                     
@@ -2233,9 +2529,13 @@ class FirestoreService: ObservableObject {
                         }
                     } ?? []
                     
-                    syncQueue.async {
+                    // ✅ FIXED: El notify de abajo puede dispararse antes de que termine el async.
+                    // Usamos .sync para garantizar que la mutación termine ANTES del group.leave()
+                    syncQueue.sync {
                         allUsers.append(contentsOf: users)
                     }
+                    
+                    group.leave()
                 }
         }
         
@@ -2267,7 +2567,14 @@ class FirestoreService: ObservableObject {
                     return
                 }
                 
-                self.fetchUsers(userIds: userIds, completion: completion)
+                self.fetchUsersByIdsClean(userIds: userIds) { result in
+                    if case .success(let users) = result {
+                    Task { @MainActor in
+                        LocalPersistenceService.shared.saveFollowers(userId: userId, followers: users)
+                    }
+                    }
+                    completion(result)
+                }
             }
     }
 
@@ -2424,6 +2731,26 @@ class FirestoreService: ObservableObject {
         completion(.success(isWithinHours))
     }
 
+    func updateActiveHours(userId: String, startHour: String, endHour: String, completion: @escaping (Error?) -> Void) {
+        let userRef = db.collection("users").document(userId)
+        userRef.updateData([
+            "activeHoursStart": startHour,
+            "activeHoursEnd": endHour
+        ]) { error in
+            completion(error)
+        }
+    }
+
+    func clearActiveHours(userId: String, completion: @escaping (Error?) -> Void) {
+        let userRef = db.collection("users").document(userId)
+        userRef.updateData([
+            "activeHoursStart": FieldValue.delete(),
+            "activeHoursEnd": FieldValue.delete()
+        ]) { error in
+            completion(error)
+        }
+    }
+
     func updateNotificationPreferences(userId: String, preferences: [String: Bool], completion: @escaping (Error?) -> Void) {
         db.collection("users").document(userId).updateData([
             "notificationPreferences": preferences
@@ -2463,19 +2790,6 @@ class FirestoreService: ObservableObject {
 
     private func deleteVisitsBetweenUsers(userId: String, visitorId: String, completion: @escaping (Error?) -> Void) {
         self.db.collection("users").document(userId).collection("visits").document(visitorId).delete { error in
-            if let error = error {
-                completion(error)
-            } else {
-                completion(nil)
-            }
-        }
-    }
-
-    func updateActiveHours(userId: String, startHour: String?, endHour: String?, completion: @escaping (Error?) -> Void) {
-        self.db.collection("users").document(userId).updateData([
-            "activeHoursStart": startHour as Any,
-            "activeHoursEnd": endHour as Any
-        ]) { error in
             if let error = error {
                 completion(error)
             } else {
@@ -2665,7 +2979,9 @@ extension FirestoreService {
                       let userDoc = documents.first else { return }
                 
                 let mentionedUserId = userDoc.documentID
-                NotificationService.shared.sendInteractionNotification(type: .mention, to: mentionedUserId, momentId: momentId, reaction: commentContent)
+                Task { @MainActor in
+                    NotificationService.shared.sendInteractionNotification(type: .mention, to: mentionedUserId, momentId: momentId, reaction: commentContent)
+                }
             }
     }
     
@@ -2756,14 +3072,16 @@ extension FirestoreService {
             switch result {
             case .success(let user):
                 // Usar el sistema de notificaciones existente
-                NotificationService.shared.sendInteractionNotification(
-                    type: .like,
-                    to: recipientId,
-                    momentId: momentId,
-                    commentId: commentId,
-                    reaction: reaction, // ✅ Pasar emoji para el banner
-                    senderUsername: user.username
-                )
+                Task { @MainActor in
+                    NotificationService.shared.sendInteractionNotification(
+                        type: .like,
+                        to: recipientId,
+                        momentId: momentId,
+                        commentId: commentId,
+                        reaction: reaction, // ✅ Pasar emoji para el banner
+                        senderUsername: user.username
+                    )
+                }
                 // Notificación enviada
                 
             case .failure(let error):
@@ -3069,11 +3387,30 @@ extension FirestoreService {
                                 stickerData["pollOptions"] = pollOptions
                             }
                             
+                            if let weatherSymbol = sticker.weatherSymbol {
+                                stickerData["weatherSymbol"] = weatherSymbol
+                            }
+                            if let caption = sticker.caption {
+                                stickerData["caption"] = caption
+                            }
+                            if let profileImagePath = sticker.profileImagePath {
+                                stickerData["profileImagePath"] = profileImagePath
+                            }
+                            if let momentId = sticker.momentId {
+                                stickerData["momentId"] = momentId
+                            }
+                            if let mediaCount = sticker.mediaCount {
+                                stickerData["mediaCount"] = mediaCount
+                            }
+                            
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN
                             if sticker.isAnimated {
                                 stickerData["isAnimated"] = true
                                 if let gifURL = sticker.gifURL {
                                     stickerData["gifURL"] = String(describing: gifURL)
+                                }
+                                if let videoURL = sticker.videoURL {
+                                    stickerData["videoURL"] = videoURL
                                 }
                             }
                             
@@ -3236,7 +3573,8 @@ extension FirestoreService {
                 customViewers: moment.customViewers,
                 hiddenFrom: moment.hiddenFrom
             ) { canSee in
-                syncQueue.async {
+                // ✅ FIXED: Sincronizar para evitar crash en el group.notify
+                syncQueue.sync {
                     if canSee {
                         visibleMoments.append(moment)
                     }
@@ -3457,11 +3795,50 @@ extension FirestoreService {
                                 "rotation": sticker.rotation
                             ]
                             
+                            // ✅ INCLUIR CAMPOS DE INTERACCIÓN
+                            if let username = sticker.username {
+                                stickerData["username"] = username
+                            }
+                            if let userId = sticker.userId {
+                                stickerData["userId"] = userId
+                            }
+                            if let hashtag = sticker.hashtag {
+                                stickerData["hashtag"] = hashtag
+                            }
+                            if let location = sticker.location {
+                                stickerData["location"] = location
+                            }
+                            if let questionText = sticker.questionText {
+                                stickerData["questionText"] = questionText
+                            }
+                            if let pollOptions = sticker.pollOptions {
+                                stickerData["pollOptions"] = pollOptions
+                            }
+                            
+                            if let weatherSymbol = sticker.weatherSymbol {
+                                stickerData["weatherSymbol"] = weatherSymbol
+                            }
+                            if let caption = sticker.caption {
+                                stickerData["caption"] = caption
+                            }
+                            if let profileImagePath = sticker.profileImagePath {
+                                stickerData["profileImagePath"] = profileImagePath
+                            }
+                            if let momentId = sticker.momentId {
+                                stickerData["momentId"] = momentId
+                            }
+                            if let mediaCount = sticker.mediaCount {
+                                stickerData["mediaCount"] = mediaCount
+                            }
+
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN
                             if sticker.isAnimated {
                                 stickerData["isAnimated"] = true
                                 if let gifURL = sticker.gifURL {
                                     stickerData["gifURL"] = String(describing: gifURL)
+                                }
+                                if let videoURL = sticker.videoURL {
+                                    stickerData["videoURL"] = videoURL
                                 }
                             }
                             
@@ -3828,6 +4205,81 @@ extension FirestoreService {
         
         db.collection("users").document(userId).collection("highlights").document(highlightId).updateData(updateData) { error in
             completion(error)
+        }
+    }
+    
+    // MARK: - PREFETCHING METHODS (PHASE 8)
+    
+    /// Precarga las historias de un usuario en el caché local para una apertura instantánea
+    func prefetchStoriesForUser(userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        db.collection("users").document(userId).collection("stories")
+            .whereField("expirationDate", isGreaterThan: Timestamp(date: Date()))
+            .order(by: "timestamp", descending: true)
+            .limit(to: 5)
+            .getDocuments { snapshot, _ in
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+                
+                let stories = documents.compactMap { try? $0.data(as: Story.self) }
+                
+                // ✅ COMPROBACIÓN DE PRIVACIDAD POR HISTORIA (NUEVO)
+                // Usamos ContentVisibilityService para filtrar cada historia individualmente
+                let visibilityService = ContentVisibilityService.shared
+                let group = DispatchGroup()
+                var authorizedStories: [Story] = []
+                let syncQueue = DispatchQueue(label: "prefetch.visibility.sync")
+                
+                for story in stories {
+                    group.enter()
+                    
+                    // ✅ MAPEO DE AUDIENCIA (NUEVO)
+                    // Convertimos el string de la DB al enum que entiende el servicio de visibilidad
+                    let visibilityType: ContentVisibilityType
+                    if let audienceStr = story.audience {
+                        switch audienceStr {
+                        case "everyone": visibilityType = .everyone
+                        case "connections": visibilityType = .connections
+                        case "bestFriends": visibilityType = .bestFriends
+                        case "custom", "customList": visibilityType = .custom
+                        case "onlyMe": visibilityType = .onlyMe
+                        default: visibilityType = .everyone
+                        }
+                    } else {
+                        visibilityType = .everyone
+                    }
+                    
+                    visibilityService.canUserSeeContent(
+                        contentOwnerId: story.authorId,
+                        viewerId: currentUserId,
+                        contentType: visibilityType,
+                        customViewers: story.customListId != nil ? [story.customListId!] : [],
+                        hiddenFrom: [] 
+                    ) { canSee in
+                        if canSee {
+                            syncQueue.sync {
+                                authorizedStories.append(story)
+                            }
+                        }
+                        group.leave()
+                    }
+                }
+                
+                group.notify(queue: .main) {
+                    self.prefetchStoriesToCache(authorizedStories)
+                }
+            }
+    }
+    
+    /// Precarga las imágenes de un array de historias en el caché de Kingfisher
+    private func prefetchStoriesToCache(_ stories: [Story]) {
+        let urls = stories.compactMap { story -> URL? in
+            let urlString = story.mediaItem.url
+            return URL(string: urlString)
+        }
+        
+        if !urls.isEmpty {
+            ImagePrefetcher(urls: urls).start()
         }
     }
 }

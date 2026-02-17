@@ -3,41 +3,158 @@ import GoogleMobileAds
 import SwiftUI
 import AppTrackingTransparency
 import AdSupport
+import UserMessagingPlatform
 
 // MARK: - AdMob Configuration
+@MainActor
 class AdMobConfiguration: NSObject {
     static let shared = AdMobConfiguration()
 
     // IDs de AdMob
     static let appId = "ca-app-pub-7805678909278568~7091658934" // ✅ App ID real de Glowsy
-    static let nativeAdUnitId = "ca-app-pub-7805678909278568/9925436334"
+    static let nativeAdUnitId = "ca-app-pub-7805678909278568/9925436334" // ✅ ID Real (Glowsy)
 
-    // Para testing (usar en desarrollo) - DESACTIVADO PARA PRODUCCIÓN
-    // static let testNativeAdUnitId = "ca-app-pub-3940256099942544/3986624511"
+    // Para testing (usar si el usuario lo solicita)
+    static let testNativeAdUnitId = "ca-app-pub-3940256099942544/3986624511"
 
     private var preloadedNativeAd: NativeAd?
+    private(set) var isInitialized = false
+    
+    // 🔍 Modo Diagnóstico: Si está en true, usará IDs de prueba de Google en el iPhone real
+    // Cámbialo a true para verificar si tu código funciona con los IDs genéricos de Google
+    static let isDiagnosticMode = false
 
     private override init() {
         super.init()
     }
 
     func initialize() {
-        MobileAds.shared.start { status in
+        // Verificar el App ID cargado desde Info.plist (Silencioso en prod)
+        if Bundle.main.infoDictionary?["GADApplicationIdentifier"] as? String == nil {
+            print("⚠️ AdMob: GADApplicationIdentifier NO DETECTADO en Info.plist")
         }
-        configureRequestConfiguration()
+        
+        MobileAds.shared.start { status in
+            self.isInitialized = true
+        }
+    }
+    
+    /// Inicia el flujo de consentimiento (UMP -> ATT)
+    /// Se debe llamar cuando el usuario acepta la pantalla de intro
+    func startConsentFlow(completion: @escaping () -> Void) {
+        // Marcar como presentado para que no vuelva a salir en esta sesión
+        Self.hasPresentedConsentFlow = true
+        // Persistir que ya se inició el flujo para futuras sesiones
+        UserDefaults.standard.set(true, forKey: "hasSeenPrivacyConsent")
+        
+        requestGDPRConsent { [weak self] _ in
+            // Al terminar UMP, pedimos ATT
+            self?.requestATTAuthorization()
+            completion()
+        }
+    }
+    
+    // Flag para evitar múltiples presentaciones en la misma sesión
+    private static var hasPresentedConsentFlow = false
+    
+    /// Determina si se debe mostrar el flujo de consentimiento (Intro screen)
+    var shouldShowConsentFlow: Bool {
+        // Si ya se presentó en esta sesión, no volver a mostrar
+        if Self.hasPresentedConsentFlow { return false }
+        
+        // Si ya se presentó en sesiones anteriores (persistencia), no volver a mostrar
+        if UserDefaults.standard.bool(forKey: "hasSeenPrivacyConsent") { return false }
+        
+        // Mostrar si NO se ha determinado el ATT o UMP status es desconocido
+        if #available(iOS 14, *) {
+            let attStatus = ATTrackingManager.trackingAuthorizationStatus
+            let umpStatus = UserMessagingPlatform.ConsentInformation.shared.consentStatus
+            
+            // Si ATT no está determinado, mostrar flow
+            if attStatus == .notDetermined {
+                return true
+            }
+            // Si UMP es desconocido o requerido, y no tenemos ATT claro
+            if umpStatus == .unknown || umpStatus == .required {
+                 return true
+            }
+        }
+        return false
+    }
+    
+    // MARK: - GDPR Consent (UMP)
+    
+    private func requestGDPRConsent(completion: @escaping (Bool) -> Void) {
+        let parameters = UserMessagingPlatform.RequestParameters()
+        
+        // Para testing en dispositivos reales de desarrollo
+        #if DEBUG
+        let debugSettings = UserMessagingPlatform.DebugSettings()
+        debugSettings.testDeviceIdentifiers = ["1060a23e10e3c616610d4d25ea574f47"]
+        // debugSettings.geography = .EEA // Descomenta para simular EU
+        parameters.debugSettings = debugSettings
+        #endif
+        
+        // Paso 1: Actualizar información de consentimiento
+        UserMessagingPlatform.ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { [weak self] error in
+            if let error = error {
+                print("❌ UMP Error: \(error.localizedDescription)")
+                // En caso de error, intentar cargar anuncios de todos modos
+                completion(true)
+                return
+            }
+            
+            // Paso 2: Mostrar formulario si es necesario
+            self?.loadAndShowConsentFormIfRequired(completion: completion)
+        }
+    }
+    
+    private func loadAndShowConsentFormIfRequired(completion: @escaping (Bool) -> Void) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            print("⚠️ UMP: No se encontró rootViewController para mostrar formulario")
+            completion(UserMessagingPlatform.ConsentInformation.shared.canRequestAds)
+            return
+        }
+        
+        UserMessagingPlatform.ConsentForm.loadAndPresentIfRequired(from: rootViewController) { error in
+            if let error = error {
+                print("❌ UMP Form Error: \(error.localizedDescription)")
+            }
+            
+            let canRequestAds = UserMessagingPlatform.ConsentInformation.shared.canRequestAds
+            completion(canRequestAds)
+        }
+    }
+    
+    /// Permite al usuario cambiar sus preferencias de consentimiento
+    func showPrivacyOptionsForm() {
+        guard UserMessagingPlatform.ConsentInformation.shared.privacyOptionsRequirementStatus == .required else {
+            print("ℹ️ UMP: No se requiere formulario de opciones de privacidad")
+            return
+        }
+        
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            return
+        }
+        
+        UserMessagingPlatform.ConsentForm.presentPrivacyOptionsForm(from: rootViewController) { error in
+            if let error = error {
+                print("❌ UMP: Error al mostrar opciones de privacidad: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func configureRequestConfiguration() {
-        let requestConfiguration = MobileAds.shared.requestConfiguration
-
-        // Ejemplo: configurar para testing - DESACTIVADO PARA PRODUCCIÓN
-        // #if DEBUG
-        // requestConfiguration.testDeviceIdentifiers = ["1a116ffb808808d4257e0cc3d44d4d1f"]
-        // #endif
+        // Configuración de producción - sin dispositivos de test
     }
 
     static func getNativeAdUnitId() -> String {
-        return nativeAdUnitId
+        if isDiagnosticMode {
+            return testNativeAdUnitId.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return nativeAdUnitId.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - App Tracking Transparency (ATT)
@@ -136,14 +253,16 @@ class AdMobConfiguration: NSObject {
     // MARK: - Preload Functions
 
     func preloadNativeAd() {
-        let adUnitID = AdMobConfiguration.getNativeAdUnitId()
+        guard isInitialized else {
+            print("⏳ AdMob: Ignorando precarga (SDK no inicializado)")
+            return
+        }
+        let adUnitID = AdMobConfiguration.getNativeAdUnitId().trimmingCharacters(in: .whitespacesAndNewlines)
         let mediaOptions = NativeAdMediaAdLoaderOptions()
         mediaOptions.mediaAspectRatio = .any
         
-        guard let rootViewController = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first?.windows
-            .first(where: { $0.isKeyWindow })?.rootViewController else {
+        guard let rootViewController = UIApplication.shared.topViewController() else {
+            print("⚠️ AdMob: No se pudo obtener rootViewController para precarga")
             return
         }
         
@@ -202,6 +321,7 @@ class AdMobConfiguration: NSObject {
 
 extension AdMobConfiguration: AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
+        print("❌ AdMob: Error al precargar anuncio nativo: \(error.localizedDescription)")
         DispatchQueue.main.async {
             self.preloadedNativeAd = nil
         }
@@ -217,6 +337,7 @@ extension AdMobConfiguration: NativeAdLoaderDelegate {
 }
 
 // MARK: - Native Ad Manager
+@MainActor
 class NativeAdManager: NSObject, ObservableObject {
     @Published var nativeAd: NativeAd?
     @Published var isLoading = false
@@ -230,6 +351,14 @@ class NativeAdManager: NSObject, ObservableObject {
 
     func loadAd() {
         guard !isLoading else { return }
+        
+        guard AdMobConfiguration.shared.isInitialized else {
+            print("⏳ AdMob: Reintentando carga en 1s (SDK no inicializado)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.loadAd()
+            }
+            return
+        }
 
         if let preloadedAd = AdMobConfiguration.shared.getPreloadedNativeAd() {
             self.nativeAd = preloadedAd
@@ -241,12 +370,20 @@ class NativeAdManager: NSObject, ObservableObject {
 
         isLoading = true
         hasError = false
+        nativeAd = nil
 
-        let adUnitID = AdMobConfiguration.getNativeAdUnitId()
+        let adUnitID = AdMobConfiguration.getNativeAdUnitId().trimmingCharacters(in: .whitespacesAndNewlines)
+        let rootVC = UIApplication.shared.topViewController()
+        
+        print("📡 AdMob: Cargando anuncio nativo...")
+        print("   - Ad Unit ID: \(adUnitID)")
+        print("   - Root VC: \(rootVC != nil ? String(describing: type(of: rootVC!)) : "NIL")")
+        print("   - Bundle ID: \(Bundle.main.bundleIdentifier ?? "NIL")")
+        print("   - Modo Diagnóstico: \(AdMobConfiguration.isDiagnosticMode)")
 
         adLoader = AdLoader(
             adUnitID: adUnitID,
-            rootViewController: nil,
+            rootViewController: rootVC,
             adTypes: [.native],
             options: [AdMobConfiguration.shared.createNativeAdOptions()]
         )
@@ -260,6 +397,7 @@ class NativeAdManager: NSObject, ObservableObject {
 
 extension NativeAdManager: AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
+        print("❌ AdMob: Error al cargar anuncio nativo: \(error.localizedDescription)")
         DispatchQueue.main.async {
             self.isLoading = false
             self.hasError = true
@@ -278,6 +416,7 @@ extension NativeAdManager: NativeAdLoaderDelegate {
 }
 
 // MARK: - Plus Ad Manager
+@MainActor
 class PlusAdManager: ObservableObject {
     @Published var shouldShowAds = true
     @Published var isPlus = false
@@ -305,5 +444,29 @@ class PlusAdManager: ObservableObject {
 
     func refreshAdStatus() {
         updateAdDisplayStatus()
+    }
+}
+
+// MARK: - UIApplication Extension
+extension UIApplication {
+    func topViewController(base: UIViewController? = nil) -> UIViewController? {
+        let base = base ?? connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }?
+            .rootViewController
+        
+        if let nav = base as? UINavigationController {
+            return topViewController(base: nav.visibleViewController)
+        }
+        if let tab = base as? UITabBarController {
+            if let selected = tab.selectedViewController {
+                return topViewController(base: selected)
+            }
+        }
+        if let presented = base?.presentedViewController {
+            return topViewController(base: presented)
+        }
+        return base
     }
 }

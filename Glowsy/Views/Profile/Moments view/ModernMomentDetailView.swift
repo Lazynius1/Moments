@@ -13,6 +13,11 @@ struct ModernMomentDetailView: View {
     
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
+    
+    // ✅ LONG PRESS PEEK: Estado para overlay a nivel de la vista
+    @State private var peekImageURL: String? = nil
+    @State private var peekAspectRatio: CGFloat = 1.0
+    @State private var isPeeking = false
     @State private var showingComments = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
@@ -50,8 +55,9 @@ struct ModernMomentDetailView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            let safeAreaTop = geometry.safeAreaInsets.top
+        ZStack { // ✅ Root ZStack para overlays globales
+            GeometryReader { geometry in
+                let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
             
             ZStack(alignment: .top) {
@@ -79,38 +85,71 @@ struct ModernMomentDetailView: View {
                 .offset(x: dragOffset)
                 .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0) // ✅ Escala durante drag
                 
-                // ✅ Overlay del menú contextual
-                if showContextMenu, let moment = contextMenuMoment {
-                    ModernContextMenuOverlay(
-                        moment: moment,
-                        isPresented: $showContextMenu,
-                        showShareSheet: $showShareSheet,
-                        onEdit: {
-                            editedContent = moment.content
-                            showEditSheet = true
-                        },
-                        onDelete: {
-                            showDeleteAlert = true
-                        },
-                        onShare: {
-                            if privacyService.canShareMoment(moment) {
-                                showShareSheet = true
-                            }
-                        },
-                        onReport: {
-                            showReportSheet = true
-                        },
-                        onCopyLink: {
-                            if let momentId = moment.id {
-                                UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
-                            }
-                        }
-                    )
-                    .zIndex(1000)
-                }
+                // ✅ (Eliminado overlay anterior dentro del GeometryReader)
             }
         }
-        .navigationBarHidden(true)
+        
+        // ✅ Overlays Globales (Root ZStack)
+        
+        // 1. Context Menu Overlay
+        if showContextMenu, let moment = contextMenuMoment {
+            ModernContextMenuOverlay(
+                moment: moment,
+                isPresented: $showContextMenu,
+                onEdit: {
+                    editedContent = moment.content
+                    showEditSheet = true
+                },
+                onDelete: {
+                    showDeleteAlert = true
+                },
+                onReport: {
+                    showReportSheet = true
+                },
+                onCopyLink: {
+                    if let momentId = moment.id {
+                        UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
+                    }
+                }
+            )
+            .zIndex(1000)
+            .transition(.opacity)
+        }
+        
+        // 2. Share Sheet Overlay (Sin fondo nativo)
+        if showShareSheet, let moment = contextMenuMoment {
+            ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+                .zIndex(1001)
+        }
+        
+        // 3. ✅ LONG PRESS PEEK: Overlay a pantalla completa
+        if isPeeking, let imageURL = peekImageURL {
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .ignoresSafeArea()
+                
+                KFImage(URL(string: imageURL))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(
+                        width: UIScreen.main.bounds.width - 32,
+                        height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+            }
+            .transition(.opacity)
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
+            .allowsHitTesting(false)
+            .zIndex(999)
+        }
+    }
+    .navigationBarHidden(true)
         .sheet(isPresented: $showingComments) {
             if let moment = selectedMoment {
                 ModernCommentsView(moment: moment)
@@ -130,11 +169,7 @@ struct ModernMomentDetailView: View {
                 )
             }
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let moment = contextMenuMoment {
-                ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
-            }
-        }
+        // .sheet(isPresented: $showShareSheet) REMOVED
         .alert(NSLocalizedString("modernMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("modernMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
             Button(NSLocalizedString("modernMomentDetail.delete.confirm", comment: "Delete"), role: .destructive) {
@@ -228,6 +263,18 @@ struct ModernMomentDetailView: View {
                                 // ✅ NAVEGACIÓN A PERFIL
                                 selectedUserId = userId
                                 showUserProfile = true
+                            },
+                            onPeek: { imageURL, ratio, isPressing in
+                                // ✅ LONG PRESS PEEK
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                    if isPressing {
+                                        peekImageURL = imageURL
+                                        peekAspectRatio = ratio
+                                        isPeeking = true
+                                    } else {
+                                        isPeeking = false
+                                    }
+                                }
                             }
                         )
                         .id(index)
@@ -349,6 +396,7 @@ struct ModernDetailMomentCard: View {
     let onContextMenu: () -> Void
     let onHashtagTap: (String) -> Void
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
+    var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK callback
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme
@@ -370,11 +418,13 @@ struct ModernDetailMomentCard: View {
         return colors[index % colors.count]
     }
     @State private var detectedAspectRatio: CGFloat = 1.0
+    @State private var realAspectRatio: CGFloat = 1.0 // ✅ Ratio real sin cap
     @State private var isSaved: Bool = false
     @State private var isSaveLoading: Bool = false
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
+    @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var aspectRatioType: AspectRatioType = .square
     
     enum AspectRatioType {
@@ -445,7 +495,7 @@ struct ModernDetailMomentCard: View {
             ZStack(alignment: .topTrailing) {
                 ZStack(alignment: .bottom) {
                     // ✅ Media content with height logic
-                    ZStack {
+                    ZStack(alignment: .bottomLeading) {
                         EnhancedCarouselView(
                             mediaItems: mediaItems,
                             currentIndex: $currentImageIndex,
@@ -453,8 +503,31 @@ struct ModernDetailMomentCard: View {
                             aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                             allMoments: [moment],
                             currentMoment: moment,
-                            onTagTap: onTagTap // ✅ Propagate
+                            onTagTap: onTagTap, // ✅ Propagate
+                            isImmersive: $isImmersive // ✅ NUEVO
                         )
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.1)
+                                .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                                .onEnded { _ in }
+                        )
+                        .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                self.isImmersive = isPressing
+                                if isPressing {
+                                    HapticManager.shared.mediumImpact()
+                                    // ✅ PEEK: Comunicar imagen para overlay
+                                    if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
+                                        let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+                                        if let item = currentItem, item.type == .image {
+                                            onPeek?(item.url, realAspectRatio, true)
+                                        }
+                                    }
+                                } else {
+                                    onPeek?("", 1.0, false)
+                                }
+                            }
+                        }, perform: {})
                         .frame(height: max(cardHeight, 200))
                         .clipShape(RoundedRectangle(cornerRadius: 24))
                         .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 10)
@@ -481,98 +554,74 @@ struct ModernDetailMomentCard: View {
                             }
                         }
                         
-                        // Descripción expandible...
-                        if !moment.content.isEmpty {
-                            VStack {
-                                Spacer()
-                                HStack {
-                                    DetailExpandableContentView(
-                                        content: moment.content,
-                                        colorScheme: .dark,
-                                        onHashtagTap: onHashtagTap
-                                    )
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 15)
-                                .padding(.bottom, 15)
-                            }
-                        }
-                        
-                        // ✅ NUEVO: BOTONES DE ETIQUETAS (Nivel superior del card)
-                        let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
-                        if let tags = currentMediaItem?.tags, !tags.isEmpty {
-                            // Esquina inferior izquierda (encima del caption) - Estilo Glass
-                            VStack {
-                                Spacer()
-                                    HStack {
-                                        Button(action: {
-                                            withAnimation(.spring()) {
-                                                showTags.toggle()
-                                            }
-                                        }) {
-                                            ZStack {
-                                                // Background Glass
-                                                Circle()
-                                                    .fill(.ultraThinMaterial)
-                                                    .frame(width: 36, height: 36)
-                                                
-                                                // Border Gradient Glass
-                                                Circle()
-                                                    .stroke(
-                                                        LinearGradient(
-                                                            colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
-                                                            startPoint: .topLeading,
-                                                            endPoint: .bottomTrailing
-                                                        ),
-                                                        lineWidth: 1.5
-                                                    )
-                                                    .frame(width: 36, height: 36)
-                                                
-                                                // Icon tinted if active
-                                                Image(systemName: showTags ? "person.fill" : "person.circle.fill")
-                                                    .font(.system(size: 15, weight: .bold))
-                                                    .foregroundColor(showTags ? Color(hex: "00A896") : .white)
-                                            }
-                                            .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                                        }
-                                        .padding(.leading, 12)
-                                        .padding(.bottom, moment.content.isEmpty ? 15 : 60)
-                                        Spacer()
+                        // ✅ Contenido Inferior (Tags + Caption)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Spacer()
+                            
+                            // 1. Botón de Etiquetas
+                            let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
+                            if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        showTags.toggle()
                                     }
+                                }) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(.ultraThinMaterial)
+                                            .frame(width: 36, height: 36)
+                                        
+                                        Circle()
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: showTags ? [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
+                                            .frame(width: 36, height: 36)
+                                        
+                                        Image(systemName: showTags ? "person.fill" : "person.circle.fill")
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
+                                    }
+                                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                                }
+                                .padding(.leading, 4) // Ligero ajuste visual
                             }
-                            .zIndex(110)
+                            
+                            // 2. Descripción
+                            if !moment.content.isEmpty {
+                                DetailExpandableContentView(
+                                    content: moment.content,
+                                    colorScheme: .dark,
+                                    onHashtagTap: onHashtagTap
+                                )
+                                .padding(.trailing, 0) // ✅ Sin padding extra innecesario
+                            }
                         }
-                    }
+                        .padding(.horizontal, 15)
+                        .padding(.bottom, 65) // ✅ Ajustado para mejor posicionamiento sobre el Rail
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                    } // Cierra ZStack (449)
                     
-                    // ✅ Botones de acción estilo feed
-                    ModernDetailActionButtons(
+                    // ✅ Botones de acción estilo rail (horizontal)
+                    ModernActionButtons(
                         moment: moment,
                         isSaved: $isSaved,
                         isSaveLoading: $isSaveLoading,
                         commentCount: $commentCount,
                         onComment: onComment,
-                        onSave: toggleSave
+                        onSave: toggleSave,
+                        onContextMenu: onContextMenu,
+                        isImmersive: $isImmersive
                     )
                     .environmentObject(firestoreService)
-                }
+                } // Cierra ZStack(alignment: .bottom) (447)
+            } // Cierra ZStack(alignment: .topTrailing)
                 
-                // Menú de opciones (ellipsis)
-                Button(action: onContextMenu) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                }
-                .padding(.top, 15)
-                .padding(.trailing, 10)
-            }
             .padding(.horizontal, 15)
         }
         .onAppear {
@@ -590,25 +639,30 @@ struct ModernDetailMomentCard: View {
             let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
             
             DispatchQueue.main.async {
-                // ✅ Validar que el valor sea finito y positivo
                 let ratioValue = aspectRatioFromDB.value
+                
+                // ✅ Guardar ratio REAL para long press reveal
                 if ratioValue > 0 && ratioValue.isFinite {
-                    self.detectedAspectRatio = ratioValue
-                } else {
-                    self.detectedAspectRatio = 1.0 // Fallback a square
+                    self.realAspectRatio = ratioValue
                 }
                 
-                // Clasificar el tipo con ratios exactos
-                switch aspectRatioFromDB {
-                case .landscape:
-                    self.aspectRatioType = .landscape
-                case .portrait:
-                    self.aspectRatioType = .portrait
-                case .square:
-                    self.aspectRatioType = .square
-                case .nineBySixteen:
-                    self.aspectRatioType = .reels // ✅ CORREGIDO: Usar reels para 9:16
+                // ✅ REGLA INSTAGRAM: Todo contenido más vertical que 4:5 se cropea
+                let displayRatio: CGFloat
+                if ratioValue < 0.8 && ratioValue > 0 {
+                    displayRatio = 0.8
+                } else if ratioValue > 0 && ratioValue.isFinite {
+                    displayRatio = ratioValue
+                } else {
+                    displayRatio = 1.0
                 }
+                
+                self.detectedAspectRatio = displayRatio
+                
+                // Clasificar el tipo
+                if displayRatio < 0.7 { self.aspectRatioType = .reels }
+                else if displayRatio < 0.9 { self.aspectRatioType = .portrait }
+                else if displayRatio < 1.3 { self.aspectRatioType = .square }
+                else { self.aspectRatioType = .landscape }
             }
             return
         }
@@ -756,109 +810,6 @@ struct ModernDetailMomentCard: View {
     }
 }
 
-// MARK: - ✅ Botones de acción para vista detallada
-struct ModernDetailActionButtons: View {
-    let moment: Moment
-    @Binding var isSaved: Bool
-    @Binding var isSaveLoading: Bool
-    @Binding var commentCount: Int
-    let onComment: () -> Void
-    let onSave: () -> Void
-    
-    @EnvironmentObject private var firestoreService: FirestoreService
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Spacer()
-            
-            VStack(spacing: 16) {
-                // ✅ Reaction Button
-                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
-                EpicReactionButton(
-                    moment: moment,
-                    showCount: moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts
-                )
-                    .environmentObject(firestoreService)
-                
-                // ✅ Comment button mejorado
-                Button(action: onComment) {
-                    VStack(spacing: 5) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 52, height: 52)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [.white.opacity(0.4), .white.opacity(0.1)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                )
-                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                            
-                            Image(systemName: commentCount > 0 ? "bubble.left.fill" : "bubble.left")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundColor(.white)
-                                .shadow(radius: 1)
-                        }
-                        
-                        if commentCount > 0 {
-                            Text("\(commentCount)")
-                                .font(.custom("Poppins-SemiBold", size: 12))
-                                .foregroundColor(.white)
-                                .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
-                        }
-                    }
-                }
-                .scaleEffect(commentCount > 0 ? 1.05 : 1.0)
-                
-                // ✅ Save button mejorado
-                Button(action: onSave) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 52, height: 52)
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: isSaved ? 
-                                            [Color.yellow.opacity(0.7), Color.orange.opacity(0.5)] : 
-                                            [.white.opacity(0.4), .white.opacity(0.1)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                        
-                        if isSaveLoading {
-                            ProgressView()
-                                .tint(.white)
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundColor(isSaved ? .yellow : .white)
-                                .shadow(radius: 1)
-                        }
-                    }
-                }
-                .disabled(isSaveLoading)
-                .scaleEffect(isSaved ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSaved)
-            }
-        }
-        .padding(.trailing, 20)
-        .padding(.bottom, 25)
-    }
-}
-
 // MARK: - ✅ Vista expandible mejorada para detalle
 struct DetailExpandableContentView: View {
     let content: String
@@ -889,66 +840,33 @@ struct DetailExpandableContentView: View {
             
             if needsExpansion {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.4)) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
                         isExpanded.toggle()
                     }
                 }) {
-                    HStack(spacing: 6) {
-                        Text(isExpanded ? "ver menos" : "ver más")
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                    HStack(spacing: 4) {
+                        Text(NSLocalizedString(isExpanded ? "feed.seeLess" : "feed.seeMore", comment: "See more/less"))
+                            .font(.custom("Poppins-SemiBold", size: 12))
                             .foregroundColor(.white)
                         
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.white)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                     .background(
                         Capsule()
                             .fill(.ultraThinMaterial)
-                            .overlay(
-                                Capsule()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.4),
-                                                Color(hex: "00A896").opacity(0.5)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
                     )
-                    .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
+                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                 }
-                .scaleEffect(isExpanded ? 1.05 : 0.98)
-                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isExpanded)
+                .scaleEffect(isExpanded ? 1.0 : 0.95)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.25),
-                                    Color(hex: "00A896").opacity(0.35)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-        )
-        .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 5)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
         .onAppear {
             needsExpansion = content.count > maxCharacters
         }

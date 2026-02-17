@@ -1,9 +1,262 @@
 const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onRequest } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
+const { defineSecret } = require('firebase-functions/params');
 setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
 const admin = require('firebase-admin');
 admin.initializeApp();
+
+const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+const SIGHTENGINE_USER = defineSecret('SIGHTENGINE_USER');
+const SIGHTENGINE_SECRET = defineSecret('SIGHTENGINE_SECRET');
+const GOOGLE_SPEECH_API_KEY = defineSecret('GOOGLE_SPEECH_API_KEY');
+const GIPHY_API_KEY = defineSecret('GIPHY_API_KEY');
+
+function setProxyCors(res) {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+}
+
+function parseJsonBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === 'object') return req.body;
+  try {
+    return JSON.parse(req.body);
+  } catch (error) {
+    return {};
+  }
+}
+
+async function verifyFirebaseAuth(req, res) {
+  const authHeader = req.get('authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+
+  const idToken = authHeader.slice(7).trim();
+  if (!idToken) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    return decoded.uid;
+  } catch (error) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+}
+
+exports.proxyOpenAIModeration = onRequest(
+  {
+    timeoutSeconds: 30,
+    secrets: [OPENAI_API_KEY]
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const input = typeof body.input === 'string' ? body.input : '';
+    if (!input.trim()) {
+      res.status(400).json({ error: 'Missing input' });
+      return;
+    }
+
+    try {
+      const upstream = await fetch('https://api.openai.com/v1/moderations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY.value()}`
+        },
+        body: JSON.stringify({ input })
+      });
+
+      const payload = await upstream.text();
+      res.status(upstream.status).set('Content-Type', 'application/json').send(payload);
+    } catch (error) {
+      console.error('proxyOpenAIModeration error:', error);
+      res.status(500).json({ error: 'Moderation proxy failed' });
+    }
+  }
+);
+
+exports.proxySightengineFrame = onRequest(
+  {
+    timeoutSeconds: 30,
+    secrets: [SIGHTENGINE_USER, SIGHTENGINE_SECRET]
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const frameBase64 = typeof body.frameBase64 === 'string' ? body.frameBase64 : '';
+    if (!frameBase64) {
+      res.status(400).json({ error: 'Missing frameBase64' });
+      return;
+    }
+
+    try {
+      const imageBuffer = Buffer.from(frameBase64, 'base64');
+      const formData = new FormData();
+      formData.append('api_user', SIGHTENGINE_USER.value());
+      formData.append('api_secret', SIGHTENGINE_SECRET.value());
+      formData.append('models', 'nudity-2.1,face-attributes,scam,offensive');
+      formData.append('media', new Blob([imageBuffer], { type: 'image/jpeg' }), 'frame.jpg');
+
+      const upstream = await fetch('https://api.sightengine.com/1.0/check.json', {
+        method: 'POST',
+        body: formData
+      });
+
+      const payload = await upstream.text();
+      res.status(upstream.status).set('Content-Type', 'application/json').send(payload);
+    } catch (error) {
+      console.error('proxySightengineFrame error:', error);
+      res.status(500).json({ error: 'Sightengine proxy failed' });
+    }
+  }
+);
+
+exports.proxySpeechToText = onRequest(
+  {
+    timeoutSeconds: 30,
+    secrets: [GOOGLE_SPEECH_API_KEY]
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const audioBase64 = typeof body.audioBase64 === 'string' ? body.audioBase64 : '';
+    if (!audioBase64) {
+      res.status(400).json({ error: 'Missing audioBase64' });
+      return;
+    }
+
+    const requestBody = {
+      config: {
+        encoding: 'LINEAR16',
+        sampleRateHertz: 44100,
+        languageCode: 'es-ES',
+        enableAutomaticPunctuation: true,
+        model: 'latest_short'
+      },
+      audio: {
+        content: audioBase64
+      }
+    };
+
+    try {
+      const speechURL = `https://speech.googleapis.com/v1/speech:recognize?key=${encodeURIComponent(GOOGLE_SPEECH_API_KEY.value())}`;
+      const upstream = await fetch(speechURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const payload = await upstream.text();
+      res.status(upstream.status).set('Content-Type', 'application/json').send(payload);
+    } catch (error) {
+      console.error('proxySpeechToText error:', error);
+      res.status(500).json({ error: 'Speech proxy failed' });
+    }
+  }
+);
+
+exports.proxyGiphyStickers = onRequest(
+  {
+    timeoutSeconds: 30,
+    secrets: [GIPHY_API_KEY]
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const modeSource = req.method === 'GET' ? req.query : body;
+    const mode = modeSource.mode === 'search' ? 'search' : 'trending';
+    const rating = typeof modeSource.rating === 'string' ? modeSource.rating : 'pg';
+    const rawLimit = Number(modeSource.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 50)) : 24;
+    const query = typeof modeSource.query === 'string' ? modeSource.query.trim() : '';
+
+    if (mode === 'search' && !query) {
+      res.status(400).json({ error: 'Missing query for search mode' });
+      return;
+    }
+
+    const params = new URLSearchParams({
+      api_key: GIPHY_API_KEY.value(),
+      limit: String(limit),
+      rating
+    });
+    if (mode === 'search') {
+      params.set('q', query);
+    }
+
+    const endpoint = mode === 'search'
+      ? 'https://api.giphy.com/v1/stickers/search'
+      : 'https://api.giphy.com/v1/stickers/trending';
+
+    try {
+      const upstream = await fetch(`${endpoint}?${params.toString()}`, { method: 'GET' });
+      const payload = await upstream.text();
+      res.status(upstream.status).set('Content-Type', 'application/json').send(payload);
+    } catch (error) {
+      console.error('proxyGiphyStickers error:', error);
+      res.status(500).json({ error: 'Giphy proxy failed' });
+    }
+  }
+);
 
 // ✅ FUNCIÓN auxiliar para validar datos de usuario
 function validateUserData(userData, requiredFields = ['username', 'isActive']) {
@@ -20,6 +273,156 @@ async function removeInvalidToken(userId, fcmToken) {
     console.log(`✅ Token inválido eliminado para usuario: ${userId}`);
   } catch (error) {
     console.error(`❌ Error eliminando token inválido para ${userId}:`, error);
+  }
+}
+
+// ✅ Contar mensajes no leídos EN UNA CONVERSACIÓN ESPECÍFICA
+async function getUnreadMessagesInConversation(conversationId, userId) {
+  try {
+    const messagesSnap = await admin.firestore()
+      .collection('conversations')
+      .doc(conversationId)
+      .collection('messages')
+      .where('status', 'in', ['sent', 'delivered'])
+      .get();
+    const unreadCount = messagesSnap.docs.filter(doc => doc.data().senderId !== userId).length;
+    return unreadCount + 1; // +1 por el mensaje actual
+  } catch (error) {
+    return 1;
+  }
+}
+
+// ✅ Contar seguidores pendientes (para agrupar: "Username y X más te han seguido")
+async function getPendingFollowerCount(userId) {
+  try {
+    const snap = await admin.firestore()
+      .collection(`users/${userId}/notifications`)
+      .where('type', '==', 'newFollower')
+      .where('isPending', '==', true)
+      .get();
+    return snap.size + 1; // +1 por el actual
+  } catch (error) {
+    return 1;
+  }
+}
+
+// ✅ Contar comentarios pendientes en un momento específico
+async function getPendingCommentCount(momentOwnerId, momentId) {
+  try {
+    const snap = await admin.firestore()
+      .collection(`users/${momentOwnerId}/notifications`)
+      .where('type', '==', 'momentComment')
+      .where('momentId', '==', momentId)
+      .where('isPending', '==', true)
+      .get();
+    return snap.size + 1;
+  } catch (error) {
+    return 1;
+  }
+}
+
+// ✅ Contar reacciones pendientes en una historia
+async function getPendingStoryReactionCount(storyOwnerId, storyId) {
+  try {
+    const snap = await admin.firestore()
+      .collection(`users/${storyOwnerId}/notifications`)
+      .where('type', '==', 'storyReaction')
+      .where('storyId', '==', storyId)
+      .where('isPending', '==', true)
+      .get();
+    return snap.size + 1;
+  } catch (error) {
+    return 1;
+  }
+}
+
+// ✅ Contar solicitudes de seguimiento pendientes
+async function getPendingFollowRequestCount(userId) {
+  try {
+    const snap = await admin.firestore()
+      .collection(`users/${userId}/receivedFollowRequests`)
+      .where('status', '==', 'pending')
+      .get();
+    return snap.size; // No sumamos 1 porque ya está en la colección
+  } catch (error) {
+    return 1;
+  }
+}
+
+// ✅ NUEVO: Función para obtener todos los conteos pendientes de un usuario
+async function getUnreadCounts(userId, triggerContext = {}) {
+  try {
+    const [messagesSnap, notificationsSnap] = await Promise.all([
+      admin.firestore().collection('conversations')
+        .where('participants', 'array-contains', userId)
+        .get(),
+      admin.firestore().collection(`users/${userId}/notifications`)
+        .where('isPending', '==', true)
+        .get()
+    ]);
+
+    let unreadMessages = 0;
+    let unreadInConversation = 0;
+    let foundCurrentConversation = false;
+
+    messagesSnap.forEach(doc => {
+      const data = doc.data();
+      const readStatus = data.readStatus || {};
+      if (readStatus[userId] === false) {
+        unreadMessages++;
+        if (triggerContext.type === 'message' && doc.id === triggerContext.conversationId) {
+          unreadInConversation++;
+          foundCurrentConversation = true;
+        }
+      }
+    });
+
+    // ✅ SIEMPRE sumamos 1 si es un trigger de mensaje y no lo encontramos aún
+    if (triggerContext.type === 'message' && !foundCurrentConversation) {
+      unreadMessages++;
+      unreadInConversation++;
+    }
+
+    let unreadNotifications = notificationsSnap.size;
+    let foundCurrentNotification = false;
+
+    // Verificar si la notificación actual ya está en el snap (poco probable por la velocidad de Firebase)
+    if (triggerContext.notificationId) {
+      foundCurrentNotification = notificationsSnap.docs.some(d => d.id === triggerContext.notificationId);
+    }
+
+    // ✅ SIEMPRE sumamos 1 si es un trigger de notificación y no la hemos contado
+    if (triggerContext.type === 'notification' && !foundCurrentNotification) {
+      unreadNotifications++;
+    }
+
+    // Conteos específicos de Echoes y Tags
+    let unreadEchoes = notificationsSnap.docs.filter(d => d.data().type === 'echoSuggestion').length;
+    if (triggerContext.notificationType === 'echoSuggestion' && !notificationsSnap.docs.some(d => d.data().type === 'echoSuggestion' && d.id === triggerContext.notificationId)) {
+      unreadEchoes++;
+    }
+
+    let unreadTags = notificationsSnap.docs.filter(d => d.data().type === 'photoTag').length;
+    if (triggerContext.notificationType === 'photoTag' && !notificationsSnap.docs.some(d => d.data().type === 'photoTag' && d.id === triggerContext.notificationId)) {
+      unreadTags++;
+    }
+
+    return {
+      unreadMessages,
+      unreadNotifications,
+      unreadInConversation,
+      unreadEchoes,
+      unreadTags
+    };
+  } catch (error) {
+    console.error('❌ Error obteniendo conteos:', error);
+    return {
+      unreadMessages: 0,
+      unreadNotifications: 0,
+      unreadInConversation: 0,
+      unreadEchoes: 0,
+      unreadTags: 0
+    };
   }
 }
 
@@ -110,32 +513,30 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     });
 
     // ✅ TÍTULO DINÁMICO basado en número de reacciones
-    let notificationTitle;
-    let notificationBody;
-
-    // ✅ VALIDAR que username existe y no sea undefined
     const username = reacterData.username || 'Alguien';
-    const reactionCount = Math.max(1, newReactionCount); // ✅ Evitar números negativos
+    const reactionCount = Math.max(1, newReactionCount);
 
+    // Determinar claves de localización
+    let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
     if (reactionCount === 1) {
-      // Primera reacción: mostrar usuario específico
-      notificationTitle = `${username} reaccionó ${emoji} a tu momento`;
-      notificationBody = 'Toca para ver tu momento';
+      titleLocKey = 'notification.momentReaction.single.title';
+      titleLocArgs = [username, emoji];
+      bodyLocKey = 'notification.momentReaction.single.body';
+      bodyLocArgs = [];
     } else {
-      // Múltiples reacciones: mostrar conteo
-      notificationTitle = `${username} y ${reactionCount - 1} más reaccionaron a tu momento`;
-      notificationBody = `${reactionCount} reacciones en total`;
+      titleLocKey = 'notification.momentReaction.multiple.title';
+      titleLocArgs = [username, String(reactionCount - 1)];
+      bodyLocKey = 'notification.momentReaction.multiple.body';
+      bodyLocArgs = [String(reactionCount)];
     }
+
+    // ✅ Obtener conteos actualizados para el Widget
+    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'momentReaction', notificationId: reactionId });
 
     const message = {
       token: fcmToken,
-      notification: {
-        title: notificationTitle,
-        body: notificationBody,
-        image: cleanImageUrl
-      },
       data: {
-        type: 'moment_reaction', // ✅ SIEMPRE el mismo tipo
+        type: 'moment_reaction',
         momentId: momentId,
         userId: reaction.userId,
         reactionType: reaction.reactionType,
@@ -144,17 +545,28 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
         targetId: momentId,
         senderUsername: reacterData.username,
         senderProfileImage: reacterData.profileImagePath || '',
-        reactionCount: String(newReactionCount)
+        reactionCount: String(newReactionCount),
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: {
+          'apns-collapse-id': `reaction_${momentId}`
+        },
         payload: {
           aps: {
-            badge: 1,
+            alert: {
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
+              'loc-key': bodyLocKey,
+              'loc-args': bodyLocArgs
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
             sound: 'default',
             'mutable-content': 1,
-            // ✅ CLAVE: Thread-ID para agrupación nativa iOS
             'thread-id': `moment_reactions_${momentId}`,
-            // ✅ NUEVO: Summary args para agrupación inteligente
             'summary-arg': reacterData.username,
             'summary-arg-count': newReactionCount
           }
@@ -216,7 +628,7 @@ exports.updateBadge = onDocumentCreated('users/{userId}/notifications/{notificat
       apns: {
         payload: {
           aps: {
-            'content-available': 1,
+            'mutable-content': 1,
             badge: badgeCount
           }
         }
@@ -318,13 +730,28 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
     });
     if (processed) return null;
 
+    // ✅ Obtener conteos actualizados para el Widget
+    const [counts, commentCount] = await Promise.all([
+      getUnreadCounts(userId, { type: 'notification', notificationType: 'momentComment', notificationId: commentId }),
+      getPendingCommentCount(userId, momentId)
+    ]);
+
+    // Determinar claves de localización
+    let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
+    if (commentCount > 1) {
+      titleLocKey = 'notification.comment.multiple.title';
+      titleLocArgs = [commenterData.username, String(commentCount - 1)];
+      bodyLocKey = 'notification.comment.multiple.body';
+      bodyLocArgs = [String(commentCount)];
+    } else {
+      titleLocKey = 'notification.comment.single.title';
+      titleLocArgs = [commenterData.username];
+      bodyLocKey = null; // Usar el comentario como body
+      bodyLocArgs = null;
+    }
+
     const message = {
       token: fcmToken,
-      notification: {
-        title: `${commenterData.username} comentó tu momento`,
-        body: `"${commentPreview}"`,
-        image: cleanImageUrl
-      },
       data: {
         type: 'moment_comment',
         momentId: momentId,
@@ -334,15 +761,32 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
         targetType: 'moment',
         targetId: momentId,
         senderUsername: commenterData.username,
-        senderProfileImage: commenterData.profileImagePath || ''
+        senderProfileImage: commenterData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: {
+          'apns-collapse-id': `comment_${momentId}`
+        },
         payload: {
           aps: {
-            badge: 1,
+            alert: bodyLocKey ? {
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
+              'loc-key': bodyLocKey,
+              'loc-args': bodyLocArgs
+            } : {
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
+              body: `"${commentPreview}"`
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
             sound: 'default',
             'mutable-content': 1,
-            'thread-id': `moment_comments_${momentId}` // ✅ Agrupación para comentarios
+            'thread-id': `moment_comments_${momentId}`
           }
         }
       }
@@ -449,18 +893,31 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
 
     } else {
       // ✅ SEGUIDOR NORMAL
-      notificationTitle = `${followerData.username} comenzó a seguirte`;
-      notificationBody = 'Toca para ver su perfil';
       notificationType = 'newFollower';
+
+      // Obtener conteos
+      const [counts, followerCount] = await Promise.all([
+        getUnreadCounts(userId, { type: 'notification', notificationType: 'newFollower' }),
+        getPendingFollowerCount(userId)
+      ]);
+
+      // Determinar claves de localización
+      let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
+      if (followerCount > 1) {
+        titleLocKey = 'notification.follower.multiple.title';
+        titleLocArgs = [followerData.username, String(followerCount - 1)];
+        bodyLocKey = 'notification.follower.multiple.body';
+        bodyLocArgs = [String(followerCount)];
+      } else {
+        titleLocKey = 'notification.follower.single.title';
+        titleLocArgs = [followerData.username];
+        bodyLocKey = 'notification.follower.single.body';
+        bodyLocArgs = [];
+      }
 
       // ✅ ENVIAR NOTIFICACIÓN NORMAL
       const message = {
         token: fcmToken,
-        notification: {
-          title: notificationTitle,
-          body: notificationBody,
-          image: cleanImageUrl
-        },
         data: {
           type: 'new_follower',
           followerId: followerId,
@@ -468,15 +925,28 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
           targetType: 'profile',
           targetId: followerId,
           senderUsername: followerData.username,
-          senderProfileImage: followerData.profileImagePath || ''
+          senderProfileImage: followerData.profileImagePath || '',
+          unreadMessages: String(counts.unreadMessages),
+          unreadNotifications: String(counts.unreadNotifications),
+          unreadEchoes: String(counts.unreadEchoes),
+          unreadTags: String(counts.unreadTags),
         },
         apns: {
+          headers: {
+            'apns-collapse-id': `followers_${userId}`
+          },
           payload: {
             aps: {
-              badge: 1,
+              alert: {
+                'title-loc-key': titleLocKey,
+                'title-loc-args': titleLocArgs,
+                'loc-key': bodyLocKey,
+                'loc-args': bodyLocArgs
+              },
+              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
               sound: 'default',
               'mutable-content': 1,
-              'thread-id': `new_followers_${userId}` // ✅ Agrupación para seguidores
+              'thread-id': `new_followers_${userId}`
             }
           }
         }
@@ -669,13 +1139,34 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
         ? senderData.profileImagePath.replace(':443', '')
         : null;
 
+      // ✅ Obtener conteos actualizados para el receptor
+      const [counts, unreadInConvo] = await Promise.all([
+        getUnreadCounts(receiverId, { type: 'message', conversationId: conversationId }),
+        getUnreadMessagesInConversation(conversationId, receiverId)
+      ]);
+
+      // Determinar clave de localización según el tipo de mensaje
+      let bodyLocKey = 'notification.message.single.default';
+      switch (message.type) {
+        case 'text': bodyLocKey = 'notification.message.single.text'; break;
+        case 'image': bodyLocKey = 'notification.message.single.photo'; break;
+        case 'video': bodyLocKey = 'notification.message.single.video'; break;
+        case 'audio': bodyLocKey = 'notification.message.single.audio'; break;
+        case 'viewOnceImage':
+        case 'viewOnceVideo': bodyLocKey = 'notification.message.single.viewOnce'; break;
+        case 'moment': bodyLocKey = 'notification.message.single.moment'; break;
+        default: bodyLocKey = 'notification.message.single.default';
+      }
+
+      // Si hay múltiples mensajes, usar clave plural
+      let bodyLocArgs = [];
+      if (unreadInConvo > 1) {
+        bodyLocKey = 'notification.message.multiple';
+        bodyLocArgs = [String(unreadInConvo)];
+      }
+
       const notificationMessage = {
         token: receiverData.fcmToken,
-        notification: {
-          title: notificationTitle,
-          body: notificationBody,
-          image: cleanImageUrl
-        },
         data: {
           type: 'new_message',
           conversationId: conversationId,
@@ -684,16 +1175,27 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
           targetType: 'conversation',
           targetId: conversationId,
           senderUsername: senderData.username,
-          senderProfileImage: senderData.profileImagePath || ''
+          senderProfileImage: senderData.profileImagePath || '',
+          unreadMessages: String(counts.unreadMessages),
+          unreadNotifications: String(counts.unreadNotifications),
+          unreadEchoes: String(counts.unreadEchoes),
+          unreadTags: String(counts.unreadTags)
         },
         apns: {
+          headers: {
+            'apns-collapse-id': `msg_${conversationId}`
+          },
           payload: {
             aps: {
-              badge: 1,
+              alert: {
+                title: senderData.username || 'Moments',
+                'loc-key': bodyLocKey,
+                'loc-args': bodyLocArgs
+              },
+              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
               sound: 'default',
               'mutable-content': 1,
-              'content-available': 1, // ✅ NUEVO: Despertar app en background para marcar delivered
-              'thread-id': `conversation_${conversationId}` // ✅ Agrupación por conversación
+              'thread-id': `conversation_${conversationId}`
             }
           }
         }
@@ -705,7 +1207,7 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
         if (error.code === 'messaging/registration-token-not-registered') {
           await removeInvalidToken(receiverId, receiverData.fcmToken);
         }
-        return null; // No hacer throw para que otras notificaciones puedan enviarse
+        return null;
       }
     });
 
@@ -751,13 +1253,28 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
       ? reacterData.profileImagePath.replace(':443', '')
       : null;
 
+    // ✅ Obtener conteos actualizados para el Widget
+    const [counts, reactionCount] = await Promise.all([
+      getUnreadCounts(userId, { type: 'notification', notificationType: 'storyReaction', notificationId: reactionId }),
+      getPendingStoryReactionCount(userId, storyId)
+    ]);
+
+    // Determinar claves de localización
+    let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
+    if (reactionCount > 1) {
+      titleLocKey = 'notification.storyReaction.multiple.title';
+      titleLocArgs = [reacterData.username, String(reactionCount - 1)];
+      bodyLocKey = 'notification.storyReaction.multiple.body';
+      bodyLocArgs = [String(reactionCount)];
+    } else {
+      titleLocKey = 'notification.storyReaction.single.title';
+      titleLocArgs = [reacterData.username, emoji];
+      bodyLocKey = 'notification.storyReaction.single.body';
+      bodyLocArgs = [];
+    }
+
     const message = {
       token: fcmToken,
-      notification: {
-        title: `${reacterData.username} reaccionó a tu historia con ${emoji}`,
-        body: 'Toca para ver quién vio tu historia',
-        image: cleanImageUrl
-      },
       data: {
         type: 'story_reaction',
         storyId: storyId,
@@ -767,15 +1284,28 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
         targetType: 'notification',
         targetId: storyId,
         senderUsername: reacterData.username,
-        senderProfileImage: reacterData.profileImagePath || ''
+        senderProfileImage: reacterData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: {
+          'apns-collapse-id': `story_reaction_${storyId}`
+        },
         payload: {
           aps: {
-            badge: 1,
+            alert: {
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
+              'loc-key': bodyLocKey,
+              'loc-args': bodyLocArgs
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
             sound: 'default',
             'mutable-content': 1,
-            'thread-id': `story_reactions_${storyId}` // ✅ Agrupación por historia
+            'thread-id': `story_reactions_${storyId}`
           }
         }
       }
@@ -839,13 +1369,28 @@ exports.onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFoll
       ? requesterData.profileImagePath.replace(':443', '')
       : null;
 
+    // ✅ Obtener conteos actualizados para el Widget
+    const [counts, requestCount] = await Promise.all([
+      getUnreadCounts(userId, { type: 'notification', notificationType: 'followRequest' }),
+      getPendingFollowRequestCount(userId)
+    ]);
+
+    // Determinar claves de localización
+    let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
+    if (requestCount > 1) {
+      titleLocKey = 'notification.followRequest.multiple.title';
+      titleLocArgs = [requesterData.username, String(requestCount - 1)];
+      bodyLocKey = 'notification.followRequest.multiple.body';
+      bodyLocArgs = [String(requestCount)];
+    } else {
+      titleLocKey = 'notification.followRequest.single.title';
+      titleLocArgs = [requesterData.username];
+      bodyLocKey = 'notification.followRequest.single.body';
+      bodyLocArgs = [];
+    }
+
     const message = {
       token: fcmToken,
-      notification: {
-        title: `${requesterData.username} quiere seguirte`,
-        body: 'Toca para aceptar o rechazar la solicitud',
-        image: cleanImageUrl
-      },
       data: {
         type: 'follow_request',
         requestId: requestId,
@@ -854,15 +1399,28 @@ exports.onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFoll
         targetType: 'follow_requests',
         targetId: requestId,
         senderUsername: requesterData.username,
-        senderProfileImage: requesterData.profileImagePath || ''
+        senderProfileImage: requesterData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: {
+          'apns-collapse-id': `follow_request_${userId}`
+        },
         payload: {
           aps: {
-            badge: 1,
+            alert: {
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
+              'loc-key': bodyLocKey,
+              'loc-args': bodyLocArgs
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
             sound: 'default',
             'mutable-content': 1,
-            'thread-id': `follow_requests_${userId}` // ✅ Agrupación para solicitudes
+            'thread-id': `follow_requests_${userId}`
           }
         }
       }
@@ -953,13 +1511,28 @@ exports.onMentionNotification = onDocumentCreated('users/{userId}/notifications/
       targetId = notification.momentId;
     }
 
+    // ✅ Obtener conteos actualizados para el Widget (CON CONTEXTO PARA EVITAR RACE CONDITION)
+    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'mention' });
+
+    // Determinar claves de localización
+    let titleLocKey = 'notification.mention.title';
+    let titleLocArgs = [senderData.username, contentType]; // contentType ya es 'momento', 'historia', etc.
+    // Mapear contentType a claves de localización si es necesario, pero ya los definimos en strings base
+    // "notification.mention.contentType.moment" = "momento";
+    // Podríamos hacer lookup inverso pero por simplicidad usaremos el string directo que coincide con la localizacion
+    // Mejor estrategia: enviar la clave del tipo de contenido como argumento
+    let contentTypeKey = 'notification.mention.contentType.default';
+    if (targetType === 'moment') contentTypeKey = 'notification.mention.contentType.moment';
+    if (targetType === 'story') contentTypeKey = 'notification.mention.contentType.story';
+
+    // FCM no soporta anidar loc keys en argumentos fácilmente, así que usaremos el valor traducido en el cliente si fuera posible,
+    // pero aquí APNs pide strings.
+    // Simplificación: Usar "momento"/"historia" hardcoded en español como fallback o intentar pasar la key.
+    // APNs soporta loc-args que son strings. 
+    // Vamos a usar una clave genérica y el nombre del usuario.
+
     const message = {
       token: fcmToken,
-      notification: {
-        title: `${senderData.username} te mencionó en una ${contentType}`,
-        body: 'Toca para ver el contenido',
-        image: cleanImageUrl
-      },
       data: {
         type: 'mention',
         senderId: notification.senderId,
@@ -967,15 +1540,28 @@ exports.onMentionNotification = onDocumentCreated('users/{userId}/notifications/
         targetType: targetType,
         targetId: targetId,
         senderUsername: senderData.username,
-        senderProfileImage: senderData.profileImagePath || ''
+        senderProfileImage: senderData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: {
+          'apns-collapse-id': `mention_${userId}`
+        },
         payload: {
           aps: {
-            badge: 1,
+            alert: {
+              'title-loc-key': 'notification.mention.title',
+              'title-loc-args': [senderData.username, contentType], // contentType debe ser localizado en el cliente o enviado como string
+              'loc-key': 'notification.mention.body',
+              'loc-args': []
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
             sound: 'default',
             'mutable-content': 1,
-            'thread-id': `mentions_${userId}` // ✅ Agrupación para menciones
+            'thread-id': `mentions_${userId}`
           }
         }
       }
@@ -1041,13 +1627,11 @@ exports.onPhotoTagNotification = onDocumentCreated('users/{userId}/notifications
     });
     if (done) return null;
 
+    // ✅ Obtener conteos actualizados para el Widget (CON CONTEXTO PARA EVITAR RACE CONDITION)
+    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'photoTag' });
+
     const message = {
       token: fcmToken,
-      notification: {
-        title: `${senderData.username} te etiquetó en un momento`,
-        body: 'Toca para ver el momento',
-        image: cleanImageUrl
-      },
       data: {
         type: 'photo_tag',
         senderId: notification.senderId,
@@ -1055,15 +1639,28 @@ exports.onPhotoTagNotification = onDocumentCreated('users/{userId}/notifications
         targetType: 'moment',
         targetId: notification.momentId || '',
         senderUsername: senderData.username,
-        senderProfileImage: senderData.profileImagePath || ''
+        senderProfileImage: senderData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: {
+          'apns-collapse-id': `tag_${userId}`
+        },
         payload: {
           aps: {
-            badge: 1,
+            alert: {
+              'title-loc-key': 'notification.photoTag.title',
+              'title-loc-args': [senderData.username],
+              'loc-key': 'notification.photoTag.body',
+              'loc-args': []
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
             sound: 'default',
             'mutable-content': 1,
-            'thread-id': `photo_tags_${userId}` // ✅ Agrupación para etiquetas
+            'thread-id': `photo_tags_${userId}`
           }
         }
       }
@@ -1247,29 +1844,32 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
 
     const totalParts = chainStoriesSnapshot.size;
 
-    // ✅ TÍTULO DINÁMICO basado en número de partes
-    let notificationTitle, notificationBody;
+    // Determinar claves de localización
+    let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
 
     const username = continuerData.username || 'Alguien';
     const chainTitle = story.chainTitle || 'historia';
 
     if (totalParts === 2) {
-      // Segunda parte: mostrar usuario específico
-      notificationTitle = `${username} continuó tu cadena "${chainTitle}"`;
-      notificationBody = 'Toca para ver la nueva parte';
+      // Segunda parte: mostrar notificación simple de "continuó"
+      // Usamos el formato genérico: Usuario añadió la parte 2 a "Título"
+      titleLocKey = 'notification.storyChain.single.title';
+      titleLocArgs = [username, String(story.chainPosition), chainTitle];
+      bodyLocKey = 'notification.storyChain.single.body';
+      bodyLocArgs = [];
     } else {
-      // Múltiples partes: mostrar conteo
-      notificationTitle = `${username} agregó la parte ${story.chainPosition} a "${chainTitle}"`;
-      notificationBody = `${totalParts} partes en total`;
+      // Múltiples partes
+      titleLocKey = 'notification.storyChain.multiple.title';
+      titleLocArgs = [username, String(story.chainPosition), chainTitle];
+      bodyLocKey = 'notification.storyChain.multiple.body';
+      bodyLocArgs = [String(totalParts)];
     }
+
+    // ✅ Obtener conteos actualizados para el Widget
+    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'storyChainContinued' });
 
     const message = {
       token: fcmToken,
-      notification: {
-        title: notificationTitle,
-        body: notificationBody,
-        image: cleanImageUrl
-      },
       data: {
         type: 'story_chain_continued',
         chainId: story.chainId,
@@ -1282,17 +1882,28 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
         targetType: 'story_chain',
         targetId: story.chainId,
         senderUsername: continuerData.username,
-        senderProfileImage: continuerData.profileImagePath || ''
+        senderProfileImage: continuerData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: {
+          'apns-collapse-id': `chain_${story.chainId}`
+        },
         payload: {
           aps: {
-            badge: 1,
+            alert: {
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
+              'loc-key': bodyLocKey,
+              'loc-args': bodyLocArgs
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
             sound: 'default',
             'mutable-content': 1,
-            // ✅ CLAVE: Thread-ID para agrupación nativa iOS
             'thread-id': `story_chain_${story.chainId}`,
-            // ✅ NUEVO: Summary args para agrupación inteligente
             'summary-arg': continuerData.username,
             'summary-arg-count': totalParts
           }
@@ -1347,5 +1958,105 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
 
   } catch (error) {
     console.error('❌ Error sending story chain notification:', error);
+  }
+});
+
+// 🌊 ECHOES: Notificación cuando se detecta un posible Echo (Nova Spark)
+exports.onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
+  const snap = event.data;
+  const { echoId } = event.params;
+  const echo = snap.data();
+
+  if (!echo) return null;
+
+  try {
+    const participants = echo.participants || [];
+    const hostId = echo.hostId;
+    const recipients = participants.filter(p => p.userId !== hostId);
+
+    if (recipients.length === 0) return null;
+
+    console.log(`🌊 Procesando nuevo Echo: ${echoId} con ${recipients.length} participantes`);
+
+    // Obtener datos del host para personalizar la notificación
+    const hostDoc = await admin.firestore().doc(`users/${hostId}`).get();
+    const hostData = hostDoc.exists ? hostDoc.data() : { username: 'Alguien' };
+
+    const notificationPromises = recipients.map(async (participant) => {
+      const recipientId = participant.userId;
+
+      // 1. Obtener token del destinatario
+      const userDoc = await admin.firestore().doc(`users/${recipientId}`).get();
+      if (!userDoc.exists) return null;
+
+      const userData = userDoc.data();
+      if (!validateUserData(userData) || !userData.fcmToken) return null;
+
+      // ✅ Obtener conteos actualizados para este receptor (CON CONTEXTO PARA EVITAR RACE CONDITION)
+      const counts = await getUnreadCounts(recipientId, { type: 'notification', notificationType: 'echoSuggestion' });
+
+      // 2. Enviar FCM (Nova Spark)
+      const message = {
+        token: userData.fcmToken,
+        data: {
+          type: 'echo_suggestion',
+          echoId: echoId,
+          hostId: hostId,
+          targetType: 'echo',
+          targetId: echoId,
+          senderUsername: hostData.username,
+          senderProfileImage: hostData.profileImagePath || '',
+          unreadMessages: String(counts.unreadMessages),
+          unreadNotifications: String(counts.unreadNotifications),
+          unreadEchoes: String(counts.unreadEchoes),
+          unreadTags: String(counts.unreadTags),
+        },
+        apns: {
+          headers: {
+            'apns-collapse-id': `echo_${recipientId}`
+          },
+          payload: {
+            aps: {
+              alert: {
+                'title-loc-key': 'notification.echo.title',
+                'title-loc-args': [],
+                'loc-key': 'notification.echo.body',
+                'loc-args': [hostData.username]
+              },
+              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+              sound: 'default',
+              'mutable-content': 1,
+              'thread-id': `echo_suggestions_${recipientId}`
+            }
+          }
+        }
+      };
+
+      try {
+        await admin.messaging().send(message);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(recipientId, userData.fcmToken);
+        }
+        console.error(`❌ Error enviando FCM de Echo a ${recipientId}:`, error);
+      }
+
+      // 3. Crear notificación en Firestore
+      await admin.firestore().collection(`users/${recipientId}/notifications`).add({
+        type: 'echoSuggestion',
+        senderId: hostId,
+        senderUsername: hostData.username,
+        senderProfileImage: hostData.profileImagePath || '',
+        echoId: echoId,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        isPending: true
+      });
+    });
+
+    await Promise.all(notificationPromises);
+    console.log(`✅ Notificaciones de Echo enviadas para ${echoId}`);
+
+  } catch (error) {
+    console.error('❌ Error handling echo creation:', error);
   }
 });

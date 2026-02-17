@@ -184,6 +184,7 @@ struct StoryEditingView: View {
                     }
                 )
                 .id(forceUpdate)
+                .ignoresSafeArea()
 
                 // Controls
                 VStack {
@@ -427,11 +428,11 @@ struct StoryEditingView: View {
         }
     }
     
-    // ✅ Componentes de la UI extraídos para simplificar el body
     @ViewBuilder
     private func backgroundMediaView() -> some View {
         if let firstMedia = selectedMediaItems.first {
             if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
+                let isHorizontalVideo = firstMedia.image.size.width > firstMedia.image.size.height
                 ZStack {
                     StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
                         .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
@@ -440,7 +441,10 @@ struct StoryEditingView: View {
                         .clipped()
                         .ignoresSafeArea()
                     
-                    StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspect)
+                    StoryVideoPlayerView(
+                        videoURL: videoURL,
+                        videoGravity: isHorizontalVideo ? .resizeAspect : .resizeAspectFill
+                    )
                         .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: UIScreen.main.bounds.height)
                         .clipped()
                         .ignoresSafeArea()
@@ -460,6 +464,18 @@ struct StoryEditingView: View {
                     applySelectedFilter()
                 }
             }
+        } else {
+            // ✅ Fondo por defecto cuando se comparte un sticker (ej. share to story)
+            LinearGradient(
+                colors: [
+                    Color(hex: "4158D0") ?? .blue,
+                    Color(hex: "C850C0") ?? .purple,
+                    Color(hex: "FFCC70") ?? .pink
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
         }
     }
     
@@ -644,8 +660,9 @@ struct StoryEditingView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color.black.opacity(0.3))
+                        .background(.ultraThinMaterial)
                         .clipShape(Capsule())
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     }
                 }
             
@@ -874,12 +891,25 @@ struct StoryEditingView: View {
             return UIImage()
         }
         
-        // standard story resolution (1080 x 1920)
-        let targetSize = CGSize(width: 1080, height: 1920)
+        let baseImage: UIImage = firstMedia.image
+        
+        // ✅ RESOLUCIÓN COMPLETAMENTE DINÁMICA: Mantener el aspect ratio original siempre
+        // Bloqueamos el ancho a 1080 (HD) y calculamos la altura según el contenido
+        let baseWidth = baseImage.size.width
+        let baseHeight = baseImage.size.height
+        let contentAspectRatio = baseWidth / baseHeight
+        
+        // Calculamos el alto objetivo manteniendo el ratio (HD)
+        let targetHeight = 1080 / contentAspectRatio
+        var targetSize = CGSize(width: 1080, height: targetHeight)
+        
+        // Sanity check: Si por alguna razón el ratio es absurdo, limitamos para evitar accidentes
+        if targetHeight > 3000 { targetSize.height = 3000 }
+        if targetHeight < 500 { targetSize.height = 500 }
+        
         let screenSize = UIScreen.main.bounds.size
         
-        // baseImage and scaling factors
-        let baseImage: UIImage = firstMedia.image
+        // scaling factors
         let scaleFactorX = targetSize.width / screenSize.width
         let scaleFactorY = targetSize.height / screenSize.height
         
@@ -1043,6 +1073,10 @@ struct StoryEditingView: View {
             }
             
             // 5. Stickers overlay
+            // ✅ FIX: No renderizar NINGÚN sticker en la imagen de fondo
+            // Los stickers se añaden como metadatos interactivos y se renderizan en el visor
+            // Si los dibujamos aquí, aparecerán dobles (uno estático y uno interactivo)
+            /*
             for sticker in selectedStickers {
                 // interactive stickers (mentions, etc.) are handled by metadata, not drawn on the static image
                 if sticker.type == .mention || sticker.type == .poll || sticker.type == .question || 
@@ -1073,7 +1107,7 @@ struct StoryEditingView: View {
                 }
                 
                 context.cgContext.translateBy(x: scaledPosition.x, y: scaledPosition.y)
-                context.cgContext.rotate(by: CGFloat(sticker.rotation.radians))
+                context.cgContext.rotate(by: sticker.rotation.radians)
                 
                 let stickerRect = CGRect(
                     x: -scaledWidth / 2,
@@ -1082,12 +1116,11 @@ struct StoryEditingView: View {
                     height: scaledHeight
                 )
                 
-                if !sticker.isAnimated {
-                    sticker.image.draw(in: stickerRect)
-                }
+                sticker.image.draw(in: stickerRect)
                 
                 context.cgContext.restoreGState()
             }
+            */
             
         }
     }
@@ -1291,6 +1324,11 @@ struct StoryEditingView: View {
             return interactionData.questionText ?? ""
         case .poll:
             return interactionData.pollData?.joined(separator: "|") ?? ""
+        case .shareMoment: // ✅ CORREGIDO: Usar shareMoment en lugar de moment
+            if let momentId = interactionData.momentId, let mediaCount = interactionData.mediaCount {
+                return "Moment ID: \(momentId), Media Count: \(mediaCount)"
+            }
+            return ""
         default:
             return ""
         }
@@ -1685,14 +1723,15 @@ struct StickerItem: Identifiable {
     var scale: CGFloat = 1.0
     var rotation: Angle = .zero
     
-    // ✅ NUEVAS PROPIEDADES para GIFs animados
+    // ✅ NUEVAS PROPIEDADES para GIFs animados y Videos
     let gifURL: URL?  // URL del GIF para mostrar animado
-    let isAnimated: Bool  // Flag para saber si es GIF
+    let videoURL: URL? // URL del Video para mostrar en loop
+    let isAnimated: Bool  // Flag para saber si es GIF o Vídeo Animado
     
     let type: StickerType
     let interactionData: StickerInteractionData?
     
-    enum StickerType {
+    enum StickerType: String, Codable {
         case emoji
         case sticker
         case mention
@@ -1705,6 +1744,7 @@ struct StickerItem: Identifiable {
         case weather
         case time
         case selfie
+        case shareMoment // ✅ NUEVO: Para identificar stickers de compartir momento
     }
     
     struct StickerInteractionData {
@@ -1716,28 +1756,76 @@ struct StickerItem: Identifiable {
         let pollData: [String]?
         let questionText: String?
         let weatherSymbol: String?
+        let caption: String? // ✅ NUEVO: Para mostrar el pie de foto en compartidos
+        let profileImagePath: String? // ✅ NUEVO: Para reconstruir el header en el visor
+        let momentId: String? // ✅ NUEVO: Para navegación al detalle
+        let mediaCount: Int? // ✅ NUEVO: Para indicador de galería
+
+        // ✅ Inicializador con valores por defecto para evitar errores de compilación masivos
+        init(
+            username: String? = nil,
+            userId: String? = nil,
+            hashtag: String? = nil,
+            location: String? = nil,
+            locationCoordinate: CLLocationCoordinate2D? = nil,
+            pollData: [String]? = nil,
+            questionText: String? = nil,
+            weatherSymbol: String? = nil,
+            caption: String? = nil,
+            profileImagePath: String? = nil,
+            momentId: String? = nil,
+            mediaCount: Int? = nil
+        ) {
+            self.username = username
+            self.userId = userId
+            self.hashtag = hashtag
+            self.location = location
+            self.locationCoordinate = locationCoordinate
+            self.pollData = pollData
+            self.questionText = questionText
+            self.weatherSymbol = weatherSymbol
+            self.caption = caption
+            self.profileImagePath = profileImagePath
+            self.momentId = momentId
+            self.mediaCount = mediaCount
+        }
     }
     
     // ✅ INICIALIZADORES ACTUALIZADOS
-    init(image: UIImage, position: CGPoint, type: StickerType, interactionData: StickerInteractionData?) {
-        self.id = "\(type.rawValue)_\(Int(position.x))_\(Int(position.y))"
+    init(image: UIImage, position: CGPoint, type: StickerType, interactionData: StickerInteractionData?, videoURL: URL? = nil, gifURL: URL? = nil) {
+        self.id = "\(type)_\(position.x)_\(position.y)"
         self.image = image
         self.position = position
         self.type = type
+        self.gifURL = gifURL
+        self.videoURL = videoURL
+        self.isAnimated = videoURL != nil || gifURL != nil
         self.interactionData = interactionData
-        self.gifURL = nil
-        self.isAnimated = false
     }
     
-    // ✅ NUEVO INICIALIZADOR para GIFs
+    // ✅ NUEVO INICIALIZADOR para compatibilidad con GIFs
     init(image: UIImage, gifURL: URL, position: CGPoint, type: StickerType, interactionData: StickerInteractionData?) {
-        self.id = "\(type.rawValue)_\(Int(position.x))_\(Int(position.y))"
+        self.id = "\(type)_\(position.x)_\(position.y)"
         self.image = image
         self.position = position
         self.type = type
-        self.interactionData = interactionData
         self.gifURL = gifURL
+        self.videoURL = nil
         self.isAnimated = true
+        self.interactionData = interactionData
+    }
+    
+    init(id: String, image: UIImage, position: CGPoint, scale: CGFloat, rotation: Angle, gifURL: URL?, videoURL: URL? = nil, isAnimated: Bool, type: StickerType, interactionData: StickerInteractionData?) {
+        self.id = id
+        self.image = image
+        self.position = position
+        self.scale = scale
+        self.rotation = rotation
+        self.gifURL = gifURL
+        self.videoURL = videoURL
+        self.isAnimated = isAnimated
+        self.type = type
+        self.interactionData = interactionData
     }
 }
 

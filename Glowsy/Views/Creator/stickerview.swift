@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseCore
 import FirebaseFirestore
 import Kingfisher
 import CoreLocation
@@ -21,7 +22,8 @@ struct StickerPickerView: View {
     @State private var isDarkMode = true
     @State private var showingSelfieCamera = false
     
-    let giphyAPIKey = "aLENUeEdnaI4z83gaLZPlOHzcLnaNGH8"
+    private let functionsRegion = "europe-southwest1"
+    private let giphyFunctionName = "proxyGiphyStickers"
     
     // 🎯 CATEGORÍAS MEJORADAS CON GLASSMORPHISM
     enum StickerCategory: String, CaseIterable {
@@ -59,7 +61,7 @@ struct StickerPickerView: View {
             case .mention: return .orange
             case .hashtag: return .pink
             case .poll: return .green
-            case .question: return .teal
+            case .question: return .purple
             case .weather: return .cyan
             case .time: return .indigo
             case .selfie: return .orange
@@ -74,7 +76,7 @@ struct StickerPickerView: View {
             case .mention: return [Color.orange, Color.yellow]
             case .hashtag: return [Color.pink, Color.purple]
             case .poll: return [Color.green, Color.mint]
-            case .question: return [Color.teal, Color.cyan]
+            case .question: return [Color.purple, Color.indigo]
             case .weather: return [Color.cyan, Color.blue]
             case .time: return [Color.indigo, Color.purple]
             case .selfie: return [Color.orange, Color.red]
@@ -942,55 +944,88 @@ struct StickerPickerView: View {
          "😭", "❤️", "🥳", "😘", "🤝", "👑", "💪", "🌟", "🦋", "🌈", "⚡", "💎"]
     }
     
-    // MARK: - Giphy API Methods (mantener sin cambios)
+    // MARK: - Giphy API Methods (proxy por Cloud Functions)
+    
+    private func giphyProxyURL() -> URL? {
+        guard let projectID = FirebaseApp.app()?.options.projectID else { return nil }
+        return URL(string: "https://\(functionsRegion)-\(projectID).cloudfunctions.net/\(giphyFunctionName)")
+    }
+    
+    private func fetchGiphyStickers(mode: String, query: String? = nil) {
+        guard let url = giphyProxyURL() else {
+            isLoadingGiphy = false
+            return
+        }
+        
+        guard let user = Auth.auth().currentUser else {
+            isLoadingGiphy = false
+            return
+        }
+        
+        user.getIDTokenForcingRefresh(false) { token, _ in
+            guard let token = token else {
+                DispatchQueue.main.async {
+                    self.isLoadingGiphy = false
+                }
+                return
+            }
+            
+            var body: [String: Any] = [
+                "mode": mode,
+                "limit": 24,
+                "rating": "pg"
+            ]
+            if let query = query, !query.isEmpty {
+                body["query"] = query
+            }
+            
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
+                DispatchQueue.main.async {
+                    self.isLoadingGiphy = false
+                }
+                return
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.httpBody = jsonData
+            request.timeoutInterval = 20.0
+            
+            URLSession.shared.dataTask(with: request) { data, _, error in
+                guard let data = data, error == nil else {
+                    DispatchQueue.main.async {
+                        self.isLoadingGiphy = false
+                    }
+                    return
+                }
+                
+                do {
+                    let response = try JSONDecoder().decode(GiphyResponse.self, from: data)
+                    DispatchQueue.main.async {
+                        self.giphyResults = response.data
+                        self.isLoadingGiphy = false
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        self.isLoadingGiphy = false
+                    }
+                }
+            }.resume()
+        }
+    }
     
     private func loadTrendingStickers() {
         isLoadingGiphy = true
-        let urlString = "https://api.giphy.com/v1/stickers/trending?api_key=\(giphyAPIKey)&limit=24&rating=pg"
-        
-        guard let url = URL(string: urlString) else { return }
-        
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            guard let data = data, error == nil else { return }
-            
-            do {
-                let response = try JSONDecoder().decode(GiphyResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.giphyResults = response.data
-                    self.isLoadingGiphy = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.isLoadingGiphy = false
-                }
-            }
-        }.resume()
+        fetchGiphyStickers(mode: "trending")
     }
     
     private func searchTrendingStickers() {
         guard !searchText.isEmpty else { return }
         
         isLoadingGiphy = true
-        let query = searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "https://api.giphy.com/v1/stickers/search?api_key=\(giphyAPIKey)&q=\(query)&limit=24&rating=pg"
-        
-        guard let url = URL(string: urlString) else { return }
-        
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            guard let data = data, error == nil else { return }
-            
-            do {
-                let response = try JSONDecoder().decode(GiphyResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.giphyResults = response.data
-                    self.isLoadingGiphy = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.isLoadingGiphy = false
-                }
-            }
-        }.resume()
+        fetchGiphyStickers(mode: "search", query: searchText)
     }
     
     // MARK: - Sticker Creation Methods (exactamente iguales)
@@ -1154,7 +1189,9 @@ struct StickerPickerView: View {
                 locationCoordinate: coordinate,
                 pollData: nil,
                 questionText: nil,
-                weatherSymbol: nil
+                weatherSymbol: nil,
+                caption: nil,
+                profileImagePath: nil, momentId: nil
             )
         )
         selectedStickers.append(sticker)
@@ -1265,7 +1302,9 @@ struct StickerPickerView: View {
                 locationCoordinate: nil,
                 pollData: nil,
                 questionText: weatherText,
-                weatherSymbol: weather.symbol
+                weatherSymbol: weather.symbol,
+                caption: nil,
+                profileImagePath: nil, momentId: nil
             )
         )
         
@@ -1380,7 +1419,9 @@ struct StickerPickerView: View {
                 locationCoordinate: nil,
                 pollData: nil,
                 questionText: weatherText,
-                weatherSymbol: "🌤️"
+                weatherSymbol: "🌤️",
+                caption: nil,
+                profileImagePath: nil, momentId: nil
             )
         )
         
@@ -1440,7 +1481,7 @@ struct StickerPickerView: View {
     private func createTimeSticker() {
         let now = Date()
         
-        // ✅ FORMATO ELEGANTE: "14:30 • 7 Ago"
+        // ✅ FORMATO: "14:30" (Hora) + "7 Ago" (Fecha)
         let timeFormatter = DateFormatter()
         timeFormatter.timeStyle = .short
         timeFormatter.locale = Locale(identifier: "es_ES")
@@ -1451,48 +1492,74 @@ struct StickerPickerView: View {
         
         let timeString = timeFormatter.string(from: now)
         let dateString = dateFormatter.string(from: now)
-        let fullString = "\(timeString) • \(dateString)"
         
-        // ✅ DISEÑO MÁS COMPACTO Y ELEGANTE
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 160, height: 50))
+        // ✅ DISEÑO LIQUID GLASS (MÁS LIMPIO Y MODERNO)
+        // Aumentamos altura para dar aire
+        let width: CGFloat = 160
+        let height: CGFloat = 56
+        let cornerRadius: CGFloat = 28 // Full rounded sides
+        
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
         let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: 160, height: 50)
+            let rect = CGRect(x: 0, y: 0, width: width, height: height)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
             
-            // ✅ FONDO CON GRADIENTE ELEGANTE
-            let colors = [
-                UIColor.systemIndigo.withAlphaComponent(0.9).cgColor,
-                UIColor.systemPurple.withAlphaComponent(0.9).cgColor
-            ] as CFArray
+            // 1. FONDO TRANSLÚCIDO (Glass Effect)
+            // Simulación de cristal con blanco semitransparente + sombra interna sutil
+            context.cgContext.saveGState()
+            path.addClip()
             
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
+            // Fondo base suave
+            UIColor.black.withAlphaComponent(0.4).setFill() // Oscuro para contraste sobre cualquier fondo
+            path.fill()
             
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
-                context.cgContext.saveGState()
-                path.addClip()
-                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-                context.cgContext.restoreGState()
-            } else {
-                // Fallback safe color
-                UIColor.systemIndigo.withAlphaComponent(0.9).setFill()
-                path.fill()
-            }
+            // Brillo superior (Top Gloss)
+            let glossPath = UIBezierPath(rect: CGRect(x: 0, y: 0, width: width, height: height / 2))
+            UIColor.white.withAlphaComponent(0.1).setFill()
+            glossPath.fill()
             
-            // ✅ BORDE ELEGANTE
-            UIColor.white.withAlphaComponent(0.3).setStroke()
+            context.cgContext.restoreGState()
+            
+            // 2. BORDE SUTIL (Rim Light)
+            // Borde blanco muy fino y semitransparente para definir la forma
+            context.cgContext.saveGState()
             path.lineWidth = 1
+            UIColor.white.withAlphaComponent(0.3).setStroke()
             path.stroke()
+            context.cgContext.restoreGState()
             
-            // ✅ TEXTO CENTRADO Y ELEGANTE
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = .center
-            
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+            // 3. TEXTO TIME (Grande y Bold)
+            let timeAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold), // SF Pro Bold
                 .foregroundColor: UIColor.white,
-                .paragraphStyle: paragraphStyle
+                .paragraphStyle: {
+                    let style = NSMutableParagraphStyle()
+                    style.alignment = .center
+                    return style
+                }()
             ]
             
-            fullString.draw(in: CGRect(x: 10, y: 15, width: 140, height: 20), withAttributes: attributes)
+            let dateAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 11, weight: .medium), // SF Pro Medium
+                .foregroundColor: UIColor.white.withAlphaComponent(0.8),
+                .paragraphStyle: {
+                    let style = NSMutableParagraphStyle()
+                    style.alignment = .center
+                    return style
+                }()
+            ]
+            
+            // Dibujar Hora
+            let timeSize = timeString.size(withAttributes: timeAttributes)
+            let dateSize = dateString.size(withAttributes: dateAttributes)
+            
+            let totalContentHeight = timeSize.height + dateSize.height - 4 // -4 de spacing negativo
+            let startY = (height - totalContentHeight) / 2
+            
+            timeString.draw(in: CGRect(x: 0, y: startY, width: width, height: timeSize.height), withAttributes: timeAttributes)
+            
+            // Dibujar Fecha
+            dateString.draw(in: CGRect(x: 0, y: startY + timeSize.height - 4, width: width, height: dateSize.height), withAttributes: dateAttributes)
         }
         
         let sticker = StickerItem(
@@ -1502,7 +1569,18 @@ struct StickerPickerView: View {
                 y: UIScreen.main.bounds.height / 2 + CGFloat.random(in: -40...40)
             )),
             type: .time,
-            interactionData: nil
+            interactionData: StickerItem.StickerInteractionData(
+                username: nil,
+                userId: nil,
+                hashtag: nil,
+                location: nil,
+                locationCoordinate: nil,
+                pollData: nil,
+                questionText: timeString, // ✅ Guardamos la hora para el visor
+                weatherSymbol: nil,
+                caption: dateString, // ✅ Guardamos la fecha para el visor
+                profileImagePath: nil, momentId: nil
+            )
         )
         
         selectedStickers.append(sticker)
@@ -1741,7 +1819,9 @@ struct StickerPickerView: View {
                 locationCoordinate: nil,
                 pollData: nil,
                 questionText: nil,
-                weatherSymbol: nil
+                weatherSymbol: nil,
+                caption: nil,
+                profileImagePath: nil, momentId: nil
             )
                     )
             selectedStickers.append(sticker)
@@ -1819,7 +1899,9 @@ struct StickerPickerView: View {
                 locationCoordinate: nil,
                 pollData: nil,
                 questionText: nil,
-                weatherSymbol: nil
+                weatherSymbol: nil,
+                caption: nil,
+                profileImagePath: nil, momentId: nil
             )
         )
         selectedStickers.append(sticker)
@@ -1941,7 +2023,9 @@ struct StickerPickerView: View {
                 locationCoordinate: nil,
                 pollData: poll,
                 questionText: nil,
-                weatherSymbol: nil
+                weatherSymbol: nil,
+                caption: nil,
+                profileImagePath: nil, momentId: nil
             )
         )
         selectedStickers.append(sticker)
@@ -2025,7 +2109,9 @@ struct StickerPickerView: View {
                 locationCoordinate: nil,
                 pollData: nil,
                 questionText: question,
-                weatherSymbol: nil
+                weatherSymbol: nil,
+                caption: nil,
+                profileImagePath: nil, momentId: nil
             )
         )
         selectedStickers.append(sticker)
@@ -3426,7 +3512,7 @@ struct ModernQuestionInputView: View {
                         .fill(Color.white.opacity(0.1))
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(isTextFieldFocused ? Color.teal : Color.white.opacity(0.2), lineWidth: 1.5)
+                                .stroke(isTextFieldFocused ? Color.purple : Color.white.opacity(0.2), lineWidth: 1.5)
                         )
                 )
                 
@@ -3446,7 +3532,7 @@ struct ModernQuestionInputView: View {
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.teal)
+                            .fill(Color.purple)
                     )
                 }
             }
@@ -3720,10 +3806,12 @@ extension StickerPickerView {
                let username = interactionData.username {
                 
                 // ✅ Enviar notificación con storyId real
-                NotificationService.shared.sendMentionNotification(
-                    to: userId,
-                    storyId: storyId
-                )
+                Task { @MainActor in
+                    NotificationService.shared.sendMentionNotification(
+                        to: userId,
+                        storyId: storyId
+                    )
+                }
                 
             }
         }
@@ -3859,4 +3947,3 @@ struct ImagePicker: UIViewControllerRepresentable {
         }
     }
 }
-

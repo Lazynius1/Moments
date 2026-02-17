@@ -676,6 +676,7 @@ struct PlusStatusHelper {
 }
 
 // MARK: - Story Native Ad Manager
+@MainActor
 class StoryNativeAdManager: NSObject, ObservableObject {
     @Published var nativeAd: NativeAd?
     @Published var isLoading = false
@@ -706,9 +707,11 @@ class StoryNativeAdManager: NSObject, ObservableObject {
         let mediaOptions = NativeAdMediaAdLoaderOptions()
         mediaOptions.mediaAspectRatio = .any
 
+        let rootVC = UIApplication.shared.topViewController()
+        
         adLoader = AdLoader(
             adUnitID: adUnitID,
-            rootViewController: nil,
+            rootViewController: rootVC,
             adTypes: [.native],
             options: [mediaOptions]
         )

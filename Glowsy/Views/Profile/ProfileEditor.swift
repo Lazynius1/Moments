@@ -290,7 +290,7 @@ struct GridPhotoPickerView: View {
             VStack(spacing: 20) {
                 ProgressView()
                     .scaleEffect(1.5)
-                    .tint(Color(hex: "00A896"))
+                    .tint(Color(hex: "007AFF"))
                 
                 Text("profileEditor.uploadingPhoto")
                     .font(.custom("Poppins-SemiBold", size: 18))
@@ -343,7 +343,7 @@ struct GridPhotoPickerView: View {
         VStack(spacing: 20) {
             ProgressView()
                 .scaleEffect(1.5)
-                .tint(Color(hex: "00A896"))
+                .tint(Color(hex: "007AFF"))
             
                             Text("profileEditor.loadingPhotos")
                 .font(.custom("Poppins-Medium", size: 16))
@@ -356,7 +356,7 @@ struct GridPhotoPickerView: View {
         VStack(spacing: 24) {
             Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 60))
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "007AFF"))
             
                             Text("profileEditor.photosAccess.title")
                 .font(.custom("Poppins-Bold", size: 20))
@@ -375,9 +375,9 @@ struct GridPhotoPickerView: View {
             .foregroundColor(.white)
             .padding(.horizontal, 32)
             .padding(.vertical, 16)
-            .background(Color(hex: "00A896"))
+            .background(Color(hex: "007AFF"))
             .clipShape(Capsule())
-            .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 8, x: 0, y: 4)
+            .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 8, x: 0, y: 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -665,7 +665,7 @@ private struct CategoryFilterButton: View {
             .padding(.vertical, 8)
             .background(
                 isSelected ?
-                Color(hex: "00A896").opacity(0.3) :
+                Color(hex: "007AFF").opacity(0.3) :
                 (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
             )
             .clipShape(Capsule())
@@ -673,7 +673,7 @@ private struct CategoryFilterButton: View {
                 Capsule()
                     .stroke(
                         isSelected ?
-                        Color(hex: "00A896") :
+                        Color(hex: "007AFF") :
                         (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.2)),
                         lineWidth: 1
                     )
@@ -719,7 +719,7 @@ private struct PhotoGridItem: View {
                         if isSelected {
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: "00A896"))
+                                    .fill(Color(hex: "007AFF"))
                                     .frame(width: 22, height: 22)
                                     .shadow(radius: 2)
                                 
@@ -740,7 +740,7 @@ private struct PhotoGridItem: View {
                 
                 if isSelected {
                     Rectangle()
-                        .stroke(Color(hex: "00A896"), lineWidth: 3)
+                        .stroke(Color(hex: "007AFF"), lineWidth: 3)
                 }
             }
         }
@@ -838,7 +838,7 @@ struct ModernEditProfileView: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var selectedPhoto: PhotosPickerItem?
     @Binding var newBio: String
-    var onSave: (PhotosPickerItem?, String, String?) -> Void // ✅ UPGRADE: Incluye website
+    var onSave: (PhotosPickerItem?, String, String?, [String]?) -> Void // ✅ UPGRADE: Incluye website e intereses
 
     
     // Estados para edición de perfil - AHORA CON DATOS REALES
@@ -1527,7 +1527,7 @@ struct ModernEditProfileView: View {
                             HStack(spacing: 6) {
                                 Text(InterestPickerRow.interestEmoji(for: interest))
                                     .font(.system(size: 14))
-                                Text(interest)
+                                Text(InterestOption.localize(interest))
                                     .font(.custom("Poppins-Medium", size: 14))
                                     .foregroundColor(.white)
                             }
@@ -1668,49 +1668,19 @@ struct ModernEditProfileView: View {
             return
         }
         
-        // Mostrar indicador de guardado
+        // Mostrar indicador de guardado (aunque ahora es casi instantáneo)
         isLoading = true
         
-        // Crear un grupo de dispatch para manejar múltiples operaciones
-        let saveGroup = DispatchGroup()
-        var saveErrors: [Error] = []
-        
-        // Guardar detalles del perfil (bio y website solamente aquí, ya que la foto se maneja en el picker)
-        saveGroup.enter()
-        
-        // Llamar a la función onSave que maneja bio y website
+        // Llamar a la función onSave que maneja bio, website e intereses
         // Nota: Pasamos nil para la foto siempre aquí para evitar que el ViewModel
         // intente subirla DE NUEVO, ya que nuestro picker ya lo hizo.
-        onSave(nil, newBio, website.isEmpty ? nil : website)
-        saveGroup.leave()
+        onSave(nil, newBio, website.isEmpty ? nil : website, Array(selectedInterests))
         
-        // Guardar intereses si cambiaron
-        saveGroup.enter()
-        updateUserInterests(userId: userId, interests: Array(selectedInterests)) { error in
-            if let error = error {
-                saveErrors.append(error)
-            }
-            saveGroup.leave()
-        }
-        
-        // Guardar foto si se seleccionó una nueva
-        // NOTA: La lógica de la foto ya se incluyó en onSave en el bloque anterior
-        // si selectedPhoto != nil. No duplicar lógica aquí.
-        
-        // Cuando todas las operaciones terminen
-        saveGroup.notify(queue: .main) {
+        // Éxito inmediato (Optimistic UI) - cerrar la vista
+        // No esperamos a Firestore ya que OfflineSyncService se encargará en el background
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.isLoading = false
-            
-            if saveErrors.isEmpty {
-                // Éxito - cerrar la vista con un pequeño delay para asegurar que el padre refresque bien
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    self.dismiss()
-                }
-            } else {
-                // Mostrar errores
-                let errorMessages = saveErrors.map { $0.localizedDescription }.joined(separator: "\n")
-                self.errorMessage = String(format: NSLocalizedString("profileEditor.error.saveProfile", comment: ""), errorMessages)
-            }
+            self.dismiss()
         }
     }
     
@@ -1738,7 +1708,7 @@ private struct InterestPickerRow: View {
             HStack {
                 Text(InterestPickerRow.interestEmoji(for: interest))
                     .font(.system(size: 16))
-                Text(interest)
+                Text(InterestOption.localize(interest))
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 Spacer()

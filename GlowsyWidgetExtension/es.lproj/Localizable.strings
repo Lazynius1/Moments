@@ -3,7 +3,11 @@
 "widget.createStory.subtitle" = "Toca para crear en Moments";
 "widget.metrics.visits" = "Visitas";
 "widget.metrics.messages" = "Mensajes";
-"widget.metrics.notifications" = "Notifs";
+"widget.metrics.notifications" = "Notificaciones";
+"widget.echoes.singular" = "1 amigo cerca";
+"widget.echoes.plural" = "%d amigos cerca";
+"widget.tags.singular" = "1 etiqueta nueva";
+"widget.tags.plural" = "%d etiquetas nuevas";
 "widget.visits.singular" = "Hoy 1 persona ha visitado tu perfil";
 "widget.visits.plural" = "Hoy %d personas han visitado tu perfil";
 "widget.messages.singular" = "Tienes 1 mensaje sin leer";
@@ -14,6 +18,8 @@
 "widget.stories.plural" = "%d historias nuevas";
 "widget.messageRequests.singular" = "1 solicitud de mensaje pendiente";
 "widget.messageRequests.plural" = "%d solicitudes de mensaje pendientes";
+
+"widget.allCaughtUp" = "Todo al día";
 
 /* Live Activities */
 "liveActivity.uploadingStory" = "Subiendo historia";

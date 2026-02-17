@@ -376,7 +376,7 @@ class MessageRequestService: ObservableObject {
     
     // MARK: - Create Conversation From Request
     private func createConversationFromRequest(_ request: MessageRequest, completion: @escaping (Result<Void, Error>) -> Void) {
-        let chatService = ChatService()
+        let chatService = ChatService.shared
         chatService.createBidirectionalConversation(user1Id: request.senderId, user2Id: request.receiverId) { [weak self] result in
             switch result {
             case .success(let conversationId):

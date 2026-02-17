@@ -47,19 +47,32 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
     }
     
-    // ✅ Handler para notificaciones en BACKGROUND - marca mensajes como delivered
+    // ✅ Handler para notificaciones en BACKGROUND - marca mensajes como delivered y actualiza WIDGET
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         
-        // ✅ Marcar mensaje como entregado cuando llega la notificación (funciona en background!)
+        let group = DispatchGroup()
+        
+        // 1. Marcar mensaje como entregado
         if let conversationId = userInfo["conversationId"] as? String,
            let messageId = userInfo["messageId"] as? String {
+            group.enter()
             ChatService.shared.markMessageAsDeliveredFromNotification(
                 conversationId: conversationId,
                 messageId: messageId
-            )
+            ) { _ in group.leave() }
+        }
+        
+        // 2. Refrescar contadores para el Widget SOLO si es una notificación silenciosa
+        // Si es visual, el NotificationServiceExtension ya lo hizo de forma más fiable (server-side)
+        if userInfo["silent"] as? Bool == true || userInfo["content-available"] as? Int == 1 {
+            group.enter()
+            NotificationBadgeService.shared.refreshAllCounts {
+                group.leave()
+            }
+        }
+        
+        group.notify(queue: .main) {
             completionHandler(.newData)
-        } else {
-            completionHandler(.noData)
         }
     }
 }

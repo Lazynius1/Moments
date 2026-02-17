@@ -550,7 +550,10 @@ struct CreatorViewWithResponseData: View {
                 locationCoordinate: nil,
                 pollData: nil,
                 questionText: "Respuesta: \(response.response)",
-                weatherSymbol: nil
+                weatherSymbol: nil,
+                caption: nil,
+                profileImagePath: nil,
+                momentId: nil
             )
         )
         

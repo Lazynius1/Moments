@@ -13,7 +13,7 @@ struct AppealStatusView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                EnhancedBackgroundView()
+                LiquidAuroraBackground()
                 
                 if isLoading {
                     LoadingView()
@@ -517,7 +517,7 @@ struct AppealDetailView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                EnhancedBackgroundView()
+                LiquidAuroraBackground()
                 
                 ScrollView {
                     VStack(spacing: 24) {

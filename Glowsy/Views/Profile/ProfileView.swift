@@ -46,7 +46,7 @@ struct ProfileColors {
     }
     
     // Colores específicos que se mantienen
-    static let accent = Color(hex: "00A896")
+    static let accent = Color(hex: "007AFF")
     static let purple = Color(hex: "9B59B6")
     static let blue = Color(hex: "6B73FF")
 }
@@ -119,10 +119,6 @@ struct ProfilePillTabs: View {
         .padding(4)
         .background(ProfileColors.cardBackground)
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(ProfileColors.borderColor, lineWidth: 1)
-        )
         .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
     }
 }
@@ -224,11 +220,11 @@ struct ProfileView: View {
                     ModernEditProfileView(
                         selectedPhoto: $selectedPhoto,
                         newBio: $newBio,
-                        onSave: { photo, bio, website in
+                        onSave: { photo, bio, website, interests in
                             if let photo = photo {
                                 viewModel.uploadProfilePicture(item: photo)
                             }
-                            viewModel.updateProfileDetails(bio: bio, websiteUrl: website)
+                            viewModel.updateProfileDetails(bio: bio, websiteUrl: website, interests: interests)
                         }
                     )
                 }
@@ -560,10 +556,6 @@ struct ModernProfileContentView: View {
                                     .padding(.vertical, 6)
                                     .background(ProfileColors.cardBackground)
                                     .clipShape(Capsule())
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(ProfileColors.borderColor, lineWidth: 0.5)
-                                    )
                             }
                             .padding(.horizontal, 20)
                             .padding(.bottom, 16)
@@ -729,20 +721,7 @@ struct ModernRefreshIndicator: View {
                 Circle()
                     .fill(ProfileColors.materialBackground)
                     .frame(width: 32, height: 32)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        ProfileColors.accent.opacity(0.6),
-                                        ProfileColors.borderColor
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
+                    .frame(width: 32, height: 32)
                 
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 16, weight: .semibold))
@@ -765,20 +744,7 @@ struct ModernRefreshIndicator: View {
         .padding(.vertical, 12)
         .background(ProfileColors.materialBackground)
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            ProfileColors.borderColor,
-                            ProfileColors.accent.opacity(0.3)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
+        .clipShape(Capsule())
         .shadow(color: ProfileColors.shadowColor, radius: 8, x: 0, y: 4)
         .onAppear {
             withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
@@ -807,8 +773,6 @@ struct ModernProfileHeader: View {
     @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
 
     @Environment(\.colorScheme) var colorScheme
-    @State private var profileImage: UIImage?
-    @State private var isLoadingImage = false
     
     private var storyCount: Int {
         guard let userId = Auth.auth().currentUser?.uid else { return 0 }
@@ -852,24 +816,23 @@ struct ModernProfileHeader: View {
                 
                 // Avatar principal
                 Group {
-                    if let profileImage = profileImage {
-                        // Imagen de perfil cargada
-                        Image(uiImage: profileImage)
+                    if let profileImagePath = viewModel.userProfile?.profileImagePath, let url = URL(string: profileImagePath) {
+                        KFImage(url)
+                            .placeholder {
+                                Circle()
+                                    .fill(ProfileColors.materialBackground)
+                                    .frame(width: 110, height: 110)
+                                    .overlay(
+                                        ProgressView()
+                                            .tint(ProfileColors.accent)
+                                            .scaleEffect(1.2)
+                                    )
+                            }
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 110, height: 110)
                             .clipShape(Circle())
                             .contentShape(Circle())
-                    } else if isLoadingImage {
-                        // Estado de carga
-                        Circle()
-                            .fill(ProfileColors.materialBackground)
-                            .frame(width: 110, height: 110)
-                            .overlay(
-                                ProgressView()
-                                    .tint(ProfileColors.accent)
-                                    .scaleEffect(1.2)
-                            )
                     } else {
                         // Placeholder cuando no hay imagen
                         Circle()
@@ -951,7 +914,7 @@ struct ModernProfileHeader: View {
                         badgeSize: 20,
                         spacing: 6,
                         gradient: LinearGradient(
-                            colors: [Color(hex: "00A896"), Color(hex: "6B73FF")], // ✅ MISMO GRADIENTE QUE USERPROFILEVIEW
+                            colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")], // ✅ MISMO GRADIENTE QUE USERPROFILEVIEW
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -994,10 +957,10 @@ struct ModernProfileHeader: View {
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                             }
-                            .foregroundColor(Color(hex: "00A896")) // Color acento
+                            .foregroundColor(Color(hex: "007AFF")) // Color acento
                             .padding(.vertical, 4)
                             .padding(.horizontal, 12)
-                            .background(Color(hex: "00A896").opacity(0.1))
+                            .background(Color(hex: "007AFF").opacity(0.1))
                             .clipShape(Capsule())
                         }
                         .padding(.top, 2)
@@ -1022,17 +985,6 @@ struct ModernProfileHeader: View {
                     .padding(.vertical, 12)
                     .background(ProfileColors.materialBackground)
                     .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [ProfileColors.accent.opacity(0.6), ProfileColors.borderColor],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 
@@ -1046,17 +998,6 @@ struct ModernProfileHeader: View {
                         .frame(width: 44, height: 44)
                         .background(ProfileColors.materialBackground)
                         .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [ProfileColors.borderColor, ProfileColors.accent.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
                         .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 
@@ -1086,47 +1027,12 @@ struct ModernProfileHeader: View {
                         .frame(width: 44, height: 44)
                         .background(ProfileColors.materialBackground)
                         .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(ProfileColors.borderColor, lineWidth: 1)
-                        )
                         .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
                 }
             }
         }
         .padding(.horizontal, 24)
-        .onAppear {
-            loadProfileImage()
-        }
-        .onChange(of: viewModel.userProfile?.profileImagePath) { _ in
-            loadProfileImage()
-        }
     }
-    
-    // MARK: - Cargar imagen de perfil
-    private func loadProfileImage() {
-        guard let profileImagePath = viewModel.userProfile?.profileImagePath,
-              let url = URL(string: profileImagePath) else {
-            profileImage = nil
-            return
-        }
-        
-        isLoadingImage = true
-        
-        // Usar URLSession para cargar la imagen
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            DispatchQueue.main.async {
-                isLoadingImage = false
-                
-                if let data = data, let uiImage = UIImage(data: data) {
-                    profileImage = uiImage
-                } else {
-                    profileImage = nil
-                }
-            }
-        }.resume()
-    }
-    
     // Border inteligente del avatar adaptativo (SIN BORDE VERDE)
     @ViewBuilder
     private func avatarBorderOverlay() -> some View {
@@ -1179,10 +1085,6 @@ struct PlusBadgeInline: View {
             )
         )
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-        )
         .shadow(color: Color(hex: "FFD700").opacity(0.3), radius: 3, x: 0, y: 1)
     }
 }
@@ -1210,10 +1112,6 @@ struct SupportBadgeInline: View {
             )
         )
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-        )
         .shadow(color: badge.swiftUIColors.first?.opacity(0.3) ?? .clear, radius: 3, x: 0, y: 1)
     }
 }
@@ -1254,20 +1152,6 @@ struct ModernStatsSection: View {
                     .padding(.vertical, 14)
                     .background(ProfileColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        ProfileColors.borderColor,
-                                        ProfileColors.accent.opacity(0.3)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 .scaleEffect(1.0)
@@ -1351,20 +1235,6 @@ struct ModernInterestsView: View {
                         .padding(.vertical, 10)
                         .background(ProfileColors.cardBackground)
                         .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            ProfileColors.borderColor,
-                                            ProfileColors.accent.opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
                         .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
                     }
                 }
@@ -1401,8 +1271,13 @@ struct ModernMomentThumbnail: View {
                 if let mediaItem = moment.mediaItems?.first, !mediaItem.url.isEmpty {
                     // Es un momento nuevo con mediaItems
                     if mediaItem.type == .video {
-                        // ✅ NUEVO: Mostrar thumbnail de video
-                        videoThumbnailView(videoURL: mediaItem.url)
+                        // ✅ NUEVO: Priorizar thumbnailUrl si existe
+                        if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
+                            imageView(imageURL: thumbnailUrl)
+                        } else {
+                            // Si no hay thumbnail URL (legacy), generar uno
+                            videoThumbnailView(videoURL: mediaItem.url)
+                        }
                     } else {
                         // ✅ NUEVO: Mostrar imagen desde mediaItems
                         imageView(imageURL: mediaItem.url)
@@ -1418,7 +1293,7 @@ struct ModernMomentThumbnail: View {
                                         .font(.system(size: 20))
                                         .foregroundColor(.gray.opacity(0.6))
                                 )
-                                .overlay(ProgressView().tint(Color(hex: "00A896")))
+                                .overlay(ProgressView().tint(Color(hex: "007AFF")))
                         }
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -1518,7 +1393,7 @@ struct ModernMomentThumbnail: View {
                             if isLoadingVideoThumbnail {
                                 VStack(spacing: 6) {
                                     ProgressView()
-                                        .tint(Color(hex: "00A896"))
+                                        .tint(Color(hex: "007AFF"))
                                         .scaleEffect(0.8)
                                     Text("profile.video.uploading")
                                         .font(.custom("Poppins-Regular", size: 8))
@@ -1555,7 +1430,7 @@ struct ModernMomentThumbnail: View {
                         .overlay(
                             VStack(spacing: 6) {
                                 ProgressView()
-                                    .tint(Color(hex: "00A896"))
+                                    .tint(Color(hex: "007AFF"))
                                     .scaleEffect(0.8)
                                 Text("profile.image.uploading")
                                     .font(.custom("Poppins-Regular", size: 8))
@@ -1601,18 +1476,7 @@ struct ModernMomentThumbnail: View {
     // ✅ NUEVA: Overlay de borde reutilizable
     @ViewBuilder
     private func borderOverlay() -> some View {
-        RoundedRectangle(cornerRadius: 12)
-            .stroke(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.3),
-                        Color(hex: "00A896").opacity(0.4)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 1
-            )
+        EmptyView()
     }
     
     // ✅ NUEVA: Función para cargar thumbnail de video
@@ -2257,6 +2121,7 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
 }
 
 // MARK: - ProfileViewModel
+@MainActor
 class ProfileViewModel: ObservableObject, UserListViewModel {
     @Published var userProfile: AppUser?
     @Published var visits: [AppUser] = []
@@ -2316,6 +2181,28 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     func fetchProfile(userId: String) {
         self.isLoading = true
         self.errorMessage = nil
+        
+        // ✅ SwiftData: Cargar perfil y moments del caché local inmediatamente
+        if let cachedProfile = LocalPersistenceService.shared.loadUser(userId: userId) {
+            self.userProfile = cachedProfile
+            self.profileImagePath = cachedProfile.profileImagePath
+            self.isLoading = false // UI instantánea
+        }
+        
+        // ✅ Cargar conexiones del caché
+        let cachedConnections = LocalPersistenceService.shared.loadConnections(userId: userId)
+        if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty {
+            self.categorizeConnections(
+                userId: userId,
+                followingIds: cachedConnections.following.map { $0.id },
+                followerIds: cachedConnections.followers.map { $0.id }
+            )
+        }
+        
+        let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
+        if !cachedMoments.isEmpty && self.moments.isEmpty {
+            self.moments = cachedMoments
+        }
 
         self.firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
             guard let self = self else { return }
@@ -2323,6 +2210,11 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             case .success(let profile):
                 self.userProfile = profile
                 self.profileImagePath = profile.profileImagePath
+                
+                // ✅ SwiftData: Guardar perfil en caché local
+                Task { @MainActor in
+                    LocalPersistenceService.shared.saveUser(profile)
+                }
 
                 self.fetchConnections(userId: userId)
                 self.fetchVisits(userId: userId)
@@ -2389,6 +2281,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                         
                         // Categorizar conexiones con IDs filtrados
                         self.categorizeConnections(
+                            userId: userId,
                             followingIds: filteredFollowingIds,
                             followerIds: followerIds
                         )
@@ -2397,7 +2290,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     }
     
     // ✅ NUEVA FUNCIÓN: Categorizar conexiones
-    private func categorizeConnections(followingIds: [String], followerIds: [String]) {
+    private func categorizeConnections(userId: String, followingIds: [String], followerIds: [String]) {
         let followingSet = Set(followingIds)
         let followersSet = Set(followerIds)
         
@@ -2434,6 +2327,14 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 self?.isLoading = false
             }
             fetchGroup.leave()
+        }
+        
+        fetchGroup.notify(queue: .main) {
+            // ✅ SwiftData: Guardar en caché local
+            let allFollowers = self.mutualConnections + self.admirers
+            let allFollowing = self.mutualConnections + self.connections
+            LocalPersistenceService.shared.saveFollowers(userId: userId, followers: allFollowers)
+            LocalPersistenceService.shared.saveFollowing(userId: userId, following: allFollowing)
         }
     }
     
@@ -2484,6 +2385,12 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             case .success(let moments):
                 DispatchQueue.main.async {
                     self.moments = moments
+                    
+                    // ✅ SwiftData: Guardar moments del perfil en caché local
+                    Task { @MainActor in
+                        // Usamos sync: true para purgar momentos eliminados del perfil
+                        LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+                    }
                 }
             case .failure(let error):
                 self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
@@ -2508,7 +2415,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     self.isLoadingTagged = false
                     
                     if let error = error {
-                        print("❌ Error loading tagged moments: \\(error)")
+                        print("❌ Error loading tagged moments: \(error)")
                         return
                     }
                     
@@ -2693,7 +2600,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
-    // ✅ FUNCIÓN EXISTENTE: Upload profile picture (sin cambios)
+    // ✅ FUNCIÓN CORREGIDA: Upload profile picture (OFFLINE AWARE)
     func uploadProfilePicture(item: PhotosPickerItem) {
         guard let userId = Auth.auth().currentUser?.uid else {
             self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
@@ -2710,26 +2617,24 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     return
                 }
 
-                self.storageService.uploadProfileImage(userId: userId, image: uiImage) { [weak self] result in
-                    guard let self = self else { return }
-                    switch result {
-                    case .success(let path):
-                        self.firestoreService.updateProfilePicture(userId: userId, profileImagePath: path) { error in
-                            if let error = error {
-                                DispatchQueue.main.async {
-                                    self.errorMessage = "Error al actualizar la foto de perfil: \(error.localizedDescription)"
-                                }
-                            } else {
-                                self.fetchProfile(userId: userId)
-                                DispatchQueue.main.async {
-                                    self.errorMessage = nil
-                                }
-                            }
-                        }
-                    case .failure(let error):
-                        DispatchQueue.main.async {
-                            self.errorMessage = "Error al subir la imagen: \(error.localizedDescription)"
-                        }
+                // 1. Guardar copia local temporal
+                let fileName = "temp_profile_\(UUID().uuidString).jpg"
+                if let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    let fileURL = documentsDir.appendingPathComponent(fileName)
+                    if let jpegData = uiImage.jpegData(compressionQuality: 0.8) {
+                        try jpegData.write(to: fileURL)
+                        
+                        // 2. Delegar a LocalPersistence (Optimistic UI + Sync)
+                        await LocalPersistenceService.shared.updateProfile(
+                            userId: userId,
+                            bio: nil,
+                            website: nil,
+                            interests: nil,
+                            profileImageLocalPath: fileURL.path
+                        )
+                        
+                        // 3. Refrescar localmente (Optimistic UI ya se encarga, pero aseguramos)
+                        fetchProfile(userId: userId)
                     }
                 }
             } catch {
@@ -2740,38 +2645,26 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
     
-    func refreshAfterMomentChange() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        
-        // Recargar solo los momentos
-        fetchMoments(userId: userId)
-    }
 
-    // ✅ FUNCIÓN PARA ELIMINAR MOMENTO DE LA UI INMEDIATAMENTE
-    func removeMomentFromUI(momentId: String) {
-        DispatchQueue.main.async {
-            self.moments.removeAll { $0.id == momentId }
-        }
-    }
-
-    // ✅ FUNCIÓN EXISTENTE: Update bio (sin cambios)
-    func updateProfileDetails(bio: String?, websiteUrl: String?) {
+    // ✅ FUNCIÓN EXISTENTE: Update bio (OFFLINE AWARE)
+    func updateProfileDetails(bio: String?, websiteUrl: String?, interests: [String]? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else {
             self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
             return
         }
 
-        self.firestoreService.updateProfileDetails(userId: userId, bio: bio, websiteUrl: websiteUrl) { [weak self] error in
-            guard let self = self else { return }
-            if let error = error {
-                DispatchQueue.main.async {
-                    self.errorMessage = "Error al actualizar el perfil: \(error.localizedDescription)"
-                }
-            } else {
+        // Delegar a LocalPersistence (Optimistic UI + Sync)
+        Task {
+            await LocalPersistenceService.shared.updateProfile(
+                userId: userId,
+                bio: bio,
+                website: websiteUrl,
+                interests: interests,
+                profileImageLocalPath: nil
+            )
+            
+            DispatchQueue.main.async {
                 self.fetchProfile(userId: userId)
-                DispatchQueue.main.async {
-                    self.errorMessage = nil
-                }
             }
         }
     }

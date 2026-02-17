@@ -10,7 +10,8 @@ struct SplashScreenView: View {
     var body: some View {
         ZStack {
             // Enhanced background similar to LoginView
-            EnhancedSplashBackground()
+            // Shared Liquid Aurora Background
+            LiquidAuroraBackground()
             
             VStack {
                 Spacer()
@@ -85,77 +86,7 @@ struct SplashScreenView: View {
     }
 }
 
-// MARK: - Enhanced Splash Background
-struct EnhancedSplashBackground: View {
-    @State private var animateGradient = false
-    
-    var body: some View {
-        ZStack {
-            // Base gradient
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.1, green: 0.1, blue: 0.2),
-                    Color(red: 0.2, green: 0.1, blue: 0.3),
-                    Color(red: 0.1, green: 0.1, blue: 0.2)
-                ]),
-                startPoint: animateGradient ? .topLeading : .bottomTrailing,
-                endPoint: animateGradient ? .bottomTrailing : .topLeading
-            )
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true), value: animateGradient)
-            
-            // Orbes flotantes de fondo
-            ForEach(0..<3, id: \.self) { index in
-                SplashFloatingOrbView(index: index)
-            }
-        }
-        .onAppear {
-            animateGradient = true
-        }
-    }
-}
 
-// MARK: - Splash Floating Orb
-struct SplashFloatingOrbView: View {
-    let index: Int
-    @State private var offset = CGSize.zero
-    @State private var scale: CGFloat = 1.0
-    
-    private var orbColor: Color {
-        switch index {
-        case 0: return Color.blue.opacity(0.2)
-        case 1: return Color.purple.opacity(0.2)
-        default: return Color.pink.opacity(0.2)
-        }
-    }
-    
-    var body: some View {
-        Circle()
-            .fill(orbColor)
-            .frame(width: 200, height: 200)
-            .blur(radius: 40)
-            .scaleEffect(scale)
-            .offset(offset)
-            .animation(
-                .easeInOut(duration: Double.random(in: 3...6))
-                .repeatForever(autoreverses: true)
-                .delay(Double(index) * 0.5),
-                value: offset
-            )
-            .animation(
-                .easeInOut(duration: Double.random(in: 2...4))
-                .repeatForever(autoreverses: true)
-                .delay(Double(index) * 0.3),
-                value: scale
-            )
-            .onAppear {
-                let randomX = CGFloat.random(in: -100...100)
-                let randomY = CGFloat.random(in: -150...150)
-                offset = CGSize(width: randomX, height: randomY)
-                scale = CGFloat.random(in: 0.8...1.2)
-            }
-    }
-}
 
 // MARK: - Moments Loader
 struct MomentsLoader: View {

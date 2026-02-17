@@ -4,6 +4,7 @@ import FirebaseAuth
 import Combine
 import SwiftUI
 
+@MainActor
 class InAppNotificationService: ObservableObject {
     static let shared = InAppNotificationService()
     

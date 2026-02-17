@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import UIKit
 
 // MARK: - Localization Helper
 
@@ -18,22 +19,25 @@ struct Provider: AppIntentTimelineProvider {
             profileVisitsToday: 0,
             unreadMessages: 0,
             unreadNotifications: 0,
+            unreadEchoes: 0,
+            unreadTags: 0,
+            profileImageData: nil,
             recentEvents: []
         )
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        loadEntryFromSharedDefaults()
+        await loadEntryFromSharedDefaults()
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        let entry = loadEntryFromSharedDefaults()
+        let entry = await loadEntryFromSharedDefaults()
         return Timeline(entries: [entry], policy: .atEnd)
     }
     
     // MARK: - Shared storage
     
-    private func loadEntryFromSharedDefaults() -> SimpleEntry {
+    private func loadEntryFromSharedDefaults() async -> SimpleEntry {
         // ✅ Debe coincidir con el App Group configurado en Xcode (Targets Moments + Widget)
         let defaults = UserDefaults(suiteName: "group.com.glowsyapp")
         
@@ -42,8 +46,16 @@ struct Provider: AppIntentTimelineProvider {
         let unreadNotifications = defaults?.integer(forKey: "widget_unread_notifications") ?? 0
         let newStoriesCount = defaults?.integer(forKey: "widget_new_stories_count") ?? 0
         let pendingMessageRequests = defaults?.integer(forKey: "widget_pending_message_requests") ?? 0
+        let unreadEchoes = defaults?.integer(forKey: "widget_unread_echoes") ?? 0
+        let unreadTags = defaults?.integer(forKey: "widget_unread_tags") ?? 0
         
         var events: [WidgetEvent] = []
+        if unreadEchoes > 0 {
+            events.append(.echoes(count: unreadEchoes))
+        }
+        if unreadTags > 0 {
+            events.append(.tags(count: unreadTags))
+        }
         if visitsToday > 0 {
             events.append(.visits(count: visitsToday))
         }
@@ -60,13 +72,36 @@ struct Provider: AppIntentTimelineProvider {
             events.append(.messageRequests(count: pendingMessageRequests))
         }
         
+        // Perfil para el "Clock"
+        let profileImagePath = defaults?.string(forKey: "widget_user_profile_image")
+        let imageData = await fetchImageData(from: profileImagePath)
+        
         return SimpleEntry(
             date: Date(),
             profileVisitsToday: visitsToday,
             unreadMessages: unreadMessages,
             unreadNotifications: unreadNotifications,
+            unreadEchoes: unreadEchoes,
+            unreadTags: unreadTags,
+            profileImageData: imageData,
             recentEvents: events
         )
+    }
+
+    // Helper para descargar la imagen de perfil para el widget
+    private func fetchImageData(from urlString: String?) async -> Data? {
+        guard let urlString = urlString, let url = URL(string: urlString) else { return nil }
+        
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 5 // Limitar a 5 segundos para no colgar el widget
+        let session = URLSession(configuration: config)
+        
+        do {
+            let (data, _) = try await session.data(from: url)
+            return data
+        } catch {
+            return nil
+        }
     }
 }
 
@@ -76,6 +111,26 @@ struct WidgetEvent: Identifiable {
     let id = UUID()
     let text: String
     let deepLink: URL
+    
+    static func echoes(count: Int) -> WidgetEvent {
+        let text = count == 1 
+            ? localizedString("widget.echoes.singular", comment: "1 friend nearby")
+            : String(format: localizedString("widget.echoes.plural", comment: "X friends nearby"), count)
+        return WidgetEvent(
+            text: text,
+            deepLink: URL(string: "moments://echoes")!
+        )
+    }
+    
+    static func tags(count: Int) -> WidgetEvent {
+        let text = count == 1 
+            ? localizedString("widget.tags.singular", comment: "1 new tag")
+            : String(format: localizedString("widget.tags.plural", comment: "X new tags"), count)
+        return WidgetEvent(
+            text: text,
+            deepLink: URL(string: "moments://notifications")!
+        )
+    }
     
     static func visits(count: Int) -> WidgetEvent {
         let text = count == 1 
@@ -133,7 +188,11 @@ struct SimpleEntry: TimelineEntry {
     let profileVisitsToday: Int
     let unreadMessages: Int
     let unreadNotifications: Int
+    let unreadEchoes: Int
+    let unreadTags: Int
+    let profileImageData: Data? // ✅ Foto descargada para el estado "Empty"
     let recentEvents: [WidgetEvent]
+    var shouldPulse: Bool { unreadEchoes > 0 } // ✅ Refinement: Pulse if Echoes
 }
 
 // MARK: - Main Widget View
@@ -164,130 +223,226 @@ struct MomentsWidgetEntryView: View {
     // MARK: - Small: acción principal Creator
     
     private var smallCreatorView: some View {
-        let url = URL(string: "moments://story/create")!
-        
-        return Link(destination: url) {
-            VStack(spacing: 10) {
-                Spacer()
-                
-                ZStack {
+        VStack(spacing: 8) {
+            Spacer()
+            
+            ZStack {
+                // ✅ Refinement: Pulsing Aura
+                if entry.shouldPulse {
                     Circle()
-                        .stroke(gradient, lineWidth: 4)
-                        .frame(width: 48, height: 48)
-                    
+                        .fill(gradient)
+                        .frame(width: 56, height: 56)
+                        .blur(radius: 8)
+                        .opacity(0.4)
+                        .phaseAnimator([0.8, 1.2]) { content, phase in
+                            content.scaleEffect(phase)
+                        } animation: { _ in
+                            .easeInOut(duration: 2).repeatForever(autoreverses: true)
+                        }
+                }
+                
+                Circle()
+                    .stroke(gradient, lineWidth: 4)
+                    .frame(width: 48, height: 48)
+                    .background(Circle().fill(.ultraThinMaterial))
+                
+                // ✅ Refinement: Interactive Link (Standard for reliable deep linking)
+                Link(destination: URL(string: "moments://story/create")!) {
                     Image(systemName: "camera.fill")
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(gradient)
                 }
                 
-                VStack(spacing: 4) {
-                    Text(localizedString("widget.createStory.title", comment: "Upload story"))
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                    
-                    Text(localizedString("widget.createStory.subtitle", comment: "Tap to create in Moments"))
-                        .font(.caption2)
+                // Notificación flotante de Echoes/Tags si existen (Subtle)
+                if entry.unreadEchoes > 0 || entry.unreadTags > 0 {
+                    Circle()
+                        .fill(entry.unreadEchoes > 0 ? Color.blue : Color.purple)
+                        .frame(width: 10, height: 10)
+                        .offset(x: 18, y: -18)
+                        .shadow(radius: 1)
+                        .widgetAccentable()
+                }
+            }
+            .padding(.top, 4)
+            
+            VStack(spacing: 2) {
+                Text(localizedString("widget.createStory.title", comment: "Upload story"))
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                
+                if entry.unreadEchoes > 0 {
+                    Text(localizedString("widget.echoes.singular", comment: "Echo nearby"))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.blue)
+                } else {
+                    Text(localizedString("widget.createStory.subtitle", comment: "Tap to create"))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .opacity(0.8)
+                        .opacity(0.7)
+                }
+            }
+            
+            Spacer()
+        }
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+    
+    // MARK: - Medium: panel con diseño asimétrico Premium
+    
+    // Estructura para manejar el orden dinámico de las métricas
+    struct MetricInfo: Comparable {
+        let id: String
+        let icon: String
+        let label: String
+        let value: Int
+        
+        static func < (lhs: MetricInfo, rhs: MetricInfo) -> Bool {
+            return lhs.value < rhs.value
+        }
+    }
+
+    private var mediumPanelView: some View {
+        let allMetrics = [
+            MetricInfo(id: "messages", icon: "bubble.left.fill", label: "Chats", value: entry.unreadMessages),
+            MetricInfo(id: "echoes", icon: "wave.3.right", label: "Echoes", value: entry.unreadEchoes),
+            MetricInfo(id: "tags", icon: "tag.fill", label: "Tags", value: entry.unreadTags),
+            MetricInfo(id: "notifications", icon: "bell.fill", label: "Notifs", value: entry.unreadNotifications)
+        ].sorted(by: >)
+        
+        // El Héroe es la métrica con más notificaciones (mínimo 1)
+        let heroMetric = allMetrics.first { $0.value > 0 }
+        
+        // Las secundarias son todas las demás métricas para que el grid siempre esté lleno (4 cajas en total)
+        let secondaryMetrics = allMetrics.filter { $0.id != (heroMetric?.id ?? "eye_placeholder") }
+
+        return HStack(alignment: .top, spacing: 16) {
+            // --- LADO IZQUIERDO: HERO ---
+            VStack(alignment: .leading, spacing: 12) {
+                if let hero = heroMetric {
+                    metricChip(icon: hero.icon, label: hero.label, value: hero.value, isLarge: true)
+                        .frame(width: 105)
+                } else {
+                    // ESTADO: Profile Square Card (Ocupa todo el espacio hasta el botón)
+                    ZStack {
+                        if let data = entry.profileImageData, let uiImage = UIImage(data: data) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 105, height: 108)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        } else {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.primary.opacity(0.05))
+                                .frame(width: 105, height: 108)
+                                .overlay(
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 30))
+                                        .foregroundStyle(.secondary.opacity(0.3))
+                                )
+                        }
+                        
+                        // Overlay de cristal sutil en la parte inferior si queremos poner algo (opcional)
+                    }
+                    .padding(.top, 2)
+                    .frame(width: 105, height: 118)
+                }
+                
+                if heroMetric != nil {
+                    Spacer()
+                }
+                
+                // Botón de Captura (Ancho fijo)
+                Link(destination: URL(string: "moments://story/create")!) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "camera.fill")
+                        Text(localizedString("widget.createStory.title", comment: "Upload"))
+                    }
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 105)
+                    .padding(.vertical, 10)
+                    .background(gradient)
+                    .cornerRadius(12)
+                    .shadow(color: .blue.opacity(0.3), radius: 5, x: 0, y: 3)
+                }
+            }
+            
+            // --- LADO DERECHO: GRID ESCALABLE ---
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Moments")
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .foregroundStyle(gradient)
+                    .opacity(0.7)
+
+                // Lista de métricas secundarias en una sola línea
+                HStack(spacing: 6) {
+                    ForEach(secondaryMetrics, id: \.id) { metric in
+                        metricChip(icon: metric.icon, label: metric.label, value: metric.value)
+                    }
+                }
+                
+                Divider().opacity(0.1)
+                
+                // Eventos Recientes
+                VStack(alignment: .leading, spacing: 8) {
+                    if entry.recentEvents.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 10))
+                                .foregroundStyle(gradient)
+                            Text(localizedString("widget.allCaughtUp", comment: "All caught up"))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        ForEach(entry.recentEvents.prefix(2)) { event in
+                            Link(destination: event.deepLink) {
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(gradient)
+                                        .frame(width: 4, height: 4)
+                                    Text(event.text)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(.primary.opacity(0.8))
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                    }
                 }
                 
                 Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay(
-                ContainerRelativeShape()
-                    .stroke(gradient.opacity(0.6), lineWidth: 2)
-            )
         }
-    }
-    
-    // MARK: - Medium: panel con visitas, mensajes y notificaciones
-    
-    private var mediumPanelView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Métricas rápidas
-            HStack(spacing: 10) {
-                metricChip(
-                    icon: "person.crop.circle",
-                    label: localizedString("widget.metrics.visits", comment: "Visits"),
-                    value: entry.profileVisitsToday
-                )
-                
-                metricChip(
-                    icon: "bubble.left.and.bubble.right.fill",
-                    label: localizedString("widget.metrics.messages", comment: "Messages"),
-                    value: entry.unreadMessages
-                )
-                
-                metricChip(
-                    icon: "bell.fill",
-                    label: localizedString("widget.metrics.notifications", comment: "Notifications"),
-                    value: entry.unreadNotifications
-                )
-                
-                Spacer(minLength: 0)
-            }
-            
-            Divider()
-                .overlay(gradient.opacity(0.3))
-            
-            // Últimos eventos (3 máx) - cada uno es tappable
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(entry.recentEvents.prefix(3)) { event in
-                    Link(destination: event.deepLink) {
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(gradient)
-                                .frame(width: 6, height: 6)
-                            
-                            Text(event.text)
-                                .font(.footnote) // Un poco más grande que caption2
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                            
-                            Spacer()
-                        }
-                    }
-                }
-            }
-            
-            Spacer(minLength: 0)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .overlay(
-            ContainerRelativeShape()
-                .stroke(gradient.opacity(0.6), lineWidth: 2)
-        )
+        .padding(14)
+        .containerBackground(.fill.tertiary, for: .widget)
     }
     
     // MARK: - Subvistas
     
-    private func metricChip(icon: String, label: String, value: Int) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
+    private func metricChip(icon: String, label: String, value: Int, isLarge: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: isLarge ? 4 : 2) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: isLarge ? 12 : 10, weight: .bold))
+                    .foregroundStyle(gradient)
+                
+                Text("\(value)")
+                    .font(.system(size: isLarge ? 16 : 12, weight: .black, design: .rounded))
+            }
             
             Text(label)
-                .font(.system(size: 10, weight: .regular))
-            
-            Text("\(value)")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: isLarge ? 10 : 8, weight: .bold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.black.opacity(0.05))
-        )
-        .foregroundStyle(LinearGradient(
-            colors: [Color.primary, Color.primary.opacity(0.8)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        ))
+        .padding(.horizontal, isLarge ? 12 : 8)
+        .padding(.vertical, isLarge ? 10 : 6)
+        .frame(maxWidth: isLarge ? .infinity : nil, alignment: .leading)
+        .background(Color.primary.opacity(0.05))
+        .cornerRadius(isLarge ? 14 : 10)
+        .widgetAccentable()
     }
     
 }
@@ -318,15 +473,20 @@ struct GlowsyWidgetExtension: Widget {
 } timeline: {
     SimpleEntry(
         date: .now,
-        profileVisitsToday: 5,
-        unreadMessages: 2,
-        unreadNotifications: 7,
+        profileVisitsToday: 12,
+        unreadMessages: 3,
+        unreadNotifications: 5,
+        unreadEchoes: 1,
+        unreadTags: 0,
+        profileImageData: nil,
         recentEvents: [
-            .visits(count: 5),
-            .messages(count: 2),
-            .notifications(count: 7),
-            .newStories(count: 3),
-            .messageRequests(count: 1)
+            .echoes(count: 1),
+            .visits(count: 12)
         ]
     )
 }
+
+
+// MARK: - App Intents (Example, currently using native Link for deep links)
+
+import AppIntents

@@ -294,7 +294,7 @@ struct DeleteAccountVerificationView: View {
                                     }) {
                                         Image(systemName: agreeToDelete ? "checkmark.square.fill" : "square")
                                             .font(.system(size: 20))
-                                            .foregroundColor(agreeToDelete ? Color(hex: "00A896") : .gray)
+                                            .foregroundColor(agreeToDelete ? Color(hex: "4F46E5") : .gray)
                                     }
                                     
                                     Text("accountManagement.understandIrreversible")
@@ -338,12 +338,12 @@ struct DeleteAccountVerificationView: View {
                                 Button(action: onCancel) {
                                     Text(NSLocalizedString("accountManagement.cancel", comment: "Cancel button"))
                                         .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(Color(hex: "00A896"))
+                                        .foregroundColor(Color(hex: "4F46E5"))
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 16)
                                         .background(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color(hex: "00A896"), lineWidth: 2)
+                                                .stroke(Color(hex: "4F46E5"), lineWidth: 2)
                                         )
                                 }
                             }
@@ -363,7 +363,7 @@ struct DeleteAccountVerificationView: View {
                             onCancel()
                         }
                         .font(.custom("Poppins-Medium", size: 16))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                     }
                 }
             }

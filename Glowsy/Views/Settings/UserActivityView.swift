@@ -73,7 +73,7 @@ struct UserActivityView: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -83,7 +83,7 @@ struct UserActivityView: View {
                         
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "4F46E5"))
                     }
                 }
             }
@@ -111,12 +111,12 @@ struct TimeRangeSelector: View {
                 }) {
                     Text(range.title)
                         .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(selectedRange == range ? .white : Color(hex: "00A896"))
+                        .foregroundColor(selectedRange == range ? .white : Color(hex: "4F46E5"))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 20)
-                                .fill(selectedRange == range ? Color(hex: "00A896") : Color.clear)
+                                .fill(selectedRange == range ? Color(hex: "4F46E5") : Color.clear)
                         )
                 }
             }
@@ -124,7 +124,7 @@ struct TimeRangeSelector: View {
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 24)
-                .stroke(Color(hex: "00A896"), lineWidth: 1)
+                .stroke(Color(hex: "4F46E5"), lineWidth: 1)
         )
     }
 }
@@ -144,7 +144,7 @@ struct ActivitySummarySection: View {
                     icon: "clock.fill",
                     title: NSLocalizedString("userActivity.totalTime", comment: "Total time"),
                     value: summary.totalTimeSpent,
-                    color: Color(hex: "00A896")
+                    color: Color(hex: "4F46E5")
                 )
                 
                 SummaryCard(
@@ -226,7 +226,7 @@ struct TimeSpentChartSection: View {
                         x: .value("Día", point.date, unit: .day),
                         y: .value("Minutos", point.timeSpent)
                     )
-                    .foregroundStyle(Color(hex: "00A896"))
+                    .foregroundStyle(Color(hex: "4F46E5"))
                 }
                 .frame(height: 200)
                 .chartXAxis {
@@ -250,7 +250,7 @@ struct TimeSpentChartSection: View {
                         ForEach(data) { point in
                             VStack {
                                 Rectangle()
-                                    .fill(Color(hex: "00A896"))
+                                    .fill(Color(hex: "4F46E5"))
                                     .frame(width: 30, height: CGFloat(point.timeSpent) * 2)
                                 
                                 Text(point.date.formatted(.dateTime.weekday(.abbreviated)))
@@ -354,7 +354,7 @@ struct DailyActivityRow: View {
             VStack(alignment: .trailing, spacing: 4) {
                 Text(activity.mostUsedFeature)
                     .font(.custom("Poppins-Medium", size: 13))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "4F46E5"))
                 
                 Text(NSLocalizedString("userActivity.mostUsedFeature", comment: "Most used feature"))
                     .font(.custom("Poppins-Regular", size: 11))
@@ -395,7 +395,7 @@ struct FeatureUsageRow: View {
     var body: some View {
         HStack {
             Image(systemName: feature.icon)
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "4F46E5"))
                 .font(.system(size: 16))
                 .frame(width: 24)
             
@@ -419,7 +419,7 @@ struct FeatureUsageRow: View {
                         .cornerRadius(3)
                     
                     Rectangle()
-                        .fill(Color(hex: "00A896"))
+                        .fill(Color(hex: "4F46E5"))
                         .frame(width: geometry.size.width * feature.percentage, height: 6)
                         .cornerRadius(3)
                 }
@@ -669,7 +669,7 @@ class UserActivityViewModel: ObservableObject {
                 title: "Función favorita",
                 description: "\(topFeature.name) es tu función más utilizada con \(topFeature.usageCount) usos",
                 icon: topFeature.icon,
-                color: Color(hex: "00A896")
+                color: Color(hex: "4F46E5")
             ))
         }
         

@@ -21,14 +21,20 @@ class VideoPreloader {
             // Cargar nuevos
             for urlString in urls.prefix(self.maxCacheSize) {
                 if self.assetCache[urlString] == nil, let url = URL(string: urlString) {
-                    let asset = AVURLAsset(url: url)
-                    let keys = ["duration", "playable", "tracks"]
-                    
-                    // Solo iniciamos la carga, el sistema hace el caching interno del asset
-                    asset.loadValuesAsynchronously(forKeys: keys) {
-                        // Opcional: Verificar éxito
+                    // ✅ OFFLINE: Si ya está en disco, cargamos de local
+                    if let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
+                        let asset = AVURLAsset(url: localURL)
+                        self.assetCache[urlString] = asset
+                    } else {
+                        // Si no está en disco, lo cargamos remoto y lo mandamos a descargar
+                        let asset = AVURLAsset(url: url)
+                        let keys = ["duration", "playable", "tracks"]
+                        asset.loadValuesAsynchronously(forKeys: keys) { }
+                        self.assetCache[urlString] = asset
+                        
+                        // ✅ Descargar para futuras sesiones
+                        PersistentVideoCache.shared.downloadAndCache(url: url)
                     }
-                    self.assetCache[urlString] = asset
                 }
             }
         }
@@ -42,9 +48,15 @@ class VideoPreloader {
         
         if let cachedAsset = asset {
             let item = AVPlayerItem(asset: cachedAsset)
-            // ✅ Buffer inicial optimizado: 2.5s para inicio rápido
             item.preferredForwardBufferDuration = 2.5
             item.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+            return item
+        }
+        
+        // ✅ OFFLINE: Buscar en disco fuera del cache de memoria si no se precargó
+        if let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
+            let item = AVPlayerItem(url: localURL)
+            item.preferredForwardBufferDuration = 0.5 // Inicio inmediato desde disco
             return item
         }
         
@@ -58,6 +70,10 @@ class VideoPreloader {
         let item = AVPlayerItem(url: url)
         item.preferredForwardBufferDuration = 2.5
         item.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+        
+        // ✅ Descargar para futuras sesiones
+        PersistentVideoCache.shared.downloadAndCache(url: url)
+        
         return item
     }
 }

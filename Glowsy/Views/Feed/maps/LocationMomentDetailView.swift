@@ -63,7 +63,7 @@ struct LocationMomentDetailView: View {
                     .ignoresSafeArea(.all)
                     .opacity(backgroundOpacity)
                 
-                // ✅ Header fijo premium (estilo Feed)
+                // ✅ Header fijo premium (estilo Feed) - Ahora ignorando safe area para posicionamiento absoluto
                 locationDetailHeader(safeAreaTop: safeAreaTop)
                     .background(
                         Rectangle()
@@ -75,6 +75,8 @@ struct LocationMomentDetailView: View {
                             )
                             .ignoresSafeArea(edges: .top)
                     )
+                    .ignoresSafeArea(edges: .top) // ✅ CLAVE: Ignorar safe area para subirlo al máximo
+                    .zIndex(10)
                     .overlay(
                         VStack {
                             Spacer()
@@ -88,7 +90,7 @@ struct LocationMomentDetailView: View {
                     .opacity(backgroundOpacity)
                 
                 locationMomentsCarousel(geometry: geometry)
-                    .padding(.top, locationMoments.count > 1 ? 95 : 80) // Altura del header con más espacio
+                    .padding(.top, locationMoments.count > 1 ? 95 : 80) // Vuelto a un valor seguro pero optimizado
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                 
@@ -97,16 +99,12 @@ struct LocationMomentDetailView: View {
                     ModernContextMenuOverlay(
                         moment: moment,
                         isPresented: $showContextMenu,
-                        showShareSheet: $showShareSheet,
                         onEdit: {
                             editedContent = moment.content
                             showEditSheet = true
                         },
                         onDelete: {
                             showDeleteAlert = true
-                        },
-                        onShare: {
-                            showShareSheet = true
                         },
                         onReport: {
                             showReportSheet = true
@@ -229,148 +227,119 @@ struct LocationMomentDetailView: View {
         }
     }
     
-    // ✅ Header centrado como Feed
+    // ✅ Header centrado rediseñado (Estilo ZStack para equilibrio perfecto)
     private func locationDetailHeader(safeAreaTop: CGFloat) -> some View {
         VStack(spacing: 0) {
-            HStack {
-                Button(action: {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isPresented = false
+            ZStack {
+                // 1. Botón Atrás (Alineado a la izquierda)
+                HStack {
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .bold)) // Un poco más refinado
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .frame(width: 40, height: 40)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                            )
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     }
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 40, height: 40)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                        )
-                        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                    Spacer()
                 }
                 
-                Spacer()
-                
-                HStack(spacing: 12) {
-                    // ✅ Icono de ubicación con gradiente
+                // 2. Información de Ubicación (Perfectamente Centrada)
+                HStack(spacing: 10) {
+                    // Icono de ubicación con diseño Glow
                     ZStack {
                         Circle()
                             .fill(.ultraThinMaterial)
-                            .frame(width: 45, height: 45)
+                            .frame(width: 38, height: 38) // Ligeramente más compacto
                             .overlay(
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.6), Color(hex: "00A896").opacity(0.8)],
+                                            colors: [Color(hex: "007AFF").opacity(0.6), Color(hex: "007AFF").opacity(0.8)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
                                         lineWidth: 1.5
                                     )
                             )
-                            .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                         
                         Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                                    colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.9)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
                     }
                     
-                    VStack(spacing: 2) {
+                    VStack(alignment: .leading, spacing: 1) { // Alineación leading para el texto, pero el bloque está centrado
                         Text(locationName)
-                            .font(.custom("Poppins-SemiBold", size: 20))
+                            .font(.custom("Poppins-SemiBold", size: 17)) // Tamaño ajustado
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
                         
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Text("\(currentIndex + 1) de \(locationMoments.count)")
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(.gray.opacity(0.8))
+                                .font(.custom("Poppins-Medium", size: 11))
+                                .foregroundColor(.gray.opacity(0.9))
                             
                             if !locationMoments.isEmpty {
                                 Text("•")
-                                    .font(.custom("Poppins-Regular", size: 12))
-                                    .foregroundColor(.gray.opacity(0.6))
+                                    .font(.system(size: 8))
+                                    .foregroundColor(.gray.opacity(0.5))
                                 
                                 Text(String(format: NSLocalizedString("locationMomentDetail.photoCount", comment: "Photo count"), locationMoments.count))
-                                    .font(.custom("Poppins-Regular", size: 12))
-                                    .foregroundColor(.gray.opacity(0.8))
+                                    .font(.custom("Poppins-Regular", size: 11))
+                                    .foregroundColor(.gray.opacity(0.7))
                             }
                         }
                     }
                 }
-
-                Spacer()
-                
-                            // ✅ Botón de menú contextual
-            Button(action: {
-                if currentIndex < locationMoments.count {
-                    contextMenuMoment = locationMoments[currentIndex]
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        showContextMenu = true
-                    }
-                }
-            }) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.4), Color.gray.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                }
+                .padding(.horizontal, 40) // Evitar solapamiento con el botón de atrás
             }
-            .padding(.horizontal, 15)
+            .padding(.horizontal, 16)
+            .padding(.top, safeAreaTop > 0 ? safeAreaTop + 6 : 10) // Bajado para quedar justo debajo del notch (ajuste fino)
+            .padding(.bottom, 8) // Espacio interno equilibrado
             
-            // ✅ NUEVO: Indicador de progreso visual mejorado
+            // ✅ Indicador de progreso integrado
             if locationMoments.count > 1 {
-                VStack(spacing: 8) {
-                    // ✅ Barra de progreso con animación
-                    HStack(spacing: 4) {
-                        ForEach(0..<locationMoments.count, id: \.self) { index in
-                            Capsule()
-                                .fill(
-                                    currentIndex == index ?
-                                    LinearGradient(
-                                        colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ) :
-                                    LinearGradient(
-                                        colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
+                HStack(spacing: 4) {
+                    ForEach(0..<locationMoments.count, id: \.self) { index in
+                        Capsule()
+                            .fill(
+                                currentIndex == index ?
+                                LinearGradient(
+                                    colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ) :
+                                LinearGradient(
+                                    colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
                                 )
-                                .frame(height: 3)
-                                .frame(maxWidth: .infinity)
-                                .animation(.easeInOut(duration: 0.3), value: currentIndex)
-                        }
+                            )
+                            .frame(height: 2.5) // Más sutil
+                            .frame(maxWidth: .infinity)
+                            .animation(.easeInOut(duration: 0.3), value: currentIndex)
                     }
                 }
-                .padding(.top, 8)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 0)
             }
         }
-        .padding(.vertical, 16)
     }
     
     // ✅ NUEVOS: Helpers para información contextual
@@ -390,7 +359,7 @@ struct LocationMomentDetailView: View {
         case "connections": return .blue
         case "bestFriends": return .pink
         case "custom", "customList": return .orange
-        default: return Color(hex: "00A896")
+        default: return Color(hex: "007AFF")
         }
     }
     
@@ -475,6 +444,10 @@ struct LocationMomentDetailView: View {
                     },
                     onSave: {
                         toggleSave(for: moment)
+                    },
+                    onContextMenu: {
+                        contextMenuMoment = moment
+                        showContextMenu = true
                     }
                 )
                 .tag(index)
@@ -559,10 +532,12 @@ struct LocationMomentCard: View {
     let isSaveLoading: Bool
     let onComment: () -> Void
     let onSave: () -> Void
+    let onContextMenu: () -> Void
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
+    @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var aspectRatioType: AspectRatioType = .square
     
     private var adaptiveColors: AdaptiveColors {
@@ -630,14 +605,16 @@ struct LocationMomentCard: View {
                     ZStack(alignment: .bottom) {
                         locationMomentImageView
                         
-                        // ✅ Botones de acción estilo feed
-                        ModernDetailActionButtons(
+                        // ✅ Glow Rail (Mismo que en Feed)
+                        ModernActionButtons(
                             moment: moment,
                             isSaved: .constant(isSaved),
                             isSaveLoading: .constant(isSaveLoading),
                             commentCount: .constant(commentCount),
                             onComment: onComment,
-                            onSave: onSave
+                            onSave: onSave,
+                            onContextMenu: onContextMenu,
+                            isImmersive: $isImmersive
                         )
                         .environmentObject(firestoreService)
                     }
@@ -678,7 +655,7 @@ struct LocationMomentCard: View {
                 .clipShape(Circle())
                 .overlay(
                     Circle()
-                        .stroke(Color(hex: "00A896").opacity(0.6), lineWidth: 1)
+                        .stroke(Color(hex: "007AFF").opacity(0.6), lineWidth: 1)
                 )
             
             VStack(alignment: .leading, spacing: 1) {
@@ -719,7 +696,7 @@ struct LocationMomentCard: View {
             )
         }
         .padding(.horizontal, 12)
-    }
+    } // Cierra authorContextualPill
     
     // Helpers para la pill (reutilizados)
     private func getAudienceIcon(_ audience: String) -> String {
@@ -736,7 +713,7 @@ struct LocationMomentCard: View {
         case "everyone": return .green
         case "connections": return .blue
         case "bestFriends": return .pink
-        default: return Color(hex: "00A896")
+        default: return Color(hex: "007AFF")
         }
     }
     
@@ -791,14 +768,28 @@ struct LocationMomentCard: View {
     private var locationMomentImageView: some View {
         ZStack {
             // ✅ NUEVO: EnhancedCarouselView para múltiples archivos
-            EnhancedCarouselView(
-                mediaItems: mediaItems,
-                currentIndex: $currentImageIndex,
-                showTags: $showTags, // ✅ PASAR binding
-                aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
-                allMoments: [moment], // Solo el momento actual
-                currentMoment: moment // El momento actual
-            )
+                EnhancedCarouselView(
+                    mediaItems: mediaItems,
+                    currentIndex: $currentImageIndex,
+                    showTags: $showTags, // ✅ PASAR binding
+                    aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
+                    allMoments: [moment], // Solo el momento actual
+                    currentMoment: moment, // El momento actual
+                    isImmersive: $isImmersive // ✅ NUEVO
+                )
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.1)
+                        .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                        .onEnded { _ in }
+                )
+                .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        self.isImmersive = isPressing
+                        if isPressing {
+                            HapticManager.shared.mediumImpact()
+                        }
+                    }
+                }, perform: {})
             .frame(height: cardHeight)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
@@ -836,7 +827,7 @@ struct LocationMomentCard: View {
                         }) {
                             ZStack {
                                 Circle()
-                                    .fill(showTags ? Color(hex: "00A896") : Color.black.opacity(0.6))
+                                    .fill(showTags ? Color(hex: "007AFF") : Color.black.opacity(0.6))
                                     .frame(width: 32, height: 32)
                                     .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
                                 Image(systemName: "tag.fill")
@@ -872,7 +863,7 @@ struct LocationMomentCard: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                            colors: showTags ? [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -883,7 +874,7 @@ struct LocationMomentCard: View {
                                 // Icon tinted if active
                                 Image(systemName: showTags ? "person.fill" : "person.circle.fill")
                                     .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                                    .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
                             }
                             .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                         }
@@ -904,6 +895,7 @@ struct LocationMomentCard: View {
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
                 .multilineTextAlignment(.leading)
+                .padding(.trailing, isImmersive ? 0 : 140) // ✅ Protección contra el rail
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 20)
@@ -927,7 +919,7 @@ struct LocationMomentCard: View {
             HStack {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.system(size: 18))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(Color(hex: "007AFF"))
                 
                 Text("locationMomentDetail.comments")
                     .font(.custom("Poppins-SemiBold", size: 20))
@@ -941,13 +933,13 @@ struct LocationMomentCard: View {
                         .padding(.vertical, 4)
                         .background(
                             LinearGradient(
-                                colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                                colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .clipShape(Capsule())
-                        .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 4, x: 0, y: 2)
+                        .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
                 }
                 
                 Spacer()
@@ -956,10 +948,10 @@ struct LocationMomentCard: View {
                     onComment()
                 }
                 .font(.custom("Poppins-SemiBold", size: 14))
-                .foregroundColor(Color(hex: "00A896"))
+                .foregroundColor(Color(hex: "007AFF"))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color(hex: "00A896").opacity(0.1))
+                .background(Color(hex: "007AFF").opacity(0.1))
                 .clipShape(Capsule())
             }
             .padding(.horizontal, 20)
@@ -973,12 +965,12 @@ struct LocationMomentCard: View {
                             .frame(width: 60, height: 60)
                             .overlay(
                                 Circle()
-                                    .stroke(Color(hex: "00A896").opacity(0.3), lineWidth: 1.5)
+                                    .stroke(Color(hex: "007AFF").opacity(0.3), lineWidth: 1.5)
                             )
                         
                         Image(systemName: "bubble.left")
                             .font(.system(size: 24))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "007AFF"))
                     }
                     
                     VStack(spacing: 8) {
@@ -1001,13 +993,13 @@ struct LocationMomentCard: View {
                     .padding(.vertical, 10)
                     .background(
                         LinearGradient(
-                            colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
+                            colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .clipShape(Capsule())
-                    .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 6, x: 0, y: 3)
+                    .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 6, x: 0, y: 3)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
@@ -1018,7 +1010,7 @@ struct LocationMomentCard: View {
                             RoundedRectangle(cornerRadius: 20)
                                 .stroke(
                                     LinearGradient(
-                                        colors: [Color.white.opacity(0.2), Color(hex: "00A896").opacity(0.3)],
+                                        colors: [Color.white.opacity(0.2), Color(hex: "007AFF").opacity(0.3)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),

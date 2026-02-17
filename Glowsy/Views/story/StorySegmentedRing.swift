@@ -8,6 +8,7 @@ struct StorySegmentedRing: View {
     let storyViewedStatus: [Bool] // ✅ Estado de visto por cada historia
     let isOwnStory: Bool // ✅ Para identificar historias propias
     let colorScheme: ColorScheme
+    let hapticsEnabled: Bool // ✅ Respuesta háptica interactiva
     let ringSize: CGFloat
     let lineWidth: CGFloat
     
@@ -21,7 +22,8 @@ struct StorySegmentedRing: View {
         isOwnStory: Bool,
         colorScheme: ColorScheme,
         ringSize: CGFloat = 50,
-        lineWidth: CGFloat = 2.5
+        lineWidth: CGFloat = 2.5,
+        hapticsEnabled: Bool = true
     ) {
         self.storyCount = storyCount
         self.hasStory = hasStory
@@ -31,6 +33,14 @@ struct StorySegmentedRing: View {
         self.colorScheme = colorScheme
         self.ringSize = ringSize
         self.lineWidth = lineWidth
+        self.hapticsEnabled = hapticsEnabled
+    }
+    
+    // ✅ Función helper para disparar el haptic (Tier 1 feel)
+    static func triggerHaptic() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.prepare()
+        generator.impactOccurred()
     }
     
     var body: some View {
@@ -61,6 +71,7 @@ struct StorySegmentedRing: View {
                     .frame(width: ringSize, height: ringSize)
             }
         }
+        .padding(lineWidth / 2 + 1) // ✅ Margen de seguridad para evitar cortes en los bordes por el grosor de línea
         .rotationEffect(.degrees(-90)) // Rotar todo el anillo para empezar arriba
     }
     

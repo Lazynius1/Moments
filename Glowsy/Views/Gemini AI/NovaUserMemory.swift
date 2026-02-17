@@ -367,11 +367,11 @@ struct NovaMemory: Identifiable {
         let labels: (userInfo: String, prefs: String, personal: String, work: String, interests: String, rules: String, rule1: String, rule2: String, rule3: String, rule4: String)
         switch lang {
         case .es:
-            labels = ("INFORMACIÓN SOBRE EL USUARIO:", "⚙️ PREFERENCIAS:", "👤 PERSONAL:", "💼 TRABAJO/ESTUDIOS:", "❤️ INTERESES:", "INSTRUCCIONES IMPORTANTES:", "- Usa esta información naturalmente, sin mencionar que la \"recuerdas\"", "- Si hay un nombre preferido, úsalo SIEMPRE en lugar del username", "- Aplica las preferencias de comunicación automáticamente", "- NO repitas información estática (como ubicación) en cada mensaje. Úsala solo si es relevante.")
+            labels = ("MATICES DE TU ESENCIA:", "⚙️ VIBRAS:", "👤 ESENCIA:", "💼 CAMINO:", "❤️ PASIONES:", "INSTRUCCIONES PARA FLUIR:", "- Integra estos matices con naturalidad y calidez, como un amigo", "- Usa el nombre preferido SIEMPRE, es tu identidad aquí", "- Adapta tu ritmo a estas preferencias sin ser evidente", "- Evita repetir datos fríos; prefiere evocar sensaciones y apoyo.")
         case .en:
-            labels = ("USER INFORMATION:", "⚙️ PREFERENCES:", "👤 PERSONAL:", "💼 WORK/STUDIES:", "❤️ INTERESTS:", "IMPORTANT INSTRUCTIONS:", "- Use this information naturally, without mentioning that you \"remember\" it", "- If there's a preferred name, ALWAYS use it instead of the username", "- Apply communication preferences automatically", "- DO NOT repeat static info (like location) in every message. Use it only if relevant.")
+            labels = ("NUANCES OF YOUR ESSENCE:", "⚙️ VIBES:", "👤 ESSENCE:", "💼 PATH:", "❤️ PASSIONS:", "INSTRUCTIONS TO FLOW:", "- Integrate these nuances naturally and with warmth, like a friend", "- ALWAYS use the preferred name, it's your identity here", "- Adapt your rhythm to these preferences seamlessly", "- Avoid repeating cold facts; prefer evoking feelings and support.")
         case .ca:
-            labels = ("INFORMACIÓ SOBRE L'USUARI:", "⚙️ PREFERÈNCIES:", "👤 PERSONAL:", "💼 FEINA/ESTUDIS:", "❤️ INTERESSOS:", "INSTRUCCIONS IMPORTANTS:", "- Utilitza aquesta informació de manera natural, sense esmentar que la \"recordes\"", "- Si hi ha un nom preferit, fes-lo servir SEMPRE en lloc del username", "- Aplica les preferències de comunicació automàticament", "- NO repeteixis informació estàtica (com la ubicació) a cada missatge. Utilitza-la només si és rellevant.")
+            labels = ("MATISOS DE LA TEVA ESSÈNCIA:", "⚙️ VIBRES:", "👤 ESSÈNCIA:", "💼 CAMÍ:", "❤️ PASSIONS:", "INSTRUCCIONS PER FLUIR:", "- Integra aquests matisos amb naturalitat i calidesa, com un amic", "- Fes servir el nom preferit SEMPRE, és l'identitat de l'usuari", "- Adapta el teu ritme a aquestes preferències de forma fluida", "- Evita repetir dades fredes; prefereix evocar sensacions i suport.")
         }
         
         

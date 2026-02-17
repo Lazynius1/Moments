@@ -108,7 +108,7 @@ struct ArchiveView: View {
                                 Circle()
                                     .stroke(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                            colors: [Color(hex: "007AFF").opacity(0.3), Color(hex: "007AFF").opacity(0.1)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -118,7 +118,7 @@ struct ArchiveView: View {
                         
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(Color(hex: "007AFF"))
                     }
                 }
             }
@@ -137,7 +137,7 @@ struct ArchiveView: View {
                                 
                                 if viewMode == mode {
                                     Image(systemName: "checkmark")
-                                        .foregroundColor(Color(hex: "00A896"))
+                                        .foregroundColor(Color(hex: "007AFF"))
                                 }
                             }
                         }
@@ -383,7 +383,7 @@ struct ArchiveStoryVerticalCard: View {
                         .stroke(
                             LinearGradient(
                                 gradient: Gradient(colors: [
-                                    Color(hex: "00A896").opacity(0.6),
+                                    Color(hex: "007AFF").opacity(0.6),
                                     Color(hex: "02C39A").opacity(0.4)
                                 ]),
                                 startPoint: .topLeading,
@@ -436,7 +436,7 @@ struct ArchiveStoryVerticalCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
                                 .font(.system(size: 10))
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(Color(hex: "007AFF"))
                             
                             Text(story.mediaItem.type == .video ? NSLocalizedString("archivedStories.video", comment: "Video") : NSLocalizedString("archivedStories.photo", comment: "Photo"))
                                 .font(.custom("Poppins-Regular", size: 11))
@@ -664,7 +664,7 @@ struct SingleStoryViewer: View {
                                     RoundedRectangle(cornerRadius: 16)
                                         .stroke(
                                             LinearGradient(
-                                                gradient: Gradient(colors: [Color(hex: "00A896"), Color(hex: "02C39A")]),
+                                                gradient: Gradient(colors: [Color(hex: "007AFF"), Color(hex: "02C39A")]),
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -684,7 +684,7 @@ struct SingleStoryViewer: View {
                                     .trim(from: 0, to: loadingProgress)
                                     .stroke(
                                         LinearGradient(
-                                            gradient: Gradient(colors: [Color(hex: "00A896"), Color(hex: "02C39A")]),
+                                            gradient: Gradient(colors: [Color(hex: "007AFF"), Color(hex: "02C39A")]),
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -962,7 +962,7 @@ struct StoryStatsView: View {
                                 icon: "paperplane.fill",
                                 title: NSLocalizedString("archivedStories.stats.shares", comment: "Shares"),
                                 value: "\(viewModel.shareCount)",
-                                color: Color(hex: "00A896")
+                                color: Color(hex: "007AFF")
                             )
                             
                             StatsCard(

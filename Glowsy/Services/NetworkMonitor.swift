@@ -38,6 +38,9 @@ class NetworkMonitor: ObservableObject {
     }
     
     init() {
+        // ✅ Asumimos conectado por defecto (isConnected = true en la declaración).
+        // El pathUpdateHandler corregirá el estado real una vez el monitor arranque.
+        // NOTA: monitor.currentPath antes de start() NO es fiable en simuladores.
         startMonitoring()
     }
     

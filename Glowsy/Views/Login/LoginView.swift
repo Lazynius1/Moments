@@ -2,6 +2,8 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseMessaging
 import FirebaseFirestore
+import AuthenticationServices
+import CryptoKit
 
 struct LoginView: View {
     @EnvironmentObject var authService: AuthService
@@ -18,7 +20,7 @@ struct LoginView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                EnhancedBackgroundView()
+                LiquidAuroraBackground()
                 
                 // ✅ LÓGICA DE ESTADOS CORREGIDA PARA RESPETAR EL FLUJO DE REGISTRO
                 if authService.isVerifyingAccount && !authService.isRegistering {
@@ -34,11 +36,15 @@ struct LoginView: View {
                     // Formulario de login normal
                     VStack(spacing: 0) {
                         Spacer()
+                            .frame(height: 40)
                         
                         EnhancedHeaderView()
                             .scaleEffect(isVisible ? 1.0 : 0.8)
                             .opacity(isVisible ? 1.0 : 0.0)
                             .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                        
+                        Spacer()
+                            .frame(height: 60) // Extra space between logo and inputs
                         
                         EnhancedFormView(
                             identifier: $identifier,
@@ -46,19 +52,15 @@ struct LoginView: View {
                             showPassword: $showPassword,
                             isLoading: $isLoading,
                             showResetPassword: $showResetPassword,
+                            errorMessage: $errorMessage,
+                            showAlert: $showAlert,
                             loginAction: login
                         )
-                        .offset(y: isVisible ? 0 : 50)
+                        .offset(y: isVisible ? 0 : 30)
                         .opacity(isVisible ? 1.0 : 0.0)
                         .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
                         
                         Spacer()
-                        
-                        // Enhanced floating dots
-                        EnhancedFloatingDotsView()
-                            .opacity(isVisible ? 1.0 : 0.0)
-                            .animation(.easeInOut(duration: 1.0).delay(0.4), value: isVisible)
-                            .padding(.bottom, 50)
                     }
                 }
             }
@@ -141,107 +143,29 @@ struct LoginView: View {
     }
 }
 
-// MARK: - Enhanced Background View
-struct EnhancedBackgroundView: View {
-    @State private var animateGradient = false
-    
-    var body: some View {
-        ZStack {
-            // Base animated gradient
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.1, green: 0.1, blue: 0.2),
-                    Color(red: 0.2, green: 0.1, blue: 0.3),
-                    Color(red: 0.1, green: 0.1, blue: 0.2)
-                ]),
-                startPoint: animateGradient ? .topLeading : .bottomTrailing,
-                endPoint: animateGradient ? .bottomTrailing : .topLeading
-            )
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true), value: animateGradient)
-            
-            // Enhanced floating orbs
-            ForEach(0..<3, id: \.self) { index in
-                EnhancedFloatingOrbView(index: index)
-            }
-        }
-        .onAppear {
-            animateGradient = true
-        }
-    }
-}
-
-// MARK: - Enhanced Floating Orb
-struct EnhancedFloatingOrbView: View {
-    let index: Int
-    @State private var offset = CGSize.zero
-    @State private var scale: CGFloat = 1.0
-    
-    private var orbColor: Color {
-        switch index {
-        case 0: return Color.blue.opacity(0.3)
-        case 1: return Color.purple.opacity(0.3)
-        default: return Color.pink.opacity(0.3)
-        }
-    }
-    
-    var body: some View {
-        Circle()
-            .fill(orbColor)
-            .frame(width: 200, height: 200)
-            .blur(radius: 40)
-            .scaleEffect(scale)
-            .offset(offset)
-            .animation(
-                .easeInOut(duration: Double.random(in: 3...6))
-                .repeatForever(autoreverses: true)
-                .delay(Double(index) * 0.5),
-                value: offset
-            )
-            .animation(
-                .easeInOut(duration: Double.random(in: 2...4))
-                .repeatForever(autoreverses: true)
-                .delay(Double(index) * 0.3),
-                value: scale
-            )
-            .onAppear {
-                let randomX = CGFloat.random(in: -100...100)
-                let randomY = CGFloat.random(in: -150...150)
-                offset = CGSize(width: randomX, height: randomY)
-                scale = CGFloat.random(in: 0.8...1.2)
-            }
-    }
-}
+// MARK: - Liquid Aurora Background (Moved to LiquidGlassComponents.swift)
 
 // MARK: - Enhanced Header View
 struct EnhancedHeaderView: View {
-    @State private var glowIntensity: Double = 0.5
-    @State private var orbRotation: Double = 0
-    
     var body: some View {
-        VStack(spacing: 24) {
-            ZStack {
-                // Enhanced glow effect
-                Image("LoginLogo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 150, height: 150)
-                    .shadow(color: .white.opacity(glowIntensity), radius: 15, x: 0, y: 0)
-                    .shadow(color: .blue.opacity(0.5), radius: 25, x: 0, y: 0)
-                
-                // Pelotita naranja removida
-            }
+        VStack(spacing: 32) {
+            Image("LoginLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 100, height: 100)
+                .shadow(color: .white.opacity(0.2), radius: 10, x: 0, y: 0)
+                .overlay(
+                    // Glass highlight
+                    Ellipse()
+                        .fill(.white.opacity(0.1))
+                        .frame(width: 60, height: 30)
+                        .blur(radius: 10)
+                        .offset(y: -20)
+                )
             
-            // Texto "Moments" removido - solo se muestra el logo
+            // Title removed to match minimalistic Instagram/X style
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                glowIntensity = 1.0
-            }
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
-                orbRotation = 360
-            }
-        }
+        .padding(.top, 40)
     }
 }
 // MARK: - Enhanced Form View
@@ -251,207 +175,161 @@ struct EnhancedFormView: View {
     @Binding var showPassword: Bool
     @Binding var isLoading: Bool
     @Binding var showResetPassword: Bool
+    @Binding var errorMessage: String?
+    @Binding var showAlert: Bool
     let loginAction: () -> Void
     
+    @EnvironmentObject var authService: AuthService
+    
     var body: some View {
-        VStack(spacing: 24) {
-            EnhancedIdentifierField(identifier: $identifier)
-            EnhancedPasswordField(password: $password, showPassword: $showPassword)
+        VStack(spacing: 20) {
+            // 1. Standalone Input Rows (Social Media Style)
+            // 1. Standalone Input Rows (Social Media Style)
+            LiquidGlassTextField(
+                icon: "person.fill",
+                placeholder: NSLocalizedString("login.usernameOrEmail", comment: ""),
+                text: $identifier,
+                keyboardType: .emailAddress
+            )
+            LiquidGlassSecureField(
+                icon: "lock.fill",
+                placeholder: NSLocalizedString("login.password", comment: ""),
+                text: $password,
+                isVisible: $showPassword
+            )
             
-            HStack {
-                Spacer()
+            // Primary Action Section
+            
+            // 2. Primary Action Block
+            VStack(spacing: 16) {
+                EnhancedLoginButton(isLoading: $isLoading, action: loginAction)
+                
                 Button(action: {
-                    // Track forgot password interaction
                     AnalyticsService.shared.trackInteraction("forgot_password_tapped")
                     showResetPassword = true
                 }) {
                     Text("login.forgotPassword")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.6))
                 }
             }
             
-            EnhancedLoginButton(isLoading: $isLoading, action: loginAction)
+            Spacer()
+                .frame(height: 10)
             
-            EnhancedDividerView()
-            
-            NavigationLink(destination: RegisterView()) {
+            // 3. Subtle Footer Block
+            VStack(spacing: 20) {
                 HStack {
-                    Text("login.noAccount")
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(.white.opacity(0.8))
+                    Rectangle()
+                        .fill(LinearGradient(colors: [.clear, .white.opacity(0.1)], startPoint: .leading, endPoint: .trailing))
+                        .frame(height: 0.5)
                     
-                    Text("login.register")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                    Text("O")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white.opacity(0.3))
+                        .padding(.horizontal, 10)
+                    
+                    Rectangle()
+                        .fill(LinearGradient(colors: [.white.opacity(0.1), .clear], startPoint: .leading, endPoint: .trailing))
+                        .frame(height: 0.5)
                 }
-            }
-            .onTapGesture {
-                // Track register navigation
-                AnalyticsService.shared.trackInteraction("register_link_tapped")
-            }
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 40)
-        .background(
-            ZStack {
-                // Enhanced glass morphism effect
-                RoundedRectangle(cornerRadius: 32)
-                    .fill(.ultraThinMaterial)
-                    .background(
-                        RoundedRectangle(cornerRadius: 32)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        .white.opacity(0.1),
-                                        .white.opacity(0.05)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
                 
-                // Enhanced border gradient
-                RoundedRectangle(cornerRadius: 32)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                .white.opacity(0.3),
-                                .white.opacity(0.1),
-                                .clear
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            }
-        )
-        .shadow(color: .black.opacity(0.2), radius: 30, x: 0, y: 15)
-        .shadow(color: .blue.opacity(0.1), radius: 50, x: 0, y: 25)
-        .padding(.horizontal, 20)
-    }
-}
-
-// MARK: - Enhanced Identifier Field
-struct EnhancedIdentifierField: View {
-    @Binding var identifier: String
-    @State private var isFocused = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                
-                Text("login.usernameOrEmail")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-            }
-            
-            // Usar el inicializador estándar de TextField con placeholder
-            TextField("Ingresa tu usuario o email", text: $identifier)
-                .foregroundColor(.white)
-                .font(.system(size: 16))
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(isFocused ? 0.15 : 0.1))
-                        .animation(.easeInOut(duration: 0.2), value: isFocused)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            LinearGradient(
-                                colors: isFocused ? [.blue.opacity(0.5), .purple.opacity(0.3)] : [.white.opacity(0.2), .clear],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            lineWidth: isFocused ? 2 : 1
-                        )
-                        .animation(.easeInOut(duration: 0.2), value: isFocused)
-                )
-                .autocapitalization(.none)
-                .onTapGesture {
-                    isFocused = true
-                }
-                .onChange(of: identifier) { _ in
-                    if identifier.count == 1 {
-                        // Se ha re-incluido la línea de AnalyticsService
-                        AnalyticsService.shared.trackInteraction("login_form_started")
+                NavigationLink(destination: RegisterView()) {
+                    HStack {
+                        Text("login.noAccount")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Text("login.register")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
                     }
                 }
+                
+                // Sign in with Apple Button
+                SignInWithAppleButton(
+                    .signIn,
+                    onRequest: { request in
+                        let nonce = authService.startAppleSignIn()
+                        request.requestedScopes = [.fullName, .email]
+                        request.nonce = nonce
+                    },
+                    onCompletion: { result in
+                        switch result {
+                        case .success(let authorization):
+                            if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                                guard let nonce = authService.currentNonce else {
+                                    errorMessage = "Error de seguridad (nonce)"
+                                    showAlert = true
+                                    return
+                                }
+                                
+                                guard let appleIDToken = appleIDCredential.identityToken else {
+                                    errorMessage = "No se pudo obtener el token de Apple"
+                                    showAlert = true
+                                    return
+                                }
+                                
+                                guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+                                    errorMessage = "Token de Apple inválido"
+                                    showAlert = true
+                                    return
+                                }
+                                
+                                isLoading = true
+                                authService.signInWithApple(
+                                    idToken: idTokenString,
+                                    nonce: nonce,
+                                    fullName: appleIDCredential.fullName?.formatted(),
+                                    email: appleIDCredential.email
+                                ) { result in
+                                    isLoading = false
+                                    switch result {
+                                    case .success(let isComplete):
+                                        if !isComplete {
+                                            // El usuario necesita completar su perfil.
+                                            // El AuthService ya habrá activado isRegistering = true
+                                            AnalyticsService.shared.trackInteraction("apple_sign_in_needs_profile")
+                                        } else {
+                                            AnalyticsService.shared.trackSuccessfulLogin(method: "apple")
+                                        }
+                                    case .failure(let error):
+                                        errorMessage = error.localizedDescription
+                                        showAlert = true
+                                    }
+                                }
+                            }
+                        case .failure(let error):
+                            if (error as NSError).code != 1001 { // 1001 is user cancelled
+                                errorMessage = error.localizedDescription
+                                showAlert = true
+                            }
+                        }
+                    }
+                )
+                .signInWithAppleButtonStyle(.white) // O .black dependiendo del tema, pero Moments es oscuro
+                .frame(height: 50)
+                .cornerRadius(25)
+                .padding(.top, 10)
+            }
         }
-    }
-}
-
-
-// MARK: - Enhanced Password Field
-struct EnhancedPasswordField: View {
-    @Binding var password: String
-    @Binding var showPassword: Bool
-    @State private var isFocused = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "lock.circle.fill")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                
-                Text("login.password")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-            }
-            
-            HStack {
-                if showPassword {
-                    // Usar el inicializador estándar de TextField con placeholder
-                    TextField("Ingresa tu contraseña", text: $password)
-                        .foregroundColor(.white)
-                } else {
-                    // Usar el inicializador estándar de SecureField con placeholder
-                    SecureField("Ingresa tu contraseña", text: $password)
-                        .foregroundColor(.white)
-                }
-                
-                Button(action: {
-                    showPassword.toggle()
-                    // AnalyticsService.shared.trackInteraction("password_visibility_toggled", details: ["show": showPassword]) // Eliminado si no está definido
-                }) {
-                    Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                        .foregroundColor(.white.opacity(0.5))
-                        .font(.system(size: 16))
-                }
-            }
-            // Eliminar el modificador .placeholder de aquí
-            .font(.system(size: 16))
-            .padding(16)
+            // ✅ CHANGE: Use NavigationLink instead of fullScreenCover to avoid sheet dismissal issues
+            // This pushes the view onto the navigation stack, which feels more integrated and
+            // avoids the "flash of login" when dismissing a sheet before replacing the root view.
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(isFocused ? 0.15 : 0.1))
-                    .animation(.easeInOut(duration: 0.2), value: isFocused)
+                NavigationLink(
+                    destination: SocialProfileCompletionView(),
+                    isActive: $authService.isRegistering,
+                    label: { EmptyView() }
+                )
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        LinearGradient(
-                            colors: isFocused ? [.blue.opacity(0.5), .purple.opacity(0.3)] : [.white.opacity(0.2), .clear],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        lineWidth: isFocused ? 2 : 1
-                    )
-                    .animation(.easeInOut(duration: 0.2), value: isFocused)
-            )
-            .onTapGesture {
-                isFocused = true
-            }
-        }
+
+        .padding(.horizontal, 24)
     }
 }
+
+// MARK: - Enhanced Identifier Field (Moved to LiquidGlassComponents.swift)
+// MARK: - Enhanced Password Field (Moved to LiquidGlassComponents.swift)
 
 // MARK: - Enhanced Login Button
 struct EnhancedLoginButton: View {
@@ -477,21 +355,21 @@ struct EnhancedLoginButton: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
+            .frame(height: 50)
         }
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 14)
                 .fill(
                     LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color(red: 0.25, green: 0.35, blue: 0.82),
-                            Color(red: 0.78, green: 0.31, blue: 0.75)
-                        ]),
-                        startPoint: .leading,
-                        endPoint: .trailing
+                        colors: [
+                            Color(red: 0.2, green: 0.4, blue: 0.9),
+                            Color(red: 0.7, green: 0.3, blue: 0.8)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
                 )
-                .shadow(color: .blue.opacity(0.3), radius: isPressed ? 5 : 15, x: 0, y: isPressed ? 2 : 8)
+                .shadow(color: .blue.opacity(0.2), radius: isPressed ? 4 : 10, x: 0, y: isPressed ? 2 : 5)
                 .scaleEffect(isPressed ? 0.98 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         )
@@ -585,26 +463,19 @@ struct EnhancedAccountVerificationView: View {
     var body: some View {
         ZStack {
             // Enhanced background similar to LoginView
-            EnhancedBackgroundView()
+            LiquidAuroraBackground()
             
             VStack(spacing: 50) {
                 Spacer()
                 
-                // Enhanced logo and title
+                // Enhanced logo
                 VStack(spacing: 24) {
-                    ZStack {
-                        Image("LoginLogo")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 150, height: 150)
-                            .shadow(color: .white.opacity(glowIntensity), radius: 15, x: 0, y: 0)
-                            .shadow(color: .blue.opacity(0.5), radius: 25, x: 0, y: 0)
-                            .scaleEffect(pulseScale)
-                        
-                        // Pelotita naranja removida
-                    }
-                    
-                    // Texto "Moments" removido - solo se muestra el logo
+                    Image("LoginLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 100, height: 100)
+                        .shadow(color: .white.opacity(glowIntensity * 0.5), radius: 10, x: 0, y: 0)
+                        .scaleEffect(pulseScale)
                 }
                 .scaleEffect(isVisible ? 1.0 : 0.8)
                 .opacity(isVisible ? 1.0 : 0.0)
@@ -681,46 +552,38 @@ struct EnhancedAccountVerificationView: View {
                             .foregroundColor(.white.opacity(0.8))
                     }
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 32)
                 .padding(.vertical, 40)
                 .background(
                     ZStack {
-                        // Enhanced glass morphism effect
-                        RoundedRectangle(cornerRadius: 32)
+                        // Liquid Glass Effect
+                        RoundedRectangle(cornerRadius: 28)
                             .fill(.ultraThinMaterial)
-                            .background(
-                                RoundedRectangle(cornerRadius: 32)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 28)
                                     .fill(
                                         LinearGradient(
-                                            colors: [
-                                                .white.opacity(0.1),
-                                                .white.opacity(0.05)
-                                            ],
+                                            colors: [.white.opacity(0.05), .clear],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
                                     )
                             )
                         
-                        // Enhanced border gradient
-                        RoundedRectangle(cornerRadius: 32)
+                        // Liquid Border
+                        RoundedRectangle(cornerRadius: 28)
                             .stroke(
                                 LinearGradient(
-                                    colors: [
-                                        .white.opacity(0.3),
-                                        .white.opacity(0.1),
-                                        .clear
-                                    ],
+                                    colors: [.white.opacity(0.5), .white.opacity(0.1)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 1
+                                lineWidth: 0.5
                             )
                     }
                 )
-                .shadow(color: .black.opacity(0.2), radius: 30, x: 0, y: 15)
-                .shadow(color: .blue.opacity(0.1), radius: 50, x: 0, y: 25)
-                .offset(y: isVisible ? 0 : 50)
+                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+                .offset(y: isVisible ? 0 : 30)
                 .opacity(isVisible ? 1.0 : 0.0)
                 .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
                 
@@ -747,7 +610,6 @@ struct EnhancedAccountVerificationView: View {
 // MARK: - Enhanced Reset Password View
 import SwiftUI
 
-// MARK: - Enhanced Reset Password View
 struct EnhancedResetPasswordView: View {
     @Binding var email: String
     @Binding var isPresented: Bool
@@ -760,11 +622,12 @@ struct EnhancedResetPasswordView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                EnhancedBackgroundView()
+                LiquidAuroraBackground()
                 
                 VStack(spacing: 40) {
                     Spacer()
                     
+                    // Logo and Title Section
                     VStack(spacing: 20) {
                         ZStack {
                             Circle()
@@ -798,105 +661,58 @@ struct EnhancedResetPasswordView: View {
                                 .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
                             
                             Text("login.resetPassword.description")
-                                .font(.system(size: 18, weight: .medium))
+                                .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.white.opacity(0.8))
                                 .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
                         }
                     }
                     .scaleEffect(isVisible ? 1.0 : 0.8)
                     .opacity(isVisible ? 1.0 : 0.0)
                     .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
                     
-                    VStack(spacing: 24) {
-                        TextField("Correo electrónico", text: $email)
-                            .foregroundColor(.white)
-                            .font(.system(size: 16))
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .padding(16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.white.opacity(0.1))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                        
-                        Button(action: resetPassword) {
-                            HStack(spacing: 12) {
-                                if isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.8)
-                                } else {
-                                    Text("login.resetPassword.sendLink")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
+                    // 1. Standalone Input Pill (Social Media Style)
+                    LiquidGlassTextField(
+                        icon: "envelope.fill",
+                        placeholder: NSLocalizedString("login.usernameOrEmail", comment: ""),
+                        text: $email,
+                        keyboardType: .emailAddress,
+                        autocapitalization: .none
+                    )
+                    .disabled(isLoading)
+                    .padding(.horizontal, 8) // Adding slight padding correction if needed compared to original which had padding on HStack
+                    .opacity(isLoading ? 0.7 : 1.0)
+                    
+                    // 2. Standalone Action Block
+                    Button(action: resetPassword) {
+                        HStack(spacing: 12) {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Text("login.resetPassword.sendLink")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
                             }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
                         }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
                         .background(
-                            RoundedRectangle(cornerRadius: 16)
+                            RoundedRectangle(cornerRadius: 14)
                                 .fill(
                                     LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color(red: 0.25, green: 0.35, blue: 0.82),
-                                            Color(red: 0.78, green: 0.31, blue: 0.75)
-                                        ]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .shadow(color: .blue.opacity(0.3), radius: 15, x: 0, y: 8)
-                        )
-                        .disabled(isLoading)
-                        .scaleEffect(isLoading ? 0.95 : 1.0)
-                        .animation(.easeInOut(duration: 0.2), value: isLoading)
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 40)
-                    .background(
-                        ZStack {
-                            // Enhanced glass morphism effect
-                            RoundedRectangle(cornerRadius: 32)
-                                .fill(.ultraThinMaterial)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 32)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [
-                                                    .white.opacity(0.1),
-                                                    .white.opacity(0.05)
-                                                ],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                )
-                            
-                            // Enhanced border gradient
-                            RoundedRectangle(cornerRadius: 32)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            .white.opacity(0.3),
-                                            .white.opacity(0.1),
-                                            .clear
-                                        ],
+                                        colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
+                                    )
                                 )
-                        }
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 30, x: 0, y: 15)
-                    .shadow(color: .blue.opacity(0.1), radius: 50, x: 0, y: 25)
-                    .padding(.horizontal, 20)
-                    .offset(y: isVisible ? 0 : 50)
+                                .shadow(color: .blue.opacity(0.2), radius: 10, x: 0, y: 5)
+                        )
+                    }
+                    .disabled(isLoading)
+                    .padding(.horizontal, 24)
+                    .offset(y: isVisible ? 0 : 30)
                     .opacity(isVisible ? 1.0 : 0.0)
                     .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
                     
@@ -916,8 +732,6 @@ struct EnhancedResetPasswordView: View {
             withAnimation {
                 isVisible = true
             }
-            
-            // Track password reset screen view
             AnalyticsService.shared.trackScreenView("ResetPasswordView")
         }
         .alert(isPresented: $showAlert) {
@@ -926,7 +740,6 @@ struct EnhancedResetPasswordView: View {
                 message: Text(alertMessage),
                 dismissButton: .default(Text("OK")) {
                     if alertMessage.contains("enviado") {
-                        // Track successful password reset request
                         AnalyticsService.shared.trackInteraction("password_reset_email_sent", details: ["email": email])
                         isPresented = false
                     }
@@ -936,9 +749,7 @@ struct EnhancedResetPasswordView: View {
     }
     
     private func resetPassword() {
-        // Track password reset attempt
         AnalyticsService.shared.trackInteraction("password_reset_attempted", details: ["email": email])
-        
         isLoading = true
         authService.resetPassword(email: email) { result in
             isLoading = false
@@ -946,7 +757,6 @@ struct EnhancedResetPasswordView: View {
             case .success:
                 alertMessage = "Se ha enviado un enlace de recuperación a tu correo."
             case .failure(let error):
-                // Track password reset failure
                 AnalyticsService.shared.trackInteraction("password_reset_failed", details: ["error": error.localizedDescription])
                 alertMessage = error.localizedDescription
             }
@@ -954,7 +764,6 @@ struct EnhancedResetPasswordView: View {
         }
     }
 }
-
 
 // MARK: - Preview
 struct LoginView_Previews: PreviewProvider {

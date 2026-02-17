@@ -183,6 +183,7 @@ struct AsyncProfileImageView: View {
             stopListening()
         }
         // ✅ CRÍTICO: Fix para el bug de fotos equivocadas en listas (Cell Reuse)
+        .id(userId) // 👈 ESTO FUERZA QUE LA VISTA SE RECREE SI CAMBIA EL ID
         .onChange(of: userId) { newUserId in
             resetAndReload(for: newUserId)
         }

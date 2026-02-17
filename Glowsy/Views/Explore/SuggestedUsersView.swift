@@ -26,7 +26,7 @@ struct SuggestedUsersView: View {
                             LinearGradient(
                                 colors: [
                                     Color.white.opacity(0.3),
-                                    Color(hex: "00A896").opacity(0.4)
+                                    Color(hex: "007AFF").opacity(0.4)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -111,6 +111,11 @@ struct SuggestedUsersView: View {
                                     }
                                 }
                             )
+                            .onAppear {
+                                if user.id == viewModel.users.last?.id {
+                                    viewModel.loadMoreUsers()
+                                }
+                            }
                         }
                         
                         // Indicador de carga para scroll infinito
@@ -298,7 +303,7 @@ struct SuggestedUserFollowButton: View {
     private var buttonBackgroundColor: Color {
         switch state {
         case .canFollow, .canRequestFollow:
-            return Color(hex: "00A896").opacity(0.8)
+            return Color(hex: "007AFF").opacity(0.8)
         case .following:
             return Color.red.opacity(0.2)
         case .requestPending:
@@ -324,7 +329,7 @@ struct SuggestedUserFollowButton: View {
     private var buttonShadowColor: Color {
         switch state {
         case .canFollow, .canRequestFollow:
-            return Color(hex: "00A896").opacity(0.3)
+            return Color(hex: "007AFF").opacity(0.3)
         case .following:
             return Color.red.opacity(0.2)
         case .requestPending:
@@ -358,7 +363,7 @@ class SuggestedUsersViewModel: ObservableObject {
     private var blockedUsers: Set<String> = []
     private var followedUserIds: Set<String> = [] // Usuarios ya seguidos
     private var lastDocument: DocumentSnapshot?
-    private let pageSize = 20
+    private let pageSize = 10
     
     func loadInitialUsers() {
         guard let userId = Auth.auth().currentUser?.uid else { return }

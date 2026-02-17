@@ -9,157 +9,96 @@ import Foundation
 import AVKit
 
 // MARK: - ✅ Modern Share Bottom Sheet (Rediseñado)
+enum ShareSheetViewState {
+    case main
+    case messaging
+}
+
 struct ModernShareBottomSheet: View {
     let moment: Moment
     @Binding var isPresented: Bool
-    @State private var showMainShare = false
+    @State private var viewState: ShareSheetViewState = .main
     @State private var showStoryCreator = false
     
     var body: some View {
         ZStack {
-            // ✅ FIX: El fondo de la vista principal ahora es transparente para no interferir
-            // con el fondo de la vista que la presenta (ContextMenuOverlay).
+            // Fondo transparente para cerrar
             Color.clear
                 .ignoresSafeArea()
                 .onTapGesture {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isPresented = false
+                    if viewState == .main {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    } else {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            viewState = .main
+                        }
                     }
                 }
             
             VStack {
                 Spacer()
                 
-                VStack(spacing: 0) {
-                    // ✅ Handle mejorado
-                    RoundedRectangle(cornerRadius: 2.5)
-                        .fill(Color.white.opacity(0.4))
-                        .frame(width: 40, height: 5)
-                        .padding(.top, 12)
-                        .padding(.bottom, 20)
-                    
-                    // ✅ Header con info del momento
-                    HStack(spacing: 12) {
-                        AsyncProfileImageView(userId: moment.authorId)
-                            .frame(width: 44, height: 44)
-                            .clipShape(Circle())
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("share.moment.title")
-                                .font(.custom("Poppins-SemiBold", size: 18))
-                                .foregroundColor(.white)
-                            
-                            Text(String(format: NSLocalizedString("share.moment.from", comment: "From user"), moment.username))
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 24)
-                    
-                    // ✅ Acciones principales con estilo del context menu
-                    VStack(spacing: 8) {
-                        // Acción principal - Enviar mensaje
-                        ShareActionButton(
-                            icon: "paperplane.fill",
-                            title: "Enviar mensaje",
-                            subtitle: "Comparte con tus contactos",
-                            iconColor: Color(hex: "00A896"),
-                            isPrimary: true
-                        ) {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                showMainShare = true
-                            }
-                        }
-                        
-                        // Acciones secundarias
-                        ShareActionButton(
-                            icon: "plus.circle.fill",
-                            title: "Agregar a historia",
-                            subtitle: "Compartir en tu historia",
-                            iconColor: .blue,
-                            isPrimary: false
-                        ) {
-                            showStoryCreator = true
-                        }
-                        
-                        ShareActionButton(
-                            icon: "square.and.arrow.up",
-                            title: "Compartir fuera de la app",
-                            subtitle: "Enviar enlace externo",
-                            iconColor: .purple,
-                            isPrimary: false
-                        ) {
-                            shareExternally()
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 40)
-                    
-                    // ✅ Botón cancelar consistente
-                    Button(NSLocalizedString("share.cancel", comment: "Cancel")) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            isPresented = false
-                        }
-                    }
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 25)
-                            .fill(Color.white.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 25)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 30)
-                }
-                // ✅ FIX: El panel de contenido SÍ lleva el fondo de material para darle el efecto de cristal.
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial) // Correcto
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.3),
-                                            Color(hex: "00A896").opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                ZStack {
+                    if viewState == .main {
+                        MainActionsView(
+                            moment: moment,
+                            onClose: {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    isPresented = false
+                                }
+                            },
+                            onSendMessage: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .messaging
+                                }
+                            },
+                            onAddToStory: { showStoryCreator = true },
+                            onExternalShare: { shareExternally() }
                         )
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                            removal: .opacity.combined(with: .scale(scale: 0.95))
+                        ))
+                    } else {
+                        ModernShareSheet(
+                            moment: moment,
+                            onBack: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .main
+                                }
+                            },
+                            onDismiss: {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    isPresented = false
+                                }
+                            }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 32)
+                        .fill(.ultraThinMaterial)
+                        // .overlay REMOVED (Teal Stroke)
                 )
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-            }
-            
-            // ✅ Share sheet como overlay directo (dentro del mismo ZStack)
-            if showMainShare {
-                ModernShareSheet(moment: moment, isPresented: $showMainShare)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
-                    ))
-                    .zIndex(9999) // ✅ Z-index muy alto para estar encima de todo
+                .padding(.horizontal, 12)
+                .padding(.bottom, 20)
             }
         }
-        .sheet(isPresented: $showStoryCreator) {
+        .fullScreenCover(isPresented: $showStoryCreator) {
             AddToStoryView(moment: moment)
         }
     }
     
     private func shareExternally() {
         guard let momentId = moment.id else { return }
-        
-        let shareText = "Mira este momento de \(moment.username) en Moments"
+        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
         let shareUrl = URL(string: "https://moments.app/moment/\(momentId)")!
         
         let activityController = UIActivityViewController(
@@ -169,13 +108,11 @@ struct ModernShareBottomSheet: View {
         
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
-            
             if let popover = activityController.popoverPresentationController {
                 popover.sourceView = window
                 popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
                 popover.permittedArrowDirections = []
             }
-            
             window.rootViewController?.present(activityController, animated: true)
         }
         
@@ -184,6 +121,100 @@ struct ModernShareBottomSheet: View {
         }
     }
 }
+
+
+// MARK: - Main Actions View
+struct MainActionsView: View {
+    let moment: Moment
+    let onClose: () -> Void
+    let onSendMessage: () -> Void
+    let onAddToStory: () -> Void
+    let onExternalShare: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Handle
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color.white.opacity(0.4))
+                .frame(width: 40, height: 5)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
+            
+            // Header
+            HStack(spacing: 12) {
+                AsyncProfileImageView(userId: moment.authorId)
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("share.moment.title")
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(.primary)
+                    
+                    Text(String(format: NSLocalizedString("share.moment.from", comment: ""), moment.username))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+            
+            // Actions
+            VStack(spacing: 8) {
+                ShareActionButton(
+                    icon: "paperplane.fill",
+                    title: NSLocalizedString("messaging.sendMessage", comment: ""),
+                    subtitle: NSLocalizedString("contextMenu.shareMoment.subtitle", comment: ""),
+                    iconColor: Color(hex: "00A896"),
+                    isPrimary: true,
+                    action: onSendMessage
+                )
+                
+                ShareActionButton(
+                    icon: "plus.circle.fill",
+                    title: NSLocalizedString("share.addToStory", comment: ""),
+                    subtitle: NSLocalizedString("creator.story.subtitle", comment: ""),
+                    iconColor: .blue,
+                    isPrimary: false,
+                    action: onAddToStory
+                )
+                
+                ShareActionButton(
+                    icon: "square.and.arrow.up",
+                    title: NSLocalizedString("contextMenu.copyLink", comment: ""),
+                    subtitle: NSLocalizedString("contextMenu.copyLink.subtitle", comment: ""),
+                    iconColor: .purple,
+                    isPrimary: false,
+                    action: onExternalShare
+                )
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+            
+            // Cancel Button
+            Button(NSLocalizedString("share.cancel", comment: "")) {
+                onClose()
+            }
+            .font(.custom("Poppins-SemiBold", size: 16))
+            .foregroundColor(.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(Color.white.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+        }
+    }
+}
+
 
 // MARK: - ✅ Share Action Button (Rediseñado como Context Menu)
 struct ShareActionButton: View {
@@ -219,18 +250,18 @@ struct ShareActionButton: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                     
                     Text(subtitle)
                         .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(.secondary)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundColor(.secondary)
             }
             .padding(16)
             .background(
@@ -264,349 +295,284 @@ struct ShareActionButton: View {
 // MARK: - ✅ Modern Share Sheet (Overlay Style)
 struct ModernShareSheet: View {
     let moment: Moment
-    @Binding var isPresented: Bool
+    let onBack: () -> Void
+    let onDismiss: () -> Void
+    
     @State private var searchText = ""
     @State private var selectedUsers: Set<String> = []
     @State private var conversations: [Conversation] = []
+    @State private var globalSearchResults: [AppUser] = []
     @State private var isLoading = true
-    @StateObject private var chatService = ChatService()
+    @State private var isSearchingGlobal = false
+    @State private var activeFilter: FilterType = .none
+    
+    enum FilterType {
+        case none, favorites, recents
+    }
+    
+    @StateObject private var chatService = ChatService.shared
     
     var filteredConversations: [Conversation] {
-        if searchText.isEmpty {
-            return conversations
+        var base = conversations
+        
+        switch activeFilter {
+        case .favorites:
+            base = conversations.filter { $0.isPinned == true }
+        case .recents:
+            base = conversations // Show all, but the UI might prioritize them
+        case .none:
+            break
         }
-        return conversations.filter { conversation in
-            conversation.otherParticipantUsername?.localizedCaseInsensitiveContains(searchText) ?? false
+        
+        if searchText.isEmpty {
+            return base
+        }
+        return base.filter { 
+            $0.otherParticipantUsername?.localizedCaseInsensitiveContains(searchText) ?? false 
         }
     }
     
     var body: some View {
-        ZStack {
-            // ✅ Fondo completamente transparente como el context menu
-            Color.clear
-                .ignoresSafeArea()
-                .onTapGesture {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isPresented = false
-                    }
-                }
+        VStack(spacing: 0) {
+            // Handle
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color.white.opacity(0.4))
+                .frame(width: 40, height: 5)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
             
-            VStack {
+            // Header
+            HStack(spacing: 12) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Color.white.opacity(0.1)))
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("share.sendTo")
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(.primary)
+                    
+                    Text(String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.secondary)
+                }
+                
                 Spacer()
                 
-                VStack(spacing: 0) {
-                    // ✅ Handle superior
-                    RoundedRectangle(cornerRadius: 2.5)
-                        .fill(Color.white.opacity(0.4))
-                        .frame(width: 40, height: 5)
-                        .padding(.top, 12)
-                        .padding(.bottom, 20)
-                    
-                    // ✅ Header con info del momento
-                    HStack(spacing: 12) {
-                        AsyncProfileImageView(userId: moment.authorId)
-                            .frame(width: 44, height: 44)
-                            .clipShape(Circle())
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("share.sendTo")
-                                .font(.custom("Poppins-SemiBold", size: 18))
-                                .foregroundColor(.white)
-                            
-                            Text(String(format: NSLocalizedString("share.moment.by", comment: "Moment by user"), moment.username))
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        
-                        Spacer()
-                        
-                        // ✅ Botón cancelar en header
-                        Button(action: {
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                isPresented = false
-                            }
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white.opacity(0.8))
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    Circle()
-                                        .fill(Color.white.opacity(0.1))
-                                )
-                        }
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.white.opacity(0.1)))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+            
+            // Search bar
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 16))
+                
+                TextField(NSLocalizedString("share.search.placeholder", comment: ""), text: $searchText)
+                    .foregroundColor(.primary)
+                    .font(.custom("Poppins-Regular", size: 16))
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .autocorrectionDisabled()
+                    .onChange(of: searchText) { newValue in
+                        performGlobalSearch(query: newValue)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
-                    
-                    // ✅ Search bar con glassmorphism
-                    HStack(spacing: 12) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.white.opacity(0.6))
-                            .font(.system(size: 16))
-                        
-                        TextField("Buscar contactos...", text: $searchText)
-                            .foregroundColor(.white)
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .autocorrectionDisabled()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.1))
+                    .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-                    
-                    // ✅ Quick actions si hay conversaciones
-                    if !conversations.isEmpty && !isLoading {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 20) {
-                                QuickActionButton(
-                                    icon: "star.circle.fill",
-                                    title: "Favoritos",
-                                    iconColor: Color(hex: "00A896"),
-                                    isSelected: false
-                                ) {
-                                    // Handle favorites
-                                }
-                                
-                                QuickActionButton(
-                                    icon: "clock.circle.fill",
-                                    title: "Recientes",
-                                    iconColor: .blue,
-                                    isSelected: false
-                                ) {
-                                    // Handle recents
-                                }
-                                
-                                QuickActionButton(
-                                    icon: "person.2.circle.fill",
-                                    title: "Grupos",
-                                    iconColor: .purple,
-                                    isSelected: false
-                                ) {
-                                    // Handle groups
-                                }
-                            }
-                            .padding(.horizontal, 20)
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+            
+            // Quick actions
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    FilterChip(
+                        icon: "star.fill",
+                        title: NSLocalizedString("share.favorites", comment: ""),
+                        color: Color(hex: "00A896"),
+                        isSelected: activeFilter == .favorites
+                    ) {
+                        withAnimation(.spring()) {
+                            activeFilter = activeFilter == .favorites ? .none : .favorites
                         }
-                        .padding(.bottom, 16)
                     }
                     
-                    // ✅ People grid con altura limitada
-                    ScrollView {
-                        if isLoading {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), spacing: 20) {
-                                ForEach(0..<8, id: \.self) { _ in
-                                    PersonSkeletonCell()
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.top, 10)
-                        } else if filteredConversations.isEmpty {
-                            EmptyStateView(
-                                icon: "person.3",
-                                title: searchText.isEmpty ? "No tienes conversaciones" : "No se encontraron contactos",
-                                subtitle: searchText.isEmpty ? "Conecta con personas para compartir momentos" : "Intenta con otro nombre"
-                            )
-                            .padding(.top, 20)
-                        } else {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), spacing: 20) {
+                    FilterChip(
+                        icon: "clock.fill",
+                        title: NSLocalizedString("share.recents", comment: ""),
+                        color: .blue,
+                        isSelected: activeFilter == .recents
+                    ) {
+                        withAnimation(.spring()) {
+                            activeFilter = activeFilter == .recents ? .none : .recents
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.bottom, 16)
+            
+            // Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if isLoading {
+                        PeopleSkeletonGrid()
+                    } else {
+                        // Local results
+                        if !filteredConversations.isEmpty {
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
                                 ForEach(filteredConversations.indices, id: \.self) { index in
                                     let conversation = filteredConversations[index]
-                                    
                                     PersonCell(
                                         conversation: conversation,
-                                        isSelected: selectedUsers.contains(conversation.otherParticipantId ?? ""),
-                                        animationDelay: Double(index) * 0.05
-                                    ) {
-                                        toggleUserSelection(conversation.otherParticipantId ?? "")
+                                        isSelected: selectedUsers.contains(conversation.otherParticipantId),
+                                        animationDelay: Double(index) * 0.05,
+                                        onTap: { toggleUserSelection(conversation.otherParticipantId) }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Global results
+                        if !globalSearchResults.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("share.search.globalResults")
+                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .foregroundColor(.secondary)
+                                    .padding(.top, 8)
+                                
+                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+                                    ForEach(globalSearchResults) { user in
+                                        GlobalUserCell(
+                                            user: user,
+                                            isSelected: selectedUsers.contains(user.id),
+                                            onTap: { toggleUserSelection(user.id) }
+                                        )
                                     }
                                 }
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.top, 10)
                         }
-                    }
-                    .frame(maxHeight: 320) // ✅ Altura máxima para el scroll
-                    
-                    // ✅ Bottom send button
-                    VStack(spacing: 0) {
-                        // ✅ Gradient divider
-                        LinearGradient(
-                            colors: [Color.clear, Color.white.opacity(0.1), Color.clear],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .frame(height: 1)
                         
-                        Button(action: sendToSelectedUsers) {
-                            HStack(spacing: 12) {
-                                if selectedUsers.isEmpty {
-                                    Image(systemName: "paperplane")
-                                        .font(.system(size: 16, weight: .medium))
-                                    
-                                    Text("share.selectContacts")
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                } else {
-                                    Image(systemName: "paperplane.fill")
-                                        .font(.system(size: 16, weight: .medium))
-                                    
-                                    Text(String(format: NSLocalizedString("share.sendToCount", comment: "Send to count"), selectedUsers.count))
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 54)
-                            .background(
-                                RoundedRectangle(cornerRadius: 27)
-                                    .fill(
-                                        selectedUsers.isEmpty ?
-                                        LinearGradient(
-                                            colors: [Color.white.opacity(0.1)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        ) :
-                                        LinearGradient(
-                                            colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 27)
-                                            .stroke(
-                                                selectedUsers.isEmpty ?
-                                                Color.white.opacity(0.2) :
-                                                Color.clear,
-                                                lineWidth: 1
-                                            )
-                                    )
-                            )
-                            .shadow(
-                                color: selectedUsers.isEmpty ? Color.clear : Color(hex: "00A896").opacity(0.3),
-                                radius: selectedUsers.isEmpty ? 0 : 8,
-                                x: 0,
-                                y: selectedUsers.isEmpty ? 0 : 4
-                            )
-                            .disabled(selectedUsers.isEmpty)
+                        if filteredConversations.isEmpty && globalSearchResults.isEmpty && !searchText.isEmpty {
+                            EmptySearchState()
                         }
-                        .animation(.easeInOut(duration: 0.2), value: selectedUsers.isEmpty)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
+                        
+                        if filteredConversations.isEmpty && searchText.isEmpty && activeFilter == .favorites {
+                            VStack(spacing: 12) {
+                                Image(systemName: "star.slash")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.secondary)
+                                Text("No hay favoritos")
+                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 40)
+                        }
                     }
-                    .background(.ultraThinMaterial)
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.3),
-                                            Color(hex: "00A896").opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                )
-                .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-                .padding(.bottom, 50) // ✅ Safe area bottom
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
             }
+            .frame(maxHeight: 350)
+            
+            // Bottom Send
+            SendActionBottomBar(
+                selectedCount: selectedUsers.count,
+                onSend: sendToSelectedUsers
+            )
         }
-        .preferredColorScheme(.dark)
-        .onAppear {
-            loadData()
+        .onAppear(perform: loadConversations)
+    }
+    
+    private func loadConversations() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        chatService.fetchConversations(for: currentUserId) { result in
+            DispatchQueue.main.async {
+                if case .success(let fetched) = result {
+                    withAnimation(.easeInOut) {
+                        self.conversations = fetched
+                        self.isLoading = false
+                    }
+                }
+            }
         }
     }
     
-    // MARK: - Actions
-    private func loadData() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+    private func performGlobalSearch(query: String) {
+        guard query.count >= 3 else {
+            self.globalSearchResults = []
+            return
+        }
         
-        chatService.fetchConversations(for: currentUserId) { result in
+        isSearchingGlobal = true
+        FirestoreService.shared.searchUsers(query: query) { result in
             DispatchQueue.main.async {
-                switch result {
-                case .success(let fetchedConversations):
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        self.conversations = fetchedConversations
-                        self.isLoading = false
-                    }
-                case .failure(let error):
-                    self.isLoading = false
+                self.isSearchingGlobal = false
+                if case .success(let users) = result {
+                    // Filter out already shown in conversations
+                    let localIds = Set(conversations.map { $0.otherParticipantId })
+                    self.globalSearchResults = users.filter { !localIds.contains($0.id) }
                 }
             }
         }
     }
     
     private func toggleUserSelection(_ userId: String) {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             if selectedUsers.contains(userId) {
                 selectedUsers.remove(userId)
             } else {
                 selectedUsers.insert(userId)
             }
         }
-        
-        // ✅ Haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
     
     private func sendToSelectedUsers() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
-        let shareText = "🔗 \(moment.username) compartió un momento"
+        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
         let momentUrl = "https://moments.app/moment/\(momentId)"
         
         for userId in selectedUsers {
-            if let conversation = conversations.first(where: { $0.otherParticipantId == userId }),
-               let conversationId = conversation.id {
-                
-                chatService.sendSharedMomentMessage(
-                    conversationId: conversationId,
-                    senderId: currentUserId,
-                    moment: moment,
-                    shareText: shareText,
-                    momentUrl: momentUrl
-                ) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success(_):
-                            // Message sent successfully
-                            break
-                        case .failure(let error):
-                            // Handle error if needed
-                            break
-                        }
-                    }
-                }
-            }
+            let existingConv = conversations.first(where: { $0.otherParticipantId == userId })
+            
+            chatService.sendSharedMomentMessage(
+                conversationId: existingConv?.id ?? "", 
+                senderId: currentUserId,
+                moment: moment,
+                shareText: shareText,
+                momentUrl: momentUrl
+            ) { _ in }
         }
         
-        // ✅ Success haptic feedback
-        let successFeedback = UINotificationFeedbackGenerator()
-        successFeedback.notificationOccurred(.success)
-        
-        withAnimation(.easeOut(duration: 0.3)) {
-            isPresented = false
-        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        onDismiss()
     }
 }
+
+
 
 // MARK: - ✅ Quick Action Button (Rediseñado)
 struct QuickActionButton: View {
@@ -742,7 +708,7 @@ struct PersonCell: View {
             
             Text(conversation.otherParticipantUsername ?? "Usuario")
                 .font(.custom("Poppins-Medium", size: 12))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
@@ -832,55 +798,181 @@ struct EmptyStateView: View {
 struct AddToStoryView: View {
     let moment: Moment
     @Environment(\.dismiss) var dismiss
+    @State private var showCreatorView = false
+    @State private var createdSticker: StickerItem?
+    @State private var backgroundMedia: [CreatorMedia]? = nil
+    @State private var isPreparing = true
+    @State private var errorMessage: String?
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(hex: "0A0A0F"),
-                        Color(hex: "1A1A2E")
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-                
-                VStack(spacing: 24) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 64))
-                        .foregroundColor(Color(hex: "00A896"))
+        ZStack {
+            let _ = print("🔄 AddToStoryView Body Update - Sticker: \(createdSticker?.id ?? "nil"), Show: \(showCreatorView)")
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                if let error = errorMessage {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.yellow)
                     
-                    VStack(spacing: 12) {
-                        Text("share.comingSoon")
-                            .font(.custom("Poppins-SemiBold", size: 24))
-                            .foregroundColor(.white)
-                        
-                        Text("share.comingSoon.description")
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                    }
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("share.addToStory")
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                    Text(error)
+                        .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(.white)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("share.cancel", comment: "Cancel")) {
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Button("Cancelar") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .padding()
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Capsule())
+                } else {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                    
+                    Text("share.preparing") // Assume this exists or add to Localizable
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(.white)
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .fullScreenCover(isPresented: $showCreatorView, onDismiss: { dismiss() }) {
+            if let sticker = createdSticker {
+                CreatorView(
+                    isCreatingStory: .constant(true),
+                    showCreatorView: $showCreatorView,
+                    initialSticker: sticker,
+                    initialMedia: backgroundMedia,
+                    openInStoryMode: false
+                )
+                .id(sticker.id) // ✅ Force recreation when sticker changes
+            } else {
+                Color.black.ignoresSafeArea()
+                    .onAppear {
+                        print("❌ CreatorView presented but createdSticker is nil")
+                    }
+            }
+        }
+        .onAppear {
+            preFetchAndRender()
+        }
+    }
+    
+    private func preFetchAndRender() {
+        guard let imageUrlString = moment.imagePath ?? moment.videoUrl,
+              let contentUrl = URL(string: imageUrlString) else {
+            errorMessage = "No se pudo obtener la imagen del momento"
+            return
+        }
+        
+        // 1. Obtener la ruta de la foto de perfil desde Firestore
+        let db = Firestore.firestore()
+        db.collection("users").document(moment.authorId).getDocument { snapshot, error in
+            if let error = error {
+                print("❌ Error fetching profile path: \(error.localizedDescription)")
+                // Continuamos aunque falle la de perfil, usará placeholder
+                renderSticker(urls: [contentUrl])
+                return
+            }
+            
+            var urlsToPrefetch = [contentUrl]
+            if let data = snapshot?.data(), let profilePath = data["profileImagePath"] as? String, let profileUrl = URL(string: profilePath) {
+                urlsToPrefetch.append(profileUrl)
+            }
+            
+            renderSticker(urls: urlsToPrefetch)
+        }
+    }
+    
+    private func renderSticker(urls: [URL]) {
+        // 2. Pre-fetch todas las imágenes para tenerlas en caché
+        ImagePrefetcher(urls: urls) { _, _, _ in
+            // 3. Obtener las imágenes reales de Kingfisher caché
+            DispatchQueue.main.async {
+                var profileImg: UIImage? = nil
+                var contentImg: UIImage? = nil
+                
+                let group = DispatchGroup()
+                
+                // Cargar imagen de perfil
+                if urls.count > 1 {
+                    group.enter()
+                    KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
+                        if let image = try? result.get().image {
+                            profileImg = image
+                        }
+                        group.leave()
+                    }
+                }
+                
+                // Cargar imagen de contenido
+                group.enter()
+                KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
+                    if let image = try? result.get().image {
+                        contentImg = image
+                    }
+                    group.leave()
+                }
+                
+                group.notify(queue: .main) {
+                    self.performFinalRender(profile: profileImg, content: contentImg)
+                }
+            }
+        }.start()
+    }
+    
+    private func performFinalRender(profile: UIImage?, content: UIImage?) {
+        let stickerView = ShareMomentSticker(moment: moment, profileImage: profile, contentImage: content, renderClean: true)
+            .environment(\.colorScheme, .dark)
+            .frame(width: 260)
+        
+        let renderer = ImageRenderer(content: stickerView)
+        renderer.scale = UIScreen.main.scale
+        
+        if let uiImage = renderer.uiImage {
+            let position = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2)
+            
+            let interactionData = StickerItem.StickerInteractionData(
+                username: moment.username,
+                userId: moment.authorId,
+                hashtag: nil,
+                location: nil,
+                locationCoordinate: nil,
+                pollData: nil,
+                questionText: nil,
+                weatherSymbol: nil,
+                caption: moment.content.isEmpty ? nil : moment.content,
+                profileImagePath: moment.profileImagePath, // ✅ NUEVO: Pasamos path para reconstrucción
+                momentId: moment.id, // ✅ NUEVO: Para navegación al detalle
+                mediaCount: moment.mediaItems?.count ?? 1
+            )
+            
+            let sticker = StickerItem(
+                image: uiImage,
+                position: position,
+                type: .shareMoment, // ✅ NUEVO: Tipo específico para renderizado correcto
+                interactionData: interactionData,
+                videoURL: moment.videoUrl != nil ? URL(string: moment.videoUrl!) : nil
+            )
+            
+            print("🎨 Sticker created: \(sticker.id), Image size: \(sticker.image.size), Video: \(String(describing: sticker.videoURL))")
+            self.createdSticker = sticker
+            
+            // ✅ FIX: No ponemos el media del momento como fondo.
+            // Al dejar backgroundMedia = nil, CreatorView generará el degradado elegante
+            // que el usuario prefiere, manteniendo el contenido solo dentro del sticker.
+            self.backgroundMedia = nil
+            print("🎨 Moment background cleared to use default gradient")
+            self.isPreparing = false
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.showCreatorView = true
+            }
+        } else {
+            errorMessage = "Error al generar el sticker"
+        }
     }
 }
 
@@ -1209,26 +1301,27 @@ struct MomentVisualContent: View {
         GeometryReader { geometry in
             ZStack {
                 Color.black // Base background
-                
-                if let videoUrl = sharedMomentData["momentVideoUrl"], !videoUrl.isEmpty {
-                    VideoThumbnailView(videoUrl: videoUrl)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                } else if let imageUrl = sharedMomentData["momentImageUrl"],
-                          !imageUrl.isEmpty,
-                          let url = URL(string: imageUrl) {
-                    KFImage(url)
-                        .resizable()
-                        .placeholder {
-                            ZStack {
-                                Color.gray.opacity(0.2)
-                                ProgressView().tint(.white)
-                            }
+            // ✅ NUEVO: Priorizar la imagen de miniatura (si existe) sobre la generación al vuelo
+            if let imageUrl = sharedMomentData["momentImageUrl"],
+                      !imageUrl.isEmpty,
+                      let url = URL(string: imageUrl) {
+                KFImage(url)
+                    .resizable()
+                    .placeholder {
+                        ZStack {
+                            Color.gray.opacity(0.2)
+                            ProgressView().tint(.white)
                         }
-                        .scaledToFill()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                } else {
+                    }
+                    .scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+            } else if let videoUrl = sharedMomentData["momentVideoUrl"], !videoUrl.isEmpty {
+                // Si no hay imagen pero hay video (legacy), generar al vuelo
+                VideoThumbnailView(videoUrl: videoUrl)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+            } else {
                      // Beautiful Gradient Placeholder
                      LinearGradient(
                         colors: [Color(hex: "00A896"), Color(hex: "02C39A")],
@@ -1312,5 +1405,188 @@ struct VideoThumbnailView: View {
                 }
             }
         }
+    }
+}
+// MARK: - Filter Chip
+struct FilterChip: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .bold))
+                Text(title)
+                    .font(.custom("Poppins-Medium", size: 13))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isSelected ? color.opacity(0.3) : Color.white.opacity(0.1))
+                    .overlay(
+                        Capsule()
+                            .stroke(isSelected ? color : Color.white.opacity(0.2), lineWidth: 1)
+                    )
+            )
+            .foregroundColor(isSelected ? color : .primary)
+        }
+    }
+}
+
+// MARK: - Send Action Bottom Bar
+struct SendActionBottomBar: View {
+    let selectedCount: Int
+    let onSend: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider().background(Color.white.opacity(0.1))
+            
+            Button(action: onSend) {
+                HStack(spacing: 12) {
+                    Image(systemName: selectedCount > 0 ? "paperplane.fill" : "paperplane")
+                    Text(selectedCount > 0 ? 
+                         String(format: NSLocalizedString("share.sendToCount", comment: ""), selectedCount) : 
+                         NSLocalizedString("share.selectContacts", comment: ""))
+                }
+                .font(.custom("Poppins-SemiBold", size: 16))
+                .foregroundColor(selectedCount > 0 ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(
+                    RoundedRectangle(cornerRadius: 27)
+                        .fill(selectedCount > 0 ? 
+                              LinearGradient(colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)], startPoint: .leading, endPoint: .trailing) :
+                              LinearGradient(colors: [Color.primary.opacity(0.05)], startPoint: .leading, endPoint: .trailing))
+                )
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .disabled(selectedCount == 0)
+        }
+    }
+}
+
+// MARK: - Global User Cell
+struct GlobalUserCell: View {
+    let user: AppUser
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Button(action: onTap) {
+                ZStack {
+                    if let profileUrl = user.profileImagePath, let url = URL(string: profileUrl) {
+                        KFImage(url)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 60, height: 60)
+                            .overlay(Image(systemName: "person.fill").foregroundColor(.white.opacity(0.6)))
+                    }
+                    
+                    if isSelected {
+                        Circle()
+                            .fill(Color(hex: "00A896"))
+                            .frame(width: 20, height: 20)
+                            .overlay(Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white))
+                            .offset(x: 20, y: -20)
+                    }
+                }
+                .overlay(Circle().stroke(isSelected ? Color(hex: "00A896") : Color.white.opacity(0.1), lineWidth: 2))
+            }
+            
+            Text(user.username)
+                .font(.custom("Poppins-Medium", size: 11))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+        }
+    }
+}
+
+// MARK: - People Skeleton Grid
+struct PeopleSkeletonGrid: View {
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+            ForEach(0..<8, id: \.self) { _ in
+                VStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 60, height: 60)
+                    
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 40, height: 10)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Empty Search State
+struct EmptySearchState: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary)
+            Text(NSLocalizedString("share.search.noResults", comment: ""))
+                .font(.custom("Poppins-Medium", size: 16))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
+    }
+}
+
+// MARK: - ✅ Preparing Story Overlay (Shared)
+struct PreparingStoryOverlay: View {
+    let errorMessage: String?
+    let onCancel: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                if let error = errorMessage {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.yellow)
+                    
+                    Text(error)
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Button(NSLocalizedString("common.cancel", comment: "Cancel"), action: {
+                        onCancel()
+                    })
+                    .padding()
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Capsule())
+                } else {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                    
+                    Text(NSLocalizedString("share.preparing", comment: "Preparing story..."))
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 32)) // ✅ Fix: Liquid Glass corners
     }
 }

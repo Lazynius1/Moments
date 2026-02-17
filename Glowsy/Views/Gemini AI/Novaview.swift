@@ -2328,8 +2328,10 @@ struct SmartSuggestionChips: View {
             userMemory: viewModel.userMemory,
             userData: viewModel.userData
         ) { suggestions in
-            dynamicSuggestions = suggestions
-            isLoadingSuggestions = false
+            Task { @MainActor in
+                self.dynamicSuggestions = suggestions
+                self.isLoadingSuggestions = false
+            }
         }
     }
 }
@@ -2420,8 +2422,10 @@ struct DynamicWelcomeSuggestions: View {
             userMemory: viewModel.userMemory,
             userData: viewModel.userData
         ) { suggestions in
-            dynamicSuggestions = suggestions
-            isLoadingSuggestions = false
+            Task { @MainActor in
+                self.dynamicSuggestions = suggestions
+                self.isLoadingSuggestions = false
+            }
         }
     }
     
@@ -2545,6 +2549,7 @@ struct ChatMessage: Identifiable, Equatable {
 }
 
 // MARK: - GeminiViewModel Mejorado
+@MainActor
 class GeminiViewModel: ObservableObject {
     @Published var inputText = ""
     @Published var selectedImage: UIImage? = nil
@@ -2679,13 +2684,11 @@ class GeminiViewModel: ObservableObject {
     // MARK: - 🔐 PERMISOS DE GALERÍA (Consistente con Stories/Moments)
     func checkPhotoLibraryPermission() {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        DispatchQueue.main.async {
-            self.photoAuthorizationStatus = status
-        }
+        self.photoAuthorizationStatus = status
         
         if status == .notDetermined {
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.photoAuthorizationStatus = newStatus
                 }
             }
@@ -2750,21 +2753,22 @@ class GeminiViewModel: ObservableObject {
 
         isLoading = true
         firestoreService.fetchUserDataForGemini(userId: userId) { [weak self] result in
-            DispatchQueue.main.async {
+            guard let self = self else { return }
+            Task {
                 switch result {
                 case .success(let user):
-                    self?.userData = user
+                    self.userData = user
                     LogConfig.log("Datos del usuario obtenidos para Gemini: \(user.username)", category: "Data")
-                    self?.fetchRecentMoments(userId: userId)
-                    self?.fetchMutualConnections(userId: userId)
-                    self?.fetchUsersWithSharedInterests(userId: userId)
-                    self?.fetchProfileVisits(userId: userId)
-                    self?.fetchSuggestedUsers()
-                    // Cargar memoria silenciosamente
-                    self?.loadMemoryContextSilently(userId: userId)
+                    self.fetchRecentMoments(userId: userId)
+                    self.fetchMutualConnections(userId: userId)
+                    self.fetchUsersWithSharedInterests(userId: userId)
+                    self.fetchProfileVisits(userId: userId)
+                    self.fetchSuggestedUsers()
+                    // Cargar memoria silencisamente
+                    self.loadMemoryContextSilently(userId: userId)
                 case .failure(let error):
                     LogConfig.log("Error al obtener datos del usuario: \(error.localizedDescription)", category: "Error")
-                    self?.isLoading = false
+                    self.isLoading = false
                 }
             }
         }
@@ -2773,22 +2777,23 @@ class GeminiViewModel: ObservableObject {
     // MARK: - Memoria de Nova
     private func loadMemoryContextSilently(userId: String) {
         memoryService.loadMemory(for: userId) { [weak self] result in
-            DispatchQueue.main.async {
+            guard let self = self else { return }
+            Task {
                 switch result {
                 case .success(let memory):
-                    self?.userMemory = memory
+                    self.userMemory = memory
                     // 🎯 Log del nombre preferido si existe
                     if let preferredName = memory.preferredName {
                         LogConfig.log("🎭 Nombre preferido detectado: \(preferredName)", category: "Personalization")
                     }
                     LogConfig.log("🧠 Memoria personalizada cargada: \(memory.facts.count) hechos", category: "Memory")
                     // ✅ NUEVO: Marcar que la memoria está lista y configurar sesión
-                    self?.hasMemoryLoaded = true
-                    self?.setupModelAndSession()
+                    self.hasMemoryLoaded = true
+                    self.setupModelAndSession()
                 case .failure(_):
-                    self?.userMemory = NovaMemory(userId: userId)
-                    self?.hasMemoryLoaded = true
-                    self?.setupModelAndSession()
+                    self.userMemory = NovaMemory(userId: userId)
+                    self.hasMemoryLoaded = true
+                    self.setupModelAndSession()
                 }
             }
         }
@@ -2796,11 +2801,12 @@ class GeminiViewModel: ObservableObject {
 
     func fetchRecentMoments(userId: String) {
         firestoreService.fetchMoments(for: userId) { [weak self] result in
-            DispatchQueue.main.async {
+            guard let self = self else { return }
+            Task {
                 switch result {
                 case .success(let moments):
-                    self?.recentMoments = Array(moments.prefix(3))
-                    LogConfig.log("Momentos recientes obtenidos: \(self?.recentMoments.count ?? 0)", category: "Data")
+                    self.recentMoments = Array(moments.prefix(3))
+                    LogConfig.log("Momentos recientes obtenidos: \(self.recentMoments.count)", category: "Data")
                 case .failure(let error):
                     LogConfig.log("Error al obtener momentos: \(error.localizedDescription)", category: "Error")
                 }
@@ -2845,16 +2851,14 @@ class GeminiViewModel: ObservableObject {
                         
                         
                         if mutualIds.isEmpty {
-                            DispatchQueue.main.async {
-                                self.mutualConnections = []
-                                self.objectWillChange.send() // ✅ Forzar actualización de UI
-                            }
+                            self.mutualConnections = []
+                            self.objectWillChange.send() // ✅ Forzar actualización de UI
                             return
                         }
                         
                         // Obtener usuarios mutuos
                         self.firestoreService.fetchUsers(userIds: mutualIds) { result in
-                            DispatchQueue.main.async {
+                            Task {
                                 switch result {
                                 case .success(let users):
                                     self.mutualConnections = users
@@ -2882,37 +2886,39 @@ class GeminiViewModel: ObservableObject {
         }
 
         firestoreService.fetchUsersWithSharedInterests(interests: interests, excludingUserId: userId) { [weak self] result in
-            DispatchQueue.main.async {
+            guard let self = self else { return }
+            Task {
                 switch result {
                 case .success(let users):
-                    self?.usersWithSharedInterests = Array(users.prefix(3))
-                    LogConfig.log("Usuarios con intereses compartidos obtenidos: \(self?.usersWithSharedInterests.count ?? 0)", category: "Data")
+                    self.usersWithSharedInterests = Array(users.prefix(3))
+                    LogConfig.log("Usuarios con intereses compartidos obtenidos: \(self.usersWithSharedInterests.count)", category: "Data")
                 case .failure(let error):
                     LogConfig.log("Error al obtener usuarios con intereses compartidos: \(error.localizedDescription)", category: "Error")
                 }
-                self?.isLoading = false
+                self.isLoading = false
             }
         }
     }
 
     func fetchProfileVisits(userId: String) {
         firestoreService.fetchVisits(userId: userId) { [weak self] result in
-            DispatchQueue.main.async {
+            guard let self = self else { return }
+            Task {
                 switch result {
                 case .success(let visits):
                     let visitorIds = visits.map { $0.visitorId }
                     
                     if visitorIds.isEmpty {
-                        self?.profileVisits = []
-                        self?.objectWillChange.send()
+                        self.profileVisits = []
+                        self.objectWillChange.send()
                         return
                     }
                     
                     // Obtener usuarios visitantes usando fetchUsersInBatches como ProfileView
-                    self?.fetchUsersInBatches(userIds: visitorIds) { users in
-                        DispatchQueue.main.async {
-                            self?.profileVisits = users
-                            self?.objectWillChange.send()
+                    self.fetchUsersInBatches(userIds: visitorIds) { users in
+                        Task { @MainActor in
+                            self.profileVisits = users
+                            self.objectWillChange.send()
                             LogConfig.log("Visitas al perfil obtenidas: \(users.count)", category: "Data")
                         }
                     }
@@ -2957,10 +2963,11 @@ class GeminiViewModel: ObservableObject {
     
     func fetchSuggestedUsers() {
         firestoreService.fetchSuggestedUsers { [weak self] result in
-            DispatchQueue.main.async {
+            guard let self = self else { return }
+            Task {
                 switch result {
                 case .success(let users):
-                    self?.suggestedUsers = users
+                    self.suggestedUsers = users
                     LogConfig.log("Usuarios sugeridos obtenidos: \(users.count)", category: "Data")
                 case .failure(let error):
                     LogConfig.log("Error al obtener usuarios sugeridos: \(error.localizedDescription)", category: "Error")
@@ -3002,7 +3009,8 @@ class GeminiViewModel: ObservableObject {
             loadMemoryContextSilently(userId: userId)
             
             // 🎯 AÑADIR ESTE DELAY PEQUEÑO
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                 // Forzar actualización de la UI para reflejar la memoria cargada
                 self.objectWillChange.send()
             }
@@ -3014,21 +3022,17 @@ class GeminiViewModel: ObservableObject {
               let conversationService = conversationService else { return }
         
         LogConfig.log("🔄 Cargando conversación: \(conversationId)", category: "Conversation")
-        await MainActor.run {
-            isLoading = true
-        }
+        isLoading = true
         
         let messages = await conversationService.loadConversation(conversationId, for: userId)
-        await MainActor.run {
-            self.conversationHistory = messages
-            self.currentConversationId = conversationId
-            self.isLoading = false
-            self.objectWillChange.send()
-            
-            // Recargar contexto silenciosamente
-            if let userId = Auth.auth().currentUser?.uid {
-                self.loadMemoryContextSilently(userId: userId)
-            }
+        self.conversationHistory = messages
+        self.currentConversationId = conversationId
+        self.isLoading = false
+        self.objectWillChange.send()
+        
+        // Recargar contexto silenciosamente
+        if let userId = Auth.auth().currentUser?.uid {
+            self.loadMemoryContextSilently(userId: userId)
         }
     }
     
@@ -3038,11 +3042,9 @@ class GeminiViewModel: ObservableObject {
         
         let success = await conversationService.deleteConversation(conversationId, for: userId)
         if success {
-            await MainActor.run {
-                self.conversationTitles.removeAll { $0.id == conversationId }
-                if self.currentConversationId == conversationId {
-                    self.startNewConversation()
-                }
+            self.conversationTitles.removeAll { $0.id == conversationId }
+            if self.currentConversationId == conversationId {
+                self.startNewConversation()
             }
         }
     }
@@ -3211,7 +3213,7 @@ class GeminiViewModel: ObservableObject {
         Usuario: \(currentInput)
         """
 
-        Task { @MainActor in
+        Task {
             do {
                 // ✅ Asegurar sesión inicializada
                 if chatSession == nil { setupModelAndSession() }
@@ -3249,16 +3251,14 @@ class GeminiViewModel: ObservableObject {
                 self.isLoading = false
                 triggerHapticFeedback(type: .success)
                 
-                Task { await self.saveCurrentConversation() }
+                await self.saveCurrentConversation()
                 self.scheduleMemoryProcessing(userId: userId)
                 self.analyzeConversationIntelligently(userId: userId)
                 
                 // 🎉 DETECTAR CELEBRACIÓN
                 if self.shouldTriggerCelebration(text: validatedResponse) {
-                    await MainActor.run {
-                        self.showCelebration = true
-                        NovaHapticFeedback.success() // Doble feedback para enfatizar
-                    }
+                    self.showCelebration = true
+                    NovaHapticFeedback.success() // Doble feedback para enfatizar
                 }
 
                 // ✅ GENERAR SUGERENCIAS CONTEXTUALES
@@ -3727,17 +3727,13 @@ class GeminiViewModel: ObservableObject {
                             LogConfig.log("🧠 Nuevos hechos guardados: \(facts.count)", category: "Memory")
                             
                             // 🔥 NUEVO: Feedback háptico cuando se guarda un hecho importante
-                            DispatchQueue.main.async {
-                                let importantFacts = facts.filter { $0.importance >= 4 }
-                                if !importantFacts.isEmpty {
-                                    self.triggerHapticFeedback(type: .medium)
-                                }
+                            let importantFacts = facts.filter { $0.importance >= 4 }
+                            if !importantFacts.isEmpty {
+                                self.triggerHapticFeedback(type: .medium)
                             }
                             
                             // Recargar memoria
-                            DispatchQueue.main.async {
-                                self.loadMemoryContextSilently(userId: userId)
-                            }
+                            self.loadMemoryContextSilently(userId: userId)
                         }
                     }
                 }
@@ -3755,7 +3751,7 @@ class GeminiViewModel: ObservableObject {
         inputText = ""
         isLoading = true
         
-        Task { @MainActor in
+        Task {
             do {
                 // Preparar variables de contexto (necesarias para todos los casos)
                 let lang = NovaLanguageService.getPreferredLanguage() ?? .es
@@ -4156,7 +4152,7 @@ class GeminiViewModel: ObservableObject {
         inputText = ""
         
         firestoreService.createMoment(userId: userId, content: content, mediaItems: []) { [weak self] error in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self = self else { return }
                 
                 if let error = error {
@@ -4233,9 +4229,7 @@ class GeminiViewModel: ObservableObject {
                 }
                 
                 self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
-                Task {
-                    await self.saveCurrentConversation()
-                }
+                await self.saveCurrentConversation()
                 self.isLoading = false
             }
         }
@@ -4373,13 +4367,11 @@ class GeminiViewModel: ObservableObject {
         Task {
             do {
                 let response = try await generateContentWithRetry(prompt: prompt, maxRetries: 2)
-                await MainActor.run {
-                    if let newBio = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                        self.firestoreService.updateBio(userId: userId, bio: newBio) { [weak self] error in
-                            DispatchQueue.main.async {
-                                guard let self = self else { return }
-                                
-                                if let error = error {
+                if let newBio = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    self.firestoreService.updateBio(userId: userId, bio: newBio) { error in
+                        Task { @MainActor in
+                            
+                            if let error = error {
                                     self.responseText = """
                                     ## ❌ Error al Actualizar
                                     
@@ -4412,7 +4404,6 @@ class GeminiViewModel: ObservableObject {
                                 self.isLoading = false
                             }
                         }
-                    }
                 }
             } catch {
                 await MainActor.run {

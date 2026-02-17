@@ -9,6 +9,8 @@ class NotificationBadgeService: ObservableObject {
     
     @Published var unreadNotificationsCount: Int = 0
     @Published var unreadMessagesCount: Int = 0
+    @Published var unreadEchoesCount: Int = 0   // ✅ TRACKING: Echoes
+    @Published var unreadTagsCount: Int = 0     // ✅ TRACKING: Tags
     
     // ✅ UserDefaults compartido para el widget (configura este App Group en Xcode)
     // Asegúrate de crear/activar el App Group "group.com.glowsyapp"
@@ -25,95 +27,124 @@ class NotificationBadgeService: ObservableObject {
     func setupListeners() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        
-        // 1. Listener para notificaciones generales
+        // 1. Listener para notificaciones generales (incluye Echoes y Tags)
         setupNotificationListener(userId: userId)
         
         // 2. Listener para mensajes no leídos
         setupMessageListener(userId: userId)
     }
     
+    // ✅ NUEVO: Refresco manual (para background updates desde AppDelegate)
+    func refreshAllCounts(completion: (() -> Void)? = nil) {
+        guard let userId = Auth.auth().currentUser?.uid else { 
+            completion?()
+            return 
+        }
+        
+        let group = DispatchGroup()
+        
+        // Refrescar Notificaciones/Echoes/Tags
+        group.enter()
+        Firestore.firestore()
+            .collection("users")
+            .document(userId)
+            .collection("notifications")
+            .whereField("isPending", isEqualTo: true)
+            .getDocuments { [weak self] snapshot, _ in
+                defer { group.leave() }
+                if let docs = snapshot?.documents {
+                    self?.processNotificationDocuments(docs)
+                }
+            }
+        
+        // Refrescar Mensajes
+        group.enter()
+        Firestore.firestore()
+            .collection("conversations")
+            .whereField("participants", arrayContains: userId)
+            .getDocuments { [weak self] snapshot, _ in
+                defer { group.leave() }
+                guard let self = self, let docs = snapshot?.documents else { return }
+                
+                let count = self.countUnreadMessages(in: docs, userId: userId)
+                DispatchQueue.main.async {
+                    self.unreadMessagesCount = count
+                    self.widgetUserDefaults?.set(count, forKey: "widget_unread_messages")
+                }
+            }
+        
+        group.notify(queue: .main) {
+            self.updateAppBadge()
+            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+            completion?()
+        }
+    }
+    
     private func setupNotificationListener(userId: String) {
         notificationListener?.remove()
-        
         notificationListener = Firestore.firestore()
             .collection("users")
             .document(userId)
             .collection("notifications")
             .whereField("isPending", isEqualTo: true)
             .addSnapshotListener { [weak self] snapshot, error in
-                if let error = error {
-                    return
+                if let docs = snapshot?.documents {
+                    self?.processNotificationDocuments(docs)
                 }
+            }
+    }
+    
+    private func processNotificationDocuments(_ documents: [QueryDocumentSnapshot]) {
+        let totalCount = documents.count
+        let echoes = documents.filter { ($0.data()["type"] as? String) == "echoSuggestion" }.count
+        let tags = documents.filter { ($0.data()["type"] as? String) == "photoTag" }.count
+        
+        DispatchQueue.main.async {
+            self.unreadNotificationsCount = totalCount
+            self.unreadEchoesCount = echoes
+            self.unreadTagsCount = tags
+            
+            self.widgetUserDefaults?.set(totalCount, forKey: "widget_unread_notifications")
+            self.widgetUserDefaults?.set(echoes, forKey: "widget_unread_echoes")
+            self.widgetUserDefaults?.set(tags, forKey: "widget_unread_tags")
+            
+            self.updateAppBadge()
+            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+        }
+    }
+    
+    private func setupMessageListener(userId: String) {
+        messageListener?.remove()
+        messageListener = Firestore.firestore()
+            .collection("conversations")
+            .whereField("participants", arrayContains: userId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self, let docs = snapshot?.documents else { return }
                 
-                let count = snapshot?.documents.count ?? 0
-                
+                let count = self.countUnreadMessages(in: docs, userId: userId)
                 DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    self.unreadNotificationsCount = count
-                    // 🔄 Sincronizar con widget
-                    self.widgetUserDefaults?.set(count, forKey: "widget_unread_notifications")
+                    self.unreadMessagesCount = count
+                    self.widgetUserDefaults?.set(count, forKey: "widget_unread_messages")
                     self.updateAppBadge()
                     WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
                 }
             }
     }
     
-    // ✅ ACTUALIZAR setupMessageListener para contar CONVERSACIONES
-    private func setupMessageListener(userId: String) {
-        messageListener?.remove()
+    private func countUnreadMessages(in documents: [QueryDocumentSnapshot], userId: String) -> Int {
+        var unreadConversations = 0
         
-        messageListener = Firestore.firestore()
-            .collection("conversations")
-            .whereField("participants", arrayContains: userId)
-            .addSnapshotListener { [weak self] snapshot, error in
-                if let error = error {
-                    return
-                }
-                
-                guard let documents = snapshot?.documents else { return }
-                
-                var unreadConversations = 0
-                let group = DispatchGroup()
-                
-                for document in documents {
-                    group.enter()
-                    let conversationId = document.documentID
-                    
-                    Firestore.firestore()
-                        .collection("conversations")
-                        .document(conversationId)
-                        .collection("messages")
-                        .whereField("isRead", isEqualTo: false)
-                        .limit(to: 1)
-                        .getDocuments { messagesSnapshot, messagesError in
-                            defer { group.leave() }
-                            
-                            if messagesError != nil { return }
-                            
-                            let hasUnreadFromOthers = messagesSnapshot?.documents.contains { doc in
-                                let data = doc.data()
-                                let senderId = data["senderId"] as? String ?? ""
-                                return senderId != userId
-                            } ?? false
-                            
-                            if hasUnreadFromOthers {
-                                unreadConversations += 1
-                            }
-                        }
-                }
-                
-                group.notify(queue: .main) {
-                    guard let self = self else { return }
-                    self.unreadMessagesCount = unreadConversations
-                    
-                    // 🔄 Sincronizar con widget
-                    self.widgetUserDefaults?.set(unreadConversations, forKey: "widget_unread_messages")
-                    
-                    self.updateAppBadge()
-                    WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
-                }
+        for document in documents {
+            let data = document.data()
+            let readStatus = data["readStatus"] as? [String: Bool] ?? [:]
+            
+            // Si el estado de lectura para el usuario actual es 'false', significa que hay mensajes nuevos
+            if let isRead = readStatus[userId], !isRead {
+                unreadConversations += 1
             }
+        }
+        
+        return unreadConversations
     }
 
     
@@ -121,16 +152,25 @@ class NotificationBadgeService: ObservableObject {
     private func updateAppBadge() {
         let totalBadge = unreadNotificationsCount + unreadMessagesCount
         
-        
         DispatchQueue.main.async {
+            // Método clásico (App Icon)
             UIApplication.shared.applicationIconBadgeNumber = totalBadge
+            
+            // Método moderno para iOS 16+ (Sincronización más fiable)
+            if #available(iOS 16.0, *) {
+                UNUserNotificationCenter.current().setBadgeCount(totalBadge)
+            }
         }
     }
     
     // ✅ LIMPIAR notificaciones (llamado desde NotificationsView)
     func clearNotificationBadge() {
         unreadNotificationsCount = 0
+        unreadEchoesCount = 0
+        unreadTagsCount = 0
         widgetUserDefaults?.set(0, forKey: "widget_unread_notifications")
+        widgetUserDefaults?.set(0, forKey: "widget_unread_echoes")
+        widgetUserDefaults?.set(0, forKey: "widget_unread_tags")
         updateAppBadge()
         WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
     }
@@ -156,9 +196,24 @@ class NotificationBadgeService: ObservableObject {
         messageListener?.remove()
         notificationListener = nil
         messageListener = nil
+        
+        // Resetear contadores locales
         unreadNotificationsCount = 0
         unreadMessagesCount = 0
+        unreadEchoesCount = 0
+        unreadTagsCount = 0
+        
+        // Resetear UserDefaults para el widget
+        widgetUserDefaults?.set(0, forKey: "widget_unread_notifications")
+        widgetUserDefaults?.set(0, forKey: "widget_unread_messages")
+        widgetUserDefaults?.set(0, forKey: "widget_unread_echoes")
+        widgetUserDefaults?.set(0, forKey: "widget_unread_tags")
+        
+        // Limpiar el badge de la app
         clearAppBadge()
+        
+        // Recargar widget para reflejar estado vacío/login
+        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
     }
     
     deinit {

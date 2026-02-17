@@ -197,7 +197,7 @@ struct NotificationsView: View {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)],
+                                            colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)],
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         )
@@ -256,10 +256,10 @@ struct NotificationsView: View {
                     LinearGradient(
                         colors: colorScheme == .dark ? [
                             Color.gray.opacity(0.6),
-                            Color(hex: "00A896").opacity(0.4)
+                            Color(hex: "007AFF").opacity(0.4)
                         ] : [
                             Color.gray.opacity(0.8),
-                            Color(hex: "00A896").opacity(0.6)
+                            Color(hex: "007AFF").opacity(0.6)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -406,6 +406,11 @@ struct NotificationsView: View {
         case .message:
             if let conversationId = firstNotification.momentId {
                 fetchAndNavigateToChat(conversationId: conversationId)
+            }
+        case .echoSuggestion:
+            // 🌊 Navigate to Echo Viewer
+            if let echoId = firstNotification.echoId {
+                NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
             }
         }
     }
@@ -601,7 +606,7 @@ struct EnhancedNotificationRow: View {
                                 .overlay(
                                     ProgressView()
                                         .scaleEffect(0.8)
-                                        .tint(Color(hex: "00A896"))
+                                        .tint(Color(hex: "007AFF"))
                                 )
                         }
                         .resizable()
@@ -647,7 +652,7 @@ struct EnhancedNotificationRow: View {
                                         .overlay(
                                             ProgressView()
                                                 .scaleEffect(0.6)
-                                                .tint(Color(hex: "00A896"))
+                                                .tint(Color(hex: "007AFF"))
                                         )
                                 }
                                 .resizable()
@@ -707,7 +712,7 @@ struct EnhancedNotificationRow: View {
                         }
                     }
                     .buttonStyle(GlassmorphicButtonStyle(
-                        color: Color(hex: "00A896"),
+                        color: Color(hex: "007AFF"),
                         colorScheme: colorScheme // ✅ PASADO colorScheme
                     ))
                     
@@ -734,7 +739,7 @@ struct EnhancedNotificationRow: View {
                         .background(
                             isFollowing ?
                             LinearGradient(colors: [Color.gray.opacity(0.6), Color.gray.opacity(0.4)], startPoint: .leading, endPoint: .trailing) :
-                            LinearGradient(colors: [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)], startPoint: .leading, endPoint: .trailing)
                         )
                         .clipShape(Capsule())
                         .overlay(
@@ -746,23 +751,59 @@ struct EnhancedNotificationRow: View {
                                     lineWidth: 1
                                 ) // ✅ ADAPTATIVO
                         )
-                        .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 4, x: 0, y: 2)
+                        .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
                 }
                 .buttonStyle(PlainButtonStyle())
 
             case .profileVisit:
                 Button(action: onTapAction) {
                     Image(systemName: "eye.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "007AFF"))
                         .font(.system(size: 20))
                         .frame(width: 44, height: 44)
                         .background(.ultraThinMaterial)
                         .clipShape(Circle())
                         .overlay(
                             Circle()
-                                .stroke(Color(hex: "00A896").opacity(0.5), lineWidth: 1)
+                                .stroke(Color(hex: "007AFF").opacity(0.5), lineWidth: 1)
                         )
                 }
+
+            case .echoSuggestion:
+                // 🌊 Echo notification preview with Nova Spark styling
+                Button(action: onTapAction) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 20))
+                        
+                        Text("Ver Echo")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        LinearGradient(
+                            colors: [.orange.opacity(0.2), .yellow.opacity(0.15)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.orange.opacity(0.6), .yellow.opacity(0.4)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
 
             default:
                 EmptyView()
@@ -853,6 +894,8 @@ struct EnhancedNotificationRow: View {
                 return AttributedString(String(format: NSLocalizedString("notifications.message.message.multiple", comment: "Multiple messages"), firstNotification.senderUsername, group.notifications.count - 1))
             case .photoTag:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.multiple", comment: "Multiple photo tags"), firstNotification.senderUsername, group.notifications.count - 1))
+            case .echoSuggestion:
+                return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
             }
         } else {
             switch firstNotification.type {
@@ -891,6 +934,8 @@ struct EnhancedNotificationRow: View {
                 return AttributedString(String(format: NSLocalizedString("notifications.message.message.single", comment: "Single message"), firstNotification.senderUsername))
             case .photoTag:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.single", comment: "Single photo tag"), firstNotification.senderUsername))
+            case .echoSuggestion:
+                return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
             }
         }
     }
@@ -1181,6 +1226,7 @@ struct GlassmorphicButtonStyle: ButtonStyle {
     }
 }
 
+@MainActor
 class NotificationsViewModel: ObservableObject {
     @Published var notifications: [Notification] = []
     @Published var groupedByDate: [String: [NotificationGroup]] = [:]
@@ -1335,14 +1381,28 @@ class NotificationsViewModel: ObservableObject {
         notificationService.deleteNotification(notification)
     }
 
-    // ✅ Acciones de solicitudes de seguimiento simplificadas
+    // ✅ Acciones de solicitudes de seguimiento simplificadas (OFFLINE AWARE)
     func acceptFollowRequest(group: NotificationGroup) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        
         for notification in group.notifications where notification.type == .followRequest {
             guard let notificationId = notification.id else { continue }
-            firestoreService.acceptFollowRequest(notificationId: notificationId, recipientId: userId, senderId: notification.senderId) { [weak self] error in
-                if error == nil {
-                    self?.markAsRead(notification)
+            
+            // 1. Delegar a LocalPersistence (Optimistic UI + Sync)
+            Task {
+                await LocalPersistenceService.shared.acceptFollowRequest(
+                    notificationId: notificationId,
+                    senderId: notification.senderId,
+                    recipientId: userId
+                )
+                
+                // 2. Actualizar estado local del view model para reflejar cambio inmediato
+                DispatchQueue.main.async {
+                    if let index = self.notifications.firstIndex(where: { $0.id == notificationId }) {
+                        self.notifications[index].isPending = false
+                        self.groupNotifications() // Reagrupar para actualizar UI
+                        self.updatePendingCounts()
+                    }
                 }
             }
         }
@@ -1350,19 +1410,39 @@ class NotificationsViewModel: ObservableObject {
 
     func rejectFollowRequest(group: NotificationGroup) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        
         for notification in group.notifications where notification.type == .followRequest {
             guard let notificationId = notification.id else { continue }
-            firestoreService.rejectFollowRequest(notificationId: notificationId, recipientId: userId, senderId: notification.senderId) { [weak self] error in
-                if error == nil {
-                    self?.deleteNotification(notification)
+            
+            // 1. Delegar a LocalPersistence (Optimistic UI + Sync)
+            Task {
+                await LocalPersistenceService.shared.rejectFollowRequest(
+                    notificationId: notificationId,
+                    senderId: notification.senderId,
+                    recipientId: userId
+                )
+                
+                // 2. Actualizar estado local del view model para reflejar cambio inmediato
+                DispatchQueue.main.async {
+                    self.notifications.removeAll { $0.id == notificationId }
+                    self.groupNotifications() // Reagrupar para actualizar UI
+                    self.updatePendingCounts()
                 }
             }
         }
     }
 
     func checkIfFollowing(currentUserId: String, targetUserId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
-        firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: targetUserId) { isFollowing in
-            completion(.success(isFollowing))
+        // ✅ OFFLINE-FIRST: Verificar en caché local
+        let isFollowingCached = LocalPersistenceService.shared.isFollowing(targetUserId: targetUserId)
+        completion(.success(isFollowingCached))
+        
+        // 🔄 Actualizar en background para consistencia estricta
+        firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: targetUserId) { isFollowingNetwork in
+            // Si el estado de red difiere del caché local, notificamos de nuevo
+            if isFollowingNetwork != isFollowingCached {
+                completion(.success(isFollowingNetwork))
+            }
         }
     }
 

@@ -402,7 +402,7 @@ extension AnalyticsService {
     }
     
     // Enhanced login tracking with real location
-    func trackSuccessfulLogin() {
+    func trackSuccessfulLogin(method: String = "email") {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
         let loginData: [String: Any] = [
@@ -412,7 +412,7 @@ extension AnalyticsService {
             "ipAddress": getIPAddress(),
             "isSuccessful": true,
             "sessionId": currentSessionId ?? UUID().uuidString,
-            "loginMethod": "email",
+            "loginMethod": method,
             "coordinates": RealLoginActivityService.shared.getCoordinatesDict()
         ]
         

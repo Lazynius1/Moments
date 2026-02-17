@@ -46,7 +46,7 @@ struct UserProfileColors {
     }
     
     // Colores específicos que se mantienen
-    static let accent = Color(hex: "00A896")
+    static let accent = Color(hex: "007AFF")
     static let purple = Color(hex: "9B59B6")
     static let blue = Color(hex: "6B73FF")
 }
@@ -176,9 +176,9 @@ struct UserProfileView: View {
 
         var title: String {
             switch self {
-            case .admirers: return "Admiradores"
-            case .connections: return "Conexiones"
-            case .mutualConnections: return "Conexiones Mutuas"
+            case .admirers: return NSLocalizedString("profile.userList.admirers", comment: "Admirers")
+            case .connections: return NSLocalizedString("profile.userList.connections", comment: "Followed")
+            case .mutualConnections: return NSLocalizedString("profile.userList.mutuals", comment: "Mutual connections")
             }
         }
     }
@@ -243,7 +243,7 @@ struct UserProfileView: View {
         .sheet(isPresented: $showProfileImageFullscreen) {
             ProfileImageViewer(
                 profileImagePath: viewModel.userProfile?.profileImagePath,
-                username: viewModel.userProfile?.username ?? "Usuario"
+                username: viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User")
             )
             .presentationDetents([.fraction(0.99)])
             .presentationDragIndicator(.hidden)
@@ -253,6 +253,30 @@ struct UserProfileView: View {
             if let conversation = targetConversation {
                 GlassmorphicChatView(conversation: conversation)
             }
+        }
+        .sheet(isPresented: $showingMessageRequestAlert) {
+            MessageRequestModalView(
+                messageText: $messageRequestText,
+                errorMessage: $messageRequestError,
+                showingSuccessMessage: $showingSuccessMessage,
+                onSend: sendMessageRequest,
+                onDismiss: {
+                    showingMessageRequestAlert = false
+                    messageRequestText = ""
+                    messageRequestError = nil
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(false)
+            .presentationBackground(.clear)
+        }
+        .alert(NSLocalizedString("messageRequestModal.success.title", comment: "Success title"), isPresented: $showingSuccessMessage) {
+            Button("OK") {
+                showingSuccessMessage = false
+            }
+        } message: {
+            Text(NSLocalizedString("messageRequestModal.success.message", comment: "Success message"))
         }
         // ✅ CORREGIDO: Eliminar el sheet duplicado y usar solo fullScreenCover
         .fullScreenCover(isPresented: $showMomentDetail) {
@@ -338,6 +362,35 @@ struct UserProfileView: View {
         }
     }
 
+    // ✅ NUEVA: Función para enviar solicitud de mensaje
+    private func sendMessageRequest() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let targetUser = viewModel.userProfile else { return }
+        
+        let message = messageRequestText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty else {
+            messageRequestError = NSLocalizedString("messageRequestModal.error.empty", comment: "Empty message error")
+            return
+        }
+        
+        messageRequestService.sendMessageRequest(
+            to: targetUser.id,
+            message: message
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    showingMessageRequestAlert = false
+                    messageRequestText = ""
+                    messageRequestError = nil
+                    showingSuccessMessage = true
+                case .failure(let error):
+                    messageRequestError = String(format: NSLocalizedString("messageRequestModal.error.generic", comment: "Generic error"), error.localizedDescription)
+                }
+            }
+        }
+    }
+
     private func contentView(safeAreaTop: CGFloat, safeAreaBottom: CGFloat) -> some View {
         Group {
             if viewModel.isLoading {
@@ -359,10 +412,17 @@ struct UserProfileView: View {
                     userProfile: viewModel.userProfile,
                     userId: userId,
                     storyViewModel: storyViewModel,
+                    messagingViewModel: messagingViewModel,
                     viewModel: viewModel,
                     followButtonState: viewModel.followButtonState,
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
+                    navigateToChat: $navigateToChat,
+                    targetConversation: $targetConversation,
+                    showingMessageRequestAlert: $showingMessageRequestAlert,
+                    messageRequestText: $messageRequestText,
+                    messageRequestError: $messageRequestError,
+                    showingSuccessMessage: $showingSuccessMessage,
                     onFollowAction: {
                         handleFollowAction()
                     },
@@ -756,12 +816,12 @@ struct UserModernProfileHeader: View {
             VStack(spacing: 14) {
                 VStack(spacing: 8) {
                     VerifiedUsernameGradientView(
-                        username: viewModel.userProfile?.username ?? "Usuario",
+                        username: viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"),
                         isVerified: viewModel.userProfile?.isVerified ?? false,
                         badgeSize: 22,
                         spacing: 6,
                         gradient: LinearGradient(
-                            colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
+                            colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -775,7 +835,7 @@ struct UserModernProfileHeader: View {
                 }
                 
                 // Bio expandible adaptativa
-                UserExpandableBioView(bio: viewModel.userProfile?.bio ?? "Sin biografía")
+                UserExpandableBioView(bio: viewModel.userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No bio"))
             }
             
             // Conexiones mutuas adaptativas - Solo mostrar si se pueden ver las mutuas Y hay datos
@@ -895,40 +955,22 @@ struct UserModernProfileHeader: View {
             }
         }
         .padding(.horizontal, 28)
-        .sheet(isPresented: $showingMessageRequestAlert) {
-            MessageRequestModalView(
-                messageText: $messageRequestText,
-                errorMessage: $messageRequestError,
-                showingSuccessMessage: $showingSuccessMessage,
-                onSend: sendMessageRequest,
-                onDismiss: {
-                    showingMessageRequestAlert = false
-                    messageRequestText = ""
-                    messageRequestError = nil
-                }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled(false)
-            .presentationBackground(.clear)
-        }
-        .alert(NSLocalizedString("messageRequestModal.success.title", comment: "Success title"), isPresented: $showingSuccessMessage) {
-            Button("OK") {
-                showingSuccessMessage = false
-            }
-        } message: {
-            Text(NSLocalizedString("messageRequestModal.success.message", comment: "Success message"))
-        }
     }
 
     private var followButtonText: String {
         switch viewModel.followButtonState {
-        case .ownProfile: return "Tu perfil"
-        case .blocked: return "Bloqueado"
-        case .following: return "Siguiendo"
-        case .canFollow: return "Seguir"
-        case .canRequestFollow: return "Solicitar"
-        case .requestPending: return "Solicitado"
+        case .ownProfile: 
+            return NSLocalizedString("userProfile.followButton.ownProfile", comment: "Own profile")
+        case .blocked: 
+            return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
+        case .following: 
+            return NSLocalizedString("userProfile.followButton.following", comment: "Following")
+        case .canFollow: 
+            return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
+        case .canRequestFollow: 
+            return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
+        case .requestPending: 
+            return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
         }
     }
 
@@ -937,35 +979,6 @@ struct UserModernProfileHeader: View {
         case .following, .requestPending: return Color.gray.opacity(0.6)
         case .canFollow, .canRequestFollow: return UserProfileColors.accent
         case .ownProfile, .blocked: return Color.gray.opacity(0.4)
-        }
-    }
-    
-    // ✅ NUEVA: Función para enviar solicitud de mensaje
-    private func sendMessageRequest() {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let targetUser = viewModel.userProfile else { return }
-        
-        let message = messageRequestText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !message.isEmpty else {
-            messageRequestError = NSLocalizedString("messageRequestModal.error.empty", comment: "Empty message error")
-            return
-        }
-        
-        messageRequestService.sendMessageRequest(
-            to: targetUser.id,
-            message: message
-        ) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    showingMessageRequestAlert = false
-                    messageRequestText = ""
-                    messageRequestError = nil
-                    showingSuccessMessage = true
-                case .failure(let error):
-                    messageRequestError = String(format: NSLocalizedString("messageRequestModal.error.generic", comment: "Generic error"), error.localizedDescription)
-                }
-            }
         }
     }
 }
@@ -1428,10 +1441,6 @@ struct UserPlusBadgeInline: View {
             )
         )
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-        )
         .shadow(color: Color(hex: "FFD700").opacity(0.3), radius: 3, x: 0, y: 1)
     }
 }
@@ -1459,10 +1468,6 @@ struct UserSupportBadgeInline: View {
             )
         )
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-        )
         .shadow(color: badge.swiftUIColors.first?.opacity(0.3) ?? .clear, radius: 3, x: 0, y: 1)
     }
 }
@@ -1487,10 +1492,6 @@ struct UserSupporterLevelIndicator: View {
         .padding(.vertical, 2)
         .background(UserProfileColors.cardBackground)
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color(hex: "FFD700").opacity(0.5), lineWidth: 0.5)
-        )
     }
     
     private var levelStars: Int {
@@ -1516,20 +1517,7 @@ struct UserModernRefreshIndicator: View {
                 Circle()
                     .fill(UserProfileColors.materialBackground)
                     .frame(width: 32, height: 32)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        UserProfileColors.accent.opacity(0.6),
-                                        UserProfileColors.borderColor
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
+                    .frame(width: 32, height: 32)
                 
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 16, weight: .semibold))
@@ -1552,20 +1540,6 @@ struct UserModernRefreshIndicator: View {
         .padding(.vertical, 12)
         .background(UserProfileColors.materialBackground)
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            UserProfileColors.borderColor,
-                            UserProfileColors.accent.opacity(0.3)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
         .shadow(color: UserProfileColors.shadowColor, radius: 8, x: 0, y: 4)
         .onAppear {
             withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
@@ -1586,9 +1560,9 @@ struct UserModernStatsSection: View {
     
     private var computedStats: [(String, Int, UserProfileView.UserListType)] {
         [
-            ("Admiradores", viewModel.admirers.count, .admirers),
-            ("Conexiones", viewModel.connections.count, .connections),
-            ("Mutuas", viewModel.mutualConnections.count, .mutualConnections)
+            (NSLocalizedString("profile.stats.admirers", comment: "Admirers"), viewModel.admirers.count, .admirers),
+            (NSLocalizedString("profile.stats.connections", comment: "Connections"), viewModel.connections.count, .connections),
+            (NSLocalizedString("profile.stats.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
         ]
     }
 
@@ -1616,20 +1590,6 @@ struct UserModernStatsSection: View {
                     .padding(.vertical, 14)
                     .background(UserProfileColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        UserProfileColors.borderColor,
-                                        UserProfileColors.accent.opacity(0.3)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
                     .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 .scaleEffect(1.0)
@@ -1777,7 +1737,7 @@ struct UserModernAvatar: View {
                                     .font(.system(size: size * 0.45))
                                     .foregroundColor(.gray.opacity(0.6))
                             )
-                            .overlay(ProgressView().tint(Color(hex: "00A896")))
+                            .overlay(ProgressView().tint(Color(hex: "007AFF")))
                     }
                     .resizable()
                     .aspectRatio(contentMode: .fill) // ✅ CLAVE: aspectRatio en lugar de scaledToFill
@@ -1796,7 +1756,7 @@ struct UserModernAvatar: View {
                             lineWidth: 3
                         )
                     )
-                    .shadow(color: Color(hex: "00A896").opacity(0.2), radius: 15, x: 0, y: 8)
+                    .shadow(color: Color(hex: "007AFF").opacity(0.2), radius: 15, x: 0, y: 8)
             } else {
                 Circle()
                     .fill(.ultraThinMaterial)
@@ -1817,7 +1777,7 @@ struct UserModernAvatar: View {
                                 lineWidth: 0 // ✅ QUITADO: Borde
                             )
                     )
-                    .shadow(color: Color(hex: "00A896").opacity(0.15), radius: 12, x: 0, y: 6)
+                    .shadow(color: Color(hex: "007AFF").opacity(0.15), radius: 12, x: 0, y: 6)
             }
         }
         .onTapGesture {
@@ -1870,26 +1830,6 @@ struct UserModernInterestsView: View {
                             )
                         )
                         .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    isShared ?
-                                    LinearGradient(
-                                        colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8), Color.pink.opacity(0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ) :
-                                    LinearGradient(
-                                        colors: [
-                                            UserProfileColors.borderColor,
-                                            UserProfileColors.accent.opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: isShared ? 2 : 1
-                                )
-                        )
                         .shadow(
                             color: isShared ? Color.blue.opacity(0.3) : UserProfileColors.shadowColor,
                             radius: isShared ? 6 : 4,
@@ -1945,8 +1885,13 @@ struct UserModernMomentThumbnail: View {
                 if let mediaItem = moment.mediaItems?.first, !mediaItem.url.isEmpty {
                     // Es un momento nuevo con mediaItems
                     if mediaItem.type == .video {
-                        // ✅ NUEVO: Mostrar thumbnail de video
-                        videoThumbnailView(videoURL: mediaItem.url)
+                        // ✅ NUEVO: Priorizar thumbnailUrl si existe
+                        if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
+                            imageView(imageURL: thumbnailUrl)
+                        } else {
+                            // Si no hay thumbnail URL (legacy), generar uno
+                            videoThumbnailView(videoURL: mediaItem.url)
+                        }
                     } else {
                         // ✅ NUEVO: Mostrar imagen desde mediaItems
                         imageView(imageURL: mediaItem.url)
@@ -2146,18 +2091,7 @@ struct UserModernMomentThumbnail: View {
     // ✅ NUEVA: Overlay de borde reutilizable
     @ViewBuilder
     private func borderOverlay() -> some View {
-        RoundedRectangle(cornerRadius: 12)
-            .stroke(
-                LinearGradient(
-                    colors: [
-                        UserProfileColors.borderColor,
-                        UserProfileColors.accent.opacity(0.4)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 1
-            )
+        EmptyView()
     }
     
     // ✅ NUEVA: Función para cargar thumbnail de video
@@ -2373,10 +2307,17 @@ struct UserModernPrivateProfileView: View {
     let userProfile: AppUser?
     let userId: String
     @ObservedObject var storyViewModel: StoryViewModel
+    @ObservedObject var messagingViewModel: MessagingViewModel
     @ObservedObject var viewModel: UserProfileViewModel // ✅ NUEVO: Para acceder a los datos reales
     let followButtonState: FollowButtonState
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
+    @Binding var navigateToChat: Bool
+    @Binding var targetConversation: Conversation?
+    @Binding var showingMessageRequestAlert: Bool
+    @Binding var messageRequestText: String
+    @Binding var messageRequestError: String?
+    @Binding var showingSuccessMessage: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
     @Binding var showStoryViewer: Bool
@@ -2433,194 +2374,141 @@ struct UserModernPrivateProfileView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 
-                // ✅ BOTÓN DE ACCIÓN MEJORADO - CENTRADO PERFECTO
-                Button(action: onFollowAction) {
-                    HStack(spacing: 8) {
-                        Image(systemName: followButtonIcon)
-                            .font(.system(size: 16, weight: .medium))
-                        Text(followButtonText)
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                // ✅ BOTONES DE ACCIÓN MEJORADOS - CENTRADO PERFECTO
+                HStack(spacing: 12) {
+                    Button(action: {
+                        HapticManager.shared.mediumImpact()
+                        onFollowAction()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: followButtonIcon)
+                                .font(.system(size: 16, weight: .medium))
+                            Text(followButtonText)
+                                .font(.custom("Poppins-SemiBold", size: 16))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                        .background(
+                            Capsule()
+                                .fill(followButtonColor)
+                                .shadow(color: followButtonColor.opacity(0.3), radius: 12, x: 0, y: 6)
+                        )
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 14)
-                    .background(
-                        Capsule()
-                            .fill(followButtonColor)
-                            .shadow(color: followButtonColor.opacity(0.3), radius: 12, x: 0, y: 6)
-                    )
+                    .disabled(!followButtonState.isActionable)
+                    
+                    // ✅ NUEVO: Botón de mensaje para perfiles privados
+                    Button(action: {
+                        guard let currentUserId = Auth.auth().currentUser?.uid,
+                              let targetUser = userProfile else { return }
+                        
+                        messagingViewModel.startConversation(with: targetUser, from: currentUserId) {
+                            if let conversation = messagingViewModel.selectedConversation {
+                                targetConversation = conversation
+                                navigateToChat = true
+                            } else if let error = messagingViewModel.errorMessage {
+                                let lowercasedError = error.lowercased()
+                                if lowercasedError.contains("no siguen mutuamente") || lowercasedError.contains("solicitud") {
+                                    showingMessageRequestAlert = true
+                                }
+                            }
+                        }
+                    }) {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                            .frame(width: 48, height: 48)
+                            .background(
+                                Circle()
+                                    .fill(LinearGradient(
+                                        colors: [Color(hex: "02C39A"), Color(hex: "00A896")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ))
+                                    .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .disabled(!followButtonState.isActionable)
             }
             .frame(maxWidth: .infinity, alignment: .center)
             
             Spacer()
-                .frame(height: 40) // ✅ REDUCIDO: Menos espacio para subir la sección
+                .frame(height: 50)
             
-            // ✅ STATS REALES RESPETANDO PRIVACIDAD (como en UserProfile)
-            VStack(spacing: 20) {
-                // ✅ Layout horizontal único con los 4 stats
-                HStack(spacing: 16) {
-                    // ✅ Momentos (siempre visibles)
-                    StatItem(
-                        icon: "photo.stack.fill", 
-                        value: "\(viewModel.moments.count)", 
-                        label: NSLocalizedString("profile.moments.title", comment: "Moments"), 
-                        color: Color(hex: "00A896")
-                    )
-                    
-                    // ✅ Admiradores (solo si se pueden ver)
-                    if viewModel.visibleConnectionTypes.canViewAdmirers {
-                        StatItem(
-                            icon: "heart.fill", 
-                            value: "\(viewModel.admirers.count)", 
-                            label: NSLocalizedString("profile.stats.admirers", comment: "Admiradores"), 
-                            color: Color(hex: "6B73FF")
-                        )
-                    } else {
-                        StatItem(
-                            icon: "heart.fill", 
-                            value: "?", 
-                            label: NSLocalizedString("profile.stats.admirers", comment: "Admiradores"), 
-                            color: Color.gray.opacity(0.6)
-                        )
-                    }
-                    
-                    // ✅ Conexiones (solo si se pueden ver)
-                    if viewModel.visibleConnectionTypes.canViewConnections {
-                        StatItem(
-                            icon: "person.2.fill", 
-                            value: "\(viewModel.connections.count)", 
-                            label: NSLocalizedString("profile.stats.connections", comment: "Conexiones"), 
-                            color: Color(hex: "9B59B6")
-                        )
-                    } else {
-                        StatItem(
-                            icon: "person.2.fill", 
-                            value: "?", 
-                            label: NSLocalizedString("profile.stats.connections", comment: "Conexiones"), 
-                            color: Color.gray.opacity(0.6)
-                        )
-                    }
-                    
-                    // ✅ Conexiones mutuas (solo si se pueden ver)
-                    if viewModel.visibleConnectionTypes.canViewMutualConnections {
-                        StatItem(
-                            icon: "person.2.circle.fill", 
-                            value: "\(viewModel.mutualConnections.count)", 
-                            label: NSLocalizedString("profile.stats.mutuals", comment: "Mutuas"), 
-                            color: Color(hex: "FF6B6B")
-                        )
-                    } else {
-                        StatItem(
-                            icon: "person.2.circle.fill", 
-                            value: "?", 
-                            label: NSLocalizedString("profile.stats.mutuals", comment: "Mutuas"), 
-                            color: Color.gray.opacity(0.6)
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            
-            Spacer()
-                .frame(height: 32)
-            
-            // ✅ SECCIÓN DE PERFIL PRIVADO EN CARD ELEGANTE
-            VStack(spacing: 24) {
-                // Icono de candado moderno
-                ZStack {
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 70, height: 70)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color(hex: "FFD700"), Color(hex: "FFA500")],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 2
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 8)
-                    
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 32, weight: .medium))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color(hex: "FFD700"), Color(hex: "FFA500")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
+            // ✅ SECCIÓN DE CONTENIDO PRIVADO (Placeholder)
+            VStack(spacing: 32) {
+                // Divisor sutil
+                Rectangle()
+                    .fill(UserProfileColors.borderColor.opacity(0.3))
+                    .frame(height: 1)
+                    .padding(.horizontal, 40)
                 
-                // Mensaje explicativo mejorado
-                VStack(spacing: 16) {
-                    Text("userProfile.private.title")
-                        .font(.custom("Poppins-Bold", size: 20))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("userProfile.private.description")
-                        .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(nil)
-                        .padding(.horizontal, 24)
-                }
-            }
-            .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
+                VStack(spacing: 24) {
+                    // Icono de candado majestuoso
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 90, height: 90)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "00A896").opacity(0.5), Color(hex: "6B73FF").opacity(0.5)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 2
+                                    )
+                            )
+                        
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 38, weight: .bold))
+                            .foregroundStyle(
                                 LinearGradient(
-                                    colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "6B73FF").opacity(0.3)],
+                                    colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
+                                )
                             )
-                    )
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-            )
-            .padding(.horizontal, 20)
+                    }
+                    
+                    VStack(spacing: 12) {
+                        Text("userProfile.private.title")
+                            .font(.custom("Poppins-Bold", size: 22))
+                            .foregroundColor(.primary)
+                        
+                        Text("userProfile.private.description")
+                            .font(.custom("Poppins-Regular", size: 15))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                }
+                .padding(.top, 20)
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
             
             Spacer()
-                .frame(height: safeAreaBottom + 30)
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(hex: "00A896").opacity(0.05),
-                    Color(hex: "6B73FF").opacity(0.03)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
     }
     
     private var followButtonText: String {
         switch followButtonState {
         case .ownProfile:
-            return "Tu perfil"
+            return NSLocalizedString("userProfile.followButton.ownProfile", comment: "Own profile")
         case .blocked:
-            return "Bloqueado"
+            return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
         case .following:
-            return "Siguiendo"
+            return NSLocalizedString("userProfile.followButton.following", comment: "Following")
         case .canFollow:
-            return "Seguir"
+            return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
         case .canRequestFollow:
-            return "Solicitar seguimiento"
+            return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
         case .requestPending:
-            return "Solicitud enviada"
+            return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
         }
     }
 
@@ -2863,6 +2751,7 @@ struct UserMomentPreviewView: View {
 }
 
 // MARK: - ✅ VIEWMODEL
+@MainActor
 class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var userProfile: AppUser?
     @Published var connections: [AppUser] = []
@@ -2905,6 +2794,24 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             return
         }
         isLoading = true
+        
+        // ✅ SwiftData: Carga inicial desde caché local (Instagram-like)
+        if let cachedProfile = LocalPersistenceService.shared.loadUser(userId: userId) {
+            DispatchQueue.main.async {
+                self.userProfile = cachedProfile
+                self.isLoading = false
+            }
+        }
+        
+        // ✅ Cargar conexiones del caché
+        let cachedConnections = LocalPersistenceService.shared.loadConnections(userId: userId)
+        if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty {
+            self.categorizeConnectionsWithPrivacy(
+                followingIds: cachedConnections.following.map { $0.id },
+                followerIds: cachedConnections.followers.map { $0.id }
+            )
+        }
+        
         checkIfBlocked()
         
         firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
@@ -3221,6 +3128,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         fetchGroup.notify(queue: .main) {
             self.fetchMoments()
             self.isLoading = false
+            
+            // ✅ SwiftData: Persistir conexiones en el caché local
+            let allFollowers = self.mutualConnections + self.admirers
+            let allFollowing = self.mutualConnections + self.connections
+            LocalPersistenceService.shared.saveFollowers(userId: self.userId, followers: allFollowers)
+            LocalPersistenceService.shared.saveFollowing(userId: self.userId, following: allFollowing)
         }
     }
     

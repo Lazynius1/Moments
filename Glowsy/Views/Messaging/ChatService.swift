@@ -429,6 +429,32 @@ class ChatService: ObservableObject {
     
     // MARK: - Core Send Message Method
     func sendMessage(_ message: EnhancedMessage, useServerTimestamp: Bool, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+        // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
+        if !NetworkMonitor.shared.isConnected {
+            var pendingMessage = message
+            pendingMessage.status = .pending
+            
+            let payload = MessagePayload(
+                message: pendingMessage,
+                useServerTimestamp: useServerTimestamp
+            )
+            
+            if let data = try? JSONEncoder().encode(payload) {
+                let action = CachedAction(
+                    id: message.id, // Usar el ID del mensaje para evitar duplicados
+                    type: CachedAction.ActionType.message.rawValue,
+                    payloadData: data
+                )
+                
+                Task {
+                    await LocalPersistenceService.shared.saveAction(action)
+                    print("💾 ChatService: Mensaje guardado en outbox (offline)")
+                    completion(.success(pendingMessage)) // Éxito optimista
+                }
+                return
+            }
+        }
+        
         do {
             let messageRef = db.collection("conversations")
                 .document(message.conversationId)
@@ -592,8 +618,18 @@ class ChatService: ObservableObject {
                 "content": nil,
                 "mediaUrl": nil
             ]) { error in
-                if let error = error {
-                }
+                completion(error)
+            }
+    }
+    
+    func deleteMessageForMe(conversationId: String, messageId: String, userId: String, completion: @escaping (Error?) -> Void) {
+        db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .document(messageId)
+            .updateData([
+                "deletedFor": FieldValue.arrayUnion([userId])
+            ]) { error in
                 completion(error)
             }
     }
@@ -675,6 +711,11 @@ class ChatService: ObservableObject {
     }
     
     func addReaction(conversationId: String, messageId: String, emoji: String, userId: String, completion: @escaping (Error?) -> Void) {
+        // ✅ Optimistic UI: Actualizar caché local en background (no bloquea el return)
+        Task(priority: .background) { @MainActor in
+            LocalPersistenceService.shared.toggleMessageReactionLocally(messageId: messageId, emoji: emoji, userId: userId)
+        }
+        
         let messageRef = db.collection("conversations")
             .document(conversationId)
             .collection("messages")
@@ -735,23 +776,8 @@ class ChatService: ObservableObject {
                             completion(.success(false))
                             return
                         }
-                        if user.isPrivate {
-                           FirestoreService().fetchMutualConnections(userId: senderId) { result in
-                                switch result {
-                                case .success(let mutualConnections):
-                                    let isMutual = mutualConnections.contains { $0.id == userId }
-                                    if !isMutual {
-                                        completion(.success(false))
-                                        return
-                                    }
-                                    FirestoreService().checkActiveHours(user: user, completion: completion)
-                                case .failure(let error):
-                                    completion(.failure(error))
-                                }
-                            }
-                        } else {
-                            FirestoreService().checkActiveHours(user: user, completion: completion)
-                        }
+                        // ✅ FIX: No bloquear por horario (Active Hours solo para notificaciones)
+                        completion(.success(true))
                     case .failure(let error):
                         completion(.failure(error))
                     }
@@ -1175,8 +1201,11 @@ class ChatService: ObservableObject {
     }
     
     // ✅ Marcar un mensaje específico como entregado cuando llega la notificación push
-    func markMessageAsDeliveredFromNotification(conversationId: String, messageId: String) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+    func markMessageAsDeliveredFromNotification(conversationId: String, messageId: String, completion: ((Bool) -> Void)? = nil) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { 
+            completion?(false)
+            return 
+        }
         
         // Verificar que el mensaje no sea nuestro antes de marcar como entregado
         db.collection("conversations")
@@ -1189,13 +1218,18 @@ class ChatService: ObservableObject {
                       senderId != currentUserId,
                       let status = data["status"] as? String,
                       status == MessageStatus.sent.rawValue
-                else { return }
+                else { 
+                    completion?(false)
+                    return 
+                }
                 
                 self?.updateMessageStatus(
                     conversationId: conversationId,
                     messageId: messageId,
                     status: .delivered
-                ) { _ in }
+                ) { error in 
+                    completion?(error == nil)
+                }
             }
     }
     
@@ -1772,7 +1806,7 @@ class ChatService: ObservableObject {
 
 // MARK: - Enhanced Ephemeral Cleanup Manager
 class EphemeralCleanupManager: ObservableObject {
-    private let chatService = ChatService()
+    private let chatService = ChatService.shared
     
     init() {
         startCleanupSystem()

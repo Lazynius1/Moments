@@ -77,7 +77,7 @@ struct NovaMemoryManagementView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            .navigationTitle(NSLocalizedString("nova.memory.title", comment: "Nova's Memory"))
+            .navigationTitle(localizedTitle())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(content: {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -101,24 +101,33 @@ struct NovaMemoryManagementView: View {
         }
     }
     
+    private func localizedTitle() -> String {
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch lang {
+        case .es: return "Matices de tu Esencia"
+        case .en: return "Nuances of your Essence"
+        case .ca: return "Matisos de la teva Essència"
+        }
+    }
+
     private func localizedCategoryName(_ type: NovaFactType) -> String {
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         switch (type, lang) {
-        case (.preference, .es): return "Preferencias"
-        case (.preference, .en): return "Preferences"
-        case (.preference, .ca): return "Preferències"
-        case (.personal, .es): return "Personal"
-        case (.personal, .en): return "Personal"
-        case (.personal, .ca): return "Personal"
-        case (.professional, .es): return "Profesional"
-        case (.professional, .en): return "Professional"
-        case (.professional, .ca): return "Professional"
-        case (.interest, .es): return "Intereses"
-        case (.interest, .en): return "Interests"
-        case (.interest, .ca): return "Interessos"
-        case (.general, .es): return "General"
-        case (.general, .en): return "General"
-        case (.general, .ca): return "General"
+        case (.preference, .es): return "Vibras de Comunicación"
+        case (.preference, .en): return "Communication Vibes"
+        case (.preference, .ca): return "Vibres de Comunicació"
+        case (.personal, .es): return "Tu Esencia"
+        case (.personal, .en): return "Your Essence"
+        case (.personal, .ca): return "La teva Essència"
+        case (.professional, .es): return "Tu Camino"
+        case (.professional, .en): return "Your Path"
+        case (.professional, .ca): return "El teu Camí"
+        case (.interest, .es): return "Lo que te hace vibrar"
+        case (.interest, .en): return "What makes you glow"
+        case (.interest, .ca): return "El que et fa vibrar"
+        case (.general, .es): return "Destellos"
+        case (.general, .en): return "Sparkles"
+        case (.general, .ca): return "Espurnes"
         }
     }
 }
@@ -133,10 +142,18 @@ struct MemoryFactRow: View {
                 Text(fact.content)
                     .font(.custom("Poppins-Medium", size: 15))
                     .foregroundColor(ModernGeminiColors.textPrimary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
                 
-                Text(fact.timestamp.timeAgoDisplay())
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(ModernGeminiColors.textTertiary)
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(categoryColor(fact.type).opacity(0.8))
+                        .frame(width: 6, height: 6)
+                    
+                    Text(fact.timestamp.timeAgoDisplay())
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(ModernGeminiColors.textTertiary)
+                }
             }
             
             Spacer()
@@ -149,6 +166,16 @@ struct MemoryFactRow: View {
             .buttonStyle(PlainButtonStyle())
         }
         .padding(.vertical, 4)
+    }
+    
+    private func categoryColor(_ type: NovaFactType) -> Color {
+        switch type {
+        case .preference: return .blue
+        case .personal: return .purple
+        case .professional: return .orange
+        case .interest: return .red
+        case .general: return .gray
+        }
     }
 }
 

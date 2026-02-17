@@ -1,5 +1,6 @@
 // BackgroundStoryUploadService.swift
 import Foundation
+import CoreLocation
 import FirebaseAuth
 import FirebaseFirestore
 import SwiftUI
@@ -94,18 +95,86 @@ class UploadingStory: ObservableObject, Identifiable {
     }
 }
 
+// MARK: - 📦 PERSISTENCE PAYLOADS
+struct StoryUploadPayload: Codable {
+    let userId: String
+    let mediaItem: CachedMediaItem
+    let storyText: String?
+    let textPosition: CGPoint?
+    let selectedTextStyle: String?
+    let stickers: [CachedSticker]?
+    let drawingFileName: String?
+    let audienceSetting: String
+    let customViewers: [String]?
+    let customListId: String?
+    let selectedListName: String?
+    let createdAt: Date
+    
+    // Story Chain fields
+    let chainId: String?
+    let chainPosition: Int?
+    let chainTitle: String?
+    let allowOthersToContinue: Bool?
+    let continuationAudience: String?
+    let continuationCustomViewers: [String]?
+    let continuationCustomListId: String?
+    let continuationCustomListName: String?
+}
+
+struct CachedSticker: Codable {
+    let id: String
+    let localImageName: String?
+    let position: CGPoint
+    let scale: CGFloat
+    let rotationRadians: Double
+    let gifURL: URL?
+    let videoURL: URL? // ✅ NUEVO: Persistencia de Video URL
+    let isAnimated: Bool
+    let type: String
+    let interactionData: CachedStickerInteractionData?
+}
+
+struct CachedStickerInteractionData: Codable {
+    let username: String?
+    let userId: String?
+    let hashtag: String?
+    let location: String?
+    let latitude: Double?
+    let longitude: Double?
+    let pollData: [String]?
+    let questionText: String?
+    let weatherSymbol: String?
+    let caption: String? // ✅ NUEVA
+    let profileImagePath: String? // ✅ NUEVA: Persistencia de imagen de perfil
+    let momentId: String? // ✅ NUEVA: Para navegación
+    let mediaCount: Int? // ✅ NUEVA: Para indicador de galería
+}
+
 // MARK: - 🔥 SERVICIO PRINCIPAL DE STORIES
+@MainActor
 class BackgroundStoryUploadService: ObservableObject {
     static let shared = BackgroundStoryUploadService()
     
     @Published var uploadingStory: UploadingStory? // Solo una historia a la vez
     @Published var isProcessing = false
     
+    private let pendingUploadsDir: URL = {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        return paths[0].appendingPathComponent("pending_story_uploads")
+    }()
+    
     // ✅ NUEVO: Live Activity para Dynamic Island
     @available(iOS 16.1, *)
     private var liveActivity: Activity<StoryUploadActivityAttributes>?
     
-    private init() {}
+    private init() {
+        // ✅ Limpiar actividades huerfanas de sesiones anteriores
+        if #available(iOS 16.1, *) {
+            Task {
+                await cleanupStaleLiveActivities()
+            }
+        }
+    }
     
     // MARK: - 📤 FUNCIÓN PRINCIPAL: Iniciar upload de historia en background
     func uploadStory(
@@ -207,15 +276,23 @@ class BackgroundStoryUploadService: ObservableObject {
         }
         
         // Procesar en background
-        Task.detached(priority: .userInitiated) {
+        Task {
+            // 1. Persistir acción en disco por si la app muere
+            await self.persistAction(uploadingStory)
+            
+            // 2. Ejecutar upload
             await self.processStoryUpload(uploadingStory)
             
+            // 3. Limpiar acción y archivos al terminar (éxito o error fatal)
+            if uploadingStory.status == .completed || uploadingStory.status == .moderated {
+                await LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
+                self.deleteActionFiles(id: uploadingStory.tempId)
+            }
+            
             // ✅ Terminar background task
-            DispatchQueue.main.async {
-                if backgroundTaskID != .invalid {
-                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
-                    backgroundTaskID = .invalid
-                }
+            if backgroundTaskID != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
             }
         }
         
@@ -508,6 +585,31 @@ class BackgroundStoryUploadService: ObservableObject {
             url: mediaUrl
         )
         
+        // ✅ NORMALIZAR STICKERS EN EL ÁREA REAL DEL CONTENIDO (tipo Instagram)
+        // Guardamos posición relativa (u,v) dentro del contentRect y escala relativa al ancho del contentRect.
+        // Así se mantiene estable entre móviles con tamaños/ratios distintos.
+        let contentRect = storyContentRectInEditor(for: uploadingStory, aspectRatio: aspectRatio)
+        let referenceContentWidth: CGFloat = 375.0
+        
+        let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.compactMap { stickerItem in
+            var normalizedItem = stickerItem
+            
+            let safeWidth = max(contentRect.width, 1)
+            let safeHeight = max(contentRect.height, 1)
+            
+            let normalizedX = (stickerItem.position.x - contentRect.minX) / safeWidth
+            let normalizedY = (stickerItem.position.y - contentRect.minY) / safeHeight
+            let normalizedScale = stickerItem.scale * (referenceContentWidth / safeWidth)
+            
+            normalizedItem.position = CGPoint(
+                x: normalizedX.isFinite ? normalizedX : 0.5,
+                y: normalizedY.isFinite ? normalizedY : 0.5
+            )
+            normalizedItem.scale = normalizedScale.isFinite ? normalizedScale : stickerItem.scale
+            
+            return StickerData.from(normalizedItem)
+        }
+        
         return try await withCheckedThrowingContinuation { continuation in
             if uploadingStory.audienceSetting == .customList && uploadingStory.customListId != nil {
                 // Lista personalizada
@@ -518,7 +620,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     text: uploadingStory.storyText,
                     textPosition: uploadingStory.textPosition,
                     textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
-                    stickers: uploadingStory.stickerData?.compactMap { StickerData.from($0) },
+                    stickers: normalizedStickerData, // ✅ USAR DATOS NORMALIZADOS
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
                     backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
@@ -549,7 +651,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     text: uploadingStory.storyText,
                     textPosition: uploadingStory.textPosition,
                     textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
-                    stickers: uploadingStory.stickerData?.compactMap { StickerData.from($0) },
+                    stickers: normalizedStickerData, // ✅ USAR DATOS NORMALIZADOS
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
                     backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
@@ -572,6 +674,85 @@ class BackgroundStoryUploadService: ObservableObject {
                 }
             }
         }
+    }
+    
+    // MARK: - 🎯 STICKER LAYOUT HELPERS
+    private func storyContentRectInEditor(for uploadingStory: UploadingStory, aspectRatio: String?) -> CGRect {
+        let containerSize = UIScreen.main.bounds.size
+        let resolvedAspectRatio = parseAspectRatio(aspectRatio) ?? {
+            let imageSize = (uploadingStory.finalRenderedImage ?? uploadingStory.mediaItem.image).size
+            guard imageSize.width > 0, imageSize.height > 0 else {
+                return containerSize.width / max(containerSize.height, 1)
+            }
+            return imageSize.width / imageSize.height
+        }()
+        
+        let contentMode: SwiftUI.ContentMode = resolvedAspectRatio > 1 ? .fit : .fill
+        return contentRect(
+            containerSize: containerSize,
+            mediaAspectRatio: resolvedAspectRatio,
+            contentMode: contentMode
+        )
+    }
+    
+    private func parseAspectRatio(_ aspectRatio: String?) -> CGFloat? {
+        guard let aspectRatio else { return nil }
+        let components = aspectRatio.split(separator: ":")
+        guard components.count == 2,
+              let widthValue = Double(components[0]),
+              let heightValue = Double(components[1]) else {
+            return nil
+        }
+        
+        let width = CGFloat(widthValue)
+        let height = CGFloat(heightValue)
+        guard
+              width > 0,
+              height > 0 else {
+            return nil
+        }
+        return width / height
+    }
+    
+    private func contentRect(
+        containerSize: CGSize,
+        mediaAspectRatio: CGFloat,
+        contentMode: SwiftUI.ContentMode
+    ) -> CGRect {
+        let containerWidth = max(containerSize.width, 1)
+        let containerHeight = max(containerSize.height, 1)
+        let containerAspectRatio = containerWidth / containerHeight
+        
+        let isFit = contentMode == .fit
+        let mediaIsWider = mediaAspectRatio > containerAspectRatio
+        
+        let width: CGFloat
+        let height: CGFloat
+        
+        if isFit {
+            if mediaIsWider {
+                width = containerWidth
+                height = containerWidth / max(mediaAspectRatio, 0.0001)
+            } else {
+                height = containerHeight
+                width = containerHeight * mediaAspectRatio
+            }
+        } else {
+            if mediaIsWider {
+                height = containerHeight
+                width = containerHeight * mediaAspectRatio
+            } else {
+                width = containerWidth
+                height = containerWidth / max(mediaAspectRatio, 0.0001)
+            }
+        }
+        
+        return CGRect(
+            x: (containerWidth - width) / 2,
+            y: (containerHeight - height) / 2,
+            width: width,
+            height: height
+        )
     }
     
     
@@ -734,6 +915,11 @@ class BackgroundStoryUploadService: ObservableObject {
     
     @MainActor
     private func removeUploadingStory() {
+        // ✅ Asegurar que la Live Activity se cierre si se cancela o elimina
+        if #available(iOS 16.1, *) {
+            endLiveActivity()
+        }
+        
         uploadingStory = nil
         isProcessing = false
     }
@@ -771,10 +957,317 @@ class BackgroundStoryUploadService: ObservableObject {
     
     // MARK: - 🗑️ CANCELAR UPLOAD
     func cancelUpload(_ story: UploadingStory) {
-        DispatchQueue.main.async {
-            if let currentStory = self.uploadingStory, currentStory.id == story.id {
-                self.removeUploadingStory()
+        if let currentStory = self.uploadingStory, currentStory.id == story.id {
+            self.removeUploadingStory()
+        }
+    }
+    
+    // MARK: - 💾 PERSISTENCIA: Cola de Outbox
+    
+    /// Prepara una acción persistente antes de iniciar el upload
+    func persistAction(_ uploadingStory: UploadingStory) async {
+        do {
+            // 1. Asegurar que existe el directorio
+            if !FileManager.default.fileExists(atPath: self.pendingUploadsDir.path) {
+                try FileManager.default.createDirectory(at: self.pendingUploadsDir, withIntermediateDirectories: true)
             }
+            
+            // 2. Guardar archivo principal en disco
+            let cachedMedia = try await self.saveMediaToDisk(uploadingStory.mediaItem)
+            
+            // 3. Guardar stickers en disco
+            var cachedStickers: [CachedSticker] = []
+            if let stickers = uploadingStory.stickerData {
+                for sticker in stickers {
+                    let cached = try await self.saveStickerToDisk(sticker)
+                    cachedStickers.append(cached)
+                }
+            }
+            
+            // 4. Guardar dibujo si existe
+            var drawingFileName: String? = nil
+            if let drawingData = uploadingStory.drawingData {
+                drawingFileName = "\(uploadingStory.tempId)_drawing.png"
+                let drawingURL = pendingUploadsDir.appendingPathComponent(drawingFileName!)
+                try drawingData.write(to: drawingURL)
+            }
+            
+            // 5. Crear payload
+            let payload = StoryUploadPayload(
+                userId: uploadingStory.userId,
+                mediaItem: cachedMedia,
+                storyText: uploadingStory.storyText,
+                textPosition: uploadingStory.textPosition,
+                selectedTextStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
+                stickers: cachedStickers.isEmpty ? nil : cachedStickers,
+                drawingFileName: drawingFileName,
+                audienceSetting: uploadingStory.audienceSetting.rawValue,
+                customViewers: uploadingStory.customViewers,
+                customListId: uploadingStory.customListId,
+                selectedListName: uploadingStory.selectedListName,
+                createdAt: uploadingStory.createdAt,
+                chainId: uploadingStory.chainId,
+                chainPosition: uploadingStory.chainPosition,
+                chainTitle: uploadingStory.chainTitle,
+                allowOthersToContinue: uploadingStory.allowOthersToContinue,
+                continuationAudience: uploadingStory.continuationAudience?.rawValue,
+                continuationCustomViewers: uploadingStory.continuationCustomViewers,
+                continuationCustomListId: uploadingStory.continuationCustomListId,
+                continuationCustomListName: uploadingStory.continuationCustomListName
+            )
+            
+            let encodedPayload = try JSONEncoder().encode(payload)
+            
+            // 6. Guardar en SwiftData
+            let action = CachedAction(
+                id: uploadingStory.tempId,
+                type: CachedAction.ActionType.storyUpload.rawValue,
+                payloadData: encodedPayload
+            )
+            
+            await LocalPersistenceService.shared.saveAction(action)
+            print("💾 BackgroundStoryUpload: Acción persistida correctamente (\(uploadingStory.tempId))")
+            
+        } catch {
+            print("❌ BackgroundStoryUpload: Error al persistir acción: \(error)")
+        }
+    }
+    
+    private func saveMediaToDisk(_ media: ProcessedMedia) async throws -> CachedMediaItem {
+        let id = UUID().uuidString
+        let fileName = "\(id)_\(media.type == .image ? "img.jpg" : "vid.mp4")"
+        let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
+        
+        if media.type == .image {
+            let image = media.image
+            if let data = image.jpegData(compressionQuality: 0.8) {
+                try data.write(to: fileURL)
+            }
+        } else if media.type == .video, let videoURL = media.videoURL {
+            try FileManager.default.copyItem(at: videoURL, to: fileURL)
+        }
+        
+        // Guardar thumbnail si existe
+        var thumbName: String? = nil
+        if let thumbURL = media.thumbnailURL {
+            thumbName = "\(id)_thumb.jpg"
+            let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
+            try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
+        }
+        
+        return CachedMediaItem(
+            type: media.type == .image ? "image" : "video",
+            localFileName: fileName,
+            thumbnailFileName: thumbName,
+            videoDuration: media.videoDuration,
+            videoFileSize: media.videoFileSize,
+            videoResolution: media.videoResolution,
+            tagsData: nil // Historias no usan PhotoTags tradicionales
+        )
+    }
+    
+    private func saveStickerToDisk(_ sticker: StickerItem) async throws -> CachedSticker {
+        let id = sticker.id
+        var localImageName: String? = nil
+        
+        // Solo guardamos la imagen si no es un sticker animado (GIF)
+        if !sticker.isAnimated {
+            let fileName = "sticker_\(UUID().uuidString).png"
+            let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
+            if let data = sticker.image.pngData() {
+                try data.write(to: fileURL)
+                localImageName = fileName
+            }
+        }
+        
+        let interaction = sticker.interactionData.map { data in
+            CachedStickerInteractionData(
+                username: data.username,
+                userId: data.userId,
+                hashtag: data.hashtag,
+                location: data.location,
+                latitude: data.locationCoordinate?.latitude,
+                longitude: data.locationCoordinate?.longitude,
+                pollData: data.pollData,
+                questionText: data.questionText,
+                weatherSymbol: data.weatherSymbol,
+                caption: data.caption,
+                profileImagePath: data.profileImagePath,
+                momentId: data.momentId,
+                mediaCount: data.mediaCount
+            )
+        }
+        
+        return CachedSticker(
+            id: sticker.id,
+            localImageName: localImageName,
+            position: sticker.position,
+            scale: sticker.scale,
+            rotationRadians: sticker.rotation.radians,
+            gifURL: sticker.gifURL,
+            videoURL: sticker.videoURL, // ✅ Guardar Video URL
+            isAnimated: sticker.isAnimated,
+            type: sticker.type.rawValue,
+            interactionData: interaction
+        )
+    }
+    
+    /// Borra los archivos temporales asociados a una acción
+    func deleteActionFiles(id: String) {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: pendingUploadsDir, includingPropertiesForKeys: nil) else { return }
+        
+        for file in files {
+            // Borramos archivos que contengan el ID de la historia (tempId o id de acción)
+            if file.lastPathComponent.contains(id) {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+    
+    /// Reanuda una subida desde una acción persistida
+    func resumeUpload(from action: CachedAction) async {
+        guard action.type == CachedAction.ActionType.storyUpload.rawValue else { return }
+        
+        do {
+            let payload = try JSONDecoder().decode(StoryUploadPayload.self, from: action.payloadData)
+            
+            // ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
+            if let currentStory = uploadingStory, currentStory.tempId == action.id {
+                 print("⏳ BackgroundStoryUpload: La historia \(action.id) ya se está subiendo. Saltando duplicado.")
+                 return
+            }
+
+            // ✅ AUDIENCE CHECK: Asegurar compatibilidad con onlyMe y customList
+            // El rawValue directo suele funcionar, pero si queremos ser explícitos como en MomentUpload:
+            let audience: ContentAudience = {
+                if let aud = ContentAudience(rawValue: payload.audienceSetting) {
+                    return aud
+                }
+                // Fallback manual por si acaso
+                switch payload.audienceSetting {
+                case "everyone": return .everyone
+                case "connections": return .connections
+                case "bestFriends": return .bestFriends
+                case "custom": return .custom
+                case "customList": return .customList
+                case "onlyMe": return .onlyMe
+                default: return .everyone
+                }
+            }()
+            
+            // 1. Reconstruir MediaItem
+            let mediaFileURL = pendingUploadsDir.appendingPathComponent(payload.mediaItem.localFileName)
+            guard FileManager.default.fileExists(atPath: mediaFileURL.path) else { return }
+            
+            let thumbURL: URL? = payload.mediaItem.thumbnailFileName != nil ? pendingUploadsDir.appendingPathComponent(payload.mediaItem.thumbnailFileName!) : nil
+            
+            // Determinar aspect ratio
+            let itemAspectRatio: CreatorMedia.AspectRatio = {
+                if payload.mediaItem.type == "image", let uiImage = UIImage(contentsOfFile: mediaFileURL.path) {
+                    return CreatorMedia.AspectRatio.fromRatio(uiImage.size.width / uiImage.size.height)
+                }
+                return .square
+            }()
+            
+            var processedMedia = ProcessedMedia(
+                type: payload.mediaItem.type == "image" ? .image : .video,
+                image: (payload.mediaItem.type == "image" ? UIImage(contentsOfFile: mediaFileURL.path) : nil) ?? UIImage(),
+                videoURL: payload.mediaItem.type == "video" ? mediaFileURL : nil,
+                aspectRatio: itemAspectRatio
+            )
+            processedMedia.thumbnailURL = thumbURL
+            processedMedia.videoDuration = payload.mediaItem.videoDuration
+            processedMedia.videoFileSize = payload.mediaItem.videoFileSize
+            processedMedia.videoResolution = payload.mediaItem.videoResolution
+            
+            // 2. Reconstruir Stickers
+            var stickers: [StickerItem] = []
+            if let cachedStickers = payload.stickers {
+                for cached in cachedStickers {
+                    var image = UIImage()
+                    if let localName = cached.localImageName {
+                        let path = pendingUploadsDir.appendingPathComponent(localName).path
+                        image = UIImage(contentsOfFile: path) ?? UIImage()
+                    }
+                    
+                    let type = StickerItem.StickerType(rawValue: cached.type) ?? .generic
+                    let interaction = cached.interactionData.map { data in
+                        StickerItem.StickerInteractionData(
+                            username: data.username,
+                            userId: data.userId,
+                            hashtag: data.hashtag,
+                            location: data.location,
+                            locationCoordinate: (data.latitude != nil && data.longitude != nil) ? CLLocationCoordinate2D(latitude: data.latitude!, longitude: data.longitude!) : nil,
+                            pollData: data.pollData,
+                            questionText: data.questionText,
+                            weatherSymbol: data.weatherSymbol,
+                            caption: data.caption,
+                            profileImagePath: data.profileImagePath,
+                            momentId: data.momentId,
+                            mediaCount: data.mediaCount
+                        )
+                    }
+                    
+                    var sticker: StickerItem
+                    if cached.isAnimated {
+                        if let videoURL = cached.videoURL {
+                            // ✅ RECONSTRUIR VIDEO STICKER
+                            sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction, videoURL: videoURL)
+                        } else if let gifURL = cached.gifURL {
+                            // ✅ RECONSTRUIR GIF ANIMADO
+                            sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction, gifURL: gifURL)
+                        } else {
+                            // Fallback (raro si es animado)
+                            sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction)
+                        }
+                    } else {
+                         sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction)
+                    }
+                    sticker.scale = cached.scale
+                    sticker.rotation = .radians(cached.rotationRadians)
+                    stickers.append(sticker)
+                }
+            }
+            
+            // 3. Reconstruir Dibujo
+            var drawingData: Data? = nil
+            if let drawingName = payload.drawingFileName {
+                let path = pendingUploadsDir.appendingPathComponent(drawingName).path
+                drawingData = try? Data(contentsOf: URL(fileURLWithPath: path))
+            }
+            
+            // 4. Iniciar upload
+            // let audience = ContentAudience(rawValue: payload.audienceSetting) ?? .everyone // Eliminado, usamos la variable de arriba
+            let continuationAudience = payload.continuationAudience != nil ? ContentAudience(rawValue: payload.continuationAudience!) : nil
+            
+            _ = uploadStory(
+                mediaItem: processedMedia,
+                storyText: payload.storyText,
+                textPosition: payload.textPosition,
+                selectedTextStyle: payload.selectedTextStyle,
+                stickerData: stickers.isEmpty ? nil : stickers,
+                drawingData: drawingData,
+                audienceSetting: audience,
+                customViewers: payload.customViewers,
+                customListId: payload.customListId,
+                selectedListName: payload.selectedListName,
+                finalRenderedImage: nil,
+                chainId: payload.chainId,
+                chainPosition: payload.chainPosition,
+                chainTitle: payload.chainTitle,
+                allowOthersToContinue: payload.allowOthersToContinue,
+                continuationAudience: continuationAudience,
+                continuationCustomViewers: payload.continuationCustomViewers,
+                continuationCustomListId: payload.continuationCustomListId,
+                continuationCustomListName: payload.continuationCustomListName
+            )
+            
+            LocalPersistenceService.shared.deleteAction(id: action.id)
+            
+            print("🚀 BackgroundStoryUpload: Subida reanudada desde el disco (\(action.id))")
+            
+        } catch {
+            print("❌ BackgroundStoryUpload: Error al reanudar subida: \(error)")
         }
     }
 }
@@ -951,6 +1444,25 @@ extension BackgroundStoryUploadService {
         await activity.end(dismissalPolicy: .immediate)
         await MainActor.run {
             liveActivity = nil
+        }
+    }
+    
+    // ✅ NUEVO: Limpiar actividades huerfanas al inicio
+    @available(iOS 16.1, *)
+    private func cleanupStaleLiveActivities() async {
+        // Obtener todas las actividades de este tipo
+        for activity in Activity<StoryUploadActivityAttributes>.activities {
+            // Si hay una actividad en curso (liveActivity), no la borramos (aunque en init no debería haber)
+            // Pero si la app se reinició, activity != liveActivity (que es nil o nueva)
+            // Así que borramos TODAS las actividades antiguas almacenadas por el sistema
+            
+            // Solo borramos si NO es la actual (por si acaso se llama en otro momento)
+            if let current = liveActivity, current.id == activity.id {
+                continue
+            }
+            
+            print("🧹 Limpiando Live Activity huerfana: \(activity.id)")
+            await activity.end(dismissalPolicy: .immediate)
         }
     }
     

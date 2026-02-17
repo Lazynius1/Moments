@@ -598,6 +598,26 @@ class NovaActivityService {
         let change = Double(current - previous) / Double(previous) * 100
         return Int(round(change))
     }
+    
+    // MARK: - 🌊 Echo Sparks
+    /// Activa un "Spark" de Nova para sugerir un Echo proactivamente
+    func triggerEchoSpark(echoId: String, userId: String) {
+        print("✨ Nova Activity: Triggering Echo Spark for \(userId) on echo \(echoId)")
+        
+        let insight = ProactiveInsight(
+            type: .echoAvailable,
+            severity: .high,
+            metric: "echo",
+            change: 0,
+            suggestion: "Hay personas cerca con momentos similares. ¡Creen un Echo!"
+        )
+        
+        NotificationCenter.default.post(
+            name: NSNotification.Name("NovaEchoSparkTriggered"),
+            object: nil,
+            userInfo: ["echoId": echoId, "userId": userId, "insight": insight.rawData]
+        )
+    }
 }
 
 // MARK: - 📊 Modelos de Datos
@@ -610,6 +630,7 @@ enum InsightType {
     case lowActivity
     case storyViewsLow
     case positiveTrend
+    case echoAvailable
 }
 
 enum InsightSeverity {
@@ -645,6 +666,7 @@ struct ProactiveInsight {
         case .lowActivity: return "lowActivity"
         case .storyViewsLow: return "storyViewsLow"
         case .positiveTrend: return "positiveTrend"
+        case .echoAvailable: return "echoAvailable"
         }
     }
     

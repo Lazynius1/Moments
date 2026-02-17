@@ -14,7 +14,9 @@ struct ExploreView: View {
     @State private var selectedMoment: Moment?
     @State private var selectedUser: AppUser?
     @State private var scrollOffset: CGFloat = 0
+    @State private var isSearchFocused: Bool = false // ✅ NUEVO
     @State private var showTrendingView = false
+
     @State private var showSuggestedUsersView = false
     let initialSearchQuery: String?
     
@@ -180,11 +182,13 @@ struct ExploreView: View {
         private var searchSection: some View {
             SearchBarView(
                 searchText: $searchText,
-                onSearch: viewModel.smartSearch  // ✅ CAMBIO: era viewModel.searchUsers
+                isSearchFocused: $isSearchFocused, // ✅ Pasar estado del foco
+                onSearch: viewModel.smartSearch
             )
             .padding(.horizontal, 24)
             .padding(.bottom, 12)
         }
+
         
         private var mainContent: some View {
             Group {
@@ -204,17 +208,30 @@ struct ExploreView: View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 24) {
                 if searchText.isEmpty {
-                    // ✅ Solo contenido esencial - SIN trending
-                    suggestedUsersSection
-                    
-                    if !viewModel.moments.isEmpty {
-                        DynamicMomentsGrid(moments: viewModel.moments, onMomentTap: handleMomentTap)
-                            .padding(.bottom, 80)
+                    if isSearchFocused {
+                         RecentSearchesView(
+                            searches: viewModel.recentSearches,
+                            onSearchSelected: { search in
+                                searchText = search.query
+                                viewModel.smartSearch(query: search.query)
+                            },
+                            onClearAll: {
+                                viewModel.clearAllSearches()
+                            }
+                        )
+                    } else {
+                        // ✅ Solo contenido esencial - SIN trending
+                        suggestedUsersSection
+                        
+                        if !viewModel.moments.isEmpty {
+                            DynamicMomentsGrid(moments: viewModel.moments, onMomentTap: handleMomentTap)
+                                .padding(.bottom, 80)
+                        }
                     }
-                    
                 } else {
                     searchResultsSection
                 }
+
             }
             .background(
                 GeometryReader { geo in
@@ -280,7 +297,10 @@ struct ExploreView: View {
                 onUserTap: { user in
                     selectedUser = user
                     viewModel.checkCanViewContent(for: user.id) { _ in }
+                    // ✅ Guardar en historial
+                    viewModel.saveSearchRecord(query: user.username, type: "user", targetId: user.id)
                 },
+
                 onMomentTap: { moment in
                     viewModel.checkCanViewContent(for: moment.authorId) { canView in
                         if canView {
@@ -314,13 +334,15 @@ struct ExploreView: View {
     }
     
 
-// MARK: - Barra de Búsqueda
 struct SearchBarView: View {
     @Binding var searchText: String
+    @Binding var isSearchFocused: Bool // ✅ Cambiar a Simple Binding para sincronizar
     let onSearch: (String) -> Void
-    @FocusState private var isSearchFocused: Bool
+    @FocusState private var internalFocus: Bool // ✅ FocusState interno
     
     var body: some View {
+
+
         HStack(spacing: 16) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
@@ -362,13 +384,17 @@ struct SearchBarView: View {
                         .foregroundColor(isSearchFocused ? Color(hex: "667eea") : .secondary)
                         .animation(.easeInOut(duration: 0.3), value: isSearchFocused)
                     
-                    TextField("Buscar usuarios, #hashtags, ubicaciones...", text: $searchText)
+                    TextField("explore.search.placeholder", text: $searchText)
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.primary)
-                        .focused($isSearchFocused)
-                        .onChange(of: searchText) { newValue in
-                            onSearch(newValue)
+                        .focused($internalFocus)
+                        .onChange(of: internalFocus) { newValue in
+                            isSearchFocused = newValue
                         }
+                        .onChange(of: searchText) { newValue in
+                             onSearch(newValue)
+                        }
+
                     
                     if !searchText.isEmpty {
                         Button(action: {
@@ -388,7 +414,7 @@ struct SearchBarView: View {
             .frame(height: 40)
             
             if isSearchFocused {
-                Button("Cancelar") {
+                Button(NSLocalizedString("explore.search.cancel", comment: "")) {
                     searchText = ""
                     onSearch("")
                     isSearchFocused = false
@@ -572,11 +598,12 @@ struct SuggestedUserCard: View {
         ZStack {
             // ✅ FONDO: Imagen del momento o Gradiente
             GeometryReader { geometry in
-                if let moment = backgroundMoment,
-                   let imagePath = moment.imagePath,
-                   let url = getImageURL(from: imagePath) {
-                    
-                    KFImage(url)
+                // ✅ NUEVO: Priorizar thumbnailUrl (video) o imagePath (imagen) para el fondo
+                let url = backgroundMoment?.thumbnailUrl != nil ? URL(string: backgroundMoment!.thumbnailUrl!) : 
+                         (backgroundMoment?.imagePath != nil ? getImageURL(from: backgroundMoment!.imagePath!) : nil)
+                
+                if let bgUrl = url {
+                    KFImage(bgUrl)
                         .placeholder {
                             defaultBackground
                         }
@@ -633,7 +660,7 @@ struct SuggestedUserCard: View {
                             .foregroundColor(.white.opacity(0.9))
                             .lineLimit(1)
                     } else {
-                        Text("Suggested for you")
+                        Text(NSLocalizedString("explore.suggestedUsers.suggestedForYou", comment: ""))
                              .font(.custom("Poppins-Medium", size: 11))
                              .foregroundColor(.white.opacity(0.9))
                     }
@@ -1041,7 +1068,7 @@ struct MomentCard: View {
                     Color.gray.opacity(0.1)
                     
                     if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
-                        ExploreVideoThumbnailView(videoUrl: videoUrl)
+                        ExploreVideoThumbnailView(videoUrl: videoUrl, thumbnailUrl: moment.thumbnailUrl)
                             .aspectRatio(contentMode: .fill)
                             .frame(width: geometry.size.width, height: geometry.size.width)
                             .clipped()
@@ -1085,12 +1112,18 @@ struct MomentCard: View {
 // MARK: - Video Thumbnail View
 struct ExploreVideoThumbnailView: View {
     let videoUrl: String
+    let thumbnailUrl: String? // ✅ Nuevo
     @State private var thumbnailImage: UIImage?
     @State private var isLoading = true
     
     var body: some View {
         Group {
-            if let thumbnail = thumbnailImage {
+            if let thumbUrl = thumbnailUrl, let url = URL(string: thumbUrl) {
+                // ✅ NUEVO: Usar miniatura pre-generada
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+            } else if let thumbnail = thumbnailImage {
                 Image(uiImage: thumbnail)
                     .resizable()
                     .scaledToFill()
@@ -1249,6 +1282,7 @@ struct ScrollOffsetKey: PreferenceKey {
 }
 
 // MARK: - ExploreViewModel ACTUALIZADO
+@MainActor
 class ExploreViewModel: ObservableObject {
     @Published var moments: [Moment] = []
     @Published var filteredMoments: [Moment] = []
@@ -1264,12 +1298,21 @@ class ExploreViewModel: ObservableObject {
     @Published var isLoadingTrending: Bool = false
     @Published var trendingError: String?
     
+    // ✅ HISTORIAL DE BÚSQUEDA
+    @Published var recentSearches: [CachedSearch] = []
+
+    
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService()
     var currentUserInterests: [String] = []
     private var currentUserId: String?
     private var blockedUsers: Set<String> = []
     private let trendingService = TrendingService.shared
+    
+    init() {
+        loadRecentSearches()
+    }
+
     
     // MARK: - FLUJO PRINCIPAL SIMPLIFICADO
     func fetchMomentsByInterests() {
@@ -1282,6 +1325,13 @@ class ExploreViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
+        // ✅ SwiftData: Cargar del caché local inmediatamente
+        let cachedMoments = LocalPersistenceService.shared.loadExploreMoments()
+        if !cachedMoments.isEmpty && self.moments.isEmpty {
+            self.moments = cachedMoments
+            self.filteredMoments = cachedMoments
+            self.isLoading = false // UI instantánea con datos cacheados
+        }
 
         
         // 1. PASO OBLIGATORIO: Cargar perfil del usuario actual
@@ -1323,37 +1373,34 @@ class ExploreViewModel: ObservableObject {
         self.firestoreService.fetchUsersWithSharedInterests(
             interests: self.currentUserInterests,
             excludingUserId: userId
-        ) { result in
+        ) { [weak self] result in
             defer { group.leave() }
             
             if case .success(let users) = result {
                 syncQueue.async {
                     allDiscoveredUsers.formUnion(users)
                 }
-        
             }
         }
         
         // 2. Usuarios sugeridos (algoritmo interno de Firebase)
         group.enter()
-        self.firestoreService.fetchSuggestedUsers { result in
+        self.firestoreService.fetchSuggestedUsers { [weak self] result in
             defer { group.leave() }
             
             if case .success(let users) = result {
                 syncQueue.async {
                     allDiscoveredUsers.formUnion(users.prefix(20))
                 }
-        
             }
         }
         
         // 3. Usuarios populares (fallback)
         group.enter()
-        self.fetchPopularUsersForExplore(excludingUserId: userId) { users in
+        self.fetchPopularUsersForExplore(excludingUserId: userId) { [weak self] users in
             syncQueue.async {
                 allDiscoveredUsers.formUnion(users)
             }
-    
             group.leave()
         }
         
@@ -1401,7 +1448,7 @@ class ExploreViewModel: ObservableObject {
         firestoreService.db.collection("users")
             .whereField("isPrivate", isEqualTo: false) // Solo perfiles públicos para Explore
             .limit(to: 30)
-            .getDocuments { snapshot, error in
+            .getDocuments { [weak self] snapshot, error in
                 if let error = error {
                     completion([])
                     return
@@ -1437,6 +1484,12 @@ class ExploreViewModel: ObservableObject {
                         self.isLoading = false
                         self.moments = filteredMoments
                         self.filteredMoments = filteredMoments
+                        
+                        // ✅ SwiftData: Guardar en caché local para offline
+                        Task { @MainActor in
+                            // Usamos sync: true para purgar momentos que ya no son tendencia/interés
+                            LocalPersistenceService.shared.saveExploreMoments(filteredMoments, sync: true)
+                        }
                 
                         self.loadConnectionsOptionally()
                     }
@@ -1478,14 +1531,11 @@ class ExploreViewModel: ObservableObject {
             group.enter()
             
             // ✅ USAR LA NUEVA FUNCIÓN ESPECÍFICA PARA EXPLORE
-            privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
+            privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { [weak self] canView in
                 if canView {
                     syncQueue.sync {
                         visibleMoments.append(moment)
                     }
-                                    // Momento visible
-            } else {
-                // Momento filtrado
                 }
                 group.leave()
             }
@@ -1520,7 +1570,7 @@ class ExploreViewModel: ObservableObject {
         
         // Cargar usuarios seguidos
         group.enter()
-        firestoreService.fetchConnections(userId: userId) { result in
+        firestoreService.fetchConnections(userId: userId) { [weak self] result in
             defer { group.leave() }
             switch result {
             case .success(let connections):
@@ -1532,7 +1582,7 @@ class ExploreViewModel: ObservableObject {
         
         // Cargar solicitudes pendientes
         group.enter()
-        NotificationService.shared.fetchNotificationsOnce(userId: userId) { result in
+        NotificationService.shared.fetchNotificationsOnce(userId: userId) { [weak self] result in
             defer { group.leave() }
             switch result {
             case .success(let notifications):
@@ -1791,7 +1841,28 @@ extension ExploreViewModel {
         errorMessage = nil
         isLoading = false
     }
+    
+    // MARK: - HISTORIAL DE BÚSQUEDA (SwiftData)
+    func loadRecentSearches() {
+        self.recentSearches = LocalPersistenceService.shared.loadRecentSearches()
+    }
+    
+    func saveSearchRecord(query: String, type: String, targetId: String? = nil) {
+        LocalPersistenceService.shared.saveSearch(query: query, type: type, targetId: targetId)
+        loadRecentSearches()
+    }
+    
+    func removeSearch(search: CachedSearch) {
+        // Podríamos añadir deleteSearch a LocalPersistence si fuera necesario
+        // Por ahora implementamos limpiar todo para simplificar
+    }
+    
+    func clearAllSearches() {
+        LocalPersistenceService.shared.clearSearchHistory()
+        self.recentSearches = []
+    }
 }
+
 
 
 // MARK: - Previews
@@ -1935,6 +2006,20 @@ extension ExploreViewModel {
 
             searchEverything(query: cleanQuery)
         }
+        
+        // ✅ Guardar búsqueda si no es corta
+        if query.count >= 2 {
+            switch searchType {
+            case .hashtag(let hashtag):
+                saveSearchRecord(query: "#\(hashtag)", type: "hashtag")
+            case .username(let username):
+                saveSearchRecord(query: "@\(username)", type: "user")
+            default:
+                saveSearchRecord(query: query, type: "text")
+            }
+        }
+
+
         
         // ✅ NUEVO: Debug final
 
@@ -2332,30 +2417,30 @@ struct SmartSearchResultsView: View {
     private var headerTitle: String {
         switch searchType {
         case .hashtag:
-            return "Hashtag: \(searchQuery)"
+            return String(format: NSLocalizedString("explore.search.hashtag.title", comment: ""), searchQuery)
         case .users:
-            return searchQuery.hasPrefix("@") ? "Usuario: \(String(searchQuery.dropFirst()))" : "Usuarios"
+            return searchQuery.hasPrefix("@") ? String(format: NSLocalizedString("explore.search.user.title", comment: ""), String(searchQuery.dropFirst())) : NSLocalizedString("explore.search.users.title", comment: "")
         case .moments:
-            return "Momentos"
+            return NSLocalizedString("explore.search.moments.title", comment: "")
         case .mixed:
-            return "Resultados para '\(searchQuery)'"
+            return String(format: NSLocalizedString("explore.search.results.title", comment: ""), searchQuery)
         case .empty:
-            return "Sin resultados"
+            return NSLocalizedString("explore.search.empty.title", comment: "")
         }
     }
     
     private var headerSubtitle: String {
         switch searchType {
         case .hashtag:
-            return "\(moments.count) momentos encontrados"
+            return String(format: NSLocalizedString("explore.search.moments.found", comment: ""), moments.count)
         case .users:
-            return "\(users.count) usuarios encontrados"
+            return String(format: NSLocalizedString("explore.search.users.found", comment: ""), users.count)
         case .moments:
-            return "\(moments.count) momentos encontrados"
+            return String(format: NSLocalizedString("explore.search.moments.found", comment: ""), moments.count)
         case .mixed:
-            return "\(users.count) usuarios • \(moments.count) momentos"
+            return String(format: NSLocalizedString("explore.search.mixed.found", comment: ""), users.count, moments.count)
         case .empty:
-            return "Intenta con términos diferentes"
+            return NSLocalizedString("explore.search.empty.subtitle", comment: "")
         }
     }
     
@@ -2430,3 +2515,107 @@ struct MiniUserCard: View {
         .frame(width: 80)
     }
 }
+
+// MARK: - Componente de Búsquedas Recientes
+struct RecentSearchesView: View {
+    let searches: [CachedSearch]
+    let onSearchSelected: (CachedSearch) -> Void
+    let onClearAll: () -> Void
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                if !searches.isEmpty {
+                    Button(action: onClearAll) {
+                        Text(NSLocalizedString("explore.recentSearches.clearAll", comment: ""))
+                            .font(.custom("Poppins-Medium", size: 14))
+                            .foregroundColor(Color(hex: "667eea"))
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            
+            if searches.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    
+                    Text(NSLocalizedString("explore.recentSearches.empty", comment: ""))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(searches) { search in
+                        Button(action: { onSearchSelected(search) }) {
+                            HStack(spacing: 16) {
+                                Image(systemName: searchIcon(for: search.type))
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 36, height: 36)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Circle())
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(search.query)
+                                        .font(.custom("Poppins-Medium", size: 16))
+                                        .foregroundColor(.primary)
+                                    
+                                    Text(searchTypeLabel(for: search.type))
+                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary.opacity(0.5))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(.ultraThinMaterial.opacity(0.5))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                                    )
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 24)
+            }
+        }
+        .padding(.top, 10)
+    }
+    
+    private func searchIcon(for type: String) -> String {
+        switch type {
+        case "user": return "person.fill"
+        case "hashtag": return "number"
+        default: return "magnifyingglass"
+        }
+    }
+    
+    private func searchTypeLabel(for type: String) -> String {
+        switch type {
+        case "user": return NSLocalizedString("search.type.user", comment: "")
+        case "hashtag": return NSLocalizedString("search.type.hashtag", comment: "")
+        default: return NSLocalizedString("search.type.recent", comment: "")
+        }
+    }
+}
+

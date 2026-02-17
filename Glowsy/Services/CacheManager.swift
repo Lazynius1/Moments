@@ -7,8 +7,8 @@ class CacheManager: ObservableObject {
     static let shared = CacheManager()
     private let userDefaults = UserDefaults.standard
     private let lastCleanupKey = "LastCacheCleanupDate"
-    private let maxCacheSize = 150 * 1024 * 1024  // ✅ AJUSTADO: 150MB (más conservador)
-    private let warningThreshold = 100 * 1024 * 1024  // ✅ ALERTA: 100MB
+    private let maxCacheSize = 2000 * 1024 * 1024  // ✅ 2GB (Estilo Instagram)
+    private let warningThreshold = 1500 * 1024 * 1024  // ✅ 1.5GB
     
     private init() {
         startIntelligentCleanup()
@@ -102,6 +102,31 @@ class CacheManager: ObservableObject {
     private func cleanupUnusedCache() {
         // Limpiar URLCache no usado
         URLCache.shared.removeAllCachedResponses()
+        
+        // ✅ NUEVO: Limpiar videos antiguos del cache persistente
+        cleanupVideoCache()
+    }
+    
+    private func cleanupVideoCache() {
+        let fileManager = FileManager.default
+        let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let videoDir = caches.appendingPathComponent("MomentVideos")
+        
+        do {
+            let files = try fileManager.contentsOfDirectory(at: videoDir, includingPropertiesForKeys: [.contentModificationDateKey])
+            
+            // Borrar videos con más de 7 días si estamos cerca del límite
+            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            
+            for fileURL in files {
+                let attributes = try fileURL.resourceValues(forKeys: [.contentModificationDateKey])
+                if let modDate = attributes.contentModificationDate, modDate < sevenDaysAgo {
+                    try? fileManager.removeItem(at: fileURL)
+                }
+            }
+        } catch {
+            // Silencio si no existe la carpeta o hay error
+        }
     }
     
     /// Limpia archivos temporales que pueden estar ocupando mucho espacio
@@ -158,7 +183,28 @@ class CacheManager: ObservableObject {
     private func getCurrentCacheSize() -> Int {
         let urlCacheSize = URLCache.shared.currentDiskUsage
         let kingfisherSize = Int((try? KingfisherManager.shared.cache.diskStorage.totalSize()) ?? 0)
-        return urlCacheSize + kingfisherSize
+        
+        // ✅ NUEVO: Incluir tamaño de los videos cacheados
+        let videoCacheSize = getVideoCacheSize()
+        
+        return urlCacheSize + kingfisherSize + videoCacheSize
+    }
+    
+    private func getVideoCacheSize() -> Int {
+        let fileManager = FileManager.default
+        let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let videoDir = caches.appendingPathComponent("MomentVideos")
+        
+        var totalSize: Int = 0
+        if let enumerator = fileManager.enumerator(at: videoDir, includingPropertiesForKeys: [.fileSizeKey]) {
+            for case let fileURL as URL in enumerator {
+                if let attributes = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
+                   let size = attributes.fileSize {
+                    totalSize += size
+                }
+            }
+        }
+        return totalSize
     }
     
     func getCacheSize() -> String {

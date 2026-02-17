@@ -14,7 +14,8 @@ class NotificationNavigationService: ObservableObject {
         case storyChain(String, String)        // 🔗 Ir a cadena de historias (chainId, chainTitle)
         case followRequests(String)            // Ir a solicitudes de seguimiento
         case notifications(String?)            // Ir a notificaciones (con filtro opcional)
-        // ✅ ELIMINADO: groupedReactions - Ya no necesario con agrupación nativa
+        case echoSuggestion(String)              // ✅ NUEVO: Ir a invitación de Echo
+        case echo(String)                        // ✅ NUEVO: Ir a visor de Echo (activo)
     }
     
     
@@ -98,6 +99,11 @@ class NotificationNavigationService: ObservableObject {
             }
             
         // ✅ CASO LEGACY: Para notificaciones antiguas de tipo 'like'
+        case "echo_suggestion":
+            if let echoId = userInfo["echoId"] as? String {
+                pendingNavigation = .echoSuggestion(echoId)
+            }
+            
         case "like":
             if let momentId = userInfo["momentId"] as? String {
                 // ✅ BUSCAR userId en la notificación legacy
@@ -139,6 +145,10 @@ extension NotificationNavigationService.PendingNavigation {
             return "solicitudes(\(id))"
         case .notifications(let filter):
             return "notificaciones(\(filter ?? "todas"))"
+        case .echoSuggestion(let id):
+            return "invitacionEcho(\(id))"
+        case .echo(let id):
+            return "verEcho(\(id))"
         }
     }
     
@@ -152,6 +162,8 @@ extension NotificationNavigationService.PendingNavigation {
         case .storyChain: return "story_chain"  // 🔗 AÑADIDO
         case .followRequests: return "social"
         case .notifications: return "notifications"
+        case .echoSuggestion: return "echo_invite"
+        case .echo: return "echo_view"
         }
     }
 }

@@ -310,7 +310,7 @@ struct SavedMomentsView: View {
                                     Circle()
                                         .stroke(
                                             LinearGradient(
-                                                colors: [Color(hex: "00A896").opacity(0.3), Color(hex: "00A896").opacity(0.1)],
+                                                colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                         ),
@@ -320,7 +320,7 @@ struct SavedMomentsView: View {
                             
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(Color(hex: "4F46E5"))
                         }
                     }
                 }
@@ -347,7 +347,7 @@ struct SavedMomentsView: View {
             .overlay(
                 LinearGradient(
                     colors: [
-                        Color(hex: "00A896").opacity(0.05),
+                        Color(hex: "4F46E5").opacity(0.05),
                         Color.clear
                     ],
                     startPoint: .topLeading,
@@ -389,7 +389,7 @@ struct SavedMomentsView: View {
             .foregroundColor(.white)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
-            .background(Color(hex: "00A896"))
+            .background(Color(hex: "4F46E5"))
             .cornerRadius(20)
         }
     }
@@ -431,11 +431,11 @@ struct SavedMomentsView: View {
                 }) {
                     Image(systemName: mode.rawValue)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(selectedViewMode == mode ? Color(hex: "00A896") : .gray)
+                        .foregroundColor(selectedViewMode == mode ? Color(hex: "4F46E5") : .gray)
                         .frame(width: 32, height: 32)
                         .background(
                             Circle()
-                                .fill(selectedViewMode == mode ? Color(hex: "00A896").opacity(0.15) : Color.clear)
+                                .fill(selectedViewMode == mode ? Color(hex: "4F46E5").opacity(0.15) : Color.clear)
                         )
                 }
             }
@@ -677,7 +677,7 @@ struct GridMomentCard: View {
     private func textMomentView() -> some View {
         ZStack {
             LinearGradient(
-                colors: [Color(hex: "00A896").opacity(0.8), Color(hex: "00A896").opacity(0.6)],
+                colors: [Color(hex: "4F46E5").opacity(0.8), Color(hex: "4F46E5").opacity(0.6)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -771,7 +771,7 @@ struct ListMomentCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("@\(moment.username)")
                         .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(Color(hex: "4F46E5"))
                     
                     Text(moment.content)
                         .font(.custom("Poppins-Regular", size: 13))
@@ -885,7 +885,7 @@ struct ListMomentCard: View {
     private func textMomentView() -> some View {
         RoundedRectangle(cornerRadius: 8)
             .fill(LinearGradient(
-                colors: [Color(hex: "00A896").opacity(0.8), Color(hex: "00A896").opacity(0.6)],
+                colors: [Color(hex: "4F46E5").opacity(0.8), Color(hex: "4F46E5").opacity(0.6)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ))
@@ -1083,7 +1083,7 @@ struct ModernSavedDetailHeader: View {
                         Circle()
                             .stroke(
                                 LinearGradient(
-                                    colors: [Color.white.opacity(0.3), Color(hex: "00A896").opacity(0.4)],
+                                    colors: [Color.white.opacity(0.3), Color(hex: "007AFF").opacity(0.4)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
@@ -1106,7 +1106,7 @@ struct ModernSavedDetailHeader: View {
                                     Circle()
                                         .stroke(
                                             LinearGradient(
-                                                colors: [Color.white.opacity(0.4), Color(hex: "00A896").opacity(0.5)],
+                                                colors: [Color.white.opacity(0.4), Color(hex: "007AFF").opacity(0.5)],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             ),
@@ -1217,12 +1217,9 @@ struct ModernSavedDetailMomentCard: View {
     @State private var isFollowing: Bool = false
     @State private var isFollowLoading: Bool = false
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
+    @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var aspectRatioType: AspectRatioType = .square
     
-    // ✅ AGREGAR: Colores adaptativos
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
     
     enum AspectRatioType {
         case square, portrait, landscape
@@ -1284,22 +1281,36 @@ struct ModernSavedDetailMomentCard: View {
                         showTags: $showTags, // ✅ PASAR binding
                         aspectRatio: detectedAspectRatio,
                         allMoments: [], // ✅ AGREGAR: Array vacío para guardados (no necesita ReelsViewer)
-                        currentMoment: moment // ✅ AGREGAR: El momento actual
+                        currentMoment: moment, // ✅ AGREGAR: El momento actual
+                        isImmersive: $isImmersive // ✅ NUEVO
                     )
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.1)
+                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                            .onEnded { _ in }
+                    )
+                    .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            self.isImmersive = isPressing
+                            if isPressing {
+                                HapticManager.shared.mediumImpact()
+                            }
+                        }
+                    }, perform: {})
                     .frame(height: cardHeight)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(
                                 LinearGradient(
-                                    colors: adaptiveColors.overlayStroke,  // ✅ CAMBIAR esta línea
+                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
                                 lineWidth: 1
                             )
                     )
-                    .shadow(color: adaptiveColors.shadowColor, radius: 15, x: 0, y: 10)  // ✅ CAMBIAR esta línea
+                    .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 10)
                     .onAppear {
                         detectAspectRatio()
                     }
@@ -1333,6 +1344,7 @@ struct ModernSavedDetailMomentCard: View {
                                         // TODO: Navegar a ExploreView
                                     }
                                 )
+                                .padding(.trailing, isImmersive ? 0 : 140) // ✅ Protección contra el rail
                                 Spacer()
                             }
                             .padding(.bottom, 20)
@@ -1352,7 +1364,7 @@ struct ModernSavedDetailMomentCard: View {
                                 }) {
                                     ZStack {
                                         Circle()
-                                            .fill(showTags ? Color(hex: "00A896") : Color.black.opacity(0.6))
+                                            .fill(showTags ? Color(hex: "007AFF") : Color.black.opacity(0.6))
                                             .frame(width: 32, height: 32)
                                             .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
                                         Image(systemName: "tag.fill")
@@ -1388,7 +1400,7 @@ struct ModernSavedDetailMomentCard: View {
                                         Circle()
                                             .stroke(
                                                 LinearGradient(
-                                                    colors: showTags ? [Color(hex: "00A896"), Color(hex: "00A896").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
+                                                    colors: showTags ? [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
                                                     startPoint: .topLeading,
                                                     endPoint: .bottomTrailing
                                                 ),
@@ -1399,7 +1411,7 @@ struct ModernSavedDetailMomentCard: View {
                                         // Icon tinted if active
                                         Image(systemName: showTags ? "person.fill" : "person.circle.fill")
                                             .font(.system(size: 15, weight: .bold))
-                                            .foregroundColor(showTags ? Color(hex: "00A896") : .white)
+                                            .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
                                     }
                                     .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                                 }
@@ -1412,13 +1424,19 @@ struct ModernSavedDetailMomentCard: View {
                     }
                 }
                 
-                // ✅ Botones de acción específicos para guardados
-                ModernSavedDetailActionButtons(
+                // ✅ Glow Rail (Mismo que en Feed/Detail)
+                ModernActionButtons(
                     moment: moment,
+                    isSaved: .constant(true), // Siempre guardado en esta vista
+                    isSaveLoading: .constant(false),
                     commentCount: $commentCount,
-                    colorScheme: colorScheme,  // ✅ AGREGAR esta línea (si este componente también necesita colorScheme)
                     onComment: onComment,
-                    onRemoveFromSaved: onRemove
+                    onSave: onRemove, // En esta vista "Guardar" significa quitar de guardados
+                    onContextMenu: {
+                        // Abrir menú de opciones (Compartir, etc)
+                        shareAction() // O un menú más completo si se desea
+                    },
+                    isImmersive: $isImmersive
                 )
                 .environmentObject(firestoreService)
             }
@@ -1442,7 +1460,7 @@ struct ModernSavedDetailMomentCard: View {
                         Circle()
                             .stroke(
                                 LinearGradient(
-                                colors: adaptiveColors.overlayStroke,  // ✅ CAMBIAR esta línea
+                                    colors: [.white.opacity(0.4), .white.opacity(0.1)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
@@ -1453,11 +1471,11 @@ struct ModernSavedDetailMomentCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(moment.username)")
                     .font(.custom("Poppins-SemiBold", size: 15))
-                    .foregroundColor(adaptiveColors.primary)  // ✅ CAMBIAR esta línea
+                    .foregroundColor(.white)
                 
                 Text(timeAgo(from: moment.timestamp))
                     .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(adaptiveColors.tertiary)  // ✅ CAMBIAR esta línea
+                    .foregroundColor(.gray)
             }
             
             Spacer()
@@ -1605,161 +1623,10 @@ struct ModernSavedDetailMomentCard: View {
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
     }
-}
-
-// MARK: - ✅ Botones de acción específicos para momentos guardados
-struct ModernSavedDetailActionButtons: View {
-    let moment: Moment
-    @Binding var commentCount: Int
-    let colorScheme: ColorScheme  // ✅ AGREGAR este parámetro
-    let onComment: () -> Void
-    let onRemoveFromSaved: () -> Void
-    
-    @EnvironmentObject private var firestoreService: FirestoreService
-    
-    // ✅ AGREGAR: Colores adaptativos
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Spacer()
-            
-            VStack(spacing: 14) {
-                // ✅ Reaction Button
-                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
-                EpicReactionButton(
-                    moment: moment,
-                    showCount: moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts
-                )
-                    .environmentObject(firestoreService)
-                
-                // ✅ Comment button
-                Button(action: onComment) {
-                    VStack(spacing: 4) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 54, height: 54)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: commentCount > 0 ?
-                                                [Color.blue.opacity(0.7), Color.purple.opacity(0.7)] :
-                                                adaptiveColors.buttonStroke,  // ✅ CAMBIAR esta línea
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
-                                        )
-                                )
-                                .shadow(color: adaptiveColors.shadowColor, radius: 6, x: 0, y: 3)  // ✅ CAMBIAR esta línea
-                            
-                            Image(systemName: commentCount > 0 ? "bubble.left.fill" : "bubble.left")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: commentCount > 0 ?
-                                        [Color.blue, Color.purple] :
-                                        adaptiveColors.buttonGradient,  // ✅ CAMBIAR esta línea
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        }
-                        
-                        if commentCount > 0 {
-                            Text("\(commentCount)")
-                                .font(.custom("Poppins-SemiBold", size: 12))
-                                .foregroundColor(adaptiveColors.secondary)  // ✅ CAMBIAR esta línea
-                        }
-                    }
-                }
-                .scaleEffect(commentCount > 0 ? 1.08 : 1.0)
-                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: commentCount)
-                
-                // ✅ Remove from saved button
-                Button(action: onRemoveFromSaved) {
-                    VStack(spacing: 4) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 54, height: 54)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [Color.red.opacity(0.6), Color.orange.opacity(0.6)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
-                                        )
-                                )
-                                .shadow(color: adaptiveColors.shadowColor, radius: 6, x: 0, y: 3)  // ✅ CAMBIAR esta línea
-                            
-                            Image(systemName: "bookmark.slash")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [Color.red, Color.orange],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        }
-                        
-                        Text("savedMoments.remove")
-                            .font(.custom("Poppins-SemiBold", size: 11))
-                            .foregroundColor(adaptiveColors.secondary)  // ✅ CAMBIAR esta línea
-                    }
-                }
-                
-                // ✅ Share button
-                Button(action: shareAction) {
-                    VStack(spacing: 4) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 54, height: 54)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: adaptiveColors.buttonStroke,  // ✅ CAMBIAR esta línea
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
-                                        )
-                                )
-                                .shadow(color: adaptiveColors.shadowColor, radius: 6, x: 0, y: 3)  // ✅ CAMBIAR esta línea
-                            
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: adaptiveColors.buttonGradient,  // ✅ CAMBIAR esta línea
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        }
-                        
-                        Text("savedMoments.share")
-                            .font(.custom("Poppins-SemiBold", size: 11))
-                            .foregroundColor(adaptiveColors.secondary)  // ✅ CAMBIAR esta línea
-                    }
-                }
-            }
-        }
-        .padding(.trailing, 20)
-        .padding(.bottom, 20)
-    }
     
     private func shareAction() {
+        HapticManager.shared.lightImpact()
+        // ... existing share logic ...
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else { return }
         
