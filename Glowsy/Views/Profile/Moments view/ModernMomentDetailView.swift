@@ -21,6 +21,7 @@ struct ModernMomentDetailView: View {
     @State private var showingComments = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
+    @State private var trackedMomentViewIds: Set<String> = []
     
     // ✅ Estados para el menú contextual
     @State private var showContextMenu = false
@@ -104,12 +105,7 @@ struct ModernMomentDetailView: View {
                     showDeleteAlert = true
                 },
                 onReport: {
-                    showReportSheet = true
-                },
-                onCopyLink: {
-                    if let momentId = moment.id {
-                        UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
-                    }
+                    // showReportSheet = true // ❌ Ya no se usa sheet
                 }
             )
             .zIndex(1000)
@@ -178,11 +174,11 @@ struct ModernMomentDetailView: View {
         } message: {
                             Text("modernMomentDetail.delete.message")
         }
-        .sheet(isPresented: $showReportSheet) {
+        /*.sheet(isPresented: $showReportSheet) {
             if let moment = contextMenuMoment {
                 ReportBottomSheet(moment: moment)
             }
-        }
+        }*/
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
@@ -192,6 +188,10 @@ struct ModernMomentDetailView: View {
         }
         .onAppear {
             currentIndex = initialIndex
+            trackMomentViewIfNeeded(for: moments[safe: initialIndex])
+        }
+        .onChange(of: currentIndex) { newIndex in
+            trackMomentViewIfNeeded(for: moments[safe: newIndex])
         }
         .gesture(
             // ✅ NUEVO: Drag gesture suave e interactivo
@@ -234,6 +234,17 @@ struct ModernMomentDetailView: View {
                     }
                 }
         )
+    }
+    
+    private func trackMomentViewIfNeeded(for moment: Moment?) {
+        guard let moment = moment, let momentId = moment.id else { return }
+        guard !moment.authorId.isEmpty else { return }
+        guard !trackedMomentViewIds.contains(momentId) else { return }
+        
+        trackedMomentViewIds.insert(momentId)
+        Task { @MainActor in
+            AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
+        }
     }
     
     // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual

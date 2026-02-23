@@ -112,6 +112,13 @@
 "profile.saved.empty.title" = "Nada Guardado Aún";
 "profile.saved.empty.subtitle" = "Los momentos que guardes aparecerán aquí.";
 "profile.saved.loading" = "Cargando guardados...";
+"profile.saved.openAll" = "Ver todo";
+"profile.saved.recent" = "Recientes";
+"profile.saved.filtered.empty" = "No hay guardados para este filtro";
+"profile.saved.filter.all" = "Todo";
+"profile.saved.filter.videos" = "Videos";
+"profile.saved.filter.text" = "Texto";
+"profile.saved.filter.location" = "Ubicacion";
 "profile.loading" = "Cargando perfil...";
 "profile.error.title" = "Oops, algo salió mal";
 "profile.error.retryButton" = "Reintentar";
@@ -313,6 +320,10 @@
 "explore.button.follow" = "Seguir";
 "explore.button.request" = "Solicitar";
 "explore.button.requested" = "Solicitado";
+"explore.recentSearches.title" = "Búsquedas Recientes";
+"social.mutual" = "Os seguís mutuamente";
+"social.followsYou" = "Te sigue";
+"social.following" = "Siguiendo";
 
 /* StoriesView */
 "stories.loading" = "Cargando archivo...";
@@ -338,6 +349,12 @@
 "stories.activity.noReactions" = "Sin reacciones todavía";
 "stories.activity.viewersTab" = "Vistas (%d)";
 "stories.activity.reactionsTab" = "Reacciones (%d)";
+"stories.activity.audienceTitle" = "Audiencia";
+"stories.activity.audienceMembersCount" = "%d miembros";
+"stories.activity.audienceLoading" = "Cargando audiencia...";
+"stories.activity.audienceNoMembers" = "No hay usuarios en esta audiencia";
+"stories.activity.audienceMoreUsers" = "más";
+"stories.activity.audienceViewAll" = "Ver audiencia (%d)";
 "stories.ephemeral.expired" = "Momento efímero expirado";
 "stories.ephemeral.unavailable" = "La imagen ya no está disponible";
 "stories.replied" = "Respondiste a su historia";
@@ -607,7 +624,7 @@
 "conversationSettings.notifications" = "Notificaciones";
 "conversationSettings.notifications.desc" = "Recibe alertas cuando lleguen nuevos mensajes";
 "conversationSettings.typingIndicator" = "Indicador de escritura";
-"conversationSettings.typingIndicator.desc" = "Muestra cuándo estás escribiendo";
+"conversationSettings.typingIndicator.desc" = "Si lo desactivas, tampoco verás cuándo la otra persona está escribiendo.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmación de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactivas el 'visto' en este chat, no podrás ver cuándo la otra persona lee tus mensajes.";
 "common.viewAll" = "Ver todo";
@@ -1229,6 +1246,24 @@
 "savedMoments.saved" = "GUARDADO";
 "savedMoments.remove" = "Quitar";
 "savedMoments.share" = "Compartir";
+"savedMoments.select" = "Seleccionar";
+"savedMoments.sortMenu" = "Ordenar";
+"savedMoments.sort.newest" = "Recientes";
+"savedMoments.sort.oldest" = "Antiguos";
+"savedMoments.sort.author" = "Autor";
+"savedMoments.search.placeholder" = "Buscar por usuario, texto o lugar";
+"savedMoments.filter.media.all" = "Todo";
+"savedMoments.filter.media.photos" = "Fotos";
+"savedMoments.filter.media.videos" = "Videos";
+"savedMoments.filter.collection.all" = "Todos";
+"savedMoments.filter.collection.location" = "Ubicacion";
+"savedMoments.filter.collection.text" = "Texto";
+"savedMoments.filter.collection.multiple" = "Carousel";
+"savedMoments.empty.filtered.title" = "No hay resultados con estos filtros";
+"savedMoments.empty.filtered.description" = "Prueba quitando filtros o limpiando la busqueda.";
+"savedMoments.selection.count" = "%d seleccionados";
+"savedMoments.selection.remove.title" = "Eliminar seleccionados";
+"savedMoments.selection.remove.message" = "Se eliminaran %d elementos de guardados.";
 
 /* Content Visibility */
 "contentVisibility.title" = "Privacidad del Contenido";
@@ -1420,7 +1455,16 @@
 "storyContextMenu.report.subtitle" = "Contenido\ninapropiado";
 "storyContextMenu.block" = "Bloquear";
 "storyContextMenu.block.subtitle" = "No ver más\ncontenido";
+"storyContextMenu.leaveBestFriends" = "Salir de\nMejores";
+"storyContextMenu.leaveBestFriends.subtitle" = "No ver sus\nhistorias BF";
 "storyContextMenu.scrollReactions" = "Desliza para más reacciones";
+
+"bestFriends.optOut.confirm.title" = "Salir de mejores amigos";
+"bestFriends.optOut.confirm.message" = "¿Quieres salir de la lista de mejores amigos de este usuario?";
+"bestFriends.optOut.confirm.action" = "Salir";
+"bestFriends.optOut.confirm.cancel" = "Cancelar";
+"bestFriends.optOut.success" = "Has salido de su lista de mejores amigos";
+"bestFriends.optOut.error" = "No se pudo salir de mejores amigos";
 
 /* User Activity View */
 "userActivity.summary.title" = "Resumen de Actividad";
@@ -2202,3 +2246,16 @@
 
 /* Reactions */
 "reactions.title" = "Reacciones";
+
+/* Feed Video */
+"feed.video.loading" = "Cargando video...";
+"feed.video.loadError" = "No pudimos cargar el video";
+"feed.video.retry" = "Reintentar";
+
+/* Feed Reels Video */
+"feed.reels.video.loading" = "Cargando video...";
+"feed.reels.video.starting" = "Iniciando...";
+"feed.reels.video.optimizing" = "Optimizando calidad...";
+
+/* Messaging Search */
+"messaging.search.placeholder" = "Buscar conversaciones...";

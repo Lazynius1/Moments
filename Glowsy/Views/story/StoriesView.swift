@@ -375,7 +375,16 @@ struct StoriesView: View {
                     return // Salir temprano, isLoading se establecerá en el callback
                 }
             } else {
-                let newUserIds = stories.keys.sorted()
+                // ✅ EXPERIMENTAL AFFINITY SORTING FOR STORIES UI
+                // Use the affinity-sorted IDs from the view model if available
+                var newUserIds: [String] = []
+                if !self.storyViewModel.sortedStoryUserIds.isEmpty {
+                    // Make sure we only use IDs that actually have stories in the current dict
+                    newUserIds = self.storyViewModel.sortedStoryUserIds.filter { stories.keys.contains($0) }
+                } else {
+                    newUserIds = stories.keys.sorted()
+                }
+                
                 self.userIds = newUserIds
                 
                 if !newUserIds.isEmpty {

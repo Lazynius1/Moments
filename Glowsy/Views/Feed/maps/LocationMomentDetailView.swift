@@ -18,6 +18,7 @@ struct LocationMomentDetailView: View {
     @State private var showingComments = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
+    @State private var trackedMomentViewIds: Set<String> = []
     
     // ✅ NUEVOS: Estados para drag transition
     @State private var dragOffset: CGFloat = 0
@@ -107,14 +108,7 @@ struct LocationMomentDetailView: View {
                             showDeleteAlert = true
                         },
                         onReport: {
-                            showReportSheet = true
-                        },
-                        onCopyLink: {
-                            if let momentId = moment.id {
-                                UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
-                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                impactFeedback.impactOccurred()
-                            }
+                            // showReportSheet = true // ❌ Ya no se usa sheet
                         }
                     )
                     .zIndex(1000)
@@ -149,14 +143,18 @@ struct LocationMomentDetailView: View {
         } message: {
             Text("locationMomentDetail.delete.message")
         }
-        .sheet(isPresented: $showReportSheet) {
+        /*.sheet(isPresented: $showReportSheet) {
             if let moment = contextMenuMoment {
                 ReportBottomSheet(moment: moment)
             }
-        }
+        }*/
         .onAppear {
             currentIndex = initialIndex
             loadAllMomentsData()
+            trackMomentViewIfNeeded(for: locationMoments[safe: initialIndex])
+        }
+        .onChange(of: currentIndex) { newIndex in
+            trackMomentViewIfNeeded(for: locationMoments[safe: newIndex])
         }
         .gesture(
             // ✅ Drag gesture suave como MomentDetailView
@@ -192,6 +190,17 @@ struct LocationMomentDetailView: View {
                     }
                 }
         )
+    }
+    
+    private func trackMomentViewIfNeeded(for moment: Moment?) {
+        guard let moment = moment, let momentId = moment.id else { return }
+        guard !moment.authorId.isEmpty else { return }
+        guard !trackedMomentViewIds.contains(momentId) else { return }
+        
+        trackedMomentViewIds.insert(momentId)
+        Task { @MainActor in
+            AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
+        }
     }
     
     // ✅ Fondo moderno como el feed
@@ -1357,78 +1366,6 @@ struct LocationExpandableContentView: View {
                 )
         )
         .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
-    }
-}
-
-// MARK: - ✅ MENÚ CONTEXTUAL REFACTORIZADO
-struct LocationMomentContextMenu: View {
-    let moment: Moment  // ✅ CAMBIO AQUÍ
-    let colorScheme: ColorScheme
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    var body: some View {
-        Menu {
-            Button(action: {
-                // ✅ USAR moment.location y moment.username
-                UIPasteboard.general.string = "Foto de \(moment.username) en \(moment.location ?? "")"
-            }) {
-                Label("Copiar enlace", systemImage: "link")
-            }
-            
-            Button(action: shareLocationMoment) {
-                Label("Compartir", systemImage: "square.and.arrow.up")
-            }
-            
-            if moment.authorId != Auth.auth().currentUser?.uid {
-                Divider()
-                
-                Button(action: {
-                    // TODO: Implementar reporte
-                }) {
-                    Label("Reportar", systemImage: "flag")
-                }
-                .foregroundColor(.red)
-            }
-            
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
-                .frame(width: 32, height: 32)
-                .background(.ultraThinMaterial)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: adaptiveColors.overlayStroke,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.8
-                        )
-                )
-                .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
-        }
-        .menuStyle(.borderlessButton)
-    }
-    
-    private func shareLocationMoment() {
-        let items: [Any] = [
-            "Foto de \(moment.username) en \(moment.location ?? "")",
-            moment.imagePath ?? ""  // ✅ USAR moment.imagePath
-        ]
-        
-        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            activityVC.popoverPresentationController?.sourceView = rootViewController.view
-            activityVC.popoverPresentationController?.sourceRect = CGRect(x: rootViewController.view.bounds.midX, y: rootViewController.view.bounds.midY, width: 0, height: 0)
-            rootViewController.present(activityVC, animated: true)
-        }
     }
 }
 

@@ -304,6 +304,9 @@ class CommentsViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    Task { @MainActor in
+                        AffinityTracker.shared.trackInteraction(type: .momentComment, with: userId)
+                    }
                     self?.fetchComments(momentId: momentId, userId: userId)
                 case .failure(let error):
                     self?.errorMessage = "Error al añadir comentario: \(error.localizedDescription)"

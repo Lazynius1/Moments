@@ -9,6 +9,7 @@ import UIKit
 class EnhancedChatViewModel: ObservableObject {
     @Published var messages: [EnhancedMessage] = []
     @Published var typingUsers: Set<String> = []
+    @Published var typingIndicatorEnabled = true
     @Published var isLoading = false
     @Published var error: String?
     @Published var uploadProgress: [String: Double] = [:] // ✅ Media upload progress (0.0 - 1.0)
@@ -38,7 +39,10 @@ class EnhancedChatViewModel: ObservableObject {
     private let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
     private var cancellables = Set<AnyCancellable>()
+    private var typingUsersCancellable: AnyCancellable?
     private var typingTimer: Timer?
+    private var messageStatusObserver: NSObjectProtocol?
+    private var mediaUploadObserver: NSObjectProtocol?
     
     // ✅ NUEVO: Flag para detectar la primera carga de Firestore y limpiar el caché local (sync: true)
     private var isFirstFetch = true
@@ -49,11 +53,12 @@ class EnhancedChatViewModel: ObservableObject {
         
         // ✅ Configurar listener para actualizaciones de estado locales
         setupLocalStatusListener()
+        refreshTypingIndicatorPreference()
     }
     
     // ✅ NUEVA: Configurar listener para actualizaciones de estado locales
     private func setupLocalStatusListener() {
-        NotificationCenter.default.addObserver(
+        messageStatusObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("MessageStatusUpdated"),
             object: nil,
             queue: .main
@@ -73,7 +78,7 @@ class EnhancedChatViewModel: ObservableObject {
         }
         
         // ✅ Progress Listener
-        NotificationCenter.default.addObserver(
+        mediaUploadObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("MediaUploadProgress"),
             object: nil,
             queue: .main
@@ -88,6 +93,61 @@ class EnhancedChatViewModel: ObservableObject {
                 self?.uploadProgress[messageId] = progress
             }
         }
+    }
+    
+    private func typingIndicatorPreferenceKey(for conversationId: String) -> String {
+        "chat_typing_indicator_enabled_\(conversationId)"
+    }
+    
+    private func resolvedTypingIndicatorPreference(for conversationId: String) -> Bool {
+        let defaults = UserDefaults.standard
+        let perChatKey = typingIndicatorPreferenceKey(for: conversationId)
+        
+        if let perChatValue = defaults.object(forKey: perChatKey) as? Bool {
+            return perChatValue
+        }
+        
+        if let legacyGlobalValue = defaults.object(forKey: "chat_typing_indicator_enabled") as? Bool {
+            return legacyGlobalValue
+        }
+        
+        return true
+    }
+    
+    private func setupTypingUsersSubscription(conversationId: String) {
+        typingUsersCancellable?.cancel()
+        typingUsersCancellable = chatService.$typingUsers
+            .compactMap { $0[conversationId] }
+            .sink { [weak self] typingUsers in
+                guard let self = self else { return }
+                
+                guard self.typingIndicatorEnabled else {
+                    self.typingUsers = []
+                    return
+                }
+                
+                let filteredUsers = typingUsers.filter { $0 != self.currentUserId }
+                self.typingUsers = filteredUsers
+            }
+    }
+    
+    private func applyTypingPreference(conversationId: String) {
+        if typingIndicatorEnabled {
+            chatService.listenToTypingIndicators(conversationId: conversationId)
+            setupTypingUsersSubscription(conversationId: conversationId)
+        } else {
+            typingUsers = []
+            chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
+            chatService.removeTypingListener(for: conversationId)
+            typingUsersCancellable?.cancel()
+            typingUsersCancellable = nil
+        }
+    }
+    
+    func refreshTypingIndicatorPreference() {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
+        applyTypingPreference(conversationId: conversationId)
     }
     
     // ✅ NUEVA: Función para preservar mensajes temporales
@@ -237,6 +297,11 @@ class EnhancedChatViewModel: ObservableObject {
             return
         }
         
+        // Reiniciar suscripciones reactivas para evitar duplicados al re-entrar al chat
+        cancellables.removeAll()
+        typingUsersCancellable?.cancel()
+        typingUsersCancellable = nil
+        
         // ✅ SwiftData: Carga historial local para apertura instantánea (Instagram-like)
         let cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
         if !cachedMessages.isEmpty {
@@ -246,9 +311,9 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
         
-        // ✅ SOLO LLAMAR UNA VEZ EL LISTENER DE FIRESTORE
-        if chatService.activeListeners[conversationId] == nil {
-            chatService.listenToMessages(conversationId: conversationId) { [weak self] result in
+        // Re-registrar siempre el listener de mensajes para que el callback pertenezca
+        // al ViewModel activo de este chat.
+        chatService.listenToMessages(conversationId: conversationId) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 
@@ -281,16 +346,8 @@ class EnhancedChatViewModel: ObservableObject {
                 }
             }
         }
-        }
-        chatService.listenToTypingIndicators(conversationId: conversationId)
-        
-        chatService.$typingUsers
-            .compactMap { $0[conversationId] }
-            .sink { typingUsers in
-                let filteredUsers = typingUsers.filter { $0 != self.currentUserId }
-                self.typingUsers = filteredUsers
-            }
-            .store(in: &cancellables)
+        typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
+        applyTypingPreference(conversationId: conversationId)
     }
     
     func stopListening() {
@@ -299,14 +356,22 @@ class EnhancedChatViewModel: ObservableObject {
         }
         chatService.removeListener(for: conversationId)
         chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
-        
-        // ✅ Limpiar listener local
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("MessageStatusUpdated"), object: nil)
+        typingTimer?.invalidate()
+        typingUsersCancellable?.cancel()
+        typingUsersCancellable = nil
+        typingUsers = []
+        cancellables.removeAll()
     }
     
     // ✅ NUEVA: Cleanup cuando se destruye el ViewModel
     deinit {
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("MessageStatusUpdated"), object: nil)
+        if let messageStatusObserver {
+            NotificationCenter.default.removeObserver(messageStatusObserver)
+        }
+        if let mediaUploadObserver {
+            NotificationCenter.default.removeObserver(mediaUploadObserver)
+        }
+        typingUsersCancellable?.cancel()
     }
     
     // MARK: - Send Messages
@@ -354,6 +419,7 @@ class EnhancedChatViewModel: ObservableObject {
                 case .success(let sentMessage):
                     // ✅ Usar el estado devuelto (puede ser .pending si es offline)
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -364,6 +430,10 @@ class EnhancedChatViewModel: ObservableObject {
     }
     
     func sendImageMessage(_ image: UIImage) {
+        sendImageMessage(image, mediaBatchId: nil)
+    }
+    
+    private func sendImageMessage(_ image: UIImage, mediaBatchId: String?) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar la imagen: ID de conversación no válido"
             return
@@ -381,7 +451,8 @@ class EnhancedChatViewModel: ObservableObject {
             conversationId: conversationId,
             senderId: currentUserId,
             type: .image,
-            status: .sending
+            status: .sending,
+            mediaBatchId: mediaBatchId
         )
         
         // Agregar mensaje temporal a la lista local
@@ -402,13 +473,15 @@ class EnhancedChatViewModel: ObservableObject {
             senderId: currentUserId,
             type: .image,
             mediaData: imageData,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId, // ✅ Pasar el mismo ID
+            mediaBatchId: mediaBatchId
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
                     // ✅ Usar el estado devuelto (puede ser .pending si es offline)
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -418,16 +491,16 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
     
-    func handlePhotoPickerItem(_ item: PhotosPickerItem) {
+    func handlePhotoPickerItem(_ item: PhotosPickerItem, mediaBatchId: String? = nil) {
         Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 if let image = UIImage(data: data) {
                     await MainActor.run {
-                        sendImageMessage(image)
+                        sendImageMessage(image, mediaBatchId: mediaBatchId)
                     }
                 } else {
                     await MainActor.run {
-                        sendVideoMessage(data: data)
+                        sendVideoMessage(data: data, mediaBatchId: mediaBatchId)
                     }
                 }
             } else {
@@ -439,6 +512,10 @@ class EnhancedChatViewModel: ObservableObject {
     }
     
      func sendVideoMessage(data: Data) {
+        sendVideoMessage(data: data, mediaBatchId: nil)
+    }
+    
+    private func sendVideoMessage(data: Data, mediaBatchId: String?) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar el video: ID de conversación no válido"
             return
@@ -452,7 +529,8 @@ class EnhancedChatViewModel: ObservableObject {
             conversationId: conversationId,
             senderId: currentUserId,
             type: .video,
-            status: .sending
+            status: .sending,
+            mediaBatchId: mediaBatchId
         )
         
         // Agregar mensaje temporal a la lista local
@@ -471,13 +549,15 @@ class EnhancedChatViewModel: ObservableObject {
             senderId: currentUserId,
             type: .video,
             mediaData: data,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId, // ✅ Pasar el mismo ID
+            mediaBatchId: mediaBatchId
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
                     // ✅ Usar el estado devuelto (puede ser .pending si es offline)
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -523,6 +603,7 @@ class EnhancedChatViewModel: ObservableObject {
                 case .success(let sentMessage):
                     // ✅ Usar el estado devuelto (puede ser .pending si es offline)
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
@@ -569,12 +650,21 @@ class EnhancedChatViewModel: ObservableObject {
                 case .success(let sentMessage):
                     // ✅ Usar el estado devuelto (puede ser .pending si es offline)
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
                     // Actualizar estado del mensaje temporal a fallido
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }
+        }
+    }
+    
+    private func trackSuccessfulDirectMessage() {
+        let targetUserId = conversation.otherParticipantId
+        guard !targetUserId.isEmpty else { return }
+        Task { @MainActor in
+            AffinityTracker.shared.trackInteraction(type: .directMessage, with: targetUserId)
         }
     }
     
@@ -691,6 +781,11 @@ class EnhancedChatViewModel: ObservableObject {
     
     private func handleTypingIndicator() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            return
+        }
+        
+        guard typingIndicatorEnabled else {
+            chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
             return
         }
         

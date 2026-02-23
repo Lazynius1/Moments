@@ -5,6 +5,20 @@ import FirebaseAuth
 import FirebaseFirestore
 import Kingfisher
 import AVFoundation
+import UIKit
+
+private func buildMomentShareLink(_ moment: Moment) -> String {
+    guard let momentId = moment.id else {
+        return "https://momentsapp.app/moment"
+    }
+    
+    var components = URLComponents(string: "https://momentsapp.app/moment/\(momentId)")
+    if !moment.authorId.isEmpty {
+        components?.queryItems = [URLQueryItem(name: "a", value: moment.authorId)]
+    }
+    
+    return components?.url?.absoluteString ?? "https://momentsapp.app/moment/\(momentId)"
+}
 
 struct ModernMomentContextMenu: View {
     let moment: Moment
@@ -62,11 +76,11 @@ struct ModernMomentContextMenu: View {
             } message: {
                 Text(NSLocalizedString("contextMenu.delete.message", comment: "Delete moment confirmation message"))
             }
-            .sheet(isPresented: $showReportSheet) {
+            /*.sheet(isPresented: $showReportSheet) {
                 ReportBottomSheet(moment: moment)
-            }
+            }*/
             
-            // ✅ Overlay del menú contextual unificado (con Sharing integrado)
+            // ✅ Overlay del menú contextual unificado (con Sharing y Reporte integrado)
             if showActionSheet {
                 ModernContextMenuOverlay(
                     moment: moment,
@@ -79,12 +93,7 @@ struct ModernMomentContextMenu: View {
                         showDeleteAlert = true
                     },
                     onReport: {
-                        showReportSheet = true
-                    },
-                    onCopyLink: {
-                        if let momentId = moment.id {
-                            UIPasteboard.general.string = "https://momentsapp.app/moment/\(momentId)"
-                        }
+                        // showReportSheet = true // ❌ Ya no se usa sheet
                     }
                 )
                 .transition(.asymmetric(
@@ -137,7 +146,7 @@ enum ContextMenuViewState {
     case sharing
     case messaging
     case preparingStory
-    // case creator // ❌ Eliminado: Ahora se usa fullScreenCover
+    case reporting
 }
 
 struct ModernContextMenuOverlay: View {
@@ -155,7 +164,6 @@ struct ModernContextMenuOverlay: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onReport: () -> Void
-    let onCopyLink: () -> Void
     
     private let privacyService = PrivacyService()
     
@@ -206,18 +214,10 @@ struct ModernContextMenuOverlay: View {
                                 }
                             },
                             onReport: {
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    isPresented = false
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .reporting
                                 }
                                 onReport()
-                            },
-                            onCopyLink: {
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    isPresented = false
-                                }
-                                onCopyLink()
-                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                impactFeedback.impactOccurred()
                             },
                             onCancel: {
                                 withAnimation(.easeOut(duration: 0.3)) {
@@ -282,6 +282,26 @@ struct ModernContextMenuOverlay: View {
                             }
                         })
                         .transition(.opacity)
+                        
+                    case .reporting:
+                        ModernReportContent(
+                            moment: moment,
+                            story: nil,
+                            onBack: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .main
+                                }
+                            },
+                            onDismiss: {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    isPresented = false
+                                }
+                            }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
                     }
                 }
                 .background(
@@ -321,31 +341,55 @@ struct ModernContextMenuOverlay: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .sharing }
         case .preparingStory:
             withAnimation(.spring()) { viewState = .sharing }
+        case .reporting:
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .main }
         }
     }
     
     // ✅ LÓGICA DE COMPARTIR INTEGRADA (Copiada de share.swift para consistencia)
     private func shareExternally() {
-        guard let momentId = moment.id else { return }
+        guard moment.id != nil else { return }
         let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
-        let shareUrl = URL(string: "https://momentsapp.app/moment/\(momentId)")!
+        let shareUrlString = buildMomentShareLink(moment)
+        let shareUrl = URL(string: shareUrlString)!
         
         let activityController = UIActivityViewController(
             activityItems: [shareText, shareUrl],
             applicationActivities: nil
         )
         
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
+        if let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+           let window = windowScene.windows.first(where: { $0.isKeyWindow }),
+           let presenter = topViewController(from: window.rootViewController) {
             if let popover = activityController.popoverPresentationController {
-                popover.sourceView = window
-                popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(
+                    x: presenter.view.bounds.midX,
+                    y: presenter.view.bounds.midY,
+                    width: 0,
+                    height: 0
+                )
                 popover.permittedArrowDirections = []
             }
-            window.rootViewController?.present(activityController, animated: true)
+            presenter.present(activityController, animated: true)
         }
         
         withAnimation(.easeOut(duration: 0.3)) { isPresented = false }
+    }
+
+    private func topViewController(from root: UIViewController?) -> UIViewController? {
+        if let nav = root as? UINavigationController {
+            return topViewController(from: nav.visibleViewController)
+        }
+        if let tab = root as? UITabBarController {
+            return topViewController(from: tab.selectedViewController)
+        }
+        if let presented = root?.presentedViewController {
+            return topViewController(from: presented)
+        }
+        return root
     }
     
     // ✅ MÉTODOS DE RENDERIZADO INTEGRADOS
@@ -474,7 +518,6 @@ struct ModernContextMenuContent: View {
     let onDelete: () -> Void
     let onShare: () -> Void
     let onReport: () -> Void
-    let onCopyLink: () -> Void
     let onCancel: () -> Void
     
     @Environment(\.colorScheme) var colorScheme
@@ -550,14 +593,6 @@ struct ModernContextMenuContent: View {
                         iconColor: .gray
                     )
                 }
-                
-                ContextMenuButton(
-                    icon: "link",
-                    title: NSLocalizedString("contextMenu.copyLink", comment: "Copy link button"),
-                    subtitle: NSLocalizedString("contextMenu.copyLink.subtitle", comment: "Copy link subtitle"),
-                    iconColor: .orange,
-                    action: onCopyLink
-                )
                 
                 // ✅ Reportar (solo si no es mi momento)
                 if !isMyMoment {

@@ -556,6 +556,18 @@ class ConversationSettingsViewModel: ObservableObject {
     private let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
     private var currentConversation: Conversation?
+    private let typingIndicatorLegacyKey = "chat_typing_indicator_enabled"
+    
+    private func boolFromDefaults(key: String, defaultValue: Bool) -> Bool {
+        if let storedValue = UserDefaults.standard.object(forKey: key) as? Bool {
+            return storedValue
+        }
+        return defaultValue
+    }
+    
+    private func typingIndicatorKey(for conversationId: String) -> String {
+        "chat_typing_indicator_enabled_\(conversationId)"
+    }
     
     func loadConversationData(conversation: Conversation) {
         currentConversation = conversation
@@ -656,7 +668,10 @@ class ConversationSettingsViewModel: ObservableObject {
     }
     
     func toggleTypingIndicator() {
-        UserDefaults.standard.set(typingIndicatorEnabled, forKey: "chat_typing_indicator_enabled")
+        guard let conversationId = currentConversation?.id else { return }
+        
+        let perChatKey = typingIndicatorKey(for: conversationId)
+        UserDefaults.standard.set(typingIndicatorEnabled, forKey: perChatKey)
     }
     
     private func loadPrivacySettings() {
@@ -664,9 +679,15 @@ class ConversationSettingsViewModel: ObservableObject {
               let conversationId = currentConversation?.id else { return }
         
         // Cargar desde UserDefaults como fallback instantáneo
-        notificationsEnabled = UserDefaults.standard.bool(forKey: "chat_notifications_enabled")
-        readReceiptsEnabled = UserDefaults.standard.bool(forKey: "chat_read_receipts_enabled_\(conversationId)")
-        typingIndicatorEnabled = UserDefaults.standard.bool(forKey: "chat_typing_indicator_enabled")
+        notificationsEnabled = boolFromDefaults(key: "chat_notifications_enabled", defaultValue: true)
+        readReceiptsEnabled = boolFromDefaults(key: "chat_read_receipts_enabled_\(conversationId)", defaultValue: true)
+        
+        let typingKey = typingIndicatorKey(for: conversationId)
+        if let perChatTyping = UserDefaults.standard.object(forKey: typingKey) as? Bool {
+            typingIndicatorEnabled = perChatTyping
+        } else {
+            typingIndicatorEnabled = boolFromDefaults(key: typingIndicatorLegacyKey, defaultValue: true)
+        }
         
         let db = Firestore.firestore()
         

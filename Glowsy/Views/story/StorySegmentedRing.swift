@@ -6,6 +6,7 @@ struct StorySegmentedRing: View {
     let hasStory: Bool
     let hasUnseenStory: Bool
     let storyViewedStatus: [Bool] // ✅ Estado de visto por cada historia
+    let storyAudiences: [String?] // ✅ Audiencia por historia (alineada por índice)
     let isOwnStory: Bool // ✅ Para identificar historias propias
     let colorScheme: ColorScheme
     let hapticsEnabled: Bool // ✅ Respuesta háptica interactiva
@@ -19,6 +20,7 @@ struct StorySegmentedRing: View {
         hasStory: Bool,
         hasUnseenStory: Bool,
         storyViewedStatus: [Bool],
+        storyAudiences: [String?] = [],
         isOwnStory: Bool,
         colorScheme: ColorScheme,
         ringSize: CGFloat = 50,
@@ -29,6 +31,7 @@ struct StorySegmentedRing: View {
         self.hasStory = hasStory
         self.hasUnseenStory = hasUnseenStory
         self.storyViewedStatus = storyViewedStatus
+        self.storyAudiences = storyAudiences
         self.isOwnStory = isOwnStory
         self.colorScheme = colorScheme
         self.ringSize = ringSize
@@ -75,8 +78,75 @@ struct StorySegmentedRing: View {
         .rotationEffect(.degrees(-90)) // Rotar todo el anillo para empezar arriba
     }
     
+    private enum AudienceStyle {
+        case bestFriends
+        case mutuals
+    }
+    
+    private func normalizedAudience(_ raw: String?) -> String {
+        raw?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "") ?? ""
+    }
+    
+    private func audienceStyle(for index: Int) -> AudienceStyle? {
+        guard storyAudiences.indices.contains(index) else { return nil }
+        let key = normalizedAudience(storyAudiences[index])
+        
+        if key == "bestfriends" || key == "bestfriend" {
+            return .bestFriends
+        }
+        
+        if key == "connections" || key == "connection" || key == "mutuals" || key == "mutual" {
+            return .mutuals
+        }
+        
+        return nil
+    }
+    
+    private func audienceGradient(_ style: AudienceStyle) -> LinearGradient {
+        switch style {
+        case .bestFriends:
+            return LinearGradient(
+                colors: [Color(hex: "24C26A"), Color(hex: "5BE584")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .mutuals:
+            return LinearGradient(
+                colors: [Color(hex: "00B4D8"), Color(hex: "4CC9F0")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+    
+    private var viewedGrayGradient: LinearGradient {
+        LinearGradient(
+            colors: colorScheme == .dark ?
+            [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
+            [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
     // ✅ Gradiente para un segmento específico
     private func segmentGradient(for index: Int) -> LinearGradient {
+        let wasViewed = index < storyViewedStatus.count ? storyViewedStatus[index] : false
+        
+        // ✅ Para usuarios externos: una historia vista siempre vuelve a gris (incluye bestfriends/mutuals)
+        if !isOwnStory && wasViewed {
+            return viewedGrayGradient
+        }
+        
+        // ✅ PRIORIDAD: color por audiencia del segmento (bestfriends/mutuals) cuando NO está vista
+        if let style = audienceStyle(for: index) {
+            return audienceGradient(style)
+        }
+        
         if isOwnStory {
             // ✅ HISTORIAS PROPIAS: Siempre iluminadas (azul → morado → rosa)
             return LinearGradient(
@@ -86,16 +156,9 @@ struct StorySegmentedRing: View {
             )
         } else {
             // ✅ Para otros usuarios: verificar si esta historia específica ha sido vista
-            let wasViewed = index < storyViewedStatus.count ? storyViewedStatus[index] : false
             if wasViewed {
                 // ✅ HISTORIA YA VISTA: Gris según el tema
-                return LinearGradient(
-                    colors: colorScheme == .dark ?
-                    [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
-                    [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                return viewedGrayGradient
             } else {
                 // ✅ HISTORIA NO VISTA: Iluminada (azul → morado → rosa)
                 return LinearGradient(
@@ -109,6 +172,18 @@ struct StorySegmentedRing: View {
     
     // ✅ Gradiente para círculo completo (cuando solo hay 1 historia)
     private var storyRingGradient: LinearGradient {
+        let wasViewed = !hasUnseenStory
+        
+        // ✅ Para usuarios externos: vista => gris siempre
+        if !isOwnStory && wasViewed {
+            return viewedGrayGradient
+        }
+        
+        // ✅ PRIORIDAD: si la única historia es bestfriends/mutuals, mantener su color
+        if let style = audienceStyle(for: 0) {
+            return audienceGradient(style)
+        }
+        
         if isOwnStory {
             // ✅ HISTORIAS PROPIAS: Siempre iluminadas (azul → morado → rosa)
             return LinearGradient(
@@ -124,13 +199,7 @@ struct StorySegmentedRing: View {
             )
         } else if hasStory {
             // ✅ HISTORIA YA VISTA: Gris según el tema
-            return LinearGradient(
-                colors: colorScheme == .dark ?
-                [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
-                [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            return viewedGrayGradient
         } else {
             // ✅ SIN HISTORIAS: Sin anillo (transparente)
             return LinearGradient(
@@ -175,4 +244,3 @@ struct StorySegment: View {
             .frame(width: size, height: size)
     }
 }
-

@@ -417,15 +417,18 @@ class SuggestedUsersViewModel: ObservableObject {
             return
         }
         
-        firestoreService.fetchConnections(userId: userId) { [weak self] result in
+        firestoreService.fetchFollowing(userId: userId) { [weak self] result in
             switch result {
-            case .success(let connections):
+            case .success(let users):
                 DispatchQueue.main.async {
-                    self?.followedUserIds = Set(connections.map { $0.userId })
+                    self?.followedUserIds = Set(users.map { $0.id })
                     completion()
                 }
             case .failure(_):
-                completion()
+                // Aún si falla, llamamos al completion para cargar sugeridos
+                DispatchQueue.main.async {
+                    completion()
+                }
             }
         }
     }

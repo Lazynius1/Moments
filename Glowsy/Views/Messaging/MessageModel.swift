@@ -315,6 +315,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     @Published var isViewed: Bool
     let storyReplyData: [String: String]?
     let sharedMomentData: [String: String]?
+    let mediaBatchId: String?
     
     // ✅ NUEVOS: Campos para view-once
     var viewedBy: [String]? // IDs de usuarios que han visto el mensaje view-once
@@ -324,6 +325,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case duration, fileName, fileSize, latitude, longitude, timestamp
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData
+        case mediaBatchId
         case viewedBy // ✅ NUEVO
     }
     
@@ -392,6 +394,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         
         self.storyReplyData = try container.decodeIfPresent([String: String].self, forKey: .storyReplyData)
         self.sharedMomentData = try container.decodeIfPresent([String: String].self, forKey: .sharedMomentData)
+        self.mediaBatchId = try container.decodeIfPresent(String.self, forKey: .mediaBatchId)
         
         // ✅ NUEVO: Decodificar viewedBy
         self.viewedBy = try container.decodeIfPresent([String].self, forKey: .viewedBy)
@@ -435,6 +438,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encode(isViewed, forKey: .isViewed)
         try container.encodeIfPresent(storyReplyData, forKey: .storyReplyData)
         try container.encodeIfPresent(sharedMomentData, forKey: .sharedMomentData)
+        try container.encodeIfPresent(mediaBatchId, forKey: .mediaBatchId)
         
         // ✅ NUEVO: Codificar viewedBy
         try container.encodeIfPresent(viewedBy, forKey: .viewedBy)
@@ -464,6 +468,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          isViewed: Bool = false,
          storyReplyData: [String: String]? = nil,
          sharedMomentData: [String: String]? = nil,
+         mediaBatchId: String? = nil,
          viewedBy: [String]? = nil) { // ✅ NUEVO parámetro
         
         self.id = id ?? UUID().uuidString
@@ -490,6 +495,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.isViewed = isViewed
         self.storyReplyData = storyReplyData
         self.sharedMomentData = sharedMomentData
+        self.mediaBatchId = mediaBatchId
         self.viewedBy = viewedBy
     }
     

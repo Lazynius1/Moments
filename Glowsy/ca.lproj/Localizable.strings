@@ -101,6 +101,13 @@
 "profile.saved.empty.title" = "Res Desat Encara";
 "profile.saved.empty.subtitle" = "Els moments que desis apareixeran aquí.";
 "profile.saved.loading" = "Carregant desats...";
+"profile.saved.openAll" = "Veure tot";
+"profile.saved.recent" = "Recents";
+"profile.saved.filtered.empty" = "No hi ha desats per aquest filtre";
+"profile.saved.filter.all" = "Tot";
+"profile.saved.filter.videos" = "Videos";
+"profile.saved.filter.text" = "Text";
+"profile.saved.filter.location" = "Ubicacio";
 "profile.loading" = "Carregant perfil...";
 "profile.error.title" = "Ups, alguna cosa ha anat malament";
 "profile.error.retryButton" = "Tornar a provar";
@@ -302,6 +309,10 @@
 "explore.button.follow" = "Seguir";
 "explore.button.request" = "Sol·licitar";
 "explore.button.requested" = "Sol·licitat";
+"explore.recentSearches.title" = "Recerques Recents";
+"social.mutual" = "Us seguiu mútuament";
+"social.followsYou" = "Et segueix";
+"social.following" = "Seguint";
 
 /* StoriesView */
 "stories.loading" = "Carregant arxiu...";
@@ -327,6 +338,12 @@
 "stories.activity.noReactions" = "Sense reaccions encara";
 "stories.activity.viewersTab" = "Vistes (%d)";
 "stories.activity.reactionsTab" = "Reaccions (%d)";
+"stories.activity.audienceTitle" = "Audiència";
+"stories.activity.audienceMembersCount" = "%d membres";
+"stories.activity.audienceLoading" = "Carregant audiència...";
+"stories.activity.audienceNoMembers" = "No hi ha usuaris en aquesta audiència";
+"stories.activity.audienceMoreUsers" = "més";
+"stories.activity.audienceViewAll" = "Veure audiència (%d)";
 "stories.ephemeral.expired" = "Moment efímer caducat";
 "stories.ephemeral.unavailable" = "La imatge ja no està disponible";
 "stories.replied" = "Has respost a la seva història";
@@ -598,7 +615,7 @@
 "conversationSettings.notifications" = "Notificacions";
 "conversationSettings.notifications.desc" = "Rep alertes quan arribin nous missatges";
 "conversationSettings.typingIndicator" = "Indicador d'escriptura";
-"conversationSettings.typingIndicator.desc" = "Mostra quan estàs escrivint";
+"conversationSettings.typingIndicator.desc" = "Si ho desactives, tampoc veuràs quan l'altra persona està escrivint.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmació de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactives el 'vist' en aquest xat, no podràs veure quan l'altra persona llegeix els teus missatges.";
 "common.viewAll" = "Veure-ho tot";
@@ -1224,6 +1241,24 @@
 "savedMoments.saved" = "GUARDAT";
 "savedMoments.remove" = "Eliminar";
 "savedMoments.share" = "Compartir";
+"savedMoments.select" = "Seleccionar";
+"savedMoments.sortMenu" = "Ordenar";
+"savedMoments.sort.newest" = "Recents";
+"savedMoments.sort.oldest" = "Antics";
+"savedMoments.sort.author" = "Autor";
+"savedMoments.search.placeholder" = "Cerca per usuari, text o ubicacio";
+"savedMoments.filter.media.all" = "Tot";
+"savedMoments.filter.media.photos" = "Fotos";
+"savedMoments.filter.media.videos" = "Videos";
+"savedMoments.filter.collection.all" = "Tots";
+"savedMoments.filter.collection.location" = "Ubicacio";
+"savedMoments.filter.collection.text" = "Text";
+"savedMoments.filter.collection.multiple" = "Carousel";
+"savedMoments.empty.filtered.title" = "No hi ha resultats amb aquests filtres";
+"savedMoments.empty.filtered.description" = "Prova de treure filtres o netejar la cerca.";
+"savedMoments.selection.count" = "%d seleccionats";
+"savedMoments.selection.remove.title" = "Eliminar seleccionats";
+"savedMoments.selection.remove.message" = "S'eliminaran %d elements de guardats.";
 
 /* Content Visibility */
 "contentVisibility.title" = "Privadesa del Contingut";
@@ -1415,7 +1450,16 @@
 "storyContextMenu.report.subtitle" = "Contingut\ninapropiat";
 "storyContextMenu.block" = "Bloquejar";
 "storyContextMenu.block.subtitle" = "No veure més\ncontingut";
+"storyContextMenu.leaveBestFriends" = "Sortir de\nMillors";
+"storyContextMenu.leaveBestFriends.subtitle" = "No veure les\nhistòries BF";
 "storyContextMenu.scrollReactions" = "Desplaça't per a més reaccions";
+
+"bestFriends.optOut.confirm.title" = "Sortir de millors amics";
+"bestFriends.optOut.confirm.message" = "Vols sortir de la llista de millors amics d'aquest usuari?";
+"bestFriends.optOut.confirm.action" = "Sortir";
+"bestFriends.optOut.confirm.cancel" = "Cancel·lar";
+"bestFriends.optOut.success" = "Has sortit de la seva llista de millors amics";
+"bestFriends.optOut.error" = "No s'ha pogut sortir de millors amics";
 
 /* User Activity View */
 "userActivity.summary.title" = "Resum d'Activitat";
@@ -2186,3 +2230,16 @@
 
 /* Reactions */
 "reactions.title" = "Reaccions";
+
+/* Feed Video */
+"feed.video.loading" = "Carregant vídeo...";
+"feed.video.loadError" = "No hem pogut carregar el vídeo";
+"feed.video.retry" = "Tornar a provar";
+
+/* Feed Reels Video */
+"feed.reels.video.loading" = "Carregant vídeo...";
+"feed.reels.video.starting" = "Iniciant...";
+"feed.reels.video.optimizing" = "Optimitzant la qualitat...";
+
+/* Messaging Search */
+"messaging.search.placeholder" = "Cercar converses...";

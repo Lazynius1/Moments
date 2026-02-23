@@ -1,6 +1,17 @@
 import SwiftUI
 import FirebaseAuth
 
+// MARK: - Tab Selection Type (iOS 26+)
+// Using an enum allows mixing Tab(value:) with Tab(role: .search, value:)
+@available(iOS 26.0, *)
+enum AppTab: Hashable {
+    case home
+    case nova
+    case create
+    case explore
+    case profile
+}
+
 struct TabBarView: View {
     @StateObject private var authService = AuthService()
     @StateObject private var exploreViewModel = ExploreViewModel()
@@ -10,22 +21,35 @@ struct TabBarView: View {
     @State private var previousSelectedTab: Int = 0
     @State private var showCreatorView: Bool = false
     @State private var isCreatingStory: Bool = false
-    @State private var openCreatorInStoryMode: Bool = false // ✅ Para abrir desde widget en modo historia
+    @State private var openCreatorInStoryMode: Bool = false
     @State private var hasPreloadedExplore: Bool = false
-    @State private var showEchoInvitation: Bool = false // 🌊 Sugerencia de Echo
+    @State private var showEchoInvitation: Bool = false
     @State private var pendingEchoId: String = ""
-    @State private var showEchoViewer: Bool = false      // 🌊 Visor de Echo
+    @State private var showEchoViewer: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         Group {
             if authService.isLoggedIn {
                 if #available(iOS 26.0, *) {
-                    // Nueva API iOS 26 con efecto Liquid Glass y gota de agua nativo
-                    modernTabView
-                        .overlay(alignment: .top) {
-                            InAppBannerView() // ✅ NUEVO: Banners in-app
-                        }
+                    // Dedicated struct owns @State modernTab: AppTab
+                    ModernTabView(
+                        selectedTab: $selectedTab,
+                        previousSelectedTab: $previousSelectedTab,
+                        showCreatorView: $showCreatorView,
+                        isCreatingStory: $isCreatingStory,
+                        openCreatorInStoryMode: $openCreatorInStoryMode,
+                        hasPreloadedExplore: $hasPreloadedExplore,
+                        showEchoInvitation: $showEchoInvitation,
+                        pendingEchoId: $pendingEchoId,
+                        showEchoViewer: $showEchoViewer,
+                        exploreViewModel: exploreViewModel,
+                        authService: authService,
+                        navigationService: navigationService
+                    )
+                    .overlay(alignment: .top) {
+                        InAppBannerView()
+                    }
                 } else {
                     // Implementación legacy para versiones anteriores
                     legacyTabView
@@ -48,54 +72,61 @@ struct TabBarView: View {
         }
     }
     
-    // MARK: - Modern Tab View (iOS 26+ con Liquid Glass)
-    @available(iOS 26.0, *)
-    private var modernTabView: some View {
+
+// MARK: - Modern Tab View (iOS 26+ — owns @State modernTab: AppTab)
+@available(iOS 26.0, *)
+struct ModernTabView: View {
+    @Binding var selectedTab: Int
+    @Binding var previousSelectedTab: Int
+    @Binding var showCreatorView: Bool
+    @Binding var isCreatingStory: Bool
+    @Binding var openCreatorInStoryMode: Bool
+    @Binding var hasPreloadedExplore: Bool
+    @Binding var showEchoInvitation: Bool
+    @Binding var pendingEchoId: String
+    @Binding var showEchoViewer: Bool
+    @ObservedObject var exploreViewModel: ExploreViewModel
+    @ObservedObject var authService: AuthService
+    @ObservedObject var navigationService: NotificationNavigationService
+
+    // This struct owns modernTab so @available is not needed on a stored property
+    @State private var modernTab: AppTab = .home
+
+    var body: some View {
         TabView(selection: Binding(
-            get: { selectedTab },
-            set: { newValue in
-                if newValue == 2 {
-                    // Si se selecciona el tab de crear, abrir CreatorView
+            get: { modernTab },
+            set: { newTab in
+                if newTab == .create {
                     HapticManager.shared.mediumImpact()
                     showCreatorView = true
                     isCreatingStory = true
-                    // Mantener el tab anterior seleccionado visualmente
-                    selectedTab = previousSelectedTab
-                } else if newValue == 0 && selectedTab == 0 {
-                    // ✅ NUEVO: Si se toca Home cuando ya está seleccionado, scroll al inicio y refrescar
+                } else if newTab == .home && modernTab == .home {
                     HapticManager.shared.lightImpact()
                     NotificationCenter.default.post(name: NSNotification.Name("ScrollFeedToTop"), object: nil)
                 } else {
                     HapticManager.shared.selection()
-                    selectedTab = newValue
-                    previousSelectedTab = newValue
+                    modernTab = newTab
+                    selectedTab = appTabToInt(newTab)
+                    previousSelectedTab = selectedTab
                 }
             }
         )) {
-            // Tab 0: Feed
-            Tab(NSLocalizedString("tabBar.home", comment: "Home tab title"), systemImage: "house", value: 0) {
+            Tab(NSLocalizedString("tabBar.home", comment: ""), systemImage: "house", value: AppTab.home) {
                 FeedView(showCreatorView: $showCreatorView)
                     .environmentObject(authService)
             }
-            
-            // Tab 1: Nova
-            Tab(NSLocalizedString("tabBar.nova", comment: "Nova tab title"), systemImage: "star", value: 1) {
+            Tab(NSLocalizedString("tabBar.nova", comment: ""), systemImage: "star", value: AppTab.nova) {
                 GeminiView()
             }
-            
-            // Tab 2: Create (abre CreatorView)
-            Tab("", systemImage: "camera.fill", value: 2) {
+            Tab("", systemImage: "camera.fill", value: AppTab.create) {
                 Color.clear
             }
-            
-            // Tab 3: Explore
-            Tab(NSLocalizedString("tabBar.explore", comment: "Explore tab title"), systemImage: "magnifyingglass", value: 3) {
+            // ✨ Native search tab: expands on tap, minimizes on scroll down with tab bar
+            Tab(value: AppTab.explore, role: .search) {
                 ExploreView()
                     .environmentObject(exploreViewModel)
             }
-            
-            // Tab 4: Profile
-            Tab(NSLocalizedString("tabBar.profile", comment: "Profile tab title"), systemImage: "person", value: 4) {
+            Tab(NSLocalizedString("tabBar.profile", comment: ""), systemImage: "person", value: AppTab.profile) {
                 ProfileView(selectedTab: $selectedTab)
             }
         }
@@ -110,10 +141,7 @@ struct TabBarView: View {
                 initialSticker: nil,
                 openInStoryMode: openCreatorInStoryMode
             )
-            .onDisappear {
-                // ✅ Resetear el flag cuando se cierra el creator
-                openCreatorInStoryMode = false
-            }
+            .onDisappear { openCreatorInStoryMode = false }
         }
         .setupTabBarHandlers(
             selectedTab: $selectedTab,
@@ -128,11 +156,33 @@ struct TabBarView: View {
             exploreViewModel: exploreViewModel,
             navigationService: navigationService
         )
-        .overlay(alignment: .top) {
-            InAppBannerView() // ✅ NUEVO: Banners in-app
+        // Keep modernTab in sync when navigationService changes selectedTab
+        .onChange(of: selectedTab) { newInt in
+            modernTab = intToAppTab(newInt)
         }
     }
-    
+
+    private func appTabToInt(_ tab: AppTab) -> Int {
+        switch tab {
+        case .home:    return 0
+        case .nova:    return 1
+        case .create:  return 2
+        case .explore: return 3
+        case .profile: return 4
+        }
+    }
+
+    private func intToAppTab(_ int: Int) -> AppTab {
+        switch int {
+        case 0: return .home
+        case 1: return .nova
+        case 2: return .create
+        case 3: return .explore
+        case 4: return .profile
+        default: return .home
+        }
+    }
+}
     // MARK: - Legacy Tab View (iOS < 26)
     private var legacyTabView: some View {
         ZStack {
@@ -264,10 +314,39 @@ struct TabBarView: View {
     
     // ✅ NUEVO: Manejador de Deep Links extraído para evitar errores de compilador
     private func handleDeepLink(_ url: URL) {
-        // Verificar esquema
-        guard let scheme = url.scheme, (scheme == "moments" || scheme == "glowsy") else { return }
+        // ✅ 1. Manejar esquemas personalizados (moments:// o glowsy://)
+        if let scheme = url.scheme, (scheme == "moments" || scheme == "glowsy") {
+            handleCustomScheme(url)
+            return
+        }
         
-        if url.host == "story", url.path == "/create" {
+        // ✅ 2. Manejar Universal Links (https://moments.app o https://momentsapp.app)
+        if let scheme = url.scheme, scheme == "https", let host = url.host {
+            let normalizedHost = host.lowercased()
+            let supportedHosts: Set<String> = [
+                "moments.app",
+                "www.moments.app",
+                "momentsapp.app",
+                "www.momentsapp.app"
+            ]
+            
+            if supportedHosts.contains(normalizedHost) {
+                handleUniversalLink(url)
+                return
+            }
+        }
+    }
+    
+    private func handleCustomScheme(_ url: URL) {
+        let host = url.host
+        let path = url.path
+        
+        if host == "moment", url.pathComponents.count > 1 {
+            // glowsy://moment/ID
+            let momentId = url.pathComponents[1]
+            NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
+            selectedTab = 0
+        } else if host == "story", path == "/create" {
             // Abrir creator en modo historia
             openCreatorInStoryMode = true
             showCreatorView = true
@@ -302,10 +381,25 @@ struct TabBarView: View {
         } else if url.host == "notifications" {
             // Abrir notificaciones
             NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
-        } else if url.host == "stories" {
+        } else if host == "stories" {
             // Abrir feed y mostrar historias
             selectedTab = 0
             NotificationCenter.default.post(name: NSNotification.Name("ShowStories"), object: nil)
+        }
+    }
+    
+    private func handleUniversalLink(_ url: URL) {
+        let pathComponents = url.pathComponents
+        
+        // Formato esperado: https://moments.app/moment/ID o https://momentsapp.app/moment/ID
+        if pathComponents.count >= 3 && pathComponents[1] == "moment" {
+            let momentId = pathComponents[2]
+            
+            // Navegar al momento
+            selectedTab = 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
+            }
         }
     }
 }

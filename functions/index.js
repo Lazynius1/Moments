@@ -2060,3 +2060,64 @@ exports.onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
     console.error('❌ Error handling echo creation:', error);
   }
 });
+
+// ✅ PRIVACY: Permite que un usuario se salga de la lista de mejores amigos de otro usuario
+exports.optOutBestFriends = onRequest(
+  {
+    timeoutSeconds: 30
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const requesterId = await verifyFirebaseAuth(req, res);
+    if (!requesterId) return;
+
+    const body = parseJsonBody(req);
+    const ownerId = typeof body.ownerId === 'string' ? body.ownerId.trim() : '';
+
+    if (!ownerId) {
+      res.status(400).json({ error: 'Missing ownerId' });
+      return;
+    }
+
+    if (ownerId === requesterId) {
+      res.status(400).json({ error: 'Invalid ownerId' });
+      return;
+    }
+
+    try {
+      const ownerRef = admin.firestore().collection('users').doc(ownerId);
+
+      await admin.firestore().runTransaction(async (tx) => {
+        const ownerSnap = await tx.get(ownerRef);
+        if (!ownerSnap.exists) {
+          throw new Error('Owner not found');
+        }
+
+        const ownerData = ownerSnap.data() || {};
+        const bestFriends = Array.isArray(ownerData.bestFriends) ? ownerData.bestFriends : [];
+
+        if (bestFriends.includes(requesterId)) {
+          tx.update(ownerRef, {
+            bestFriends: admin.firestore.FieldValue.arrayRemove(requesterId),
+            bestFriendsUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('optOutBestFriends error:', error);
+      res.status(500).json({ error: 'Failed to opt out from best friends' });
+    }
+  }
+);

@@ -13,7 +13,6 @@ struct MomentDetailView: View {
     @State private var showingCommentsSheet: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var keyboardHeight: CGFloat = 0
-    @State private var showShareSheet: Bool = false
     @State private var showContextMenu: Bool = false
     @State private var showEditSheet = false
     @State private var showDeleteAlert = false
@@ -31,6 +30,7 @@ struct MomentDetailView: View {
     // ✅ NUEVOS: Estados para expansión de contenido
     @State private var isContentExpanded: Bool = false
     @State private var needsContentExpansion: Bool = false
+    @State private var hasTrackedMomentView = false
     
     // ✅ NUEVO: Estado para navegación al perfil
     @State private var navigateToProfile: Bool = false
@@ -88,14 +88,7 @@ struct MomentDetailView: View {
                             showDeleteAlert = true
                         },
                         onReport: {
-                            showReportSheet = true
-                        },
-                        onCopyLink: {
-                            if let momentId = moment.id {
-                                UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
-                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                impactFeedback.impactOccurred()
-                            }
+                            // showReportSheet = true // ❌ Ya no se usa sheet
                         }
                     )
                     .zIndex(1000)
@@ -105,6 +98,12 @@ struct MomentDetailView: View {
         .navigationBarHidden(true)
         .onAppear {
             setupView()
+            if !hasTrackedMomentView, !moment.authorId.isEmpty {
+                hasTrackedMomentView = true
+                Task { @MainActor in
+                    AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
+                }
+            }
         }
         .sheet(isPresented: $showingCommentsSheet) {
             ModernCommentsView(moment: moment)
@@ -129,17 +128,9 @@ struct MomentDetailView: View {
         } message: {
            Text("momentDetail.delete.message")
         }
-        .sheet(isPresented: $showReportSheet) {
+        /*.sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: moment)
-        }
-        .overlay(
-            Group {
-                if showShareSheet {
-                    ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
-                        .zIndex(1000)
-                }
-            }
-        )
+        }*/
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
             if let keyboardSize = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue {
                 keyboardHeight = keyboardSize.cgRectValue.height
@@ -1439,6 +1430,9 @@ class MomentDetailViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    Task { @MainActor in
+                        AffinityTracker.shared.trackInteraction(type: .momentComment, with: momentOwnerId)
+                    }
                     self?.fetchComments()
                 case .failure(let error):
                     self?.errorMessage = "Error al añadir comentario: \(error.localizedDescription)"
@@ -1575,16 +1569,6 @@ class MomentDetailViewModel: ObservableObject {
         }
     }
 
-    func shareMoment() {
-        guard let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) else { return }
-        let shareText = "Mira este Moment en Glowsy: \(moment.content)"
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            let activityVC = UIActivityViewController(activityItems: [shareText, url], applicationActivities: nil)
-            rootViewController.present(activityVC, animated: true, completion: nil)
-        }
-    }
-
     func loadAuthorProfile() {
         firestoreService.fetchUserProfile(userId: moment.authorId) { [weak self] result in
             DispatchQueue.main.async {
@@ -1613,4 +1597,3 @@ class MomentDetailViewModel: ObservableObject {
         }
     }
 }
-

@@ -8,6 +8,19 @@ import UIKit
 import Foundation
 import AVKit
 
+private func buildMomentShareURLString(_ moment: Moment) -> String {
+    guard let momentId = moment.id else {
+        return "https://momentsapp.app/moment"
+    }
+    
+    var components = URLComponents(string: "https://momentsapp.app/moment/\(momentId)")
+    if !moment.authorId.isEmpty {
+        components?.queryItems = [URLQueryItem(name: "a", value: moment.authorId)]
+    }
+    
+    return components?.url?.absoluteString ?? "https://momentsapp.app/moment/\(momentId)"
+}
+
 // MARK: - ✅ Modern Share Bottom Sheet (Rediseñado)
 enum ShareSheetViewState {
     case main
@@ -97,28 +110,49 @@ struct ModernShareBottomSheet: View {
     }
     
     private func shareExternally() {
-        guard let momentId = moment.id else { return }
+        guard moment.id != nil else { return }
         let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
-        let shareUrl = URL(string: "https://moments.app/moment/\(momentId)")!
+        let shareUrl = URL(string: buildMomentShareURLString(moment))!
         
         let activityController = UIActivityViewController(
             activityItems: [shareText, shareUrl],
             applicationActivities: nil
         )
         
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
+        if let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+           let window = windowScene.windows.first(where: { $0.isKeyWindow }),
+           let presenter = topViewController(from: window.rootViewController) {
             if let popover = activityController.popoverPresentationController {
-                popover.sourceView = window
-                popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(
+                    x: presenter.view.bounds.midX,
+                    y: presenter.view.bounds.midY,
+                    width: 0,
+                    height: 0
+                )
                 popover.permittedArrowDirections = []
             }
-            window.rootViewController?.present(activityController, animated: true)
+            presenter.present(activityController, animated: true)
         }
         
         withAnimation(.easeOut(duration: 0.3)) {
             isPresented = false
         }
+    }
+
+    private func topViewController(from root: UIViewController?) -> UIViewController? {
+        if let nav = root as? UINavigationController {
+            return topViewController(from: nav.visibleViewController)
+        }
+        if let tab = root as? UITabBarController {
+            return topViewController(from: tab.selectedViewController)
+        }
+        if let presented = root?.presentedViewController {
+            return topViewController(from: presented)
+        }
+        return root
     }
 }
 
@@ -550,10 +584,10 @@ struct ModernShareSheet: View {
     
     private func sendToSelectedUsers() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
-              let momentId = moment.id else { return }
+              moment.id != nil else { return }
         
         let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
-        let momentUrl = "https://moments.app/moment/\(momentId)"
+        let momentUrl = buildMomentShareURLString(moment)
         
         for userId in selectedUsers {
             let existingConv = conversations.first(where: { $0.otherParticipantId == userId })

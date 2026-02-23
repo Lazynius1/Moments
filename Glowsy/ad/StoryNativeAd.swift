@@ -184,7 +184,8 @@ struct StoryAdContentViewWithMediaView: View {
                         ForEach(0..<storyCount, id: \.self) { index in
                             GlassmorphicProgressBar(
                                 progress: getProgressForSegment(index: index),
-                                isActive: index == storyIndex
+                                isActive: index == storyIndex,
+                                audience: nil
                             )
                         }
                     }
@@ -470,7 +471,8 @@ struct StoryAdLoadingView: View {
                         ForEach(0..<storyCount, id: \.self) { index in
                             GlassmorphicProgressBar(
                                 progress: getProgressForSegment(index: index),
-                                isActive: index == storyIndex
+                                isActive: index == storyIndex,
+                                audience: nil
                             )
                         }
                     }

@@ -210,13 +210,17 @@ struct ReelVideoView: View {
                             }
                             
                             VStack(spacing: 8) {
-                                Text(playerManager.isLoaded ? "Iniciando..." : "Cargando video...")
+                                Text(
+                                    playerManager.isLoaded
+                                    ? NSLocalizedString("feed.reels.video.starting", comment: "Reels starting state")
+                                    : NSLocalizedString("feed.reels.video.loading", comment: "Reels loading state")
+                                )
                                     .font(.custom("Poppins-Medium", size: 14))
                                     .foregroundColor(.white)
                                     .transition(.opacity)
                                 
                                 if playerManager.isBuffering {
-                                    Text("Optimizando calidad...")
+                                    Text(NSLocalizedString("feed.reels.video.optimizing", comment: "Reels optimizing quality"))
                                         .font(.custom("Poppins-Regular", size: 12))
                                         .foregroundColor(.white.opacity(0.6))
                                         .transition(.opacity)
@@ -506,14 +510,7 @@ struct ReelVideoView: View {
                             showDeleteAlert = true
                         },
                         onReport: {
-                            showReportSheet = true
-                        },
-                        onCopyLink: {
-                            if let momentId = video.moment.id {
-                                UIPasteboard.general.string = "https://moments.app/moment/\(momentId)"
-                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                impactFeedback.impactOccurred()
-                            }
+                            // showReportSheet = true // ❌ Ya no se usa sheet
                         }
                     )
                     .transition(.asymmetric(
@@ -536,9 +533,9 @@ struct ReelVideoView: View {
                 }
             }
         }
-        .sheet(isPresented: $showReportSheet) {
+        /*.sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: video.moment)
-        }
+        }*/
         .sheet(isPresented: $navigateToProfile) {
             UserProfileView(userId: video.moment.authorId)
         }
@@ -799,7 +796,11 @@ struct ReelVideoView: View {
     private func shareVideo() {
         guard let momentId = video.moment.id else { return }
         let shareText = "¡Mira este video en Moments!"
-        let shareURL = URL(string: "https://moments.app/moment/\(momentId)")
+        var components = URLComponents(string: "https://momentsapp.app/moment/\(momentId)")
+        if !video.moment.authorId.isEmpty {
+            components?.queryItems = [URLQueryItem(name: "a", value: video.moment.authorId)]
+        }
+        let shareURL = components?.url
         
         let activityViewController = UIActivityViewController(
             activityItems: [shareText, shareURL].compactMap { $0 },

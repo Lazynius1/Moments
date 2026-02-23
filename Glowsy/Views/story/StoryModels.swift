@@ -8,11 +8,13 @@ import Kingfisher
 import Photos
 import MapKit
 import AVFoundation
+import SwiftData
 
 // MARK: - StoryViewModel
 @MainActor
 class StoryViewModel: ObservableObject {
     @Published var stories: [String: [Story]] = [:]
+    @Published var sortedStoryUserIds: [String] = [] // Mantiene el orden de afinidad
     @Published var hasActiveStory: Bool = false
     @Published var storyReactions: [String: [StoryReaction]] = [:] // storyId: reactions
     @Published var storyViewers: [String: [StoryViewer]] = [:] // storyId: viewers
@@ -277,7 +279,45 @@ class StoryViewModel: ObservableObject {
         
         group.notify(queue: .main) {
             Task { @MainActor in
-                self.stories = filteredStories
+                // ✅ EXPERIMENTAL AFFINITY SORTING FOR STORIES
+                let affinityManager = AffinityTracker.shared
+                var finalSortedStories: [String: [Story]] = [:]
+                var finalSortedIds: [String] = []
+                
+                if let container = affinityManager.modelContainer {
+                    let context = SwiftData.ModelContext(container)
+                    let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
+                    let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
+                    let storyUserIds = Array(filteredStories.keys)
+                    let affinityScores = affinityManager.getScores(for: storyUserIds, in: context)
+                    
+                    // Convert dictionary to array of tuples to sort users by affinity
+                    let userScores = filteredStories.keys.map { userId -> (userId: String, score: Double) in
+                        var additionalScore = 0.0
+                        let affinityScore = affinityScores[userId] ?? 0.0
+                        additionalScore += (affinityScore * 1000)
+                        
+                        let randomFactor = Double.random(in: 0...1000)
+                        additionalScore += randomFactor
+                        
+                        if bestFriends.contains(userId) {
+                            additionalScore += 50000
+                        } else if mutuals.contains(userId) {
+                            additionalScore += 20000
+                        }
+                        return (userId: userId, score: additionalScore)
+                    }
+                    
+                    // Sort the users based on score
+                    finalSortedIds = userScores.sorted { $0.score > $1.score }.map { $0.userId }
+                    finalSortedStories = filteredStories
+                } else {
+                    finalSortedStories = filteredStories
+                    finalSortedIds = Array(filteredStories.keys).shuffled()
+                }
+                
+                self.stories = finalSortedStories
+                self.sortedStoryUserIds = finalSortedIds
                 
                 // ✅ SwiftData: Guardar historias en caché local por cada usuario
                 // Usar sync: true solo en la primera carga global para purgar inconsistencias
@@ -658,27 +698,6 @@ class StoryViewModel: ObservableObject {
         return url.lastPathComponent
     }
 
-    func shareStory(_ story: Story, completion: @escaping (Bool) -> Void) {
-        guard let storyUrl = URL(string: story.mediaItem.url) else {
-            completion(false)
-            return
-        }
-        
-        let activityController = UIActivityViewController(
-            activityItems: [storyUrl, "Check out this story!"],
-            applicationActivities: nil
-        )
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            rootViewController.present(activityController, animated: true) {
-                completion(true)
-            }
-        } else {
-            completion(false)
-        }
-    }
-
     // MARK: - Private Helpers
     
     private func getOrCreateConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
@@ -736,6 +755,11 @@ class StoryViewModel: ObservableObject {
                 } else {
                     // Update local reactions
                     self?.fetchReactions(for: userId, storyId: storyId)
+                    
+                    // Track local affinity for story reaction (on successful write)
+                    Task { @MainActor in
+                        AffinityTracker.shared.trackInteraction(type: .storyReaction, with: userId)
+                    }
                     
                     // 2. Notificación manejada por el servidor (onStoryReactionAdded)
                 }
@@ -1010,7 +1034,7 @@ struct GlassmorphicStoryViewer: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showQuickActions: Bool = false
     @State private var showViewers: Bool = false
-    @State private var showShareSheet: Bool = false
+    @State private var showBestFriendsOptOutConfirmation: Bool = false
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging: Bool = false
     @State private var showSuccessMessage: Bool = false
@@ -1044,6 +1068,17 @@ struct GlassmorphicStoryViewer: View {
     private let reactions: [String] = ["✌🏻", "🔥", "✅", "😊", "✨", "❤️", "💕", "😮", "😂", "😢", "🙏🏻", "⚡", "🧠", "🎨", "😌", "🎉"]
 
     private let firestoreService = FirestoreService()
+    private let bestFriendsService = BestFriendsService()
+    
+    private var canOptOutFromAuthorBestFriends: Bool {
+        guard story.authorId != Auth.auth().currentUser?.uid else { return false }
+        let normalizedAudience = story.audience?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "") ?? ""
+        return normalizedAudience == "bestfriends"
+    }
     
     // ✅ FUNCIÓN HELPER: Detectar aspect ratio de un video (CORREGIDA)
     static func detectVideoAspectRatio(from url: URL) async -> String? {
@@ -1380,6 +1415,7 @@ struct GlassmorphicStoryViewer: View {
             resumeStory()
         }) {
             GlassmorphicViewersSheet(
+                story: story,
                 viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
                 reactions: storyViewModel.storyReactions[story.id ?? ""] ?? []
             )
@@ -1387,10 +1423,21 @@ struct GlassmorphicStoryViewer: View {
                 pauseStory()
             }
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = URL(string: story.mediaItem.url) {
-                ShareSheet(activityItems: [url, "Check out this story!"])
+        .alert(
+            NSLocalizedString("bestFriends.optOut.confirm.title", comment: "Leave best friends title"),
+            isPresented: $showBestFriendsOptOutConfirmation
+        ) {
+            Button(NSLocalizedString("bestFriends.optOut.confirm.cancel", comment: "Cancel"), role: .cancel) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    resumeStory()
+                }
             }
+            
+            Button(NSLocalizedString("bestFriends.optOut.confirm.action", comment: "Leave"), role: .destructive) {
+                optOutFromBestFriends()
+            }
+        } message: {
+            Text(NSLocalizedString("bestFriends.optOut.confirm.message", comment: "Leave best friends message"))
         }
         .onChange(of: selectedPhoto) { newPhoto in
             handleEphemeralPhoto(newPhoto)
@@ -1498,10 +1545,19 @@ struct GlassmorphicStoryViewer: View {
             ForEach(0..<storyCount, id: \.self) { index in
                 GlassmorphicProgressBar(
                     progress: getProgressForSegment(index: index),
-                    isActive: index == storyIndex
+                    isActive: index == storyIndex,
+                    audience: audienceForSegment(index: index)
                 )
             }
         }
+    }
+    
+    private func audienceForSegment(index: Int) -> String? {
+        guard let storiesForAuthor = storyViewModel.stories[story.authorId],
+              storiesForAuthor.indices.contains(index) else {
+            return nil
+        }
+        return storiesForAuthor[index].audience
     }
     
     private var glassmorphicHeader: some View {
@@ -1653,20 +1709,6 @@ struct GlassmorphicStoryViewer: View {
                 // ✅ ACCIONES PARA HISTORIAS DE OTROS
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 20) {
                     ModernActionTile(
-                        icon: "square.and.arrow.up",
-                        title: NSLocalizedString("storyContextMenu.share", comment: "Share story button"),
-                        subtitle: NSLocalizedString("storyContextMenu.share.subtitle", comment: "Share story subtitle"),
-                        color: .blue
-                    ) {
-                        showShareSheet = true
-                        showQuickActions = false
-                        // ✅ REANUDAR después de cerrar menú
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            resumeStory()
-                        }
-                    }
-                    
-                    ModernActionTile(
                         icon: "flag.fill",
                         title: NSLocalizedString("storyContextMenu.report", comment: "Report story button"),
                         subtitle: NSLocalizedString("storyContextMenu.report.subtitle", comment: "Report story subtitle"),
@@ -1689,6 +1731,18 @@ struct GlassmorphicStoryViewer: View {
                         // ✅ NO reanudar aquí porque se abre confirmación
                 
                     }
+                    
+                    if canOptOutFromAuthorBestFriends {
+                        ModernActionTile(
+                            icon: "person.badge.minus",
+                            title: NSLocalizedString("storyContextMenu.leaveBestFriends", comment: "Leave best friends"),
+                            subtitle: NSLocalizedString("storyContextMenu.leaveBestFriends.subtitle", comment: "Leave best friends subtitle"),
+                            color: .green
+                        ) {
+                            showQuickActions = false
+                            showBestFriendsOptOutConfirmation = true
+                        }
+                    }
                 }
             }
             
@@ -1709,7 +1763,7 @@ struct GlassmorphicStoryViewer: View {
         .padding(.horizontal, 20)
         .onDisappear {
             // ✅ REANUDAR solo si NO hay ningún otro overlay activo
-            let isAnyOtherOverlayVisible = showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showShareSheet
+            let isAnyOtherOverlayVisible = showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation
             
             if !isAnyOtherOverlayVisible {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -2620,6 +2674,30 @@ struct GlassmorphicStoryViewer: View {
         }
     }
     
+    private func optOutFromBestFriends() {
+        pauseStory()
+        bestFriendsService.optOutFromBestFriends(of: story.authorId) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    let fallback = NSLocalizedString("bestFriends.optOut.error", comment: "Could not leave best friends")
+                    let message = error.localizedDescription.isEmpty ? fallback : error.localizedDescription
+                    self.showSuccessAnimation(message)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        self.resumeStory()
+                    }
+                    return
+                }
+                
+                self.showSuccessAnimation(NSLocalizedString("bestFriends.optOut.success", comment: "You left best friends"))
+
+                // Dar tiempo a leer el mensaje y mantener flujo natural de historias.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    self.onNext()
+                }
+            }
+        }
+    }
+    
     // MARK: - Story Playback
     
     private func prepareAndStartStory() {
@@ -2697,7 +2775,7 @@ struct GlassmorphicStoryViewer: View {
 
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
-        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showShareSheet
+        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation
         
         guard !isKeyboardVisible && !isDragging && !isAnyOverlayVisible else {
             return
@@ -2965,6 +3043,47 @@ struct GlassmorphicStoryViewer: View {
 struct GlassmorphicProgressBar: View {
     let progress: Double
     let isActive: Bool
+    let audience: String?
+    
+    private var normalizedAudience: String {
+        audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+    }
+    
+    private var progressGradient: LinearGradient {
+        switch normalizedAudience {
+        case "bestfriends", "best_friends", "best-friends":
+            // Instagram-like Best Friends green
+            return LinearGradient(
+                colors: [Color(hex: "24C26A"), Color(hex: "5BE584")],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        case "connections", "mutuals", "mutual":
+            // Mutuals accent (different from default)
+            return LinearGradient(
+                colors: [Color(hex: "00B4D8"), Color(hex: "4CC9F0")],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        default:
+            return LinearGradient(
+                colors: [Color.blue, Color.purple, Color.pink],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+    }
+    
+    private var shadowColor: Color {
+        switch normalizedAudience {
+        case "bestfriends", "best_friends", "best-friends":
+            return Color(hex: "24C26A").opacity(0.65)
+        case "connections", "mutuals", "mutual":
+            return Color(hex: "00B4D8").opacity(0.55)
+        default:
+            return Color.purple.opacity(0.6)
+        }
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -2977,19 +3096,13 @@ struct GlassmorphicProgressBar: View {
                 
                 // Progress with clamped value
                 Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue, Color.purple, Color.pink],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .fill(progressGradient)
                     .frame(
                         width: geometry.size.width * min(max(progress, 0.0), 1.0),
                         height: 2.5
                     )
                     .cornerRadius(1.25)
-                    .shadow(color: Color.purple.opacity(0.6), radius: 3, x: 0, y: 0)
+                    .shadow(color: shadowColor, radius: 3, x: 0, y: 0)
                     .animation(
                         isActive ? .linear(duration: 0.1) : .none,
                         value: progress
@@ -3058,10 +3171,84 @@ struct GlassmorphicSuccessMessage: View {
 }
 
 struct GlassmorphicViewersSheet: View {
+    let story: Story
     let viewers: [StoryViewer]
     let reactions: [StoryReaction]
     @Environment(\.dismiss) var dismiss
     @State private var selectedTab = 0
+    @State private var audienceUsers: [AppUser] = []
+    @State private var audienceListName: String?
+    @State private var isLoadingAudience = false
+    @State private var didLoadAudience = false
+    @State private var showAudienceList = false
+    private let firestoreService = FirestoreService()
+    
+    private var normalizedAudience: String {
+        story.audience?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? "everyone"
+    }
+    
+    private var isEveryoneAudience: Bool {
+        normalizedAudience == "everyone"
+    }
+    
+    private var audienceTitle: String {
+        switch normalizedAudience {
+        case "connections", "mutuals", "mutual":
+            return NSLocalizedString("audience.type.connections", comment: "Mutuals")
+        case "bestfriends", "best_friends", "best-friends":
+            return NSLocalizedString("audience.type.bestFriends", comment: "Best friends")
+        case "customlist":
+            return audienceListName ?? NSLocalizedString("audience.type.customList", comment: "Custom list")
+        case "custom":
+            return NSLocalizedString("audience.type.custom", comment: "Custom")
+        case "onlyme", "only_me", "only-me":
+            return NSLocalizedString("audience.type.onlyMe", comment: "Only me")
+        default:
+            return NSLocalizedString("audience.type.everyone", comment: "Everyone")
+        }
+    }
+    
+    private var audienceIcon: String {
+        switch normalizedAudience {
+        case "connections", "mutuals", "mutual":
+            return "person.2.fill"
+        case "bestfriends", "best_friends", "best-friends":
+            return "heart.fill"
+        case "customlist":
+            return "list.bullet.rectangle"
+        case "custom":
+            return "person.crop.circle.badge.plus"
+        case "onlyme", "only_me", "only-me":
+            return "lock.fill"
+        default:
+            return "globe.americas.fill"
+        }
+    }
+    
+    private var audienceColor: Color {
+        switch normalizedAudience {
+        case "connections", "mutuals", "mutual":
+            return Color(hex: "00B4D8")
+        case "bestfriends", "best_friends", "best-friends":
+            return Color(hex: "24C26A")
+        case "customlist", "custom":
+            return Color(hex: "C77DFF")
+        case "onlyme", "only_me", "only-me":
+            return Color(hex: "F9C74F")
+        default:
+            return Color(hex: "4CC9F0")
+        }
+    }
+    
+    private var shouldShowInlineAudienceUsers: Bool {
+        !isEveryoneAudience && !isLoadingAudience && !audienceUsers.isEmpty && audienceUsers.count <= 6
+    }
+    
+    private var shouldShowAudienceCTA: Bool {
+        !isEveryoneAudience && !isLoadingAudience && audienceUsers.count > 6
+    }
     
     var body: some View {
         NavigationView {
@@ -3072,6 +3259,10 @@ struct GlassmorphicViewersSheet: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
+                    audienceSection
+                        .padding(.horizontal)
+                        .padding(.top, 16)
+                    
                     // Tab selector
                     GlassmorphicTabSelector(
                     tabs: [
@@ -3081,7 +3272,7 @@ struct GlassmorphicViewersSheet: View {
                     selectedIndex: $selectedTab
                 )
                     .padding(.horizontal)
-                    .padding(.top, 16)
+                    .padding(.top, 12)
                     
                     // Content
                     TabView(selection: $selectedTab) {
@@ -3147,8 +3338,333 @@ struct GlassmorphicViewersSheet: View {
                 }
             }
         }
+        .onAppear {
+            guard !didLoadAudience else { return }
+            didLoadAudience = true
+            loadAudienceMembers()
+        }
+        .sheet(isPresented: $showAudienceList) {
+            GlassmorphicAudienceMembersSheet(
+                title: audienceTitle,
+                users: audienceUsers
+            )
+        }
         .preferredColorScheme(.dark)
+    }
+    
+    private var audienceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(audienceColor.opacity(0.18))
+                    Image(systemName: audienceIcon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(audienceColor)
+                }
+                .frame(width: 34, height: 34)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("stories.activity.audienceTitle", comment: "Audience"))
+                        .font(.custom("Poppins-Medium", size: 12))
+                        .foregroundColor(.white.opacity(0.65))
+                    Text(audienceTitle)
+                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+                
+                if !isEveryoneAudience {
+                    Text(String(format: NSLocalizedString("stories.activity.audienceMembersCount", comment: "Members count"), audienceUsers.count))
+                        .font(.custom("Poppins-Medium", size: 12))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Capsule())
+                }
+            }
+            
+            if isLoadingAudience {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.75)))
+                    Text(NSLocalizedString("stories.activity.audienceLoading", comment: "Loading audience"))
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(.white.opacity(0.75))
+                }
+            } else if isEveryoneAudience {
+                Text(NSLocalizedString("audience.description.everyone", comment: "Everyone audience description"))
+                    .font(.custom("Poppins-Regular", size: 13))
+                    .foregroundColor(.white.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if audienceUsers.isEmpty {
+                Text(NSLocalizedString("stories.activity.audienceNoMembers", comment: "No users in this audience"))
+                    .font(.custom("Poppins-Regular", size: 13))
+                    .foregroundColor(.white.opacity(0.75))
+            } else if shouldShowInlineAudienceUsers {
+                LazyVStack(spacing: 10) {
+                    ForEach(audienceUsers) { user in
+                        GlassmorphicAudienceMemberRow(user: user)
+                    }
+                }
+            } else if shouldShowAudienceCTA {
+                Button {
+                    showAudienceList = true
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        Text(String(format: NSLocalizedString("stories.activity.audienceViewAll", comment: "View audience CTA"), audienceUsers.count))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.08))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.white.opacity(0.05))
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+        )
+    }
+    
+    private func loadAudienceMembers() {
+        isLoadingAudience = true
+        audienceUsers = []
+        audienceListName = nil
+        
+        switch normalizedAudience {
+        case "connections", "mutuals", "mutual":
+            firestoreService.fetchMutualConnections(userId: story.authorId) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let users):
+                        self.audienceUsers = users.sorted { $0.username.lowercased() < $1.username.lowercased() }
+                    case .failure:
+                        self.audienceUsers = []
+                    }
+                    self.isLoadingAudience = false
+                }
+            }
+            
+        case "bestfriends", "best_friends", "best-friends":
+            firestoreService.fetchUser(userId: story.authorId) { result in
+                switch result {
+                case .success(let user):
+                    self.fetchAudienceUsersByIds(user.bestFriends)
+                case .failure:
+                    DispatchQueue.main.async {
+                        self.audienceUsers = []
+                        self.isLoadingAudience = false
+                    }
+                }
+            }
+            
+        case "customlist":
+            guard let listId = story.customListId, !listId.isEmpty else {
+                isLoadingAudience = false
+                return
+            }
+            
+            firestoreService.fetchCustomListDetails(listId: listId, ownerId: story.authorId) { result in
+                switch result {
+                case .success(let list):
+                    DispatchQueue.main.async {
+                        self.audienceListName = list.name
+                    }
+                    self.fetchAudienceUsersByIds(list.members)
+                case .failure:
+                    DispatchQueue.main.async {
+                        self.audienceUsers = []
+                        self.isLoadingAudience = false
+                    }
+                }
+            }
+            
+        case "custom":
+            Firestore.firestore()
+                .collection("users")
+                .document(story.authorId)
+                .getDocument { document, _ in
+                    let visibilitySettings = document?.data()?["contentVisibilitySettings"] as? [String: Any]
+                    let customUsers = visibilitySettings?["storyCustomUsers"] as? [String]
+                        ?? visibilitySettings?["customStoryViewers"] as? [String]
+                        ?? []
+                    self.fetchAudienceUsersByIds(customUsers)
+                }
+            
+        case "onlyme", "only_me", "only-me":
+            fetchAudienceUsersByIds([story.authorId])
+            
+        default:
+            isLoadingAudience = false
+        }
+    }
+    
+    private func fetchAudienceUsersByIds(_ userIds: [String]) {
+        var seen = Set<String>()
+        let uniqueIds = userIds.filter { id in
+            guard !id.isEmpty else { return false }
+            if seen.contains(id) { return false }
+            seen.insert(id)
+            return true
+        }
+        guard !uniqueIds.isEmpty else {
+            DispatchQueue.main.async {
+                self.audienceUsers = []
+                self.isLoadingAudience = false
+            }
+            return
+        }
+
+        let chunks: [[String]] = stride(from: 0, to: uniqueIds.count, by: 10).map {
+            Array(uniqueIds[$0..<min($0 + 10, uniqueIds.count)])
+        }
+        
+        let group = DispatchGroup()
+        let collectQueue = DispatchQueue(label: "story.audience.collect")
+        var mergedUsers: [AppUser] = []
+        
+        for chunk in chunks {
+            group.enter()
+            firestoreService.fetchUsers(userIds: chunk) { result in
+                defer { group.leave() }
+                if case .success(let users) = result {
+                    collectQueue.sync {
+                        mergedUsers.append(contentsOf: users)
+                    }
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            let order = Dictionary(uniqueIds.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+            self.audienceUsers = mergedUsers.sorted { lhs, rhs in
+                (order[lhs.id] ?? Int.max) < (order[rhs.id] ?? Int.max)
+            }
+            self.isLoadingAudience = false
+        }
+    }
+}
+
+private struct GlassmorphicAudienceMembersSheet: View {
+    let title: String
+    let users: [AppUser]
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.clear
+                    .background(.ultraThinMaterial)
+                    .ignoresSafeArea()
+                
+                if users.isEmpty {
+                    GlassmorphicEmptyState(
+                        icon: "person.2.slash",
+                        message: NSLocalizedString("stories.activity.audienceNoMembers", comment: "No users in this audience")
+                    )
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(users) { user in
+                                GlassmorphicAudienceMemberRow(user: user)
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(title)
+                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .foregroundColor(.white)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                }
+            }
+        }
         .preferredColorScheme(.dark)
+    }
+}
+
+private struct GlassmorphicAudienceMemberRow: View {
+    let user: AppUser
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            if let profileImagePath = user.profileImagePath,
+               let url = URL(string: profileImagePath) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 30, height: 30)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.7))
+                    )
+            }
+            
+            HStack(spacing: 4) {
+                Text("@\(user.username)")
+                    .font(.custom("Poppins-Medium", size: 13))
+                    .foregroundColor(.white.opacity(0.92))
+                    .lineLimit(1)
+                
+                if user.isVerified {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.06))
+        )
     }
 }
 
@@ -3159,42 +3675,43 @@ struct GlassmorphicTabSelector: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(0..<tabs.count, id: \.self) { index in
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedIndex = index
-                    }
-                }) {
-                    Text(tabs[index])
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(selectedIndex == index ? .white : .white.opacity(0.5))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            ZStack {
-                                if selectedIndex == index {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.15))
-                                        .background(.ultraThinMaterial)
-                                }
-                            }
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(selectedIndex == index ? Color.white.opacity(0.3) : Color.clear, lineWidth: 0.5)
-                        )
-                }
+                tabButton(for: index)
             }
         }
         .padding(6)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.white.opacity(0.08))
-                .background(.ultraThinMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
         )
+    }
+    
+    private func tabButton(for index: Int) -> some View {
+        let isSelected = selectedIndex == index
+        
+        return Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedIndex = index
+            }
+        }) {
+            Text(tabs[index])
+                .font(.custom("Poppins-SemiBold", size: 14))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.5))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isSelected ? Color.white.opacity(0.15) : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(isSelected ? Color.white.opacity(0.3) : Color.clear, lineWidth: 0.5)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -3241,12 +3758,15 @@ struct GlassmorphicViewerRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.06))
-                .background(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.05))
+                )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
         )
     }
@@ -3308,12 +3828,15 @@ struct GlassmorphicReactionRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.06))
-                .background(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.05))
+                )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
         )
         .onAppear {
@@ -3386,17 +3909,6 @@ struct GlassmorphicEmptyState: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal, 40)
     }
-}
-
-// MARK: - Share Sheet
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Story Ring Component

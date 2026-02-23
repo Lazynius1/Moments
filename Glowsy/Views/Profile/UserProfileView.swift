@@ -3267,6 +3267,10 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             return
         }
         
+        // Track the visit locally for affinity scoring
+        Task { @MainActor in
+            AffinityTracker.shared.trackInteraction(type: .profileVisit, with: userId)
+        }
         
         // ✅ UNA SOLA LÍNEA - Todo se maneja en FirestoreService
         firestoreService.registerVisit(visitorId: currentUserId, to: userId) { error in

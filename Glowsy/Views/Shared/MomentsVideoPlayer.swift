@@ -8,10 +8,37 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
     let url: URL
     let isLooping: Bool
     let isPaused: Bool
+    var isMuted: Bool = false
+    var prioritizeSmoothPlayback: Bool = false
     let videoGravity: AVLayerVideoGravity
     var onDurationReceived: ((Double) -> Void)? = nil
     var onProgressUpdate: ((Double) -> Void)? = nil
     var onVideoFinished: (() -> Void)? = nil
+    
+    private static let playerItemCache = PlayerItemCache()
+    
+    private final class PlayerItemCache {
+        private let cache = NSCache<NSURL, AVPlayerItem>()
+        
+        init() {
+            cache.countLimit = 30
+        }
+        
+        func makeItem(for url: URL) -> AVPlayerItem {
+            let key = url as NSURL
+            if let cachedItem = cache.object(forKey: key),
+               let copiedItem = cachedItem.copy() as? AVPlayerItem {
+                return copiedItem
+            }
+            
+            let newItem = AVPlayerItem(url: url)
+            cache.setObject(newItem, forKey: key)
+            if let copiedItem = newItem.copy() as? AVPlayerItem {
+                return copiedItem
+            }
+            return AVPlayerItem(url: url)
+        }
+    }
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -21,9 +48,10 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         print("🎬 MomentsVideoPlayer: makeUIViewController for URL: \(url.absoluteString)")
         let controller = AVPlayerViewController()
         
-        let playerItem = AVPlayerItem(url: url)
+        let playerItem = Self.playerItemCache.makeItem(for: url)
+        configurePlayerItem(playerItem)
         let player = AVQueuePlayer(playerItem: playerItem)
-        player.automaticallyWaitsToMinimizeStalling = true
+        player.automaticallyWaitsToMinimizeStalling = prioritizeSmoothPlayback
         
         controller.player = player
         controller.showsPlaybackControls = false
@@ -40,6 +68,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             print("🎬 MomentsVideoPlayer: Triggering initial play")
             player.play()
         }
+        player.isMuted = isMuted
         
         return controller
     }
@@ -51,9 +80,10 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             print("🎬 MomentsVideoPlayer: updateUIViewController - URL Changed from \(context.coordinator.lastURL?.absoluteString ?? "nil") to \(url.absoluteString)")
             context.coordinator.lastURL = url
             
-            let playerItem = AVPlayerItem(url: url)
+            let playerItem = Self.playerItemCache.makeItem(for: url)
+            configurePlayerItem(playerItem)
             let newPlayer = AVQueuePlayer(playerItem: playerItem)
-            newPlayer.automaticallyWaitsToMinimizeStalling = true
+            newPlayer.automaticallyWaitsToMinimizeStalling = prioritizeSmoothPlayback
             
             uiViewController.player = newPlayer
             context.coordinator.player = newPlayer
@@ -65,6 +95,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         }
         
         if let player = uiViewController.player {
+            player.isMuted = isMuted
             if isPaused {
                 if player.rate != 0 {
                     print("🎬 MomentsVideoPlayer: Pausing player")
@@ -92,6 +123,14 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         }
     }
     
+    private func configurePlayerItem(_ item: AVPlayerItem) {
+        item.preferredForwardBufferDuration = prioritizeSmoothPlayback ? 8.0 : 2.5
+        item.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+        if #available(iOS 14.0, *) {
+            item.preferredPeakBitRate = 0
+        }
+    }
+    
     static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: Coordinator) {
         uiViewController.player?.pause()
         coordinator.cleanup()
@@ -103,7 +142,14 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         var lastURL: URL?
         private var timeObserver: Any?
         private var statusObserver: NSKeyValueObservation?
+        private var playbackLikelyObserver: NSKeyValueObservation?
+        private var playbackBufferEmptyObserver: NSKeyValueObservation?
         private var looper: AVPlayerLooper?
+        private var didPlayToEndObserver: NSObjectProtocol?
+        private var playbackStalledObserver: NSObjectProtocol?
+        private var pendingRecoveryWorkItem: DispatchWorkItem?
+        private var stallRetryCount = 0
+        private let maxStallRetryCount = 5
         
         init(_ parent: MomentsVideoPlayer) {
             self.parent = parent
@@ -111,6 +157,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         
         func setupObservers(for item: AVPlayerItem) {
             cleanup()
+            stallRetryCount = 0
             
             // 1. Monitor Item Status (Critical for duration and errors)
             statusObserver = item.observe(\.status, options: [.new, .old]) { [weak self] item, change in
@@ -146,12 +193,38 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
                 }
             }
             
+            playbackLikelyObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
+                guard let self = self else { return }
+                guard item.isPlaybackLikelyToKeepUp else { return }
+                self.pendingRecoveryWorkItem?.cancel()
+                self.pendingRecoveryWorkItem = nil
+                self.stallRetryCount = 0
+                if !self.parent.isPaused, self.player?.rate == 0, item.status == .readyToPlay {
+                    self.player?.play()
+                }
+            }
+            
+            playbackBufferEmptyObserver = item.observe(\.isPlaybackBufferEmpty, options: [.new]) { [weak self] item, _ in
+                guard let self = self else { return }
+                if item.isPlaybackBufferEmpty {
+                    self.recoverFromPlaybackStall()
+                }
+            }
+            
+            playbackStalledObserver = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemPlaybackStalled,
+                object: item,
+                queue: .main
+            ) { [weak self] _ in
+                self?.recoverFromPlaybackStall()
+            }
+            
             // 2. Looping Logic with AVPlayerLooper for better stability
             if parent.isLooping, let queuePlayer = player as? AVQueuePlayer {
                 print("🎬 MomentsVideoPlayer: Enabling AVPlayerLooper")
                 looper = AVPlayerLooper(player: queuePlayer, templateItem: item)
             } else {
-                NotificationCenter.default.addObserver(
+                didPlayToEndObserver = NotificationCenter.default.addObserver(
                     forName: .AVPlayerItemDidPlayToEndTime,
                     object: item,
                     queue: .main
@@ -179,6 +252,27 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             }
         }
         
+        private func recoverFromPlaybackStall() {
+            guard !parent.isPaused else { return }
+            guard let player = player, let item = player.currentItem else { return }
+            guard item.status != .failed else { return }
+            guard stallRetryCount < maxStallRetryCount else { return }
+            guard pendingRecoveryWorkItem == nil else { return }
+            
+            stallRetryCount += 1
+            player.pause()
+            
+            let delay = min(1.25, 0.25 + (Double(stallRetryCount) * 0.2))
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                self.pendingRecoveryWorkItem = nil
+                guard !self.parent.isPaused else { return }
+                self.player?.play()
+            }
+            pendingRecoveryWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+        
         func cleanup() {
             if let observer = timeObserver {
                 player?.removeTimeObserver(observer)
@@ -186,8 +280,22 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             }
             statusObserver?.invalidate()
             statusObserver = nil
+            playbackLikelyObserver?.invalidate()
+            playbackLikelyObserver = nil
+            playbackBufferEmptyObserver?.invalidate()
+            playbackBufferEmptyObserver = nil
+            if let didPlayToEndObserver {
+                NotificationCenter.default.removeObserver(didPlayToEndObserver)
+                self.didPlayToEndObserver = nil
+            }
+            if let playbackStalledObserver {
+                NotificationCenter.default.removeObserver(playbackStalledObserver)
+                self.playbackStalledObserver = nil
+            }
+            pendingRecoveryWorkItem?.cancel()
+            pendingRecoveryWorkItem = nil
+            stallRetryCount = 0
             looper = nil
-            NotificationCenter.default.removeObserver(self)
         }
     }
 }
