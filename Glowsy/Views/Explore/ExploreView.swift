@@ -13,8 +13,6 @@ struct ExploreView: View {
     @State private var showPrivateProfileAlert: Bool = false
     @State private var selectedMoment: Moment?
     @State private var selectedUser: AppUser?
-    @State private var scrollOffset: CGFloat = 0
-    @State private var isSearchFocused: Bool = false // ✅ NUEVO
     @State private var showTrendingView = false
 
     @State private var showSuggestedUsersView = false
@@ -25,25 +23,119 @@ struct ExploreView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                backgroundGradient
-                    .ignoresSafeArea()
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        headerSection
-                            .padding(.bottom, 12)
-                        
-                        searchSection
-                            .padding(.horizontal, 10)
-                        
-                        mainContent
+        NavigationStack {
+            mainContent
+                .background(backgroundGradient.ignoresSafeArea())
+            .navigationTitle(NSLocalizedString("explore.title", comment: ""))
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        ExploreHapticFeedback.impact(.medium)
+                        showTrendingView = true
+                    } label: {
+                        Image(systemName: "flame.fill")
+                            .foregroundColor(.orange)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Button {
+                        ExploreHapticFeedback.impact(.medium)
+                        viewModel.refreshContent()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .rotationEffect(.degrees(viewModel.isLoadingTrending ? 360 : 0))
+                            .animation(
+                                viewModel.isLoadingTrending
+                                ? .linear(duration: 1).repeatForever(autoreverses: false)
+                                : .default,
+                                value: viewModel.isLoadingTrending
+                            )
+                    }
                 }
             }
-            .navigationBarHidden(true)
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .automatic),
+                prompt: NSLocalizedString("explore.search.placeholder", comment: "")
+            )
+            .searchSuggestions {
+                if searchText.isEmpty && !viewModel.recentSearches.isEmpty {
+                    Section {
+                        ForEach(viewModel.recentSearches) { search in
+                            HStack(spacing: 12) {
+                                HStack(spacing: 12) {
+                                    if search.type == "user", let targetId = search.targetId {
+                                        AsyncProfileImageView(userId: targetId)
+                                            .frame(width: 32, height: 32)
+                                    } else {
+                                        Image(systemName: searchTypeIcon(for: search.type))
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 32, height: 32)
+                                            .background(.ultraThinMaterial)
+                                            .clipShape(Circle())
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(search.query)
+                                            .font(.custom("Poppins-SemiBold", size: 16))
+                                            .foregroundStyle(.primary)
+                                        
+                                        if let targetId = search.targetId,
+                                           let status = viewModel.getSocialStatus(userId: targetId) {
+                                            Text(status)
+                                                .font(.custom("Poppins-Medium", size: 12))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    searchText = search.query
+                                    viewModel.saveSearchRecord(query: search.query, type: search.type, targetId: search.targetId)
+                                    viewModel.smartSearch(query: search.query)
+                                }
+                                
+                                Spacer()
+                                
+                                Button {
+                                    viewModel.deleteSearch(search)
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundStyle(.primary)
+                                        .padding(6)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .searchCompletion(search.query)
+                        }
+                    } header: {
+                        HStack {
+                            Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
+                                .font(.custom("Poppins-Bold", size: 28))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Button(NSLocalizedString("explore.recentSearches.clearAll", comment: "")) {
+                                viewModel.clearAllSearches()
+                            }
+                            .font(.custom("Poppins-Bold", size: 14))
+                            .foregroundColor(.primary)
+                        }
+                        .textCase(nil)
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+            .tint(.primary)
+            .onSubmit(of: .search) {
+                viewModel.saveSearchRecord(query: searchText, type: "text")
+                // El tipo se detectará automáticamente en saveSearchRecord si es necesario, 
+                // o podemos ser más específicos aquí.
+            }
+            .onChange(of: searchText) { newValue in
+                viewModel.smartSearch(query: newValue)
+            }
             .onAppear {
                 if let query = initialSearchQuery, !query.isEmpty {
                     searchText = query
@@ -82,6 +174,15 @@ struct ExploreView: View {
         }
     }
     
+    private func searchTypeIcon(for type: String) -> String {
+        switch type {
+        case "hashtag": return "number"
+        case "location": return "mappin.and.ellipse"
+        case "user": return "person.fill" // Fallback si no hay foto
+        default: return "clock"
+        }
+    }
+    
     // MARK: - Componentes de la Vista
     
     private var backgroundGradient: some View {
@@ -107,144 +208,34 @@ struct ExploreView: View {
         }
     }
     
-    private var headerSection: some View {
-        ZStack {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(min(1.0, abs(scrollOffset) / 80.0))
-                .ignoresSafeArea(edges: .top)
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("explore.title")
-                        .font(.custom("Poppins-Bold", size: 28))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+    private var mainContent: some View {
+        Group {
+            if viewModel.isLoading {
+                LoadingStateView()
+            } else if let errorMessage = viewModel.errorMessage {
+                ErrorStateView(message: errorMessage) {
+                    viewModel.fetchMomentsByInterests()
                 }
-                .padding(.leading, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
-                
-                Spacer()
-                
-                HStack(spacing: 12) {
-                    // ✅ NUEVO: Botón de Trending
-                    Button(action: {
-                        ExploreHapticFeedback.impact(.medium)
-                        showTrendingView = true
-                    }) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.orange)
-                            .frame(width: 40, height: 40)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                            )
-                            .shadow(color: Color.orange.opacity(0.2), radius: 4, x: 0, y: 2)
-                    }
-                    
-                    // ✅ NUEVO: Botón de refresh
-                    Button(action: {
-                        ExploreHapticFeedback.impact(.medium)
-                        viewModel.refreshContent()
-                    }) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Color(hex: "667eea"))
-                            .frame(width: 40, height: 40)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color(hex: "667eea").opacity(0.3), lineWidth: 1)
-                            )
-                            .shadow(color: Color(hex: "667eea").opacity(0.2), radius: 4, x: 0, y: 2)
-                    }
-                    .scaleEffect(viewModel.isLoadingTrending ? 0.9 : 1.0)
-                    .rotationEffect(.degrees(viewModel.isLoadingTrending ? 360 : 0))
-                    .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: viewModel.isLoadingTrending)
-                }
-                .padding(.trailing, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
+            } else {
+                contentScrollView
             }
         }
     }
-        
-        private var searchSection: some View {
-            SearchBarView(
-                searchText: $searchText,
-                isSearchFocused: $isSearchFocused, // ✅ Pasar estado del foco
-                onSearch: viewModel.smartSearch
-            )
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
-        }
-
-        
-        private var mainContent: some View {
-            Group {
-                if viewModel.isLoading {
-                    LoadingStateView()
-                } else if let errorMessage = viewModel.errorMessage {
-                    ErrorStateView(message: errorMessage) {
-                        viewModel.fetchMomentsByInterests()
-                    }
-                } else {
-                    contentScrollView
-                }
-            }
-        }
-        
+    
     private var contentScrollView: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 24) {
                 if searchText.isEmpty {
-                    if isSearchFocused {
-                         RecentSearchesView(
-                            searches: viewModel.recentSearches,
-                            onSearchSelected: { search in
-                                searchText = search.query
-                                viewModel.smartSearch(query: search.query)
-                            },
-                            onClearAll: {
-                                viewModel.clearAllSearches()
-                            }
-                        )
-                    } else {
-                        // ✅ Solo contenido esencial - SIN trending
-                        suggestedUsersSection
-                        
-                        if !viewModel.moments.isEmpty {
-                            DynamicMomentsGrid(moments: viewModel.moments, onMomentTap: handleMomentTap)
-                                .padding(.bottom, 80)
-                        }
+                    suggestedUsersSection
+                    
+                    if !viewModel.moments.isEmpty {
+                        DynamicMomentsGrid(moments: viewModel.moments, onMomentTap: handleMomentTap)
+                            .padding(.bottom, 80)
                     }
                 } else {
                     searchResultsSection
                 }
-
             }
-            .background(
-                GeometryReader { geo in
-                    Color.clear.preference(
-                        key: ScrollOffsetKey.self,
-                        value: geo.frame(in: .named("scroll")).minY
-                    )
-                }
-            )
-        }
-        .coordinateSpace(name: "scroll")
-        .onPreferenceChange(ScrollOffsetKey.self) { value in
-            scrollOffset = value
         }
     }
         
@@ -1273,13 +1264,6 @@ struct EmptySearchView: View {
 
 
 
-// MARK: - Preference Keys y Extensiones
-struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
 
 // MARK: - ExploreViewModel ACTUALIZADO
 @MainActor
@@ -1300,6 +1284,7 @@ class ExploreViewModel: ObservableObject {
     
     // ✅ HISTORIAL DE BÚSQUEDA
     @Published var recentSearches: [CachedSearch] = []
+    @Published var followerUserIds: Set<String> = []
 
     
     private let firestoreService = FirestoreService()
@@ -1491,7 +1476,8 @@ class ExploreViewModel: ObservableObject {
                             LocalPersistenceService.shared.saveExploreMoments(filteredMoments, sync: true)
                         }
                 
-                        self.loadConnectionsOptionally()
+                        // ✅ Ya no necesitamos llamar a loadConnectionsOptionally aquí
+                        // porque se cargan en paralelo al inicio de la vista
                     }
                 }
                 
@@ -1565,18 +1551,25 @@ class ExploreViewModel: ObservableObject {
         }
         
         let group = DispatchGroup()
-        var loadedConnections: [Connection] = []
+        var loadedFollowing: [AppUser] = [] // ✅ Usamos AppUser (colección 'following') en lugar de Connection
         var loadedNotifications: [Notification] = []
+        var loadedFollowers: [AppUser] = []
         
-        // Cargar usuarios seguidos
+        // Cargar usuarios seguidos (Colección 'following' correcta)
         group.enter()
-        firestoreService.fetchConnections(userId: userId) { [weak self] result in
+        firestoreService.fetchFollowing(userId: userId) { [weak self] result in
             defer { group.leave() }
-            switch result {
-            case .success(let connections):
-                loadedConnections = connections
-            case .failure(_):
-                break
+            if case .success(let users) = result {
+                loadedFollowing = users
+            }
+        }
+        
+        // Cargar seguidores (para Social Status)
+        group.enter()
+        firestoreService.fetchFollowers(userId: userId) { [weak self] result in
+            defer { group.leave() }
+            if case .success(let followers) = result {
+                loadedFollowers = followers
             }
         }
         
@@ -1598,52 +1591,25 @@ class ExploreViewModel: ObservableObject {
                 return
             }
             // ✅ Actualizar en el hilo principal después de que todo haya cargado
-            let loadedFollowedIds = Set(loadedConnections.map { $0.userId })
+            // Nota: fetchFollowing devuelve AppUser, así que usamos .id
+            let loadedFollowedIds = Set(loadedFollowing.map { $0.id })
+            
             self.followedUserIds = loadedFollowedIds
+            self.followerUserIds = Set(loadedFollowers.map { $0.id })
+            
             self.pendingRequests = Set(loadedNotifications.filter {
                 $0.type == .followRequest && $0.isPending
             }.map { $0.senderId })
             
             // ✅ Filtrar usuarios seguidos de la lista actual si ya hay usuarios cargados
-            // Esto es importante porque puede que la lista se haya cargado antes de que terminaran las conexiones
             self.suggestedUsers = self.suggestedUsers.filter { user in
                 !loadedFollowedIds.contains(user.id)
             }
             
+            // ✅ Actualizar estados de botones para sugerencias y perfiles buscados
+            self.updateButtonStatesForAllUsers()
+            
             completion()
-        }
-    }
-    
-    // MARK: - Cargar conexiones de forma opcional (para actualizar estados después)
-    private func loadConnectionsOptionally() {
-        guard let userId = currentUserId else { return }
-        
-        firestoreService.fetchConnections(userId: userId) { [weak self] result in
-            switch result {
-            case .success(let connections):
-                DispatchQueue.main.async {
-                    self?.followedUserIds = Set(connections.map { $0.userId })
-            
-                    self?.updateButtonStatesForAllUsers()
-                }
-            case .failure(_):
-                break
-            }
-        }
-        
-        NotificationService.shared.fetchNotificationsOnce(userId: userId) { [weak self] result in
-            switch result {
-            case .success(let notifications):
-                DispatchQueue.main.async {
-                    self?.pendingRequests = Set(notifications.filter {
-                        $0.type == .followRequest && $0.isPending
-                    }.map { $0.senderId })
-            
-                    self?.updateButtonStatesForAllUsers()
-                }
-            case .failure(_):
-                break
-            }
         }
     }
     
@@ -1848,18 +1814,57 @@ extension ExploreViewModel {
     }
     
     func saveSearchRecord(query: String, type: String, targetId: String? = nil) {
-        LocalPersistenceService.shared.saveSearch(query: query, type: type, targetId: targetId)
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        
+        // Si el tipo es genérico "text", intentamos detectar si es hashtag o usuario
+        var finalType = type
+        var finalQuery = trimmed
+        
+        if type == "text" {
+            let detected = detectSearchType(query: trimmed)
+            switch detected {
+            case .hashtag(let h):
+                finalType = "hashtag"
+                finalQuery = "#\(h)"
+            case .username(let u):
+                finalType = "user"
+                finalQuery = "@\(u)"
+            case .location(let l):
+                finalType = "location"
+                finalQuery = l
+            default:
+                finalType = "text"
+            }
+        }
+        
+        LocalPersistenceService.shared.saveSearch(query: finalQuery, type: finalType, targetId: targetId)
         loadRecentSearches()
     }
     
-    func removeSearch(search: CachedSearch) {
-        // Podríamos añadir deleteSearch a LocalPersistence si fuera necesario
-        // Por ahora implementamos limpiar todo para simplificar
+    func deleteSearch(_ search: CachedSearch) {
+        LocalPersistenceService.shared.deleteSearch(id: search.id)
+        loadRecentSearches()
     }
     
     func clearAllSearches() {
         LocalPersistenceService.shared.clearSearchHistory()
         self.recentSearches = []
+    }
+    
+    // MARK: - SOCIAL STATUS HELPER
+    func getSocialStatus(userId: String) -> String? {
+        let isFollowing = followedUserIds.contains(userId)
+        let isFollower = followerUserIds.contains(userId)
+        
+        if isFollowing && isFollower {
+            return NSLocalizedString("social.mutual", comment: "Mutual connection status")
+        } else if isFollower {
+            return NSLocalizedString("social.followsYou", comment: "User follows current user status")
+        } else if isFollowing {
+            return NSLocalizedString("social.following", comment: "Current user follows user status")
+        }
+        return nil
     }
 }
 
@@ -2006,20 +2011,8 @@ extension ExploreViewModel {
 
             searchEverything(query: cleanQuery)
         }
-        
-        // ✅ Guardar búsqueda si no es corta
-        if query.count >= 2 {
-            switch searchType {
-            case .hashtag(let hashtag):
-                saveSearchRecord(query: "#\(hashtag)", type: "hashtag")
-            case .username(let username):
-                saveSearchRecord(query: "@\(username)", type: "user")
-            default:
-                saveSearchRecord(query: query, type: "text")
-            }
-        }
-
-
+        // NOTA: El historial se guarda explícitamente en .onSubmit o al tocar un resultado
+        // para evitar que cada pulsación de tecla genere una entrada en el historial.
         
         // ✅ NUEVO: Debug final
 
@@ -2527,7 +2520,7 @@ struct RecentSearchesView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.custom("Poppins-Bold", size: 28))
                     .foregroundColor(.primary)
                 
                 Spacer()
@@ -2535,8 +2528,8 @@ struct RecentSearchesView: View {
                 if !searches.isEmpty {
                     Button(action: onClearAll) {
                         Text(NSLocalizedString("explore.recentSearches.clearAll", comment: ""))
-                            .font(.custom("Poppins-Medium", size: 14))
-                            .foregroundColor(Color(hex: "667eea"))
+                            .font(.custom("Poppins-Bold", size: 14))
+                            .foregroundColor(.primary)
                     }
                 }
             }

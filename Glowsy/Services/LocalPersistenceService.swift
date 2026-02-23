@@ -36,7 +36,8 @@ final class LocalPersistenceService: ObservableObject {
             CachedNotification.self,
             CachedConnection.self,
             CachedSearch.self,
-            CachedAction.self
+            CachedAction.self,
+            UserAffinity.self
         ])
         let config = ModelConfiguration(
             "MomentsLocalCache",
@@ -647,6 +648,14 @@ final class LocalPersistenceService: ObservableObject {
         context.insert(search)
         
         trimSearchHistory()
+        saveContext()
+    }
+    
+    /// Borra una búsqueda específica por su ID
+    func deleteSearch(id: String) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedSearch> { $0.id == id }
+        try? context.delete(model: CachedSearch.self, where: predicate)
         saveContext()
     }
     

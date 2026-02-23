@@ -4,6 +4,7 @@ import FirebaseFirestore
 import Kingfisher
 import AVKit
 import AVFoundation
+import UIKit
 
 // MARK: - SavedMomentsViewModel CORREGIDO
 class SavedMomentsViewModel: ObservableObject {
@@ -262,29 +263,127 @@ class SavedMomentsViewModel: ObservableObject {
     }
 }
 
-// MARK: - ✅ SavedMomentsView CORREGIDO sin confirmaciones duplicadas
-struct SavedMomentsView: View {
-    @Environment(\.colorScheme) var colorScheme
-    @Environment(\.dismiss) var dismiss
-    @StateObject private var viewModel = SavedMomentsViewModel()
-    @State private var selectedViewMode: ViewMode = .grid
+// MARK: - SavedMomentsView Redesign 2026
+private enum SavedMediaFilter: CaseIterable {
+    case all
+    case photos
+    case videos
     
-    enum ViewMode: String, CaseIterable {
-        case grid = "square.grid.3x3"
-        case list = "list.bullet"
-        
-        var title: String {
-            switch self {
-            case .grid: return "Cuadrícula"
-            case .list: return "Lista"
-            }
+    var title: String {
+        switch self {
+        case .all:
+            return NSLocalizedString("savedMoments.filter.media.all", comment: "Saved moments media filter: all")
+        case .photos:
+            return NSLocalizedString("savedMoments.filter.media.photos", comment: "Saved moments media filter: photos")
+        case .videos:
+            return NSLocalizedString("savedMoments.filter.media.videos", comment: "Saved moments media filter: videos")
         }
     }
+}
 
+private enum SavedCollectionFilter: CaseIterable {
+    case all
+    case location
+    case text
+    case multiple
+    
+    var title: String {
+        switch self {
+        case .all:
+            return NSLocalizedString("savedMoments.filter.collection.all", comment: "Saved moments collection filter: all")
+        case .location:
+            return NSLocalizedString("savedMoments.filter.collection.location", comment: "Saved moments collection filter: location")
+        case .text:
+            return NSLocalizedString("savedMoments.filter.collection.text", comment: "Saved moments collection filter: text")
+        case .multiple:
+            return NSLocalizedString("savedMoments.filter.collection.multiple", comment: "Saved moments collection filter: multiple media")
+        }
+    }
+}
+
+private enum SavedSortMode: CaseIterable {
+    case newest
+    case oldest
+    case author
+    
+    var title: String {
+        switch self {
+        case .newest:
+            return NSLocalizedString("savedMoments.sort.newest", comment: "Saved moments sort newest")
+        case .oldest:
+            return NSLocalizedString("savedMoments.sort.oldest", comment: "Saved moments sort oldest")
+        case .author:
+            return NSLocalizedString("savedMoments.sort.author", comment: "Saved moments sort by author")
+        }
+    }
+}
+
+struct SavedMomentsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var viewModel = SavedMomentsViewModel()
+    
+    @State private var searchText = ""
+    @State private var mediaFilter: SavedMediaFilter = .all
+    @State private var collectionFilter: SavedCollectionFilter = .all
+    @State private var sortMode: SavedSortMode = .newest
+    
+    @State private var isSelectionMode = false
+    @State private var selectedMomentIds: Set<String> = []
+    
+    @State private var showDetail = false
+    @State private var detailMoments: [Moment] = []
+    @State private var detailInitialIndex = 0
+    
+    @State private var showRemoveSelectionAlert = false
+    
+    private var filteredMoments: [Moment] {
+        let searched = viewModel.moments.filter { moment in
+            guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
+            let query = searchText.lowercased()
+            return moment.username.lowercased().contains(query) ||
+                moment.content.lowercased().contains(query) ||
+                (moment.location?.lowercased().contains(query) ?? false)
+        }
+        
+        let byMedia = searched.filter { moment in
+            switch mediaFilter {
+            case .all:
+                return true
+            case .photos:
+                return hasImage(moment)
+            case .videos:
+                return hasVideo(moment)
+            }
+        }
+        
+        let byCollection = byMedia.filter { moment in
+            switch collectionFilter {
+            case .all:
+                return true
+            case .location:
+                return !(moment.location ?? "").isEmpty
+            case .text:
+                return !moment.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            case .multiple:
+                return (moment.mediaItems?.count ?? 0) > 1
+            }
+        }
+        
+        switch sortMode {
+        case .newest:
+            return byCollection.sorted { $0.timestamp > $1.timestamp }
+        case .oldest:
+            return byCollection.sorted { $0.timestamp < $1.timestamp }
+        case .author:
+            return byCollection.sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
+        }
+    }
+    
     var body: some View {
         NavigationView {
-            ZStack {
-                backgroundGradient
+            ZStack(alignment: .bottom) {
+                background
                 
                 if viewModel.isLoading {
                     loadingView
@@ -293,42 +392,17 @@ struct SavedMomentsView: View {
                 } else if viewModel.moments.isEmpty {
                     emptyStateView
                 } else {
-                    mainContent
-                }
-            }
-            .navigationTitle("Guardados")
-            .navigationBarTitleDisplayMode(.large)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                                )
-                            
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "4F46E5"))
-                        }
-                    }
+                    content
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    viewModeToggle
+                if isSelectionMode {
+                    selectionBar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 10)
                 }
             }
+            .navigationBarHidden(true)
             .onAppear {
                 if viewModel.moments.isEmpty && !viewModel.isLoading {
                     viewModel.loadSavedMoments()
@@ -338,178 +412,418 @@ struct SavedMomentsView: View {
                 await refreshMoments()
             }
         }
+        .fullScreenCover(isPresented: $showDetail) {
+            ModernSavedMomentsDetailView(
+                moments: detailMoments,
+                initialIndex: detailInitialIndex,
+                onDismiss: {
+                    showDetail = false
+                },
+                onRemoveMoment: { momentToRemove in
+                    if let momentId = momentToRemove.id {
+                        viewModel.removeMoment(momentId: momentId)
+                    }
+                }
+            )
+            .environmentObject(FirestoreService())
+        }
+        .alert(NSLocalizedString("savedMoments.selection.remove.title", comment: "Remove selected alert title"), isPresented: $showRemoveSelectionAlert) {
+            Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel action"), role: .cancel) { }
+            Button(NSLocalizedString("savedMoments.remove.confirm", comment: "Confirm remove action"), role: .destructive) {
+                removeSelected()
+            }
+        } message: {
+            Text(String(format: NSLocalizedString("savedMoments.selection.remove.message", comment: "Remove selected saved moments confirmation"), selectedMomentIds.count))
+        }
+        .onChange(of: filteredMoments.map { $0.id ?? "" }) { validIds in
+            let validSet = Set(validIds)
+            selectedMomentIds = Set(selectedMomentIds.filter { validSet.contains($0) })
+        }
     }
     
-    // MARK: - View Components
-    private var backgroundGradient: some View {
-        Color(colorScheme == .dark ? .black : .white)
+    private var background: some View {
+        ZStack {
+            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+            LinearGradient(
+                colors: [
+                    Color(hex: "2563EB").opacity(colorScheme == .dark ? 0.24 : 0.12),
+                    Color(hex: "007AFF").opacity(colorScheme == .dark ? 0.20 : 0.09),
+                    Color.clear
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
             .ignoresSafeArea()
-            .overlay(
-                LinearGradient(
-                    colors: [
-                        Color(hex: "4F46E5").opacity(0.05),
-                        Color.clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+        }
+    }
+    
+    private var content: some View {
+        VStack(spacing: 14) {
+            header
+            searchBar
+            mediaSegments
+            collectionRail
+            gridContent
+        }
+        .padding(.top, 8)
+    }
+    
+    private var header: some View {
+        HStack(spacing: 12) {
+            Button(action: { dismiss() }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(.ultraThinMaterial))
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
+                    .font(.custom("Poppins-Bold", size: 24))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .layoutPriority(1)
+                Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
+                    .font(.custom("Poppins-Medium", size: 13))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            Menu {
+                ForEach(SavedSortMode.allCases, id: \.self) { mode in
+                    Button(mode.title) { sortMode = mode }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.arrow.down")
+                    Text(NSLocalizedString("savedMoments.sortMenu", comment: "Sort menu title"))
+                }
+                .font(.custom("Poppins-Medium", size: 13))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(.ultraThinMaterial))
+            }
+            
+            Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel selection mode") : NSLocalizedString("savedMoments.select", comment: "Enable selection mode")) {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    isSelectionMode.toggle()
+                    if !isSelectionMode {
+                        selectedMomentIds.removeAll()
+                    }
+                }
+            }
+            .font(.custom("Poppins-SemiBold", size: 13))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                Capsule().fill(
+                    isSelectionMode
+                        ? AnyShapeStyle(Color.red.opacity(0.18))
+                        : AnyShapeStyle(.ultraThinMaterial)
                 )
             )
+        }
+        .padding(.horizontal, 14)
+    }
+    
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            TextField(NSLocalizedString("savedMoments.search.placeholder", comment: "Saved moments search placeholder"), text: $searchText)
+                .font(.custom("Poppins-Regular", size: 15))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.12 : 0.3), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 14)
+    }
+    
+    private var mediaSegments: some View {
+        HStack(spacing: 8) {
+            ForEach(SavedMediaFilter.allCases, id: \.self) { filter in
+                Button(action: { mediaFilter = filter }) {
+                    Text(filter.title)
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(mediaFilter == filter ? .white : .primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(
+                                    mediaFilter == filter
+                                        ? AnyShapeStyle(Color(hex: "2563EB"))
+                                        : AnyShapeStyle(.ultraThinMaterial)
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+    }
+    
+    private var collectionRail: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(SavedCollectionFilter.allCases, id: \.self) { filter in
+                    Button(action: { collectionFilter = filter }) {
+                        Text(filter.title)
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(collectionFilter == filter ? .white : .primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(
+                                        collectionFilter == filter
+                                            ? AnyShapeStyle(Color(hex: "007AFF"))
+                                            : AnyShapeStyle(.ultraThinMaterial)
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+        }
+    }
+    
+    private var gridContent: some View {
+        ScrollView {
+            if filteredMoments.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                    Text(NSLocalizedString("savedMoments.empty.filtered.title", comment: "No results for current filters"))
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                    Text(NSLocalizedString("savedMoments.empty.filtered.description", comment: "Hint for filtered empty state"))
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 80)
+            } else {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
+                    spacing: 4
+                ) {
+                    ForEach(filteredMoments.indices, id: \.self) { index in
+                        let moment = filteredMoments[index]
+                        let momentId = moment.id ?? UUID().uuidString
+                        
+                        SavedMomentGridCard(
+                            moment: moment,
+                            isSelectionMode: isSelectionMode,
+                            isSelected: selectedMomentIds.contains(momentId),
+                            onTap: {
+                                handleTap(moment: moment, index: index, currentList: filteredMoments)
+                            },
+                            onLongPress: {
+                                if !isSelectionMode {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                                        isSelectionMode = true
+                                    }
+                                }
+                                toggleSelection(moment: moment)
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, isSelectionMode ? 90 : 20)
+            }
+        }
+    }
+    
+    private var selectionBar: some View {
+        HStack(spacing: 10) {
+            Text(String(format: NSLocalizedString("savedMoments.selection.count", comment: "Selected items count"), selectedMomentIds.count))
+                .font(.custom("Poppins-SemiBold", size: 14))
+            
+            Spacer()
+            
+            Button(action: shareSelectedLinks) {
+                Label(NSLocalizedString("savedMoments.share", comment: "Share action"), systemImage: "square.and.arrow.up")
+                    .font(.custom("Poppins-SemiBold", size: 13))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color(hex: "007AFF"))
+            .disabled(selectedMomentIds.isEmpty)
+            
+            Button(action: { showRemoveSelectionAlert = true }) {
+                Label(NSLocalizedString("savedMoments.remove", comment: "Remove action"), systemImage: "bookmark.slash")
+                    .font(.custom("Poppins-SemiBold", size: 13))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+            .disabled(selectedMomentIds.isEmpty)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.3), lineWidth: 1)
+                )
+        )
     }
     
     private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.2)
-                            Text("savedMoments.loading")
-                .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.gray)
+        VStack(spacing: 12) {
+            ProgressView().scaleEffect(1.2)
+            Text(NSLocalizedString("savedMoments.loading", comment: "Loading saved moments"))
+                .font(.custom("Poppins-Medium", size: 15))
+                .foregroundColor(.secondary)
         }
     }
     
     private func errorView(_ error: Error) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 50))
+        VStack(spacing: 14) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 40))
                 .foregroundColor(.orange)
-            
-                            Text("savedMoments.error.title")
-                .font(.custom("Poppins-Bold", size: 20))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-            
+            Text(NSLocalizedString("savedMoments.error.title", comment: "Saved moments loading error title"))
+                .font(.custom("Poppins-Bold", size: 19))
             Text(error.localizedDescription)
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.gray)
+                .font(.custom("Poppins-Regular", size: 13))
+                .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
-            Button(NSLocalizedString("savedMoments.retry", comment: "Retry")) {
+                .padding(.horizontal, 24)
+            Button(NSLocalizedString("savedMoments.retry", comment: "Retry action")) {
                 viewModel.loadSavedMoments()
             }
-            .font(.custom("Poppins-SemiBold", size: 16))
-            .foregroundColor(.white)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 12)
-            .background(Color(hex: "4F46E5"))
-            .cornerRadius(20)
+            .buttonStyle(.borderedProminent)
+            .tint(Color(hex: "2563EB"))
         }
     }
     
     private var emptyStateView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "bookmark")
-                .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.6))
-            
-            VStack(spacing: 8) {
-                Text("savedMoments.empty.title")
-                    .font(.custom("Poppins-Bold", size: 24))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Text("savedMoments.empty.description")
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-            }
-            
-            VStack(spacing: 12) {
-                Text("savedMoments.empty.tip")
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
+        VStack(spacing: 16) {
+            Image(systemName: "bookmark.circle")
+                .font(.system(size: 72))
+                .foregroundColor(.secondary)
+            Text(NSLocalizedString("savedMoments.empty.title", comment: "Saved moments empty title"))
+                .font(.custom("Poppins-Bold", size: 23))
+            Text(NSLocalizedString("savedMoments.empty.description", comment: "Saved moments empty description"))
+                .font(.custom("Poppins-Regular", size: 15))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 26)
         }
     }
     
-    private var viewModeToggle: some View {
-        HStack(spacing: 8) {
-            ForEach(ViewMode.allCases, id: \.rawValue) { mode in
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedViewMode = mode
-                    }
-                }) {
-                    Image(systemName: mode.rawValue)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(selectedViewMode == mode ? Color(hex: "4F46E5") : .gray)
-                        .frame(width: 32, height: 32)
-                        .background(
-                            Circle()
-                                .fill(selectedViewMode == mode ? Color(hex: "4F46E5").opacity(0.15) : Color.clear)
-                        )
-                }
-            }
+    private func hasVideo(_ moment: Moment) -> Bool {
+        if let first = moment.mediaItems?.first {
+            return first.type == .video
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(colorScheme == .dark ? .black.opacity(0.6) : .white.opacity(0.8))
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-        )
+        return moment.videoUrl != nil
     }
     
-    private var mainContent: some View {
-        VStack(spacing: 0) {
-            statsHeader
-            
-            if selectedViewMode == .grid {
-                gridView
-            } else {
-                listView
-            }
+    private func hasImage(_ moment: Moment) -> Bool {
+        if let first = moment.mediaItems?.first {
+            return first.type == .image
+        }
+        return moment.imagePath != nil
+    }
+    
+    private func toggleSelection(moment: Moment) {
+        guard let momentId = moment.id else { return }
+        if selectedMomentIds.contains(momentId) {
+            selectedMomentIds.remove(momentId)
+        } else {
+            selectedMomentIds.insert(momentId)
         }
     }
     
-    private var statsHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
-                    .font(.custom("Poppins-Bold", size: 18))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Text("savedMoments.inCollection")
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.gray)
-            }
-            
-            Spacer()
+    private func handleTap(moment: Moment, index: Int, currentList: [Moment]) {
+        if isSelectionMode {
+            toggleSelection(moment: moment)
+            return
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        
+        detailMoments = currentList
+        detailInitialIndex = index
+        showDetail = true
     }
     
-    private var gridView: some View {
-        ScrollView {
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 2),
-                GridItem(.flexible(), spacing: 2),
-                GridItem(.flexible(), spacing: 2)
-            ], spacing: 2) {
-                ForEach(viewModel.moments) { moment in
-                    GridMomentCard(
-                        moment: moment,
-                        viewModel: viewModel
-                    )
-                }
-            }
-            .padding(.horizontal, 20)
-        }
+    private func removeSelected() {
+        let ids = selectedMomentIds
+        ids.forEach { viewModel.removeMoment(momentId: $0) }
+        selectedMomentIds.removeAll()
+        isSelectionMode = false
     }
     
-    private var listView: some View {
-        List {
-            ForEach(viewModel.moments) { moment in
-                ListMomentCard(
-                    moment: moment,
-                    viewModel: viewModel
+    private func shareSelectedLinks() {
+        let selectedMoments = viewModel.moments.filter { moment in
+            guard let id = moment.id else { return false }
+            return selectedMomentIds.contains(id)
+        }
+        
+        let urls: [URL] = selectedMoments.compactMap { moment in
+            guard let momentId = moment.id else { return nil }
+            var components = URLComponents(string: "https://momentsapp.app/moment/\(momentId)")
+            if !moment.authorId.isEmpty {
+                components?.queryItems = [URLQueryItem(name: "a", value: moment.authorId)]
+            }
+            return components?.url
+        }
+        
+        guard !urls.isEmpty else { return }
+        
+        let controller = UIActivityViewController(activityItems: urls, applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+           let window = scene.windows.first(where: { $0.isKeyWindow }),
+           let presenter = topViewController(from: window.rootViewController) {
+            if let popover = controller.popoverPresentationController {
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(
+                    x: presenter.view.bounds.midX,
+                    y: presenter.view.bounds.midY,
+                    width: 0,
+                    height: 0
                 )
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                popover.permittedArrowDirections = []
             }
+            presenter.present(controller, animated: true)
         }
-        .listStyle(PlainListStyle())
-        .scrollContentBackground(.hidden)
+    }
+    
+    private func topViewController(from root: UIViewController?) -> UIViewController? {
+        if let nav = root as? UINavigationController {
+            return topViewController(from: nav.visibleViewController)
+        }
+        if let tab = root as? UITabBarController {
+            return topViewController(from: tab.selectedViewController)
+        }
+        if let presented = root?.presentedViewController {
+            return topViewController(from: presented)
+        }
+        return root
     }
     
     @MainActor
@@ -522,404 +836,153 @@ struct SavedMomentsView: View {
     }
 }
 
-// MARK: - ✅ GridMomentCard CORREGIDO
-struct GridMomentCard: View {
+private struct SavedMomentGridCard: View {
     let moment: Moment
-    let viewModel: SavedMomentsViewModel // ✅ NUEVO: Recibir ViewModel
-    @Environment(\.colorScheme) var colorScheme
-    @State private var showingFullScreen = false
+    let isSelectionMode: Bool
+    let isSelected: Bool
+    let onTap: () -> Void
+    let onLongPress: () -> Void
     
-    // Estados para miniaturas de video
-    @State private var videoThumbnail: UIImage?
-    @State private var isLoadingVideoThumbnail = false
+    @State private var generatedThumbnail: UIImage?
     
     var body: some View {
-        Button(action: { showingFullScreen = true }) {
-            ZStack {
-                // --- CONTENIDO MEDIA ---
-                if let mediaItem = moment.mediaItems?.first {
-                    if mediaItem.type == .video {
-                        videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
-                    } else {
-                        imageView(url: mediaItem.url)
-                    }
-                } else if let imagePath = moment.imagePath {
-                    imageView(url: imagePath)
-                } else if let videoUrl = moment.videoUrl {
-                    videoView(videoURL: videoUrl, thumbnailURL: moment.thumbnailUrl)
-                } else {
-                    // Momento de texto
-                    textMomentView()
-                }
-                
-                // Play indicator si es video
-                if isVideo {
-                    VStack {
-                        HStack {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(.white)
-                                .padding(5)
-                                .background(Circle().fill(.black.opacity(0.3)))
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                    .padding(6)
-                }
-                
-                VStack {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "bookmark.fill")
-                            .font(.system(size: 12))
+        ZStack(alignment: .topTrailing) {
+            Button(action: onTap) {
+                ZStack(alignment: .bottomLeading) {
+                    preview
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    if mediaCount > 1 {
+                        Label("\(mediaCount)", systemImage: "square.stack.3d.up")
+                            .font(.custom("Poppins-SemiBold", size: 10))
                             .foregroundColor(.white)
-                            .padding(4)
-                            .background(Circle().fill(.black.opacity(0.5)))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.black.opacity(0.55)))
+                            .padding(6)
                     }
+                }
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.28).onEnded { _ in onLongPress() })
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color(hex: "2563EB") : Color.clear, lineWidth: 2)
+            )
+            
+            if isSelectionMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.9))
+                    .padding(6)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var preview: some View {
+        if let media = moment.mediaItems?.first {
+            if media.type == .video {
+                savedVideoPreview(url: media.url, thumbnail: media.thumbnailUrl)
+            } else {
+                KFImage(URL(string: media.url))
+                    .resizable()
+                    .scaledToFill()
+            }
+        } else if let image = moment.imagePath {
+            KFImage(URL(string: image))
+                .resizable()
+                .scaledToFill()
+        } else if let video = moment.videoUrl {
+            savedVideoPreview(url: video, thumbnail: moment.thumbnailUrl)
+        } else {
+            ZStack {
+                LinearGradient(
+                    colors: [Color(hex: "007AFF"), Color(hex: "4F46E5")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                if !moment.content.isEmpty {
+                    Text(moment.content)
+                        .font(.custom("Poppins-Medium", size: 12))
+                        .foregroundColor(.white)
+                        .lineLimit(4)
+                        .padding(8)
+                } else {
+                    Image(systemName: "text.bubble")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func savedVideoPreview(url: String, thumbnail: String?) -> some View {
+        ZStack {
+            if let thumb = thumbnail, let thumbUrl = URL(string: thumb) {
+                KFImage(thumbUrl)
+                    .resizable()
+                    .scaledToFill()
+            } else if let generatedThumbnail = generatedThumbnail {
+                Image(uiImage: generatedThumbnail)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle().fill(Color.gray.opacity(0.3))
+                    .overlay(
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.8))
+                    )
+                    .onAppear {
+                        generateThumbnail(for: url)
+                    }
+            }
+            
+            VStack {
+                HStack {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(6)
+                        .background(Circle().fill(Color.black.opacity(0.55)))
                     Spacer()
                 }
-                .padding(6)
-            }
-        }
-        .cornerRadius(8)
-        .contextMenu {
-            // ✅ CORREGIDO: Eliminar directamente sin confirmación
-            Button(action: {
-                if let momentId = moment.id {
-                    viewModel.removeMoment(momentId: momentId)
-                }
-            }) {
-                Label("Eliminar de guardados", systemImage: "bookmark.slash")
-            }
-            
-            Button(action: { /* Share action */ }) {
-                Label("Compartir", systemImage: "square.and.arrow.up")
-            }
-        }
-        .fullScreenCover(isPresented: $showingFullScreen) {
-            ModernSavedMomentsDetailView(
-                moments: viewModel.moments, // ✅ CORREGIDO: Pasar todos los momentos
-                initialIndex: viewModel.moments.firstIndex(where: { $0.id == moment.id }) ?? 0, // ✅ CORREGIDO: Índice correcto
-                onDismiss: {
-                    showingFullScreen = false
-                },
-                onRemoveMoment: { momentToRemove in
-                    if let momentId = momentToRemove.id {
-                        viewModel.removeMoment(momentId: momentId)
-                    }
-                }
-            )
-            .environmentObject(FirestoreService())
-        }
-    }
-    
-    private var isVideo: Bool {
-        if let firstMedia = moment.mediaItems?.first {
-            return firstMedia.type == .video
-        }
-        return moment.videoUrl != nil
-    }
-    
-    @ViewBuilder
-    private func imageView(url: String) -> some View {
-        KFImage(URL(string: url))
-            .placeholder {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: itemWidth, height: itemWidth)
-                    .overlay(ProgressView().scaleEffect(0.8))
-            }
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: itemWidth, height: itemWidth)
-            .clipped()
-    }
-    
-    @ViewBuilder
-    private func videoView(videoURL: String, thumbnailURL: String?) -> some View {
-        ZStack {
-            if let thumb = thumbnailURL, let url = URL(string: thumb) {
-                KFImage(url)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: itemWidth, height: itemWidth)
-                    .clipped()
-            } else if let generated = videoThumbnail {
-                Image(uiImage: generated)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: itemWidth, height: itemWidth)
-                    .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: itemWidth, height: itemWidth)
-                    .overlay(
-                        VStack(spacing: 4) {
-                            if isLoadingVideoThumbnail {
-                                ProgressView().scaleEffect(0.6).tint(.white)
-                            } else {
-                                Image(systemName: "video.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                        }
-                    )
-                    .onAppear {
-                        loadVideoThumbnail(from: videoURL)
-                    }
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private func textMomentView() -> some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(hex: "4F46E5").opacity(0.8), Color(hex: "4F46E5").opacity(0.6)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            
-            Text(moment.content)
-                .font(.custom("Poppins-Medium", size: 12))
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-                .lineLimit(4)
-                .padding(8)
-        }
-        .frame(width: itemWidth, height: itemWidth)
-    }
-    
-    private var itemWidth: CGFloat {
-        UIScreen.main.bounds.width / 3 - 14
-    }
-    
-    private func loadVideoThumbnail(from urlString: String) {
-        guard videoThumbnail == nil, !isLoadingVideoThumbnail, let url = URL(string: urlString) else { return }
-        
-        isLoadingVideoThumbnail = true
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVAsset(url: url)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: itemWidth * 2, height: itemWidth * 2)
-            
-            do {
-                let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
-                let uiImage = UIImage(cgImage: cgImage)
-                
-                DispatchQueue.main.async {
-                    self.videoThumbnail = uiImage
-                    self.isLoadingVideoThumbnail = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.isLoadingVideoThumbnail = false
-                }
-            }
-        }
-    }
-}
-
-// MARK: - ✅ ListMomentCard CORREGIDO
-struct ListMomentCard: View {
-    let moment: Moment
-    let viewModel: SavedMomentsViewModel // ✅ NUEVO: Recibir ViewModel
-    @Environment(\.colorScheme) var colorScheme
-    @State private var showingFullScreen = false
-    
-    // Estados para miniaturas de video
-    @State private var videoThumbnail: UIImage?
-    @State private var isLoadingVideoThumbnail = false
-    
-    var body: some View {
-        Button(action: { showingFullScreen = true }) {
-            HStack(spacing: 12) {
-                // --- CONTENIDO MEDIA ---
-                ZStack {
-                    if let mediaItem = moment.mediaItems?.first {
-                        if mediaItem.type == .video {
-                            videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
-                        } else {
-                            imageView(url: mediaItem.url)
-                        }
-                    } else if let imagePath = moment.imagePath {
-                        imageView(url: imagePath)
-                    } else if let videoUrl = moment.videoUrl {
-                        videoView(videoURL: videoUrl, thumbnailURL: moment.thumbnailUrl)
-                    } else {
-                        // Momento de texto
-                        textMomentView()
-                    }
-                    
-                    // Indicador de video pequeño
-                    if isVideo {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 8))
-                            .foregroundColor(.white)
-                            .padding(3)
-                            .background(Circle().fill(.black.opacity(0.3)))
-                    }
-                }
-                .frame(width: 60, height: 60)
-                .cornerRadius(8)
-                .clipped()
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("@\(moment.username)")
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(Color(hex: "4F46E5"))
-                    
-                    Text(moment.content)
-                        .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
-                    Text(moment.timestamp.timeAgoDisplay())
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.gray)
-                }
-                
                 Spacer()
-                
-                VStack(spacing: 8) {
-                    // ✅ CORREGIDO: Eliminar directamente sin confirmación
-                    Button(action: {
-                        if let momentId = moment.id {
-                            viewModel.removeMoment(momentId: momentId)
-                        }
-                    }) {
-                        Image(systemName: "bookmark.slash")
-                            .font(.system(size: 16))
-                            .foregroundColor(.red)
-                    }
-                    
-                    Button(action: { /* Share */ }) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16))
-                            .foregroundColor(.gray)
-                    }
-                }
             }
-            .padding(.vertical, 8)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .fullScreenCover(isPresented: $showingFullScreen) {
-            ModernSavedMomentsDetailView(
-                moments: viewModel.moments, // ✅ CORREGIDO: Pasar todos los momentos
-                initialIndex: viewModel.moments.firstIndex(where: { $0.id == moment.id }) ?? 0, // ✅ CORREGIDO: Índice correcto
-                onDismiss: {
-                    showingFullScreen = false
-                },
-                onRemoveMoment: { momentToRemove in
-                    if let momentId = momentToRemove.id {
-                        viewModel.removeMoment(momentId: momentId)
-                    }
-                }
-            )
-            .environmentObject(FirestoreService())
+            .padding(6)
         }
     }
     
-    private var isVideo: Bool {
-        if let firstMedia = moment.mediaItems?.first {
-            return firstMedia.type == .video
+    private var mediaCount: Int {
+        if let items = moment.mediaItems, !items.isEmpty {
+            return items.count
         }
-        return moment.videoUrl != nil
+        var count = 0
+        if moment.imagePath != nil { count += 1 }
+        if moment.videoUrl != nil { count += 1 }
+        return max(count, 1)
     }
     
-    @ViewBuilder
-    private func imageView(url: String) -> some View {
-        KFImage(URL(string: url))
-            .placeholder {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 60, height: 60)
-                    .overlay(ProgressView().scaleEffect(0.6))
-            }
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: 60, height: 60)
-    }
-    
-    @ViewBuilder
-    private func videoView(videoURL: String, thumbnailURL: String?) -> some View {
-        ZStack {
-            if let thumb = thumbnailURL, let url = URL(string: thumb) {
-                KFImage(url)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 60, height: 60)
-            } else if let generated = videoThumbnail {
-                Image(uiImage: generated)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 60, height: 60)
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 60, height: 60)
-                    .overlay(
-                        Group {
-                            if isLoadingVideoThumbnail {
-                                ProgressView().scaleEffect(0.5).tint(.white)
-                            } else {
-                                Image(systemName: "video.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                        }
-                    )
-                    .onAppear {
-                        loadVideoThumbnail(from: videoURL)
-                    }
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private func textMomentView() -> some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(LinearGradient(
-                colors: [Color(hex: "4F46E5").opacity(0.8), Color(hex: "4F46E5").opacity(0.6)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ))
-            .frame(width: 60, height: 60)
-            .overlay(
-                Image(systemName: "text.quote")
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-            )
-    }
-    
-    private func loadVideoThumbnail(from urlString: String) {
-        guard videoThumbnail == nil, !isLoadingVideoThumbnail, let url = URL(string: urlString) else { return }
-        
-        isLoadingVideoThumbnail = true
+    private func generateThumbnail(for videoPath: String) {
+        guard generatedThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
         
         DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVAsset(url: url)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: 120, height: 120) // Smaller for list
+            let asset = AVAsset(url: videoURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
             
             do {
-                let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
-                let uiImage = UIImage(cgImage: cgImage)
-                
+                let cgImage = try generator.copyCGImage(at: CMTime(seconds: 0.8, preferredTimescale: 600), actualTime: nil)
+                let thumbnail = UIImage(cgImage: cgImage)
                 DispatchQueue.main.async {
-                    self.videoThumbnail = uiImage
-                    self.isLoadingVideoThumbnail = false
+                    self.generatedThumbnail = thumbnail
                 }
             } catch {
-                DispatchQueue.main.async {
-                    self.isLoadingVideoThumbnail = false
-                }
+                // Keep fallback placeholder if thumbnail extraction fails.
             }
         }
     }
@@ -939,6 +1002,10 @@ struct ModernSavedMomentsDetailView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var showingRemoveAlert = false
     @State private var momentToRemove: Moment?
+    @State private var peekImageURL: String? = nil
+    @State private var peekAspectRatio: CGFloat = 1.0
+    @State private var isPeeking = false
+    @State private var peekOverlayProgress: CGFloat = 0
     
     init(moments: [Moment], initialIndex: Int, onDismiss: @escaping () -> Void, onRemoveMoment: ((Moment) -> Void)? = nil) {
         self.moments = moments
@@ -970,14 +1037,42 @@ struct ModernSavedMomentsDetailView: View {
                             }
                         }
                     )
-                    .padding(.top, safeAreaTop + 5)
-                    .padding(.bottom, 20)
+                    .padding(.top, max(safeAreaTop * 0.15, 4))
+                    .padding(.bottom, 6)
                     
                     // ✅ ScrollView con momentos guardados
                     modernSavedMomentsScrollView(
                         geometry: geometry,
                         safeAreaBottom: safeAreaBottom
                     )
+                }
+                
+                if (isPeeking || peekOverlayProgress > 0.01), let imageURL = peekImageURL {
+                    ZStack {
+                        Color.black
+                            .opacity(Double(0.22 * peekOverlayProgress))
+                            .ignoresSafeArea()
+                        
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .opacity(Double(0.45 * peekOverlayProgress))
+                            .ignoresSafeArea()
+                        
+                        KFImage(URL(string: imageURL))
+                            .resizable()
+                            .scaledToFill()
+                            .frame(
+                                width: UIScreen.main.bounds.width - 32,
+                                height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .scaleEffect(0.96 + 0.04 * peekOverlayProgress)
+                            .shadow(color: .black.opacity(0.2 + 0.25 * Double(peekOverlayProgress)), radius: 20, y: 10)
+                    }
+                    .transition(.opacity)
+                    .animation(.easeOut(duration: 0.2), value: peekOverlayProgress)
+                    .allowsHitTesting(false)
+                    .zIndex(998)
                 }
             }
         }
@@ -1006,12 +1101,13 @@ struct ModernSavedMomentsDetailView: View {
             if let moment = momentToRemove {
                 Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), moment.username))
             } else {
-                Text("savedMoments.remove.message.generic")
+                Text(NSLocalizedString("savedMoments.remove.message.generic", comment: "Remove generic message"))
             }
         }
         .onAppear {
             currentIndex = initialIndex
         }
+        .environmentObject(firestoreService)
     }
     
     // ✅ ScrollView principal para momentos guardados
@@ -1030,6 +1126,26 @@ struct ModernSavedMomentsDetailView: View {
                             onRemove: {
                                 momentToRemove = moment
                                 showingRemoveAlert = true
+                            },
+                            onPeek: { imageURL, ratio, isPressing in
+                                if isPressing {
+                                    peekImageURL = imageURL
+                                    peekAspectRatio = max(ratio, 0.1)
+                                    isPeeking = true
+                                    withAnimation(.easeOut(duration: 0.18)) {
+                                        peekOverlayProgress = 1
+                                    }
+                                } else {
+                                    withAnimation(.easeIn(duration: 0.16)) {
+                                        peekOverlayProgress = 0
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                                        guard peekOverlayProgress <= 0.01 else { return }
+                                        isPeeking = false
+                                        peekImageURL = nil
+                                        peekAspectRatio = 1.0
+                                    }
+                                }
                             }
                         )
                         .id(index)
@@ -1041,7 +1157,7 @@ struct ModernSavedMomentsDetailView: View {
                         }
                     }
                 }
-                .padding(.vertical, 20)
+                .padding(.vertical, 14)
                 .padding(.bottom, safeAreaBottom + 40)
                 .background(
                     GeometryReader { geo in
@@ -1068,114 +1184,82 @@ struct ModernSavedDetailHeader: View {
     let moment: Moment?
     let onDismiss: () -> Void
     let onRemove: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.9)
+    }
+    
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55)
+    }
+    
+    private var iconColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.85)
+    }
     
     var body: some View {
-        HStack {
-            // ✅ Botón chevron izquierda
+        HStack(spacing: 10) {
             Button(action: onDismiss) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(iconColor)
                     .frame(width: 44, height: 44)
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
                     .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.3), Color(hex: "007AFF").opacity(0.4)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
+                        Circle().stroke(
+                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.12),
+                            lineWidth: 1
+                        )
                     )
-                    .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
             }
             
-            Spacer()
-            
-            // ✅ Info del usuario CENTRADA con badge de guardado
             if let moment = moment {
-                VStack(spacing: 8) {
-                    HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Spacer(minLength: 0)
+                    
+                    HStack(spacing: 10) {
                         AsyncSavedProfileImageView(userId: moment.authorId)
-                                .frame(width: 40, height: 40)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [Color.white.opacity(0.4), Color(hex: "007AFF").opacity(0.5)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                        lineWidth: 1.5
-                                        )
+                            .frame(width: 34, height: 34)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle().stroke(
+                                    colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.16),
+                                    lineWidth: 1
                                 )
+                            )
                         
-                        VStack(spacing: 2) {
+                        VStack(alignment: .leading, spacing: 1) {
                             Text(moment.username)
-                                .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(.white)
+                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .foregroundColor(primaryTextColor)
+                                .lineLimit(1)
                             
                             Text(timeAgo(from: moment.timestamp))
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(.gray.opacity(0.8))
+                                .font(.custom("Poppins-Regular", size: 11))
+                                .foregroundColor(secondaryTextColor)
                         }
                     }
                     
-                    // ✅ Badge de momento guardado
-                    HStack(spacing: 6) {
-                        Image(systemName: "bookmark.fill")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.white)
-                        
-                        Text("savedMoments.saved")
-                            .font(.custom("Poppins-Bold", size: 11))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
+                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity)
+            } else {
+                Spacer()
             }
             
-            Spacer()
-            
-            // ✅ Botón de eliminar de guardados
             Button(action: onRemove) {
                 Image(systemName: "bookmark.slash")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.red)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.92) : Color.red.opacity(0.9))
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
+                    .background(Color.red.opacity(colorScheme == .dark ? 0.28 : 0.16))
                     .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.red.opacity(0.3), Color.red.opacity(0.5)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
+                    .overlay(Circle().stroke(Color.red.opacity(colorScheme == .dark ? 0.45 : 0.35), lineWidth: 1))
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
     }
     
     private func timeAgo(from date: Date) -> String {
@@ -1191,34 +1275,25 @@ struct ModernSavedDetailMomentCard: View {
     let availableHeight: CGFloat
     let onComment: () -> Void
     let onRemove: () -> Void
+    let onPeek: ((String, CGFloat, Bool) -> Void)?
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme  // ✅ AGREGAR esta línea
     @State private var currentImageIndex = 0
     
-    // ✅ NUEVO: Función para colores de indicadores multicolores
-    private func getIndicatorColor(for index: Int) -> Color {
-        let colors: [Color] = [
-            Color(hex: "#5b2c6f"), // Púrpura
-            Color(hex: "#007bff"), // Azul
-            Color(hex: "#40dfcf"), // Turquesa
-            Color(hex: "#ff6b6b"), // Rojo coral
-            Color(hex: "#4ecdc4"), // Verde azulado
-            Color(hex: "#45b7d1"), // Azul claro
-            Color(hex: "#96ceb4"), // Verde menta
-            Color(hex: "#feca57")  // Amarillo
-        ]
-        
-        return colors[index % colors.count]
-    }
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
-    @State private var isFollowing: Bool = false
-    @State private var isFollowLoading: Bool = false
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
+    @State private var realAspectRatio: CGFloat = 1.0
+    @State private var immersiveActivationTask: DispatchWorkItem?
     @State private var aspectRatioType: AspectRatioType = .square
+    @State private var showContextMenu = false
+    @State private var showEditSheet = false
+    @State private var showDeleteAlert = false
+    @State private var editedContent = ""
+    @State private var isDeleting = false
     
     
     enum AspectRatioType {
@@ -1267,40 +1342,31 @@ struct ModernSavedDetailMomentCard: View {
     }
     
     var body: some View {
-        VStack(spacing: 12) {
-            // ✅ Header del momento con follow button
-            postHeaderView
-            
-            // ✅ Contenido principal
+        VStack(spacing: 10) {
             ZStack(alignment: .bottom) {
-                // ✅ Media content
                 ZStack {
                     EnhancedCarouselView(
                         mediaItems: mediaItems,
                         currentIndex: $currentImageIndex,
-                        showTags: $showTags, // ✅ PASAR binding
+                        showTags: $showTags,
                         aspectRatio: detectedAspectRatio,
-                        allMoments: [], // ✅ AGREGAR: Array vacío para guardados (no necesita ReelsViewer)
-                        currentMoment: moment, // ✅ AGREGAR: El momento actual
+                        allMoments: [],
+                        currentMoment: moment,
                         isImmersive: $isImmersive // ✅ NUEVO
                     )
-                    .simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.1)
-                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-                            .onEnded { _ in }
-                    )
-                    .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            self.isImmersive = isPressing
-                            if isPressing {
-                                HapticManager.shared.mediumImpact()
-                            }
+                    .onLongPressGesture(minimumDuration: .infinity, maximumDistance: 10, pressing: { isPressing in
+                        if isPressing {
+                            scheduleImmersiveActivation()
+                        } else {
+                            cancelImmersiveActivation()
+                            endImmersive()
                         }
                     }, perform: {})
-                    .frame(height: cardHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .frame(height: max(cardHeight, 200))
+                    .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isImmersive)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 20)
+                        RoundedRectangle(cornerRadius: isImmersive ? 12 : 20)
                             .stroke(
                                 LinearGradient(
                                     colors: [.white.opacity(0.3), .white.opacity(0.1)],
@@ -1310,51 +1376,80 @@ struct ModernSavedDetailMomentCard: View {
                                 lineWidth: 1
                             )
                     )
-                    .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 10)
+                    .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
+                    .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)
                     .onAppear {
                         detectAspectRatio()
                     }
                     
-                    // ✅ Indicadores de media múltiple mejorados
                     if mediaItems.count > 1 {
                         VStack {
                             HStack(spacing: 8) {
                                 ForEach(0..<mediaItems.count, id: \.self) { index in
-                                    Capsule()
-                                        .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
-                                        .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
+                                    Circle()
+                                        .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.35))
+                                        .frame(width: currentImageIndex == index ? 8 : 6, height: currentImageIndex == index ? 8 : 6)
                                         .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                                        .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
                                 }
                             }
                             .padding(.top, 20)
                             Spacer()
                         }
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
                     
-                    // ✅ Descripción expandible
-                    if !moment.content.isEmpty {
+                    if mediaItems.count > 1 {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Text("\(currentImageIndex + 1)/\(mediaItems.count)")
+                                    .font(.custom("Poppins-Medium", size: 11))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Capsule().fill(Color.black.opacity(0.4)))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                                    )
+                            }
+                            .padding(.top, 14)
+                            .padding(.trailing, 14)
+                            Spacer()
+                        }
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                    }
+
+                    if !moment.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         VStack {
                             Spacer()
-                            HStack {
+                            LinearGradient(
+                                colors: [Color.clear, Color.black.opacity(0.55)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .frame(height: 130)
+                            .overlay(alignment: .bottomLeading) {
                                 ExpandableContentView(
                                     content: moment.content,
                                     colorScheme: colorScheme,
-                                    onHashtagTap: { hashtag in
-                                        // TODO: Navegar a ExploreView
-                                    }
+                                    onHashtagTap: { _ in }
                                 )
-                                .padding(.trailing, isImmersive ? 0 : 140) // ✅ Protección contra el rail
-                                Spacer()
+                                .padding(.leading, 14)
+                                .padding(.trailing, isImmersive ? 14 : 124)
+                                .padding(.bottom, 14)
                             }
-                            .padding(.bottom, 20)
                         }
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
-                    
-                    // ✅ NUEVO: BOTONES DE ETIQUETAS (Nivel superior del card)
+
                     let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
                     if let tags = currentMediaItem?.tags, !tags.isEmpty {
-                        // Esquina superior izquierda
                         VStack {
                             HStack {
                                 Button(action: {
@@ -1374,67 +1469,39 @@ struct ModernSavedDetailMomentCard: View {
                                     .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
                                 }
                                 .padding(.leading, 12)
-                                .padding(.top, (currentMediaItem?.type == .video) ? 12 : 12)
+                                .padding(.top, 12)
                                 Spacer()
                             }
                             Spacer()
                         }
                         .zIndex(100)
-
-                        // Esquina inferior izquierda (encima del caption)
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Button(action: {
-                                    withAnimation(.spring()) {
-                                        showTags.toggle()
-                                    }
-                                }) {
-                                    ZStack {
-                                        // Background Glass
-                                        Circle()
-                                            .fill(.ultraThinMaterial)
-                                            .frame(width: 36, height: 36)
-                                        
-                                        // Border Gradient Glass
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: showTags ? [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 1.5
-                                            )
-                                            .frame(width: 36, height: 36)
-                                        
-                                        // Icon tinted if active
-                                        Image(systemName: showTags ? "person.fill" : "person.circle.fill")
-                                            .font(.system(size: 15, weight: .bold))
-                                            .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
-                                    }
-                                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                                }
-                                .padding(.leading, 12)
-                                .padding(.bottom, moment.content.isEmpty ? 15 : 60) // Ajustar si hay texto
-                                Spacer()
-                            }
-                        }
-                        .zIndex(110)
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
                 }
                 
-                // ✅ Glow Rail (Mismo que en Feed/Detail)
                 ModernActionButtons(
-                    moment: moment,
-                    isSaved: .constant(true), // Siempre guardado en esta vista
+                    moment: moment, // Sin likes, solo rail y acciones existentes
+                    isSaved: .constant(true),
                     isSaveLoading: .constant(false),
                     commentCount: $commentCount,
-                    onComment: onComment,
-                    onSave: onRemove, // En esta vista "Guardar" significa quitar de guardados
+                    onComment: {
+                        HapticManager.shared.lightImpact()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                            onComment()
+                        }
+                    },
+                    onSave: {
+                        HapticManager.shared.mediumImpact()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                            onRemove()
+                        }
+                    },
                     onContextMenu: {
-                        // Abrir menú de opciones (Compartir, etc)
-                        shareAction() // O un menú más completo si se desea
+                        HapticManager.shared.mediumImpact()
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            showContextMenu = true
+                        }
                     },
                     isImmersive: $isImmersive
                 )
@@ -1448,55 +1515,48 @@ struct ModernSavedDetailMomentCard: View {
                 hasLoadedInitialData = true
             }
         }
-    }
-    
-    // ✅ Header del momento con follow button
-    private var postHeaderView: some View {
-        HStack(spacing: 12) {
-            AsyncSavedProfileImageView(userId: moment.authorId)
-                    .frame(width: 44, height: 44)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.4), .white.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(moment.username)")
-                    .font(.custom("Poppins-SemiBold", size: 15))
-                    .foregroundColor(.white)
-                
-                Text(timeAgo(from: moment.timestamp))
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(.gray)
-            }
-            
-            Spacer()
-            
-            // ✅ Follow Button (solo si no es el usuario actual)
-            if moment.authorId != Auth.auth().currentUser?.uid {
-                ModernFollowButton(
-                    isFollowing: isFollowing,
-                    isLoading: isFollowLoading,
-                    colorScheme: colorScheme,  // ✅ Esta línea ya está bien
-                    action: toggleFollow
+        .onDisappear {
+            cancelImmersiveActivation()
+            onPeek?("", 1.0, false)
+        }
+        .overlay {
+            if showContextMenu {
+                ModernContextMenuOverlay(
+                    moment: moment,
+                    isPresented: $showContextMenu,
+                    onEdit: {
+                        editedContent = moment.content
+                        showEditSheet = true
+                    },
+                    onDelete: {
+                        showDeleteAlert = true
+                    },
+                    onReport: {}
                 )
+                .zIndex(1000)
             }
         }
-        .padding(.horizontal, 20)
+        .sheet(isPresented: $showEditSheet) {
+            EditMomentView(
+                moment: moment,
+                editedContent: $editedContent,
+                onSave: { newContent in
+                    updateMoment(newContent: newContent)
+                }
+            )
+        }
+        .alert(NSLocalizedString("contextMenu.delete.title", comment: "Delete moment alert title"), isPresented: $showDeleteAlert) {
+            Button(NSLocalizedString("contextMenu.delete.cancel", comment: "Cancel button"), role: .cancel) { }
+            Button(NSLocalizedString("contextMenu.delete.confirm", comment: "Delete button"), role: .destructive) {
+                deleteMoment()
+            }
+        } message: {
+            Text(NSLocalizedString("contextMenu.delete.message", comment: "Delete moment confirmation message"))
+        }
     }
-    
     // ✅ Funciones auxiliares
     private func loadMomentData() {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let momentId = moment.id else { return }
+        guard let momentId = moment.id else { return }
         
         // Cargar conteo de comentarios
         firestoreService.db.collection("users").document(moment.authorId)
@@ -1514,62 +1574,24 @@ struct ModernSavedDetailMomentCard: View {
                     }
                 }
             }
-        
-        // Verificar si está siguiendo al autor
-        if moment.authorId != currentUserId {
-            firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: moment.authorId) { following in
-                DispatchQueue.main.async {
-                    self.isFollowing = following
-                }
-            }
-        }
-    }
-    
-    private func toggleFollow() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        isFollowLoading = true
-        
-        if isFollowing {
-            firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
-                DispatchQueue.main.async {
-                    self.isFollowLoading = false
-                    if error == nil {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = false
-                        }
-                    }
-                }
-            }
-        } else {
-            firestoreService.followUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
-                DispatchQueue.main.async {
-                    self.isFollowLoading = false
-                    if error == nil {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = true
-                        }
-                    }
-                }
-            }
-        }
     }
     
     private func detectAspectRatio() {
         if let savedAspectRatio = moment.aspectRatio {
-            let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
+            let safeRatio = ProcessedMedia.AspectRatio(from: savedAspectRatio).value
+            let displayRatio = safeRatio < 0.8 ? 0.8 : safeRatio
             
             DispatchQueue.main.async {
-                self.detectedAspectRatio = aspectRatioFromDB.value
+                self.realAspectRatio = safeRatio
+                self.detectedAspectRatio = displayRatio
                 
-                switch aspectRatioFromDB {
-                case .landscape:
+                if displayRatio > 1.4 {
                     self.aspectRatioType = .landscape
-                case .portrait:
+                } else if displayRatio < 0.9 {
                     self.aspectRatioType = .portrait
-                case .square:
+                } else if abs(displayRatio - 1.0) < 0.05 {
                     self.aspectRatioType = .square
-                case .nineBySixteen:
+                } else {
                     self.aspectRatioType = .portrait
                 }
             }
@@ -1577,6 +1599,7 @@ struct ModernSavedDetailMomentCard: View {
         }
         
         guard let firstItem = mediaItems.first, !firstItem.url.isEmpty else {
+            realAspectRatio = 0.8
             detectedAspectRatio = 0.8
             aspectRatioType = .portrait
             return
@@ -1587,19 +1610,21 @@ struct ModernSavedDetailMomentCard: View {
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
+                    let displayRatio = ratio < 0.8 ? 0.8 : ratio
                     
                     DispatchQueue.main.async {
-                        self.detectedAspectRatio = ratio
+                        self.realAspectRatio = ratio
+                        self.detectedAspectRatio = displayRatio
                         
                         let tolerance: CGFloat = 0.05
                         
-                        if abs(ratio - 1.0) < tolerance {
+                        if abs(displayRatio - 1.0) < tolerance {
                             self.aspectRatioType = .square
-                        } else if abs(ratio - 0.8) < tolerance {
+                        } else if abs(displayRatio - 0.8) < tolerance {
                             self.aspectRatioType = .portrait
-                        } else if ratio > 1.4 {
+                        } else if displayRatio > 1.4 {
                             self.aspectRatioType = .landscape
-                        } else if ratio < 0.9 {
+                        } else if displayRatio < 0.9 {
                             self.aspectRatioType = .portrait
                         } else {
                             self.aspectRatioType = .square
@@ -1608,73 +1633,119 @@ struct ModernSavedDetailMomentCard: View {
                 }
                 .onFailure { _ in
                     DispatchQueue.main.async {
+                        self.realAspectRatio = 0.8
                         self.detectedAspectRatio = 0.8
                         self.aspectRatioType = .portrait
                     }
                 }
         } else {
+            realAspectRatio = 16.0/9.0
             detectedAspectRatio = 16.0/9.0
             aspectRatioType = .landscape
         }
     }
     
-    private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+    private func updateMoment(newContent: String) {
+        guard let momentId = moment.id else { return }
+
+        firestoreService.updateMoment(
+            userId: moment.authorId,
+            momentId: momentId,
+            content: newContent
+        ) { _ in
+        }
+    }
+
+    private func deleteMoment() {
+        guard let momentId = moment.id else { return }
+        guard !isDeleting else { return }
+
+        isDeleting = true
+        firestoreService.deleteMoment(
+            userId: moment.authorId,
+            momentId: momentId
+        ) { error in
+            DispatchQueue.main.async {
+                self.isDeleting = false
+                if error == nil {
+                    onRemove()
+                }
+            }
+        }
     }
     
-    private func shareAction() {
-        HapticManager.shared.lightImpact()
-        // ... existing share logic ...
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else { return }
+    private func scheduleImmersiveActivation() {
+        cancelImmersiveActivation()
         
-        var items: [Any] = []
-        let shareText = "¡Mira este momento de \(moment.username)!"
-        items.append(shareText)
-        
-        if let momentId = moment.id {
-            if let url = URL(string: "https://glowsy.app/moment/\(momentId)") {
-                items.append(url)
+        let task = DispatchWorkItem {
+            withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
+                self.isImmersive = true
+                HapticManager.shared.mediumImpact()
+                
+                if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
+                    let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+                    if let item = currentItem, item.type == .image {
+                        onPeek?(item.url, realAspectRatio, true)
+                    }
+                }
             }
         }
         
-        let activityController = UIActivityViewController(
-            activityItems: items,
-            applicationActivities: nil
-        )
-        
-        if let popover = activityController.popoverPresentationController {
-            popover.sourceView = window
-            popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
-            popover.permittedArrowDirections = []
+        immersiveActivationTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: task)
+    }
+    
+    private func cancelImmersiveActivation() {
+        immersiveActivationTask?.cancel()
+        immersiveActivationTask = nil
+    }
+    
+    private func endImmersive() {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            self.isImmersive = false
+            onPeek?("", 1.0, false)
         }
-        
-        window.rootViewController?.present(activityController, animated: true)
     }
 }
 // MARK: - ✅ Componentes auxiliares específicos para guardados
 struct ModernSavedDetailBackground: View {
     let scrollOffset: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color(hex: "1a1a2e").opacity(0.95),
-                    Color(hex: "16213e").opacity(0.85),
-                    Color.black
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            if colorScheme == .dark {
+                // Igual que el feed en modo oscuro: base profunda y uniforme.
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: Color(hex: "080808"), location: 0),
+                        .init(color: Color(hex: "080808"), location: 0.3),
+                        .init(color: Color(hex: "0C0C0C"), location: 0.7),
+                        .init(color: Color(hex: "080808"), location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            } else {
+                // Igual que el feed en modo claro: blanco limpio con profundidad suave.
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: .white, location: 0),
+                        .init(color: .white, location: 0.2),
+                        .init(color: Color(hex: "f8f9fa"), location: 0.5),
+                        .init(color: Color(hex: "e9ecef"), location: 0.8),
+                        .init(color: .white, location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            }
             
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .opacity(0.08 + abs(scrollOffset) * 0.0002)
+                .opacity((colorScheme == .dark ? 0.06 : 0.03) + abs(scrollOffset) * 0.00015)
                 .ignoresSafeArea()
         }
     }
@@ -1691,6 +1762,7 @@ struct SavedDetailScrollOffsetKey: PreferenceKey {
 struct AsyncSavedProfileImageView: View {
     let userId: String
     @State private var profileImageURL: String?
+    @State private var pendingUserId: String?
     @EnvironmentObject private var firestoreService: FirestoreService
     
     var body: some View {
@@ -1707,22 +1779,31 @@ struct AsyncSavedProfileImageView: View {
                 )
         }
         .onAppear {
-            loadProfileImage()
+            loadProfileImage(for: userId)
+        }
+        .onChange(of: userId) { newUserId in
+            loadProfileImage(for: newUserId)
         }
     }
     
-    private func loadProfileImage() {
-        firestoreService.fetchUser(userId: userId) { result in
+    private func loadProfileImage(for requestedUserId: String) {
+        // Evita mostrar la foto previa mientras llega el nuevo fetch.
+        pendingUserId = requestedUserId
+        profileImageURL = nil
+        
+        firestoreService.fetchUser(userId: requestedUserId) { result in
             switch result {
             case .success(let user):
                 DispatchQueue.main.async {
+                    guard pendingUserId == requestedUserId else { return }
                     self.profileImageURL = user.profileImagePath
                 }
             case .failure:
-                break
+                DispatchQueue.main.async {
+                    guard pendingUserId == requestedUserId else { return }
+                    self.profileImageURL = nil
+                }
             }
         }
     }
 }
-
-

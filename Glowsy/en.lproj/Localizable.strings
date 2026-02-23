@@ -103,6 +103,13 @@
 "profile.saved.empty.title" = "Nothing Saved Yet";
 "profile.saved.empty.subtitle" = "Moments you save will appear here.";
 "profile.saved.loading" = "Loading saved...";
+"profile.saved.openAll" = "View all";
+"profile.saved.recent" = "Recent";
+"profile.saved.filtered.empty" = "No saved moments for this filter";
+"profile.saved.filter.all" = "All";
+"profile.saved.filter.videos" = "Videos";
+"profile.saved.filter.text" = "Text";
+"profile.saved.filter.location" = "Location";
 "profile.loading" = "Loading profile...";
 "profile.error.title" = "Oops, something went wrong";
 "profile.error.retryButton" = "Retry";
@@ -305,6 +312,10 @@
 "explore.button.follow" = "Follow";
 "explore.button.request" = "Request";
 "explore.button.requested" = "Requested";
+"explore.recentSearches.title" = "Recent Searches";
+"social.mutual" = "Mutuals";
+"social.followsYou" = "Follows you";
+"social.following" = "Following";
 
 /* StoriesView */
 "stories.loading" = "Loading file...";
@@ -330,6 +341,12 @@
 "stories.activity.noReactions" = "No reactions yet";
 "stories.activity.viewersTab" = "Views (%d)";
 "stories.activity.reactionsTab" = "Reactions (%d)";
+"stories.activity.audienceTitle" = "Audience";
+"stories.activity.audienceMembersCount" = "%d members";
+"stories.activity.audienceLoading" = "Loading audience...";
+"stories.activity.audienceNoMembers" = "No users in this audience";
+"stories.activity.audienceMoreUsers" = "more";
+"stories.activity.audienceViewAll" = "View audience (%d)";
 "stories.ephemeral.expired" = "Ephemeral moment expired";
 "stories.ephemeral.unavailable" = "The image is no longer available";
 "stories.replied" = "You replied to their story";
@@ -523,9 +540,9 @@
 "conversationSettings.notifications" = "Notifications";
 "conversationSettings.notifications.desc" = "Receive alerts when new messages arrive";
 "conversationSettings.typingIndicator" = "Typing indicator";
-"conversationSettings.typingIndicator.desc" = "Show when you are typing";
-"conversationSettings.privacy.readReceipts.title" = "Read Receipts";
-"conversationSettings.privacy.readReceipts.description" = "If you turn off read receipts, you won't be able to see read receipts from other people.";
+"conversationSettings.typingIndicator.desc" = "If you turn this off, you also won't see when the other person is typing.";
+"settings.privacy.readReceipts.title" = "Read Receipts";
+"settings.privacy.readReceipts.description" = "If you turn off read receipts, you won't be able to see read receipts from other people.";
 "common.viewAll" = "View all";
 "online" = "Online";
 "offline" = "Offline";
@@ -1234,6 +1251,24 @@
 "savedMoments.saved" = "SAVED";
 "savedMoments.remove" = "Remove";
 "savedMoments.share" = "Share";
+"savedMoments.select" = "Select";
+"savedMoments.sortMenu" = "Sort";
+"savedMoments.sort.newest" = "Newest";
+"savedMoments.sort.oldest" = "Oldest";
+"savedMoments.sort.author" = "Author";
+"savedMoments.search.placeholder" = "Search by user, text, or location";
+"savedMoments.filter.media.all" = "All";
+"savedMoments.filter.media.photos" = "Photos";
+"savedMoments.filter.media.videos" = "Videos";
+"savedMoments.filter.collection.all" = "All";
+"savedMoments.filter.collection.location" = "Location";
+"savedMoments.filter.collection.text" = "Text";
+"savedMoments.filter.collection.multiple" = "Carousel";
+"savedMoments.empty.filtered.title" = "No results for these filters";
+"savedMoments.empty.filtered.description" = "Try removing filters or clearing search.";
+"savedMoments.selection.count" = "%d selected";
+"savedMoments.selection.remove.title" = "Remove selected";
+"savedMoments.selection.remove.message" = "This will remove %d items from saved.";
 
 /* Content Visibility */
 "contentVisibility.title" = "Content Privacy";
@@ -1425,7 +1460,16 @@
 "storyContextMenu.report.subtitle" = "Inappropriate\ncontent";
 "storyContextMenu.block" = "Block";
 "storyContextMenu.block.subtitle" = "Don't see\nmore content";
+"storyContextMenu.leaveBestFriends" = "Leave\nBest Friends";
+"storyContextMenu.leaveBestFriends.subtitle" = "Stop seeing\nBF stories";
 "storyContextMenu.scrollReactions" = "Scroll for more reactions";
+
+"bestFriends.optOut.confirm.title" = "Leave best friends";
+"bestFriends.optOut.confirm.message" = "Do you want to leave this user's best friends list?";
+"bestFriends.optOut.confirm.action" = "Leave";
+"bestFriends.optOut.confirm.cancel" = "Cancel";
+"bestFriends.optOut.success" = "You left their best friends list";
+"bestFriends.optOut.error" = "Couldn't leave best friends";
 
 /* User Activity View */
 "userActivity.summary.title" = "Activity Summary";
@@ -2181,3 +2225,16 @@
 
 /* Reactions */
 "reactions.title" = "Reactions";
+
+/* Feed Video */
+"feed.video.loading" = "Loading video...";
+"feed.video.loadError" = "We couldn't load the video";
+"feed.video.retry" = "Retry";
+
+/* Feed Reels Video */
+"feed.reels.video.loading" = "Loading video...";
+"feed.reels.video.starting" = "Starting...";
+"feed.reels.video.optimizing" = "Optimizing quality...";
+
+/* Messaging Search */
+"messaging.search.placeholder" = "Search conversations...";

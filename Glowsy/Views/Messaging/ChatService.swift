@@ -4,6 +4,8 @@ import FirebaseAuth
 import FirebaseStorage
 import Combine
 import CryptoKit
+import AVFoundation
+import UIKit
 
 class ChatService: ObservableObject {
     // MARK: - Properties
@@ -37,6 +39,24 @@ class ChatService: ObservableObject {
     func removeListener(for conversationId: String) {
         activeListeners[conversationId]?.remove()
         activeListeners.removeValue(forKey: conversationId)
+        
+        let typingKey = "typing_\(conversationId)"
+        activeListeners[typingKey]?.remove()
+        activeListeners.removeValue(forKey: typingKey)
+        typingUsers.removeValue(forKey: conversationId)
+    }
+    
+    func removeTypingListener(for conversationId: String) {
+        let typingKey = "typing_\(conversationId)"
+        activeListeners[typingKey]?.remove()
+        activeListeners.removeValue(forKey: typingKey)
+        typingUsers.removeValue(forKey: conversationId)
+    }
+    
+    func removeConversationsListener(for userId: String) {
+        let listenerKey = "conversations_\(userId)"
+        activeListeners[listenerKey]?.remove()
+        activeListeners.removeValue(forKey: listenerKey)
     }
     
     // MARK: - Real-time Messages with Decryption
@@ -157,6 +177,7 @@ class ChatService: ObservableObject {
             let isViewed = data["isViewed"] as? Bool ?? false
             let storyReplyData = data["storyReplyData"] as? [String: String]
             let sharedMomentData = data["sharedMomentData"] as? [String: String]
+            let mediaBatchId = data["mediaBatchId"] as? String
             
             // ✅ DEBUG: Log status updates
             if status == .sending || status == .sent {
@@ -186,7 +207,8 @@ class ChatService: ObservableObject {
                 expirationDate: expirationDate,
                 isViewed: isViewed,
                 storyReplyData: storyReplyData,
-                sharedMomentData: sharedMomentData
+                sharedMomentData: sharedMomentData,
+                mediaBatchId: mediaBatchId
             )
             
             messages.append(message)
@@ -319,7 +341,7 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
         uploadMedia(data: mediaData, type: type, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
@@ -347,7 +369,8 @@ class ChatService: ObservableObject {
                     reactions: nil,
                     replyTo: nil,
                     expirationDate: nil,
-                    isViewed: false
+                    isViewed: false,
+                    mediaBatchId: mediaBatchId
                 )
                 
                 self?.sendMessage(message, useServerTimestamp: true, completion: completion)
@@ -510,6 +533,9 @@ class ChatService: ObservableObject {
             if let sharedMomentData = message.sharedMomentData {
                 messageData["sharedMomentData"] = sharedMomentData
             }
+            if let mediaBatchId = message.mediaBatchId {
+                messageData["mediaBatchId"] = mediaBatchId
+            }
             
             // Set timestamp
             if useServerTimestamp {
@@ -539,6 +565,19 @@ class ChatService: ObservableObject {
                 
                 // ✅ Update conversation with last message (decrypt for preview)
                 Task {
+                    // Track local affinity for sending a message
+                    // We increase affinity toward the recipient (we need to know who the recipient is)
+                    // In ChatService, the senderId is known. The recipient is the other participant.
+                    // To do this simply, we extract the other participant from the conversationId if possible, 
+                    // or we track it later when the UI calls this method.
+                    // Wait, `sendMessage` receives a `EnhancedMessage`. The `conversationId` has both IDs but it's better to fetch it or send it.
+                    // Actually, if we just track it when the sender sends, we need the `targetUserId`.
+                    // A quick way is to parse `conversationId` which is usually `userA_userB` or similar or fetch participants.
+                    // For now, let's track it in `MessagingView` where we definitely know the target user, 
+                    // or track it here by extracting from the conversation document if necessary.
+                    // Wait, let's check how the conversationId is formed. Usually it's an arbitrary ID or combined string. 
+                    // I will look closer at the file. Let me just add the Tracking in the Views instead to be 100% accurate on the target user.
+                    
                     let lastMessagePreview: String = await {
                         if let content = message.content, message.type == .text {
                             // For UI preview, decrypt the content
@@ -947,8 +986,17 @@ class ChatService: ObservableObject {
     }
     
     func fetchConversations(for userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) {
+        // Evitar listeners de listas de conversación huérfanos (p. ej. cambio de cuenta)
+        let staleConversationKeys = activeListeners.keys.filter { $0.hasPrefix("conversations_") && $0 != "conversations_\(userId)" }
+        for key in staleConversationKeys {
+            activeListeners[key]?.remove()
+            activeListeners.removeValue(forKey: key)
+        }
         
-        db.collection("conversations")
+        let listenerKey = "conversations_\(userId)"
+        activeListeners[listenerKey]?.remove()
+        
+        let listener = db.collection("conversations")
             .whereField("participants", arrayContains: userId)
             .order(by: "timestamp", descending: true)
             .addSnapshotListener { snapshot, error in
@@ -1028,6 +1076,8 @@ class ChatService: ObservableObject {
                 conversations.sort { $0.timestamp > $1.timestamp }
                 completion(.success(conversations))
             }
+        
+        activeListeners[listenerKey] = listener
     }
     // MARK: - Media Upload
     func uploadMedia(data: Data, type: MessageType, conversationId: String, messageId: String? = nil, completion: @escaping (Result<(mediaUrl: String, thumbnailUrl: String?), Error>) -> Void) {
@@ -1067,7 +1117,7 @@ class ChatService: ObservableObject {
                 }
                 
                 if type == .video {
-                    self.generateVideoThumbnail(from: data) { thumbnailUrl in
+                    self.generateVideoThumbnail(from: data, conversationId: conversationId) { thumbnailUrl in
                         completion(.success((mediaUrl: mediaUrl, thumbnailUrl: thumbnailUrl)))
                     }
                 } else {
@@ -1083,8 +1133,63 @@ class ChatService: ObservableObject {
         }
     }
     
-    private func generateVideoThumbnail(from videoData: Data, completion: @escaping (String?) -> Void) {
-        completion(nil)
+    private func generateVideoThumbnail(from videoData: Data, conversationId: String, completion: @escaping (String?) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let tempVideoURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("chat_video_thumb_\(UUID().uuidString).mp4")
+            
+            do {
+                try videoData.write(to: tempVideoURL, options: .atomic)
+            } catch {
+                completion(nil)
+                return
+            }
+            
+            defer {
+                try? FileManager.default.removeItem(at: tempVideoURL)
+            }
+            
+            let asset = AVURLAsset(url: tempVideoURL)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            imageGenerator.maximumSize = CGSize(width: 720, height: 1280)
+            
+            let frameCandidates = [
+                CMTime(seconds: 0.15, preferredTimescale: 600),
+                CMTime(seconds: 0.0, preferredTimescale: 600),
+                CMTime(seconds: 0.5, preferredTimescale: 600)
+            ]
+            
+            var cgImage: CGImage?
+            for time in frameCandidates {
+                if let candidate = try? imageGenerator.copyCGImage(at: time, actualTime: nil) {
+                    cgImage = candidate
+                    break
+                }
+            }
+            
+            guard let cgImage,
+                  let thumbnailData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.78) else {
+                completion(nil)
+                return
+            }
+            
+            let thumbnailPath = "conversations/\(conversationId)/thumbnails/\(UUID().uuidString).jpg"
+            let thumbnailRef = self.storage.reference().child(thumbnailPath)
+            let metadata = StorageMetadata()
+            metadata.contentType = "image/jpeg"
+            
+            thumbnailRef.putData(thumbnailData, metadata: metadata) { _, error in
+                if error != nil {
+                    completion(nil)
+                    return
+                }
+                
+                thumbnailRef.downloadURL { url, _ in
+                    completion(url?.absoluteString)
+                }
+            }
+        }
     }
     
     // MARK: - Message Status
@@ -1500,6 +1605,9 @@ class ChatService: ObservableObject {
     }
     
     func listenToTypingIndicators(conversationId: String) {
+        let typingKey = "typing_\(conversationId)"
+        activeListeners[typingKey]?.remove()
+        
         let listener = db.collection("conversations")
             .document(conversationId)
             .collection("typing")
@@ -1519,7 +1627,7 @@ class ChatService: ObservableObject {
                 }
             }
         
-        activeListeners["typing_\(conversationId)"] = listener
+        activeListeners[typingKey] = listener
     }
     
     // MARK: - Conversation Management

@@ -51,8 +51,9 @@ struct EpicReactionButton: View {
                     
                     // ✨ Círculo principal con efectos (SIN BORDE)
                     Circle()
-                        .fill(.ultraThinMaterial)
+                        .fill(Color.clear)
                         .frame(width: 44, height: 44)
+                        .liquidGlass(in: Circle())
                         .shadow(
                             color: hasReacted ?
                             (currentReaction?.color.opacity(0.4) ?? .black.opacity(0.2)) :
@@ -235,6 +236,11 @@ struct EpicReactionButton: View {
             self.hasReacted = true
             self.currentReaction = reactionType
             self.reactionCount += 1
+        }
+        
+        // Track the reaction locally
+        Task { @MainActor in
+            AffinityTracker.shared.trackInteraction(type: .momentReaction, with: moment.authorId)
         }
         
         self.addReactionToFirebase(reactionType)
@@ -470,14 +476,7 @@ struct EpicReactionPickerView: View {
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                     .padding(.horizontal, 24)
                     .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                Capsule()
-                                    .stroke(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3), lineWidth: 1)
-                            )
-                    )
+                    .liquidGlass(in: Capsule())
             }
             .padding(.bottom, 16)
         }
@@ -884,26 +883,7 @@ struct ReactionsListSheet: View {
                     .foregroundColor(isFollowing ? .red : (colorScheme == .dark ? .white : .black))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(
-                        ZStack {
-                            if isFollowing {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.red.opacity(0.1))
-                            } else {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(.ultraThinMaterial)
-                            }
-                        }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    isFollowing ? 
-                                        Color.red.opacity(0.3) : 
-                                        (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1)),
-                                    lineWidth: 1
-                                )
-                        )
-                    )
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 12))
                     .shadow(
                         color: isFollowing ? 
                             .red.opacity(0.1) : 

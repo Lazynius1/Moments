@@ -595,9 +595,7 @@ struct ModernProfileContentView: View {
                             case .saved:
                                 // ✅ NUEVO: Contenido real de guardados
                                 ProfileSavedContent(
-                                    viewModel: savedMomentsViewModel,
-                                    showMomentDetail: $showMomentDetail,
-                                    selectedMomentIndex: $selectedMomentIndex
+                                    viewModel: savedMomentsViewModel
                                 )
                                 .onAppear {
                                     if savedMomentsViewModel.moments.isEmpty && !savedMomentsViewModel.isLoading {
@@ -1669,11 +1667,68 @@ struct ProfileSavedPlaceholder: View {
 // MARK: - ✅ NUEVO: Contenido real de guardados en perfil
 struct ProfileSavedContent: View {
     @ObservedObject var viewModel: SavedMomentsViewModel
-    @Binding var showMomentDetail: Bool
-    @Binding var selectedMomentIndex: Int
     @State private var showingSavedMomentDetail = false
     @State private var selectedSavedMomentIndex = 0
+    @State private var showingSavedManager = false
+    @State private var selectedFilter: SavedQuickFilter = .all
+    @State private var detailMoments: [Moment] = []
     @Environment(\.colorScheme) var colorScheme
+    
+    enum SavedQuickFilter: CaseIterable {
+        case all
+        case videos
+        case text
+        case location
+        
+        var title: String {
+            switch self {
+            case .all:
+                return NSLocalizedString("profile.saved.filter.all", comment: "All saved filter")
+            case .videos:
+                return NSLocalizedString("profile.saved.filter.videos", comment: "Videos saved filter")
+            case .text:
+                return NSLocalizedString("profile.saved.filter.text", comment: "Text saved filter")
+            case .location:
+                return NSLocalizedString("profile.saved.filter.location", comment: "Location saved filter")
+            }
+        }
+        
+        func matches(_ moment: Moment) -> Bool {
+            switch self {
+            case .all:
+                return true
+            case .videos:
+                if let firstMedia = moment.mediaItems?.first {
+                    return firstMedia.type == .video
+                }
+                return moment.videoUrl != nil
+            case .text:
+                return !moment.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            case .location:
+                return !(moment.location ?? "").isEmpty
+            }
+        }
+    }
+    
+    private var filteredMoments: [Moment] {
+        viewModel.moments.filter { selectedFilter.matches($0) }
+    }
+    
+    private var previewMoments: [Moment] {
+        Array(filteredMoments.prefix(12))
+    }
+    
+    private var recentMoments: [Moment] {
+        Array(viewModel.moments.sorted { $0.timestamp > $1.timestamp }.prefix(8))
+    }
+    
+    private var gridSpacing: CGFloat { 4 }
+    
+    private var gridItemSize: CGFloat {
+        // 20 + 20 outer padding, then 8 + 8 inner grid padding.
+        let availableWidth = UIScreen.main.bounds.width - 56
+        return max(88, (availableWidth - (gridSpacing * 2)) / 3)
+    }
     
     var body: some View {
         if viewModel.isLoading {
@@ -1692,31 +1747,139 @@ struct ProfileSavedContent: View {
             ProfileSavedPlaceholder()
                 .padding(.horizontal, 20)
         } else {
-            // Grid con momentos guardados
-            GeometryReader { geometry in
-                let spacing: CGFloat = 4
-                let columns = 3
-                let totalSpacing = spacing * CGFloat(columns - 1) + 16
-                let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
-                
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
-                    ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                        ProfileSavedMomentThumbnail(
-                            moment: moment,
-                            size: itemWidth,
-                            onTap: {
-                                selectedSavedMomentIndex = index
-                                showingSavedMomentDetail = true
-                            }
-                        )
+            VStack(spacing: 14) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
+                            .font(.custom("Poppins-Bold", size: 18))
+                            .foregroundColor(ProfileColors.textPrimary)
+                        
+                        Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
+                            .font(.custom("Poppins-Medium", size: 12))
+                            .foregroundColor(ProfileColors.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        showingSavedManager = true
+                    }) {
+                        HStack(spacing: 6) {
+                            Text(NSLocalizedString("profile.saved.openAll", comment: "Open all saved"))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .foregroundColor(ProfileColors.textPrimary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(ProfileColors.cardBackground)
+                        .clipShape(Capsule())
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 20)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(SavedQuickFilter.allCases, id: \.self) { filter in
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedFilter = filter
+                                }
+                            }) {
+                                Text(filter.title)
+                                    .font(.custom("Poppins-Medium", size: 12))
+                                    .foregroundColor(selectedFilter == filter ? .white : ProfileColors.textPrimary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(
+                                                selectedFilter == filter
+                                                ? AnyShapeStyle(LinearGradient(
+                                                    colors: [ProfileColors.accent, ProfileColors.blue],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ))
+                                                : AnyShapeStyle(ProfileColors.cardBackground)
+                                            )
+                                    )
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                
+                if previewMoments.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .font(.system(size: 30))
+                            .foregroundColor(ProfileColors.textSecondary)
+                        Text(NSLocalizedString("profile.saved.filtered.empty", comment: "No saved moments for selected filter"))
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(ProfileColors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 28)
+                    .padding(.horizontal, 20)
+                } else {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.fixed(gridItemSize), spacing: gridSpacing), count: 3),
+                        spacing: gridSpacing
+                    ) {
+                        ForEach(Array(previewMoments.enumerated()), id: \.offset) { index, moment in
+                            ProfileSavedMomentThumbnail(
+                                moment: moment,
+                                size: gridItemSize,
+                                onTap: {
+                                    detailMoments = filteredMoments
+                                    if let selectedIndex = filteredMoments.firstIndex(where: { $0.id == moment.id }) {
+                                        selectedSavedMomentIndex = selectedIndex
+                                    } else {
+                                        selectedSavedMomentIndex = index
+                                    }
+                                    showingSavedMomentDetail = true
+                                }
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(height: calculateSavedGridHeight(itemCount: previewMoments.count))
+                }
+                
+                if !recentMoments.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(NSLocalizedString("profile.saved.recent", comment: "Recent saved moments section"))
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(ProfileColors.textPrimary)
+                            .padding(.horizontal, 20)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(Array(recentMoments.enumerated()), id: \.offset) { _, moment in
+                                    ProfileSavedMomentThumbnail(
+                                        moment: moment,
+                                        size: 92,
+                                        onTap: {
+                                            detailMoments = recentMoments
+                                            if let selectedIndex = recentMoments.firstIndex(where: { $0.id == moment.id }) {
+                                                selectedSavedMomentIndex = selectedIndex
+                                            } else {
+                                                selectedSavedMomentIndex = 0
+                                            }
+                                            showingSavedMomentDetail = true
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                }
             }
-            .frame(height: calculateSavedGridHeight(itemCount: viewModel.moments.count))
             .fullScreenCover(isPresented: $showingSavedMomentDetail) {
                 ModernSavedMomentsDetailView(
-                    moments: viewModel.moments,
+                    moments: detailMoments.isEmpty ? filteredMoments : detailMoments,
                     initialIndex: selectedSavedMomentIndex,
                     onDismiss: {
                         showingSavedMomentDetail = false
@@ -1728,15 +1891,17 @@ struct ProfileSavedContent: View {
                     }
                 )
             }
+            .fullScreenCover(isPresented: $showingSavedManager) {
+                SavedMomentsView()
+            }
         }
     }
     
     private func calculateSavedGridHeight(itemCount: Int) -> CGFloat {
+        guard itemCount > 0 else { return 0 }
         let columns = 3
         let rows = ceil(Double(itemCount) / Double(columns))
-        let spacing: CGFloat = 4
-        let itemWidth = (UIScreen.main.bounds.width - 16 - (spacing * 2)) / 3
-        return CGFloat(rows) * itemWidth + (CGFloat(rows - 1) * spacing)
+        return CGFloat(rows) * gridItemSize + (CGFloat(rows - 1) * gridSpacing)
     }
 }
 

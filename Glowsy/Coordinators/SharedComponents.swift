@@ -132,13 +132,7 @@ struct AsyncProfileImageView: View {
         ZStack {
             // Fondo base siempre presente
             Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [.purple.opacity(0.3), .blue.opacity(0.3)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.gray.opacity(0.1))
             
             // Contenido superpuesto
             if isLoading && profileImagePath == nil {
@@ -261,13 +255,7 @@ struct ProfileImageView: View {
                 KFImage(url)
                     .placeholder {
                         Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.purple.opacity(0.3), .blue.opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .fill(Color.gray.opacity(0.1))
                             .overlay(ProgressView().tint(.white))
                     }
                     .resizable()
@@ -276,13 +264,7 @@ struct ProfileImageView: View {
                     .clipShape(Circle())
             } else {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.purple.opacity(0.3), .blue.opacity(0.3)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.gray.opacity(0.1))
                     .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 20))

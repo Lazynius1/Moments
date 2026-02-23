@@ -699,6 +699,9 @@ struct ModernCommentsView: View {
         ) { result in
             switch result {
             case .success:
+                Task { @MainActor in
+                    AffinityTracker.shared.trackInteraction(type: .momentComment, with: self.moment.authorId)
+                }
                 // Si estamos online, el listener actualizará la lista.
                 // Si estamos offline, el comentario se queda como "pending" hasta que se sincronice.
                 if NetworkMonitor.shared.isConnected {

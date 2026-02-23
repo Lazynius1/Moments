@@ -1,0 +1,107 @@
+MEJORAS DE RENDIMIENTO PROPUESTAS (GLOWSY)
+Fecha: 2026-02-23
+
+OBJETIVO
+Mejorar fluidez general sin perder privacidad ni control de audiencias.
+
+--------------------------------------------------
+1) QUICK WINS (1-2 días, impacto alto)
+--------------------------------------------------
+
+1. Feed: evitar consultas por card (N+1)
+- Precargar una vez:
+  - follows/mutuals en memoria
+  - saved IDs del usuario en memoria
+- Reusar esos mapas durante render del feed.
+
+2. Comentarios: usar contador denormalizado
+- Dejar de hacer getDocuments() por post para contar comentarios.
+- Usar moment.commentCount (y mantenerlo actualizado en backend).
+
+3. Chat Settings: sin listener continuo
+- En ConversationSettings usar fetch puntual de estadísticas.
+- Evitar listenToMessages compartido con la pantalla principal del chat.
+
+4. Widget reload con throttle/debounce
+- No llamar WidgetCenter.reloadTimelines en cada cambio pequeño.
+- Aplicar debounce (ej: 15-30s) y solo si hubo cambio real de conteo.
+
+5. Prefetch de imágenes deduplicado
+- Centralizar prefetch y evitar iniciar ImagePrefetcher múltiples veces.
+
+--------------------------------------------------
+2) MODELO DE DATOS OPTIMIZADO (2-4 días, impacto muy alto)
+--------------------------------------------------
+
+1. Historias: resumen por autor
+- Guardar metadata rápida por usuario:
+  - activeStoryCount
+  - latestStoryAt
+  - audiencesSummary (opcional)
+- Evitar consultar historia por historia para pintar anillos.
+
+2. Estado de visto simplificado
+- Guardar lastSeenStoryAt por autor (viewer -> author).
+- Evitar consulta por viewer doc en cada story.
+
+3. Índices de audiencia preparados para filtro rápido
+- Estructurar campos para permitir filtro eficiente desde backend.
+
+4. Cache de visibilidad con TTL
+- Reusar resultado de “puede ver/no puede ver” por ventana corta.
+- Invalidar cuando cambian listas/audiencias.
+
+--------------------------------------------------
+3) BACKEND-FIRST FEED (4-7 días, impacto máximo)
+--------------------------------------------------
+
+IDEA CLAVE
+La lógica de audiencia se ejecuta en Cloud Functions/backend.
+El cliente recibe feed ya filtrado.
+
+Flujo:
+1. Cliente llama endpoint: getFeedPage(cursor, feedType, limit).
+2. Backend construye viewerContext:
+   - following, followers, mutuals, bestFriends, customLists.
+3. Backend toma candidatos de moments.
+4. Aplica canViewerSeeMoment(...) en servidor.
+5. Devuelve solo items visibles + nextCursor.
+6. Cliente pinta sin hacer validación N+1 por item.
+
+Beneficios:
+- Menos queries por pantalla.
+- Menor trabajo en main thread.
+- Mejor scroll/percepción de velocidad.
+- Mayor consistencia de reglas de visibilidad.
+
+IMPORTANTE
+- Seguridad real sigue en Firestore Rules + backend.
+- El cliente no debe tener libertad para leer feed crudo sin filtro.
+
+--------------------------------------------------
+4) ORDEN RECOMENDADO DE EJECUCIÓN
+--------------------------------------------------
+
+Fase A (rápida)
+- Quick wins 1, 2, 3 y 4.
+
+Fase B (preparación)
+- Metadata de historias + estado visto simplificado.
+
+Fase C (estructura final)
+- Endpoint backend-first para feed.
+
+--------------------------------------------------
+5) MÉTRICAS A SEGUIR
+--------------------------------------------------
+
+- Tiempo de primera carga de feed (cold/warm).
+- Tiempo de scroll hasta 20 posts.
+- Número de lecturas Firestore por sesión de feed.
+- Tiempo de carga del carrusel de historias.
+- FPS percibido en profile/feed/chat.
+
+Objetivo práctico:
+- Reducir lecturas Firestore por sesión de feed al menos 40-60%.
+- Reducir tiempo de primera pintura de feed 20-35%.
+

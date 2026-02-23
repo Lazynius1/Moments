@@ -133,10 +133,7 @@ struct ModernActionButtons: View {
                 }
             }
             .padding(6)
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-            )
+            .liquidGlass(in: Capsule())
             .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
             .opacity(isImmersive ? 0 : 1)
             .animation(.easeInOut(duration: 0.3), value: isImmersive)

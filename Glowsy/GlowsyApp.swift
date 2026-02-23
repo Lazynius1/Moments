@@ -76,6 +76,13 @@ struct GlowsyApp: App {
                                     // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
                                     Task { @MainActor in
                                         LocalPersistenceService.shared.cleanupOldData()
+                                        
+                                        // Configure AffinityTracker with the shared SwiftData container
+                                        if let container = LocalPersistenceService.shared.container {
+                                            AffinityTracker.shared.setup(container: container)
+                                            AffinityTracker.shared.applyTimeDecayIfNeeded()
+                                            AffinityTracker.shared.cleanupVeryLowAffinities()
+                                        }
                                     }
                                 }
                             }

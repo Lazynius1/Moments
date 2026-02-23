@@ -265,7 +265,7 @@ struct StoryEditingView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 8)
-                .background(.ultraThinMaterial)
+                .liquidGlass(in: Rectangle())
             }
         }
         // ✅ SHEET ACTUALIZADO para selector de audiencia mejorado
@@ -489,21 +489,15 @@ struct StoryEditingView: View {
                     .font(.title2)
                     .foregroundColor(.white)
                     .padding(12)
-                    .background(Material.ultraThinMaterial)
-                    .clipShape(Circle())
+                    .liquidGlass(in: Circle())
             }
-            
             Spacer()
-            
-            Button(action: {
-                saveToGallery()
-            }) {
+            Button(action: { saveToGallery() }) {
                 Image(systemName: "arrow.down.circle")
                     .font(.title2)
                     .foregroundColor(.white)
                     .padding(12)
-                    .background(Material.ultraThinMaterial)
-                    .clipShape(Circle())
+                    .liquidGlass(in: Circle())
             }
         }
         .padding(.horizontal)
@@ -512,59 +506,34 @@ struct StoryEditingView: View {
     
     @ViewBuilder
     private func sideToolbarView() -> some View {
-        VStack(spacing: 16) {
-            if !isContinuingChain {
-                Button(action: {
-                    withAnimation(.spring()) {
-                        isCreatingChain.toggle()
-                    }
-                }) {
-                    Image(systemName: "link")
-                        .font(.system(size: 20))
-                        .foregroundColor(isCreatingChain ? .blue : .white)
-                        .frame(width: 44, height: 44)
-                        .background(isCreatingChain ? Color.blue.opacity(0.2) : Color.clear)
-                        .background(Material.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1)
-                        )
-                }
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-            }
-
-            
-            EditingToolIcon(icon: "textformat.alt") {
-                showingTextEditor = true
-            }
-            
-            EditingToolIcon(icon: "face.smiling") {
-                showingStickerPicker = true
-            }
-            
-            EditingToolIcon(icon: "scribble") {
-                showingDrawing = true
-            }
+        VStack(spacing: 12) {
+            EditingToolIcon(icon: "textformat.alt") { showingTextEditor = true }
+            EditingToolIcon(icon: "face.smiling") { showingStickerPicker = true }
+            EditingToolIcon(icon: "scribble") { showingDrawing = true }
             
             Button(action: {
-                withAnimation(.spring()) {
-                    showingFilterToolbar.toggle()
-                }
+                withAnimation(.spring()) { showingFilterToolbar.toggle() }
             }) {
                 Image(systemName: "paintbrush")
                     .font(.system(size: 20))
                     .foregroundColor(showingFilterToolbar ? .pink : .white)
                     .frame(width: 44, height: 44)
-                    .background(showingFilterToolbar ? Color.pink.opacity(0.2) : Color.clear)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(showingFilterToolbar ? Color.pink : Color.clear, lineWidth: 1)
-                    )
+                    .liquidGlass(in: Circle())
+                    .overlay(Circle().stroke(showingFilterToolbar ? Color.pink : Color.clear, lineWidth: 1))
             }
-            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            
+            if !isContinuingChain {
+                Button(action: {
+                    withAnimation(.spring()) { isCreatingChain.toggle() }
+                }) {
+                    Image(systemName: "link")
+                        .font(.system(size: 20))
+                        .foregroundColor(isCreatingChain ? .blue : .white)
+                        .frame(width: 44, height: 44)
+                        .liquidGlass(in: Circle())
+                        .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
+                }
+            }
         }
         .padding(.trailing, 16)
     }
@@ -581,8 +550,7 @@ struct StoryEditingView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
+                            .liquidGlass(in: Capsule())
                         
                         Slider(value: $filterIntensity, in: 0...1.0)
                             .accentColor(.white)
@@ -628,12 +596,7 @@ struct StoryEditingView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                )
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 16)
             }
             
@@ -660,8 +623,7 @@ struct StoryEditingView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
+                        .liquidGlass(in: Capsule())
                         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     }
                 }
@@ -1634,8 +1596,7 @@ struct EditingToolIcon: View {
                 .font(.system(size: 20))
                 .foregroundColor(.white)
                 .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial)
-                .clipShape(Circle())
+                .liquidGlass(in: Circle())
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         }
     }
@@ -1906,8 +1867,7 @@ struct FilterSelectorView: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
+                .liquidGlass(in: Capsule())
         }
         .padding(.bottom, 8)
     }

@@ -113,16 +113,7 @@ struct InAppBannerView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(
-                ZStack {
-                    Capsule()
-                        .fill(.ultraThinMaterial)
-                    
-                    Capsule()
-                        .fill(colorFor(notification.type).opacity(0.05))
-                }
-                .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 10)
-            )
+            .liquidGlass(in: Capsule())
             .overlay(
                 Capsule()
                     .stroke(

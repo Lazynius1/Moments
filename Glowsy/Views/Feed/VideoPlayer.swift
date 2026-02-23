@@ -119,6 +119,12 @@ struct ModernVideoPlayer: View {
     @State private var isBuffering = false
     @State private var hasSetupPlayer = false
     @State private var isVisible = false
+    @State private var setupRetries = 0
+    @State private var setupGeneration = 0
+    @State private var hasLoadError = false
+    
+    private let maxSetupRetries = 2
+    private let setupTimeoutSeconds: Double = 4.0
     
     init(url: String, aspectRatio: CGFloat, videoId: String, hideMuteButton: Bool = false) {
         self.url = url
@@ -131,7 +137,7 @@ struct ModernVideoPlayer: View {
         GeometryReader { geometry in
             ZStack {
                 // Video Player
-                if let player = playerManager.player {
+                if let player = playerManager.player, !hasLoadError {
                     VideoPlayerRepresentable(
                         player: player,
                         showControls: $showControls,
@@ -182,6 +188,11 @@ struct ModernVideoPlayer: View {
             isVisible = false
             globalManager.unregisterPlayer(videoId)
             playerManager.cleanup()
+            // Importante: permitir re-setup al reaparecer la celda en feed.
+            hasSetupPlayer = false
+            hasLoadError = false
+            setupRetries = 0
+            setupGeneration += 1
         }
         .onTapGesture {
             handleTap()
@@ -199,13 +210,33 @@ struct ModernVideoPlayer: View {
                 .fill(.ultraThinMaterial)
                 .aspectRatio(min(aspectRatio, 0.8), contentMode: .fit)
             
-            // ✅ HALO ANIMATION: También en la carga inicial
-            HaloLoadingView(cornerRadius: 0)
-            
-            VStack(spacing: 12) {
-                Text("Cargando video...")
-                    .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(.white.opacity(0.8))
+            if hasLoadError {
+                VStack(spacing: 10) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.9))
+                    Text(NSLocalizedString("feed.video.loadError", comment: "Video load error"))
+                        .font(.custom("Poppins-Medium", size: 13))
+                        .foregroundColor(.white.opacity(0.85))
+                    Button(NSLocalizedString("feed.video.retry", comment: "Retry video load")) {
+                        forceReloadPlayer()
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.white.opacity(0.18))
+                    .clipShape(Capsule())
+                }
+            } else {
+                // ✅ HALO ANIMATION: También en la carga inicial
+                HaloLoadingView(cornerRadius: 0)
+                
+                VStack(spacing: 12) {
+                    Text(NSLocalizedString("feed.video.loading", comment: "Video loading state"))
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(.white.opacity(0.8))
+                }
             }
         }
     }
@@ -218,16 +249,13 @@ struct ModernVideoPlayer: View {
                     .transition(.opacity)
                 
                 Button(action: {
-                    togglePlayback() // ✅ MODIFICADO: Usar nueva función
+                    togglePlayback()
                 }) {
                     Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 50, weight: .light))
                         .foregroundColor(.white)
-                        .background(
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 80, height: 80)
-                        )
+                        .frame(width: 80, height: 80)
+                        .liquidGlass(in: Circle())
                         .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                 }
                 .transition(.scale.combined(with: .opacity))
@@ -265,14 +293,7 @@ struct ModernVideoPlayer: View {
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.white)
                 .frame(width: 36, height: 36)
-                .background(
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                )
+                .liquidGlass(in: Circle())
                 .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
         }
         .opacity(showMuteButton ? 1.0 : 0.0)
@@ -300,11 +321,62 @@ struct ModernVideoPlayer: View {
     
     // MARK: - Functions
     private func setupPlayer() {
-        guard !hasSetupPlayer else { return }
-        guard let videoURL = URL(string: url) else { return }
+        if hasSetupPlayer && playerManager.player != nil {
+            return
+        }
+        guard let videoURL = normalizedVideoURL(from: url) else {
+            hasLoadError = true
+            return
+        }
         
+        hasLoadError = false
+        setupGeneration += 1
         playerManager.setupPlayer(with: videoURL)
         hasSetupPlayer = true
+        scheduleSetupTimeout(for: setupGeneration)
+    }
+    
+    private func normalizedVideoURL(from raw: String) -> URL? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: trimmed) {
+            return url
+        }
+        let encoded = trimmed.replacingOccurrences(of: " ", with: "%20")
+        return URL(string: encoded)
+    }
+    
+    private func scheduleSetupTimeout(for generation: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + setupTimeoutSeconds) {
+            guard isVisible else { return }
+            guard generation == setupGeneration else { return }
+            guard playerManager.player != nil else { return }
+            
+            let status = playerManager.player?.currentItem?.status ?? .unknown
+            let hasStartedPlayback = playerManager.currentTime > 0.05
+            if status == .readyToPlay || hasStartedPlayback {
+                return
+            }
+            
+            if setupRetries < maxSetupRetries {
+                setupRetries += 1
+                hasSetupPlayer = false
+                playerManager.cleanup()
+                setupPlayer()
+            } else {
+                hasLoadError = true
+            }
+        }
+    }
+    
+    private func forceReloadPlayer() {
+        hasLoadError = false
+        setupRetries = 0
+        hasSetupPlayer = false
+        playerManager.cleanup()
+        setupPlayer()
+        if isVisible {
+            checkAutoPlay()
+        }
     }
     
     // ✅ NUEVO: Toggle playback que usa el manager global
@@ -363,6 +435,7 @@ class VideoPlayerManager: ObservableObject {
     @Published var currentTime: Double = 0
     
     private var timeObserver: Any?
+    private var endObserver: NSObjectProtocol?
     private var hasSetupPlayer = false
     
     func setupPlayer(with url: URL) {
@@ -454,7 +527,11 @@ class VideoPlayerManager: ObservableObject {
     }
     
     private func setupLooping(for playerItem: AVPlayerItem) {
-        NotificationCenter.default.addObserver(
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+        }
+        
+        endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
             queue: .main
@@ -493,6 +570,11 @@ class VideoPlayerManager: ObservableObject {
         if let timeObserver = timeObserver {
             player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil
+        }
+        
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
         }
         
         player?.pause()

@@ -11,84 +11,35 @@ struct GlassmorphicBackground: View {
     let adaptiveColors: AdaptiveColors
     
     var body: some View {
-        ZStack {
-            // ✅ FONDO ADAPTATIVO: Diseño optimizado en modo oscuro
-            if adaptiveColors.colorScheme == .dark {
-                // Negro elegante - más suave
-                Color(hex: "1A1A1A") // Negro más suave, menos agresivo
-                    .ignoresSafeArea()
-            } else {
-                // Modo claro: mantener el diseño original
-                LinearGradient(
-                    gradient: Gradient(colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+        // iOS 26: fondo limpio y neutro — el Liquid Glass de los componentes
+        // proporciona el efecto de profundidad sin necesidad de blobs
+        if adaptiveColors.colorScheme == .dark {
+            Color(hex: "0A0A0A")
                 .ignoresSafeArea()
-                
-                // Floating blobs for depth
-                GeometryReader { geometry in
-                    Circle()
-                        .fill(Color(hex: "007AFF").opacity(0.4))
-                        .frame(width: 300, height: 300)
-                        .blur(radius: 100)
-                        .offset(x: -100, y: -100)
-                    
-                    Circle()
-                        .fill(Color(hex: "02C39A").opacity(0.35))
-                        .frame(width: 250, height: 250)
-                        .blur(radius: 80)
-                        .offset(x: geometry.size.width - 150, y: 200)
-                    
-                    Circle()
-                        .fill(Color(hex: "F0F3BD").opacity(0.4))
-                        .frame(width: 200, height: 200)
-                        .blur(radius: 60)
-                        .offset(x: 50, y: geometry.size.height - 200)
-                }
-            }
+        } else {
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
         }
     }
 }
 
 struct GlasssmorphicCard: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .background(
-                ZStack {
-                    // Glass effect
+        if #available(iOS 26.0, *) {
+            content
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 20))
+        } else {
+            content
+                .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.white.opacity(0.2))
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color.white.opacity(0.25),
-                                            Color.white.opacity(0.1)
-                                        ]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        )
+                        .fill(.ultraThinMaterial)
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color.white.opacity(0.5),
-                                            Color.white.opacity(0.2)
-                                        ]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
                         )
-                }
-            )
-            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                )
+                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        }
     }
 }
 
@@ -161,7 +112,16 @@ struct MessagingView: View {
             .navigationDestination(item: $selectedConversation) { conversation in
                 GlassmorphicChatView(conversation: conversation)
             }
-            .navigationDestination(isPresented: .constant(targetConversationId != nil)) {
+            .navigationDestination(
+                isPresented: Binding(
+                    get: { targetConversationId != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            targetConversationId = nil
+                        }
+                    }
+                )
+            ) {
                 if let conversationId = targetConversationId {
                     // Buscar conversación por ID
                     if let conversation = viewModel.conversations.first(where: { $0.id == conversationId }) {
@@ -323,8 +283,7 @@ struct MessagingView: View {
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(adaptiveColors.primary)
                             .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
+                            .liquidGlass(in: Circle())
                     }
                 } else {
                     // New conversation button (izquierda)
@@ -335,8 +294,7 @@ struct MessagingView: View {
                             .font(.system(size: 22))
                             .foregroundColor(adaptiveColors.primary)
                             .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
+                            .liquidGlass(in: Circle())
                     }
                 }
                 
@@ -367,12 +325,7 @@ struct MessagingView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(adaptiveColors.secondary.opacity(0.3), lineWidth: 1)
-                        )
+                        .liquidGlass(in: Capsule())
                     }
                     .scaleEffect(showingStatusSelector ? 0.95 : 1.0)
                     .animation(.easeInOut(duration: 0.1), value: showingStatusSelector)
@@ -390,8 +343,7 @@ struct MessagingView: View {
                                 .font(.system(size: 20))
                                 .foregroundColor(adaptiveColors.primary)
                                 .frame(width: 44, height: 44)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Circle())
+                                .liquidGlass(in: Circle())
                         }
                     }
                     
@@ -404,8 +356,7 @@ struct MessagingView: View {
                                 .font(.system(size: 22))
                                 .foregroundColor(adaptiveColors.primary)
                                 .frame(width: 44, height: 44)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Circle())
+                                .liquidGlass(in: Circle())
                             
                             // Badge for pending requests
                             if pendingRequestCount > 0 {
@@ -445,14 +396,13 @@ struct MessagingView: View {
     private var searchBar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
-                                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(adaptiveColors.secondary)
-                            .font(.system(size: 16))
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(adaptiveColors.secondary)
+                    .font(.system(size: 16))
                 
-                TextField("Buscar conversaciones...", text: $searchText)
+                TextField(NSLocalizedString("messaging.search.placeholder", comment: "Search conversations placeholder"), text: $searchText)
                     .font(.custom("Poppins-Regular", size: 15))
                     .foregroundColor(adaptiveColors.primary)
-                    .accentColor(.white)
                     .focused($isSearchFocused)
                     .onChange(of: searchText) { newValue in
                         withAnimation(.easeInOut(duration: 0.3)) {
@@ -478,15 +428,10 @@ struct MessagingView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(adaptiveColors.secondary.opacity(0.3), lineWidth: 1)
-            )
+            .liquidGlass(in: Capsule())
             
             if isSearchFocused {
-                Button("Cancelar") {
+                Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
                     searchText = ""
                     isSearching = false
                     isSearchFocused = false
@@ -499,6 +444,7 @@ struct MessagingView: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isSearchFocused)
     }
     
     @ViewBuilder
@@ -714,7 +660,7 @@ struct MessagingView: View {
               let currentUserId = Auth.auth().currentUser?.uid else { return }
         
         
-        let chatService = ChatService()
+        let chatService = ChatService.shared
         if conversation.isMuted == true {
             // Si ya está silenciada, desilenciarla
             chatService.unmuteConversation(conversationId, for: currentUserId) { error in
@@ -1234,14 +1180,7 @@ struct GlassmorphicNewConversationView: View {
                             .foregroundColor(.primary)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(.primary.opacity(0.15), lineWidth: 0.5)
-                                    )
-                            )
+                            .liquidGlass(in: Capsule())
                     }
                     
                     Spacer()
@@ -1290,23 +1229,7 @@ struct GlassmorphicNewConversationView: View {
                     }
                     .padding(.horizontal, 20)
                     .frame(height: 56)
-                    .background(
-                        ZStack {
-                            Capsule()
-                                .fill(.ultraThinMaterial)
-                                .opacity(0.15)
-                            
-                            Capsule()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [.white.opacity(0.3), .white.opacity(0.05)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 0.5
-                                )
-                        }
-                    )
+                    .liquidGlass(in: Capsule())
                     .padding(.horizontal, 20)
                     .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                     
@@ -1733,9 +1656,17 @@ class MessagingViewModel: ObservableObject {
     private let chatService = ChatService.shared
     private var cancellables = Set<AnyCancellable>()
     private var isFirstFetch = true
+    private var searchWorkItem: DispatchWorkItem?
+    private var userSearchWorkItem: DispatchWorkItem?
+    private var activeSearchQuery: String = ""
+    private var activeUserSearchQuery: String = ""
     
     deinit {
-        chatService.removeAllListeners()
+        searchWorkItem?.cancel()
+        userSearchWorkItem?.cancel()
+        if let userId = Auth.auth().currentUser?.uid {
+            chatService.removeConversationsListener(for: userId)
+        }
     }
     
     func fetchConversations(for userId: String) {
@@ -1826,7 +1757,11 @@ class MessagingViewModel: ObservableObject {
     
     // ✅ NUEVO: Búsqueda de conversaciones y usuarios
     func searchConversationsAndUsers(query: String) {
-        guard !query.isEmpty else {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        activeSearchQuery = trimmedQuery
+        searchWorkItem?.cancel()
+        
+        guard !trimmedQuery.isEmpty else {
             clearSearch()
             return
         }
@@ -1837,36 +1772,44 @@ class MessagingViewModel: ObservableObject {
         filteredConversations = conversations.filter { conversation in
             let username = conversation.otherParticipantUsername?.lowercased() ?? ""
             let lastMessage = conversation.lastMessage?.lowercased() ?? ""
-            let searchQuery = query.lowercased()
+            let searchQuery = trimmedQuery.lowercased()
             
             return username.contains(searchQuery) || lastMessage.contains(searchQuery)
         }
         
         // Buscar usuarios (excluyendo los que ya tienen conversación)
         let existingUserIds = Set(conversations.compactMap { $0.otherParticipantId })
-        
-        FirestoreService().searchUsers(query: query) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.isSearchingContent = false
-                
-                switch result {
-                case .success(let users):
-                    self.searchedUsers = users.filter { user in
-                        let notCurrentUser = user.id != Auth.auth().currentUser?.uid
-                        let noExistingConversation = !existingUserIds.contains(user.id)
-                        
-                        return notCurrentUser && noExistingConversation
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            FirestoreService().searchUsers(query: trimmedQuery) { [weak self] result in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    guard self.activeSearchQuery == trimmedQuery else { return }
+                    
+                    self.isSearchingContent = false
+                    
+                    switch result {
+                    case .success(let users):
+                        self.searchedUsers = users.filter { user in
+                            let notCurrentUser = user.id != Auth.auth().currentUser?.uid
+                            let noExistingConversation = !existingUserIds.contains(user.id)
+                            return notCurrentUser && noExistingConversation
+                        }
+                    case .failure:
+                        self.searchedUsers = []
                     }
-                case .failure:
-                    self.searchedUsers = []
                 }
             }
         }
+        
+        searchWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
     }
     
     // ✅ NUEVO: Limpiar búsqueda
     func clearSearch() {
+        searchWorkItem?.cancel()
+        activeSearchQuery = ""
         filteredConversations = []
         searchedUsers = []
         isSearchingContent = false
@@ -1966,7 +1909,11 @@ class MessagingViewModel: ObservableObject {
     }
     
     func searchUsers(query: String) {
-        if query.isEmpty {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        activeUserSearchQuery = trimmedQuery
+        userSearchWorkItem?.cancel()
+        
+        if trimmedQuery.isEmpty {
             // Si el query está vacío, mostramos los sugeridos (que ahora incluyen mutuos)
             FirestoreService().fetchSuggestedUsers { [weak self] result in
                 DispatchQueue.main.async {
@@ -1978,16 +1925,25 @@ class MessagingViewModel: ObservableObject {
             return
         }
         
-        FirestoreService().searchUsers(query: query) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let users):
-                    self?.suggestedUsers = users
-                case .failure(let error):
-                    self?.errorMessage = "Error al buscar usuarios: \(error.localizedDescription)"
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            FirestoreService().searchUsers(query: trimmedQuery) { [weak self] result in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    guard self.activeUserSearchQuery == trimmedQuery else { return }
+                    
+                    switch result {
+                    case .success(let users):
+                        self.suggestedUsers = users
+                    case .failure(let error):
+                        self.errorMessage = "Error al buscar usuarios: \(error.localizedDescription)"
+                    }
                 }
             }
         }
+        
+        userSearchWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
     }
     
     func startConversation(with user: AppUser, from userId: String, initialMessage: String? = nil, completion: @escaping () -> Void) {
@@ -2098,7 +2054,9 @@ class MessagingViewModel: ObservableObject {
     }
     
     func stopListening() {
-        chatService.removeAllListeners()
+        if let userId = Auth.auth().currentUser?.uid {
+            chatService.removeConversationsListener(for: userId)
+        }
     }
 }
 
