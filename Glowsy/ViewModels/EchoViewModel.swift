@@ -167,7 +167,7 @@ class EchoViewModel: ObservableObject {
         let urls = moments.compactMap { URL(string: $0.mediaUrl) }
         let thumbUrls = moments.compactMap { $0.thumbnailUrl.flatMap { URL(string: $0) } }
         
-        ImagePrefetcher(resources: urls + thumbUrls).start()
+        ImagePrefetchManager.shared.prefetch(urls: urls + thumbUrls)
         
         let videoUrls = moments.filter { $0.mediaType == "video" }.map { $0.mediaUrl }
         VideoPreloader.shared.preloadAssets(urls: videoUrls)

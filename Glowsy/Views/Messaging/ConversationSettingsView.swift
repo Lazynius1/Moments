@@ -574,8 +574,8 @@ class ConversationSettingsViewModel: ObservableObject {
         loadPrivacySettings()
         guard let conversationId = conversation.id else { return }
         
-        // Cargar mensajes para obtener estadísticas
-        chatService.listenToMessages(conversationId: conversationId) { [weak self] result in
+        // Cargar mensajes para obtener estadísticas (one-shot para no competir con el listener del chat principal)
+        chatService.fetchRecentMessages(conversationId: conversationId) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let messages):

@@ -19,6 +19,8 @@ import WidgetKit
 import SwiftData
 
 struct FeedView: View {
+    private typealias StoryUserState = (userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])
+
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = FeedViewModel()
     @StateObject private var notificationsViewModel = NotificationsViewModel()
@@ -41,7 +43,7 @@ struct FeedView: View {
     @Binding var showCreatorView: Bool
     @State private var currentTime = Date()
     @Environment(\.colorScheme) var colorScheme
-    @State private var storyUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])] = []
+    @State private var storyUsers: [StoryUserState] = []
     @State private var isLoadingStories = true
     @State private var selectedFeedType: FeedType = UserDefaults.standard.selectedFeedType
     @State private var showingLocationMap = false
@@ -57,6 +59,7 @@ struct FeedView: View {
     @State private var cachedStories: [String: Bool] = [:]
     @State private var cachedUnseenStories: [String: Bool] = [:]
     @State private var cachedStoriesTimestamp: Date = Date()
+    @State private var widgetReloadWorkItem: DispatchWorkItem?
     @State private var hasLoadedInitialData = false
     // ✅ NUEVO: Mapa global
     @State private var hasUnreadMessages: Bool = false
@@ -253,7 +256,6 @@ struct FeedView: View {
             }
         .onDisappear {
             // cleanupListeners() // ❌ ELIMINAR
-
         }
             .sheet(isPresented: $showNotifications) {
                 NotificationsView(onNotificationsCleared: {
@@ -573,6 +575,7 @@ struct FeedView: View {
                 // 🔥 NUEVO: Barra de progreso de uploads
                 uploadProgressBar
             }
+            .padding(.top, -8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -917,8 +920,7 @@ struct FeedView: View {
                                         return URL(string: firstMedia)
                                     }
                                     if !urlsToPrefetch.isEmpty {
-                                        ImagePrefetcher(urls: urlsToPrefetch).start()
-                                    }
+                                        ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetch)                                    }
                                 }
                                 .environmentObject(firestoreService)
                                 .environmentObject(viewModel)
@@ -1452,6 +1454,9 @@ struct FeedView: View {
         
         // ✅ NUEVO: Recuperar preferencia del usuario al cargar
         selectedFeedType = UserDefaults.standard.selectedFeedType
+        
+        // ✅ PERF: Cargar saved moments una sola vez para evitar checkIfSaved por cada card
+        firestoreService.loadSavedMoments(userId: userId)
 
         
         Task {
@@ -1511,9 +1516,9 @@ struct FeedView: View {
                     
                     // ✅ NUEVO: Verificar cache primero
                     let cacheAge = Date().timeIntervalSince(self.cachedStoriesTimestamp)
-                    if cacheAge < 300 && !self.cachedStories.isEmpty { // 5 minutos
+                    if cacheAge < 20 && !self.cachedStories.isEmpty { // 20 segundos para evitar anillos desfasados
 
-                        var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])] = []
+                        var cachedEntries: [StoryUserState] = []
                         
                         // Agregar tu historia
                         let currentUserHasStory = self.cachedStories[userId] ?? false
@@ -1522,7 +1527,7 @@ struct FeedView: View {
                         let ownAudiences = cachedOwnStories.isEmpty ? (currentUserHasStory ? [nil] : []) : cachedOwnStories.map { $0.audience }
                         // Tus historias se consideran vistas por ti en el ring.
                         let ownViewedStatus = Array(repeating: true, count: ownStoryCount)
-                        finalUsers.append((
+                        cachedEntries.append((
                             userId: userId,
                             hasStory: currentUserHasStory,
                             hasUnseenStory: false,
@@ -1540,7 +1545,7 @@ struct FeedView: View {
                                 let audiences = cachedStories.isEmpty ? [nil] : cachedStories.map { $0.audience }
                                 // En cache no tenemos estado exacto por segmento; mantenemos aproximación uniforme.
                                 let viewedStatus = Array(repeating: !hasUnseenStory, count: count)
-                                finalUsers.append((
+                                cachedEntries.append((
                                     userId: followingId,
                                     hasStory: true,
                                     hasUnseenStory: hasUnseenStory,
@@ -1550,6 +1555,8 @@ struct FeedView: View {
                                 ))
                             }
                         }
+
+                        let finalUsers = self.buildSortedStoryUsers(entries: cachedEntries, currentUserId: userId)
                         
                         self.storyUsers = finalUsers
                         
@@ -1557,115 +1564,63 @@ struct FeedView: View {
                         let newStoriesCount = finalUsers.filter { $0.hasUnseenStory }.count
                         let widgetDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
                         widgetDefaults?.set(newStoriesCount, forKey: "widget_new_stories_count")
-                        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+                        self.scheduleWidgetReload()
                         
                         self.isLoadingStories = false
                         continuation.resume()
                         return
                     }
                     
-                    let group = DispatchGroup()
-                    var usersWithStories: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])] = []
-                    var currentUserHasStory = false // ✅ NUEVO: Track tu historia por separado
-                    var currentUserStoryCount = 0
-                    var currentUserViewedStatus: [Bool] = []
-                    var currentUserStoryAudiences: [String?] = []
-                    let syncQueue = DispatchQueue(label: "story.users.sync")
-                    
-                    for userIdToCheck in allUserIds {
-                        group.enter()
-                        self.checkUserStories(userId: userIdToCheck, currentUserId: userId) { hasStory, hasUnseen, storyCount, viewedStatus, audiences in
-                            syncQueue.async {
-                                // ✅ NUEVO: Guardar en cache
-                                self.cachedStories[userIdToCheck] = hasStory
-                                self.cachedUnseenStories[userIdToCheck] = hasUnseen
-                                
-                                if userIdToCheck == userId {
-                                    // ✅ NUEVO: Tu historia va por separado
-                                    currentUserHasStory = hasStory
-                                    currentUserStoryCount = storyCount
-                                    currentUserViewedStatus = viewedStatus
-                                    currentUserStoryAudiences = audiences
-                                } else if hasStory {
-                                    // ✅ CORREGIDO: Solo historias de OTROS usuarios
-                                    usersWithStories.append((
-                                        userId: userIdToCheck,
-                                        hasStory: hasStory,
-                                        hasUnseenStory: hasUnseen,
-                                        storyCount: storyCount,
-                                        storyViewedStatus: viewedStatus,
-                                        storyAudiences: audiences
-                                    ))
-                                }
-                                group.leave()
+                    let finishLoad: ([StoryUserState]) -> Void = { finalUsers in
+                        DispatchQueue.main.async {
+                            self.cachedStoriesTimestamp = Date()
+                            self.storyUsers = finalUsers
+
+                            let newStoriesCount = finalUsers.filter { $0.hasUnseenStory }.count
+                            let widgetDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
+                            widgetDefaults?.set(newStoriesCount, forKey: "widget_new_stories_count")
+                            self.scheduleWidgetReload()
+
+                            self.isLoadingStories = false
+                            continuation.resume()
+                        }
+                    }
+
+                    self.firestoreService.fetchStorySummariesForUsers(userIds: allUserIds) { summaryResult in
+                        let candidateUserIds: [String]
+                        switch summaryResult {
+                        case .success(let summaries):
+                            candidateUserIds = allUserIds.filter {
+                                self.shouldFetchDetailedStories(
+                                    for: $0,
+                                    currentUserId: userId,
+                                    summaries: summaries
+                                )
+                            }
+                        case .failure:
+                            candidateUserIds = allUserIds
+                        }
+
+                        self.firestoreService.fetchActiveStoriesForUsers(userIds: candidateUserIds) { batchedResult in
+                            switch batchedResult {
+                            case .success(let storiesByUser):
+                                self.loadStoryUsersFromBatchedStories(
+                                    allUserIds: allUserIds,
+                                    currentUserId: userId,
+                                    storiesByUser: storiesByUser,
+                                    completion: finishLoad
+                                )
+                            case .failure:
+                                self.loadStoryUsersLegacy(
+                                    allUserIds: allUserIds,
+                                    currentUserId: userId,
+                                    completion: finishLoad
+                                )
                             }
                         }
                     }
                     
-                    group.notify(queue: .main) {
-                        // ✅ NUEVO: Construir array final correctamente
-                        var finalUsers: [(userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])] = []
-                        
-                        // 1. Agregar TU historia SIEMPRE (primera posición)
-                        finalUsers.append((userId: userId, hasStory: currentUserHasStory, hasUnseenStory: false, storyCount: currentUserStoryCount, storyViewedStatus: currentUserViewedStatus, storyAudiences: currentUserStoryAudiences))
-                        
-                        // 2. Agregar historias de otros (ordenadas por no vistas primero y luego por afinidad)
-                        var sortedOthers = usersWithStories
-                        
-                        // ✅ EXPERIMENTAL AFFINITY SORTING FOR STORIES UI
-                        let affinityManager = AffinityTracker.shared
-                        if let container = affinityManager.modelContainer {
-                            let context = SwiftData.ModelContext(container)
-                            let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
-                            let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
-                            let affinityScores = affinityManager.getScores(for: sortedOthers.map { $0.userId }, in: context)
-                            
-                            sortedOthers.sort { user1, user2 in
-                                // Primary sort: Unseen stories first
-                                if user1.hasUnseenStory && !user2.hasUnseenStory { return true }
-                                if user2.hasUnseenStory && !user1.hasUnseenStory { return false }
-                                
-                                // Secondary sort: Affinity Score
-                                var score1 = ((affinityScores[user1.userId] ?? 0.0) * 1000)
-                                var score2 = ((affinityScores[user2.userId] ?? 0.0) * 1000)
-                                
-                                // Explicit boosts
-                                if bestFriends.contains(user1.userId) { score1 += 50000 }
-                                else if mutuals.contains(user1.userId) { score1 += 20000 }
-                                
-                                if bestFriends.contains(user2.userId) { score2 += 50000 }
-                                else if mutuals.contains(user2.userId) { score2 += 20000 }
-                                
-                                return score1 > score2
-                            }
-                        } else {
-                            // Fallback sorting
-                            sortedOthers.sort { user1, user2 in
-                                if user1.hasUnseenStory && !user2.hasUnseenStory { return true }
-                                if user2.hasUnseenStory && !user1.hasUnseenStory { return false }
-                                return false
-                            }
-                        }
-                        
-                        finalUsers.append(contentsOf: sortedOthers)
-                        
-                        
-                        
-                        // ✅ NUEVO: Actualizar timestamp del cache
-                        self.cachedStoriesTimestamp = Date()
-                        self.storyUsers = finalUsers
-                        
-                        // ✅ Widget: Contar historias nuevas (usuarios con historias no vistas)
-                        let newStoriesCount = finalUsers.filter { $0.hasUnseenStory }.count
-                        let widgetDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
-                        widgetDefaults?.set(newStoriesCount, forKey: "widget_new_stories_count")
-                        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
-                        
-                        self.isLoadingStories = false
-                        continuation.resume()
-                    }
-                    
-                case .failure(let error):
+                case .failure:
                     // ✅ CORREGIDO: Fallback también debe verificar tu historia
                     self.checkUserStories(userId: userId, currentUserId: userId) { hasStory, hasUnseen, storyCount, viewedStatus, audiences in
                         DispatchQueue.main.async {
@@ -1683,10 +1638,305 @@ struct FeedView: View {
         }
     }
 
+    private func loadStoryUsersFromBatchedStories(
+        allUserIds: [String],
+        currentUserId: String,
+        storiesByUser: [String: [Story]],
+        completion: @escaping ([StoryUserState]) -> Void
+    ) {
+        let group = DispatchGroup()
+        let syncQueue = DispatchQueue(label: "story.users.batched.sync")
+        var entriesByUser: [String: StoryUserState] = [:]
+
+        for userIdToCheck in allUserIds {
+            let stories = storiesByUser[userIdToCheck] ?? []
+            group.enter()
+            evaluateVisibleStoriesForRing(userId: userIdToCheck, currentUserId: currentUserId, stories: stories) { hasStory, hasUnseen, storyCount, viewedStatus, audiences in
+                syncQueue.async {
+                    let entry: StoryUserState = (
+                        userId: userIdToCheck,
+                        hasStory: hasStory,
+                        hasUnseenStory: hasUnseen,
+                        storyCount: storyCount,
+                        storyViewedStatus: viewedStatus,
+                        storyAudiences: audiences
+                    )
+                    entriesByUser[userIdToCheck] = entry
+                    group.leave()
+                }
+            }
+        }
+
+        group.notify(queue: .main) {
+            let orderedEntries = syncQueue.sync {
+                allUserIds.map { userId in
+                    entriesByUser[userId] ?? (
+                        userId: userId,
+                        hasStory: false,
+                        hasUnseenStory: false,
+                        storyCount: 0,
+                        storyViewedStatus: [],
+                        storyAudiences: []
+                    )
+                }
+            }
+            for entry in orderedEntries {
+                self.cachedStories[entry.userId] = entry.hasStory
+                self.cachedUnseenStories[entry.userId] = entry.hasUnseenStory
+            }
+            completion(self.buildSortedStoryUsers(entries: orderedEntries, currentUserId: currentUserId))
+        }
+    }
+
+    private func loadStoryUsersLegacy(
+        allUserIds: [String],
+        currentUserId: String,
+        completion: @escaping ([StoryUserState]) -> Void
+    ) {
+        let group = DispatchGroup()
+        let syncQueue = DispatchQueue(label: "story.users.legacy.sync")
+        var entriesByUser: [String: StoryUserState] = [:]
+
+        for userIdToCheck in allUserIds {
+            group.enter()
+            self.checkUserStories(userId: userIdToCheck, currentUserId: currentUserId) { hasStory, hasUnseen, storyCount, viewedStatus, audiences in
+                syncQueue.async {
+                    let entry: StoryUserState = (
+                        userId: userIdToCheck,
+                        hasStory: hasStory,
+                        hasUnseenStory: hasUnseen,
+                        storyCount: storyCount,
+                        storyViewedStatus: viewedStatus,
+                        storyAudiences: audiences
+                    )
+                    entriesByUser[userIdToCheck] = entry
+                    group.leave()
+                }
+            }
+        }
+
+        group.notify(queue: .main) {
+            let orderedEntries = syncQueue.sync {
+                allUserIds.map { userId in
+                    entriesByUser[userId] ?? (
+                        userId: userId,
+                        hasStory: false,
+                        hasUnseenStory: false,
+                        storyCount: 0,
+                        storyViewedStatus: [],
+                        storyAudiences: []
+                    )
+                }
+            }
+            for entry in orderedEntries {
+                self.cachedStories[entry.userId] = entry.hasStory
+                self.cachedUnseenStories[entry.userId] = entry.hasUnseenStory
+            }
+            completion(self.buildSortedStoryUsers(entries: orderedEntries, currentUserId: currentUserId))
+        }
+    }
+
+    private func buildSortedStoryUsers(entries: [StoryUserState], currentUserId: String) -> [StoryUserState] {
+        let currentUserEntry = entries.first(where: { $0.userId == currentUserId }) ?? (
+            userId: currentUserId,
+            hasStory: false,
+            hasUnseenStory: false,
+            storyCount: 0,
+            storyViewedStatus: [],
+            storyAudiences: []
+        )
+
+        let normalizedCurrentUserEntry: StoryUserState = (
+            userId: currentUserEntry.userId,
+            hasStory: currentUserEntry.hasStory,
+            hasUnseenStory: false,
+            storyCount: currentUserEntry.storyCount,
+            storyViewedStatus: currentUserEntry.storyViewedStatus,
+            storyAudiences: currentUserEntry.storyAudiences
+        )
+
+        var sortedOthers = entries.filter { $0.userId != currentUserId && $0.hasStory }
+
+        let affinityManager = AffinityTracker.shared
+        if let container = affinityManager.modelContainer {
+            let context = SwiftData.ModelContext(container)
+            let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
+            let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
+            let affinityScores = affinityManager.getScores(for: sortedOthers.map { $0.userId }, in: context)
+
+            sortedOthers.sort { user1, user2 in
+                if user1.hasUnseenStory && !user2.hasUnseenStory { return true }
+                if user2.hasUnseenStory && !user1.hasUnseenStory { return false }
+
+                var score1 = (affinityScores[user1.userId] ?? 0.0) * 1000
+                var score2 = (affinityScores[user2.userId] ?? 0.0) * 1000
+
+                if bestFriends.contains(user1.userId) {
+                    score1 += 50000
+                } else if mutuals.contains(user1.userId) {
+                    score1 += 20000
+                }
+
+                if bestFriends.contains(user2.userId) {
+                    score2 += 50000
+                } else if mutuals.contains(user2.userId) {
+                    score2 += 20000
+                }
+
+                return score1 > score2
+            }
+        } else {
+            sortedOthers.sort { user1, user2 in
+                if user1.hasUnseenStory && !user2.hasUnseenStory { return true }
+                if user2.hasUnseenStory && !user1.hasUnseenStory { return false }
+                return false
+            }
+        }
+
+        var finalUsers: [StoryUserState] = [normalizedCurrentUserEntry]
+        finalUsers.append(contentsOf: sortedOthers)
+        return finalUsers
+    }
+
+    private func shouldFetchDetailedStories(
+        for authorId: String,
+        currentUserId: String,
+        summaries: [String: StoryAuthorSummary]
+    ) -> Bool {
+        if authorId == currentUserId {
+            return true
+        }
+        guard let summary = summaries[authorId] else {
+            // Sin summary => fallback seguro (no ocultar historias por estado desconocido).
+            return true
+        }
+        return !summary.shouldSkipDetailedFetch()
+    }
+
+    private func evaluateVisibleStoriesForRing(
+        userId: String,
+        currentUserId: String,
+        stories: [Story],
+        completion: @escaping (Bool, Bool, Int, [Bool], [String?]) -> Void
+    ) {
+        guard !stories.isEmpty else {
+            completion(false, false, 0, [], [])
+            return
+        }
+
+        StorySeenStateService.shared.fetchEffectiveLastSeen(
+            viewerId: currentUserId,
+            authorId: userId
+        ) { effectiveLastSeenAt in
+            let group = DispatchGroup()
+            let syncQueue = DispatchQueue(label: "story.visibility.sync.\(userId)")
+            var visibleStories: [(story: Story, wasViewed: Bool)] = []
+            var hasUnseenStory = false
+
+            for story in stories {
+                group.enter()
+                let completionLock = NSLock()
+                var didComplete = false
+
+                func markCompleted() -> Bool {
+                    completionLock.lock()
+                    defer { completionLock.unlock() }
+                    if didComplete { return false }
+                    didComplete = true
+                    return true
+                }
+
+                self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
+                    guard markCompleted() else { return }
+
+                    if canView {
+                        let supportsShortcut = StorySeenStateService.shared.supportsShortcut(forAudience: story.audience)
+                        if supportsShortcut, let effectiveLastSeenAt = effectiveLastSeenAt, story.timestamp <= effectiveLastSeenAt {
+                            syncQueue.async {
+                                visibleStories.append((story: story, wasViewed: true))
+                                group.leave()
+                            }
+                            return
+                        }
+
+                        if let storyId = story.id {
+                            Firestore.firestore().collection("users").document(story.authorId)
+                                .collection("stories").document(storyId)
+                                .collection("viewers").document(currentUserId)
+                                .getDocument { viewerDoc, _ in
+                                    let wasViewed = viewerDoc?.exists == true
+                                    if wasViewed, supportsShortcut {
+                                        StorySeenStateService.shared.markSeen(
+                                            viewerId: currentUserId,
+                                            authorId: userId,
+                                            timestamp: story.timestamp,
+                                            syncRemote: true
+                                        )
+                                    }
+                                    syncQueue.async {
+                                        visibleStories.append((story: story, wasViewed: wasViewed))
+                                        if !wasViewed {
+                                            hasUnseenStory = true
+                                        }
+                                        group.leave()
+                                    }
+                                }
+                        } else {
+                            syncQueue.async {
+                                let wasViewed = supportsShortcut && (effectiveLastSeenAt != nil)
+                                visibleStories.append((story: story, wasViewed: wasViewed))
+                                if !wasViewed {
+                                    hasUnseenStory = true
+                                }
+                                group.leave()
+                            }
+                        }
+                    } else {
+                        group.leave()
+                    }
+                }
+
+                DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+                    if markCompleted() {
+                        group.leave()
+                    }
+                }
+            }
+
+            group.notify(queue: .main) {
+                let (sortedStories, unseenStory): ([(story: Story, wasViewed: Bool)], Bool) = syncQueue.sync {
+                    let sorted = visibleStories.sorted { story1, story2 in
+                        (story1.story.timestamp) < (story2.story.timestamp)
+                    }
+                    return (sorted, hasUnseenStory)
+                }
+
+                let storyCount = sortedStories.count
+                let viewedStatus = sortedStories.map { $0.wasViewed }
+                let audiences = sortedStories.map { $0.story.audience }
+                let hasStory = storyCount > 0
+
+                Task {
+                    await StoryRingCacheService.shared.set(
+                        viewerId: currentUserId,
+                        authorId: userId,
+                        snapshot: StoryRingSnapshot(
+                            hasStory: hasStory,
+                            hasUnseenStory: unseenStory,
+                            storyCount: storyCount,
+                            storyViewedStatus: viewedStatus,
+                            storyAudiences: audiences
+                        )
+                    )
+                }
+
+                completion(hasStory, unseenStory, storyCount, viewedStatus, audiences)
+            }
+        }
+    }
+
     // ✅ MEJORAR: checkUserStories con mejor logging y manejo de errores
     private func checkUserStories(userId: String, currentUserId: String, completion: @escaping (Bool, Bool, Int, [Bool], [String?]) -> Void) {
-
-        
         firestoreService.db.collection("users").document(userId).collection("stories")
             .whereField("expirationDate", isGreaterThan: Date())
             .getDocuments { snapshot, error in
@@ -1717,91 +1967,18 @@ struct FeedView: View {
                     completion(false, false, 0, [], [])
                     return
                 }
-                
-                let group = DispatchGroup()
-                var visibleStories: [(story: Story, wasViewed: Bool)] = []
-                var hasUnseenStory = false
 
-                for story in stories {
-                    group.enter()
-
-                    
-                    // ✅ MEJORADO: Agregar timeout y mejor manejo de errores
-                    var hasCompleted = false
-                    let completionQueue = DispatchQueue(label: "story.completion.control")
-                    
-                    // Usar el servicio de privacidad para la verificación completa
-                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
-                        completionQueue.async {
-                            if !hasCompleted {
-                                hasCompleted = true
-                                
-
-                                
-                                if canView {
-                                    // Si la historia es visible, comprobar si no ha sido vista
-                                    if let storyId = story.id {
-                                        group.enter() // Agregar un enter más para la verificación de viewers
-                                        
-                                        Firestore.firestore().collection("users").document(story.authorId)
-                                            .collection("stories").document(storyId)
-                                            .collection("viewers").document(currentUserId)
-                                            .getDocument { viewerDoc, _ in
-                                                let wasViewed = viewerDoc?.exists == true
-                                                
-                                                DispatchQueue.main.async {
-                                                    visibleStories.append((story: story, wasViewed: wasViewed))
-                                                    if !wasViewed {
-                                                        hasUnseenStory = true
-                                                    }
-                                                    group.leave()
-                                                }
-                                            }
-                                    } else {
-                                        DispatchQueue.main.async {
-                                            visibleStories.append((story: story, wasViewed: false))
-                                            hasUnseenStory = true
-                                            group.leave()
-                                        }
-                                    }
-                                }
-                                
-                                DispatchQueue.main.async {
-                                    group.leave()
-                                }
-                            }
-                        }
-                    }
-                    
-                    // ✅ NUEVO: Timeout de seguridad para evitar que se cuelgue
-                    DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
-                        completionQueue.async {
-                            if !hasCompleted {
-                                hasCompleted = true
-
-                                DispatchQueue.main.async {
-                                    group.leave()
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                group.notify(queue: .main) {
-                    // Solo completar con 'true' si al menos una historia fue visible
-                    let storyCount = visibleStories.count
-                    // Ordenar por timestamp y extraer el estado de visto
-                    let sortedStories = visibleStories.sorted { story1, story2 in
-                        (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
-                    }
-                    let viewedStatus = sortedStories.map { $0.wasViewed }
-                    let audiences = sortedStories.map { $0.story.audience }
-                    completion(storyCount > 0, hasUnseenStory, storyCount, viewedStatus, audiences)
-                }
+                self.evaluateVisibleStoriesForRing(
+                    userId: userId,
+                    currentUserId: currentUserId,
+                    stories: stories,
+                    completion: completion
+                )
             }
     }
     
     private func refreshFeed(userId: String) async {
+        
         await withTaskGroup(of: Void.self) { group in
             group.addTask {
                 await self.viewModel.refreshMoments(userId: userId)
@@ -1825,10 +2002,16 @@ struct FeedView: View {
             .prefix(10) // ✅ AUMENTADO: De 3 a 10 imágenes
             .compactMap { $0.imagePath }
             .compactMap { URL(string: $0) }
-        let prefetcher = ImagePrefetcher(urls: momentUrls) { skipped, failed, completed in
-
+        ImagePrefetchManager.shared.prefetch(urls: momentUrls)
+    }
+    
+    private func scheduleWidgetReload(delay: TimeInterval = 2.0) {
+        widgetReloadWorkItem?.cancel()
+        let workItem = DispatchWorkItem {
+            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
         }
-        prefetcher.start()
+        widgetReloadWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 }
 
@@ -2052,6 +2235,7 @@ struct ModernPostCardView: View {
         self.onContextMenu = onContextMenu
         self.onTagTap = onTagTap
         self.onPeek = onPeek
+        _commentCount = State(initialValue: moment.commentCount)
         
         // ✅ CRÍTICO: Inicialización estática con metadatos SIEMPRE
         // Evitamos que el layout "baile" al cargar confiando en la DB
@@ -2087,6 +2271,9 @@ struct ModernPostCardView: View {
     // ✅ Estados para el círculo de historia en el header
     @State private var hasStory: Bool = false
     @State private var hasUnseenStory: Bool = false
+    @State private var storyCount: Int = 0
+    @State private var storyViewedStatus: [Bool] = []
+    @State private var storyAudiences: [String?] = []
     @State private var isLoadingStory: Bool = false
     @State private var showStories = false
     @State private var showSpecificUserStories = false
@@ -2379,6 +2566,12 @@ struct ModernPostCardView: View {
 
             }
         }
+        .onChange(of: firestoreService.savedMomentIds) { _ in
+            guard let currentUserId = Auth.auth().currentUser?.uid,
+                  let momentId = moment.id,
+                  firestoreService.hasLoadedSavedMoments(for: currentUserId) else { return }
+            isSaved = firestoreService.savedMomentIds.contains(momentId)
+        }
 
         .fullScreenCover(isPresented: $showSpecificUserStories) {
             StoriesView(startWithUserId: Binding(
@@ -2410,8 +2603,18 @@ struct ModernPostCardView: View {
                         .frame(width: 44, height: 44)
                         .clipShape(Circle())
                         .overlay(
-                            Circle()
-                                .stroke(storyRingGradient, lineWidth: hasStory ? 2.5 : 0)
+                            StorySegmentedRing(
+                                storyCount: storyCount,
+                                hasStory: hasStory,
+                                hasUnseenStory: hasUnseenStory,
+                                storyViewedStatus: storyViewedStatus,
+                                storyAudiences: storyAudiences,
+                                isOwnStory: false,
+                                colorScheme: colorScheme,
+                                ringSize: 44,
+                                lineWidth: 2.5,
+                                hapticsEnabled: false
+                            )
                         )
                 }
             }
@@ -2501,105 +2704,125 @@ struct ModernPostCardView: View {
         }
     }
     
-    private var storyRingGradient: LinearGradient {
-        if hasUnseenStory {
-            return LinearGradient(
-                colors: [Color.purple, Color.pink, Color.orange],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else if hasStory {
-            return LinearGradient(
-                colors: colorScheme == .dark ?
-                [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
-                [Color.gray.opacity(0.6), Color.gray.opacity(0.8)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                colors: [Color.clear, Color.clear],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-    }
-    
     private func checkUserStories() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
         if moment.authorId == currentUserId {
             hasStory = false
             hasUnseenStory = false
+            storyCount = 0
+            storyViewedStatus = []
+            storyAudiences = []
             isLoadingStory = false
             return
         }
         
         isLoadingStory = true
-        
-        firestoreService.db.collection("users").document(moment.authorId).collection("stories")
-            .whereField("expirationDate", isGreaterThan: Date())
-            .getDocuments { snapshot, error in
-                
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                        self.isLoadingStory = false
-                    }
-                    return
-                }
-                
-                guard let documents = snapshot?.documents, !documents.isEmpty else {
-                    DispatchQueue.main.async {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                        self.isLoadingStory = false
-                    }
-                    return
-                }
 
-                let stories = documents.compactMap { try? $0.data(as: Story.self) }
-                
-                let group = DispatchGroup()
-                var isAnyStoryVisible = false
-                var hasUnseenStory = false
-                let syncQueue = DispatchQueue(label: "post.story.visibility.check")
+        StorySeenStateService.shared.fetchEffectiveLastSeen(
+            viewerId: currentUserId,
+            authorId: moment.authorId
+        ) { effectiveLastSeenAt in
+            firestoreService.db.collection("users").document(moment.authorId).collection("stories")
+                .whereField("expirationDate", isGreaterThan: Date())
+                .getDocuments { snapshot, error in
+                    
+                    if let _ = error {
+                        DispatchQueue.main.async {
+                            self.hasStory = false
+                            self.hasUnseenStory = false
+                            self.storyCount = 0
+                            self.storyViewedStatus = []
+                            self.storyAudiences = []
+                            self.isLoadingStory = false
+                        }
+                        return
+                    }
+                    
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        DispatchQueue.main.async {
+                            self.hasStory = false
+                            self.hasUnseenStory = false
+                            self.storyCount = 0
+                            self.storyViewedStatus = []
+                            self.storyAudiences = []
+                            self.isLoadingStory = false
+                        }
+                        return
+                    }
 
-                for story in stories {
-                    group.enter()
-                    privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
-                        if canView {
-                            syncQueue.async {
-                                isAnyStoryVisible = true
-                                if let storyId = story.id {
-                                    Firestore.firestore().collection("users").document(story.authorId)
-                                        .collection("stories").document(storyId)
-                                        .collection("viewers").document(currentUserId)
-                                        .getDocument { viewerDoc, _ in
-                                            if viewerDoc?.exists != true {
-                                                hasUnseenStory = true
+                    let stories = documents.compactMap { try? $0.data(as: Story.self) }
+                    
+                    let group = DispatchGroup()
+                    var visibleStories: [(story: Story, wasViewed: Bool)] = []
+                    var hasUnseenStory = false
+                    let syncQueue = DispatchQueue(label: "post.story.visibility.check")
+
+                    for story in stories {
+                        group.enter()
+                        privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
+                            if canView {
+                                syncQueue.async {
+                                    let supportsShortcut = StorySeenStateService.shared.supportsShortcut(forAudience: story.audience)
+                                    if supportsShortcut, let effectiveLastSeenAt = effectiveLastSeenAt, story.timestamp <= effectiveLastSeenAt {
+                                        visibleStories.append((story: story, wasViewed: true))
+                                        group.leave()
+                                        return
+                                    }
+
+                                    if let storyId = story.id {
+                                        Firestore.firestore().collection("users").document(story.authorId)
+                                            .collection("stories").document(storyId)
+                                            .collection("viewers").document(currentUserId)
+                                            .getDocument { viewerDoc, _ in
+                                                let wasViewed = viewerDoc?.exists == true
+                                                syncQueue.async {
+                                                    if wasViewed, supportsShortcut {
+                                                        StorySeenStateService.shared.markSeen(
+                                                            viewerId: currentUserId,
+                                                            authorId: moment.authorId,
+                                                            timestamp: story.timestamp,
+                                                            syncRemote: true
+                                                        )
+                                                    }
+                                                    if !wasViewed {
+                                                        hasUnseenStory = true
+                                                    }
+                                                    visibleStories.append((story: story, wasViewed: wasViewed))
+                                                    group.leave()
+                                                }
                                             }
-                                            group.leave()
-                                        }
-                                } else {
-                                    group.leave()
+                                    } else {
+                                        hasUnseenStory = true
+                                        visibleStories.append((story: story, wasViewed: false))
+                                        group.leave()
+                                    }
                                 }
+                            } else {
+                                group.leave()
                             }
-                        } else {
-                            group.leave()
+                        }
+                    }
+                    
+                    group.notify(queue: .main) {
+                        let resolvedState = syncQueue.sync {
+                            let sorted = visibleStories.sorted { $0.story.timestamp < $1.story.timestamp }
+                            let count = sorted.count
+                            let viewed = sorted.map { $0.wasViewed }
+                            let audiences = sorted.map { $0.story.audience }
+                            return (count > 0, hasUnseenStory, count, viewed, audiences)
+                        }
+                        DispatchQueue.main.async {
+                            self.hasStory = resolvedState.0
+                            self.hasUnseenStory = resolvedState.1
+                            self.storyCount = resolvedState.2
+                            self.storyViewedStatus = resolvedState.3
+                            self.storyAudiences = resolvedState.4
+                            self.isLoadingStory = false
                         }
                     }
                 }
-                
-                group.notify(queue: .main) {
-                    DispatchQueue.main.async {
-                        self.hasStory = isAnyStoryVisible
-                        self.hasUnseenStory = hasUnseenStory
-                        self.isLoadingStory = false
-                    }
-                }
-            }
+        }
     }
     
     // ✅ NUEVO: Función para colores de indicadores multicolores
@@ -2762,26 +2985,28 @@ struct ModernPostCardView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
+        // ✅ PERF: Usar contador denormalizado del moment para evitar query por card
+        commentCount = moment.commentCount
         
         feedViewModel.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
-        loadCommentCount()
         
         if moment.authorId != currentUserId {
-            firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: moment.authorId) { following in
+            firestoreService.isFollowingCached(currentUserId: currentUserId, targetUserId: moment.authorId) { following in
                 DispatchQueue.main.async {
                     self.isFollowing = following
                 }
             }
         }
         
-        firestoreService.checkIfSaved(userId: currentUserId, momentId: momentId) { result in
-            switch result {
-            case .success(let saved):
-                DispatchQueue.main.async {
-                    self.isSaved = saved
+        if firestoreService.hasLoadedSavedMoments(for: currentUserId) {
+            isSaved = firestoreService.savedMomentIds.contains(momentId)
+        } else {
+            firestoreService.checkIfSaved(userId: currentUserId, momentId: momentId) { result in
+                if case .success(let saved) = result {
+                    DispatchQueue.main.async {
+                        self.isSaved = saved
+                    }
                 }
-            case .failure(_):
-                break
             }
         }
     }
@@ -3460,6 +3685,11 @@ class FeedViewModel: ObservableObject {
     private let updateDebounceTime: TimeInterval = 0.3
     private var lastUpdateHashes: [String: Int] = [:]
     
+    // 🚀 Backend feed pagination state (per feed type)
+    private var backendCursors: [FeedType: FeedCursor?] = [:]
+    private var feedLoadedFromBackend: [FeedType: Bool] = [.following: false, .forYou: false]
+    private var backendReachedEnd: [FeedType: Bool] = [.following: false, .forYou: false]
+    
     // ✅ NUEVO: Queue para sincronización segura de arrays
     private let momentsQueue = DispatchQueue(label: "moments.sync", attributes: .concurrent)
     private let listenersQueue = DispatchQueue(label: "listeners.sync", attributes: .concurrent)
@@ -3471,6 +3701,9 @@ class FeedViewModel: ObservableObject {
     @MainActor
     func refreshMoments(userId: String) async {
         lastDocument = nil
+        backendCursors.removeAll()
+        feedLoadedFromBackend = [.following: false, .forYou: false]
+        backendReachedEnd = [.following: false, .forYou: false]
         clearListeners()
         
         // ✅ OFFLINE: Al refrescar, mantenemos lo que hay hasta que llegue lo nuevo
@@ -3545,6 +3778,76 @@ class FeedViewModel: ObservableObject {
         guard !isLoadingMore else { return }
         isLoadingMore = true
         
+        let feed = currentFeedType
+        
+        // 🚀 If initial load was from backend, keep using backend for pagination
+        if feedLoadedFromBackend[feed] == true {
+            // End of feed reached — nothing more to load
+            if backendReachedEnd[feed] == true {
+                isLoadingMore = false
+                LogConfig.log("🚀 LoadMore: backend end-of-feed for \(feed)", category: "Feed")
+                return
+            }
+            
+            guard let cursor = backendCursors[feed] ?? nil else {
+                // No cursor but not marked as end — treat as end
+                backendReachedEnd[feed] = true
+                isLoadingMore = false
+                return
+            }
+            
+            Task {
+                let feedTypeStr = feed == .forYou ? "forYou" : "following"
+                if let result = await BackendFeedService.shared.fetchFeedPage(
+                    feedType: feedTypeStr,
+                    cursor: cursor,
+                    limit: 20
+                ) {
+                    let newMoments = result.moments.sorted { $0.timestamp > $1.timestamp }
+                    let existingIds = Set(self.moments.map { $0.id })
+                    let uniqueNew = newMoments.filter { !existingIds.contains($0.id) }
+                    
+                    await MainActor.run {
+                        if let nextCursor = result.nextCursor {
+                            self.backendCursors[feed] = nextCursor
+                        } else {
+                            self.backendCursors[feed] = nil
+                            self.backendReachedEnd[feed] = true
+                        }
+                        
+                        self.moments.append(contentsOf: uniqueNew)
+                        
+                        if feed == .following {
+                            self.followingMoments.append(contentsOf: uniqueNew)
+                        } else {
+                            self.forYouMoments.append(contentsOf: uniqueNew)
+                        }
+                        
+                        self.isLoadingMore = false
+                        self.saveFeedToCache(moments: self.moments, type: feed, sync: false)
+                        
+                        let videoUrls = uniqueNew.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                        VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                    }
+                    LogConfig.log("🚀 LoadMore from BACKEND (+\(uniqueNew.count) moments)", category: "Feed")
+                    return
+                }
+                
+                // Backend loadMore failed — fall through to legacy
+                LogConfig.log("🔄 LoadMore: backend failed, falling back to legacy", category: "Feed")
+                await MainActor.run {
+                    self.feedLoadedFromBackend[feed] = false
+                    self.loadMoreMomentsLegacy(userId: userId)
+                }
+            }
+            return
+        }
+        
+        // Legacy loadMore
+        loadMoreMomentsLegacy(userId: userId)
+    }
+    
+    private func loadMoreMomentsLegacy(userId: String) {
         if currentFeedType == .following {
             firestoreService.fetchFollowing(userId: userId) { [weak self] result in
                 switch result {
@@ -3596,6 +3899,49 @@ class FeedViewModel: ObservableObject {
     // MARK: - Private Functions
     
     private func fetchFollowingMoments(userId: String) {
+        // 🚀 Backend-first: try Cloud Function, fallback to legacy
+        Task {
+            if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "following", limit: 40) {
+                // ✅ Backend success — moments already privacy-filtered server-side
+                let moments = result.moments.sorted { $0.timestamp > $1.timestamp }
+                
+                // Apply affinity sorting (same as legacy)
+                let finalMoments = self.applyAffinitySorting(moments: moments, feedType: .following)
+                
+                await MainActor.run {
+                    self.isLoading = false
+                    self.followingMoments = finalMoments
+                    self.moments = finalMoments
+                    self.feedLoadedFromBackend[.following] = true
+                    if let nextCursor = result.nextCursor {
+                        self.backendCursors[.following] = nextCursor
+                        self.backendReachedEnd[.following] = false
+                    } else {
+                        self.backendCursors[.following] = nil
+                        self.backendReachedEnd[.following] = true
+                    }
+                    self.saveFeedToCache(moments: finalMoments, type: .following, sync: true)
+                    
+                    let videoUrls = finalMoments.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                }
+                LogConfig.log("🚀 Feed loaded from BACKEND (\(finalMoments.count) moments)", category: "Feed")
+                return
+            }
+            
+            // ❌ Backend failed or circuit open — use legacy
+            LogConfig.log("🔄 Feed: fallback to LEGACY", category: "Feed")
+            await MainActor.run {
+                self.feedLoadedFromBackend[.following] = false
+                self.backendCursors[.following] = nil
+                self.backendReachedEnd[.following] = false
+            }
+            self.fetchFollowingMomentsLegacy(userId: userId)
+        }
+    }
+    
+    /// Legacy feed: fetch from Firestore + client-side privacy filter
+    private func fetchFollowingMomentsLegacy(userId: String) {
         firestoreService.fetchFollowing(userId: userId) { [weak self] result in
             switch result {
             case .success(let followingUsers):
@@ -3621,8 +3967,48 @@ class FeedViewModel: ObservableObject {
             }
         }
     }
-    
+
+
     private func fetchForYouMoments(userId: String) {
+        // 🚀 Backend-first: try Cloud Function, fallback to legacy
+        Task {
+            if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "forYou", limit: 60) {
+                let moments = result.moments.sorted { $0.timestamp > $1.timestamp }
+                let finalMoments = self.applyAffinitySorting(moments: moments, feedType: .forYou)
+                
+                await MainActor.run {
+                    self.isLoading = false
+                    self.forYouMoments = finalMoments
+                    self.moments = finalMoments
+                    self.feedLoadedFromBackend[.forYou] = true
+                    if let nextCursor = result.nextCursor {
+                        self.backendCursors[.forYou] = nextCursor
+                        self.backendReachedEnd[.forYou] = false
+                    } else {
+                        self.backendCursors[.forYou] = nil
+                        self.backendReachedEnd[.forYou] = true
+                    }
+                    self.saveFeedToCache(moments: finalMoments, type: .forYou, sync: true)
+                    
+                    let videoUrls = finalMoments.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                }
+                LogConfig.log("🚀 ForYou feed loaded from BACKEND (\(finalMoments.count) moments)", category: "Feed")
+                return
+            }
+            
+            LogConfig.log("🔄 ForYou feed: fallback to LEGACY", category: "Feed")
+            await MainActor.run {
+                self.feedLoadedFromBackend[.forYou] = false
+                self.backendCursors[.forYou] = nil
+                self.backendReachedEnd[.forYou] = false
+            }
+            self.fetchForYouMomentsLegacy(userId: userId)
+        }
+    }
+    
+    /// Legacy forYou: fetch from multiple sources + client-side privacy filter
+    private func fetchForYouMomentsLegacy(userId: String) {
         firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
             switch result {
             case .success(let user):
@@ -3706,32 +4092,57 @@ class FeedViewModel: ObservableObject {
         }
     }
     
-    private func fetchMomentsFromUsers(userIds: [String], userId: String, feedType: FeedType) {
-        let group = DispatchGroup()
-        var allMoments: [Moment] = []
-        let syncQueue = DispatchQueue(label: "moments.fetch.sync")
-        let limitPerUser = feedType == .forYou ? 8 : 12
+    /// Apply affinity-based sorting: bestFriends + mutuals boost + SwiftData scores + randomness
+    private func applyAffinitySorting(moments: [Moment], feedType: FeedType) -> [Moment] {
+        let affinityManager = AffinityTracker.shared
         
-        for targetUserId in userIds {
-            group.enter()
-            
-            firestoreService.fetchMoments(for: targetUserId) { [weak self] result in
-                defer { group.leave() }
-                
-                if case .success(let moments) = result {
-                    let limitedMoments = Array(moments.prefix(limitPerUser))
-                    
-                    self?.momentsQueue.async(flags: .barrier) {
-                        allMoments.append(contentsOf: limitedMoments)
-                    }
-                }
-            }
+        guard let container = affinityManager.modelContainer else {
+            // Fallback: chronological + shuffled for forYou
+            return feedType == .forYou
+                ? Array(moments.shuffled().prefix(60))
+                : Array(moments.prefix(40))
         }
         
-        group.notify(queue: .main) { [weak self] in
-            let sortedMoments = self?.momentsQueue.sync {
-                allMoments.sorted { $0.timestamp > $1.timestamp }
-            } ?? []
+        let context = SwiftData.ModelContext(container)
+        let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
+        let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
+        let affinityScores = affinityManager.getScores(for: moments.map { $0.authorId }, in: context)
+        
+        let scoredMoments = moments.map { moment -> (moment: Moment, score: Double) in
+            let baseScore = moment.timestamp.timeIntervalSince1970
+            var additionalScore = 0.0
+            
+            let affinityScore = affinityScores[moment.authorId] ?? 0.0
+            additionalScore += (affinityScore * 1000)
+            additionalScore += Double.random(in: 0...5000)
+            
+            if bestFriends.contains(moment.authorId) {
+                additionalScore += 50000
+            } else if mutuals.contains(moment.authorId) {
+                additionalScore += 20000
+            }
+            
+            return (moment: moment, score: baseScore + additionalScore)
+        }
+        
+        let sorted = scoredMoments.sorted { $0.score > $1.score }.map { $0.moment }
+        return feedType == .forYou ? Array(sorted.prefix(60)) : Array(sorted.prefix(40))
+    }
+    
+    private func fetchMomentsFromUsers(userIds: [String], userId: String, feedType: FeedType) {
+        let limitPerUser = feedType == .forYou ? 8 : 12
+        let totalLimit = feedType == .forYou ? 120 : 80
+
+        firestoreService.fetchMomentsFromUsers(
+            userIds: userIds,
+            perUserLimit: limitPerUser,
+            totalLimit: totalLimit
+        ) { [weak self] result in
+            guard let self = self else { return }
+
+            switch result {
+            case .success(let fetchedMoments):
+                let sortedMoments = fetchedMoments.sorted { $0.timestamp > $1.timestamp }
             
             // ✅ EXPERIMENTAL AFFINITY SORTING
             let affinityManager = AffinityTracker.shared
@@ -3776,24 +4187,23 @@ class FeedViewModel: ObservableObject {
                     Array(sortedMoments.shuffled().prefix(60)) :
                     Array(sortedMoments.prefix(40))
             }
-            
             // Aplicar filtros de privacidad y actualizar UI
-            self?.filterMomentsForPrivacy(viewerId: userId, moments: finalMoments) { filteredMoments in
+                self.filterMomentsForPrivacy(viewerId: userId, moments: finalMoments) { filteredMoments in
                 DispatchQueue.main.async {
-                    self?.isLoading = false
+                        self.isLoading = false
                     
                     switch feedType {
                     case .following:
-                        self?.followingMoments = filteredMoments
+                            self.followingMoments = filteredMoments
                     case .forYou:
-                        self?.forYouMoments = filteredMoments
+                            self.forYouMoments = filteredMoments
                     }
                     
-                    self?.moments = filteredMoments
+                        self.moments = filteredMoments
                     
                     // ✅ OFFLINE: Guardar en caché para la próxima vez
                     // Como es el fetch inicial, usamos sync: true para limpiar momentos borrados
-                    self?.saveFeedToCache(moments: filteredMoments, type: feedType, sync: true)
+                        self.saveFeedToCache(moments: filteredMoments, type: feedType, sync: true)
                     
                     // ✅ INSTANT PLAYBACK: Preload videos
                     let videoUrls = filteredMoments
@@ -3801,41 +4211,34 @@ class FeedViewModel: ObservableObject {
                     VideoPreloader.shared.preloadAssets(urls: videoUrls)
                 }
             }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = error.localizedDescription
+                }
+            }
         }
     }
     
     private func fetchMoreMomentsFromUsers(userIds: [String], userId: String, feedType: FeedType) {
-        let group = DispatchGroup()
-        var newMoments: [Moment] = []
-        let syncQueue = DispatchQueue(label: "moments.more.sync")
         let limitPerUser = feedType == .forYou ? 8 : 12
+        let totalLimit = feedType == .forYou ? 120 : 80
         let existingMomentIds = Set(moments.compactMap { $0.id })
-        
-        for targetUserId in userIds {
-            group.enter()
-            
-            firestoreService.fetchMoments(for: targetUserId) { [weak self] result in
-                defer { group.leave() }
-                
-                if case .success(let moments) = result {
-                    let filteredMoments = moments.filter { moment in
-                        guard let momentId = moment.id else { return false }
-                        return !existingMomentIds.contains(momentId)
-                    }
-                    
-                    let limitedMoments = Array(filteredMoments.prefix(limitPerUser))
-                    
-                    self?.momentsQueue.async(flags: .barrier) {
-                        newMoments.append(contentsOf: limitedMoments)
-                    }
+
+        firestoreService.fetchMomentsFromUsers(
+            userIds: userIds,
+            perUserLimit: limitPerUser,
+            totalLimit: totalLimit
+        ) { [weak self] result in
+            guard let self = self else { return }
+
+            switch result {
+            case .success(let fetchedMoments):
+                let filteredNewMoments = fetchedMoments.filter { moment in
+                    guard let momentId = moment.id else { return false }
+                    return !existingMomentIds.contains(momentId)
                 }
-            }
-        }
-        
-        group.notify(queue: .main) { [weak self] in
-            let sortedNewMoments = self?.momentsQueue.sync {
-                newMoments.sorted { $0.timestamp > $1.timestamp }
-            } ?? []
+                let sortedNewMoments = filteredNewMoments.sorted { $0.timestamp > $1.timestamp }
             
             // ✅ EXPERIMENTAL AFFINITY SORTING - load more
             let affinityManager = AffinityTracker.shared
@@ -3872,23 +4275,27 @@ class FeedViewModel: ObservableObject {
                 // Fallback
                 finalSortedNewMoments = sortedNewMoments.shuffled()
             }
-            
-            self?.filterMomentsForPrivacy(viewerId: userId, moments: finalSortedNewMoments) { filteredMoments in
+                self.filterMomentsForPrivacy(viewerId: userId, moments: finalSortedNewMoments) { filteredMoments in
                 DispatchQueue.main.async {
-                    self?.isLoadingMore = false
+                        self.isLoadingMore = false
                     
                     if feedType == .forYou {
-                        self?.forYouMoments.append(contentsOf: filteredMoments)
-                        self?.moments.append(contentsOf: filteredMoments)
+                            self.forYouMoments.append(contentsOf: filteredMoments)
+                            self.moments.append(contentsOf: filteredMoments)
                     } else {
-                        self?.followingMoments.append(contentsOf: filteredMoments)
-                        self?.moments.append(contentsOf: filteredMoments)
+                            self.followingMoments.append(contentsOf: filteredMoments)
+                            self.moments.append(contentsOf: filteredMoments)
                     }
                     
                     // ✅ INSTANT PLAYBACK: Preload videos
                     let videoUrls = filteredMoments
                         .compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
                     VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                }
+            }
+            case .failure:
+                DispatchQueue.main.async {
+                    self.isLoadingMore = false
                 }
             }
         }
@@ -3976,74 +4383,147 @@ class FeedViewModel: ObservableObject {
     // MARK: - Privacy Filter
     
     private func filterMomentsForPrivacy(viewerId: String, moments: [Moment], completion: @escaping ([Moment]) -> Void) {
-        guard !viewerId.isEmpty, !moments.isEmpty else {
-            completion([])
-            return
-        }
-        
-        let batchSize = 10
-        var filteredMoments: [Moment] = []
-        
-        func processBatch(startIndex: Int) {
-            let endIndex = min(startIndex + batchSize, moments.count)
-            let batch = Array(moments[startIndex..<endIndex])
-            
-            let group = DispatchGroup()
-            var batchResults: [Moment] = []
-            let syncQueue = DispatchQueue(label: "batch.results.sync")
-            
-            for moment in batch {
-                guard let momentId = moment.id, !momentId.isEmpty else { continue }
-                
-                group.enter()
-                
-                var hasCompleted = false
-                let completionQueue = DispatchQueue(label: "completion.control")
-                
-                privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
-                    completionQueue.async {
-                        if !hasCompleted {
-                            hasCompleted = true
-                            
-                            if canView {
-                                syncQueue.sync {
-                                    batchResults.append(moment)
-                                }
-                            }
-                            
-                            group.leave()
-                        }
-                    }
-                }
-                
-                // ✅ MEJORADO: Timeout de seguridad con DispatchWorkItem
-                let timeoutWorkItem = DispatchWorkItem {
-                    completionQueue.async {
-                        if !hasCompleted {
-                            hasCompleted = true
-                            group.leave()
-                        }
-                    }
-                }
-                DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: timeoutWorkItem)
+         guard !viewerId.isEmpty, !moments.isEmpty else {
+             completion([])
+             return
+         }
+         
+         let batchSize = 10
+         var filteredMoments: [Moment] = []
+         let cacheLock = NSLock()
+         var decisionCache: [String: Bool] = [:]
+         var inFlightDecisions: [String: [(Bool) -> Void]] = [:]
+
+         func evaluateMomentAccess(_ moment: Moment, completion: @escaping (Bool) -> Void) {
+             // Fast paths: no need to hit Firestore for these.
+             if moment.authorId == viewerId {
+                 completion(true)
+                 return
+             }
+
+             if moment.taggedUsers?.contains(viewerId) == true {
+                 completion(true)
+                 return
+             }
+
+             let cacheKey = privacyDecisionCacheKey(for: moment, viewerId: viewerId)
+             var shouldStartRequest = false
+
+             cacheLock.lock()
+             if let cached = decisionCache[cacheKey] {
+                 cacheLock.unlock()
+                 completion(cached)
+                 return
+             }
+
+             if inFlightDecisions[cacheKey] != nil {
+                 inFlightDecisions[cacheKey]?.append(completion)
+                 cacheLock.unlock()
+                 return
+             }
+
+             inFlightDecisions[cacheKey] = [completion]
+             shouldStartRequest = true
+             cacheLock.unlock()
+
+             guard shouldStartRequest else { return }
+
+             let requestLock = NSLock()
+             var didComplete = false
+
+             func resolveRequest(_ canView: Bool) {
+                 var callbacks: [(Bool) -> Void] = []
+
+                 cacheLock.lock()
+                 decisionCache[cacheKey] = canView
+                 callbacks = inFlightDecisions[cacheKey] ?? []
+                 inFlightDecisions[cacheKey] = nil
+                 cacheLock.unlock()
+
+                 callbacks.forEach { $0(canView) }
+             }
+
+             privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
+                 requestLock.lock()
+                 if didComplete {
+                     requestLock.unlock()
+                     return
+                 }
+                 didComplete = true
+                 requestLock.unlock()
+                 resolveRequest(canView)
+             }
+
+             DispatchQueue.global().asyncAfter(deadline: .now() + 8) {
+                 requestLock.lock()
+                 if didComplete {
+                     requestLock.unlock()
+                     return
+                 }
+                 didComplete = true
+                 requestLock.unlock()
+                 resolveRequest(false) // Fail closed on timeout.
+             }
+         }
+         
+         func processBatch(startIndex: Int) {
+             let endIndex = min(startIndex + batchSize, moments.count)
+             let batch = Array(moments[startIndex..<endIndex])
+             
+             let group = DispatchGroup()
+             var visibleMomentIds = Set<String>()
+             let syncQueue = DispatchQueue(label: "batch.results.sync")
+             
+             for moment in batch {
+                 guard let momentId = moment.id, !momentId.isEmpty else { continue }
+                 
+                 group.enter()
+
+                 evaluateMomentAccess(moment) { canView in
+                     if canView {
+                         syncQueue.sync {
+                             visibleMomentIds.insert(momentId)
+                         }
+                     }
+                     group.leave()
+                 }
+             }
+             
+             group.notify(queue: .main) {
+                 let orderedBatchResults = batch.filter { moment in
+                     guard let id = moment.id else { return false }
+                     return visibleMomentIds.contains(id)
+                 }
+                 filteredMoments.append(contentsOf: orderedBatchResults)
+                 
+                 if endIndex < moments.count {
+                     processBatch(startIndex: endIndex)
+                 } else {
+                     completion(filteredMoments)
+                 }
+             }
+         }
+         
+         processBatch(startIndex: 0)
+     }
+
+    private func privacyDecisionCacheKey(for moment: Moment, viewerId: String) -> String {
+        let audience = moment.audience ?? "everyone"
+        let base = "\(viewerId)|\(moment.authorId)|\(audience)"
+
+        switch audience {
+        case "custom":
+            return "\(base)|moment:\(moment.id ?? "missing")"
+        case "customList":
+            if let customListId = moment.customListId, !customListId.isEmpty {
+                return "\(base)|list:\(customListId)"
             }
-            
-            group.notify(queue: .main) {
-                filteredMoments.append(contentsOf: batchResults)
-                
-                if endIndex < moments.count {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        processBatch(startIndex: endIndex)
-                    }
-                } else {
-                    completion(filteredMoments)
-                }
-            }
+            return "\(base)|moment:\(moment.id ?? "missing")"
+        default:
+            return base
         }
-        
-        processBatch(startIndex: 0)
     }
-    
+
     // MARK: - Listeners
     nonisolated private func clearListeners() {
         // ✅ MEJORADO: Limpieza thread-safe

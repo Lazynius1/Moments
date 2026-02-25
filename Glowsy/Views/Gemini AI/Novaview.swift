@@ -2699,27 +2699,28 @@ class GeminiViewModel: ObservableObject {
         guard let userData = userData else { return "" }
         
         let userContext = buildSimpleContext()
-        let memoryContext = userMemory?.contextString ?? ""
         
-        // Usamos la lógica de NovaPersona pero enfocada a System Instruction
+        // Token-optimized: no inyectar memoryContext completo aquí.
+        // Los facts relevantes se inyectan via RAG en el per-message prompt.
         let instruction = NovaPersona.getPersonalizedPrompt(
             userContext: userContext,
-            memoryContext: memoryContext,
+            memoryContext: "",
             personalization: userMemory
         )
+        
+        // Compact spark instruction (si existe)
+        let sparkContext: String
+        if let spark = userMemory?.activeSpark {
+            sparkContext = "\nSUGGESTED TOPIC: '\(spark.content)' — mention casually if conversation lulls. Don't force it."
+        } else {
+            sparkContext = ""
+        }
         
         return """
         \(instruction)
         
-        🎯 CONTEXTO DINÁMICO DEL USUARIO:
-        - Nombre para usar: \(userMemory?.preferredName ?? userData.username)
-        - Intereses principales: \(userData.interests.joined(separator: ", "))
-        - Momento actual: \(getCurrentTimeContext())
-        
-        ⚠️ REGLAS DE SESIÓN:
-        - Mantén un tono consistente con el análisis de 'vibe' que recibirás en cada mensaje.
-        - NO repitas que eres una IA o que tienes memoria.
-        - Sé concisa y directa a menos que se pida detalle.
+        TIME: \(getCurrentTimeContext())
+        NAME: \(userMemory?.preferredName ?? userData.username)\(sparkContext)
         """
     }
     // MARK: - 🧠 Helper de Memoria Conversacional
@@ -3176,27 +3177,22 @@ class GeminiViewModel: ObservableObject {
         selectedImage = nil
         isLoading = true
 
-        // ✅ ANÁLISIS DINÁMICO (Mucho más ligero ahora)
-        let vibeAnalysis = NovaPersona.analyzeUserVibeWithPersonalization(currentInput, memory: userMemory)
-        let engagement = memoryService.analyzeConversationEngagement(conversationHistory)
-        let patterns = memoryService.analyzeCommunicationPatterns(conversationHistory)
+        // ✅ ANÁLISIS DINÁMICO (Token-optimized: minimal vibe + RAG only)
+        let vibeLabel = NovaPersona.analyzeUserVibeWithPersonalization(currentInput, memory: userMemory)
         let lang = detectInputLanguage(currentInput) ?? (NovaLanguageService.getPreferredLanguage() ?? .es)
         
-        // 🔍 RAG: Búsqueda Semántica de Contexto
+        // 🔍 RAG: Solo facts relevantes al query (reemplaza el dump completo de contextString)
         var ragContext = ""
         if let memory = userMemory {
-            // Buscar solo si hay memoria y query
             let relevantFacts = NovaEmbeddingService.shared.findSimilarFacts(query: currentInput, facts: memory.facts)
             if !relevantFacts.isEmpty {
-                let contextContent = relevantFacts.map { "  • \($0.content)" }.joined(separator: "\n")
-                // Localizar cabecera según idioma
-                let header = lang == .es ? "💡 MEMORIA RELEVANTE:" : (lang == .ca ? "💡 MEMÒRIA RELLEVANT:" : "💡 RELEVANT MEMORY:")
-                ragContext = "\n\(header)\n\(contextContent)"
+                let contextContent = relevantFacts.map { "• \($0.content)" }.joined(separator: "\n")
+                ragContext = "\nMemory: \(contextContent)"
                 LogConfig.log("🔍 RAG: Inyectados \(relevantFacts.count) hechos relevantes", category: "Memory")
             }
         }
         
-        // ✅ CONSTRUIR PROMPT LIGERO (El contexto pesado está en systemInstruction)
+        // ✅ CONSTRUIR PROMPT ULTRA-LIGERO
         let langName: String = {
             switch lang {
             case .es: return "Español"
@@ -3206,11 +3202,9 @@ class GeminiViewModel: ObservableObject {
         }()
         
         let minimalPrompt = """
-        🗣️ Responde en \(langName).
-        🎭 Vibe actual: \(vibeAnalysis)
-        🎯 Adaptación: \(getAdaptationInstructions(engagement: engagement, patterns: patterns))\(ragContext)
+        [\(langName)] Vibe: \(vibeLabel)\(ragContext)
         
-        Usuario: \(currentInput)
+        \(currentInput)
         """
 
         Task {
@@ -3270,11 +3264,20 @@ class GeminiViewModel: ObservableObject {
         }
     }
     
-    // 🔥 NUEVA: Generar sugerencias inteligentes basadas en el contexto actual
+    // 🔥 Generar sugerencias inteligentes (con cooldown para ahorrar tokens)
+    private var lastFollowUpTime: Date = .distantPast
+    private let followUpCooldown: TimeInterval = 30 // Solo cada 30 segundos
+    
     private func generateFollowUpSuggestions() async {
-        guard !conversationHistory.isEmpty else { return }
+        // ⏱️ Cooldown: no generar si la última fue hace menos de 30s
+        guard Date().timeIntervalSince(lastFollowUpTime) > followUpCooldown else {
+            LogConfig.log("⏱️ Follow-up suggestions en cooldown, saltando", category: "Gemini")
+            return
+        }
+        // Solo generar si hay al menos 2 mensajes del usuario
+        let userMessageCount = conversationHistory.filter { $0.isUser }.count
+        guard userMessageCount >= 2 else { return }
         
-        // ✅ Detectar idioma del último mensaje del usuario para que las sugerencias coincidan
         let lastUserMessage = conversationHistory.last { $0.isUser }?.text ?? ""
         let lang = detectInputLanguage(lastUserMessage) ?? (NovaLanguageService.getPreferredLanguage() ?? .es)
         let langName = lang == .es ? "Español" : (lang == .ca ? "Català" : "English")
@@ -3284,34 +3287,20 @@ class GeminiViewModel: ObservableObject {
             self.followUpSuggestions = []
         }
         
-        // 🧠 Prompt ligero para Gemini
+        // 🧠 Prompt compacto
+        let recentContext = conversationHistory.suffix(4).map { "\($0.isUser ? "U" : "N"): \($0.text.prefix(100))" }.joined(separator: "\n")
         let suggestionPrompt = """
-        Eres un asistente de IA que genera 3 sugerencias de seguimiento concisas y relevantes para una conversación.
-        Las sugerencias deben ser en formato JSON, un array de objetos SmartSuggestion.
-        Cada SmartSuggestion debe tener un 'title' (String) y un 'icon' (String, nombre de SF Symbol).
-        El 'title' debe ser una pregunta o una frase corta que invite a continuar la conversación.
-        El 'icon' debe ser relevante para el título.
-        
-        Ejemplo de JSON:
-        [
-            {"title": "¿Qué tal tu día?", "icon": "sun.max.fill"},
-            {"title": "Cuéntame más", "icon": "ellipsis.bubble.fill"},
-            {"title": "Alguna novedad?", "icon": "sparkles"}
-        ]
-        
-        Contexto de la conversación (últimos 5 mensajes):
-        \(conversationHistory.suffix(5).map { "\($0.isUser ? "Usuario" : "Nova"): \($0.text)" }.joined(separator: "\n"))
-        
-        Usa iconos de SF Symbols apropiados (sparkles, questionmark.circle, arrow.right, etc).
-        Idioma: \(langName)
+        Generate 3 follow-up messages the USER could send next. Written from the user's perspective (things they'd say TO the AI, not what the AI would ask).
+        Examples: "Cuéntame más", "¿Qué me recomiendas?", "Explícame eso mejor".
+        JSON array: [{"text": "short phrase", "icon": "SF Symbol name"}].
+        Language: \(langName). Context:
+        \(recentContext)
         """
         
         do {
-            // Usamos el modelo principal para esto también (es más rápido en flash)
             let result = try await model.generateContent(suggestionPrompt)
             
             if let text = result.text {
-                // Limpiar JSON si Gemini añade markdown
                 let cleanedJSON = text.replacingOccurrences(of: "```json", with: "")
                                      .replacingOccurrences(of: "```", with: "")
                                      .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -3322,7 +3311,7 @@ class GeminiViewModel: ObservableObject {
                     await MainActor.run {
                         self.followUpSuggestions = decodedSuggestions
                         self.isLoadingFollowUps = false
-                        // Mostrar sugerencias si no estamos en bienvenida
+                        self.lastFollowUpTime = Date()
                         withAnimation(.spring()) {
                             self.showSuggestedOptions = true
                         }
@@ -3369,80 +3358,9 @@ class GeminiViewModel: ObservableObject {
         adaptNovaBehavior(engagement: engagement, patterns: patterns)
     }
     
-    // 🎭 Adaptar el comportamiento de Nova según el análisis
+    // 🎭 Adaptar el comportamiento de Nova según el análisis (logging only, actual adaptation in behavioral profile)
     private func adaptNovaBehavior(engagement: ConversationEngagement, patterns: CommunicationPatterns) {
-        // 🔥 NUEVO: Ajustar el prompt dinámicamente según el engagement
-        if engagement.level == .low {
-            // Usuario poco participativo - ser más estimulante
-            LogConfig.log("🎯 Usuario poco participativo - Adaptando a modo estimulante", category: "Adaptation")
-        } else if engagement.level == .high {
-            // Usuario muy participativo - mantener la energía
-            LogConfig.log("🎯 Usuario muy participativo - Manteniendo alta energía", category: "Adaptation")
-        }
-        
-        // 🔥 NUEVO: Ajustar según patrones de comunicación
-        if patterns.isFormal {
-            LogConfig.log("🎭 Usuario formal detectado - Ajustando a tono respetuoso", category: "Adaptation")
-        }
-        
-        if patterns.usesEmojis {
-            LogConfig.log("😊 Usuario usa emojis - Ajustando a comunicación visual", category: "Adaptation")
-        }
-        
-        if patterns.asksQuestions {
-            LogConfig.log("❓ Usuario curioso detectado - Preparando respuestas informativas", category: "Adaptation")
-        }
-    }
-    
-    // 🔥 NUEVA: Generar instrucciones de adaptación inteligente
-    private func getAdaptationInstructions(engagement: ConversationEngagement, patterns: CommunicationPatterns) -> String {
-        var instructions = ""
-        
-        // 🎯 Instrucciones según engagement
-        switch engagement.level {
-        case .low:
-            instructions += "• El usuario está poco participativo - Sé más estimulante y haz preguntas\n"
-            instructions += "• Usa un tono más energético para motivar la participación\n"
-        case .medium:
-            instructions += "• El usuario tiene participación moderada - Mantén un balance\n"
-            instructions += "• Alterna entre hacer preguntas y dar información\n"
-        case .high:
-            instructions += "• El usuario está muy participativo - Mantén la energía alta\n"
-            instructions += "• Puedes ser más detallado ya que está interesado\n"
-        }
-        
-        // 🎭 Instrucciones según patrones de comunicación
-        if patterns.isFormal {
-            instructions += "• El usuario es formal - Mantén un tono respetuoso y profesional\n"
-            instructions += "• Usa un lenguaje más elaborado y estructurado\n"
-        } else {
-            instructions += "• El usuario es casual - Puedes ser más relajado y amigable\n"
-            instructions += "• Usa un lenguaje más natural y cercano\n"
-        }
-        
-        if patterns.usesEmojis {
-            instructions += "• El usuario usa emojis - Puedes usar emojis apropiados en tu respuesta\n"
-            instructions += "• Mantén un tono visual y expresivo\n"
-        }
-        
-        if patterns.asksQuestions {
-            instructions += "• El usuario es curioso - Prepara respuestas informativas y detalladas\n"
-            instructions += "• Anticipa posibles preguntas de seguimiento\n"
-        }
-        
-        if patterns.prefersLongMessages {
-            instructions += "• El usuario prefiere mensajes largos - Puedes ser más detallado\n"
-            instructions += "• No te limites a respuestas cortas\n"
-        }
-        
-        // 🚫 NUEVA: Instrucciones para NO ser pesado con intereses
-        instructions += "\n🚫 IMPORTANTE - NO SEAS INSISTENTE:\n"
-        instructions += "• NO menciones intereses en cada respuesta\n"
-        instructions += "• Solo usa intereses cuando sea RELEVANTE\n"
-        instructions += "• Sé conversacional, no un catálogo de recomendaciones\n"
-        instructions += "• Los intereses son contexto, NO el tema principal\n"
-        
-        return instructions
+        LogConfig.log("🎭 Engagement: \(engagement.level.description), Formal: \(patterns.isFormal), Emojis: \(patterns.usesEmojis)", category: "Adaptation")
     }
     
     // ✅ NUEVA: Envío de mensaje usando la sesión de chat con STREAMING (soporta Imágenes)
@@ -4933,6 +4851,12 @@ struct LogConfig {
     
     static func log(_ message: String, category: String = "Nova") {
         if isVerboseLogging {
+            print("[\(category)] \(message)")
+        } else {
+            // Fallback: al menos loggear cosas críticas de Feed si el usuario lo pide
+            if category == "Feed" || category == "BackendFeed" {
+                print("[\(category)] \(message)")
+            }
         }
     }
 }

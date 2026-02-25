@@ -421,39 +421,39 @@ struct ModernContextMenuOverlay: View {
     
     private func renderSticker(urls: [URL]) {
         // 2. Pre-fetch todas las imágenes para tenerlas en caché
-        ImagePrefetcher(urls: urls) { _, _, _ in
-            // 3. Obtener las imágenes reales de Kingfisher caché
-            DispatchQueue.main.async {
-                var profileImg: UIImage? = nil
-                var contentImg: UIImage? = nil
-                
-                let group = DispatchGroup()
-                
-                // Cargar imagen de perfil
-                if urls.count > 1 {
-                    group.enter()
-                    KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
-                        if let image = try? result.get().image {
-                            profileImg = image
-                        }
-                        group.leave()
-                    }
-                }
-                
-                // Cargar imagen de contenido
+        ImagePrefetchManager.shared.prefetch(urls: urls)
+        
+        // 3. Obtener las imágenes reales de Kingfisher caché
+        DispatchQueue.main.async {
+            var profileImg: UIImage? = nil
+            var contentImg: UIImage? = nil
+            
+            let group = DispatchGroup()
+            
+            // Cargar imagen de perfil
+            if urls.count > 1 {
                 group.enter()
-                KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
+                KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
                     if let image = try? result.get().image {
-                        contentImg = image
+                        profileImg = image
                     }
                     group.leave()
                 }
-                
-                group.notify(queue: .main) {
-                    self.performFinalRender(profile: profileImg, content: contentImg)
-                }
             }
-        }.start()
+            
+            // Cargar imagen de contenido
+            group.enter()
+            KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
+                if let image = try? result.get().image {
+                    contentImg = image
+                }
+                group.leave()
+            }
+            
+            group.notify(queue: .main) {
+                self.performFinalRender(profile: profileImg, content: contentImg)
+            }
+        }
     }
     
     private func performFinalRender(profile: UIImage?, content: UIImage?) {

@@ -1768,6 +1768,8 @@ struct EditCustomListView: View {
     @State private var isLoadingMembers = false
     @State private var searchText = ""
     @State private var filteredMembers: [AppUser] = []
+    @State private var visibleMembersLimit = 12
+    private let membersPageSize = 12
     
     init(list: CustomAudienceList) {
         self.list = list
@@ -1927,6 +1929,14 @@ struct EditCustomListView: View {
         }
         .onAppear {
             loadCurrentMembers()
+        }
+        .onChange(of: showingMemberPicker) { isPresented in
+            if !isPresented {
+                loadCurrentMembers()
+            }
+        }
+        .onChange(of: searchText) { _ in
+            filterMembers()
         }
     }
     
@@ -2153,7 +2163,7 @@ struct EditCustomListView: View {
                 .padding(.bottom, 8)
                 
                 VStack(spacing: 8) {
-                    ForEach(filteredMembers) { member in
+                    ForEach(Array(filteredMembers.prefix(visibleMembersLimit))) { member in
                         MemberRowWithRemove(
                             user: member,
                             onRemove: {
@@ -2163,6 +2173,29 @@ struct EditCustomListView: View {
                         )
                     }
                 }
+                
+                if filteredMembers.count > visibleMembersLimit {
+                    Button(action: {
+                        visibleMembersLimit += membersPageSize
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "chevron.down.circle.fill")
+                            Text(
+                                String(
+                                    format: NSLocalizedString("audience.list.loadMoreMembers", comment: "Load more members"),
+                                    min(membersPageSize, filteredMembers.count - visibleMembersLimit)
+                                )
+                            )
+                        }
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(Color(hex: selectedColor))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(hex: selectedColor).opacity(0.1))
+                        .cornerRadius(10)
+                    }
+                    .padding(.top, 4)
+                }
             }
         }
     }
@@ -2170,6 +2203,8 @@ struct EditCustomListView: View {
     private func loadCurrentMembers() {
         guard !selectedMembers.isEmpty else {
             currentMembers = []
+            filteredMembers = []
+            visibleMembersLimit = membersPageSize
             return
         }
         
@@ -2180,14 +2215,19 @@ struct EditCustomListView: View {
                 switch result {
                 case .success(let users):
                     self.currentMembers = users
+                    self.filterMembers()
+                    self.visibleMembersLimit = self.membersPageSize
                 case .failure(let error):
                     self.currentMembers = []
+                    self.filteredMembers = []
+                    self.visibleMembersLimit = self.membersPageSize
                 }
             }
         }
     }
     
     private func filterMembers() {
+        visibleMembersLimit = membersPageSize
         if searchText.isEmpty {
             filteredMembers = currentMembers
         } else {
@@ -2271,6 +2311,28 @@ struct MemberPickerView: View {
     @State private var hasSearched = false
     @StateObject private var firestoreService = FirestoreService()
     @State private var selectedUsersData: [AppUser] = []
+    @State private var selectedCarouselVisibleLimit = 12
+    private let selectedCarouselPageSize = 10
+    
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+    
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.62)
+    }
+    
+    private var subtleStrokeColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.12)
+    }
+    
+    private var visibleSelectedUsers: [AppUser] {
+        Array(selectedUsersData.prefix(selectedCarouselVisibleLimit))
+    }
+    
+    private var hiddenSelectedCount: Int {
+        max(0, selectedUsersData.count - selectedCarouselVisibleLimit)
+    }
     
     var body: some View {
         NavigationView {
@@ -2301,7 +2363,7 @@ struct MemberPickerView: View {
                     if !selectedUsersData.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
-                                ForEach(selectedUsersData) { user in
+                                ForEach(visibleSelectedUsers) { user in
                                     VStack {
                                         ZStack(alignment: .topTrailing) {
                                             AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
@@ -2311,7 +2373,12 @@ struct MemberPickerView: View {
                                             }
                                             .frame(width: 48, height: 48)
                                             .clipShape(Circle())
-                                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                            .overlay(
+                                                Circle().stroke(
+                                                    colorScheme == .dark ? Color.white : Color.black.opacity(0.18),
+                                                    lineWidth: 2
+                                                )
+                                            )
                                             
                                             Button(action: {
                                                 toggleSelection(user: user)
@@ -2329,6 +2396,29 @@ struct MemberPickerView: View {
                                             .frame(width: 60)
                                             .foregroundColor(.primary)
                                     }
+                                }
+                                
+                                if hiddenSelectedCount > 0 {
+                                    Button(action: {
+                                        selectedCarouselVisibleLimit += selectedCarouselPageSize
+                                    }) {
+                                        VStack(spacing: 8) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(Color(hex: "00A896").opacity(0.18))
+                                                    .frame(width: 48, height: 48)
+                                                Text("+\(hiddenSelectedCount)")
+                                                    .font(.custom("Poppins-SemiBold", size: 13))
+                                                    .foregroundColor(Color(hex: "00A896"))
+                                            }
+                                            Text(NSLocalizedString("audience.more", comment: "More"))
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                                .frame(width: 60)
+                                        }
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                             }
                             .padding(.horizontal)
@@ -2365,7 +2455,7 @@ struct MemberPickerView: View {
                     Button(NSLocalizedString("audience.actions.cancel", comment: "")) {
                         dismiss()
                     }
-                    .foregroundColor(.gray)
+                    .foregroundColor(secondaryTextColor)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -2379,12 +2469,22 @@ struct MemberPickerView: View {
                 }
             }
         }
+        .onAppear {
+            preloadSelectedUsersData()
+        }
+        .onChange(of: selectedMembers) { _ in
+            selectedUsersData.removeAll { !selectedMembers.contains($0.id) }
+            selectedCarouselVisibleLimit = 12
+            if selectedMembers.isEmpty {
+                selectedUsersData = []
+            }
+        }
     }
     
     private var searchBar: some View {
         HStack {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
+                .foregroundColor(secondaryTextColor)
             
             TextField(NSLocalizedString("audience.picker.searchPlaceholder", comment: ""), text: $searchText)
                 .font(.custom("Poppins-Regular", size: 16))
@@ -2410,7 +2510,7 @@ struct MemberPickerView: View {
                     searchResults = []
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
+                        .foregroundColor(secondaryTextColor)
                 }
             }
         }
@@ -2423,7 +2523,7 @@ struct MemberPickerView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(subtleStrokeColor, lineWidth: 1)
         )
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
@@ -2435,7 +2535,7 @@ struct MemberPickerView: View {
             
             Image(systemName: "person.crop.circle.badge.plus")
                 .font(.system(size: 50))
-                .foregroundColor(.gray)
+                .foregroundColor(secondaryTextColor)
             
             Text(NSLocalizedString("audience.picker.initialTitle", comment: ""))
                 .font(.custom("Poppins-SemiBold", size: 18))
@@ -2443,7 +2543,7 @@ struct MemberPickerView: View {
             
             Text(NSLocalizedString("audience.picker.initialDescription", comment: ""))
                 .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.gray)
+                .foregroundColor(secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -2458,7 +2558,7 @@ struct MemberPickerView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("common.searching", comment: ""))
                 .font(.custom("Poppins-Regular", size: 16))
-                .foregroundColor(.gray)
+                .foregroundColor(secondaryTextColor)
             Spacer()
         }
     }
@@ -2469,15 +2569,15 @@ struct MemberPickerView: View {
             
             Image(systemName: "person.crop.circle.badge.questionmark")
                 .font(.system(size: 50))
-                .foregroundColor(.gray)
+                .foregroundColor(secondaryTextColor)
             
             Text(NSLocalizedString("common.noResults", comment: ""))
                 .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Text(String(format: NSLocalizedString("audience.picker.noResultsDescription", comment: ""), searchText))
                 .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.gray)
+                .foregroundColor(secondaryTextColor)
                 .multilineTextAlignment(.center)
             
             Spacer()
@@ -2503,16 +2603,16 @@ struct MemberPickerView: View {
     private var selectedCounterFooter: some View {
         VStack(spacing: 0) {
             Divider()
-                .background(Color.white.opacity(0.2))
+                .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.12))
             
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(format: NSLocalizedString("audience.picker.selectedCount", comment: ""), selectedMembers.count))
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     Text(NSLocalizedString("audience.picker.selectedDescription", comment: ""))
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
+                        .foregroundColor(secondaryTextColor)
                 }
                 
                 Spacer()
@@ -2541,6 +2641,24 @@ struct MemberPickerView: View {
             }
             .padding()
             .background(.ultraThinMaterial)
+        }
+    }
+
+    private func preloadSelectedUsersData() {
+        guard !selectedMembers.isEmpty else {
+            selectedUsersData = []
+            return
+        }
+        
+        firestoreService.fetchUsers(userIds: Array(selectedMembers)) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let users):
+                    self.selectedUsersData = users
+                case .failure:
+                    self.selectedUsersData = []
+                }
+            }
         }
     }
     

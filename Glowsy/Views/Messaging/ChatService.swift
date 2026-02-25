@@ -87,6 +87,29 @@ class ChatService: ObservableObject {
         activeListeners[conversationId] = listener
     }
     
+    // ✅ ONE-SHOT FETCH: útil para pantallas de stats donde no necesitamos listener vivo
+    func fetchRecentMessages(conversationId: String, limit: Int = 300, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+        Task {
+            await preloadConversationKey(for: conversationId)
+            
+            db.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .order(by: "timestamp", descending: false)
+                .limit(toLast: limit)
+                .getDocuments { [weak self] snapshot, error in
+                    Task {
+                        await self?.handleMessagesSnapshot(
+                            snapshot: snapshot,
+                            error: error,
+                            conversationId: conversationId,
+                            completion: completion
+                        )
+                    }
+                }
+        }
+    }
+    
     // ✅ NUEVO: Cargar mensajes anteriores (Paginación)
     func fetchOlderMessages(conversationId: String, before timestamp: Date, limit: Int = 20, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
         Task {

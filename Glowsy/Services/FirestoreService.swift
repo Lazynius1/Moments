@@ -3,12 +3,35 @@ import Combine
 import FirebaseAuth
 import Kingfisher
 
+struct StoryAuthorSummary {
+    let activeStoryCount: Int
+    let latestStoryAt: Date?
+    let latestExpirationAt: Date?
+    let audiencesSummary: [String: Int]
+    let updatedAt: Date?
+
+    func shouldSkipDetailedFetch(maxStaleness: TimeInterval = 300) -> Bool {
+        if let latestExpirationAt = latestExpirationAt, latestExpirationAt <= Date() {
+            // Resumen vencido: evitar fetch detallado y tratar como sin historias.
+            return true
+        }
+        guard activeStoryCount <= 0 else { return false }
+        guard let updatedAt = updatedAt else { return false }
+        return Date().timeIntervalSince(updatedAt) <= maxStaleness
+    }
+}
+
 class FirestoreService: ObservableObject {
     static let shared = FirestoreService() // Singleton
     let db: Firestore
     @Published var savedMomentIds: [String] = []
+    @Published private(set) var savedMomentsLoadedForUserId: String?
     private var followingCache: [String: Bool] = [:]
     private var lastCacheUpdate: Date = Date() // Added for reactive saved moments
+    private let storySummaryRebuildQueue = DispatchQueue(label: "story.summary.rebuild.queue")
+    private var storySummaryRebuildInFlight: Set<String> = []
+    private var storySummaryLastRebuildAttempt: [String: Date] = [:]
+    private let storySummaryRebuildCooldown: TimeInterval = 60
 
     init() {
         db = Firestore.firestore()
@@ -63,13 +86,21 @@ class FirestoreService: ObservableObject {
             
             // Actualizar todas las partes con la fecha correcta
             let batch = db.batch()
+            var affectedUserIds = Set<String>()
             for doc in storiesSnapshot.documents {
                 batch.updateData([
                     "expirationDate": Timestamp(date: correctExpiration)
                 ], forDocument: doc.reference)
+                if let userId = doc.reference.parent.parent?.documentID, !userId.isEmpty {
+                    affectedUserIds.insert(userId)
+                }
             }
             
             try await batch.commit()
+
+            for userId in affectedUserIds {
+                rebuildStorySummary(for: userId) { _ in }
+            }
             
         } catch {
             // Error updating chain expiration
@@ -220,14 +251,23 @@ class FirestoreService: ObservableObject {
     func loadSavedMoments(userId: String) {
         db.collection("users").document(userId).collection("savedMoments")
             .getDocuments { [weak self] snapshot, error in
-                if let error = error {
+                if error != nil {
+                    DispatchQueue.main.async {
+                        self?.savedMomentIds = []
+                        self?.savedMomentsLoadedForUserId = userId
+                    }
                     return
                 }
                 let momentIds = snapshot?.documents.compactMap { $0.documentID } ?? []
                 DispatchQueue.main.async {
                     self?.savedMomentIds = momentIds
+                    self?.savedMomentsLoadedForUserId = userId
                 }
             }
+    }
+    
+    func hasLoadedSavedMoments(for userId: String) -> Bool {
+        savedMomentsLoadedForUserId == userId
     }
 
     func checkIfSaved(userId: String, momentId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
@@ -1021,6 +1061,15 @@ class FirestoreService: ObservableObject {
                             if let error = error {
                                 completion(error)
                             } else {
+                                self.bumpStorySummaryOnCreate(
+                                    userId: userId,
+                                    audience: story.audience,
+                                    timestamp: story.timestamp,
+                                    expirationDate: story.expirationDate
+                                )
+                                self.rebuildStorySummary(for: userId) { rebuildError in
+                                    _ = rebuildError
+                                }
                                 completion(nil)
                             }
                         }
@@ -2319,7 +2368,6 @@ class FirestoreService: ObservableObject {
                     
                     // LIMPIAR CACHE DESPUÉS DEL UNFOLLOW EXITOSO
                     self.followingCache.removeValue(forKey: cacheKey)
-                    
                     // ✅ LIMPIEZA DE NOTIFICACIÓN (Unfollow)
                     Task { @MainActor in
                         NotificationService.shared.removeNotification(
@@ -2935,33 +2983,152 @@ class FirestoreService: ObservableObject {
         }
     }
 
-    func fetchMomentsFromUsers(userIds: [String], completion: @escaping (Result<[Moment], Error>) -> Void) {
-        
-        guard !userIds.isEmpty else {
+    func fetchMomentsFromUsers(
+        userIds: [String],
+        perUserLimit: Int = 20,
+        totalLimit: Int = 50,
+        completion: @escaping (Result<[Moment], Error>) -> Void
+    ) {
+        let normalizedUserIds = Array(Set(userIds))
+        guard !normalizedUserIds.isEmpty else {
             completion(.success([]))
             return
         }
 
-        var allMoments: [Moment] = []
+        let batches = normalizedUserIds.chunked(into: 10)
         let group = DispatchGroup()
+        let syncQueue = DispatchQueue(label: "moments.from.users.sync")
+        var allMoments: [Moment] = []
+        var capturedError: Error?
 
-        for userId in userIds {
+        for batch in batches {
             group.enter()
-            self.fetchMoments(for: userId) { result in
-                switch result {
-                case .success(let moments):
-                    allMoments.append(contentsOf: moments)
-                case .failure(let error):
-                    break
+            self.fetchMomentsFromUsersBatch(
+                userIds: batch,
+                perUserLimit: max(1, perUserLimit)
+            ) { result in
+                syncQueue.sync {
+                    switch result {
+                    case .success(let moments):
+                        allMoments.append(contentsOf: moments)
+                    case .failure(let error):
+                        capturedError = capturedError ?? error
+                    }
                 }
                 group.leave()
             }
         }
 
         group.notify(queue: .main) {
-            allMoments.sort { $0.timestamp > $1.timestamp }
-            let limitedMoments = Array(allMoments.prefix(50))
-            completion(.success(limitedMoments))
+            let (sortedLimitedMoments, error): ([Moment], Error?) = syncQueue.sync {
+                let sorted = allMoments.sorted { $0.timestamp > $1.timestamp }
+                return (Array(sorted.prefix(max(1, totalLimit))), capturedError)
+            }
+
+            if sortedLimitedMoments.isEmpty, let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(sortedLimitedMoments))
+            }
+        }
+    }
+
+    private func fetchMomentsFromUsersBatch(
+        userIds: [String],
+        perUserLimit: Int,
+        completion: @escaping (Result<[Moment], Error>) -> Void
+    ) {
+        guard !userIds.isEmpty else {
+            completion(.success([]))
+            return
+        }
+
+        // Try optimized collectionGroup query first.
+        db.collectionGroup("moments")
+            .whereField("authorId", in: userIds)
+            .order(by: "timestamp", descending: true)
+            .limit(to: max(perUserLimit * userIds.count, 20))
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else {
+                    completion(.failure(NSError(domain: "FirestoreService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Service deallocated"])))
+                    return
+                }
+
+                if error != nil {
+                    // Fallback path keeps behavior and safety if index/query is unavailable.
+                    self.fetchMomentsFromUsersLegacy(userIds: userIds, perUserLimit: perUserLimit, completion: completion)
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+
+                let decoded = documents.compactMap { doc -> Moment? in
+                    try? doc.data(as: Moment.self)
+                }
+
+                let filteredScheduled = self.filterScheduledMomentsForCurrentViewer(decoded)
+                var perAuthorCount: [String: Int] = [:]
+                let perAuthorLimited = filteredScheduled.filter { moment in
+                    let count = perAuthorCount[moment.authorId, default: 0]
+                    guard count < perUserLimit else { return false }
+                    perAuthorCount[moment.authorId] = count + 1
+                    return true
+                }
+
+                completion(.success(perAuthorLimited))
+            }
+    }
+
+    private func fetchMomentsFromUsersLegacy(
+        userIds: [String],
+        perUserLimit: Int,
+        completion: @escaping (Result<[Moment], Error>) -> Void
+    ) {
+        let group = DispatchGroup()
+        let syncQueue = DispatchQueue(label: "moments.from.users.legacy.sync")
+        var allMoments: [Moment] = []
+        var capturedError: Error?
+
+        for userId in userIds {
+            group.enter()
+            self.fetchMoments(for: userId) { result in
+                syncQueue.sync {
+                    switch result {
+                    case .success(let moments):
+                        allMoments.append(contentsOf: Array(moments.prefix(perUserLimit)))
+                    case .failure(let error):
+                        capturedError = capturedError ?? error
+                    }
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            let (sorted, error): ([Moment], Error?) = syncQueue.sync {
+                (allMoments.sorted { $0.timestamp > $1.timestamp }, capturedError)
+            }
+            if sorted.isEmpty, let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(sorted))
+            }
+        }
+    }
+
+    private func filterScheduledMomentsForCurrentViewer(_ moments: [Moment]) -> [Moment] {
+        let currentUserId = Auth.auth().currentUser?.uid
+        let now = Date()
+
+        return moments.filter { moment in
+            if moment.authorId == currentUserId {
+                return true
+            }
+            guard let scheduledDate = moment.scheduledDate else { return true }
+            return scheduledDate <= now
         }
     }
 }
@@ -3478,6 +3645,15 @@ extension FirestoreService {
                             if let error = error {
                                 completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
                             } else {
+                                self.bumpStorySummaryOnCreate(
+                                    userId: userId,
+                                    audience: story.audience,
+                                    timestamp: story.timestamp,
+                                    expirationDate: story.expirationDate
+                                )
+                                self.rebuildStorySummary(for: userId) { rebuildError in
+                                    _ = rebuildError
+                                }
                                 completion(storyId, nil) // 🔥 DEVOLVER EL ID REAL
                             }
                         }
@@ -3894,6 +4070,15 @@ extension FirestoreService {
                             if let error = error {
                                 completion(nil, error) // 🔥 DEVOLVER nil para el ID en caso de error
                             } else {
+                                self.bumpStorySummaryOnCreate(
+                                    userId: userId,
+                                    audience: story.audience,
+                                    timestamp: story.timestamp,
+                                    expirationDate: story.expirationDate
+                                )
+                                self.rebuildStorySummary(for: userId) { rebuildError in
+                                    _ = rebuildError
+                                }
                                 completion(storyId, nil) // 🔥 DEVOLVER EL ID REAL
                             }
                         }
@@ -4168,6 +4353,363 @@ extension FirestoreService {
             }
         }
     }
+
+    /// Obtiene historias activas para un conjunto de autores de forma batched (collectionGroup),
+    /// con fallback seguro al flujo legacy por usuario si falta índice.
+    func fetchActiveStoriesForUsers(
+        userIds: [String],
+        completion: @escaping (Result<[String: [Story]], Error>) -> Void
+    ) {
+        let normalizedUserIds = Array(Set(userIds.filter { !$0.isEmpty }))
+        guard !normalizedUserIds.isEmpty else {
+            completion(.success([:]))
+            return
+        }
+
+        let batches = normalizedUserIds.chunked(into: 10)
+        let group = DispatchGroup()
+        let syncQueue = DispatchQueue(label: "active.stories.users.sync")
+        var aggregated: [String: [Story]] = [:]
+        var capturedError: Error?
+
+        for batch in batches {
+            group.enter()
+            self.fetchActiveStoriesBatch(userIds: batch) { result in
+                syncQueue.sync {
+                    switch result {
+                    case .success(let storiesByUser):
+                        for (authorId, stories) in storiesByUser {
+                            aggregated[authorId, default: []].append(contentsOf: stories)
+                        }
+                    case .failure(let error):
+                        capturedError = capturedError ?? error
+                    }
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            let (finalMap, error): ([String: [Story]], Error?) = syncQueue.sync {
+                var sortedMap: [String: [Story]] = [:]
+                for (authorId, stories) in aggregated {
+                    sortedMap[authorId] = stories.sorted { $0.timestamp < $1.timestamp }
+                }
+                return (sortedMap, capturedError)
+            }
+
+            if finalMap.isEmpty, let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(finalMap))
+            }
+        }
+    }
+
+    private func fetchActiveStoriesBatch(
+        userIds: [String],
+        completion: @escaping (Result<[String: [Story]], Error>) -> Void
+    ) {
+        guard !userIds.isEmpty else {
+            completion(.success([:]))
+            return
+        }
+
+        db.collectionGroup("stories")
+            .whereField("authorId", in: userIds)
+            .whereField("expirationDate", isGreaterThan: Timestamp(date: Date()))
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else {
+                    completion(.failure(NSError(domain: "FirestoreService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Service deallocated"])))
+                    return
+                }
+
+                if error != nil {
+                    // Fallback para mantener compatibilidad sin depender de índice nuevo.
+                    self.fetchActiveStoriesLegacy(userIds: userIds, completion: completion)
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success([:]))
+                    return
+                }
+
+                var storiesByUser: [String: [Story]] = [:]
+                for document in documents {
+                    guard let story = try? document.data(as: Story.self) else { continue }
+                    storiesByUser[story.authorId, default: []].append(story)
+                }
+
+                completion(.success(storiesByUser))
+            }
+    }
+
+    private func fetchActiveStoriesLegacy(
+        userIds: [String],
+        completion: @escaping (Result<[String: [Story]], Error>) -> Void
+    ) {
+        let group = DispatchGroup()
+        let syncQueue = DispatchQueue(label: "active.stories.legacy.sync")
+        var storiesByUser: [String: [Story]] = [:]
+        var capturedError: Error?
+
+        for userId in userIds {
+            group.enter()
+            db.collection("users").document(userId).collection("stories")
+                .whereField("expirationDate", isGreaterThan: Timestamp(date: Date()))
+                .getDocuments { snapshot, error in
+                    syncQueue.sync {
+                        if let error = error {
+                            capturedError = capturedError ?? error
+                        } else {
+                            let stories = snapshot?.documents.compactMap { try? $0.data(as: Story.self) } ?? []
+                            storiesByUser[userId] = stories.sorted { $0.timestamp < $1.timestamp }
+                        }
+                    }
+                    group.leave()
+                }
+        }
+
+        group.notify(queue: .main) {
+            let (resultMap, error): ([String: [Story]], Error?) = syncQueue.sync {
+                (storiesByUser, capturedError)
+            }
+            if resultMap.isEmpty, let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(resultMap))
+            }
+        }
+    }
+
+    /// Obtiene resumen de stories por autor desde users/{id}.storySummary (lectura ligera).
+    func fetchStorySummariesForUsers(
+        userIds: [String],
+        completion: @escaping (Result<[String: StoryAuthorSummary], Error>) -> Void
+    ) {
+        let normalizedUserIds = Array(Set(userIds.filter { !$0.isEmpty }))
+        guard !normalizedUserIds.isEmpty else {
+            completion(.success([:]))
+            return
+        }
+
+        let batches = normalizedUserIds.chunked(into: 10)
+        let group = DispatchGroup()
+        let syncQueue = DispatchQueue(label: "story.summary.users.sync")
+        var mergedSummaries: [String: StoryAuthorSummary] = [:]
+        var capturedError: Error?
+
+        for batch in batches {
+            group.enter()
+            db.collection("users")
+                .whereField(FieldPath.documentID(), in: batch)
+                .getDocuments { snapshot, error in
+                    syncQueue.sync {
+                        if let error = error {
+                            capturedError = capturedError ?? error
+                        } else {
+                            for document in snapshot?.documents ?? [] {
+                                guard let summary = self.parseStorySummary(from: document.data()) else { continue }
+                                let normalized = self.normalizedStorySummary(summary)
+                                mergedSummaries[document.documentID] = normalized
+                                if summary.activeStoryCount > 0 && normalized.activeStoryCount == 0 {
+                                    self.scheduleStorySummaryRebuildIfNeeded(for: document.documentID)
+                                }
+                            }
+                        }
+                    }
+                    group.leave()
+                }
+        }
+
+        group.notify(queue: .main) {
+            let (result, error): ([String: StoryAuthorSummary], Error?) = syncQueue.sync {
+                (mergedSummaries, capturedError)
+            }
+            if result.isEmpty, let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(result))
+            }
+        }
+    }
+
+    /// Recalcula y guarda storySummary para un autor.
+    func rebuildStorySummary(for userId: String, completion: ((Error?) -> Void)? = nil) {
+        guard !userId.isEmpty else {
+            completion?(NSError(domain: "FirestoreService", code: -1, userInfo: [NSLocalizedDescriptionKey: "userId vacío"]))
+            return
+        }
+
+        db.collection("users").document(userId).collection("stories")
+            .whereField("expirationDate", isGreaterThan: Timestamp(date: Date()))
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion?(error)
+                    return
+                }
+
+                let stories = snapshot?.documents.compactMap { try? $0.data(as: Story.self) } ?? []
+                let activeCount = stories.count
+                let latestStoryAt = stories.map(\.timestamp).max()
+                let latestExpirationAt = stories.map(\.expirationDate).max()
+                var audiencesSummary: [String: Int] = [:]
+                for story in stories {
+                    let key = (story.audience?.isEmpty == false ? story.audience! : "everyone")
+                    audiencesSummary[key, default: 0] += 1
+                }
+
+                let userRef = self.db.collection("users").document(userId)
+                let batch = self.db.batch()
+                // Reemplazo explícito de subcampos para evitar arrastrar claves antiguas en audiencesSummary.
+                var summaryPayload: [AnyHashable: Any] = [
+                    FieldPath(["storySummary", "activeStoryCount"]): activeCount,
+                    FieldPath(["storySummary", "audiencesSummary"]): audiencesSummary,
+                    FieldPath(["storySummary", "updatedAt"]): FieldValue.serverTimestamp()
+                ]
+                if let latestStoryAt = latestStoryAt {
+                    summaryPayload[FieldPath(["storySummary", "latestStoryAt"])] = Timestamp(date: latestStoryAt)
+                } else {
+                    summaryPayload[FieldPath(["storySummary", "latestStoryAt"])] = FieldValue.delete()
+                }
+                if let latestExpirationAt = latestExpirationAt {
+                    summaryPayload[FieldPath(["storySummary", "latestExpirationAt"])] = Timestamp(date: latestExpirationAt)
+                } else {
+                    summaryPayload[FieldPath(["storySummary", "latestExpirationAt"])] = FieldValue.delete()
+                }
+                batch.updateData(summaryPayload, forDocument: userRef)
+                batch.updateData(
+                    self.legacyStorySummaryCleanupPayload(audienceKeys: Array(audiencesSummary.keys)),
+                    forDocument: userRef
+                )
+                batch.commit { writeError in
+                    completion?(writeError)
+                }
+            }
+    }
+
+    private func parseStorySummary(from userData: [String: Any]) -> StoryAuthorSummary? {
+        guard let summary = userData["storySummary"] as? [String: Any] else { return nil }
+
+        let activeCount = (summary["activeStoryCount"] as? NSNumber)?.intValue ?? (summary["activeStoryCount"] as? Int) ?? 0
+        let latestStoryAt = (summary["latestStoryAt"] as? Timestamp)?.dateValue()
+        let latestExpirationAt = (summary["latestExpirationAt"] as? Timestamp)?.dateValue()
+        let updatedAt = (summary["updatedAt"] as? Timestamp)?.dateValue()
+
+        var audiencesSummary: [String: Int] = [:]
+        if let rawAudiences = summary["audiencesSummary"] as? [String: Any] {
+            for (key, value) in rawAudiences {
+                if let number = value as? NSNumber {
+                    audiencesSummary[key] = number.intValue
+                }
+            }
+        } else if let typedAudiences = summary["audiencesSummary"] as? [String: Int] {
+            audiencesSummary = typedAudiences
+        }
+
+        return StoryAuthorSummary(
+            activeStoryCount: activeCount,
+            latestStoryAt: latestStoryAt,
+            latestExpirationAt: latestExpirationAt,
+            audiencesSummary: audiencesSummary,
+            updatedAt: updatedAt
+        )
+    }
+
+    private func normalizedStorySummary(_ summary: StoryAuthorSummary) -> StoryAuthorSummary {
+        guard let latestExpirationAt = summary.latestExpirationAt, latestExpirationAt <= Date() else {
+            if summary.latestExpirationAt == nil,
+               summary.activeStoryCount > 0,
+               let latestStoryAt = summary.latestStoryAt,
+               latestStoryAt <= Date().addingTimeInterval(-(52 * 60 * 60)) {
+                // Compatibilidad con summaries antiguos sin latestExpirationAt.
+                return StoryAuthorSummary(
+                    activeStoryCount: 0,
+                    latestStoryAt: nil,
+                    latestExpirationAt: latestStoryAt,
+                    audiencesSummary: [:],
+                    updatedAt: summary.updatedAt
+                )
+            }
+            return summary
+        }
+
+        return StoryAuthorSummary(
+            activeStoryCount: 0,
+            latestStoryAt: nil,
+            latestExpirationAt: latestExpirationAt,
+            audiencesSummary: [:],
+            updatedAt: summary.updatedAt
+        )
+    }
+
+    private func scheduleStorySummaryRebuildIfNeeded(for userId: String) {
+        guard !userId.isEmpty else { return }
+
+        var shouldSchedule = false
+        storySummaryRebuildQueue.sync {
+            let now = Date()
+            if let lastAttempt = storySummaryLastRebuildAttempt[userId],
+               now.timeIntervalSince(lastAttempt) < storySummaryRebuildCooldown {
+                shouldSchedule = false
+                return
+            }
+            if storySummaryRebuildInFlight.contains(userId) {
+                shouldSchedule = false
+                return
+            }
+            storySummaryRebuildInFlight.insert(userId)
+            storySummaryLastRebuildAttempt[userId] = now
+            shouldSchedule = true
+        }
+
+        guard shouldSchedule else { return }
+
+        rebuildStorySummary(for: userId) { [weak self] _ in
+            guard let self = self else { return }
+            self.storySummaryRebuildQueue.async {
+                self.storySummaryRebuildInFlight.remove(userId)
+            }
+        }
+    }
+
+    private func bumpStorySummaryOnCreate(userId: String, audience: String?, timestamp: Date, expirationDate: Date) {
+        guard !userId.isEmpty else { return }
+
+        let audienceKey = (audience?.isEmpty == false ? audience! : "everyone")
+        var payload: [AnyHashable: Any] = [
+            FieldPath(["storySummary", "activeStoryCount"]): FieldValue.increment(Int64(1)),
+            FieldPath(["storySummary", "latestStoryAt"]): Timestamp(date: timestamp),
+            FieldPath(["storySummary", "latestExpirationAt"]): Timestamp(date: expirationDate),
+            FieldPath(["storySummary", "updatedAt"]): FieldValue.serverTimestamp(),
+            FieldPath(["storySummary", "audiencesSummary", audienceKey]): FieldValue.increment(Int64(1))
+        ]
+        self.legacyStorySummaryCleanupPayload(audienceKeys: [audienceKey]).forEach { key, value in
+            payload[key] = value
+        }
+
+        db.collection("users").document(userId).updateData(payload) { error in
+            _ = error
+        }
+    }
+
+    private func legacyStorySummaryCleanupPayload(audienceKeys: [String]) -> [AnyHashable: Any] {
+        let defaultAudienceKeys = ["everyone", "connections", "mutuals", "bestFriends", "custom", "customList", "onlyMe"]
+        let keys = Array(Set(defaultAudienceKeys + audienceKeys))
+
+        var payload: [AnyHashable: Any] = [
+            FieldPath(["storySummary.activeStoryCount"]): FieldValue.delete(),
+            FieldPath(["storySummary.latestStoryAt"]): FieldValue.delete(),
+            FieldPath(["storySummary.latestExpirationAt"]): FieldValue.delete(),
+            FieldPath(["storySummary.updatedAt"]): FieldValue.delete(),
+            FieldPath(["storySummary.audiencesSummary"]): FieldValue.delete()
+        ]
+        for key in keys {
+            payload[FieldPath(["storySummary.audiencesSummary.\(key)"])] = FieldValue.delete()
+        }
+        return payload
+    }
     
     func createHighlight(userId: String, title: String, storyIds: [String], coverImageUrl: String?, completion: @escaping (Error?) -> Void) {
         let highlight = HighlightedStory(
@@ -4279,7 +4821,7 @@ extension FirestoreService {
         }
         
         if !urls.isEmpty {
-            ImagePrefetcher(urls: urls).start()
+            ImagePrefetchManager.shared.prefetch(urls: urls)
         }
     }
 }

@@ -2109,19 +2109,13 @@ extension ExploreViewModel {
                 return false
             }
             
-            // 2. Debe ser público para explore (audience: everyone)
-            guard moment.audience == "everyone" || moment.audience == nil else {
-
-                return false
-            }
-            
-            // 3. No debe ser de usuarios bloqueados
+            // 2. No debe ser de usuarios bloqueados
             guard !blockedUsers.contains(moment.authorId) else {
 
                 return false
             }
             
-            // 4. No debe ser tuyo (explore es para descubrir)
+            // 3. No debe ser tuyo (explore es para descubrir)
             guard moment.authorId != currentUserId else {
 
                 return false
@@ -2139,19 +2133,16 @@ extension ExploreViewModel {
     private func searchLocations(location: String) {
         searchedUsers = [] // Limpiar usuarios
         
-        // ✅ FILTRAR: Solo momentos públicos + sin bloqueos + visible en explore
+        // ✅ FILTRAR: momentos visibles en la lista cargada + sin bloqueos
         let candidateMoments = moments.filter { moment in
             // 1. Debe tener ubicación que coincida
             guard let momentLocation = moment.location else { return false }
             guard momentLocation.lowercased().contains(location.lowercased()) else { return false }
             
-            // 2. Debe ser público para explore (audience: everyone)
-            guard moment.audience == "everyone" || moment.audience == nil else { return false }
-            
-            // 3. No debe ser de usuarios bloqueados
+            // 2. No debe ser de usuarios bloqueados
             guard !blockedUsers.contains(moment.authorId) else { return false }
             
-            // 4. No debe ser tuyo (explore es para descubrir)
+            // 3. No debe ser tuyo (explore es para descubrir)
             guard moment.authorId != currentUserId else { return false }
             
             return true
@@ -2179,13 +2170,10 @@ extension ExploreViewModel {
             guard contentMatch || locationMatch || usernameMatch else { return false }
             
             // ✅ FILTROS DE PRIVACIDAD:
-            // 1. Debe ser público para explore (audience: everyone)
-            guard moment.audience == "everyone" || moment.audience == nil else { return false }
-            
-            // 2. No debe ser de usuarios bloqueados
+            // 1. No debe ser de usuarios bloqueados
             guard !blockedUsers.contains(moment.authorId) else { return false }
             
-            // 3. No debe ser tuyo (explore es para descubrir)
+            // 2. No debe ser tuyo (explore es para descubrir)
             guard moment.authorId != currentUserId else { return false }
             
             return true
@@ -2611,4 +2599,3 @@ struct RecentSearchesView: View {
         }
     }
 }
-

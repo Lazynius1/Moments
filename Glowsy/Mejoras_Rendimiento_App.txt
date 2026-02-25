@@ -4,30 +4,36 @@ Fecha: 2026-02-23
 OBJETIVO
 Mejorar fluidez general sin perder privacidad ni control de audiencias.
 
+ESTADO ACTUAL (LOCAL VS GIT)
+- [x] Hecho en local (aun sin commit)
+- [ ] Pendiente
+- [~] Parcial
+
 --------------------------------------------------
 1) QUICK WINS (1-2 días, impacto alto)
 --------------------------------------------------
 
 1. Feed: evitar consultas por card (N+1)
-- Precargar una vez:
-  - follows/mutuals en memoria
-  - saved IDs del usuario en memoria
-- Reusar esos mapas durante render del feed.
+Estado: [x] Hecho (fetch por lotes en FirestoreService con fallback legacy + índice compuesto; filtro de privacidad del feed deduplica por autor/audiencia; PrivacyService coalesce checks simultáneos de block/bestFriends/hidden y evita doble bloqueo en audience=everyone; validado con medición puntual en dispositivo).
 
 2. Comentarios: usar contador denormalizado
 - Dejar de hacer getDocuments() por post para contar comentarios.
 - Usar moment.commentCount (y mantenerlo actualizado en backend).
+Estado: [x] Hecho (en feed principal y backend con increment/decrement).
 
 3. Chat Settings: sin listener continuo
 - En ConversationSettings usar fetch puntual de estadísticas.
 - Evitar listenToMessages compartido con la pantalla principal del chat.
+Estado: [x] Hecho.
 
 4. Widget reload con throttle/debounce
 - No llamar WidgetCenter.reloadTimelines en cada cambio pequeño.
 - Aplicar debounce (ej: 15-30s) y solo si hubo cambio real de conteo.
+Estado: [x] Hecho (debounce aplicado en NotificationBadgeService y Feed).
 
 5. Prefetch de imágenes deduplicado
 - Centralizar prefetch y evitar iniciar ImagePrefetcher múltiples veces.
+Estado: [x] Hecho (ImagePrefetchManager centralizado implementado).
 
 --------------------------------------------------
 2) MODELO DE DATOS OPTIMIZADO (2-4 días, impacto muy alto)
@@ -39,17 +45,21 @@ Mejorar fluidez general sin perder privacidad ni control de audiencias.
   - latestStoryAt
   - audiencesSummary (opcional)
 - Evitar consultar historia por historia para pintar anillos.
+Estado: [x] Hecho (fetch batched por autores + agrupación por autor con fallback legacy; lectura ligera de storySummary; summary con latestExpirationAt; autocorrección/rebuild de summaries stale y limpieza de audiencesSummary sin arrastre de claves antiguas; rebuild enlazado en create/delete/background y ajuste en expiración de chains).
 
 2. Estado de visto simplificado
 - Guardar lastSeenStoryAt por autor (viewer -> author).
 - Evitar consulta por viewer doc en cada story.
+Estado: [x] Hecho (StorySeenStateService local+remoto con sync cross-device en users/{viewerId}/storySeen/{authorId}, dedupe in-flight, TTL de cache remota y reglas desplegadas; mantiene fallback por viewers para audiencias sensibles).
 
 3. Índices de audiencia preparados para filtro rápido
 - Estructurar campos para permitir filtro eficiente desde backend.
+Estado: [x] Hecho (estructura de audiencia mejorada y cierre backend-first).
 
 4. Cache de visibilidad con TTL
 - Reusar resultado de “puede ver/no puede ver” por ventana corta.
 - Invalidar cuando cambian listas/audiencias.
+Estado: [x] Hecho para story rings (TTL + invalidación).
 
 --------------------------------------------------
 3) BACKEND-FIRST FEED (4-7 días, impacto máximo)
@@ -67,6 +77,14 @@ Flujo:
 4. Aplica canViewerSeeMoment(...) en servidor.
 5. Devuelve solo items visibles + nextCursor.
 6. Cliente pinta sin hacer validación N+1 por item.
+Estado: [x] Hecho.
+- [x] getFeedPage en backend con filtro de privacidad server-side.
+- [x] Cliente backend-first en following + forYou + loadMore con fallback legacy.
+- [x] Cursor compuesto (timestamp + momentId + authorId) y dedupe por ref.path.
+- [x] Fail-closed si falta authorDoc.
+- [x] Advance cursor cuando una página queda vacía por filtros de privacidad.
+- [x] Ajuste fino de paginación y límites (fetchLimit=80 para Following).
+- [x] Cierre de validación E2E exitoso (paridad verificada missing_in_backend=0).
 
 Beneficios:
 - Menos queries por pantalla.
@@ -84,15 +102,38 @@ IMPORTANTE
 
 Fase A (rápida)
 - Quick wins 1, 2, 3 y 4.
+Estado: [x] Hecha.
 
 Fase B (preparación)
 - Metadata de historias + estado visto simplificado.
+Estado: [~] Parcial (B.1 y B.2 cerradas; pendiente B.3 de índices/audiencia backend-ready).
 
 Fase C (estructura final)
 - Endpoint backend-first para feed.
+Estado: [x] Hecha (núcleo implementado y paridad corregida).
+
+Nota operativa para Fase C (decisión actual):
+- Sin feature flag por ahora (base de usuarios pequeña).
+- Mantener resiliencia con backend-first + fallback automático al feed legacy.
+- Añadir circuit breaker simple (si falla backend repetidamente, usar legacy temporalmente).
+- Registrar fuente de feed en logs (backend / legacy_fallback) para diagnóstico.
 
 --------------------------------------------------
-5) MÉTRICAS A SEGUIR
+5) CONSISTENCIA DE PRIVACIDAD ENTRE VISTAS
+--------------------------------------------------
+
+Objetivo:
+- Que feed/profile/explore/share usen el mismo gate de visibilidad.
+
+Estado actual:
+- [x] PrivacyServiceExtension.canViewMoment delegado a canUserViewMomentEnhanced (una sola fuente de verdad).
+- [x] SharedMomentMessageBubble ahora valida con PrivacyService central (sin lógica manual duplicada).
+- [x] Explore search quitó filtros hardcodeados de audience y se apoya en la lista ya filtrada por gate central.
+- [x] SavedMoments: validación mejorada al abrir detalle (UX optimizada manteniendo gate central).
+- [~] Echoes: mantiene excepción de producto (mutuals + blur según guía funcional).
+
+--------------------------------------------------
+6) MÉTRICAS A SEGUIR
 --------------------------------------------------
 
 - Tiempo de primera carga de feed (cold/warm).
@@ -104,4 +145,3 @@ Fase C (estructura final)
 Objetivo práctico:
 - Reducir lecturas Firestore por sesión de feed al menos 40-60%.
 - Reducir tiempo de primera pintura de feed 20-35%.
-

@@ -10,10 +10,13 @@ import UIKit
 class SavedMomentsViewModel: ObservableObject {
     @Published var moments: [Moment] = []
     @Published var savedMomentIds: [String] = []
+    @Published var visibilityByMomentId: [String: Bool] = [:]
     @Published var isLoading = false
     @Published var error: Error?
     
     private let firestoreService = FirestoreService()
+    private let privacyService = PrivacyService.shared
+    private var visibilityValidationToken = UUID()
 
     func loadSavedMoments(completion: @escaping (Error?) -> Void = { _ in }) {
         guard let userId = Auth.auth().currentUser?.uid else {
@@ -50,6 +53,7 @@ class SavedMomentsViewModel: ObservableObject {
                 guard !momentIds.isEmpty else {
                     DispatchQueue.main.async {
                         self.moments = []
+                        self.visibilityByMomentId = [:]
                         self.isLoading = false
                         completion(nil)
                     }
@@ -111,6 +115,7 @@ class SavedMomentsViewModel: ObservableObject {
                 let sortedMoments = foundMoments.sorted { $0.timestamp > $1.timestamp }
                 
                 self.moments = sortedMoments
+                self.validateVisibilityForLoadedMoments(sortedMoments)
                 self.isLoading = false
                 completion(nil)
             }
@@ -220,6 +225,7 @@ class SavedMomentsViewModel: ObservableObject {
                 } else {
                     self?.moments.removeAll { $0.id == momentId }
                     self?.savedMomentIds.removeAll { $0 == momentId }
+                    self?.visibilityByMomentId.removeValue(forKey: momentId)
                     completion(nil)
                 }
             }
@@ -231,10 +237,26 @@ class SavedMomentsViewModel: ObservableObject {
         
         if !savedMomentIds.contains(momentId) {
             savedMomentIds.append(momentId)
+            visibilityByMomentId[momentId] = true
             
             if !moments.contains(where: { $0.id == momentId }) {
                 moments.append(moment)
                 moments.sort { $0.timestamp > $1.timestamp }
+            }
+        }
+    }
+
+    func refreshVisibilityForMoment(_ moment: Moment, completion: ((Bool) -> Void)? = nil) {
+        guard let momentId = moment.id,
+              let viewerId = Auth.auth().currentUser?.uid else {
+            completion?(false)
+            return
+        }
+
+        privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { [weak self] canView in
+            DispatchQueue.main.async {
+                self?.visibilityByMomentId[momentId] = canView
+                completion?(canView)
             }
         }
     }
@@ -259,7 +281,37 @@ class SavedMomentsViewModel: ObservableObject {
     func forceRefresh() {
         moments = []
         savedMomentIds = []
+        visibilityByMomentId = [:]
         loadSavedMoments()
+    }
+
+    private func validateVisibilityForLoadedMoments(_ moments: [Moment]) {
+        guard let viewerId = Auth.auth().currentUser?.uid else {
+            return
+        }
+
+        let token = UUID()
+        visibilityValidationToken = token
+
+        let group = DispatchGroup()
+        let queue = DispatchQueue(label: "saved.moments.visibility.sync")
+        var result: [String: Bool] = [:]
+
+        for moment in moments {
+            guard let momentId = moment.id else { continue }
+            group.enter()
+            privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
+                queue.async {
+                    result[momentId] = canView
+                    group.leave()
+                }
+            }
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self, self.visibilityValidationToken == token else { return }
+            self.visibilityByMomentId = result
+        }
     }
 }
 
@@ -336,6 +388,8 @@ struct SavedMomentsView: View {
     @State private var detailInitialIndex = 0
     
     @State private var showRemoveSelectionAlert = false
+    @State private var restrictedMomentToRemove: Moment?
+    @State private var showingRestrictedRemoveAlert = false
     
     private var filteredMoments: [Moment] {
         let searched = viewModel.moments.filter { moment in
@@ -434,6 +488,23 @@ struct SavedMomentsView: View {
             }
         } message: {
             Text(String(format: NSLocalizedString("savedMoments.selection.remove.message", comment: "Remove selected saved moments confirmation"), selectedMomentIds.count))
+        }
+        .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRestrictedRemoveAlert) {
+            Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel"), role: .cancel) {
+                restrictedMomentToRemove = nil
+            }
+            Button(NSLocalizedString("savedMoments.remove.confirm", comment: "Remove"), role: .destructive) {
+                if let moment = restrictedMomentToRemove, let momentId = moment.id {
+                    viewModel.removeMoment(momentId: momentId)
+                }
+                restrictedMomentToRemove = nil
+            }
+        } message: {
+            if let moment = restrictedMomentToRemove {
+                Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), moment.username))
+            } else {
+                Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
+            }
         }
         .onChange(of: filteredMoments.map { $0.id ?? "" }) { validIds in
             let validSet = Set(validIds)
@@ -631,13 +702,15 @@ struct SavedMomentsView: View {
                     ForEach(filteredMoments.indices, id: \.self) { index in
                         let moment = filteredMoments[index]
                         let momentId = moment.id ?? UUID().uuidString
+                        let isRestricted = !(viewModel.visibilityByMomentId[momentId] ?? true)
                         
                         SavedMomentGridCard(
                             moment: moment,
+                            isRestricted: isRestricted,
                             isSelectionMode: isSelectionMode,
                             isSelected: selectedMomentIds.contains(momentId),
                             onTap: {
-                                handleTap(moment: moment, index: index, currentList: filteredMoments)
+                                handleTap(moment: moment, currentList: filteredMoments)
                             },
                             onLongPress: {
                                 if !isSelectionMode {
@@ -751,6 +824,13 @@ struct SavedMomentsView: View {
     
     private func toggleSelection(moment: Moment) {
         guard let momentId = moment.id else { return }
+        
+        // Block restricted moments from being selected
+        if let canView = viewModel.visibilityByMomentId[momentId], !canView {
+            HapticManager.shared.notification(.warning)
+            return
+        }
+        
         if selectedMomentIds.contains(momentId) {
             selectedMomentIds.remove(momentId)
         } else {
@@ -758,14 +838,46 @@ struct SavedMomentsView: View {
         }
     }
     
-    private func handleTap(moment: Moment, index: Int, currentList: [Moment]) {
+    private func handleTap(moment: Moment, currentList: [Moment]) {
         if isSelectionMode {
             toggleSelection(moment: moment)
             return
         }
-        
-        detailMoments = currentList
-        detailInitialIndex = index
+
+        guard let momentId = moment.id else { return }
+
+        if let canView = viewModel.visibilityByMomentId[momentId], !canView {
+            restrictedMomentToRemove = moment
+            showingRestrictedRemoveAlert = true
+            return
+        }
+
+        if viewModel.visibilityByMomentId[momentId] == nil {
+            viewModel.refreshVisibilityForMoment(moment) { canView in
+                guard canView else {
+                    HapticManager.shared.notification(.warning)
+                    return
+                }
+                openDetailForAccessibleMoments(momentId: momentId, currentList: currentList)
+            }
+            return
+        }
+
+        openDetailForAccessibleMoments(momentId: momentId, currentList: currentList)
+    }
+
+    private func openDetailForAccessibleMoments(momentId: String, currentList: [Moment]) {
+        let accessibleMoments = currentList.filter { candidate in
+            guard let candidateId = candidate.id else { return false }
+            return viewModel.visibilityByMomentId[candidateId] ?? true
+        }
+
+        guard let resolvedIndex = accessibleMoments.firstIndex(where: { $0.id == momentId }) else {
+            return
+        }
+
+        detailMoments = accessibleMoments
+        detailInitialIndex = resolvedIndex
         showDetail = true
     }
     
@@ -838,6 +950,7 @@ struct SavedMomentsView: View {
 
 private struct SavedMomentGridCard: View {
     let moment: Moment
+    let isRestricted: Bool
     let isSelectionMode: Bool
     let isSelected: Bool
     let onTap: () -> Void
@@ -850,11 +963,16 @@ private struct SavedMomentGridCard: View {
             Button(action: onTap) {
                 ZStack(alignment: .bottomLeading) {
                     preview
+                        .blur(radius: isRestricted ? 16 : 0)
                         .frame(maxWidth: .infinity)
                         .aspectRatio(1, contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     
-                    if mediaCount > 1 {
+                    if isRestricted {
+                        savedRestrictedOverlay
+                    }
+
+                    if mediaCount > 1 && !isRestricted {
                         Label("\(mediaCount)", systemImage: "square.stack.3d.up")
                             .font(.custom("Poppins-SemiBold", size: 10))
                             .foregroundColor(.white)
@@ -872,13 +990,44 @@ private struct SavedMomentGridCard: View {
                     .stroke(isSelected ? Color(hex: "2563EB") : Color.clear, lineWidth: 2)
             )
             
-            if isSelectionMode {
+            if isSelectionMode && !isRestricted {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.9))
                     .padding(6)
             }
         }
+    }
+
+    private var savedRestrictedOverlay: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black.opacity(0.25))
+                )
+
+            VStack(spacing: 4) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.95))
+
+                Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
+                    .font(.custom("Poppins-SemiBold", size: 10))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+
+                Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
+                    .font(.custom("Poppins-Regular", size: 9))
+                    .foregroundColor(.white.opacity(0.84))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 8)
+        }
+        .allowsHitTesting(false)
     }
     
     @ViewBuilder
@@ -942,18 +1091,20 @@ private struct SavedMomentGridCard: View {
                     }
             }
             
-            VStack {
-                HStack {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(6)
-                        .background(Circle().fill(Color.black.opacity(0.55)))
+            if !isRestricted {
+                VStack {
+                    HStack {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(6)
+                            .background(Circle().fill(Color.black.opacity(0.55)))
+                        Spacer()
+                    }
                     Spacer()
                 }
-                Spacer()
+                .padding(6)
             }
-            .padding(6)
         }
     }
     

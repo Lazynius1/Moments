@@ -680,10 +680,19 @@ struct ModernProfileContentView: View {
                 .coordinateSpace(name: "scroll")
                 .refreshable {
                     await withCheckedContinuation { continuation in
+                        var savedRefreshCompleted = true
+
                         viewModel.refreshProfile()
+
+                        if selectedProfileTab == .saved {
+                            savedRefreshCompleted = false
+                            savedMomentsViewModel.loadSavedMoments { _ in
+                                savedRefreshCompleted = true
+                            }
+                        }
                         
                         let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-                            if !viewModel.isRefreshing {
+                            if !viewModel.isRefreshing && savedRefreshCompleted {
                                 timer.invalidate()
                                 continuation.resume()
                             }
@@ -1673,6 +1682,8 @@ struct ProfileSavedContent: View {
     @State private var selectedFilter: SavedQuickFilter = .all
     @State private var detailMoments: [Moment] = []
     @Environment(\.colorScheme) var colorScheme
+    @State private var showingRestrictedRemoveAlert = false
+    @State private var restrictedMomentToRemove: Moment?
     
     enum SavedQuickFilter: CaseIterable {
         case all
@@ -1831,14 +1842,13 @@ struct ProfileSavedContent: View {
                             ProfileSavedMomentThumbnail(
                                 moment: moment,
                                 size: gridItemSize,
+                                isRestricted: isMomentRestricted(moment),
                                 onTap: {
-                                    detailMoments = filteredMoments
-                                    if let selectedIndex = filteredMoments.firstIndex(where: { $0.id == moment.id }) {
-                                        selectedSavedMomentIndex = selectedIndex
-                                    } else {
-                                        selectedSavedMomentIndex = index
-                                    }
-                                    showingSavedMomentDetail = true
+                                    handleSavedMomentTap(
+                                        moment: moment,
+                                        sourceMoments: filteredMoments,
+                                        fallbackIndex: index
+                                    )
                                 }
                             )
                         }
@@ -1860,14 +1870,13 @@ struct ProfileSavedContent: View {
                                     ProfileSavedMomentThumbnail(
                                         moment: moment,
                                         size: 92,
+                                        isRestricted: isMomentRestricted(moment),
                                         onTap: {
-                                            detailMoments = recentMoments
-                                            if let selectedIndex = recentMoments.firstIndex(where: { $0.id == moment.id }) {
-                                                selectedSavedMomentIndex = selectedIndex
-                                            } else {
-                                                selectedSavedMomentIndex = 0
-                                            }
-                                            showingSavedMomentDetail = true
+                                            handleSavedMomentTap(
+                                                moment: moment,
+                                                sourceMoments: recentMoments,
+                                                fallbackIndex: 0
+                                            )
                                         }
                                     )
                                 }
@@ -1879,7 +1888,7 @@ struct ProfileSavedContent: View {
             }
             .fullScreenCover(isPresented: $showingSavedMomentDetail) {
                 ModernSavedMomentsDetailView(
-                    moments: detailMoments.isEmpty ? filteredMoments : detailMoments,
+                    moments: detailMoments.isEmpty ? filteredMoments.filter { !isMomentRestricted($0) } : detailMoments,
                     initialIndex: selectedSavedMomentIndex,
                     onDismiss: {
                         showingSavedMomentDetail = false
@@ -1894,7 +1903,65 @@ struct ProfileSavedContent: View {
             .fullScreenCover(isPresented: $showingSavedManager) {
                 SavedMomentsView()
             }
+            .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRestrictedRemoveAlert) {
+                Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel"), role: .cancel) {
+                    restrictedMomentToRemove = nil
+                }
+                Button(NSLocalizedString("savedMoments.remove.confirm", comment: "Remove"), role: .destructive) {
+                    if let moment = restrictedMomentToRemove, let momentId = moment.id {
+                        viewModel.removeMoment(momentId: momentId)
+                    }
+                    restrictedMomentToRemove = nil
+                }
+            } message: {
+                if let moment = restrictedMomentToRemove {
+                    Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), moment.username))
+                } else {
+                    Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
+                }
+            }
         }
+    }
+
+    private func isMomentRestricted(_ moment: Moment) -> Bool {
+        guard let momentId = moment.id else { return true }
+        return !(viewModel.visibilityByMomentId[momentId] ?? true)
+    }
+
+    private func handleSavedMomentTap(moment: Moment, sourceMoments: [Moment], fallbackIndex: Int) {
+        guard let momentId = moment.id else { return }
+
+        if let canView = viewModel.visibilityByMomentId[momentId], !canView {
+            restrictedMomentToRemove = moment
+            showingRestrictedRemoveAlert = true
+            return
+        }
+
+        if viewModel.visibilityByMomentId[momentId] == nil {
+            viewModel.refreshVisibilityForMoment(moment) { canView in
+                guard canView else {
+                    HapticManager.shared.notification(.warning)
+                    return
+                }
+                openSavedDetail(momentId: momentId, sourceMoments: sourceMoments, fallbackIndex: fallbackIndex)
+            }
+            return
+        }
+
+        openSavedDetail(momentId: momentId, sourceMoments: sourceMoments, fallbackIndex: fallbackIndex)
+    }
+
+    private func openSavedDetail(momentId: String, sourceMoments: [Moment], fallbackIndex: Int) {
+        let accessibleMoments = sourceMoments.filter { candidate in
+            guard let candidateId = candidate.id else { return false }
+            return viewModel.visibilityByMomentId[candidateId] ?? true
+        }
+
+        guard !accessibleMoments.isEmpty else { return }
+
+        detailMoments = accessibleMoments
+        selectedSavedMomentIndex = accessibleMoments.firstIndex(where: { $0.id == momentId }) ?? min(fallbackIndex, max(accessibleMoments.count - 1, 0))
+        showingSavedMomentDetail = true
     }
     
     private func calculateSavedGridHeight(itemCount: Int) -> CGFloat {
@@ -1909,6 +1976,7 @@ struct ProfileSavedContent: View {
 struct ProfileSavedMomentThumbnail: View {
     let moment: Moment
     let size: CGFloat
+    let isRestricted: Bool
     let onTap: () -> Void
     @Environment(\.colorScheme) var colorScheme
     
@@ -1920,25 +1988,32 @@ struct ProfileSavedMomentThumbnail: View {
         Button(action: onTap) {
             ZStack {
                 // --- CONTENIDO MEDIA ---
-                if let mediaItem = moment.mediaItems?.first {
-                    if mediaItem.type == .video {
-                        videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
+                Group {
+                    if let mediaItem = moment.mediaItems?.first {
+                        if mediaItem.type == .video {
+                            videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
+                        } else {
+                            imageView(url: mediaItem.url)
+                        }
+                    } else if let imagePath = moment.imagePath {
+                        imageView(url: imagePath)
+                    } else if let videoUrl = moment.videoUrl {
+                        videoView(videoURL: videoUrl, thumbnailURL: moment.thumbnailUrl)
                     } else {
-                        imageView(url: mediaItem.url)
+                        // Momento de texto
+                        textMomentView()
                     }
-                } else if let imagePath = moment.imagePath {
-                    imageView(url: imagePath)
-                } else if let videoUrl = moment.videoUrl {
-                    videoView(videoURL: videoUrl, thumbnailURL: moment.thumbnailUrl)
-                } else {
-                    // Momento de texto
-                    textMomentView()
+                }
+                .blur(radius: isRestricted ? 14 : 0)
+
+                if isRestricted {
+                    savedRestrictedOverlay
                 }
                 
                 // --- INDICADORES ---
                 
                 // Play indicator si es video
-                if isVideo {
+                if isVideo && !isRestricted {
                     VStack {
                         HStack {
                             Image(systemName: "play.fill")
@@ -1953,19 +2028,21 @@ struct ProfileSavedMomentThumbnail: View {
                     .padding(6)
                 }
                 
-                // Badge de guardado
-                VStack {
-                    HStack {
+                if !isRestricted {
+                    // Badge de guardado
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "bookmark.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(4)
+                                .background(Circle().fill(ProfileColors.blue.opacity(0.8)))
+                        }
                         Spacer()
-                        Image(systemName: "bookmark.fill")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(4)
-                            .background(Circle().fill(ProfileColors.blue.opacity(0.8)))
                     }
-                    Spacer()
+                    .padding(4)
                 }
-                .padding(4)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -2049,6 +2126,39 @@ struct ProfileSavedMomentThumbnail: View {
                 .padding(6)
         }
         .frame(width: size, height: size)
+    }
+
+    private var savedRestrictedOverlay: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black.opacity(0.25))
+                )
+                .frame(width: size, height: size)
+
+            VStack(spacing: 3) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.95))
+
+                Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
+                    .font(.custom("Poppins-SemiBold", size: 9))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+
+                Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
+                    .font(.custom("Poppins-Regular", size: 8))
+                    .foregroundColor(.white.opacity(0.84))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 6)
+        }
+        .frame(width: size, height: size)
+        .allowsHitTesting(false)
     }
     
     private func loadVideoThumbnail(from urlString: String) {

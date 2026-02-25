@@ -2121,3 +2121,454 @@ exports.optOutBestFriends = onRequest(
     }
   }
 );
+
+// =====================================================
+// 🚀 BACKEND-FIRST FEED — getFeedPage
+// =====================================================
+
+/**
+ * Build the viewer's relationship context in parallel.
+ * Returns { following, followers, mutuals, bestFriends, blockedUsers, isPrivate }
+ */
+async function buildViewerContext(uid) {
+  const db = admin.firestore();
+  const [followingSnap, followersSnap, viewerDoc] = await Promise.all([
+    db.collection(`users/${uid}/following`).get(),
+    db.collection(`users/${uid}/followers`).get(),
+    db.doc(`users/${uid}`).get()
+  ]);
+
+  const following = new Set(followingSnap.docs.map(d => d.id));
+  const followers = new Set(followersSnap.docs.map(d => d.id));
+  const mutuals = new Set([...following].filter(id => followers.has(id)));
+
+  const viewerData = viewerDoc.exists ? viewerDoc.data() : {};
+  const bestFriends = new Set(Array.isArray(viewerData.bestFriends) ? viewerData.bestFriends : []);
+  const blockedUsers = new Set(Array.isArray(viewerData.blockedUsers) ? viewerData.blockedUsers : []);
+
+  return { following, followers, mutuals, bestFriends, blockedUsers };
+}
+
+/**
+ * Batch-load author user documents for a set of author IDs.
+ * Returns Map<authorId, authorData>.
+ */
+async function batchLoadAuthorDocs(authorIds) {
+  const db = admin.firestore();
+  const uniqueIds = [...new Set(authorIds)];
+  const authorMap = new Map();
+
+  // Firestore getAll supports up to 100 refs
+  const chunks = [];
+  for (let i = 0; i < uniqueIds.length; i += 100) {
+    chunks.push(uniqueIds.slice(i, i + 100));
+  }
+
+  for (const chunk of chunks) {
+    const refs = chunk.map(id => db.doc(`users/${id}`));
+    const docs = await db.getAll(...refs);
+    docs.forEach(doc => {
+      if (doc.exists) {
+        authorMap.set(doc.id, doc.data());
+      }
+    });
+  }
+
+  return authorMap;
+}
+
+/**
+ * Server-side privacy check — mirrors canUserViewMomentEnhanced from PrivacyService.swift
+ *
+ * @param {object} moment - { id, authorId, audience, taggedUsers, customListId }
+ * @param {string} viewerId
+ * @param {object} viewerCtx - from buildViewerContext
+ * @param {object} authorData - author user document data
+ * @returns {Promise<boolean>}
+ */
+async function canViewerSeeMoment(moment, viewerId, viewerCtx, authorData) {
+  const db = admin.firestore();
+
+  // 1. Author always sees own content
+  if (moment.authorId === viewerId) return true;
+
+  // 2. Tagged users can always see
+  const tagged = Array.isArray(moment.taggedUsers) ? moment.taggedUsers : [];
+  if (tagged.includes(viewerId)) return true;
+
+  // 3. Mutual block check
+  const authorBlocked = Array.isArray(authorData.blockedUsers) ? authorData.blockedUsers : [];
+  if (viewerCtx.blockedUsers.has(moment.authorId) || authorBlocked.includes(viewerId)) {
+    return false;
+  }
+
+  // 4. Hidden from author content
+  const visSettings = authorData.contentVisibilitySettings || {};
+  const hiddenFrom = Array.isArray(visSettings.hiddenFromUsers) ? visSettings.hiddenFromUsers : [];
+  if (hiddenFrom.includes(viewerId)) return false;
+
+  // 5. Audience check
+  const audience = moment.audience || 'everyone';
+
+  switch (audience) {
+    case 'everyone': {
+      // Public profile → visible. Private → viewer must follow author.
+      const isPrivate = authorData.isPrivate === true;
+      if (!isPrivate) return true;
+      return viewerCtx.following.has(moment.authorId);
+    }
+
+    case 'connections': {
+      // Mutual connection required
+      return viewerCtx.following.has(moment.authorId) && viewerCtx.followers.has(moment.authorId);
+    }
+
+    case 'bestFriends': {
+      // Viewer must be in author's bestFriends
+      const authorBestFriends = Array.isArray(authorData.bestFriends) ? authorData.bestFriends : [];
+      return authorBestFriends.includes(viewerId);
+    }
+
+    case 'custom': {
+      // Check customAudiences subcollection
+      if (!moment.id) return false;
+      try {
+        const audienceDoc = await db.doc(`users/${moment.authorId}/customAudiences/moment_${moment.id}`).get();
+        if (!audienceDoc.exists) return false;
+        const allowedUsers = audienceDoc.data().allowedUsers || [];
+        return allowedUsers.includes(viewerId);
+      } catch {
+        return false;
+      }
+    }
+
+    case 'customList': {
+      // Check customAudienceLists subcollection
+      const listId = moment.customListId;
+      if (!listId) return false;
+      try {
+        const listDoc = await db.doc(`users/${moment.authorId}/customAudienceLists/${listId}`).get();
+        if (!listDoc.exists) return false;
+        const members = listDoc.data().members || [];
+        return members.includes(viewerId);
+      } catch {
+        return false;
+      }
+    }
+
+    case 'onlyMe':
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Serialize a Firestore Timestamp to epoch millis (or null).
+ */
+function tsToMillis(ts) {
+  if (!ts) return null;
+  if (typeof ts.toMillis === 'function') return ts.toMillis();
+  if (ts._seconds !== undefined) return ts._seconds * 1000 + Math.floor((ts._nanoseconds || 0) / 1e6);
+  return null;
+}
+
+/**
+ * Compare two feed cursors and detect no-op progression loops.
+ */
+function isSameFeedCursor(a, b) {
+  if (!a || !b) return false;
+  return Number(a.timestamp || 0) === Number(b.timestamp || 0)
+    && String(a.momentId || '') === String(b.momentId || '')
+    && String(a.authorId || '') === String(b.authorId || '');
+}
+
+/**
+ * Serialize a Firestore moment doc into the JSON format the client expects.
+ */
+function serializeMoment(docId, data) {
+  return {
+    id: docId,
+    authorId: data.authorId || '',
+    username: data.username || '',
+    content: data.content || '',
+    imageUrl: data.imageUrl || null,
+    videoUrl: data.videoUrl || null,
+    timestamp: tsToMillis(data.timestamp),
+    reactions: data.reactions || {},
+    commentCount: data.commentCount || 0,
+    profileImagePath: data.profileImagePath || null,
+    taggedUsers: data.taggedUsers || null,
+    location: data.location || null,
+    locationCoordinate: data.locationCoordinate || null,
+    audience: data.audience || 'everyone',
+    mediaItems: data.mediaItems || null,
+    aspectRatio: data.aspectRatio || null,
+    customListId: data.customListId || null,
+    thumbnailUrl: data.thumbnailUrl || null,
+    videoDuration: data.videoDuration || null,
+    videoFileSize: data.videoFileSize || null,
+    videoResolution: data.videoResolution || null,
+    disableComments: data.disableComments || false,
+    hideLikeCounts: data.hideLikeCounts || false,
+    allowSharing: data.allowSharing !== false,
+    scheduledDate: tsToMillis(data.scheduledDate),
+    trendingScore: data.trendingScore || null,
+    engagementRate: data.engagementRate || null
+  };
+}
+
+/**
+ * 🚀 getFeedPage — Backend-first feed endpoint.
+ *
+ * POST body: { feedType: "following"|"forYou", cursor?: { timestamp, momentId, authorId? }, limit?: number }
+ * Response:  { moments: [...], nextCursor: {...}|null, source: "backend", totalCandidates: N }
+ */
+exports.getFeedPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const feedType = body.feedType === 'forYou' ? 'forYou' : 'following';
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 40)) : 20;
+    const cursor = body.cursor || null; // { timestamp: number, momentId: string, authorId?: string }
+
+    const db = admin.firestore();
+
+    try {
+      // ── 1. Build viewer context ──
+      const viewerCtx = await buildViewerContext(uid);
+
+      // ── 2. Determine candidate user IDs ──
+      let candidateUserIds;
+
+      if (feedType === 'following') {
+        candidateUserIds = [...viewerCtx.following];
+        // Include own moments
+        if (!candidateUserIds.includes(uid)) {
+          candidateUserIds.push(uid);
+        }
+      } else {
+        // forYou: following + suggested + popular
+        const followingIds = [...viewerCtx.following];
+        const extraIds = new Set(followingIds);
+        extraIds.add(uid);
+
+        // Fetch some suggested/popular users
+        const [suggestedSnap, popularSnap] = await Promise.all([
+          db.collection('users')
+            .where('isActive', '==', true)
+            .limit(30)
+            .get(),
+          db.collection('users')
+            .limit(20)
+            .get()
+        ]);
+
+        suggestedSnap.docs.forEach(d => {
+          if (d.id !== uid && !viewerCtx.blockedUsers.has(d.id)) {
+            extraIds.add(d.id);
+          }
+        });
+        popularSnap.docs.forEach(d => {
+          if (d.id !== uid && !viewerCtx.blockedUsers.has(d.id)) {
+            extraIds.add(d.id);
+          }
+        });
+
+        candidateUserIds = [...extraIds];
+      }
+
+      if (candidateUserIds.length === 0) {
+        res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0 });
+        return;
+      }
+
+      // ── 3. Fetch candidate moments (batched by 10 using collectionGroup) ──
+      const fetchLimit = feedType === 'forYou' ? 200 : 80;
+      const perAuthorLimit = feedType === 'forYou' ? 12 : 50;
+
+      const userBatches = [];
+      for (let i = 0; i < candidateUserIds.length; i += 10) {
+        userBatches.push(candidateUserIds.slice(i, i + 10));
+      }
+
+      const allCandidateDocs = [];
+      const batchFetchCounts = new Array(userBatches.length).fill(0);
+      await Promise.all(userBatches.map(async (batch, batchIndex) => {
+        let query = db.collectionGroup('moments')
+          .where('authorId', 'in', batch)
+          .orderBy('timestamp', 'desc');
+
+        // Apply cursor: use startAt (inclusive) so we don't skip same-timestamp items.
+        // The momentId-based slice below handles exact dedup.
+        if (cursor && cursor.timestamp) {
+          const cursorDate = new Date(cursor.timestamp);
+          query = query.startAt(admin.firestore.Timestamp.fromDate(cursorDate));
+        }
+
+        query = query.limit(fetchLimit);
+        const snap = await query.get();
+        batchFetchCounts[batchIndex] = snap.size;
+        snap.docs.forEach(doc => allCandidateDocs.push(doc));
+      }));
+
+      // Deduplicate by full ref path (prevents cross-author ID collisions)
+      const seen = new Set();
+      const uniqueDocs = [];
+      for (const doc of allCandidateDocs) {
+        const refPath = doc.ref.path;
+        if (!seen.has(refPath)) {
+          seen.add(refPath);
+          uniqueDocs.push(doc);
+        }
+      }
+
+      uniqueDocs.sort((a, b) => {
+        const tsA = a.data().timestamp;
+        const tsB = b.data().timestamp;
+        const millisA = tsToMillis(tsA) || 0;
+        const millisB = tsToMillis(tsB) || 0;
+        if (millisB !== millisA) return millisB - millisA;
+        return b.id.localeCompare(a.id); // stable tiebreaker
+      });
+
+      // Apply cursor momentId filter for composite cursor stability
+      // Use ref.path for matching to avoid cross-author collisions
+      let startIdx = 0;
+      if (cursor && cursor.momentId && cursor.authorId) {
+        const cursorPath = `users/${cursor.authorId}/moments/${cursor.momentId}`;
+        for (let i = 0; i < uniqueDocs.length; i++) {
+          if (uniqueDocs[i].ref.path === cursorPath) {
+            startIdx = i + 1;
+            break;
+          }
+        }
+      } else if (cursor && cursor.momentId) {
+        // Fallback for old cursors without authorId
+        for (let i = 0; i < uniqueDocs.length; i++) {
+          if (uniqueDocs[i].id === cursor.momentId) {
+            startIdx = i + 1;
+            break;
+          }
+        }
+      }
+
+      const candidatesAfterCursor = uniqueDocs.slice(startIdx);
+      const totalCandidates = candidatesAfterCursor.length;
+
+      // Filter out scheduled moments (only author can see scheduled)
+      const now = Date.now();
+      const nonScheduledCandidates = candidatesAfterCursor.filter(doc => {
+        const data = doc.data();
+        if (data.authorId === uid) return true; // author always sees own
+        const schedMs = tsToMillis(data.scheduledDate);
+        if (schedMs && schedMs > now) return false;
+        return true;
+      });
+
+      // ── 4. Batch-load author docs for privacy checks ──
+      const authorIds = [...new Set(nonScheduledCandidates.map(d => d.data().authorId))];
+      const authorMap = await batchLoadAuthorDocs(authorIds);
+
+      // ── 5. Apply privacy filter ──
+      // Process in parallel but collect results in order
+      const privacyResults = await Promise.all(
+        nonScheduledCandidates.map(async (doc) => {
+          const data = doc.data();
+          const authorData = authorMap.get(data.authorId);
+          // Fail-closed: if author doc is missing, deny access
+          if (!authorData) return { doc, data, canView: false };
+          const momentForCheck = {
+            id: doc.id,
+            authorId: data.authorId,
+            audience: data.audience,
+            taggedUsers: data.taggedUsers,
+            customListId: data.customListId
+          };
+          const canView = await canViewerSeeMoment(momentForCheck, uid, viewerCtx, authorData);
+          return { doc, data, canView };
+        })
+      );
+
+      const visibleDocs = privacyResults.filter(r => r.canView);
+
+      // ── 6. Per-author limit to avoid one user dominating feed ──
+      const perAuthorCount = {};
+      const perAuthorMax = feedType === 'forYou' ? 5 : 50;
+      const finalDocs = [];
+      for (const { doc, data } of visibleDocs) {
+        const count = perAuthorCount[data.authorId] || 0;
+        if (count >= perAuthorMax) continue;
+        perAuthorCount[data.authorId] = count + 1;
+        finalDocs.push({ doc, data });
+        if (finalDocs.length >= limit) break;
+      }
+
+      // ── 7. Build response ──
+      const moments = finalDocs.map(({ doc, data }) => serializeMoment(doc.id, data));
+
+      let nextCursor = null;
+      // Provide cursor if there are still more visible moments beyond what we returned,
+      // OR if we hit fetchLimit (meaning there could be more in Firestore we haven't seen)
+      const hasMoreInFirestore = batchFetchCounts.some(count => count >= fetchLimit);
+      const moreVisibleThanReturned = visibleDocs.length > finalDocs.length;
+
+      if (finalDocs.length > 0 && (moreVisibleThanReturned || hasMoreInFirestore)) {
+        const lastDoc = finalDocs[finalDocs.length - 1];
+        nextCursor = {
+          timestamp: tsToMillis(lastDoc.data.timestamp),
+          momentId: lastDoc.doc.id,
+          authorId: lastDoc.data.authorId
+        };
+      } else if (finalDocs.length === 0 && nonScheduledCandidates.length > 0 && hasMoreInFirestore) {
+        // All candidates filtered by privacy, but more may exist in Firestore.
+        // Emit advance cursor from last candidate so client doesn't stop paginating.
+        const lastCandidate = nonScheduledCandidates[nonScheduledCandidates.length - 1];
+        const lastCandidateData = lastCandidate.data();
+        nextCursor = {
+          timestamp: tsToMillis(lastCandidateData.timestamp),
+          momentId: lastCandidate.id,
+          authorId: lastCandidateData.authorId
+        };
+      }
+
+      // Safety guard: avoid returning the same cursor repeatedly (infinite pagination loops).
+      if (cursor && nextCursor && isSameFeedCursor(cursor, nextCursor)) {
+        console.warn(`⚠️ getFeedPage: no-op cursor detected for uid=${uid}, feed=${feedType}`);
+        nextCursor = null;
+      }
+
+      console.log(`✅ getFeedPage: uid=${uid}, type=${feedType}, candidates=${totalCandidates}, visible=${visibleDocs.length}, returned=${moments.length}`);
+
+      res.status(200).json({
+        moments,
+        nextCursor,
+        source: 'backend',
+        totalCandidates
+      });
+
+    } catch (error) {
+      console.error('❌ getFeedPage error:', error);
+      res.status(500).json({ error: 'Feed fetch failed', details: error.message });
+    }
+  }
+);
