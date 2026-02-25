@@ -351,9 +351,7 @@ class StoryViewModel: ObservableObject {
         
         let urlsToPrefetchLimited = Array(urlsToPrefetch.prefix(10))
         if !urlsToPrefetchLimited.isEmpty {
-            let prefetcher = ImagePrefetcher(urls: urlsToPrefetchLimited) { skippedResources, failedResources, completedResources in
-            }
-            prefetcher.start()
+            ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetchLimited)
         }
     }
 
@@ -581,9 +579,22 @@ class StoryViewModel: ObservableObject {
             }
     }
 
-    func markStoryAsViewed(userId: String, storyId: String) {
+    func markStoryAsViewed(
+        userId: String,
+        storyId: String,
+        storyTimestamp: Date? = nil,
+        audience: String? = nil
+    ) {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentUserId != userId else { return }
+
+        // Sincroniza estado cross-device inmediatamente al abrir la story.
+        StorySeenStateService.shared.markSeen(
+            viewerId: currentUserId,
+            authorId: userId,
+            timestamp: storyTimestamp ?? Date(),
+            syncRemote: true
+        )
         
         firestoreService.fetchUserProfile(userId: currentUserId) { result in
             switch result {
@@ -598,6 +609,10 @@ class StoryViewModel: ObservableObject {
                 self.firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
                     .collection("viewers").document(currentUserId).setData(viewerData) { error in
                         if let error = error {
+                        } else {
+                            Task {
+                                await StoryRingCacheService.shared.invalidate(viewerId: currentUserId, authorId: userId)
+                            }
                         }
                     }
             case .failure(_):
@@ -649,7 +664,9 @@ class StoryViewModel: ObservableObject {
                                  
                                  // ✅ SURGICAL DELETION: Eliminar del caché global por ID
                                  LocalPersistenceService.shared.deleteStory(storyId: storyId)
-                                 completion(nil)
+                                 self.firestoreService.rebuildStorySummary(for: userId) { rebuildError in
+                                     _ = rebuildError
+                                 }
                                  
                                  self.checkActiveStories(userId: userId)
                                  completion(nil)
@@ -2689,6 +2706,12 @@ struct GlassmorphicStoryViewer: View {
                 }
                 
                 self.showSuccessAnimation(NSLocalizedString("bestFriends.optOut.success", comment: "You left best friends"))
+                if let currentUserId = Auth.auth().currentUser?.uid {
+                    StorySeenStateService.shared.invalidate(
+                        viewerId: currentUserId,
+                        authorId: self.story.authorId
+                    )
+                }
 
                 // Dar tiempo a leer el mensaje y mantener flujo natural de historias.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
@@ -2711,7 +2734,12 @@ struct GlassmorphicStoryViewer: View {
         
         // Mark story as viewed
         if let storyId = story.id {
-            storyViewModel.markStoryAsViewed(userId: story.authorId, storyId: storyId)
+            storyViewModel.markStoryAsViewed(
+                userId: story.authorId,
+                storyId: storyId,
+                storyTimestamp: story.timestamp,
+                audience: story.audience
+            )
         }
         
         // ✅ SIMPLIFICADO: Solo timer para imágenes

@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 // MARK: - ✅ Servicio de persistencia local con SwiftData
 // Patrón LOCAL-FIRST: Siempre lee del caché local, luego sincroniza con Firestore en background.
@@ -1359,6 +1360,194 @@ final class LocalPersistenceService: ObservableObject {
             )
             
             saveAction(action)
+        }
+    }
+}
+
+// MARK: - 👁️ Story Seen State (Local)
+
+/// Cache local de último timestamp de story vista por autor y viewer.
+/// Reduce lecturas de `viewers` en historias antiguas ya vistas.
+final class StorySeenStateService {
+    static let shared = StorySeenStateService()
+
+    private let queue = DispatchQueue(label: "story.seen.state.sync")
+    private let defaults = UserDefaults.standard
+    private let storageKey = "story_last_seen_by_author_v1"
+    private let maxAge: TimeInterval = 60 * 60 * 6 // 6 horas
+    private let remoteCacheTTL: TimeInterval = 60
+
+    private var loaded = false
+    private var lastSeenMap: [String: TimeInterval] = [:]
+    private var remoteCache: [String: (date: Date?, expiresAt: Date)] = [:]
+    private var inFlightRemoteFetches: [String: [(Date?) -> Void]] = [:]
+
+    private init() {}
+
+    private func compositeKey(viewerId: String, authorId: String) -> String {
+        "\(viewerId)|\(authorId)"
+    }
+
+    private func ensureLoaded() {
+        guard !loaded else { return }
+        if let stored = defaults.dictionary(forKey: storageKey) as? [String: TimeInterval] {
+            lastSeenMap = stored
+        } else if let storedAny = defaults.dictionary(forKey: storageKey) {
+            var normalized: [String: TimeInterval] = [:]
+            for (key, value) in storedAny {
+                if let number = value as? NSNumber {
+                    normalized[key] = number.doubleValue
+                }
+            }
+            lastSeenMap = normalized
+        }
+        loaded = true
+    }
+
+    private func localLastSeenDateLocked(viewerId: String, authorId: String) -> Date? {
+        ensureLoaded()
+        let key = compositeKey(viewerId: viewerId, authorId: authorId)
+        guard let timestamp = lastSeenMap[key] else { return nil }
+        if Date().timeIntervalSince1970 - timestamp > maxAge {
+            lastSeenMap.removeValue(forKey: key)
+            defaults.set(lastSeenMap, forKey: storageKey)
+            return nil
+        }
+        return Date(timeIntervalSince1970: timestamp)
+    }
+
+    private func maxDate(_ lhs: Date?, _ rhs: Date?) -> Date? {
+        switch (lhs, rhs) {
+        case let (l?, r?):
+            return max(l, r)
+        case let (l?, nil):
+            return l
+        case let (nil, r?):
+            return r
+        default:
+            return nil
+        }
+    }
+
+    func lastSeenDate(viewerId: String, authorId: String) -> Date? {
+        queue.sync {
+            localLastSeenDateLocked(viewerId: viewerId, authorId: authorId)
+        }
+    }
+
+    func fetchEffectiveLastSeen(viewerId: String, authorId: String, completion: @escaping (Date?) -> Void) {
+        let key = compositeKey(viewerId: viewerId, authorId: authorId)
+
+        queue.async {
+            self.ensureLoaded()
+            let localDate = self.localLastSeenDateLocked(viewerId: viewerId, authorId: authorId)
+
+            if let cached = self.remoteCache[key], cached.expiresAt > Date() {
+                let effective = self.maxDate(localDate, cached.date)
+                DispatchQueue.main.async {
+                    completion(effective)
+                }
+                return
+            }
+
+            if self.inFlightRemoteFetches[key] != nil {
+                self.inFlightRemoteFetches[key]?.append(completion)
+                return
+            }
+
+            self.inFlightRemoteFetches[key] = [completion]
+
+            Firestore.firestore()
+                .collection("users").document(viewerId)
+                .collection("storySeen").document(authorId)
+                .getDocument { snapshot, _ in
+                    let remoteDate = (snapshot?.data()?["lastSeenAt"] as? Timestamp)?.dateValue()
+
+                    self.queue.async {
+                        if let remoteDate = remoteDate {
+                            let currentValue = self.lastSeenMap[key] ?? 0
+                            let remoteValue = remoteDate.timeIntervalSince1970
+                            if remoteValue > currentValue {
+                                self.lastSeenMap[key] = remoteValue
+                                self.defaults.set(self.lastSeenMap, forKey: self.storageKey)
+                            }
+                        }
+
+                        self.remoteCache[key] = (
+                            date: remoteDate,
+                            expiresAt: Date().addingTimeInterval(self.remoteCacheTTL)
+                        )
+
+                        let localAfterMerge = self.localLastSeenDateLocked(viewerId: viewerId, authorId: authorId)
+                        let effective = self.maxDate(localAfterMerge, remoteDate)
+                        let callbacks = self.inFlightRemoteFetches.removeValue(forKey: key) ?? []
+
+                        DispatchQueue.main.async {
+                            callbacks.forEach { $0(effective) }
+                        }
+                    }
+                }
+        }
+    }
+
+    func markSeen(viewerId: String, authorId: String, timestamp: Date, syncRemote: Bool = false) {
+        let key = compositeKey(viewerId: viewerId, authorId: authorId)
+        var shouldSyncRemote = false
+        var timestampToSync = timestamp
+
+        queue.sync {
+            ensureLoaded()
+            let newValue = timestamp.timeIntervalSince1970
+            let currentValue = lastSeenMap[key] ?? 0
+            let effectiveValue = max(newValue, currentValue)
+
+            if effectiveValue > currentValue {
+                lastSeenMap[key] = effectiveValue
+                defaults.set(lastSeenMap, forKey: storageKey)
+            }
+
+            timestampToSync = Date(timeIntervalSince1970: effectiveValue)
+            remoteCache[key] = (date: timestampToSync, expiresAt: Date().addingTimeInterval(remoteCacheTTL))
+            shouldSyncRemote = syncRemote
+        }
+
+        guard shouldSyncRemote else { return }
+
+        Firestore.firestore()
+            .collection("users").document(viewerId)
+            .collection("storySeen").document(authorId)
+            .setData([
+                "lastSeenAt": Timestamp(date: timestampToSync)
+            ], merge: true) { error in
+                #if DEBUG
+                if let error = error {
+                    print("⚠️ storySeen sync failed viewer:\(viewerId) author:\(authorId) -> \(error.localizedDescription)")
+                }
+                #endif
+            }
+    }
+
+    func invalidate(viewerId: String, authorId: String) {
+        queue.sync {
+            ensureLoaded()
+            let key = compositeKey(viewerId: viewerId, authorId: authorId)
+            lastSeenMap.removeValue(forKey: key)
+            remoteCache.removeValue(forKey: key)
+            defaults.set(lastSeenMap, forKey: storageKey)
+        }
+    }
+
+    func supportsShortcut(forAudience audience: String?) -> Bool {
+        guard let normalized = audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              !normalized.isEmpty else {
+            return true // legacy sin audience -> everyone
+        }
+
+        switch normalized {
+        case "everyone", "connections", "mutuals":
+            return true
+        default:
+            return false
         }
     }
 }

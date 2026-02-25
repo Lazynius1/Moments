@@ -870,7 +870,9 @@
 "audience.list.empty" = "No members in this list";
 "audience.list.emptyAlt" = "Tap 'Add' to add people";
 "audience.list.membersShown" = "%d members shown";
+"audience.list.loadMoreMembers" = "Show %d more";
 "audience.list.searchresults" = "Search results for '%@'";
+"audience.more" = "More";
 "audience.list.deleteMember.title" = "Remove member";
 "audience.list.deleteMember.message" = "Remove %@ from this list?";
 "audience.picker.title" = "Add Members";
@@ -1246,6 +1248,7 @@
 "savedMoments.remove.title" = "Remove from saved";
 "savedMoments.remove.message.user" = "Do you want to remove %@'s moment from your saved?";
 "savedMoments.remove.message.generic" = "Do you want to remove this moment from your saved?";
+"savedMoments.remove.message.restricted" = "This moment is no longer available. Do you want to remove it from your collection?";
 "savedMoments.cancel" = "Cancel";
 "savedMoments.remove.confirm" = "Remove";
 "savedMoments.saved" = "SAVED";
@@ -2238,3 +2241,13 @@
 
 /* Messaging Search */
 "messaging.search.placeholder" = "Search conversations...";
+
+// Settings Groups
+"settings.group.account" = "YOUR ACCOUNT";
+"settings.group.privacy" = "PRIVACY & SECURITY";
+"settings.group.content" = "YOUR CONTENT & ACTIVITY";
+"settings.group.notifications" = "NOTIFICATIONS";
+"settings.group.support" = "DATA & SUPPORT";
+"settings.group.advanced" = "ADVANCED SETTINGS";
+"savedMoments.restricted.title" = "No longer available";
+"savedMoments.restricted.subtitle" = "You no longer have access";

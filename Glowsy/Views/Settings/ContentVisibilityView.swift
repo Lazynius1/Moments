@@ -633,23 +633,26 @@ class ContentVisibilityViewModel: ObservableObject {
         customUsers: [String]
     ) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
-        var settings: [String: Any] = [
-            audienceKey: audience.rawValue,
-            customUsersKey: customUsers,
-            "hiddenFromUsers": hiddenFromUsers.map { $0.id }
+
+        var updates: [String: Any] = [
+            "contentVisibilitySettings.\(audienceKey)": audience.rawValue,
+            "contentVisibilitySettings.\(customUsersKey)": customUsers,
+            "contentVisibilitySettings.hiddenFromUsers": hiddenFromUsers.map { $0.id }
         ]
-        
-        if let listId = listId {
-            settings[listIdKey] = listId
+
+        if let listId = listId, !listId.isEmpty {
+            updates["contentVisibilitySettings.\(listIdKey)"] = listId
+        } else {
+            updates["contentVisibilitySettings.\(listIdKey)"] = FieldValue.delete()
         }
-        if let listName = listName {
-            settings[listNameKey] = listName
+
+        if let listName = listName, !listName.isEmpty {
+            updates["contentVisibilitySettings.\(listNameKey)"] = listName
+        } else {
+            updates["contentVisibilitySettings.\(listNameKey)"] = FieldValue.delete()
         }
-        
-        firestoreService.db.collection("users").document(userId).updateData([
-            "contentVisibilitySettings": settings
-        ]) { error in
+
+        firestoreService.db.collection("users").document(userId).updateData(updates) { error in
             if let error = error {
             }
         }
@@ -787,7 +790,7 @@ struct HiddenFromView: View {
         }
         .navigationTitle(NSLocalizedString("contentVisibility.hideContent.navigation", comment: "Hide Content"))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
+        .navigationBarBackButtonHidden(false)
     }
     
     private func searchUsers(query: String) {

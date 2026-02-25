@@ -758,8 +758,19 @@ struct GlassmorphicChatView: View {
         let otherUserId = viewModel.conversation.otherParticipantId ?? ""
         guard !otherUserId.isEmpty else { return }
         
-        // ✅ USAR LA MISMA LÓGICA DE REELS: Verificar historias con filtrado de privacidad
-        Firestore.firestore().collection("users").document(otherUserId).collection("stories")
+        Task {
+            if let cached = await StoryRingCacheService.shared.get(viewerId: currentUserId, authorId: otherUserId) {
+                await MainActor.run {
+                    self.hasStory = cached.hasStory
+                    self.hasUnseenStory = cached.hasUnseenStory
+                    self.storyCount = cached.storyCount
+                    self.storyViewedStatus = cached.storyViewedStatus
+                }
+                return
+            }
+        
+            // ✅ USAR LA MISMA LÓGICA DE REELS: Verificar historias con filtrado de privacidad
+            Firestore.firestore().collection("users").document(otherUserId).collection("stories")
             .whereField("expirationDate", isGreaterThan: Date())
             .order(by: "timestamp", descending: false)
             .getDocuments { snapshot, error in
@@ -829,14 +840,43 @@ struct GlassmorphicChatView: View {
                         self.storyCount = storyCount
                         self.storyViewedStatus = viewedStatus
                         self.hasUnseenStory = hasUnseenVisible
+                        
+                        Task {
+                            await StoryRingCacheService.shared.set(
+                                viewerId: currentUserId,
+                                authorId: otherUserId,
+                                snapshot: StoryRingSnapshot(
+                                    hasStory: true,
+                                    hasUnseenStory: hasUnseenVisible,
+                                    storyCount: storyCount,
+                                    storyViewedStatus: viewedStatus,
+                                    storyAudiences: sortedStories.map { $0.story.audience }
+                                )
+                            )
+                        }
                     } else {
                         self.hasStory = false
                         self.hasUnseenStory = false
                         self.storyCount = 0
                         self.storyViewedStatus = []
+                        
+                        Task {
+                            await StoryRingCacheService.shared.set(
+                                viewerId: currentUserId,
+                                authorId: otherUserId,
+                                snapshot: StoryRingSnapshot(
+                                    hasStory: false,
+                                    hasUnseenStory: false,
+                                    storyCount: 0,
+                                    storyViewedStatus: [],
+                                    storyAudiences: []
+                                )
+                            )
+                        }
                     }
                 }
             }
+        }
     }
     
     // MARK: - Helper Methods

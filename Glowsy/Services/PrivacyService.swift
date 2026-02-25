@@ -6,6 +6,10 @@ class PrivacyService {
     
     private let db: Firestore
     private let firestoreService = FirestoreService()
+    private let inFlightQueue = DispatchQueue(label: "privacy.inflight.sync")
+    private var inFlightBlockChecks: [String: [(Bool) -> Void]] = [:]
+    private var inFlightBestFriendChecks: [String: [(Bool) -> Void]] = [:]
+    private var inFlightHiddenChecks: [String: [(Bool) -> Void]] = [:]
 
     init() {
         db = Firestore.firestore()
@@ -148,6 +152,30 @@ class PrivacyService {
             }
         }
     }
+
+    // Same result as canViewUserContent when block checks were already evaluated upstream.
+    private func canViewUserContentAfterBlockCheck(viewerId: String, targetUserId: String, completion: @escaping (Bool) -> Void) {
+        guard viewerId != targetUserId else {
+            completion(true)
+            return
+        }
+
+        fetchPrivacySettings(userId: targetUserId) { [weak self] result in
+            switch result {
+            case .success(let settings):
+                if !settings.isPrivate {
+                    completion(true)
+                    return
+                }
+
+                self?.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: targetUserId) { isFollowing in
+                    completion(isFollowing)
+                }
+            case .failure:
+                completion(false)
+            }
+        }
+    }
     
     // ✅ FUNCIÓN CORREGIDA: Ahora interpreta correctamente los toggles
     func canViewUserConnections(viewerId: String, targetUserId: String, completion: @escaping (Result<(canViewMutualConnections: Bool, canViewFollowing: Bool, canViewAdmirers: Bool), Error>) -> Void) {
@@ -232,15 +260,19 @@ class PrivacyService {
     
     // ✅ NUEVA FUNCIÓN: Verificar bloqueos mutuos (en ambas direcciones)
      func checkMutualBlocks(viewerId: String, targetUserId: String, completion: @escaping (Bool) -> Void) {
+        let key = "\(viewerId)|\(targetUserId)"
+        let shouldStart = registerInFlightBlockCheck(key: key, completion: completion)
+        guard shouldStart else { return }
+
         firestoreService.checkIfBlocked(currentUserId: viewerId, targetUserId: targetUserId) { isBlockedByViewer, isViewerBlocked, error in
-            if let error = error {
-                completion(true) // En caso de error, ser conservador y bloquear
+            if error != nil {
+                self.resolveInFlightBlockCheck(key: key, result: true) // Fail closed on error.
                 return
             }
             
             // Si hay bloqueo en cualquier dirección, considerarlo como bloqueado
             let isBlocked = isBlockedByViewer || isViewerBlocked
-            completion(isBlocked)
+            self.resolveInFlightBlockCheck(key: key, result: isBlocked)
         }
     }
     
@@ -260,6 +292,67 @@ class PrivacyService {
             let blockedUsers = data["blockedUsers"] as? [String] ?? []
             completion(blockedUsers.contains(viewerId))
         }
+    }
+
+    // MARK: - In-flight dedupe helpers
+    private func registerInFlightBlockCheck(key: String, completion: @escaping (Bool) -> Void) -> Bool {
+        inFlightQueue.sync {
+            if inFlightBlockChecks[key] != nil {
+                inFlightBlockChecks[key]?.append(completion)
+                return false
+            }
+            inFlightBlockChecks[key] = [completion]
+            return true
+        }
+    }
+
+    private func resolveInFlightBlockCheck(key: String, result: Bool) {
+        let callbacks: [(Bool) -> Void] = inFlightQueue.sync {
+            let stored = inFlightBlockChecks[key] ?? []
+            inFlightBlockChecks[key] = nil
+            return stored
+        }
+        callbacks.forEach { $0(result) }
+    }
+
+    private func registerInFlightBestFriendCheck(key: String, completion: @escaping (Bool) -> Void) -> Bool {
+        inFlightQueue.sync {
+            if inFlightBestFriendChecks[key] != nil {
+                inFlightBestFriendChecks[key]?.append(completion)
+                return false
+            }
+            inFlightBestFriendChecks[key] = [completion]
+            return true
+        }
+    }
+
+    private func resolveInFlightBestFriendCheck(key: String, result: Bool) {
+        let callbacks: [(Bool) -> Void] = inFlightQueue.sync {
+            let stored = inFlightBestFriendChecks[key] ?? []
+            inFlightBestFriendChecks[key] = nil
+            return stored
+        }
+        callbacks.forEach { $0(result) }
+    }
+
+    private func registerInFlightHiddenCheck(key: String, completion: @escaping (Bool) -> Void) -> Bool {
+        inFlightQueue.sync {
+            if inFlightHiddenChecks[key] != nil {
+                inFlightHiddenChecks[key]?.append(completion)
+                return false
+            }
+            inFlightHiddenChecks[key] = [completion]
+            return true
+        }
+    }
+
+    private func resolveInFlightHiddenCheck(key: String, result: Bool) {
+        let callbacks: [(Bool) -> Void] = inFlightQueue.sync {
+            let stored = inFlightHiddenChecks[key] ?? []
+            inFlightHiddenChecks[key] = nil
+            return stored
+        }
+        callbacks.forEach { $0(result) }
     }
     
     // MARK: - Profile Interaction Logic
@@ -561,19 +654,23 @@ extension PrivacyService {
     
     // MARK: - Verificar si es mejor amigo
     func checkIfBestFriend(userId: String, friendId: String, completion: @escaping (Bool) -> Void) {
+        let key = "\(userId)|\(friendId)"
+        let shouldStart = registerInFlightBestFriendCheck(key: key, completion: completion)
+        guard shouldStart else { return }
+
         db.collection("users").document(userId).getDocument { snapshot, error in
-            if let error = error {
-                completion(false)
+            if error != nil {
+                self.resolveInFlightBestFriendCheck(key: key, result: false)
                 return
             }
             
             guard let data = snapshot?.data(),
                   let bestFriends = data["bestFriends"] as? [String] else {
-                completion(false)
+                self.resolveInFlightBestFriendCheck(key: key, result: false)
                 return
             }
             
-            completion(bestFriends.contains(friendId))
+            self.resolveInFlightBestFriendCheck(key: key, result: bestFriends.contains(friendId))
         }
     }
     
@@ -951,9 +1048,9 @@ extension PrivacyService {
                     return
                 }
                 completion(members)
-            }
+        }
     }
-    
+
     // MARK: - Actualizar canUserViewMoment para soportar listas
     func canUserViewMomentEnhanced(_ moment: Moment, viewerId: String, completion: @escaping (Bool) -> Void) {
         guard let momentId = moment.id, !momentId.isEmpty else {
@@ -964,6 +1061,12 @@ extension PrivacyService {
         
         // 1. Si es el autor, siempre puede verlo
         if moment.authorId == viewerId {
+            completion(true)
+            return
+        }
+
+        // 1.5 Si está etiquetado, puede verlo
+        if let taggedUsers = moment.taggedUsers, taggedUsers.contains(viewerId) {
             completion(true)
             return
         }
@@ -979,46 +1082,52 @@ extension PrivacyService {
                 completion(false)
                 return
             }
+
+            // 2.5 Verificar si el viewer está en "hiddenFromUsers" del autor
+            self.isViewerHiddenFromAuthorContent(authorId: moment.authorId, viewerId: viewerId) { isHidden in
+                if isHidden {
+                    completion(false)
+                    return
+                }
             
-            // 3. Verificar según la audiencia del momento
-            let audience = moment.audience ?? "everyone"
-            
-            switch audience {
-            case "everyone":
-                self.canViewUserContent(viewerId: viewerId, targetUserId: moment.authorId) { canView in
-                    completion(canView)
-                }
+                // 3. Verificar según la audiencia del momento
+                let audience = moment.audience ?? "everyone"
                 
-            case "connections":
-                self.firestoreService.isFollowing(currentUserId: moment.authorId, targetUserId: viewerId) { authorFollowsViewer in
-                    completion(authorFollowsViewer)
+                switch audience {
+                case "everyone":
+                    self.canViewUserContentAfterBlockCheck(viewerId: viewerId, targetUserId: moment.authorId) { canView in
+                        completion(canView)
+                    }
+                    
+                case "connections":
+                    self.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
+                    
+                case "bestFriends":
+                    self.checkIfBestFriend(userId: moment.authorId, friendId: viewerId) { isBestFriend in
+                        completion(isBestFriend)
+                    }
+                    
+                case "custom":
+                    self.checkCustomAudience(
+                        contentType: "moment",
+                        contentId: momentId,
+                        authorId: moment.authorId,
+                        viewerId: viewerId
+                    ) { canView in
+                        completion(canView)
+                    }
+                    
+                case "customList":
+                    self.checkCustomListMembership(
+                        for: moment,
+                        viewerId: viewerId
+                    ) { isMember in
+                        completion(isMember)
+                    }
+                    
+                default:
+                    completion(false)
                 }
-                
-            case "bestFriends":
-                self.checkIfBestFriend(userId: moment.authorId, friendId: viewerId) { isBestFriend in
-                    completion(isBestFriend)
-                }
-                
-            case "custom":
-                self.checkCustomAudience(
-                    contentType: "moment",
-                    contentId: momentId,
-                    authorId: moment.authorId,
-                    viewerId: viewerId
-                ) { canView in
-                    completion(canView)
-                }
-                
-            case "customList":
-                self.checkCustomListMembership(
-                    for: moment,
-                    viewerId: viewerId
-                ) { isMember in
-                    completion(isMember)
-                }
-                
-            default:
-                completion(false)
             }
         }
     }
@@ -1038,43 +1147,50 @@ extension PrivacyService {
                 completion(false)
                 return
             }
+
+            self?.isViewerHiddenFromAuthorContent(authorId: story.authorId, viewerId: viewerId) { isHidden in
+                if isHidden {
+                    completion(false)
+                    return
+                }
             
-            // 3. Verificar audiencia de la historia
-            let audience = story.audience ?? "everyone"
-            
-            switch audience {
-            case "everyone":
-                self?.canViewUserContent(viewerId: viewerId, targetUserId: story.authorId, completion: completion)
+                // 3. Verificar audiencia de la historia
+                let audience = story.audience ?? "everyone"
                 
-            case "connections":
-                self?.checkMutualConnection(user1: viewerId, user2: story.authorId, completion: completion)
-                
-            case "bestFriends":
-                self?.checkIfBestFriend(userId: story.authorId, friendId: viewerId, completion: completion)
-                
-            case "custom":
-                // Audiencia personalizada simple
-                self?.checkCustomAudience(
-                    contentType: "story",
-                    contentId: story.id ?? "",
-                    authorId: story.authorId,
-                    viewerId: viewerId,
-                    completion: completion
-                )
-                
-            case "customList":
-                // Nueva audiencia: lista personalizada reutilizable
-                self?.checkCustomListMembership(
-                    for: story,
-                    viewerId: viewerId,
-                    completion: completion
-                )
-                
-            case "onlyMe":
-                completion(false)
-                
-            default:
-                completion(false)
+                switch audience {
+                case "everyone":
+                    self?.canViewUserContentAfterBlockCheck(viewerId: viewerId, targetUserId: story.authorId, completion: completion)
+                    
+                case "connections":
+                    self?.checkMutualConnection(user1: viewerId, user2: story.authorId, completion: completion)
+                    
+                case "bestFriends":
+                    self?.checkIfBestFriend(userId: story.authorId, friendId: viewerId, completion: completion)
+                    
+                case "custom":
+                    // Audiencia personalizada simple
+                    self?.checkCustomAudience(
+                        contentType: "story",
+                        contentId: story.id ?? "",
+                        authorId: story.authorId,
+                        viewerId: viewerId,
+                        completion: completion
+                    )
+                    
+                case "customList":
+                    // Nueva audiencia: lista personalizada reutilizable
+                    self?.checkCustomListMembership(
+                        for: story,
+                        viewerId: viewerId,
+                        completion: completion
+                    )
+                    
+                case "onlyMe":
+                    completion(false)
+                    
+                default:
+                    completion(false)
+                }
             }
         }
     }
@@ -1087,6 +1203,21 @@ protocol CustomListContent {
 }
 
 extension PrivacyService {
+    private func isViewerHiddenFromAuthorContent(authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
+        let key = "\(authorId)|\(viewerId)"
+        let shouldStart = registerInFlightHiddenCheck(key: key, completion: completion)
+        guard shouldStart else { return }
+
+        db.collection("users").document(authorId).getDocument { snapshot, _ in
+            guard let data = snapshot?.data(),
+                  let settings = data["contentVisibilitySettings"] as? [String: Any],
+                  let hiddenFromUsers = settings["hiddenFromUsers"] as? [String] else {
+                self.resolveInFlightHiddenCheck(key: key, result: false)
+                return
+            }
+            self.resolveInFlightHiddenCheck(key: key, result: hiddenFromUsers.contains(viewerId))
+        }
+    }
     
     // ✅ NUEVA FUNCIÓN: Verificar visibilidad para ExploreView (más permisiva)
     func canUserViewMomentInExplore(_ moment: Moment, viewerId: String, completion: @escaping (Bool) -> Void) {
@@ -1103,47 +1234,54 @@ extension PrivacyService {
                 completion(false)
                 return
             }
+
+            self?.isViewerHiddenFromAuthorContent(authorId: moment.authorId, viewerId: viewerId) { isHidden in
+                if isHidden {
+                    completion(false)
+                    return
+                }
             
-            // 3. Verificar según la audiencia del momento
-            let audience = moment.audience ?? "everyone"
-            
-            switch audience {
-            case "everyone":
-                // Para contenido público, solo verificar si el perfil del autor es accesible
-                self?.canViewUserContentForExplore(viewerId: viewerId, targetUserId: moment.authorId, completion: completion)
+                // 3. Verificar según la audiencia del momento
+                let audience = moment.audience ?? "everyone"
                 
-            case "connections":
-                // Solo mostrar si hay conexión mutua
-                self?.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
-                
-            case "bestFriends":
-                // Solo mostrar si es mejor amigo
-                self?.checkIfBestFriend(userId: moment.authorId, friendId: viewerId, completion: completion)
-                
-            case "custom":
-                // Solo mostrar si está en la audiencia personalizada
-                self?.checkCustomAudience(
-                    contentType: "moment",
-                    contentId: moment.id ?? "",
-                    authorId: moment.authorId,
-                    viewerId: viewerId,
-                    completion: completion
-                )
-                
-            case "customList":
-                // Solo mostrar si está en la lista personalizada
-                self?.checkCustomListMembership(
-                    for: moment,
-                    viewerId: viewerId,
-                    completion: completion
-                )
-                
-            case "onlyMe":
-                // Nunca mostrar en Explore (solo para el autor)
-                completion(false)
-                
-            default:
-                completion(false)
+                switch audience {
+                case "everyone":
+                    // Para contenido público, solo verificar si el perfil del autor es accesible
+                    self?.canViewUserContentForExplore(viewerId: viewerId, targetUserId: moment.authorId, completion: completion)
+                    
+                case "connections":
+                    // Solo mostrar si hay conexión mutua
+                    self?.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
+                    
+                case "bestFriends":
+                    // Solo mostrar si es mejor amigo
+                    self?.checkIfBestFriend(userId: moment.authorId, friendId: viewerId, completion: completion)
+                    
+                case "custom":
+                    // Solo mostrar si está en la audiencia personalizada
+                    self?.checkCustomAudience(
+                        contentType: "moment",
+                        contentId: moment.id ?? "",
+                        authorId: moment.authorId,
+                        viewerId: viewerId,
+                        completion: completion
+                    )
+                    
+                case "customList":
+                    // Solo mostrar si está en la lista personalizada
+                    self?.checkCustomListMembership(
+                        for: moment,
+                        viewerId: viewerId,
+                        completion: completion
+                    )
+                    
+                case "onlyMe":
+                    // Nunca mostrar en Explore (solo para el autor)
+                    completion(false)
+                    
+                default:
+                    completion(false)
+                }
             }
         }
     }

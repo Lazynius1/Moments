@@ -1268,9 +1268,7 @@ class ArchiveViewModel: ObservableObject {
         let recentImageUrls = Array(imageStories.prefix(10)).compactMap { URL(string: $0.mediaItem.url) }
         
         if !recentImageUrls.isEmpty {
-            let prefetcher = ImagePrefetcher(urls: recentImageUrls) { skippedResources, failedResources, completedResources in
-            }
-            prefetcher.start()
+            ImagePrefetchManager.shared.prefetch(urls: recentImageUrls)
         }
     }
 }

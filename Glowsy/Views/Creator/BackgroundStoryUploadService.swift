@@ -554,7 +554,7 @@ class BackgroundStoryUploadService: ObservableObject {
     
     // MARK: - 📝 CREAR HISTORIA EN FIRESTORE
     private func createStoryInFirestore(_ uploadingStory: UploadingStory, mediaUrl: String) async throws -> String {
-        let firestoreService = FirestoreService()
+        let firestoreService = FirestoreService.shared
         
         // ✅ DETECTAR ASPECT RATIO Y EXTRAER FRAME DE FONDO
         var aspectRatio: String? = nil
@@ -636,6 +636,9 @@ class BackgroundStoryUploadService: ObservableObject {
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let storyId = storyId {
+                        FirestoreService.shared.rebuildStorySummary(for: uploadingStory.userId) { rebuildError in
+                            _ = rebuildError
+                        }
                         continuation.resume(returning: storyId) // 🔥 DEVOLVER EL ID REAL
                     } else {
                         continuation.resume(throwing: NSError(domain: "FirestoreError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Story ID not returned from createStoryWithCustomList"]))
@@ -667,6 +670,9 @@ class BackgroundStoryUploadService: ObservableObject {
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let storyId = storyId {
+                        FirestoreService.shared.rebuildStorySummary(for: uploadingStory.userId) { rebuildError in
+                            _ = rebuildError
+                        }
                         continuation.resume(returning: storyId) // 🔥 DEVOLVER EL ID REAL
                     } else {
                         continuation.resume(throwing: NSError(domain: "FirestoreError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Story ID not returned from createStoryWithVisibility"]))

@@ -864,7 +864,9 @@
 "audience.list.empty" = "No hi ha membres en aquesta llista";
 "audience.list.emptyAlt" = "Toca 'Afegir' per afegir persones";
 "audience.list.membersShown" = "%d membres mostrats";
+"audience.list.loadMoreMembers" = "Veure %d més";
 "audience.list.searchresults" = "Resultats de cerca per a '%@'";
+"audience.more" = "Més";
 "audience.list.deleteMember.title" = "Eliminar membre";
 "audience.list.deleteMember.message" = "¿Vols eliminar a %@ d'aquesta llista?";
 "audience.picker.title" = "Afegir Membres";
@@ -1236,6 +1238,7 @@
 "savedMoments.remove.title" = "Eliminar de guardats";
 "savedMoments.remove.message.user" = "Vols eliminar el moment de %@ dels teus guardats?";
 "savedMoments.remove.message.generic" = "Vols eliminar aquest moment dels teus guardats?";
+"savedMoments.remove.message.restricted" = "Aquest moment ja no està disponible. El vols eliminar de la teva col·lecció?";
 "savedMoments.cancel" = "Cancel·lar";
 "savedMoments.remove.confirm" = "Eliminar";
 "savedMoments.saved" = "GUARDAT";
@@ -2243,3 +2246,13 @@
 
 /* Messaging Search */
 "messaging.search.placeholder" = "Cercar converses...";
+
+// Settings Groups
+"settings.group.account" = "EL TEU COMPTE";
+"settings.group.privacy" = "PRIVACITAT I SEGURETAT";
+"settings.group.content" = "EL TEU CONTINGUT I ACTIVITAT";
+"settings.group.notifications" = "NOTIFICACIONS";
+"settings.group.support" = "DADES I SUPORT";
+"settings.group.advanced" = "CONFIGURACIÓ AVANÇADA";
+"savedMoments.restricted.title" = "Ja no disponible";
+"savedMoments.restricted.subtitle" = "Ja no hi tens accés";

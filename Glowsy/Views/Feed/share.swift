@@ -922,39 +922,39 @@ struct AddToStoryView: View {
     
     private func renderSticker(urls: [URL]) {
         // 2. Pre-fetch todas las imágenes para tenerlas en caché
-        ImagePrefetcher(urls: urls) { _, _, _ in
-            // 3. Obtener las imágenes reales de Kingfisher caché
-            DispatchQueue.main.async {
-                var profileImg: UIImage? = nil
-                var contentImg: UIImage? = nil
-                
-                let group = DispatchGroup()
-                
-                // Cargar imagen de perfil
-                if urls.count > 1 {
-                    group.enter()
-                    KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
-                        if let image = try? result.get().image {
-                            profileImg = image
-                        }
-                        group.leave()
-                    }
-                }
-                
-                // Cargar imagen de contenido
+        ImagePrefetchManager.shared.prefetch(urls: urls)
+        
+        // 3. Obtener las imágenes reales de Kingfisher caché
+        DispatchQueue.main.async {
+            var profileImg: UIImage? = nil
+            var contentImg: UIImage? = nil
+            
+            let group = DispatchGroup()
+            
+            // Cargar imagen de perfil
+            if urls.count > 1 {
                 group.enter()
-                KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
+                KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
                     if let image = try? result.get().image {
-                        contentImg = image
+                        profileImg = image
                     }
                     group.leave()
                 }
-                
-                group.notify(queue: .main) {
-                    self.performFinalRender(profile: profileImg, content: contentImg)
-                }
             }
-        }.start()
+            
+            // Cargar imagen de contenido
+            group.enter()
+            KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
+                if let image = try? result.get().image {
+                    contentImg = image
+                }
+                group.leave()
+            }
+            
+            group.notify(queue: .main) {
+                self.performFinalRender(profile: profileImg, content: contentImg)
+            }
+        }
     }
     
     private func performFinalRender(profile: UIImage?, content: UIImage?) {
@@ -1018,6 +1018,7 @@ struct SharedMomentMessageBubble: View {
     let isCurrentUser: Bool
     let onTap: () -> Void
     
+    private let privacyService = PrivacyService.shared
     @State private var canViewMoment: Bool? = nil
     @State private var isLoading: Bool = true
     
@@ -1067,114 +1068,32 @@ struct SharedMomentMessageBubble: View {
             return
         }
         
-        // Obtener el authorId del momento compartido o usar el senderId como fallback
         let authorId = sharedMomentData["momentAuthorId"] ?? message.senderId
         
-        // Si es el mismo usuario, siempre puede verlo
         if authorId == currentUserId {
             self.canViewMoment = true
             self.isLoading = false
             return
         }
         
-        // Buscar el momento en Firestore y validar acceso
         let db = Firestore.firestore()
         db.collection("users").document(authorId).collection("moments").document(momentId).getDocument { snapshot, error in
-            DispatchQueue.main.async {
-                if let data = snapshot?.data() {
-                    let audience = data["audience"] as? String ?? "everyone"
-                    
-                    // Validación simplificada basada en audiencia
-                    switch audience {
-                    case "everyone":
-                        // Para audiencia everyone, verificar si el perfil es público
-                        self.checkPublicProfileAccess(authorId: authorId, viewerId: currentUserId) { canView in
-                            self.canViewMoment = canView
-                            self.isLoading = false
-                        }
-                        
-                    case "connections":
-                        // Para conexiones, verificar seguimiento mutuo
-                        self.checkMutualConnection(authorId: authorId, viewerId: currentUserId) { canView in
-                            self.canViewMoment = canView
-                            self.isLoading = false
-                        }
-                        
-                    case "bestFriends":
-                        // Para mejores amigos, verificar si está en la lista
-                        self.checkBestFriendAccess(authorId: authorId, viewerId: currentUserId) { canView in
-                            self.canViewMoment = canView
-                            self.isLoading = false
-                        }
-                        
-                    case "custom", "customList":
-                        // Para audiencias personalizadas, denegar por defecto
-                        self.canViewMoment = false
-                        self.isLoading = false
-                        
-                    case "onlyMe":
-                        // Solo el autor puede verlo
-                        self.canViewMoment = false
-                        self.isLoading = false
-                        
-                    default:
-                        self.canViewMoment = false
-                        self.isLoading = false
-                    }
-                } else {
+            guard error == nil,
+                  let snapshot = snapshot,
+                  snapshot.exists,
+                  let moment = try? snapshot.data(as: Moment.self) else {
+                DispatchQueue.main.async {
                     self.canViewMoment = false
                     self.isLoading = false
                 }
+                return
             }
-        }
-    }
-    
-    // Función auxiliar para verificar acceso a perfil público
-    private func checkPublicProfileAccess(authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
-        let db = Firestore.firestore()
-        db.collection("users").document(authorId).getDocument { snapshot, error in
-            if let data = snapshot?.data() {
-                let isPrivate = data["isPrivate"] as? Bool ?? false
-                completion(!isPrivate) // Si no es privado, puede ver
-            } else {
-                completion(false)
-            }
-        }
-    }
-    
-    // Función auxiliar para verificar conexión mutua
-    private func checkMutualConnection(authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
-        let db = Firestore.firestore()
-        let group = DispatchGroup()
-        var authorFollowsViewer = false
-        var viewerFollowsAuthor = false
-        
-        group.enter()
-        db.collection("users").document(authorId).collection("following").document(viewerId).getDocument { snapshot, _ in
-            authorFollowsViewer = snapshot?.exists ?? false
-            group.leave()
-        }
-        
-        group.enter()
-        db.collection("users").document(viewerId).collection("following").document(authorId).getDocument { snapshot, _ in
-            viewerFollowsAuthor = snapshot?.exists ?? false
-            group.leave()
-        }
-        
-        group.notify(queue: .main) {
-            completion(authorFollowsViewer && viewerFollowsAuthor)
-        }
-    }
-    
-    // Función auxiliar para verificar acceso de mejor amigo
-    private func checkBestFriendAccess(authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
-        let db = Firestore.firestore()
-        db.collection("users").document(authorId).getDocument { snapshot, error in
-            if let data = snapshot?.data(),
-               let bestFriends = data["bestFriends"] as? [String] {
-                completion(bestFriends.contains(viewerId))
-            } else {
-                completion(false)
+
+            self.privacyService.canUserViewMomentEnhanced(moment, viewerId: currentUserId) { canView in
+                DispatchQueue.main.async {
+                    self.canViewMoment = canView
+                    self.isLoading = false
+                }
             }
         }
     }

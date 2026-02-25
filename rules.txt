@@ -800,6 +800,19 @@ service cloud.firestore {
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 
+      // Estado de historias vistas por author (cache cross-device)
+      match /storySeen/{authorId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+
+        allow create, update: if request.auth != null
+                              && request.auth.uid == userId
+                              && request.resource.data.lastSeenAt is timestamp
+                              && (!("updatedAt" in request.resource.data) ||
+                                  request.resource.data.updatedAt is timestamp);
+
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+
       match /dataExportRequests/{requestId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null && request.auth.uid == userId

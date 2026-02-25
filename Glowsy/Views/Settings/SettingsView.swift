@@ -81,6 +81,7 @@ struct SettingsView: View {
     @State private var isShowingNotificationSettings: Bool = false
     @State private var isShowingAdvancedAccountManagement: Bool = false
     @State private var isShowingNovaMemory: Bool = false
+    @State private var blockedAccountsCount: Int = 0
 
     var body: some View {
         NavigationView {
@@ -118,7 +119,8 @@ struct SettingsView: View {
                         isShowingNotificationSettings: $isShowingNotificationSettings,
                         isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement,
                         isShowingNovaMemory: $isShowingNovaMemory,
-                        showReadReceipts: $showReadReceipts
+                        showReadReceipts: $showReadReceipts,
+                        blockedAccountsCount: blockedAccountsCount
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -163,6 +165,7 @@ struct SettingsView: View {
                         self.isPrivate = user.isPrivate
                         self.showMutualConnections = user.showMutualConnections
                         self.showFollowing = user.showFollowing
+                        self.blockedAccountsCount = user.blockedUsers.count
                         self.username = user.username
                         self.email = user.email
                         if let start = user.activeHoursStart, let end = user.activeHoursEnd,
@@ -318,14 +321,15 @@ struct SettingsFormView: View {
     @Binding var isShowingAdvancedAccountManagement: Bool
     @Binding var isShowingNovaMemory: Bool
     @Binding var showReadReceipts: Bool
+    let blockedAccountsCount: Int
     
     @State private var animateSections = false
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 24) {
-                // ✅ Bloque 1: Identidad y Conexión
-                SettingsGroup(title: NSLocalizedString("settings.group.identity", comment: "Identity")) {
+                // ✅ Bloque 1: TU CUENTA
+                SettingsGroup(title: NSLocalizedString("settings.group.account", comment: "Account")) {
                     ProfileSection(username: $username)
                     
                     AccountSection(
@@ -334,12 +338,17 @@ struct SettingsFormView: View {
                         phoneNumber: $phoneNumber,
                         isShowingQRCode: $isShowingQRCode
                     )
+                    
+                    SecuritySection(
+                        isShowingPasswordChange: $isShowingPasswordChange,
+                        isShowingLoginActivity: $isShowingLoginActivity
+                    )
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 
-                // ✅ Bloque 2: Seguridad y Privacidad
-                SettingsGroup(title: NSLocalizedString("settings.group.security", comment: "Security & Privacy")) {
+                // ✅ Bloque 2: PRIVACIDAD Y SEGURIDAD
+                SettingsGroup(title: NSLocalizedString("settings.group.privacy", comment: "Privacy & Security")) {
                     PrivacySection(
                         isPrivate: $isPrivate,
                         showMutualConnections: $showMutualConnections,
@@ -350,22 +359,18 @@ struct SettingsFormView: View {
                         isShowingBestFriends: $isShowingBestFriends,
                         isShowingBlockedAccounts: $isShowingBlockedAccounts,
                         isShowingMute: $isShowingMute,
-                        showReadReceipts: $showReadReceipts
+                        showReadReceipts: $showReadReceipts,
+                        blockedAccountsCount: blockedAccountsCount
                     )
                     
                     OnlineStatusSection()
-                    
-                    SecuritySection(
-                        isShowingPasswordChange: $isShowingPasswordChange,
-                        isShowingLoginActivity: $isShowingLoginActivity
-                    )
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.1), value: animateSections)
                 
-                // ✅ Bloque 3: Contenido y Actividad
-                SettingsGroup(title: NSLocalizedString("settings.group.activity", comment: "Content & Activity")) {
+                // ✅ Bloque 3: TU CONTENIDO Y ACTIVIDAD
+                SettingsGroup(title: NSLocalizedString("settings.group.content", comment: "Your Content & Activity")) {
                     ActivitySection(
                         isShowingSavedMoments: $isShowingSavedMoments,
                         isShowingUserActivity: $isShowingUserActivity,
@@ -381,8 +386,8 @@ struct SettingsFormView: View {
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.2), value: animateSections)
                 
-                // ✅ Bloque 4: Sistema y Soporte
-                SettingsGroup(title: NSLocalizedString("settings.group.system", comment: "System & Support")) {
+                // ✅ Bloque 4: NOTIFICACIONES
+                SettingsGroup(title: NSLocalizedString("settings.group.notifications", comment: "Notifications")) {
                     NotificationsSection(
                         viewModel: viewModel,
                         isScheduleEnabled: $isScheduleEnabled,
@@ -390,18 +395,30 @@ struct SettingsFormView: View {
                         endTime: $endTime,
                         isShowingNotificationSettings: $isShowingNotificationSettings
                     )
-                    
-                    HelpSection()
-                    
-                    AdvancedAccountSection(
-                        isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement
-                    )
-                    
-                    LogoutSection()
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.3), value: animateSections)
+                
+                // ✅ Bloque 5: DATOS Y SOPORTE
+                SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Data & Support")) {
+                    HelpSection()
+                }
+                .opacity(animateSections ? 1 : 0)
+                .offset(y: animateSections ? 0 : 20)
+                .animation(.easeOut(duration: 0.6).delay(0.4), value: animateSections)
+                
+                // ✅ Bloque 6: ZONA PELIGROSA
+                SettingsGroup(title: NSLocalizedString("settings.group.advanced", comment: "Advanced Settings")) {
+                    AdvancedAccountSection(
+                        isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement
+                    )
+
+                    LogoutSection()
+                }
+                .opacity(animateSections ? 1 : 0)
+                .offset(y: animateSections ? 0 : 20)
+                .animation(.easeOut(duration: 0.6).delay(0.5), value: animateSections)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 24)
@@ -578,12 +595,12 @@ struct AdvancedAccountSection: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.gray.opacity(0.3))
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .background(.ultraThinMaterial.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.bottom, 12)
         }
     }
 }
@@ -864,15 +881,16 @@ struct PrivacySection: View {
     @Binding var isShowingBlockedAccounts: Bool
     @Binding var isShowingMute: Bool
     @Binding var showReadReceipts: Bool
+    let blockedAccountsCount: Int
 
     var body: some View {
         VStack(spacing: 8) {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "4F46E5").opacity(0.2))
+                        .fill(Color(hex: "4F46E5").opacity(0.15))
                         .frame(width: 40, height: 40)
-                    Image(systemName: "lock.circle")
+                    Image(systemName: "lock.fill")
                         .foregroundColor(Color(hex: "4F46E5"))
                         .font(.system(size: 18, weight: .medium))
                 }
@@ -882,22 +900,24 @@ struct PrivacySection: View {
                         .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     Text("settings.privacy.privateAccount.description")
-                        .foregroundColor(.gray)
                         .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(.gray)
                 }
                 
                 Spacer()
                 
                 Toggle("", isOn: $isPrivate)
-                    .tint(Color(hex: "4F46E5"))
+                    .labelsHidden()
                     .onChange(of: isPrivate) { newValue in
                         viewModel.updatePrivacySettings(isPrivate: newValue)
                     }
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .background(.ultraThinMaterial.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
             
             SettingsRow(
                 icon: "eye.slash",
@@ -929,7 +949,7 @@ struct PrivacySection: View {
             SettingsRow(
                 icon: "hand.raised",
                 title: NSLocalizedString("settings.sections.blockedAccounts", comment: "Blocked Accounts"),
-                subtitle: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Manage blocked users"),
+                subtitle: blockedAccountsSubtitle(),
                 action: {
                     isShowingBlockedAccounts = true
                 }
@@ -947,7 +967,7 @@ struct PrivacySection: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "4F46E5").opacity(0.2))
+                        .fill(Color(hex: "4F46E5").opacity(0.15))
                         .frame(width: 40, height: 40)
                     Image(systemName: "checkmark.circle")
                         .foregroundColor(Color(hex: "4F46E5"))
@@ -959,25 +979,26 @@ struct PrivacySection: View {
                         .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     Text("settings.privacy.readReceipts.description")
-                        .foregroundColor(.gray)
                         .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(.gray)
                 }
                 
                 Spacer()
                 
                 Toggle("", isOn: $showReadReceipts)
-                    .tint(Color(hex: "4F46E5"))
+                    .labelsHidden()
                     .onChange(of: showReadReceipts) { newValue in
                         viewModel.updateReadReceiptsPrivacy(enabled: newValue)
                     }
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .background(.ultraThinMaterial.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 12)
+        .padding(.bottom, 12)
     }    
     private func getConnectionPrivacyStatus() -> String {
         let hiddenCount = (!showMutualConnections ? 1 : 0) + (!showFollowing ? 1 : 0)
@@ -987,6 +1008,18 @@ struct PrivacySection: View {
         case 2: return NSLocalizedString("settings.privacy.connections.allHidden", comment: "All lists are hidden")
         default: return NSLocalizedString("settings.privacy.connections.configure", comment: "Configure")
         }
+    }
+    
+    private func blockedAccountsSubtitle() -> String {
+        let format = NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count")
+        let formatted = String(format: format, blockedAccountsCount)
+        
+        // Fallback robusto por si una traducción trae el placeholder mal y se muestra literal.
+        if formatted.contains("%d") || formatted == format {
+            return format.replacingOccurrences(of: "%d", with: "\(blockedAccountsCount)")
+        }
+        
+        return formatted
     }
 }
 
@@ -1331,7 +1364,7 @@ struct ActivitySection: View {
             )
         }
         .padding(.horizontal, 12)
-        .padding(.top, 12)
+        .padding(.bottom, 12)
     }
 }
 
@@ -1363,7 +1396,7 @@ struct NotificationsSection: View {
             )
         }
         .padding(.horizontal, 12)
-        .padding(.top, 12)
+        .padding(.bottom, 12)
     }
 }
 
@@ -1419,6 +1452,7 @@ struct HelpSection: View {
             )
         }
         .padding(.horizontal, 12)
+        .padding(.bottom, 12)
     }
 }
 
@@ -1457,7 +1491,7 @@ struct LogoutSection: View {
             .background(.ultraThinMaterial.opacity(0.3))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 12)
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
         }
         .alert("¿Cerrar sesión?", isPresented: $showLogoutAlert) {
             Button("Cancelar", role: .cancel) {}
@@ -1742,8 +1776,9 @@ struct OnlineStatusSection: View {
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
         .background(.ultraThinMaterial.opacity(0.3))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 12)
+        .padding(.bottom, 12)
     }
 }
 

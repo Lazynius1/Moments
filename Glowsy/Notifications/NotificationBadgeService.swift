@@ -18,6 +18,7 @@ class NotificationBadgeService: ObservableObject {
     
     private var notificationListener: ListenerRegistration?
     private var messageListener: ListenerRegistration?
+    private var widgetReloadWorkItem: DispatchWorkItem?
     
     private init() {
         setupListeners()
@@ -75,7 +76,7 @@ class NotificationBadgeService: ObservableObject {
         
         group.notify(queue: .main) {
             self.updateAppBadge()
-            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+            self.scheduleWidgetReload()
             completion?()
         }
     }
@@ -109,7 +110,7 @@ class NotificationBadgeService: ObservableObject {
             self.widgetUserDefaults?.set(tags, forKey: "widget_unread_tags")
             
             self.updateAppBadge()
-            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+            self.scheduleWidgetReload()
         }
     }
     
@@ -126,7 +127,7 @@ class NotificationBadgeService: ObservableObject {
                     self.unreadMessagesCount = count
                     self.widgetUserDefaults?.set(count, forKey: "widget_unread_messages")
                     self.updateAppBadge()
-                    WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+                    self.scheduleWidgetReload()
                 }
             }
     }
@@ -172,7 +173,7 @@ class NotificationBadgeService: ObservableObject {
         widgetUserDefaults?.set(0, forKey: "widget_unread_echoes")
         widgetUserDefaults?.set(0, forKey: "widget_unread_tags")
         updateAppBadge()
-        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+        scheduleWidgetReload()
     }
     
     // ✅ LIMPIAR mensajes (llamado desde MessagingView)
@@ -180,7 +181,7 @@ class NotificationBadgeService: ObservableObject {
         unreadMessagesCount = 0
         widgetUserDefaults?.set(0, forKey: "widget_unread_messages")
         updateAppBadge()
-        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+        scheduleWidgetReload()
     }
     
     // ✅ LIMPIAR badge completo de la app
@@ -213,10 +214,19 @@ class NotificationBadgeService: ObservableObject {
         clearAppBadge()
         
         // Recargar widget para reflejar estado vacío/login
-        WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+        scheduleWidgetReload()
     }
     
     deinit {
         cleanup()
+    }
+    
+    private func scheduleWidgetReload(delay: TimeInterval = 2.0) {
+        widgetReloadWorkItem?.cancel()
+        let workItem = DispatchWorkItem {
+            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
+        }
+        widgetReloadWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 }

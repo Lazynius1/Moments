@@ -1,34 +1,52 @@
-Moments ahora es más inteligente, más claro y más fluido.
+Novedades de Moments
 
-Novedades de esta versión: 
+Hemos mejorado Moments para que todo se sienta mas rapido, claro y consistente.
 
-FEED INTELIGENTE Y PRIVACIDAD
-• Feed personalizado real: ahora prioriza a las personas con las que más interactúas.
-• Mejores amigos con prioridad: su contenido aparece antes para que no te lo pierdas.
-• Afinidad 100% local: el aprendizaje ocurre en tu dispositivo, sin enviar esos datos a servidores.
-• Si reinstalas la app, esa afinidad se reinicia (porque no guardamos ese perfil en la nube).
+Lo mas importante de esta version:
 
-CHAT Y MENSAJES
-• Vídeos más estables en chat: mejor carga y recuperación automática cuando la red falla.
-• Reapertura más rápida de vídeos gracias a caché de reproducción.
-• Buscador en conversación: lupa en cabecera para encontrar mensajes al instante.
-• Navegación de resultados: anterior/siguiente sin perder contexto.
-• Separador de “Nuevos mensajes” para ver claramente desde dónde empieza lo nuevo.
-• Botón “volver al final” mejorado, con contador cuando llegan nuevos mensajes.
+FEED MAS INTELIGENTE
+- Ahora ves antes a las personas con las que mas interactuas.
+- Best Friends tiene prioridad para que no te pierdas nada importante.
+- Esta personalizacion se calcula en tu dispositivo (no la subimos a servidores).
+- Si reinstalas la app, esta afinidad se reinicia.
 
-HISTORIAS
-• Anillos por audiencia más claros: Best Friends y Mutuals ahora se diferencian mejor por color (Las demas siguen iguales).
-• Tu propio anillo de historias también refleja mejor la audiencia usada en cada historia.
-• Activity de historias con bloque de audiencia y miembros/listas para más claridad.
-• Correcciones visuales del estado visto/no visto en historias.
-• Flujo de compartir historias simplificado.(eliminado)
+CHAT MEJORADO
+- Los videos cargan mejor y fallan menos.
+- Ahora se generan miniaturas de video al enviarlos.
+- Estados de mensaje mas consistentes (enviado, recibido, leido).
+- Nuevo buscador dentro del chat con navegacion entre resultados.
+- Separador de mensajes nuevos y boton para volver al final mas util.
 
-GUARDADOS (SAVED)
-• Rediseño de la vista de guardados.
-• Detalle de guardados renovado, con mejor jerarquía visual.
-• Mejor adaptación a modo claro/oscuro.
+HISTORIAS MAS CLARAS
+- Los anillos de historias ahora diferencian mejor audiencias como Best Friends y Mutuals.
+- Tu propio anillo tambien refleja para que audiencia publicaste.
+- Mejoras en la vista de actividad de historias (audiencia, miembros y listas).
+- Correcciones visuales del estado visto/no visto.
 
-COMPARTIR
-• Flujo de “Compartir momento” unificado en toda la app para que funcione igual en todos los contextos.
+GUARDADOS RENOVADO
+- Rediseño completo de la pantalla de guardados.
+- Vista de detalle mas limpia y moderna.
+- Mejor adaptacion a modo claro y oscuro.
 
-En resumen: más orden y una experiencia más sólida en el día a día.
+COMPARTIR MOMENTOS
+- El flujo de compartir se unifico en toda la app.
+- Se elimino el duplicado de "copiar enlace".
+- Mejor integracion con compartir nativo de iOS.
+
+ENLACES WEB DE MOMENTS
+- Nueva pagina para abrir momentos compartidos por ID.
+- Mejor apertura desde deep links y universal links.
+- Nuevo popup de bienvenida con avatar del autor y boton para abrir Moments.
+- Mejor carga de imagen del momento y foto de perfil del autor.
+
+LISTAS Y AUDIENCIA
+- Mejoras en gestion de listas personalizadas.
+- Carga de miembros mas fiable.
+- Mejor comportamiento cuando hay listas grandes.
+
+PRIVACIDAD Y AJUSTES
+- Correcciones en visibilidad de contenido segun privacidad.
+- Ajustes de localizacion y textos en settings.
+
+En resumen:
+Moments ahora es mas rapido, mas claro y mas comodo de usar en el dia a dia.
