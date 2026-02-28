@@ -39,6 +39,8 @@ struct LocationMomentDetailView: View {
     @State private var showReportSheet = false
     @State private var editedContent = ""
     @State private var isDeleting = false
+    @State private var showSpecificUserStories = false
+    @State private var selectedStoryUserId: String = ""
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -135,6 +137,18 @@ struct LocationMomentDetailView: View {
                 )
             }
         }
+        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
+            selectedStoryUserId = ""
+        }) {
+            StoriesView(
+                startWithUserId: Binding(
+                    get: { selectedStoryUserId },
+                    set: { selectedStoryUserId = $0 }
+                )
+            )
+            .environmentObject(firestoreService)
+            .ignoresSafeArea(.keyboard)
+        }
         .alert(NSLocalizedString("locationMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("locationMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
             Button(NSLocalizedString("locationMomentDetail.delete.confirm", comment: "Delete"), role: .destructive) {
@@ -200,6 +214,21 @@ struct LocationMomentDetailView: View {
         trackedMomentViewIds.insert(momentId)
         Task { @MainActor in
             AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
+        }
+    }
+
+    private func handleAvatarTap(userId: String, hasStory: Bool) {
+        let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedUserId.isEmpty else { return }
+
+        if hasStory {
+            selectedStoryUserId = normalizedUserId
+            showSpecificUserStories = true
+        } else {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("NavigateToProfile"),
+                object: normalizedUserId
+            )
         }
     }
     
@@ -457,6 +486,9 @@ struct LocationMomentDetailView: View {
                     onContextMenu: {
                         contextMenuMoment = moment
                         showContextMenu = true
+                    },
+                    onAvatarTap: { userId, hasStory in
+                        handleAvatarTap(userId: userId, hasStory: hasStory)
                     }
                 )
                 .tag(index)
@@ -542,6 +574,7 @@ struct LocationMomentCard: View {
     let onComment: () -> Void
     let onSave: () -> Void
     let onContextMenu: () -> Void
+    let onAvatarTap: (String, Bool) -> Void
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @State private var detectedAspectRatio: CGFloat = 1.0
@@ -605,14 +638,21 @@ struct LocationMomentCard: View {
             VStack(spacing: 0) {
                 // ✅ El contenido ahora se agrupa en un "card" visual único
                 VStack(spacing: 0) {
-                    // ✅ Info del autor al principio de la tarjeta
-                    authorContextualPill
-                        .padding(.top, 8) // Pequeño espacio desde el header
-                        .padding(.bottom, 6)
-                    
                     // ✅ Imagen principal con aspect ratio dinámico
                     ZStack(alignment: .bottom) {
                         locationMomentImageView
+
+                        // ✅ Header de autor dentro del multimedia (arriba izquierda)
+                        VStack {
+                            HStack {
+                                authorCompactHeader
+                                Spacer()
+                            }
+                            .padding(.top, 12)
+                            .padding(.leading, 12)
+                            Spacer()
+                        }
+                        .zIndex(120)
                         
                         // ✅ Glow Rail (Mismo que en Feed)
                         ModernActionButtons(
@@ -656,16 +696,20 @@ struct LocationMomentCard: View {
         .ignoresSafeArea(.container, edges: [.top, .bottom])
     }
     
-    // ✅ NUEVO: Pill de autor contextual para la tarjeta
-    private var authorContextualPill: some View {
+    // ✅ Header compacto de autor dentro de la card
+    private var authorCompactHeader: some View {
         HStack(spacing: 12) {
-            AsyncProfileImageView(userId: moment.authorId)
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(Color(hex: "007AFF").opacity(0.6), lineWidth: 1)
-                )
+            StoryRingAvatarView(
+                userId: moment.authorId,
+                size: 32,
+                lineWidth: 2.2,
+                showBaseStroke: true,
+                baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
+                baseStrokeWidth: 0.9,
+                onTap: { hasStory in
+                    onAvatarTap(moment.authorId, hasStory)
+                }
+            )
             
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 3) {
@@ -678,61 +722,19 @@ struct LocationMomentCard: View {
                 
                 Text(moment.timestamp.timeAgoDisplay())
                     .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundColor(adaptiveColors.tertiary)
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.75))
             }
-            
-            Spacer()
-            
-            // Indicador de audiencia
-            HStack(spacing: 4) {
-                Image(systemName: getAudienceIcon(moment.audience ?? "everyone"))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(getAudienceColor(moment.audience ?? "everyone"))
-                
-                Text(getAudienceText(moment.audience ?? "everyone"))
-                    .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundColor(adaptiveColors.tertiary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                    )
-            )
         }
-        .padding(.horizontal, 12)
-    } // Cierra authorContextualPill
-    
-    // Helpers para la pill (reutilizados)
-    private func getAudienceIcon(_ audience: String) -> String {
-        switch audience {
-        case "everyone": return "globe"
-        case "connections": return "person.2"
-        case "bestFriends": return "heart"
-        default: return "globe"
-        }
-    }
-    
-    private func getAudienceColor(_ audience: String) -> Color {
-        switch audience {
-        case "everyone": return .green
-        case "connections": return .blue
-        case "bestFriends": return .pink
-        default: return Color(hex: "007AFF")
-        }
-    }
-    
-    private func getAudienceText(_ audience: String) -> String {
-        switch audience {
-        case "everyone": return "Público"
-        case "connections": return "Conexiones"
-        case "bestFriends": return "Mejores amigos"
-        default: return "Público"
-        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                )
+        )
     }
     
     
@@ -1479,6 +1481,7 @@ struct FollowButtonForLocation: View {
 struct LocationCommentRow: View {
     let comment: Comment
     let colorScheme: ColorScheme
+    var onAvatarTap: ((String, Bool) -> Void)? = nil
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -1486,9 +1489,24 @@ struct LocationCommentRow: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            AsyncProfileImageView(userId: comment.authorId)
-                .frame(width: 36, height: 36)
-                .clipShape(Circle())
+            StoryRingAvatarView(
+                userId: comment.authorId,
+                size: 36,
+                lineWidth: 2.2,
+                showBaseStroke: true,
+                baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
+                baseStrokeWidth: 0.9,
+                onTap: { hasStory in
+                    if let onAvatarTap {
+                        onAvatarTap(comment.authorId, hasStory)
+                    } else if !hasStory {
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("NavigateToProfile"),
+                            object: comment.authorId
+                        )
+                    }
+                }
+            )
             
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
@@ -1503,7 +1521,7 @@ struct LocationCommentRow: View {
                     
                     Text(comment.timestamp.timeAgoDisplay())
                         .font(.custom("Poppins-Regular", size: 10))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.7))
                     
                     Spacer()
                 }

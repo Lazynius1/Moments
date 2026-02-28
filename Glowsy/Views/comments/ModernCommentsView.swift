@@ -15,6 +15,8 @@ struct ModernCommentsView: View {
     @State private var commentToDelete: Comment? = nil
     @State private var expandedComments: Set<String> = []
     @State private var sortOption: CommentSortOption = .newest
+    @State private var showSpecificUserStories = false
+    @State private var selectedStoryUserId: String = ""
     @State private var isLoading = true
     @State private var commentsListener: ListenerRegistration?
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -155,6 +157,16 @@ struct ModernCommentsView: View {
             }
         } message: {
                             Text("modernComments.delete.message")
+        }
+        .fullScreenCover(isPresented: $showSpecificUserStories) {
+            StoriesView(
+                startWithUserId: Binding(
+                    get: { selectedStoryUserId },
+                    set: { selectedStoryUserId = $0 }
+                )
+            )
+            .environmentObject(firestoreService)
+            .ignoresSafeArea(.keyboard)
         }
     }
     
@@ -355,6 +367,18 @@ struct ModernCommentsView: View {
                                     expandedComments.insert(commentId)
                                 }
                             },
+                            onAvatarTap: { userId, hasStory in
+                                guard !userId.isEmpty else { return }
+                                if hasStory {
+                                    selectedStoryUserId = userId
+                                    showSpecificUserStories = true
+                                } else {
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("NavigateToProfile"),
+                                        object: userId
+                                    )
+                                }
+                            },
                             nestingLevel: 0 // ✅ Comenzar en nivel 0
                         )
                         .environmentObject(firestoreService)
@@ -494,13 +518,25 @@ struct ModernCommentsView: View {
                     HStack(spacing: 8) {
                         // ✅ Avatar del usuario actual
                         if let currentUserId = Auth.auth().currentUser?.uid {
-                            AsyncProfileImageView(userId: currentUserId)
-                                .frame(width: 36, height: 36)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                )
+                            StoryRingAvatarView(
+                                userId: currentUserId,
+                                size: 36,
+                                lineWidth: 2.2,
+                                showBaseStroke: true,
+                                baseStrokeColor: Color.white.opacity(0.2),
+                                baseStrokeWidth: 1,
+                                onTap: { hasStory in
+                                    if hasStory {
+                                        selectedStoryUserId = currentUserId
+                                        showSpecificUserStories = true
+                                    } else {
+                                        NotificationCenter.default.post(
+                                            name: NSNotification.Name("NavigateToProfile"),
+                                            object: currentUserId
+                                        )
+                                    }
+                                }
+                            )
                         }
                         
                         TextField(replyToComment != nil ? "Responder a \(replyToComment?.username ?? "")..." : "Añade un comentario...", text: $newComment, axis: .vertical)
@@ -911,6 +947,7 @@ struct EnhancedModernCommentRow: View {
     let nestedComments: [Comment]
     let isExpanded: Bool
     let onToggleExpand: (String) -> Void
+    let onAvatarTap: (String, Bool) -> Void
     let nestingLevel: Int // ✅ NUEVO: Nivel de anidación
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme
@@ -989,6 +1026,7 @@ struct EnhancedModernCommentRow: View {
                             nestedComments: [], // ✅ Evitar anidación infinita
                             isExpanded: false,
                             onToggleExpand: onToggleExpand,
+                            onAvatarTap: onAvatarTap,
                             nestingLevel: nestingLevel + 1 // ✅ Incrementar nivel
                         )
                         .environmentObject(firestoreService)
@@ -1092,28 +1130,33 @@ struct EnhancedModernCommentRow: View {
             // Contenido visible
             HStack(alignment: .top, spacing: 12) {
                 // ✅ Avatar con borde gradiente
-                AsyncProfileImageView(userId: comment.authorId)
-                    .frame(width: avatarSize, height: avatarSize)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: nestingLevel == 0 ?
-                                    [Color.blue.opacity(0.6), Color.purple.opacity(0.6)] :
-                                    [Color.white.opacity(0.3), Color.white.opacity(0.2)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: nestingLevel == 0 ? 1.5 : 1
-                            )
-                    )
-                    .shadow(
-                        color: nestingLevel == 0 ? Color.purple.opacity(0.2) : .clear,
-                        radius: 4,
-                        x: 0,
-                        y: 2
-                    )
+                StoryRingAvatarView(
+                    userId: comment.authorId,
+                    size: avatarSize,
+                    lineWidth: nestingLevel == 0 ? 2.3 : 2.0,
+                    onTap: { hasStory in
+                        onAvatarTap(comment.authorId, hasStory)
+                    }
+                )
+                .overlay(
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: nestingLevel == 0 ?
+                                [Color.blue.opacity(0.6), Color.purple.opacity(0.6)] :
+                                [Color.white.opacity(0.3), Color.white.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: nestingLevel == 0 ? 1.5 : 1
+                        )
+                )
+                .shadow(
+                    color: nestingLevel == 0 ? Color.purple.opacity(0.2) : .clear,
+                    radius: 4,
+                    x: 0,
+                    y: 2
+                )
                 
                 VStack(alignment: .leading, spacing: 8) {
                     // ✅ Header del comentario

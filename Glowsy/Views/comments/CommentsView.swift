@@ -5,6 +5,8 @@ import FirebaseFirestore
 struct CommentsView: View {
     let moment: Moment
     @StateObject private var viewModel = CommentsViewModel()
+    @State private var showSpecificUserStories = false
+    @State private var selectedStoryUserId: String = ""
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -23,6 +25,16 @@ struct CommentsView: View {
         }
         .alert(isPresented: $viewModel.showError) {
             Alert(title: Text(NSLocalizedString("comments.error.title", comment: "Error title")), message: Text(viewModel.errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error")), dismissButton: .default(Text(NSLocalizedString("comments.error.ok", comment: "OK button"))))
+        }
+        .fullScreenCover(isPresented: $showSpecificUserStories) {
+            StoriesView(
+                startWithUserId: Binding(
+                    get: { selectedStoryUserId },
+                    set: { selectedStoryUserId = $0 }
+                )
+            )
+            .environmentObject(firestoreService)
+            .ignoresSafeArea(.keyboard)
         }
     }
 
@@ -97,6 +109,18 @@ struct CommentsView: View {
                         userId: moment.authorId,
                         commentId: commentId
                     )
+                },
+                onAvatarTap: { userId, hasStory in
+                    guard !userId.isEmpty else { return }
+                    if hasStory {
+                        selectedStoryUserId = userId
+                        showSpecificUserStories = true
+                    } else {
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("NavigateToProfile"),
+                            object: userId
+                        )
+                    }
                 }
             )
             .contextMenu {
@@ -176,15 +200,23 @@ struct CommentRow: View {
     let onCancelEdit: () -> Void
     let onDelete: () -> Void
     let onLike: () -> Void
+    let onAvatarTap: (String, Bool) -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Foto de perfil
-            AsyncProfileImageView(userId: comment.authorId)
-                .frame(width: 36, height: 36)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color.gray.opacity(0.2), lineWidth: 1))
+            StoryRingAvatarView(
+                userId: comment.authorId,
+                size: 36,
+                lineWidth: 2.2,
+                showBaseStroke: true,
+                baseStrokeColor: Color.gray.opacity(0.2),
+                baseStrokeWidth: 1,
+                onTap: { hasStory in
+                    onAvatarTap(comment.authorId, hasStory)
+                }
+            )
 
             // Contenido del comentario
             VStack(alignment: .leading, spacing: 4) {

@@ -485,6 +485,18 @@ final class LocalPersistenceService: ObservableObject {
             return []
         }
     }
+
+    /// Elimina del caché local una conversación y su historial de mensajes.
+    func deleteConversationCache(conversationId: String) {
+        guard let context = modelContext else { return }
+
+        let conversationPredicate = #Predicate<CachedConversation> { $0.id == conversationId }
+        let messagePredicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
+
+        try? context.delete(model: CachedConversation.self, where: conversationPredicate)
+        try? context.delete(model: CachedMessage.self, where: messagePredicate)
+        saveContext()
+    }
     
     // MARK: - 🔔 NOTIFICATIONS: Save & Load
     

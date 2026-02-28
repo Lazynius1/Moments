@@ -1,10 +1,14 @@
 import SwiftUI
-import FirebaseStorage
-import Kingfisher
 
 protocol UserListViewModel {
     func followUser(userId: String)
     func unfollowUser(userId: String)
+}
+
+enum UserListRowAction {
+    case follow
+    case unfollow
+    case none
 }
 
 struct UserListView<ViewModel: UserListViewModel>: View {
@@ -13,6 +17,8 @@ struct UserListView<ViewModel: UserListViewModel>: View {
     let visitTimestamps: [String: [Date]]
     let viewModel: ViewModel
     let onDismiss: () -> Void
+    let rowAction: UserListRowAction
+    let onUserTap: ((AppUser) -> Void)?
     @State private var searchText = ""
     @Environment(\.colorScheme) var colorScheme
     
@@ -209,9 +215,10 @@ struct UserListView<ViewModel: UserListViewModel>: View {
                     ModernProfileUserRowView(
                         user: user,
                         visitTimestamps: visitTimestamps[user.id] ?? [],
-                        title: title,
+                        rowAction: rowAction,
                         viewModel: viewModel,
-                        onDismiss: onDismiss
+                        onDismiss: onDismiss,
+                        onUserTap: onUserTap
                     )
                 }
             }
@@ -264,63 +271,61 @@ struct UserListView<ViewModel: UserListViewModel>: View {
 struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
     let user: AppUser
     let visitTimestamps: [Date]
-    let title: String
+    let rowAction: UserListRowAction
     let viewModel: ViewModel
     let onDismiss: () -> Void
+    let onUserTap: ((AppUser) -> Void)?
     
     @State private var isPressed: Bool = false
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        Button(action: {
-            // Acción de tap (navegar al perfil)
-        }) {
-            HStack(spacing: 16) {
-                // ✅ Avatar con el mismo estilo que el ContextMenu
-                avatarView
-                
-                // ✅ Información del usuario
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Text(user.username)
-                            .font(.custom("Poppins-SemiBold", size: 16))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
-                        if user.isVerified {
-                            VerifiedBadge(size: 14)
-                        }
-                    }
+        HStack(spacing: 16) {
+            // ✅ Avatar con anillo de historias y carga async consistente
+            avatarView
+            
+            // ✅ Información del usuario
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text(user.username)
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
-                    // Bio o información adicional
-                    if let bio = user.bio, !bio.isEmpty {
-                        Text(bio)
-                            .font(.custom("Poppins-Regular", size: 13))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                            .lineLimit(1)
-                    }
-                    
-                    // ✅ Indicador de visitas frecuentes modernizado
-                    if shouldShowFrequentVisitsIndicator() {
-                        frequentVisitsIndicator
+                    if user.isVerified {
+                        VerifiedBadge(size: 14)
                     }
                 }
                 
-                Spacer()
+                // Bio o información adicional
+                if let bio = user.bio, !bio.isEmpty {
+                    Text(bio)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                        .lineLimit(1)
+                }
                 
-                // ✅ Botón de acción modernizado
-                actionButton
+                // ✅ Indicador de visitas frecuentes modernizado
+                if shouldShowFrequentVisitsIndicator() {
+                    frequentVisitsIndicator
+                }
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isPressed ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                    )
-            )
+            
+            Spacer()
+            
+            // ✅ Botón de acción modernizado
+            actionButton
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isPressed ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { openUserProfile() }
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
             withAnimation(.easeInOut(duration: 0.1)) {
@@ -336,22 +341,14 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                 .fill(Color(hex: "007AFF").opacity(0.15))
                 .frame(width: 48, height: 48)
             
-            if let profileImagePath = user.profileImagePath, let url = URL(string: profileImagePath) {
-                KFImage(url)
-                    .placeholder {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white.opacity(0.6))
-                    }
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 44, height: 44)
-                    .clipShape(Circle())
-            } else {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
-            }
+            StoryRingAvatarView(
+                userId: user.id,
+                size: 44,
+                lineWidth: 2.1,
+                showBaseStroke: true,
+                baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
+                baseStrokeWidth: 0.9
+            )
         }
     }
     
@@ -381,7 +378,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
     // ✅ Botón de acción con el estilo del ContextMenu
     private var actionButton: some View {
         Group {
-            if title == "Visitas" || title == "Admiradores" {
+            if rowAction == .follow {
                 Button(action: {
                     viewModel.followUser(userId: user.id)
                     withAnimation(.easeOut(duration: 0.3)) {
@@ -407,7 +404,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                     )
                     .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
                 }
-            } else if title == "Conexiones" || title == "Conexiones Mutuas" {
+            } else if rowAction == .unfollow {
                 Button(action: {
                     viewModel.unfollowUser(userId: user.id)
                     withAnimation(.easeOut(duration: 0.3)) {
@@ -445,5 +442,23 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
     private func shouldShowFrequentVisitsIndicator() -> Bool {
         return visitTimestamps.count >= 3 &&
                visitTimestamps.allSatisfy { Date().timeIntervalSince($0) < 24 * 3600 }
+    }
+
+    private func openUserProfile() {
+        if let onUserTap {
+            onUserTap(user)
+            return
+        }
+
+        withAnimation(.easeOut(duration: 0.25)) {
+            onDismiss()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("NavigateToProfile"),
+                object: user.id
+            )
+        }
     }
 }

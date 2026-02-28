@@ -357,6 +357,13 @@
 "stories.tapToViewComplete" = "Tap to view complete";
 "stories.close" = "Close";
 "stories.blockUser.confirm" = "Are you sure you want to block this user? You won't be able to see their content and all interactions between you will be removed.";
+"stories.sendMessagePlaceholder" = "Send message...";
+"stories.reactionSent" = "Reaction sent";
+"stories.savedImage" = "Image saved";
+"stories.savedVideo" = "Video saved";
+"stories.error.unauthorizedDelete" = "Not authorized to delete this story";
+"stories.error.invalidMediaUrl" = "Invalid media URL";
+"stories.ephemeral.replyContent" = "📸 Ephemeral moment in reply to your story";
 
 /* Polls */
 "poll.thanks" = "Thanks for voting!";
@@ -370,6 +377,7 @@
 "question.tapToAnswer" = "Tap to answer";
 "question.yourAnswer" = "Your answer (anonymous)";
 "question.sendAnswer" = "Send answer";
+"question.answerPlaceholder" = "Write your answer...";
 
 /* Weather */
 "weather.temperature" = "%@°C";
@@ -591,8 +599,8 @@
 "creator.interactions.title" = "Interactions";
 "creator.interactions.disableComments" = "Disable comments";
 "creator.interactions.disableComments.description" = "No one will be able to comment on this moment";
-"creator.interactions.allowSharing" = "Allow saving";
-"creator.interactions.allowSharing.description" = "Others can save your moment";
+"creator.interactions.allowSharing" = "Allow bookmarking";
+"creator.interactions.allowSharing.description" = "Others can add your moment to their collection";
 "creator.advancedSettings.title" = "Advanced Settings";
 "creator.visualization.title" = "Visualization";
 "creator.visualization.hideReactions" = "Hide reaction count";
@@ -1220,8 +1228,10 @@
 "loginActivity.title" = "Login Activity";
 "loginActivity.description" = "Check when and from where you've logged into your account";
 "loginActivity.currentSession" = "Current Session";
+"loginActivity.otherSessions" = "Other active sessions";
 "loginActivity.recentActivity" = "Recent Activity";
 "loginActivity.logoutAll" = "Logout all sessions";
+"loginActivity.noOtherSessions" = "No other active sessions";
 "loginActivity.noRecentActivity" = "No recent activity";
 "loginActivity.logoutAll.title" = "Logout all sessions";
 "loginActivity.logoutAll.message" = "This will log you out of all devices. You'll need to log in again.";
@@ -1475,6 +1485,12 @@
 "bestFriends.optOut.error" = "Couldn't leave best friends";
 
 /* User Activity View */
+"userActivity.title" = "Your activity";
+"userActivity.loading" = "Loading activity...";
+"userActivity.overview.title" = "Period overview";
+"userActivity.range.week" = "7 days";
+"userActivity.range.month" = "30 days";
+"userActivity.range.year" = "1 year";
 "userActivity.summary.title" = "Activity Summary";
 "userActivity.totalTime" = "Total Time";
 "userActivity.interactions" = "Interactions";
@@ -1488,6 +1504,72 @@
 "userActivity.featureUsage" = "Feature Usage";
 "userActivity.usageCount" = "%@ times";
 "userActivity.insights" = "Insights";
+"userActivity.module.received.title" = "Interactions on your content";
+"userActivity.module.received.subtitle" = "Reactions and comments received on your moments";
+"userActivity.module.actions.title" = "Your actions";
+"userActivity.module.actions.subtitle" = "Actions you've taken in the app";
+"userActivity.module.tags.title" = "Tags and mentions";
+"userActivity.module.tags.subtitle" = "Mentions, tags, and sticker reply usage";
+"userActivity.module.time.title" = "Time in app";
+"userActivity.module.time.subtitle" = "Sessions, active days, and daily average";
+"userActivity.module.content.title" = "Content";
+"userActivity.module.content.subtitle" = "Moment publishing and feed/story usage";
+"userActivity.module.tags.hint" = "This section will improve with deeper breakdown for tags and sticker events.";
+"userActivity.module.content.hint" = "You can manage content from Saved and Archived Stories in Settings.";
+"userActivity.metric.totalTime" = "Total time";
+"userActivity.metric.totalInteractions" = "Interactions";
+"userActivity.metric.reactionsShort" = "React.";
+"userActivity.metric.commentsShort" = "Com.";
+"userActivity.metric.mentionsShort" = "Ment.";
+"userActivity.metric.avgShort" = "Avg";
+"userActivity.metric.momentsShort" = "Moments";
+"userActivity.metric.sentShort" = "Sent";
+"userActivity.metric.stickersShort" = "Stickers";
+"userActivity.metric.sessionsShort" = "Sess.";
+"userActivity.metric.feedShort" = "Feed";
+"userActivity.metric.reactionsReceived" = "Reactions received";
+"userActivity.metric.commentsReceived" = "Comments received";
+"userActivity.metric.commentsMade" = "Comments made";
+"userActivity.metric.reactionsGiven" = "Reactions given";
+"userActivity.metric.messagesSent" = "Messages sent";
+"userActivity.metric.mentionsUsed" = "Mentions used";
+"userActivity.metric.stickerReplies" = "Sticker replies";
+"userActivity.metric.averageDaily" = "Daily average";
+"userActivity.metric.averageDaily.value" = "%@ min/day";
+"userActivity.metric.activeDays" = "Active days";
+"userActivity.metric.sessions" = "Sessions";
+"userActivity.metric.momentsPublished" = "Moments published";
+"userActivity.metric.feedOpens" = "Feed opens";
+"userActivity.metric.storiesOpens" = "Story opens";
+"userActivity.intro.title" = "What happened in your account";
+"userActivity.intro.subtitle" = "Recent activity organized by sections.";
+"userActivity.module.received.subtitle" = "Comments, reactions, and replies on your content";
+"userActivity.module.actions.subtitle" = "Actions you made in Moments";
+"userActivity.module.tags.subtitle" = "Mentions and tags where you appear";
+"userActivity.module.time.subtitle" = "Days when you were active";
+"userActivity.module.content.subtitle" = "Your recent posts";
+"userActivity.module.empty" = "No recent activity";
+"userActivity.module.detail.empty.title" = "Nothing here yet";
+"userActivity.module.detail.empty.subtitle" = "When something happens in this section, it will appear here.";
+"userActivity.group.today" = "Today";
+"userActivity.group.yesterday" = "Yesterday";
+"userActivity.group.thisWeek" = "This week";
+"userActivity.group.earlier" = "Earlier";
+"userActivity.event.reaction.received" = "%@ reacted to your moment";
+"userActivity.event.comment.received" = "%@ commented on your moment";
+"userActivity.event.storyReaction.received" = "%@ reacted to your story";
+"userActivity.event.mention.received" = "%@ mentioned you";
+"userActivity.event.photoTag.received" = "%@ tagged you in a photo";
+"userActivity.event.subtitle.open" = "Tap to open";
+"userActivity.event.subtitle.you" = "Activity done by you";
+"userActivity.event.action.commentCreated" = "You commented on a moment";
+"userActivity.event.action.messageSent" = "You sent a message";
+"userActivity.event.action.mentionUsed" = "You mentioned someone";
+"userActivity.event.action.reactionGiven" = "You reacted to a moment";
+"userActivity.event.action.stickerReply" = "You replied to a sticker";
+"userActivity.event.content.published" = "You published a moment";
+"userActivity.event.time.minutes" = "You spent %@ min in Moments";
+"userActivity.event.time.sessions" = "You opened Moments %@ times";
 
 /* QR Code */
 "qrCode.title" = "My QR Code";
@@ -1957,18 +2039,22 @@
 "banner.verb.story" = "reacted to your story";
 "banner.verb.message" = "sent you a message";
 
-/* Whats New v2.3 */
+/* Whats New v2.5 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.4.0";
-"whatsNew.echoes.title" = "Share to Story";
-"whatsNew.echoes.description" = "Share any moment to your story with one tap.";
-"whatsNew.apple.title" = "Offline Mode";
-"whatsNew.apple.description" = "Moments now works without internet. Your memories always with you, wherever you are.";
-"whatsNew.redesign.title" = "Smart Cache";
-"whatsNew.redesign.description" = "New 2GB cache system so your videos load instantly.";
-"whatsNew.performance.title" = "Extreme Performance";
-"whatsNew.performance.description" = "We've optimized every animation to make the app fly on your iPhone.";
-"whatsNew.button" = "Explore Moments 2.4";
+"whatsNew.subtitle" = "Version 2.5.0";
+"whatsNew.echoes.title" = "Your Friends First";
+"whatsNew.echoes.description" = "Your feed now prioritizes who matters most. Plus, it's faster and uses less battery.";
+"whatsNew.apple.title" = "Improved Chat";
+"whatsNew.apple.description" = "Faster videos, in-chat search, and clearer message statuses.";
+"whatsNew.redesign.title" = "Clearer Stories";
+"whatsNew.redesign.description" = "Story rings now better show if you posted for Best Friends, Mutuals, or everyone.";
+"whatsNew.stories.prefix" = "Rings now show ";
+"whatsNew.stories.connector" = " or ";
+"whatsNew.stories.everyone" = "everyone";
+"whatsNew.stories.ending" = " at a glance.";
+"whatsNew.performance.title" = "Your Collection, Your Rules";
+"whatsNew.performance.description" = "Redesigned saved screen. You can now remove moments that are no longer available.";
+"whatsNew.button" = "Explore Moments 2.5";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
@@ -2251,3 +2337,78 @@
 "settings.group.advanced" = "ADVANCED SETTINGS";
 "savedMoments.restricted.title" = "No longer available";
 "savedMoments.restricted.subtitle" = "You no longer have access";
+
+/* Profile UI Labels */
+"profile.ui.followers" = "Followers";
+"profile.ui.following" = "Following";
+"profile.ui.mutuals" = "Mutuals";
+
+/* Messaging Errors */
+"messaging.error.startConversationFailed" = "Couldn't start the conversation. Please try again.";
+"messaging.error.notAuthenticated" = "User not authenticated.";
+"messaging.user.default" = "User";
+"messaging.chat.emptyPreview" = "Start a chat";
+"messaging.request.sent" = "Request sent. Wait for approval to chat.";
+"messaging.error.sendRequest" = "Couldn't send request: %@";
+"messaging.compose.placeholder" = "Write a message...";
+"messaging.compose.title" = "New message";
+"messaging.status.current" = "Current status";
+"messaging.error.loadConversations" = "Couldn't load conversations: %@";
+"messaging.error.cannotStart" = "Couldn't start the conversation.";
+"messaging.error.createConversation" = "Couldn't create conversation: %@";
+"messaging.error.verifyPermissions" = "Couldn't verify permissions: %@";
+"messaging.error.searchUsers" = "Error searching users: %@";
+"messaging.error.sendMessage" = "Couldn't send message: %@";
+"messaging.error.deleteConversation" = "Couldn't delete conversation: %@";
+"messaging.error.markUnread" = "Couldn't mark conversation as unread: %@";
+"messaging.error.conversationNotFound" = "Conversation not found.";
+"messaging.error.serviceUnavailable" = "Messaging service unavailable.";
+"messaging.error.userDataFetch" = "Couldn't load user data: %@";
+"messaging.error.userDataIncomplete" = "Incomplete user data.";
+"messaging.error.messageRequestRequired" = "Users don't follow each other. A message request is required.";
+"messaging.error.fileUrlUnavailable" = "Couldn't get the file URL.";
+
+/* User Activity Simple */
+"userActivity.simple.headline" = "A place to manage all your activity";
+"userActivity.simple.subtitle" = "Review interactions by type and open each detail view.";
+"userActivity.simple.section.interactions" = "Interactions";
+"userActivity.simple.item.reactions.title" = "Reactions";
+"userActivity.simple.item.reactions.subtitle" = "Moments you reacted to and reaction type";
+"userActivity.simple.item.comments.title" = "Comments";
+"userActivity.simple.item.comments.subtitle" = "Comments you made or received";
+"userActivity.simple.item.tags.title" = "Tags";
+"userActivity.simple.item.tags.subtitle" = "Mentions and tags in content";
+"userActivity.simple.item.stickers.title" = "Sticker replies";
+"userActivity.simple.item.stickers.subtitle" = "Activity related to stickers and questions";
+"userActivity.simple.empty.reactions" = "You haven't reacted to any moment yet";
+"userActivity.simple.empty.comments" = "No comment activity yet";
+"userActivity.simple.empty.tags" = "No recent tags or mentions";
+"userActivity.simple.empty.stickers" = "No recent sticker replies";
+"userActivity.simple.retry" = "Retry";
+"userActivity.simple.reaction.unknown" = "Reaction";
+"userActivity.simple.filters.sort" = "Sort";
+"userActivity.simple.filters.sort.newest" = "Newest";
+"userActivity.simple.filters.sort.oldest" = "Oldest";
+"userActivity.simple.filters.sort.authorAsc" = "Author ID A-Z";
+"userActivity.simple.filters.sort.authorDesc" = "Author ID Z-A";
+"userActivity.simple.filters.date" = "Dates";
+"userActivity.simple.filters.date.all" = "All";
+"userActivity.simple.filters.date.week" = "Last week";
+"userActivity.simple.filters.date.month" = "Last month";
+"userActivity.simple.filters.date.year" = "Last year";
+"userActivity.simple.filters.date.custom" = "Range";
+"userActivity.simple.filters.from" = "From";
+"userActivity.simple.filters.to" = "To";
+"userActivity.simple.filters.author" = "Author";
+"userActivity.simple.filters.author.all" = "All";
+"userActivity.simple.filters.author.sheet.title" = "Filter by user";
+"userActivity.simple.filters.author.search" = "Search username";
+"userActivity.simple.reactions.selectedCount" = "%d selected";
+"userActivity.simple.reactions.delete.single" = "Delete reaction";
+"userActivity.simple.reactions.delete.multiple" = "Delete reactions";
+"userActivity.simple.comments.selectedCount" = "%d selected";
+"userActivity.simple.comments.delete.single" = "Delete comment";
+"userActivity.simple.comments.delete.multiple" = "Delete comments";
+"userActivity.simple.comments.yourComment" = "Your comment";
+"userActivity.simple.comments.momentNoContent" = "Moment without text";
+"userActivity.simple.comments.emptyComment" = "No text";

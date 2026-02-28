@@ -72,7 +72,6 @@ struct SettingsView: View {
     @State private var isShowingBlockedAccounts: Bool = false
     @State private var isShowingMute: Bool = false
     @State private var isShowingPasswordChange: Bool = false
-    @State private var isShowingLoginActivity: Bool = false
     @State private var isShowingSavedMoments: Bool = false
     @State private var isShowingUserActivity: Bool = false
     @State private var isShowingDataExport: Bool = false
@@ -110,7 +109,6 @@ struct SettingsView: View {
                         isShowingBlockedAccounts: $isShowingBlockedAccounts,
                         isShowingMute: $isShowingMute,
                         isShowingPasswordChange: $isShowingPasswordChange,
-                        isShowingLoginActivity: $isShowingLoginActivity,
                         isShowingSavedMoments: $isShowingSavedMoments,
                         isShowingUserActivity: $isShowingUserActivity,
                         isShowingDataExport: $isShowingDataExport,
@@ -221,9 +219,6 @@ struct SettingsView: View {
             .fullScreenCover(isPresented: $isShowingPasswordChange) {
                 PasswordChangeView()
             }
-            .fullScreenCover(isPresented: $isShowingLoginActivity) {
-                LoginActivityView()
-            }
             .fullScreenCover(isPresented: $isShowingSavedMoments) {
                 SavedMomentsView()
             }
@@ -311,7 +306,6 @@ struct SettingsFormView: View {
     @Binding var isShowingBlockedAccounts: Bool
     @Binding var isShowingMute: Bool
     @Binding var isShowingPasswordChange: Bool
-    @Binding var isShowingLoginActivity: Bool
     @Binding var isShowingSavedMoments: Bool
     @Binding var isShowingUserActivity: Bool
     @Binding var isShowingDataExport: Bool
@@ -340,8 +334,7 @@ struct SettingsFormView: View {
                     )
                     
                     SecuritySection(
-                        isShowingPasswordChange: $isShowingPasswordChange,
-                        isShowingLoginActivity: $isShowingLoginActivity
+                        isShowingPasswordChange: $isShowingPasswordChange
                     )
                 }
                 .opacity(animateSections ? 1 : 0)
@@ -609,6 +602,7 @@ struct AdvancedAccountSection: View {
 struct AdvancedAccountManagementView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
+    @State private var isShowingSessionManagement = false
     
     var body: some View {
         ZStack {
@@ -638,6 +632,16 @@ struct AdvancedAccountManagementView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.orange.opacity(0.1))
                 )
+                
+                Section(NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity")) {
+                    SettingsRow(
+                        icon: "clock.arrow.circlepath",
+                        title: NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity"),
+                        subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
+                        action: { isShowingSessionManagement = true }
+                    )
+                }
+                .listRowBackground(SettingsListRowBackground())
                 
                 // ✅ USAR TU AccountManagementSection EXISTENTE
                 AccountManagementSection()
@@ -691,6 +695,9 @@ struct AdvancedAccountManagementView: View {
                     }
                 }
             }
+        }
+        .fullScreenCover(isPresented: $isShowingSessionManagement) {
+            LoginActivityView()
         }
     }
 }
@@ -1171,7 +1178,6 @@ struct ConnectionVisibilityView: View {
 struct SecuritySection: View {
     @EnvironmentObject var authService: AuthService
     @Binding var isShowingPasswordChange: Bool
-    @Binding var isShowingLoginActivity: Bool
     
     // Para el linking
     @State private var isLoading = false
@@ -1186,14 +1192,7 @@ struct SecuritySection: View {
                 subtitle: NSLocalizedString("settings.sections.password.subtitle", comment: "Change password"),
                 action: { isShowingPasswordChange = true }
             )
-            
-            SettingsRow(
-                icon: "clock.arrow.circlepath",
-                title: NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity"),
-                subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
-                action: { isShowingLoginActivity = true }
-            )
-            
+
             // ✅ NUEVO: Vincular con Apple
             if !authService.isAppleLinked {
                 VStack(alignment: .leading, spacing: 12) {

@@ -8,7 +8,9 @@ import FirebaseAuth
 class TrendingService: ObservableObject {
     static let shared = TrendingService()
     private let db = Firestore.firestore()
-    private let privacyService = PrivacyService()
+    private let cacheQueue = DispatchQueue(label: "trending.cache.queue")
+    private var personalizedCache: [String: (content: PersonalizedTrendingContent, expiresAt: Date)] = [:]
+    private let personalizedCacheTTL: TimeInterval = 300
     
     private init() {}
     
@@ -86,110 +88,148 @@ class TrendingService: ObservableObject {
     }
     
     // MARK: - 🔥 TRENDING HASHTAGS
-    func fetchTrendingHashtags(limit: Int = 20, completion: @escaping (Result<[TrendingHashtag], Error>) -> Void) {
-
+    func fetchTrendingHashtags(limit: Int = 20, viewerId: String? = nil, completion: @escaping (Result<[TrendingHashtag], Error>) -> Void) {
         let now = Date()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
+        let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: now) ?? now
+        let resolvedViewerId = viewerId ?? Auth.auth().currentUser?.uid
         
-        // Buscar momentos públicos de las últimas 24h
+        // Buscar momentos públicos de las últimas 48h para calcular crecimiento real 24h vs 24h previas
         db.collectionGroup("moments")
             .whereField("audience", isEqualTo: "everyone")
-            .whereField("timestamp", isGreaterThan: Timestamp(date: yesterday))
-            .limit(to: 500) // Muestra grande para análisis
-            .getDocuments { snapshot, error in
+            .whereField("timestamp", isGreaterThan: Timestamp(date: twoDaysAgo))
+            .limit(to: 800)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
                 
-                guard let documents = snapshot?.documents else {
+                let decodedMoments = snapshot?.documents.compactMap { doc -> Moment? in
+                    guard var moment = try? doc.data(as: Moment.self) else { return nil }
+                    moment.id = doc.documentID
+                    return moment
+                } ?? []
+
+                guard !decodedMoments.isEmpty else {
                     completion(.success([]))
                     return
                 }
-                
-                // Extraer y contar hashtags
-                var hashtagCounts: [String: Int] = [:]
-                
-                for doc in documents {
-                    if let content = doc.data()["content"] as? String {
-                        let hashtags = self.extractHashtags(from: content)
-                        for hashtag in hashtags {
-                            hashtagCounts[hashtag, default: 0] += 1
+
+                let processMoments: ([Moment]) -> Void = { moments in
+                    var currentWindowCounts: [String: Int] = [:]
+                    var previousWindowCounts: [String: Int] = [:]
+
+                    for moment in moments {
+                        guard moment.timestamp <= now else { continue } // Excluir programados/futuros
+                        let hashtags = self.extractHashtags(from: moment.content)
+                        guard !hashtags.isEmpty else { continue }
+
+                        if moment.timestamp > yesterday {
+                            for hashtag in hashtags { currentWindowCounts[hashtag, default: 0] += 1 }
+                        } else {
+                            for hashtag in hashtags { previousWindowCounts[hashtag, default: 0] += 1 }
                         }
                     }
+
+                    let trendingHashtags = currentWindowCounts
+                        .filter { $0.value >= 3 }
+                        .sorted { $0.value > $1.value }
+                        .prefix(limit)
+                        .map { hashtag, count in
+                            TrendingHashtag(
+                                hashtag: hashtag,
+                                count: count,
+                                growth: self.calculateGrowth(current: count, previous: previousWindowCounts[hashtag] ?? 0),
+                                category: self.categorizeHashtag(hashtag)
+                            )
+                        }
+
+                    completion(.success(Array(trendingHashtags)))
                 }
-                
-                // Crear trending hashtags con categorización
-                let trendingHashtags = hashtagCounts
-                    .filter { $0.value >= 3 } // Mínimo 3 usos
-                    .sorted { $0.value > $1.value }
-                    .prefix(limit)
-                    .map { hashtag, count in
-                        TrendingHashtag(
-                            hashtag: hashtag,
-                            count: count,
-                            growth: Double.random(in: 15...150), // TODO: Calcular crecimiento real
-                            category: self.categorizeHashtag(hashtag)
-                        )
-                    }
-                completion(.success(Array(trendingHashtags)))
+
+                guard let resolvedViewerId else {
+                    processMoments(decodedMoments)
+                    return
+                }
+
+                self.filterMomentsByTrendingSafety(decodedMoments, viewerId: resolvedViewerId, completion: processMoments)
             }
     }
     
     // MARK: - 📍 TRENDING LOCATIONS
-    func fetchTrendingLocations(limit: Int = 15, completion: @escaping (Result<[TrendingLocation], Error>) -> Void) {
-
+    func fetchTrendingLocations(limit: Int = 15, viewerId: String? = nil, completion: @escaping (Result<[TrendingLocation], Error>) -> Void) {
         let now = Date()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
+        let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: now) ?? now
+        let resolvedViewerId = viewerId ?? Auth.auth().currentUser?.uid
         
         db.collectionGroup("moments")
             .whereField("audience", isEqualTo: "everyone")
-            .whereField("timestamp", isGreaterThan: Timestamp(date: yesterday))
+            .whereField("timestamp", isGreaterThan: Timestamp(date: twoDaysAgo))
             .whereField("location", isNotEqualTo: "")
-            .limit(to: 300)
-            .getDocuments { snapshot, error in
+            .limit(to: 500)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
                 
-                guard let documents = snapshot?.documents else {
+                let decodedMoments = snapshot?.documents.compactMap { doc -> Moment? in
+                    guard var moment = try? doc.data(as: Moment.self) else { return nil }
+                    moment.id = doc.documentID
+                    return moment
+                } ?? []
+
+                guard !decodedMoments.isEmpty else {
                     completion(.success([]))
                     return
                 }
-                
-                // Contar momentos por ubicación
-                var locationData: [String: (count: Int, users: Set<String>)] = [:]
-                
-                for doc in documents {
-                    let data = doc.data()
-                    if let location = data["location"] as? String,
-                       let authorId = data["authorId"] as? String,
-                       !location.isEmpty {
-                        
-                        if locationData[location] == nil {
-                            locationData[location] = (count: 0, users: Set<String>())
+
+                let processMoments: ([Moment]) -> Void = { moments in
+                    var currentWindow: [String: (count: Int, users: Set<String>)] = [:]
+                    var previousWindow: [String: Int] = [:]
+
+                    for moment in moments {
+                        guard moment.timestamp <= now else { continue }
+                        guard let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines), !location.isEmpty else { continue }
+
+                        if moment.timestamp > yesterday {
+                            if currentWindow[location] == nil {
+                                currentWindow[location] = (count: 0, users: Set<String>())
+                            }
+                            currentWindow[location]?.count += 1
+                            currentWindow[location]?.users.insert(moment.authorId)
+                        } else {
+                            previousWindow[location, default: 0] += 1
                         }
-                        locationData[location]?.count += 1
-                        locationData[location]?.users.insert(authorId)
                     }
+
+                    let trendingLocations = currentWindow
+                        .filter { $0.value.count >= 2 && $0.value.users.count >= 2 }
+                        .sorted { $0.value.count > $1.value.count }
+                        .prefix(limit)
+                        .map { location, data in
+                            TrendingLocation(
+                                locationName: location,
+                                momentCount: data.count,
+                                uniqueUsers: data.users.count,
+                                growth: self.calculateGrowth(current: data.count, previous: previousWindow[location] ?? 0),
+                                coordinate: nil
+                            )
+                        }
+
+                    completion(.success(Array(trendingLocations)))
                 }
-                
-                // Crear trending locations
-                let trendingLocations = locationData
-                    .filter { $0.value.count >= 2 && $0.value.users.count >= 2 } // Mínimo 2 posts de 2 usuarios diferentes
-                    .sorted { $0.value.count > $1.value.count }
-                    .prefix(limit)
-                    .map { location, data in
-                        TrendingLocation(
-                            locationName: location,
-                            momentCount: data.count,
-                            uniqueUsers: data.users.count,
-                            growth: Double.random(in: 20...200), // TODO: Calcular crecimiento real
-                            coordinate: nil // TODO: Geocoding si es necesario
-                        )
-                    }
-                completion(.success(Array(trendingLocations)))
+
+                guard let resolvedViewerId else {
+                    processMoments(decodedMoments)
+                    return
+                }
+
+                self.filterMomentsByTrendingSafety(decodedMoments, viewerId: resolvedViewerId, completion: processMoments)
             }
     }
     
@@ -217,7 +257,6 @@ class TrendingService: ObservableObject {
                     return
                 }
                 
-                let group = DispatchGroup()
                 var candidateMoments: [Moment] = []
                 
                 // Convertir documentos a momentos
@@ -228,98 +267,54 @@ class TrendingService: ObservableObject {
                         
                         // Excluir momentos del propio usuario
                         guard moment.authorId != userId else { continue }
+                        guard moment.timestamp <= now else { continue }
                         
                         candidateMoments.append(moment)
                     } catch {
                     }
                 }
                 
-                
-                // Calcular trending score para cada momento
-                self.calculateTrendingScores(for: candidateMoments, viewerId: userId) { trendingMoments in
+                self.filterMomentsByTrendingSafety(candidateMoments, viewerId: userId) { safeMoments in
+                    // Calcular trending score para cada momento
+                    self.calculateTrendingScores(for: safeMoments) { trendingMoments in
                     let sortedTrending = trendingMoments
                         .sorted { $0.trendingScore > $1.trendingScore }
                         .prefix(limit)
                     
                     completion(.success(Array(sortedTrending)))
+                    }
                 }
             }
     }
     
     // MARK: - 🧮 ALGORITMO DE TRENDING SCORE
-    private func calculateTrendingScores(for moments: [Moment], viewerId: String, completion: @escaping ([TrendingMoment]) -> Void) {
-        let group = DispatchGroup()
-        var trendingMoments: [TrendingMoment] = []
-        let syncQueue = DispatchQueue(label: "trending.score.calculation")
-        
-        for moment in moments {
-            group.enter()
-            
-            calculateMomentTrendingScore(moment: moment, viewerId: viewerId) { trendingScore, engagementRate in
-                let trendingMoment = TrendingMoment(
-                    moment: moment,
-                    trendingScore: trendingScore,
-                    engagementRate: engagementRate,
-                    timeToTrend: Date().timeIntervalSince(moment.timestamp)
-                )
-                
-                syncQueue.async {
-                    trendingMoments.append(trendingMoment)
-                }
-                
-                group.leave()
-            }
+    private func calculateTrendingScores(for moments: [Moment], completion: @escaping ([TrendingMoment]) -> Void) {
+        let trendingMoments = moments.map { moment -> TrendingMoment in
+            let (trendingScore, engagementRate) = calculateMomentTrendingScore(moment: moment)
+            return TrendingMoment(
+                moment: moment,
+                trendingScore: trendingScore,
+                engagementRate: engagementRate,
+                timeToTrend: Date().timeIntervalSince(moment.timestamp)
+            )
         }
-        
-        group.notify(queue: .main) {
-            completion(trendingMoments)
-        }
+        completion(trendingMoments)
     }
     
-    private func calculateMomentTrendingScore(moment: Moment, viewerId: String, completion: @escaping (Double, Double) -> Void) {
-        guard let momentId = moment.id else {
-            completion(0, 0)
-            return
+    private func calculateMomentTrendingScore(moment: Moment) -> (Double, Double) {
+        let reactionCount = moment.reactions.values.reduce(0) { partialResult, users in
+            partialResult + users.count
         }
+        let commentCount = moment.commentCount
+
+        let ageInHours = Date().timeIntervalSince(moment.timestamp) / 3600
+        let recencyFactor = max(0, 48 - ageInHours) / 48
         
-        let group = DispatchGroup()
-        var reactionCount = 0
-        var commentCount = 0
+        let engagementScore = Double(reactionCount * 2 + commentCount * 3)
+        let engagementRate = ageInHours > 0 ? engagementScore / ageInHours : engagementScore
         
-        // Contar reacciones
-        group.enter()
-        db.collection("users").document(moment.authorId)
-            .collection("moments").document(momentId)
-            .collection("reactions")
-            .getDocuments { snapshot, _ in
-                reactionCount = snapshot?.documents.count ?? 0
-                group.leave()
-            }
-        
-        // Contar comentarios
-        group.enter()
-        db.collection("users").document(moment.authorId)
-            .collection("moments").document(momentId)
-            .collection("comments")
-            .getDocuments { snapshot, _ in
-                commentCount = snapshot?.documents.count ?? 0
-                group.leave()
-            }
-        
-        group.notify(queue: .main) {
-            // 📊 ALGORITMO DE TRENDING SCORE
-            let ageInHours = Date().timeIntervalSince(moment.timestamp) / 3600
-            let recencyFactor = max(0, 48 - ageInHours) / 48 // Peso por recencia (48h ventana)
-            
-            let engagementScore = Double(reactionCount * 2 + commentCount * 3) // Comentarios valen más
-            let engagementRate = ageInHours > 0 ? engagementScore / ageInHours : engagementScore
-            
-            // Score final: engagement ajustado por tiempo + factor de recencia
-            let trendingScore = (engagementRate * 10) + (recencyFactor * 50)
-            
-            
-            completion(trendingScore, engagementRate)
-        }
+        let trendingScore = (engagementRate * 10) + (recencyFactor * 50)
+        return (trendingScore, engagementRate)
     }
     
     // MARK: - 🔧 UTILIDADES
@@ -364,6 +359,73 @@ class TrendingService: ObservableObject {
             return .general
         }
     }
+
+    private func calculateGrowth(current: Int, previous: Int) -> Double {
+        guard previous > 0 else {
+            return current > 0 ? 100.0 : 0.0
+        }
+        return ((Double(current - previous) / Double(previous)) * 100.0)
+    }
+
+    private func filterMomentsByTrendingSafety(
+        _ moments: [Moment],
+        viewerId: String,
+        completion: @escaping ([Moment]) -> Void
+    ) {
+        guard !moments.isEmpty else {
+            completion([])
+            return
+        }
+
+        let uniqueAuthorIds = Array(Set(moments.map { $0.authorId }))
+        let authorBatches = uniqueAuthorIds.chunked(into: 10)
+
+        db.collection("users").document(viewerId).getDocument { [weak self] viewerSnapshot, _ in
+            guard let self = self else { return }
+
+            let viewerBlockedUsers = Set((viewerSnapshot?.data()?["blockedUsers"] as? [String]) ?? [])
+            let syncQueue = DispatchQueue(label: "trending.safety.filter.sync")
+            let group = DispatchGroup()
+            var disallowedAuthors = Set<String>()
+
+            for batch in authorBatches {
+                guard !batch.isEmpty else { continue }
+                group.enter()
+                self.db.collection("users")
+                    .whereField(FieldPath.documentID(), in: batch)
+                    .getDocuments { snapshot, _ in
+                        syncQueue.sync {
+                            for document in snapshot?.documents ?? [] {
+                                let authorId = document.documentID
+                                if viewerBlockedUsers.contains(authorId) {
+                                    disallowedAuthors.insert(authorId)
+                                    continue
+                                }
+
+                                let data = document.data()
+                                let authorBlockedUsers = Set((data["blockedUsers"] as? [String]) ?? [])
+                                if authorBlockedUsers.contains(viewerId) {
+                                    disallowedAuthors.insert(authorId)
+                                    continue
+                                }
+
+                                let settings = data["contentVisibilitySettings"] as? [String: Any]
+                                let hiddenFromUsers = Set((settings?["hiddenFromUsers"] as? [String]) ?? [])
+                                if hiddenFromUsers.contains(viewerId) {
+                                    disallowedAuthors.insert(authorId)
+                                }
+                            }
+                        }
+                        group.leave()
+                    }
+            }
+
+            group.notify(queue: .main) {
+                let filtered = moments.filter { !disallowedAuthors.contains($0.authorId) }
+                completion(filtered)
+            }
+        }
+    }
 }
 
 // MARK: - 🔍 TRENDING PARA EXPLORAR
@@ -371,6 +433,11 @@ extension TrendingService {
     
     /// Obtiene contenido trending personalizado para la vista Explore
     func fetchPersonalizedTrendingContent(for userId: String, completion: @escaping (Result<PersonalizedTrendingContent, Error>) -> Void) {
+        if let cached = cachedPersonalizedContent(for: userId) {
+            completion(.success(cached))
+            return
+        }
+
         let group = DispatchGroup()
         var hashtags: [TrendingHashtag] = []
         var locations: [TrendingLocation] = []
@@ -379,7 +446,7 @@ extension TrendingService {
         
         // Fetch trending hashtags
         group.enter()
-        fetchTrendingHashtags(limit: 10) { result in
+        fetchTrendingHashtags(limit: 10, viewerId: userId) { result in
             switch result {
             case .success(let trendingHashtags):
                 hashtags = trendingHashtags
@@ -391,7 +458,7 @@ extension TrendingService {
         
         // Fetch trending locations
         group.enter()
-        fetchTrendingLocations(limit: 8) { result in
+        fetchTrendingLocations(limit: 8, viewerId: userId) { result in
             switch result {
             case .success(let trendingLocations):
                 locations = trendingLocations
@@ -423,6 +490,7 @@ extension TrendingService {
                     moments: moments,
                     lastUpdated: Date()
                 )
+                self.storePersonalizedContent(content, for: userId)
                 completion(.success(content))
             }
         }
@@ -433,5 +501,22 @@ extension TrendingService {
         let locations: [TrendingLocation]
         let moments: [TrendingMoment]
         let lastUpdated: Date
+    }
+
+    private func cachedPersonalizedContent(for userId: String) -> PersonalizedTrendingContent? {
+        cacheQueue.sync {
+            guard let entry = personalizedCache[userId] else { return nil }
+            guard entry.expiresAt > Date() else {
+                personalizedCache[userId] = nil
+                return nil
+            }
+            return entry.content
+        }
+    }
+
+    private func storePersonalizedContent(_ content: PersonalizedTrendingContent, for userId: String) {
+        cacheQueue.async {
+            self.personalizedCache[userId] = (content: content, expiresAt: Date().addingTimeInterval(self.personalizedCacheTTL))
+        }
     }
 }

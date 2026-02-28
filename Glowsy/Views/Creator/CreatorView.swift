@@ -2948,7 +2948,7 @@ struct CaptionAndDetailsView: View {
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
                                 
                                 MinimalToggleRow(
-                                    icon: "square.and.arrow.up",
+                                    icon: "bookmark",
                                     title: NSLocalizedString("creator.interactions.allowSharing", comment: ""),
                                     isOn: $allowSharing
                                 )

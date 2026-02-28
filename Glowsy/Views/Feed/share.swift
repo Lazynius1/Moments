@@ -176,9 +176,18 @@ struct MainActionsView: View {
             
             // Header
             HStack(spacing: 12) {
-                AsyncProfileImageView(userId: moment.authorId)
-                    .frame(width: 44, height: 44)
-                    .clipShape(Circle())
+                StoryRingAvatarView(
+                    userId: moment.authorId,
+                    size: 44,
+                    lineWidth: 2.4
+                )
+                .onTapGesture {
+                    guard !moment.authorId.isEmpty else { return }
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("NavigateToProfile"),
+                        object: moment.authorId
+                    )
+                }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("share.moment.title")
@@ -1190,11 +1199,15 @@ struct MomentPreviewCard: View {
                 // Header in overlay
                 HStack(spacing: 8) {
                     if let authorId = sharedMomentData["momentAuthorId"] {
-                        AsyncProfileImageView(userId: authorId)
-                            .frame(width: 24, height: 24)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-                            .shadow(radius: 2)
+                        StoryRingAvatarView(
+                            userId: authorId,
+                            size: 24,
+                            lineWidth: 1.8,
+                            showBaseStroke: true,
+                            baseStrokeColor: .white,
+                            baseStrokeWidth: 1.5
+                        )
+                        .shadow(radius: 2)
                     } else {
                          Circle()
                             .fill(.ultraThinMaterial)

@@ -1,6 +1,5 @@
 import SwiftUI
 import FirebaseAuth
-import FirebaseFirestore
 
 struct LoginActivityView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -14,37 +13,17 @@ struct LoginActivityView: View {
                 Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
                 
                 if isLoading {
-                    ProgressView("Cargando actividad...")
+                    ProgressView {
+                        Text("loginActivity.loading")
+                    }
                         .progressViewStyle(CircularProgressViewStyle())
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(.gray)
                 } else {
                     ScrollView {
                         VStack(spacing: 20) {
-                            // Header Info
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Image(systemName: "shield.checkered")
-                                        .foregroundColor(Color(hex: "4F46E5"))
-                                        .font(.system(size: 20))
-                                    
-                                    Text("loginActivity.title")
-                                        .font(.custom("Poppins-SemiBold", size: 18))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                }
-                                
-                                Text("loginActivity.description")
-                                    .font(.custom("Poppins-Regular", size: 14))
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "4F46E5").opacity(0.1))
-                            )
-                            .padding(.horizontal)
+                            headerSection
                             
-                            // Current Session
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("loginActivity.currentSession")
                                     .font(.custom("Poppins-SemiBold", size: 16))
@@ -54,10 +33,9 @@ struct LoginActivityView: View {
                             }
                             .padding(.horizontal)
                             
-                            // Recent Activity
                             VStack(alignment: .leading, spacing: 16) {
                                 HStack {
-                                    Text("loginActivity.recentActivity")
+                                    Text("loginActivity.otherSessions")
                                         .font(.custom("Poppins-SemiBold", size: 16))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
@@ -70,13 +48,13 @@ struct LoginActivityView: View {
                                     .foregroundColor(.red)
                                 }
                                 
-                                if viewModel.loginActivities.isEmpty {
+                                if viewModel.otherSessions.isEmpty {
                                     VStack(spacing: 12) {
-                                        Image(systemName: "clock.badge.checkmark")
+                                        Image(systemName: "desktopcomputer.and.arrow.down")
                                             .font(.system(size: 40))
                                             .foregroundColor(.gray)
                                         
-                                        Text("loginActivity.noRecentActivity")
+                                        Text("loginActivity.noOtherSessions")
                                             .font(.custom("Poppins-Regular", size: 16))
                                             .foregroundColor(.gray)
                                     }
@@ -84,17 +62,13 @@ struct LoginActivityView: View {
                                     .padding(.vertical, 40)
                                 } else {
                                     LazyVStack(spacing: 12) {
-                                        ForEach(viewModel.loginActivities) { activity in
-                                            LoginActivityCard(activity: activity)
+                                        ForEach(viewModel.otherSessions) { session in
+                                            SessionCard(session: session)
                                         }
                                     }
                                 }
                             }
                             .padding(.horizontal)
-                            
-                            // Security Tips
-                            SecurityTipsSection()
-                                .padding(.horizontal)
                             
                             Spacer(minLength: 20)
                         }
@@ -159,6 +133,30 @@ struct LoginActivityView: View {
             }
         }
     }
+    
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "shield.checkered")
+                    .foregroundColor(Color(hex: "4F46E5"))
+                    .font(.system(size: 20))
+                
+                Text("loginActivity.title")
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+            }
+            
+            Text("loginActivity.description")
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(.gray)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(hex: "4F46E5").opacity(0.1))
+        )
+        .padding(.horizontal)
+    }
 }
 
 struct CurrentSessionCard: View {
@@ -190,12 +188,7 @@ struct CurrentSessionCard: View {
             }
             
             if let session = session {
-                VStack(spacing: 8) {
-                    SessionDetailRow(icon: "location", title: NSLocalizedString("loginActivity.session.location", comment: "Location label"), value: session.location)
-                    SessionDetailRow(icon: "iphone", title: NSLocalizedString("loginActivity.session.device", comment: "Device label"), value: session.device)
-                    SessionDetailRow(icon: "network", title: NSLocalizedString("loginActivity.session.ip", comment: "IP label"), value: session.ipAddress)
-                    SessionDetailRow(icon: "clock", title: NSLocalizedString("loginActivity.session.startTime", comment: "Start time label"), value: session.timestamp.formatted(date: .abbreviated, time: .shortened))
-                }
+                SessionDetails(session: session)
             } else {
                 HStack {
                     ProgressView()
@@ -218,51 +211,35 @@ struct CurrentSessionCard: View {
     }
 }
 
-struct LoginActivityCard: View {
+struct SessionCard: View {
     @Environment(\.colorScheme) var colorScheme
-    let activity: LoginActivity
+    let session: LoginSession
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: activity.isSuccessful ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(activity.isSuccessful ? .green : .red)
-                    .font(.system(size: 16))
+                Image(systemName: "iphone")
+                    .foregroundColor(Color(hex: "4F46E5"))
+                    .font(.system(size: 16, weight: .semibold))
                 
-                Text(activity.isSuccessful ? NSLocalizedString("loginActivity.status.successful", comment: "Successful login status") : NSLocalizedString("loginActivity.status.failed", comment: "Failed login status"))
-                    .font(.custom("Poppins-Medium", size: 15))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                Text(session.timestamp.timeAgoDisplay())
+                    .font(.custom("Poppins-Medium", size: 13))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.75))
                 
                 Spacer()
                 
-                Text(activity.timestamp.timeAgoDisplay())
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(.gray)
+                Text("loginActivity.activeSession")
+                    .font(.custom("Poppins-Bold", size: 10))
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.green.opacity(0.15))
+                    )
             }
             
-            if activity.isSuccessful {
-                VStack(spacing: 6) {
-                    SessionDetailRow(icon: "location", title: NSLocalizedString("loginActivity.session.location", comment: "Location label"), value: activity.location)
-                    SessionDetailRow(icon: "iphone", title: NSLocalizedString("loginActivity.session.device", comment: "Device label"), value: activity.device)
-                    SessionDetailRow(icon: "network", title: NSLocalizedString("loginActivity.session.ip", comment: "IP label"), value: activity.ipAddress)
-                }
-            } else {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                        .font(.system(size: 12))
-                    
-                    Text(activity.failureReason ?? NSLocalizedString("loginActivity.error.credentials", comment: "Default failure reason"))
-                        .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.orange)
-                }
-                .padding(.vertical, 4)
-                .padding(.horizontal, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.orange.opacity(0.1))
-                )
-            }
+            SessionDetails(session: session)
         }
         .padding()
         .background(
@@ -270,9 +247,22 @@ struct LoginActivityCard: View {
                 .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(activity.isSuccessful ? Color.gray.opacity(0.3) : Color.red.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.gray.opacity(0.25), lineWidth: 1)
                 )
         )
+    }
+}
+
+struct SessionDetails: View {
+    let session: LoginSession
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            SessionDetailRow(icon: "location", title: NSLocalizedString("loginActivity.session.location", comment: "Location label"), value: session.location)
+            SessionDetailRow(icon: "iphone", title: NSLocalizedString("loginActivity.session.device", comment: "Device label"), value: session.device)
+            SessionDetailRow(icon: "network", title: NSLocalizedString("loginActivity.session.ip", comment: "IP label"), value: session.ipAddress)
+            SessionDetailRow(icon: "clock", title: NSLocalizedString("loginActivity.session.startTime", comment: "Start time label"), value: session.timestamp.formatted(date: .abbreviated, time: .shortened))
+        }
     }
 }
 
@@ -297,103 +287,29 @@ struct SessionDetailRow: View {
             Text(value)
                 .font(.custom("Poppins-Medium", size: 13))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
+                .lineLimit(1)
+                .truncationMode(.tail)
             
             Spacer()
         }
     }
 }
 
-struct SecurityTipsSection: View {
-    @Environment(\.colorScheme) var colorScheme
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "lightbulb.fill")
-                    .foregroundColor(Color(hex: "4F46E5"))
-                
-                Text("loginActivity.securityTips")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-            }
-            
-            VStack(spacing: 12) {
-                LoginSecurityTipRow(
-                    icon: "checkmark.circle",
-                    text: NSLocalizedString("loginActivity.security.tip1", comment: "Security tip 1")
-                )
-                
-                LoginSecurityTipRow(
-                    icon: "checkmark.circle",
-                    text: NSLocalizedString("loginActivity.security.tip2", comment: "Security tip 2")
-                )
-                
-                LoginSecurityTipRow(
-                    icon: "checkmark.circle",
-                    text: NSLocalizedString("loginActivity.security.tip3", comment: "Security tip 3")
-                )
-                
-                LoginSecurityTipRow(
-                    icon: "checkmark.circle",
-                    text: NSLocalizedString("loginActivity.security.tip4", comment: "Security tip 4")
-                )
-                
-                LoginSecurityTipRow(
-                    icon: "checkmark.circle",
-                    text: NSLocalizedString("loginActivity.security.tip5", comment: "Security tip 5")
-                )
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(hex: "4F46E5").opacity(0.1))
-        )
-    }
-}
-
-struct LoginSecurityTipRow: View {
-    @Environment(\.colorScheme) var colorScheme
-    let icon: String
-    let text: String
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundColor(Color(hex: "4F46E5"))
-                .font(.system(size: 12))
-            
-            Text(text)
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-        }
-    }
-}
-
 // MARK: - Models
-struct LoginSession {
+struct LoginSession: Identifiable {
     let id: String
     let device: String
     let location: String
     let ipAddress: String
     let timestamp: Date
     let isActive: Bool
-}
-
-struct LoginActivity: Identifiable {
-    let id: String
-    let timestamp: Date
-    let device: String
-    let location: String
-    let ipAddress: String
-    let isSuccessful: Bool
-    let failureReason: String?
+    let deviceIdentifier: String?
 }
 
 // MARK: - ViewModel
 class LoginActivityViewModel: ObservableObject {
     @Published var currentSession: LoginSession?
-    @Published var loginActivities: [LoginActivity] = []
+    @Published var otherSessions: [LoginSession] = []
     @Published var showLogoutAllAlert = false
     @Published var showError = false
     @Published var showLogoutSuccess = false
@@ -411,25 +327,33 @@ class LoginActivityViewModel: ObservableObject {
         
         isLoadingSession = true
         
-        // Load current session
-        loginService.getCurrentSession(userId: userId) { [weak self] session in
-            DispatchQueue.main.async {
-                self?.currentSession = session
-                self?.isLoadingSession = false
-            }
+        let group = DispatchGroup()
+        var fetchedCurrent: LoginSession?
+        var fetchedActiveSessions: [LoginSession] = []
+        
+        group.enter()
+        loginService.getCurrentSession(userId: userId) { session in
+            fetchedCurrent = session
+            group.leave()
         }
         
-        // Load login activity history
-        loginService.fetchLoginActivity(userId: userId) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let activities):
-                    self?.loginActivities = activities
-                case .failure(let error):
-                    self?.showErrorAlert("Error al cargar actividad: \(error.localizedDescription)")
+        group.enter()
+        loginService.fetchActiveSessions(userId: userId) { [weak self] result in
+            switch result {
+            case .success(let sessions):
+                fetchedActiveSessions = sessions
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self?.showErrorAlert("Error al cargar sesiones: \(error.localizedDescription)")
                 }
-                completion()
             }
+            group.leave()
+        }
+        
+        group.notify(queue: .main) { [weak self] in
+            self?.applySessions(current: fetchedCurrent, activeSessions: fetchedActiveSessions)
+            self?.isLoadingSession = false
+            completion()
         }
     }
     
@@ -441,24 +365,32 @@ class LoginActivityViewModel: ObservableObject {
         }
         
         return await withCheckedContinuation { continuation in
-            // Refresh current session
-            loginService.getCurrentSession(userId: userId) { [weak self] session in
-                DispatchQueue.main.async {
-                    self?.currentSession = session
-                }
+            let group = DispatchGroup()
+            var fetchedCurrent: LoginSession?
+            var fetchedActiveSessions: [LoginSession] = []
+            
+            group.enter()
+            loginService.getCurrentSession(userId: userId) { session in
+                fetchedCurrent = session
+                group.leave()
             }
             
-            // Refresh login activity
-            loginService.fetchLoginActivity(userId: userId) { [weak self] result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let activities):
-                        self?.loginActivities = activities
-                    case .failure(let error):
-                        self?.showErrorAlert("Error al actualizar: \(error.localizedDescription)")
+            group.enter()
+            loginService.fetchActiveSessions(userId: userId) { [weak self] result in
+                switch result {
+                case .success(let sessions):
+                    fetchedActiveSessions = sessions
+                case .failure(let error):
+                    DispatchQueue.main.async {
+                        self?.showErrorAlert("Error al actualizar sesiones: \(error.localizedDescription)")
                     }
-                    continuation.resume()
                 }
+                group.leave()
+            }
+            
+            group.notify(queue: .main) { [weak self] in
+                self?.applySessions(current: fetchedCurrent, activeSessions: fetchedActiveSessions)
+                continuation.resume()
             }
         }
     }
@@ -475,12 +407,27 @@ class LoginActivityViewModel: ObservableObject {
                     self?.showErrorAlert("Error al cerrar sesiones: \(error.localizedDescription)")
                 } else {
                     self?.showLogoutSuccess = true
-                    // Clear current data since user will be logged out
                     self?.currentSession = nil
-                    self?.loginActivities = []
+                    self?.otherSessions = []
                 }
             }
         }
+    }
+    
+    private func applySessions(current: LoginSession?, activeSessions: [LoginSession]) {
+        var resolvedCurrent = current
+        var remaining = activeSessions
+        
+        if let currentId = resolvedCurrent?.id,
+           let index = remaining.firstIndex(where: { $0.id == currentId }) {
+            remaining.remove(at: index)
+        } else if resolvedCurrent == nil, let first = remaining.first {
+            resolvedCurrent = first
+            remaining.removeFirst()
+        }
+        
+        currentSession = resolvedCurrent
+        otherSessions = Array(remaining.prefix(12))
     }
     
     private func showErrorAlert(_ message: String) {

@@ -146,6 +146,8 @@ struct ProfileView: View {
     @State private var isShowingQRCode = false
     @State private var selectedProfileTab: ProfileTabType = .moments  // ✅ NUEVO: Tab selector
     @State private var showProfileImageFullscreen = false // ✅ NUEVO: Estado para ver foto grande
+    @State private var selectedExternalProfileUserId: String? = nil
+    @State private var showExternalProfile = false
     
 
     enum UserListType: Identifiable {
@@ -166,9 +168,9 @@ struct ProfileView: View {
         var title: String {
             switch self {
             case .visits: return NSLocalizedString("profile.userList.visits", comment: "Visits")
-            case .admirers: return NSLocalizedString("profile.userList.admirers", comment: "Admirers")
-            case .connections: return NSLocalizedString("profile.userList.connections", comment: "Connections")
-            case .mutualConnections: return NSLocalizedString("profile.userList.mutuals", comment: "Mutual connections")
+            case .admirers: return NSLocalizedString("profile.ui.followers", comment: "Followers")
+            case .connections: return NSLocalizedString("profile.ui.following", comment: "Following")
+            case .mutualConnections: return NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
             }
         }
     }
@@ -273,13 +275,24 @@ struct ProfileView: View {
                             users: usersForList(type: listType),
                             visitTimestamps: [:],
                             viewModel: viewModel,
-                            onDismiss: { showingUserList = nil }
+                            onDismiss: { showingUserList = nil },
+                            rowAction: rowAction(for: listType),
+                            onUserTap: { user in
+                                openUserProfileFromList(userId: user.id)
+                            }
                         )
                         .presentationDetents([.medium, .large])
                         .presentationDragIndicator(.hidden)
                         .interactiveDismissDisabled(false)
                         .presentationBackground(.clear)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .fullScreenCover(isPresented: $showExternalProfile, onDismiss: {
+                    selectedExternalProfileUserId = nil
+                }) {
+                    if let userId = selectedExternalProfileUserId {
+                        UserProfileView(userId: userId)
                     }
                 }
                 .fullScreenCover(isPresented: $showStoryViewer) {
@@ -351,6 +364,23 @@ struct ProfileView: View {
         case .admirers: return viewModel.admirers
         case .connections: return viewModel.connections
         case .mutualConnections: return viewModel.mutualConnections
+        }
+    }
+
+    private func rowAction(for type: UserListType) -> UserListRowAction {
+        switch type {
+        case .visits, .admirers:
+            return .follow
+        case .connections, .mutualConnections:
+            return .unfollow
+        }
+    }
+
+    private func openUserProfileFromList(userId: String) {
+        showingUserList = nil
+        selectedExternalProfileUserId = userId
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showExternalProfile = true
         }
     }
     
@@ -580,6 +610,7 @@ struct ModernProfileContentView: View {
                                                 ModernMomentThumbnail(
                                                     moment: moment,
                                                     size: itemWidth,
+                                                    customListNamesById: viewModel.customListNamesById,
                                                     onTap: {
                                                         selectedMomentIndex = index
                                                         showMomentDetail = true
@@ -794,6 +825,11 @@ struct ModernProfileHeader: View {
         
         // Para historias propias, siempre están "vistas" (iluminadas)
         return userStories.map { _ in true }
+    }
+
+    private var storyAudiences: [String?] {
+        guard let userId = Auth.auth().currentUser?.uid else { return [] }
+        return storyViewModel.stories[userId]?.map { $0.audience } ?? []
     }
     
     private var isOwnStory: Bool {
@@ -1051,6 +1087,7 @@ struct ModernProfileHeader: View {
                 hasStory: storyViewModel.hasActiveStory,
                 hasUnseenStory: false, // Propias siempre iluminadas
                 storyViewedStatus: storyViewedStatus,
+                storyAudiences: storyAudiences,
                 isOwnStory: isOwnStory,
                 colorScheme: colorScheme,
                 ringSize: 110,
@@ -1133,9 +1170,9 @@ struct ModernStatsSection: View {
     private var computedStats: [(String, Int, ProfileView.UserListType)] {
         [
             (NSLocalizedString("profile.stats.visits", comment: "Visits"), viewModel.visits.count, .visits),
-            (NSLocalizedString("profile.stats.admirers", comment: "Admirers"), viewModel.admirers.count, .admirers),
-            (NSLocalizedString("profile.stats.connections", comment: "Connections"), viewModel.connections.count, .connections),
-            (NSLocalizedString("profile.stats.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
+            (NSLocalizedString("profile.ui.followers", comment: "Followers"), viewModel.admirers.count, .admirers),
+            (NSLocalizedString("profile.ui.following", comment: "Following"), viewModel.connections.count, .connections),
+            (NSLocalizedString("profile.ui.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
         ]
     }
 
@@ -1173,6 +1210,7 @@ struct AnimatedCounterView: View {
     let value: Int
     @State private var displayedValue: Int = 0
     @State private var hasAnimated = false
+    @State private var animationRunId: Int = 0
     
     var body: some View {
         Text("\(displayedValue)")
@@ -1188,27 +1226,35 @@ struct AnimatedCounterView: View {
     }
     
     private func animateCounter() {
-        // Si el valor es 0, mostrar directamente
-        guard value > 0 else {
-            displayedValue = 0
+        let target = max(0, value)
+        let start = displayedValue
+        let delta = target - start
+
+        guard delta != 0 else { return }
+
+        animationRunId += 1
+        let runId = animationRunId
+
+        // Si el salto es pequeño, actualizar directo con animación estándar.
+        if abs(delta) <= 1 {
+            withAnimation(.easeOut(duration: 0.15)) {
+                displayedValue = target
+            }
             return
         }
-        
-        // Duración total de la animación
+
         let duration: Double = 0.8
-        
-        // Número de steps (más para números grandes)
-        let steps = min(value, 20)
+        let steps = min(abs(delta), 20)
         let stepDuration = duration / Double(steps)
-        
-        // Animar cada step
+
         for step in 0...steps {
             DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(step)) {
+                guard runId == animationRunId else { return }
                 withAnimation(.easeOut(duration: 0.1)) {
-                    // Calcular valor con ease-out
                     let progress = Double(step) / Double(steps)
-                    let easedProgress = 1 - pow(1 - progress, 3) // Ease out cubic
-                    displayedValue = Int(Double(value) * easedProgress)
+                    let easedProgress = 1 - pow(1 - progress, 3)
+                    let interpolated = Double(start) + Double(delta) * easedProgress
+                    displayedValue = Int(interpolated.rounded())
                 }
             }
         }
@@ -1262,12 +1308,72 @@ struct ModernInterestsView: View {
 struct ModernMomentThumbnail: View {
     let moment: Moment
     let size: CGFloat
+    let customListNamesById: [String: String]
     let onTap: (() -> Void)? // ✅ MANTENER: Callback opcional
     @State private var isPressed = false
     
     // ✅ NUEVOS: Estados para thumbnails de video
     @State private var videoThumbnail: UIImage?
     @State private var isLoadingVideoThumbnail = false
+
+    private struct AudienceBadgeStyle {
+        let icon: String
+        let title: String
+        let background: Color
+    }
+
+    private var normalizedAudience: String {
+        moment.audience?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "") ?? "everyone"
+    }
+
+    private var audienceBadgeStyle: AudienceBadgeStyle {
+        switch normalizedAudience {
+        case "bestfriends", "bestfriend":
+            return AudienceBadgeStyle(
+                icon: "heart.fill",
+                title: NSLocalizedString("audience.type.bestFriends", comment: "Best friends audience type"),
+                background: Color(hex: "24C26A").opacity(0.92)
+            )
+        case "connections", "connection", "mutuals", "mutual":
+            return AudienceBadgeStyle(
+                icon: "person.2.fill",
+                title: NSLocalizedString("audience.type.connections", comment: "Connections audience type"),
+                background: Color(hex: "00B4D8").opacity(0.92)
+            )
+        case "customlist":
+            let listName = moment.customListId.flatMap { customListNamesById[$0] }
+            let resolvedName = (listName?.isEmpty == false)
+                ? (listName ?? "")
+                : NSLocalizedString("audience.type.customList", comment: "Custom list audience type")
+            return AudienceBadgeStyle(
+                icon: "list.bullet.rectangle",
+                title: resolvedName,
+                background: Color(hex: "A855F7").opacity(0.92)
+            )
+        case "custom":
+            return AudienceBadgeStyle(
+                icon: "person.crop.circle.badge.plus",
+                title: NSLocalizedString("audience.type.custom", comment: "Custom audience type"),
+                background: Color(hex: "F59E0B").opacity(0.92)
+            )
+        case "onlyme":
+            return AudienceBadgeStyle(
+                icon: "lock.fill",
+                title: NSLocalizedString("audience.type.onlyMe", comment: "Only me audience type"),
+                background: Color.black.opacity(0.78)
+            )
+        default:
+            return AudienceBadgeStyle(
+                icon: "globe",
+                title: NSLocalizedString("audience.type.everyone", comment: "Everyone audience type"),
+                background: Color(hex: "0EA5A3").opacity(0.9)
+            )
+        }
+    }
 
     var body: some View {
         Button(action: {
@@ -1313,6 +1419,22 @@ struct ModernMomentThumbnail: View {
                     // ✅ MANTENER: Placeholder para sin contenido
                     emptyContentView()
                 }
+
+                // ✅ NUEVO: Badge de audiencia en esquina superior izquierda
+                VStack {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            audienceBadgeView
+
+                            // Indicador de publicación programada (solo autor)
+                            if moment.isScheduled && moment.authorId == Auth.auth().currentUser?.uid {
+                                scheduledBadgeView
+                            }
+                        }
+                        Spacer()
+                    }
+                    Spacer()
+                }
                 
                 // ✅ NUEVO: Indicador de video
                 if let mediaItem = moment.mediaItems?.first, mediaItem.type == .video {
@@ -1325,28 +1447,6 @@ struct ModernMomentThumbnail: View {
                                 .background(Color.black.opacity(0.6))
                                 .clipShape(Circle())
                                 .padding(6)
-                        }
-                        Spacer()
-                    }
-                }
-                
-                // ✅ NUEVO: Indicador de publicación programada (Solo para el autor)
-                if moment.isScheduled && moment.authorId == Auth.auth().currentUser?.uid {
-                    VStack {
-                        HStack {
-                            HStack(spacing: 4) {
-                                Image(systemName: "clock.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                Text(moment.scheduledRemainingText)
-                                    .font(.custom("Poppins-Bold", size: 9))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Capsule())
-                            .padding(6)
-                            Spacer()
                         }
                         Spacer()
                     }
@@ -1376,6 +1476,44 @@ struct ModernMomentThumbnail: View {
             .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
         }
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
+    }
+
+    @ViewBuilder
+    private var audienceBadgeView: some View {
+        let style = audienceBadgeStyle
+        HStack(spacing: 4) {
+            Image(systemName: style.icon)
+                .font(.system(size: 8, weight: .bold))
+                .foregroundColor(.white)
+            Text(style.title)
+                .font(.custom("Poppins-SemiBold", size: 8))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(style.background)
+        .clipShape(Capsule())
+        .padding(6)
+    }
+
+    @ViewBuilder
+    private var scheduledBadgeView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "clock.fill")
+                .font(.system(size: 8, weight: .bold))
+            Text(moment.scheduledRemainingText)
+                .font(.custom("Poppins-Bold", size: 8))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.black.opacity(0.72))
+        .clipShape(Capsule())
+        .padding(.horizontal, 6)
     }
     
     // ✅ NUEVA: Vista para thumbnails de video
@@ -1527,9 +1665,10 @@ struct ModernMomentThumbnail: View {
     }
     
     // ✅ MANTENER: Inicializador existente
-    init(moment: Moment, size: CGFloat, onTap: (() -> Void)? = nil) {
+    init(moment: Moment, size: CGFloat, customListNamesById: [String: String] = [:], onTap: (() -> Void)? = nil) {
         self.moment = moment
         self.size = size
+        self.customListNamesById = customListNamesById
         self.onTap = onTap
     }
 }
@@ -2405,6 +2544,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     @Published var mutualConnections: [AppUser] = []
     @Published var admirers: [AppUser] = []
     @Published var moments: [Moment] = []
+    @Published var customListNamesById: [String: String] = [:]
     @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
     @Published var isLoadingTagged: Bool = false // ✅ NUEVO
     @Published var isLoading: Bool = true
@@ -2494,6 +2634,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 self.fetchConnections(userId: userId)
                 self.fetchVisits(userId: userId)
                 self.fetchMoments(userId: userId)
+                self.fetchCustomAudienceListNames(userId: userId)
                 
             case .failure(let error):
                 self.errorMessage = "Error al cargar el perfil: \(error.localizedDescription)"
@@ -2673,6 +2814,29 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
+    private func fetchCustomAudienceListNames(userId: String, completion: (() -> Void)? = nil) {
+        firestoreService.fetchCustomLists(for: userId) { [weak self] result in
+            guard let self = self else {
+                completion?()
+                return
+            }
+            guard case .success(let lists) = result else {
+                completion?()
+                return
+            }
+
+            let map = lists.reduce(into: [String: String]()) { partialResult, list in
+                guard let id = list.id else { return }
+                partialResult[id] = list.name
+            }
+
+            DispatchQueue.main.async {
+                self.customListNamesById = map
+                completion?()
+            }
+        }
+    }
+
     // ✅ NUEVO: Cargar momentos donde el usuario ha sido etiquetado
     func fetchTaggedMoments(userId: String) {
         isLoadingTagged = true
@@ -2767,6 +2931,12 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         refreshGroup.enter()
         self.fetchMoments(userId: userId)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            refreshGroup.leave()
+        }
+
+        // 5. Refresh nombres de listas personalizadas
+        refreshGroup.enter()
+        self.fetchCustomAudienceListNames(userId: userId) {
             refreshGroup.leave()
         }
         

@@ -148,6 +148,8 @@ struct UserProfileView: View {
     @State private var showingBlockConfirmation = false
     @State private var currentStory: Story?
     @State private var selectedTab: UserProfileTabType = .moments // ✅ NUEVO: Tab seleccionado
+    @State private var selectedNestedProfileUserId: String? = nil
+    @State private var showNestedProfile = false
     
     // ✅ NUEVOS: Estados para navegación al explorer
     @State private var selectedHashtag: String = ""
@@ -176,9 +178,9 @@ struct UserProfileView: View {
 
         var title: String {
             switch self {
-            case .admirers: return NSLocalizedString("profile.userList.admirers", comment: "Admirers")
-            case .connections: return NSLocalizedString("profile.userList.connections", comment: "Followed")
-            case .mutualConnections: return NSLocalizedString("profile.userList.mutuals", comment: "Mutual connections")
+            case .admirers: return NSLocalizedString("profile.ui.followers", comment: "Followers")
+            case .connections: return NSLocalizedString("profile.ui.following", comment: "Following")
+            case .mutualConnections: return NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
             }
         }
     }
@@ -229,13 +231,24 @@ struct UserProfileView: View {
                 users: usersForListType(listType),
                 visitTimestamps: [:],
                 viewModel: viewModel,
-                onDismiss: { showingUserList = nil }
+                onDismiss: { showingUserList = nil },
+                rowAction: rowAction(for: listType),
+                onUserTap: { user in
+                    openNestedUserProfile(userId: user.id)
+                }
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.hidden)
             .interactiveDismissDisabled(false)
             .presentationBackground(.clear)
             .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        .fullScreenCover(isPresented: $showNestedProfile, onDismiss: {
+            selectedNestedProfileUserId = nil
+        }) {
+            if let userId = selectedNestedProfileUserId {
+                UserProfileView(userId: userId)
+            }
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
@@ -482,6 +495,23 @@ struct UserProfileView: View {
         case .admirers: return viewModel.admirers
         case .connections: return viewModel.connections
         case .mutualConnections: return viewModel.mutualConnections
+        }
+    }
+
+    private func rowAction(for listType: UserListType) -> UserListRowAction {
+        switch listType {
+        case .admirers:
+            return .follow
+        case .connections, .mutualConnections:
+            return .unfollow
+        }
+    }
+
+    private func openNestedUserProfile(userId: String) {
+        showingUserList = nil
+        selectedNestedProfileUserId = userId
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showNestedProfile = true
         }
     }
 }
@@ -905,8 +935,8 @@ struct UserModernProfileHeader: View {
                           let targetUser = viewModel.userProfile else { return }
                     
                     // ✅ Intentar crear conversación directa primero
-                    messagingViewModel.startConversation(with: targetUser, from: currentUserId) {
-                        if let conversation = messagingViewModel.selectedConversation {
+                    messagingViewModel.startConversation(with: targetUser, from: currentUserId) { conversation in
+                        if let conversation {
                             // ✅ Conversación creada exitosamente
                             targetConversation = conversation
                             navigateToChat = true
@@ -1196,6 +1226,11 @@ struct UserModernAvatarWithBadges: View {
         return viewedStatusArray
     }
     
+    private var storyAudiences: [String?] {
+        guard let userId = userProfile?.id else { return [] }
+        return storyViewModel.stories[userId]?.map { $0.audience } ?? []
+    }
+    
     private var hasUnseenStory: Bool {
         // Si no hemos cargado aún, asumir que hay no vistas para mostrar coloreado
         if !hasLoadedViewedStatus || viewedStatusArray.isEmpty {
@@ -1374,6 +1409,7 @@ struct UserModernAvatarWithBadges: View {
                 hasStory: hasStory,
                 hasUnseenStory: hasUnseenStory, // ✅ Usar computed property
                 storyViewedStatus: storyViewedStatus,
+                storyAudiences: storyAudiences,
                 isOwnStory: isOwnStory,
                 colorScheme: colorScheme,
                 ringSize: size,
@@ -1560,9 +1596,9 @@ struct UserModernStatsSection: View {
     
     private var computedStats: [(String, Int, UserProfileView.UserListType)] {
         [
-            (NSLocalizedString("profile.stats.admirers", comment: "Admirers"), viewModel.admirers.count, .admirers),
-            (NSLocalizedString("profile.stats.connections", comment: "Connections"), viewModel.connections.count, .connections),
-            (NSLocalizedString("profile.stats.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
+            (NSLocalizedString("profile.ui.followers", comment: "Followers"), viewModel.admirers.count, .admirers),
+            (NSLocalizedString("profile.ui.following", comment: "Following"), viewModel.connections.count, .connections),
+            (NSLocalizedString("profile.ui.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
         ]
     }
 
@@ -1604,6 +1640,7 @@ struct UserAnimatedCounterView: View {
     let value: Int
     @State private var displayedValue: Int = 0
     @State private var hasAnimated = false
+    @State private var animationRunId: Int = 0
     
     var body: some View {
         Text("\(displayedValue)")
@@ -1618,21 +1655,34 @@ struct UserAnimatedCounterView: View {
     }
     
     private func animateCounter() {
-        guard value > 0 else {
-            displayedValue = 0
+        let target = max(0, value)
+        let start = displayedValue
+        let delta = target - start
+
+        guard delta != 0 else { return }
+
+        animationRunId += 1
+        let runId = animationRunId
+
+        if abs(delta) <= 1 {
+            withAnimation(.easeOut(duration: 0.15)) {
+                displayedValue = target
+            }
             return
         }
-        
+
         let duration: Double = 0.8
-        let steps = min(value, 20)
+        let steps = min(abs(delta), 20)
         let stepDuration = duration / Double(steps)
-        
+
         for step in 0...steps {
             DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(step)) {
+                guard runId == animationRunId else { return }
                 withAnimation(.easeOut(duration: 0.1)) {
                     let progress = Double(step) / Double(steps)
                     let easedProgress = 1 - pow(1 - progress, 3)
-                    displayedValue = Int(Double(value) * easedProgress)
+                    let interpolated = Double(start) + Double(delta) * easedProgress
+                    displayedValue = Int(interpolated.rounded())
                 }
             }
         }
@@ -1720,6 +1770,10 @@ struct UserModernAvatar: View {
         }
     }
     
+    private var storyAudiences: [String?] {
+        return storyViewModel.stories[userId]?.map { $0.audience } ?? []
+    }
+    
     private var isOwnStory: Bool {
         return userId == Auth.auth().currentUser?.uid
     }
@@ -1750,6 +1804,7 @@ struct UserModernAvatar: View {
                             hasStory: hasStory,
                             hasUnseenStory: !storyViewedStatus.allSatisfy { $0 },
                             storyViewedStatus: storyViewedStatus,
+                            storyAudiences: storyAudiences,
                             isOwnStory: isOwnStory,
                             colorScheme: colorScheme,
                             ringSize: size,
@@ -2402,8 +2457,8 @@ struct UserModernPrivateProfileView: View {
                         guard let currentUserId = Auth.auth().currentUser?.uid,
                               let targetUser = userProfile else { return }
                         
-                        messagingViewModel.startConversation(with: targetUser, from: currentUserId) {
-                            if let conversation = messagingViewModel.selectedConversation {
+                        messagingViewModel.startConversation(with: targetUser, from: currentUserId) { conversation in
+                            if let conversation {
                                 targetConversation = conversation
                                 navigateToChat = true
                             } else if let error = messagingViewModel.errorMessage {
@@ -3643,4 +3698,3 @@ struct ProfileImageViewer: View {
         }
     }
 }
-
