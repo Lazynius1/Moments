@@ -2320,6 +2320,41 @@ function serializeMoment(docId, data) {
 }
 
 /**
+ * Serialize a restricted moment without exposing media/content.
+ */
+function serializeRestrictedMoment(docId, data) {
+  return {
+    id: docId,
+    authorId: data.authorId || '',
+    username: data.username || '',
+    content: '',
+    imageUrl: null,
+    videoUrl: null,
+    timestamp: tsToMillis(data.timestamp),
+    reactions: {},
+    commentCount: 0,
+    profileImagePath: data.profileImagePath || null,
+    taggedUsers: null,
+    location: null,
+    locationCoordinate: null,
+    audience: data.audience || 'everyone',
+    mediaItems: null,
+    aspectRatio: data.aspectRatio || null,
+    customListId: data.customListId || null,
+    thumbnailUrl: null,
+    videoDuration: null,
+    videoFileSize: null,
+    videoResolution: null,
+    disableComments: true,
+    hideLikeCounts: true,
+    allowSharing: false,
+    scheduledDate: tsToMillis(data.scheduledDate),
+    trendingScore: null,
+    engagementRate: null
+  };
+}
+
+/**
  * 🚀 getFeedPage — Backend-first feed endpoint.
  *
  * POST body: { feedType: "following"|"forYou", cursor?: { timestamp, momentId, authorId? }, limit?: number }
@@ -2569,6 +2604,526 @@ exports.getFeedPage = onRequest(
     } catch (error) {
       console.error('❌ getFeedPage error:', error);
       res.status(500).json({ error: 'Feed fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 🎯 getReactedMomentsPage — Returns moments the viewer reacted to.
+ *
+ * POST body: { cursor?: { timestamp: number }, limit?: number }
+ * Response:  { items: [{ moment, reactionType, reactedAt, authorId, momentId, canView }], nextCursor, source, totalCandidates }
+ */
+exports.getReactedMomentsPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 60)) : 30;
+    const cursorTimestamp = Number(body?.cursor?.timestamp || 0);
+
+    const db = admin.firestore();
+
+    try {
+      let query = db.collectionGroup('reactions')
+        .where('userId', '==', uid)
+        .orderBy('timestamp', 'desc');
+
+      if (Number.isFinite(cursorTimestamp) && cursorTimestamp > 0) {
+        query = query.startAfter(admin.firestore.Timestamp.fromMillis(cursorTimestamp));
+      }
+
+      // Scan a wider window so we can filter hidden/private content server-side and still fill one page.
+      const scanLimit = Math.max(limit * 6, 120);
+      const reactionsSnap = await query.limit(scanLimit).get();
+
+      if (reactionsSnap.empty) {
+        res.status(200).json({
+          items: [],
+          nextCursor: null,
+          source: 'backend',
+          totalCandidates: 0
+        });
+        return;
+      }
+
+      const viewerCtx = await buildViewerContext(uid);
+      const seenMoments = new Set();
+      const candidates = [];
+
+      for (const doc of reactionsSnap.docs) {
+        const pathParts = doc.ref.path.split('/');
+        if (pathParts.length < 6 || pathParts[0] !== 'users' || pathParts[2] !== 'moments') {
+          continue;
+        }
+
+        const authorId = pathParts[1];
+        const momentId = pathParts[3];
+        const dedupeKey = `${authorId}_${momentId}`;
+        if (seenMoments.has(dedupeKey)) continue;
+        seenMoments.add(dedupeKey);
+
+        const data = doc.data() || {};
+        candidates.push({
+          authorId,
+          momentId,
+          reactionType: data.reactionType || data.reaction || '',
+          reactedAt: data.timestamp || null
+        });
+      }
+
+      if (candidates.length === 0) {
+        const lastDoc = reactionsSnap.docs[reactionsSnap.docs.length - 1];
+        const lastTimestamp = tsToMillis(lastDoc.data().timestamp);
+        res.status(200).json({
+          items: [],
+          nextCursor: lastTimestamp ? { timestamp: lastTimestamp } : null,
+          source: 'backend',
+          totalCandidates: 0
+        });
+        return;
+      }
+
+      const authorIds = candidates.map(item => item.authorId);
+      const authorMap = await batchLoadAuthorDocs(authorIds);
+
+      // Batch load moment docs
+      const momentRefs = candidates.map(item => db.doc(`users/${item.authorId}/moments/${item.momentId}`));
+      const momentDocs = [];
+      for (let i = 0; i < momentRefs.length; i += 100) {
+        const chunk = momentRefs.slice(i, i + 100);
+        if (chunk.length === 0) continue;
+        const docs = await db.getAll(...chunk);
+        docs.forEach(doc => momentDocs.push(doc));
+      }
+
+      const momentMap = new Map();
+      for (const doc of momentDocs) {
+        if (!doc.exists) continue;
+        const parts = doc.ref.path.split('/');
+        if (parts.length < 4) continue;
+        const key = `${parts[1]}_${parts[3]}`;
+        momentMap.set(key, doc);
+      }
+
+      const items = [];
+      for (const candidate of candidates) {
+        const key = `${candidate.authorId}_${candidate.momentId}`;
+        const momentDoc = momentMap.get(key);
+        if (!momentDoc || !momentDoc.exists) continue;
+
+        const momentData = momentDoc.data() || {};
+        const authorData = authorMap.get(candidate.authorId);
+        if (!authorData) continue;
+
+        const canView = await canViewerSeeMoment(
+          {
+            id: momentDoc.id,
+            authorId: candidate.authorId,
+            audience: momentData.audience,
+            taggedUsers: momentData.taggedUsers,
+            customListId: momentData.customListId
+          },
+          uid,
+          viewerCtx,
+          authorData
+        );
+
+        items.push({
+          moment: canView
+            ? serializeMoment(momentDoc.id, momentData)
+            : serializeRestrictedMoment(momentDoc.id, momentData),
+          reactionType: candidate.reactionType,
+          reactedAt: tsToMillis(candidate.reactedAt),
+          authorId: candidate.authorId,
+          momentId: candidate.momentId,
+          canView
+        });
+
+        if (items.length >= limit) break;
+      }
+
+      let nextCursor = null;
+      const hasMoreScanned = reactionsSnap.size >= scanLimit;
+      if (hasMoreScanned) {
+        const lastDoc = reactionsSnap.docs[reactionsSnap.docs.length - 1];
+        const lastTs = tsToMillis(lastDoc.data().timestamp);
+        if (lastTs) {
+          nextCursor = { timestamp: lastTs };
+        }
+      }
+
+      console.log(`✅ getReactedMomentsPage: uid=${uid}, scanned=${reactionsSnap.size}, candidates=${candidates.length}, returned=${items.length}`);
+
+      res.status(200).json({
+        items,
+        nextCursor,
+        source: 'backend',
+        totalCandidates: candidates.length
+      });
+
+    } catch (error) {
+      console.error('❌ getReactedMomentsPage error:', error);
+      res.status(500).json({ error: 'Reacted moments fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 💬 getCommentedMomentsPage — Returns moments where viewer has commented.
+ *
+ * POST body: { cursor?: { timestamp: number }, limit?: number }
+ * Response:  {
+ *   items: [{ moment, comment: { id, content, timestamp, parentCommentId }, commentedAt, authorId, momentId, commentId, canView }],
+ *   nextCursor,
+ *   source,
+ *   totalCandidates
+ * }
+ */
+exports.getCommentedMomentsPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 60)) : 30;
+    const cursorTimestamp = Number(body?.cursor?.timestamp || 0);
+
+    const db = admin.firestore();
+
+    try {
+      let query = db.collectionGroup('comments')
+        .where('authorId', '==', uid)
+        .orderBy('timestamp', 'desc');
+
+      if (Number.isFinite(cursorTimestamp) && cursorTimestamp > 0) {
+        query = query.startAfter(admin.firestore.Timestamp.fromMillis(cursorTimestamp));
+      }
+
+      // Wider scan because we still need privacy filtering on related moments.
+      const scanLimit = Math.max(limit * 6, 120);
+      const commentsSnap = await query.limit(scanLimit).get();
+
+      if (commentsSnap.empty) {
+        res.status(200).json({
+          items: [],
+          nextCursor: null,
+          source: 'backend',
+          totalCandidates: 0
+        });
+        return;
+      }
+
+      const viewerCtx = await buildViewerContext(uid);
+      const candidates = [];
+      const momentTargets = new Map(); // momentPath -> { authorId, momentId }
+
+      for (const doc of commentsSnap.docs) {
+        const pathParts = doc.ref.path.split('/');
+        if (pathParts.length < 6 || pathParts[0] !== 'users' || pathParts[2] !== 'moments' || pathParts[4] !== 'comments') {
+          continue;
+        }
+
+        const authorId = pathParts[1];
+        const momentId = pathParts[3];
+        const commentId = pathParts[5];
+        const data = doc.data() || {};
+
+        const commentedAt = data.timestamp || null;
+        const content = (typeof data.content === 'string' && data.content.trim())
+          ? data.content
+          : (typeof data.text === 'string' ? data.text : '');
+
+        candidates.push({
+          authorId,
+          momentId,
+          commentId,
+          commentedAt,
+          content,
+          parentCommentId: typeof data.parentCommentId === 'string' ? data.parentCommentId : null
+        });
+
+        const momentPath = `users/${authorId}/moments/${momentId}`;
+        if (!momentTargets.has(momentPath)) {
+          momentTargets.set(momentPath, { authorId, momentId });
+        }
+      }
+
+      if (candidates.length === 0) {
+        const lastDoc = commentsSnap.docs[commentsSnap.docs.length - 1];
+        const lastTimestamp = tsToMillis(lastDoc.data().timestamp);
+        res.status(200).json({
+          items: [],
+          nextCursor: lastTimestamp ? { timestamp: lastTimestamp } : null,
+          source: 'backend',
+          totalCandidates: 0
+        });
+        return;
+      }
+
+      const uniqueMomentRefs = [];
+      const authorIds = new Set();
+      for (const target of momentTargets.values()) {
+        const { authorId, momentId } = target;
+        authorIds.add(authorId);
+        uniqueMomentRefs.push(db.doc(`users/${authorId}/moments/${momentId}`));
+      }
+
+      const authorMap = await batchLoadAuthorDocs([...authorIds]);
+
+      const momentDocs = [];
+      for (let i = 0; i < uniqueMomentRefs.length; i += 100) {
+        const chunk = uniqueMomentRefs.slice(i, i + 100);
+        if (chunk.length === 0) continue;
+        const docs = await db.getAll(...chunk);
+        docs.forEach(doc => momentDocs.push(doc));
+      }
+
+      const momentMap = new Map();
+      for (const doc of momentDocs) {
+        if (!doc.exists) continue;
+        const parts = doc.ref.path.split('/');
+        if (parts.length < 4) continue;
+        const key = `${parts[1]}_${parts[3]}`;
+        momentMap.set(key, doc);
+      }
+
+      const items = [];
+      for (const candidate of candidates) {
+        const key = `${candidate.authorId}_${candidate.momentId}`;
+        const momentDoc = momentMap.get(key);
+        if (!momentDoc || !momentDoc.exists) continue;
+
+        const momentData = momentDoc.data() || {};
+        const authorData = authorMap.get(candidate.authorId);
+        if (!authorData) continue;
+
+        const canView = await canViewerSeeMoment(
+          {
+            id: momentDoc.id,
+            authorId: candidate.authorId,
+            audience: momentData.audience,
+            taggedUsers: momentData.taggedUsers,
+            customListId: momentData.customListId
+          },
+          uid,
+          viewerCtx,
+          authorData
+        );
+
+        items.push({
+          moment: canView
+            ? serializeMoment(momentDoc.id, momentData)
+            : serializeRestrictedMoment(momentDoc.id, momentData),
+          comment: {
+            id: candidate.commentId,
+            content: candidate.content,
+            timestamp: tsToMillis(candidate.commentedAt),
+            parentCommentId: candidate.parentCommentId
+          },
+          commentedAt: tsToMillis(candidate.commentedAt),
+          authorId: candidate.authorId,
+          momentId: candidate.momentId,
+          commentId: candidate.commentId,
+          canView
+        });
+
+        if (items.length >= limit) break;
+      }
+
+      let nextCursor = null;
+      const hasMoreScanned = commentsSnap.size >= scanLimit;
+      if (hasMoreScanned) {
+        const lastDoc = commentsSnap.docs[commentsSnap.docs.length - 1];
+        const lastTs = tsToMillis(lastDoc.data().timestamp);
+        if (lastTs) {
+          nextCursor = { timestamp: lastTs };
+        }
+      }
+
+      console.log(`✅ getCommentedMomentsPage: uid=${uid}, scanned=${commentsSnap.size}, candidates=${candidates.length}, returned=${items.length}`);
+
+      res.status(200).json({
+        items,
+        nextCursor,
+        source: 'backend',
+        totalCandidates: candidates.length
+      });
+
+    } catch (error) {
+      console.error('❌ getCommentedMomentsPage error:', error);
+      res.status(500).json({ error: 'Commented moments fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 🗑️ deleteMyCommentsBatch — Deletes the viewer's selected comments (and direct replies).
+ *
+ * POST body: { comments: [{ authorId, momentId, commentId }] }
+ */
+exports.deleteMyCommentsBatch = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 20
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawItems = Array.isArray(body.comments) ? body.comments : [];
+    const trimmed = rawItems.slice(0, 50);
+    const db = admin.firestore();
+
+    try {
+      // Deduplicate and validate payload
+      const uniqueMap = new Map();
+      for (const item of trimmed) {
+        const authorId = typeof item?.authorId === 'string' ? item.authorId.trim() : '';
+        const momentId = typeof item?.momentId === 'string' ? item.momentId.trim() : '';
+        const commentId = typeof item?.commentId === 'string' ? item.commentId.trim() : '';
+        if (!authorId || !momentId || !commentId) continue;
+        const key = `${authorId}_${momentId}_${commentId}`;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, { authorId, momentId, commentId });
+        }
+      }
+
+      const targets = [...uniqueMap.values()];
+      if (targets.length === 0) {
+        res.status(200).json({ deleted: 0, skipped: 0, cascadedReplies: 0 });
+        return;
+      }
+
+      // Verify ownership of root comments before deleting.
+      let skipped = 0;
+      const ownedTargets = [];
+      for (const target of targets) {
+        const ref = db.doc(`users/${target.authorId}/moments/${target.momentId}/comments/${target.commentId}`);
+        const snap = await ref.get();
+        if (!snap.exists) {
+          skipped += 1;
+          continue;
+        }
+        const data = snap.data() || {};
+        if (data.authorId !== uid) {
+          skipped += 1;
+          continue;
+        }
+        ownedTargets.push(target);
+      }
+
+      if (ownedTargets.length === 0) {
+        res.status(200).json({ deleted: 0, skipped, cascadedReplies: 0 });
+        return;
+      }
+
+      const refsToDelete = new Map(); // path -> DocumentReference
+      const decrementByMomentPath = new Map(); // momentPath -> count
+      let cascadedReplies = 0;
+
+      for (const target of ownedTargets) {
+        const commentPath = `users/${target.authorId}/moments/${target.momentId}/comments/${target.commentId}`;
+        refsToDelete.set(commentPath, db.doc(commentPath));
+
+        const momentPath = `users/${target.authorId}/moments/${target.momentId}`;
+        decrementByMomentPath.set(momentPath, (decrementByMomentPath.get(momentPath) || 0) + 1);
+
+        const repliesSnap = await db
+          .collection(`users/${target.authorId}/moments/${target.momentId}/comments`)
+          .where('parentCommentId', '==', target.commentId)
+          .get();
+
+        for (const replyDoc of repliesSnap.docs) {
+          if (!refsToDelete.has(replyDoc.ref.path)) {
+            refsToDelete.set(replyDoc.ref.path, replyDoc.ref);
+            decrementByMomentPath.set(momentPath, (decrementByMomentPath.get(momentPath) || 0) + 1);
+            cascadedReplies += 1;
+          }
+        }
+      }
+
+      // Commit in chunks to stay below Firestore batch limits.
+      let batch = db.batch();
+      let ops = 0;
+      let commits = 0;
+
+      const flushBatch = async () => {
+        if (ops === 0) return;
+        await batch.commit();
+        commits += 1;
+        batch = db.batch();
+        ops = 0;
+      };
+
+      for (const ref of refsToDelete.values()) {
+        if (ops >= 420) await flushBatch();
+        batch.delete(ref);
+        ops += 1;
+      }
+
+      for (const [momentPath, count] of decrementByMomentPath.entries()) {
+        if (ops >= 420) await flushBatch();
+        batch.update(db.doc(momentPath), {
+          commentCount: admin.firestore.FieldValue.increment(-count)
+        });
+        ops += 1;
+      }
+
+      await flushBatch();
+
+      const deleted = refsToDelete.size;
+      console.log(`✅ deleteMyCommentsBatch: uid=${uid}, deleted=${deleted}, skipped=${skipped}, cascadedReplies=${cascadedReplies}, commits=${commits}`);
+      res.status(200).json({ deleted, skipped, cascadedReplies });
+
+    } catch (error) {
+      console.error('❌ deleteMyCommentsBatch error:', error);
+      res.status(500).json({ error: 'Delete comments batch failed', details: error.message });
     }
   }
 );

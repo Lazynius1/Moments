@@ -36,6 +36,7 @@ struct MomentDetailView: View {
     @State private var navigateToProfile: Bool = false
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
+    @State private var showingStories = false
     
 
     init(moment: Moment) {
@@ -176,6 +177,9 @@ struct MomentDetailView: View {
         .sheet(isPresented: $navigateToProfile) {
             UserProfileView(userId: moment.authorId)
         }
+        .sheet(isPresented: $showingStories) {
+            StoriesView(startWithUserId: .constant(moment.authorId))
+        }
     }
     
     // MARK: - Componentes Modernos
@@ -205,16 +209,18 @@ struct MomentDetailView: View {
                 Spacer()
                 
                 HStack(spacing: 10) {
-                    Button(action: {
-                        if !moment.authorId.isEmpty {
-                            navigateToProfile = true
+                    StoryRingAvatarView(
+                        userId: moment.authorId,
+                        size: 38,
+                        lineWidth: 2.2,
+                        onTap: { hasStory in
+                            if hasStory {
+                                showingStories = true
+                            } else {
+                                navigateToProfile = true
+                            }
                         }
-                    }) {
-                        AsyncProfileImageView(userId: moment.authorId)
-                            .frame(width: 38, height: 38)
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                    )
                     
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 4) {
@@ -248,7 +254,7 @@ struct MomentDetailView: View {
         }
         .background(.ultraThinMaterial)
     }
-    
+
     private func contentScrollView(safeAreaBottom: CGFloat) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
@@ -898,13 +904,21 @@ struct InlineCommentRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Avatar pequeño
-            AsyncProfileImageView(userId: comment.authorId)
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            StoryRingAvatarView(
+                userId: comment.authorId,
+                size: 32,
+                lineWidth: 2.0,
+                showBaseStroke: true,
+                baseStrokeColor: Color.white.opacity(0.2),
+                baseStrokeWidth: 1
+            )
+            .onTapGesture {
+                guard !comment.authorId.isEmpty else { return }
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("NavigateToProfile"),
+                    object: comment.authorId
                 )
+            }
             
             VStack(alignment: .leading, spacing: 4) {
                 // Username y tiempo

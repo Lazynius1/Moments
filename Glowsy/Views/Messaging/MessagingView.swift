@@ -143,7 +143,7 @@ struct MessagingView: View {
                     messageRequestService.listenToPendingRequests(for: userId)
                     updatePendingRequestCount(for: userId)
                 } else {
-                    viewModel.errorMessage = "Usuario no autenticado"
+                    viewModel.errorMessage = NSLocalizedString("messaging.error.notAuthenticated", comment: "User not authenticated")
                 }
                 
                 // ✅ AGREGAR: Verificar si hay conversación objetivo
@@ -608,20 +608,7 @@ struct MessagingView: View {
     
     // ✅ NUEVAS FUNCIONES: Acciones de swipe
     private func deleteConversation(_ conversation: Conversation) {
-        guard let conversationId = conversation.id,
-              let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        
-        let chatService = ChatService.shared
-        chatService.deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: conversation.otherParticipantId ?? "") { error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    // Error deleting conversation
-                } else {
-                    // Conversation deleted successfully
-                }
-            }
-        }
+        viewModel.deleteConversation(conversation)
     }
     
     private func pinConversation(_ conversation: Conversation) {
@@ -820,11 +807,11 @@ struct SearchConversationRow: View {
                 .frame(width: 48, height: 48)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(conversation.otherParticipantUsername ?? "Usuario")
+                Text(conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
                     .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(.white)
                 
-                Text(conversation.lastMessage ?? "Inicia un chat")
+                Text(conversation.lastMessage ?? NSLocalizedString("messaging.chat.emptyPreview", comment: "Start a chat preview"))
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.white.opacity(0.7))
                     .lineLimit(1)
@@ -914,13 +901,12 @@ struct GlassmorphicConversationRow: View {
     @State private var hasUnseenStory: Bool = false
     @State private var storyCount: Int = 0
     @State private var storyViewedStatus: [Bool] = []
+    @State private var storyAudiences: [String?] = []
     
     // ✅ NUEVO: Estados para navegación
     @State private var showingUserProfile = false
     @State private var showingStories = false
     @State private var storiesUserId: String = ""
-    
-    // ✅ NUEVO: Instancia de PrivacyService para verificar historias
     private let privacyService = PrivacyService()
     
     var body: some View {
@@ -946,6 +932,7 @@ struct GlassmorphicConversationRow: View {
                                 hasStory: hasStory,
                                 hasUnseenStory: hasUnseenStory,
                                 storyViewedStatus: storyViewedStatus,
+                                storyAudiences: storyAudiences,
                                 isOwnStory: false,
                                 colorScheme: colorScheme,
                                 ringSize: 56,
@@ -963,7 +950,7 @@ struct GlassmorphicConversationRow: View {
                         showingUserProfile = true
                     }) {
                         HStack(spacing: 4) {
-                            Text(conversation.otherParticipantUsername ?? "Usuario")
+                            Text(conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
@@ -992,7 +979,7 @@ struct GlassmorphicConversationRow: View {
                 Button(action: {
                     onTap() // ✅ Abrir el chat
                 }) {
-                    Text(conversation.lastMessage ?? "Inicia un chat")
+                    Text(conversation.lastMessage ?? NSLocalizedString("messaging.chat.emptyPreview", comment: "Start a chat preview"))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
                         .lineLimit(1)
@@ -1041,94 +1028,18 @@ struct GlassmorphicConversationRow: View {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         let otherUserId = conversation.otherParticipantId ?? ""
         guard !otherUserId.isEmpty else { return }
-        
-        // ✅ USAR LA MISMA LÓGICA DE REELS: Verificar historias con filtrado de privacidad
-        Firestore.firestore().collection("users").document(otherUserId).collection("stories")
-            .whereField("expirationDate", isGreaterThan: Date())
-            .order(by: "timestamp", descending: false)
-            .getDocuments { snapshot, error in
-                guard let documents = snapshot?.documents, !documents.isEmpty else {
-                    DispatchQueue.main.async {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                    }
-                    return
-                }
-                
-                let stories = documents.compactMap { doc -> Story? in
-                    try? doc.data(as: Story.self)
-                }
-                
-                guard !stories.isEmpty else {
-                    DispatchQueue.main.async {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                    }
-                    return
-                }
-                
-                // ✅ FILTRADO DE PRIVACIDAD: Solo contar historias que se pueden ver
-                let group = DispatchGroup()
-                var visibleStories: [(story: Story, wasViewed: Bool)] = []
-                let syncQueue = DispatchQueue(label: "story.visibility.check")
-                
-                for story in stories {
-                    group.enter()
-                    // ✅ USAR PRIVACY SERVICE como en reels
-                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
-                        if canView {
-                            if let storyId = story.id {
-                                group.enter()
-                                Firestore.firestore().collection("users").document(story.authorId)
-                                    .collection("stories").document(storyId)
-                                    .collection("viewers").document(currentUserId)
-                                    .getDocument { viewerDoc, _ in
-                                        let wasViewed = viewerDoc?.exists == true
-                                        syncQueue.async {
-                                            visibleStories.append((story: story, wasViewed: wasViewed))
-                                            group.leave() // ✅ Leave INSIDE syncQueue for thread safety
-                                        }
-                                        group.leave() // Matches the storyId check enter
-                                    }
-                            } else {
-                                syncQueue.async {
-                                    visibleStories.append((story: story, wasViewed: false))
-                                    group.leave() // ✅ Leave INSIDE syncQueue
-                                }
-                            }
-                        } else {
-                            group.leave() // ✅ Leave if not viewable
-                        }
-                    }
-                }
-                
-                group.notify(queue: .main) {
-                    // ✅ Use syncQueue to safely read visibleStories
-                    syncQueue.async {
-                        let finalStories = visibleStories
-                        DispatchQueue.main.async {
-                            if !finalStories.isEmpty {
-                                self.hasStory = true
-                                let storyCount = finalStories.count
-                                let sortedStories = finalStories.sorted { story1, story2 in
-                                    (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
-                                }
-                                let viewedStatus = sortedStories.map { $0.wasViewed }
-                                let hasUnseenVisible = viewedStatus.contains(false)
-                                
-                                self.storyCount = storyCount
-                                self.storyViewedStatus = viewedStatus
-                                self.hasUnseenStory = hasUnseenVisible
-                            } else {
-                                self.hasStory = false
-                                self.hasUnseenStory = false
-                                self.storyCount = 0
-                                self.storyViewedStatus = []
-                            }
-                        }
-                    }
-                }
-            }
+
+        StoryRingResolverService.shared.resolve(
+            viewerId: currentUserId,
+            authorId: otherUserId,
+            privacyService: privacyService
+        ) { snapshot in
+            self.hasStory = snapshot.hasStory
+            self.hasUnseenStory = snapshot.hasUnseenStory
+            self.storyCount = snapshot.storyCount
+            self.storyViewedStatus = snapshot.storyViewedStatus
+            self.storyAudiences = snapshot.storyAudiences
+        }
     }
     
     private func formattedTimestamp(_ date: Date) -> String {
@@ -1140,7 +1051,7 @@ struct GlassmorphicConversationRow: View {
             formatter.timeStyle = .short
             return formatter.string(from: date)
         } else if calendar.isDateInYesterday(date) {
-            return "Ayer"
+            return NSLocalizedString("notifications.date.yesterday", comment: "Yesterday")
         } else {
             let formatter = DateFormatter()
             formatter.dateStyle = .short
@@ -1315,22 +1226,24 @@ struct GlassmorphicNewConversationView: View {
         let userMessage = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Intentar crear conversación directa primero
-        viewModel.startConversation(with: selectedUser, from: userId, initialMessage: userMessage) {
+        viewModel.startConversation(with: selectedUser, from: userId, initialMessage: userMessage) { conversation in
             DispatchQueue.main.async {
-                // Verificar si se creó la conversación exitosamente
-                if let createdConversation = viewModel.conversations.first(where: { $0.otherParticipantId == selectedUser.id }) {
-                    // Conversación creada exitosamente, enviar mensaje
+                if let conversation {
+                    // Conversación creada/recuperada con envío inicial exitoso
+                    showingMessageComposer = false
                     dismiss()
-                    onConversationCreated(createdConversation)
+                    onConversationCreated(conversation)
                 } else {
                     // Verificar el tipo de error
                     let errorMessage = viewModel.errorMessage ?? ""
                     
-                    if errorMessage.contains("no siguen mutuamente") || errorMessage.contains("Se requiere una solicitud") {
+                    if viewModel.requiresMessageRequest {
                         // No se pudo crear conversación directa, enviar solicitud
                         sendMessageRequest()
                     } else {
-                        // Otro tipo de error
+                        viewModel.errorMessage = errorMessage.isEmpty
+                            ? NSLocalizedString("messaging.error.startConversationFailed", comment: "Failed to start conversation")
+                            : errorMessage
                     }
                 }
             }
@@ -1354,9 +1267,13 @@ struct GlassmorphicNewConversationView: View {
                 case .success:
                     dismiss()
                     // Mostrar mensaje de éxito
-                    viewModel.errorMessage = "Solicitud de mensaje enviada. El usuario recibirá una notificación."
+                    viewModel.requiresMessageRequest = false
+                    viewModel.errorMessage = NSLocalizedString("messaging.request.sent", comment: "Message request sent successfully")
                 case .failure(let error):
-                    viewModel.errorMessage = "Error al enviar solicitud: \(error.localizedDescription)"
+                    viewModel.errorMessage = String(
+                        format: NSLocalizedString("messaging.error.sendRequest", comment: "Failed to send message request"),
+                        error.localizedDescription
+                    )
                 }
             }
         }
@@ -1472,7 +1389,7 @@ struct MessageComposerView: View {
                     
                     // Message Input
                     VStack(spacing: 16) {
-                        TextField("Escribe tu mensaje...", text: $messageText, axis: .vertical)
+                        TextField(NSLocalizedString("messaging.compose.placeholder", comment: "Message composer placeholder"), text: $messageText, axis: .vertical)
                             .font(.body)
                             .foregroundColor(adaptiveColors.primary)
                             .padding(16)
@@ -1509,12 +1426,12 @@ struct MessageComposerView: View {
                     .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("Nuevo mensaje")
+            .navigationTitle(NSLocalizedString("messaging.compose.title", comment: "New message title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
                         dismiss()
                     }
                 }
@@ -1553,7 +1470,7 @@ struct OnlineStatusSelectorView: View {
                             .font(.system(size: 40))
                             .foregroundColor(currentStatus.color)
                         
-                        Text("Estado actual")
+                        Text(NSLocalizedString("messaging.status.current", comment: "Current status"))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(adaptiveColors.secondary)
                         
@@ -1613,7 +1530,7 @@ struct OnlineStatusSelectorView: View {
                     
                     // Botón de cerrar
                     Button(action: { dismiss() }) {
-                        Text("Cerrar")
+                        Text(NSLocalizedString("common.close", comment: "Close"))
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(adaptiveColors.primary)
                             .frame(maxWidth: .infinity)
@@ -1647,6 +1564,7 @@ class MessagingViewModel: ObservableObject {
     @Published var hasUnreadMessages: Bool = false
     @Published var selectedConversation: Conversation?
     @Published var errorMessage: String?
+    @Published var requiresMessageRequest: Bool = false
     
     // ✅ NUEVO: Propiedades para búsqueda
     @Published var filteredConversations: [Conversation] = []
@@ -1697,7 +1615,10 @@ class MessagingViewModel: ObservableObject {
                 case .failure(let error):
                     // Solo mostrar error si no hay nada en el caché
                     if self.conversations.isEmpty {
-                        self.errorMessage = "Error al cargar conversaciones: \(error.localizedDescription)"
+                        self.errorMessage = String(
+                            format: NSLocalizedString("messaging.error.loadConversations", comment: "Failed to load conversations"),
+                            error.localizedDescription
+                        )
                     }
                     print("⚠️ MessagingViewModel: Fallo fetch de Firestore: \(error.localizedDescription)")
                 }
@@ -1720,7 +1641,7 @@ class MessagingViewModel: ObservableObject {
                             timestamp: self.conversations[i].timestamp,
                             readStatus: self.conversations[i].readStatus,
                             otherParticipantId: userId,
-                            otherParticipantUsername: user?.username ?? "Usuario",
+                            otherParticipantUsername: user?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user name"),
                             otherParticipantProfileImagePath: user?.profileImagePath ?? ""
                         )
                     }
@@ -1736,7 +1657,7 @@ class MessagingViewModel: ObservableObject {
                             timestamp: self.filteredConversations[i].timestamp,
                             readStatus: self.filteredConversations[i].readStatus,
                             otherParticipantId: userId,
-                            otherParticipantUsername: user?.username ?? "Usuario",
+                            otherParticipantUsername: user?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user name"),
                             otherParticipantProfileImagePath: user?.profileImagePath ?? ""
                         )
                     }
@@ -1829,7 +1750,7 @@ class MessagingViewModel: ObservableObject {
             case .success(let canSend):
                 if !canSend {
                     DispatchQueue.main.async {
-                        self?.errorMessage = "No puedes iniciar una conversación con este usuario."
+                        self?.errorMessage = NSLocalizedString("messaging.error.cannotStart", comment: "Cannot start conversation")
                     }
                     completion(nil)
                     return
@@ -1847,7 +1768,10 @@ class MessagingViewModel: ObservableObject {
                         
                     case .failure(let error):
                         DispatchQueue.main.async {
-                            self?.errorMessage = "Error al crear la conversación: \(error.localizedDescription)"
+                            self?.errorMessage = String(
+                                format: NSLocalizedString("messaging.error.createConversation", comment: "Failed to create conversation"),
+                                error.localizedDescription
+                            )
                         }
                         completion(nil)
                     }
@@ -1855,7 +1779,10 @@ class MessagingViewModel: ObservableObject {
                 
             case .failure(let error):
                 DispatchQueue.main.async {
-                    self?.errorMessage = "Error al verificar permisos: \(error.localizedDescription)"
+                    self?.errorMessage = String(
+                        format: NSLocalizedString("messaging.error.verifyPermissions", comment: "Failed to verify permissions"),
+                        error.localizedDescription
+                    )
                 }
                 completion(nil)
             }
@@ -1882,7 +1809,10 @@ class MessagingViewModel: ObservableObject {
         conversationRef.setData(conversationData) { [weak self] error in
             if let error = error {
                 DispatchQueue.main.async {
-                    self?.errorMessage = "Error al crear la conversación: \(error.localizedDescription)"
+                    self?.errorMessage = String(
+                        format: NSLocalizedString("messaging.error.createConversation", comment: "Failed to create conversation"),
+                        error.localizedDescription
+                    )
                 }
                 completion(nil)
                 return
@@ -1936,7 +1866,10 @@ class MessagingViewModel: ObservableObject {
                     case .success(let users):
                         self.suggestedUsers = users
                     case .failure(let error):
-                        self.errorMessage = "Error al buscar usuarios: \(error.localizedDescription)"
+                        self.errorMessage = String(
+                            format: NSLocalizedString("messaging.error.searchUsers", comment: "Failed to search users"),
+                            error.localizedDescription
+                        )
                     }
                 }
             }
@@ -1946,12 +1879,67 @@ class MessagingViewModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
     }
     
-    func startConversation(with user: AppUser, from userId: String, initialMessage: String? = nil, completion: @escaping () -> Void) {
+    func startConversation(with user: AppUser, from userId: String, initialMessage: String? = nil, completion: @escaping (Conversation?) -> Void) {
+        requiresMessageRequest = false
+
         // Check if conversation already exists
         if let existingConversation = conversations.first(where: { $0.otherParticipantId == user.id && $0.id != nil }) {
-            DispatchQueue.main.async {
-                self.selectedConversation = existingConversation
-                completion()
+            let trimmedInitial = initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            guard !trimmedInitial.isEmpty else {
+                DispatchQueue.main.async {
+                    self.selectedConversation = existingConversation
+                    completion(existingConversation)
+                }
+                return
+            }
+
+            guard let conversationId = existingConversation.id else {
+                DispatchQueue.main.async {
+                    self.errorMessage = NSLocalizedString("messaging.error.startConversationFailed", comment: "Failed to start conversation")
+                    completion(nil)
+                }
+                return
+            }
+
+            chatService.sendTextMessage(
+                conversationId: conversationId,
+                senderId: userId,
+                content: trimmedInitial
+            ) { [weak self] result in
+                guard let self = self else { return }
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success:
+                        let updatedConversation = Conversation(
+                            id: existingConversation.id,
+                            participants: existingConversation.participants,
+                            lastMessage: trimmedInitial,
+                            timestamp: Date(),
+                            readStatus: existingConversation.readStatus,
+                            otherParticipantId: existingConversation.otherParticipantId,
+                            otherParticipantUsername: existingConversation.otherParticipantUsername,
+                            otherParticipantProfileImagePath: existingConversation.otherParticipantProfileImagePath,
+                            isPinned: existingConversation.isPinned,
+                            isMuted: existingConversation.isMuted
+                        )
+                        self.selectedConversation = updatedConversation
+                        if let idx = self.conversations.firstIndex(where: { $0.id == conversationId }) {
+                            self.conversations[idx] = updatedConversation
+                        }
+                        self.fetchConversations(for: userId)
+                        self.errorMessage = nil
+                        self.requiresMessageRequest = false
+                        completion(updatedConversation)
+                    case .failure(let error):
+                        self.errorMessage = String(
+                            format: NSLocalizedString("messaging.error.sendMessage", comment: "Failed to send message"),
+                            error.localizedDescription
+                        )
+                        self.requiresMessageRequest = false
+                        completion(nil)
+                    }
+                }
             }
             return
         }
@@ -1963,8 +1951,9 @@ class MessagingViewModel: ObservableObject {
             case .success(let canSend):
                 if !canSend {
                     DispatchQueue.main.async {
-                        self.errorMessage = "No puedes iniciar una conversación con este usuario."
-                        completion()
+                        self.errorMessage = NSLocalizedString("messaging.error.cannotStart", comment: "Cannot start conversation")
+                        self.requiresMessageRequest = false
+                        completion(nil)
                     }
                     return
                 }
@@ -1974,10 +1963,26 @@ class MessagingViewModel: ObservableObject {
                     switch result {
                     case .success(let conversationId):
                         DispatchQueue.main.async {
-                            // Refrescar para obtener la nueva conversación
+                            // Build an immediate conversation object to avoid waiting for listener refresh.
+                            let immediateConversation = Conversation(
+                                id: conversationId,
+                                participants: [userId, user.id].sorted(),
+                                lastMessage: initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+                                timestamp: Date(),
+                                readStatus: [userId: true, user.id: false],
+                                otherParticipantId: user.id,
+                                otherParticipantUsername: user.username,
+                                otherParticipantProfileImagePath: user.profileImagePath
+                            )
+                            self.selectedConversation = immediateConversation
+                            if !self.conversations.contains(where: { $0.id == conversationId }) {
+                                self.conversations.insert(immediateConversation, at: 0)
+                            }
+                            // Refrescar para reconciliar datos reales de Firestore.
                             self.fetchConversations(for: userId)
                             self.errorMessage = nil
-                            completion()
+                            self.requiresMessageRequest = false
+                            completion(immediateConversation)
                         }
                         
                     case .failure(let error):
@@ -1985,19 +1990,28 @@ class MessagingViewModel: ObservableObject {
                         DispatchQueue.main.async {
                             let localizedError = nsError.localizedDescription.lowercased()
                             if nsError.code == 403 || localizedError.contains("no siguen mutuamente") || localizedError.contains("solicitud") {
-                                self.errorMessage = "Los usuarios no se siguen mutuamente. Se requiere una solicitud de mensaje."
+                                self.errorMessage = NSLocalizedString("messaging.error.messageRequestRequired", comment: "A message request is required to start this conversation")
+                                self.requiresMessageRequest = true
                             } else {
-                                self.errorMessage = "Error al crear la conversación: \(nsError.localizedDescription)"
+                                self.errorMessage = String(
+                                    format: NSLocalizedString("messaging.error.createConversation", comment: "Failed to create conversation"),
+                                    nsError.localizedDescription
+                                )
+                                self.requiresMessageRequest = false
                             }
-                            completion()
+                            completion(nil)
                         }
                     }
                 }
                 
             case .failure(let error):
                 DispatchQueue.main.async {
-                    self.errorMessage = "Error al verificar permisos: \(error.localizedDescription)"
-                    completion()
+                    self.errorMessage = String(
+                        format: NSLocalizedString("messaging.error.verifyPermissions", comment: "Failed to verify permissions"),
+                        error.localizedDescription
+                    )
+                    self.requiresMessageRequest = false
+                    completion(nil)
                 }
             }
         }
@@ -2007,14 +2021,27 @@ class MessagingViewModel: ObservableObject {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
+        guard let currentUserId = Auth.auth().currentUser?.uid, !currentUserId.isEmpty else {
+            return
+        }
+
+        // Optimistic local removal so it disappears immediately from inbox and search results.
+        conversations.removeAll { $0.id == conversationId }
+        filteredConversations.removeAll { $0.id == conversationId }
+        hasUnreadMessages = conversations.contains { !($0.readStatus[currentUserId] ?? true) }
+        LocalPersistenceService.shared.saveConversations(conversations, sync: true)
+        LocalPersistenceService.shared.deleteConversationCache(conversationId: conversationId)
         
         chatService.deleteConversationsBetweenUsers(
-            user1Id: Auth.auth().currentUser?.uid ?? "",
+            user1Id: currentUserId,
             user2Id: conversation.otherParticipantId
         ) { [weak self] error in
             if let error = error {
                 DispatchQueue.main.async {
-                    self?.errorMessage = "Error al eliminar conversación: \(error.localizedDescription)"
+                    self?.errorMessage = String(
+                        format: NSLocalizedString("messaging.error.deleteConversation", comment: "Failed to delete conversation"),
+                        error.localizedDescription
+                    )
                 }
             } else {
                 DispatchQueue.main.async {
@@ -2036,7 +2063,10 @@ class MessagingViewModel: ObservableObject {
             .updateData(["readStatus.\(Auth.auth().currentUser?.uid ?? "")": false]) { [weak self] error in
                 if let error = error {
                     DispatchQueue.main.async {
-                        self?.errorMessage = "Error al marcar como no leído: \(error.localizedDescription)"
+                        self?.errorMessage = String(
+                            format: NSLocalizedString("messaging.error.markUnread", comment: "Failed to mark conversation unread"),
+                            error.localizedDescription
+                        )
                     }
                 } else {
                     DispatchQueue.main.async {

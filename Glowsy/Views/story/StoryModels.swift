@@ -490,7 +490,7 @@ class StoryViewModel: ObservableObject {
                                 self.chatService.sendEphemeralMessage(
                                     conversationId: conversationId,
                                     senderId: currentUserId,
-                                    content: "📸 Momento efímero en respuesta a tu historia",
+                                    content: NSLocalizedString("stories.ephemeral.replyContent", comment: "Ephemeral moment in reply to story"),
                                     mediaUrl: mediaUrl,
                                     expirationHours: 24,
                                     storyReplyData: [
@@ -623,7 +623,13 @@ class StoryViewModel: ObservableObject {
 
     func deleteStory(userId: String, storyId: String, completion: @escaping (Error?) -> Void) {
         guard let currentUserId = Auth.auth().currentUser?.uid, currentUserId == userId else {
-            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No autorizado para eliminar esta historia"]))
+            completion(
+                NSError(
+                    domain: "",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("stories.error.unauthorizedDelete", comment: "Not authorized to delete this story")]
+                )
+            )
             return
         }
         
@@ -679,7 +685,13 @@ class StoryViewModel: ObservableObject {
     // ✅ FUNCIÓN: Eliminar media de Firebase Storage
     private func deleteMediaFromStorage(mediaUrl: String, completion: @escaping (Error?) -> Void) {
         guard let url = URL(string: mediaUrl) else {
-            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL de media inválida"]))
+            completion(
+                NSError(
+                    domain: "",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("stories.error.invalidMediaUrl", comment: "Invalid media URL")]
+                )
+            )
             return
         }
         
@@ -1904,7 +1916,7 @@ struct GlassmorphicStoryViewer: View {
                         HStack(spacing: 8) {
                             // Campo de texto solo si permite mensajes
                             if authorAllowsMessages {
-                                TextField("Enviar mensaje...", text: $messageText, axis: .vertical)
+                                TextField(NSLocalizedString("stories.sendMessagePlaceholder", comment: "Send message placeholder"), text: $messageText, axis: .vertical)
                                     .foregroundColor(.white)
                                     .font(.custom("Poppins-Regular", size: 14))
                                     .padding(.leading, 4)
@@ -2590,7 +2602,7 @@ struct GlassmorphicStoryViewer: View {
             }
         }
         
-        showSuccessAnimation("Reacción enviada")
+        showSuccessAnimation(NSLocalizedString("stories.reactionSent", comment: "Reaction sent"))
         
         // ✅ Reanudar historia inmediatamente después de enviar reacción
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -2661,14 +2673,14 @@ struct GlassmorphicStoryViewer: View {
                         try await PHPhotoLibrary.shared().performChanges {
                             PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
                         }
-                        showSuccessAnimation("Imagen guardada")
+                        showSuccessAnimation(NSLocalizedString("stories.savedImage", comment: "Image saved"))
                     } else if story.mediaItem.type == .video {
                         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("story_video.mp4")
                         try data.write(to: tempURL)
                         try await PHPhotoLibrary.shared().performChanges {
                             PHAssetCreationRequest.forAsset().addResource(with: .video, fileURL: tempURL, options: nil)
                         }
-                        showSuccessAnimation("Video guardado")
+                        showSuccessAnimation(NSLocalizedString("stories.savedVideo", comment: "Video saved"))
                         try? FileManager.default.removeItem(at: tempURL)
                     }
                 } catch {
@@ -4140,7 +4152,7 @@ struct StoryReplyPreview: View {
             
             // Story reply text with better styling
             VStack(alignment: .leading, spacing: 3) {
-                Text(isCurrentUser ? "Respondiste a su historia" : "Ha respondido a tu historia")
+                Text(isCurrentUser ? NSLocalizedString("stories.replied", comment: "You replied to their story") : NSLocalizedString("stories.repliedTo", comment: "Replied to your story"))
                     .font(.custom("Poppins-SemiBold", size: 13))
                     .foregroundColor(.white.opacity(0.9))
                 
@@ -4151,7 +4163,7 @@ struct StoryReplyPreview: View {
                             .font(.system(size: 11))
                             .foregroundColor(Color(hex: "007AFF"))
                         
-                        Text(storyMediaType == "video" ? "Video" : "Foto")
+                        Text(storyMediaType == "video" ? NSLocalizedString("stories.video", comment: "Video") : NSLocalizedString("stories.photo", comment: "Photo"))
                             .font(.custom("Poppins-Regular", size: 11))
                             .foregroundColor(.white.opacity(0.7))
                     }
@@ -5609,7 +5621,7 @@ struct InteractiveQuestionSticker: View {
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.white.opacity(0.8))
                 } else {
-                    Text(isAuthor ? "Toca para ver respuestas" : "Toca para responder")
+                    Text(isAuthor ? NSLocalizedString("question.tapToSee", comment: "Tap to see responses") : NSLocalizedString("question.tapToAnswer", comment: "Tap to answer"))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -5739,7 +5751,7 @@ struct QuestionResponseInputView: View {
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.secondary)
                     
-                    TextField("Escribe tu respuesta...", text: $responseText, axis: .vertical)
+                    TextField(NSLocalizedString("question.answerPlaceholder", comment: "Write your answer"), text: $responseText, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .focused($isTextFieldFocused)
                         .lineLimit(3...6)

@@ -65,8 +65,18 @@ struct ExploreView: View {
                             HStack(spacing: 12) {
                                 HStack(spacing: 12) {
                                     if search.type == "user", let targetId = search.targetId {
-                                        AsyncProfileImageView(userId: targetId)
-                                            .frame(width: 32, height: 32)
+                                        StoryRingAvatarView(
+                                            userId: targetId,
+                                            size: 32,
+                                            lineWidth: 2.0
+                                        )
+                                        .onTapGesture {
+                                            guard !targetId.isEmpty else { return }
+                                            NotificationCenter.default.post(
+                                                name: NSNotification.Name("NavigateToProfile"),
+                                                object: targetId
+                                            )
+                                        }
                                     } else {
                                         Image(systemName: searchTypeIcon(for: search.type))
                                             .font(.system(size: 14))

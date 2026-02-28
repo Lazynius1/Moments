@@ -3,6 +3,16 @@ import FirebaseAuth
 import UIKit
 import CoreLocation
 
+struct LoginActivity: Identifiable {
+    let id: String
+    let timestamp: Date
+    let device: String
+    let location: String
+    let ipAddress: String
+    let isSuccessful: Bool
+    let failureReason: String?
+}
+
 // MARK: - RealLoginActivityService.swift (Archivo separado - SIN extensiones de AnalyticsService)
 class RealLoginActivityService: NSObject, ObservableObject {
     static let shared = RealLoginActivityService()
@@ -34,54 +44,49 @@ class RealLoginActivityService: NSObject, ObservableObject {
     
     // MARK: - Get Current Session
     func getCurrentSession(userId: String, completion: @escaping (LoginSession?) -> Void) {
-        // Get the most recent active session
+        if let currentSessionId = AnalyticsService.shared.getCurrentSessionId() {
+            db.collection("users").document(userId).collection("sessions")
+                .document(currentSessionId)
+                .getDocument { [weak self] snapshot, _ in
+                    guard let self = self else {
+                        completion(nil)
+                        return
+                    }
+                    
+                    if let snapshot = snapshot,
+                       let session = self.makeSession(from: snapshot),
+                       session.isActive {
+                        completion(session)
+                        return
+                    }
+                    
+                    self.fetchMostRecentActiveSession(userId: userId, completion: completion)
+                }
+            return
+        }
+        
+        fetchMostRecentActiveSession(userId: userId, completion: completion)
+    }
+
+    func fetchActiveSessions(userId: String, completion: @escaping (Result<[LoginSession], Error>) -> Void) {
         db.collection("users").document(userId).collection("sessions")
             .whereField("isActive", isEqualTo: true)
             .order(by: "startTime", descending: true)
-            .limit(to: 1)
+            .limit(to: 60)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
-                    completion(nil)
+                    completion(.failure(error))
                     return
                 }
                 
                 guard let self = self else {
-                    completion(nil)
+                    completion(.success([]))
                     return
                 }
                 
-                guard let document = snapshot?.documents.first else {
-                    // Create a current session if none exists
-                    let session = LoginSession(
-                        id: UUID().uuidString,
-                        device: self.getCurrentDeviceInfo(),
-                        location: self.currentLocationString,
-                        ipAddress: self.getCurrentIPAddress(),
-                        timestamp: Date(),
-                        isActive: true
-                    )
-                    completion(session)
-                    return
-                }
-                
-                let data = document.data()
-                let deviceInfo = data["deviceInfo"] as? [String: Any] ?? [:]
-                let device = deviceInfo["model"] as? String ?? "iPhone"
-                let systemVersion = deviceInfo["systemVersion"] as? String ?? ""
-                
-                // Get stored location or use current
-                let storedLocation = data["location"] as? String ?? self.currentLocationString
-                
-                let session = LoginSession(
-                    id: document.documentID,
-                    device: "\(device) - iOS \(systemVersion)",
-                    location: storedLocation,
-                    ipAddress: self.getCurrentIPAddress(),
-                    timestamp: (data["startTime"] as? Timestamp)?.dateValue() ?? Date(),
-                    isActive: data["isActive"] as? Bool ?? true
-                )
-                
-                completion(session)
+                let sessions = snapshot?.documents.compactMap { self.makeSession(from: $0) } ?? []
+                let dedupedSessions = self.dedupeSessionsByDevice(sessions)
+                completion(.success(dedupedSessions))
             }
     }
     
@@ -300,6 +305,88 @@ class RealLoginActivityService: NSObject, ObservableObject {
     
     func getCurrentLocationString() -> String {
         return currentLocationString
+    }
+
+    // MARK: - Session helpers
+    private func fetchMostRecentActiveSession(userId: String, completion: @escaping (LoginSession?) -> Void) {
+        db.collection("users").document(userId).collection("sessions")
+            .whereField("isActive", isEqualTo: true)
+            .order(by: "startTime", descending: true)
+            .limit(to: 1)
+            .getDocuments { [weak self] snapshot, _ in
+                guard let self = self else {
+                    completion(nil)
+                    return
+                }
+                
+                if let document = snapshot?.documents.first,
+                   let session = self.makeSession(from: document) {
+                    completion(session)
+                    return
+                }
+                
+                completion(
+                    LoginSession(
+                        id: UUID().uuidString,
+                        device: self.getCurrentDeviceInfo(),
+                        location: self.currentLocationString,
+                        ipAddress: self.getCurrentIPAddress(),
+                        timestamp: Date(),
+                        isActive: true,
+                        deviceIdentifier: UIDevice.current.identifierForVendor?.uuidString
+                    )
+                )
+            }
+    }
+    
+    private func makeSession(from snapshot: DocumentSnapshot) -> LoginSession? {
+        guard snapshot.exists else { return nil }
+        
+        let data = snapshot.data() ?? [:]
+        let deviceInfo = data["deviceInfo"] as? [String: Any] ?? [:]
+        let deviceModel = deviceInfo["model"] as? String ?? "iPhone"
+        let systemVersion = deviceInfo["systemVersion"] as? String ?? ""
+        let location = data["location"] as? String ?? "Ubicación no disponible"
+        let ipAddress = data["ipAddress"] as? String ?? "No disponible"
+        let startTime = (data["startTime"] as? Timestamp)?.dateValue() ?? Date()
+        let isActive = data["isActive"] as? Bool ?? false
+        let deviceIdentifier = (deviceInfo["identifierForVendor"] as? String) ?? (data["deviceId"] as? String)
+        
+        let deviceLabel = systemVersion.isEmpty ? deviceModel : "\(deviceModel) - iOS \(systemVersion)"
+        
+        return LoginSession(
+            id: snapshot.documentID,
+            device: deviceLabel,
+            location: location,
+            ipAddress: ipAddress,
+            timestamp: startTime,
+            isActive: isActive,
+            deviceIdentifier: deviceIdentifier
+        )
+    }
+    
+    private func dedupeSessionsByDevice(_ sessions: [LoginSession]) -> [LoginSession] {
+        var seenKeys = Set<String>()
+        var deduped: [LoginSession] = []
+        
+        for session in sessions.sorted(by: { $0.timestamp > $1.timestamp }) {
+            let key = normalizedSessionKey(for: session)
+            if seenKeys.contains(key) { continue }
+            seenKeys.insert(key)
+            deduped.append(session)
+        }
+        
+        return deduped
+    }
+    
+    private func normalizedSessionKey(for session: LoginSession) -> String {
+        if let deviceIdentifier = session.deviceIdentifier,
+           !deviceIdentifier.isEmpty,
+           deviceIdentifier.lowercased() != "unknown" {
+            return "device:\(deviceIdentifier.lowercased())"
+        }
+        
+        return "fallback:\(session.device.lowercased())|\(session.location.lowercased())|\(session.ipAddress.lowercased())"
     }
 }
 

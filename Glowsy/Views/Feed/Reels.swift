@@ -139,13 +139,12 @@ struct ReelVideoView: View {
     @State private var hasUnseenStory = false
     @State private var storyCount: Int = 0
     @State private var storyViewedStatus: [Bool] = []
+    @State private var storyAudiences: [String?] = []
     @State private var showingStories = false
     @State private var storiesUserId: String = ""
     
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject private var firestoreService: FirestoreService
-    
-    // ✅ NUEVO: Instancia de PrivacyService para verificar historias
     private let privacyService = PrivacyService()
     
     var body: some View {
@@ -290,6 +289,7 @@ struct ReelVideoView: View {
                                                 hasStory: hasStory,
                                                 hasUnseenStory: hasUnseenStory,
                                                 storyViewedStatus: storyViewedStatus,
+                                                storyAudiences: storyAudiences,
                                                 isOwnStory: video.moment.authorId == Auth.auth().currentUser?.uid,
                                                 colorScheme: colorScheme,
                                                 ringSize: 40,
@@ -609,86 +609,19 @@ struct ReelVideoView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         let otherUserId = video.moment.authorId
         guard !otherUserId.isEmpty else { return }
-        
-        // ✅ USAR LA MISMA LÓGICA DEL FEED: Verificar historias con filtrado de privacidad
-        firestoreService.db.collection("users").document(otherUserId).collection("stories")
-            .whereField("expirationDate", isGreaterThan: Date())
-            .order(by: "timestamp", descending: false)
-            .getDocuments { snapshot, error in
-                guard let documents = snapshot?.documents, !documents.isEmpty else {
-                    DispatchQueue.main.async {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                    }
-                    return
-                }
-                
-                let stories = documents.compactMap { doc -> Story? in
-                    try? doc.data(as: Story.self)
-                }
-                
-                guard !stories.isEmpty else {
-                    DispatchQueue.main.async {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                    }
-                    return
-                }
-                
-                // ✅ FILTRADO DE PRIVACIDAD: Solo contar historias que se pueden ver
-                let group = DispatchGroup()
-                var visibleStories: [(story: Story, wasViewed: Bool)] = []
-                let syncQueue = DispatchQueue(label: "story.visibility.check")
-                
-                for story in stories {
-                    group.enter()
-                    // ✅ USAR PRIVACY SERVICE como en el feed
-                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
-                        if canView {
-                            if let storyId = story.id {
-                                group.enter()
-                                self.firestoreService.db.collection("users").document(story.authorId)
-                                    .collection("stories").document(storyId)
-                                    .collection("viewers").document(currentUserId)
-                                    .getDocument { viewerDoc, _ in
-                                        let wasViewed = viewerDoc?.exists == true
-                                        syncQueue.async {
-                                            visibleStories.append((story: story, wasViewed: wasViewed))
-                                        }
-                                        group.leave()
-                                    }
-                            } else {
-                                syncQueue.async {
-                                    visibleStories.append((story: story, wasViewed: false))
-                                }
-                            }
-                        }
-                        group.leave()
-                    }
-                }
-                
-                group.notify(queue: .main) {
-                    if !visibleStories.isEmpty {
-                        self.hasStory = true
-                        let storyCount = visibleStories.count
-                        // Ordenar por timestamp y extraer el estado de visto
-                        let sortedStories = visibleStories.sorted { story1, story2 in
-                            (story1.story.timestamp ?? Date.distantPast) < (story2.story.timestamp ?? Date.distantPast)
-                        }
-                        let viewedStatus = sortedStories.map { $0.wasViewed }
-                        let hasUnseenVisible = viewedStatus.contains(false)
-                        
-                        self.storyCount = storyCount
-                        self.storyViewedStatus = viewedStatus
-                        self.hasUnseenStory = hasUnseenVisible
-                    } else {
-                        self.hasStory = false
-                        self.hasUnseenStory = false
-                        self.storyCount = 0
-                        self.storyViewedStatus = []
-                    }
-                }
-            }
+
+        StoryRingResolverService.shared.resolve(
+            viewerId: currentUserId,
+            authorId: otherUserId,
+            privacyService: privacyService,
+            db: firestoreService.db
+        ) { snapshot in
+            self.hasStory = snapshot.hasStory
+            self.hasUnseenStory = snapshot.hasUnseenStory
+            self.storyCount = snapshot.storyCount
+            self.storyViewedStatus = snapshot.storyViewedStatus
+            self.storyAudiences = snapshot.storyAudiences
+        }
     }
     
     private func deleteMoment() {

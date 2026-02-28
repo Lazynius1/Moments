@@ -1,14 +1,17 @@
+=== ESPAÑOL ===
+
 Novedades de Moments
 
 Hemos mejorado Moments para que todo se sienta mas rapido, claro y consistente.
 
 Lo mas importante de esta version:
 
-FEED MAS INTELIGENTE
+TUS AMIGOS PRIMERO
 - Ahora ves antes a las personas con las que mas interactuas.
 - Best Friends tiene prioridad para que no te pierdas nada importante.
 - Esta personalizacion se calcula en tu dispositivo (no la subimos a servidores).
 - Si reinstalas la app, esta afinidad se reinicia.
+- El feed y las historias ahora cargan mucho más rápido con un menor consumo de batería.
 
 CHAT MEJORADO
 - Los videos cargan mejor y fallan menos.
@@ -47,6 +50,127 @@ LISTAS Y AUDIENCIA
 PRIVACIDAD Y AJUSTES
 - Correcciones en visibilidad de contenido segun privacidad.
 - Ajustes de localizacion y textos en settings.
+- Puedes eliminar momentos de tu colección si pasan a ser privados o restringidos.
+- Hemos limpiado la interfaz: los momentos con restricciones ahora son más discretos y elegantes.
+- Se ha reforzado la seguridad al compartir momentos que tienen restricciones de visualización.
 
 En resumen:
 Moments ahora es mas rapido, mas claro y mas comodo de usar en el dia a dia.
+
+=== ENGLISH ===
+
+Moments What's New
+
+We've improved Moments to make everything feel faster, clearer, and more consistent.
+
+Highlights of this version:
+
+YOUR FRIENDS FIRST
+- You now see the people you interact with most first.
+- Best Friends are prioritized so you never miss anything important.
+- This personalization is calculated on your device (we don't upload it to servers).
+- If you reinstall the app, this affinity resets.
+- Feed and stories now load much faster with lower battery consumption.
+
+IMPROVED CHAT
+- Videos load better and fail less.
+- Video thumbnails are now generated when sending them.
+- More consistent message statuses (sent, delivered, read).
+- New in-chat search with navigation between results.
+- New message separator and more useful "back to bottom" button.
+
+CLEARER STORIES
+- Story rings now better differentiate audiences like Best Friends and Mutuals.
+- Your own ring also reflects which audience you posted for.
+- Improvements in story activity view (audience, members, and lists).
+- Visual fixes for seen/unseen status.
+
+RENEWED SAVED CONTENT
+- Complete redesign of the saved screen.
+- Cleaner and more modern detail view.
+- Better adaptation to light and dark modes.
+
+MOMENT SHARING
+- Sharing flow unified across the entire app.
+- Duplicate "copy link" removed.
+- Better integration with iOS native sharing.
+
+MOMENTS WEB LINKS
+- New page to open shared moments by ID.
+- Better opening from deep links and universal links.
+- New welcome popup with author's avatar and button to open Moments.
+- Better loading of moment image and author profile photo.
+
+LISTS AND AUDIENCE
+- Improvements in custom list management.
+- More reliable member loading.
+- Better behavior with large lists.
+
+PRIVACY AND SETTINGS
+- Fixed content visibility based on privacy.
+- Localization and text adjustments in settings.
+- You can now remove moments from your collection if they become private or restricted.
+- We've cleaned up the interface: restricted moments are now more discreet and elegant.
+- Security has been reinforced when sharing moments with viewing restrictions.
+
+In summary:
+Moments is now faster, clearer, and more comfortable for everyday use.
+
+=== CATALÀ ===
+
+Novetats de Moments
+
+Hem millorat Moments perquè tot se senti més ràpid, clar i consistent.
+
+El més important d'aquesta versió:
+
+ELS TEUS AMICS PRIMER
+- Ara veus abans les persones amb qui més interactues.
+- Best Friends té prioritat perquè no et perdis res important.
+- Aquesta personalització es calcula al teu dispositiu (no la pugem als servidors).
+- Si reinstal·les l'app, aquesta afinitat es reinicia.
+- El feed i les històries ara carreguen molt més ràpid amb un menor consum de bateria.
+
+XAT MILLORAT
+- Els vídeos carreguen millor i fallen menys.
+- Ara es generen miniatures de vídeo en enviar-los.
+- Estats de missatge més consistents (enviat, rebut, llegit).
+- Nou cercador dins del xat amb navegació entre resultats.
+- Separador de missatges nous i botó per tornar al final més útil.
+
+HISTÒRIES MÉS CLARES
+- Els anells d'històries ara diferencien millor audiències com Best Friends i Mutuals.
+- El teu propi anell també reflecteix per a quina audiència vas publicar.
+- Millores en la vista d'activitat d'històries (audiència, membres i llistes).
+- Correccions visuals de l'estat vist/no vist.
+
+GUARDATS RENOVAT
+- Redisseny complet de la pantalla de guardats.
+- Vista de detall més neta i moderna.
+- Millor adaptació a mode clar i fosc.
+
+COMPARTIR MOMENTS
+- El flux de compartir s'ha unificat a tota l'app.
+- S'ha eliminat el duplicat de "copiar enllaç".
+- Millor integració amb compartir natiu d'iOS.
+
+ENLLAÇOS WEB DE MOMENTS
+- Nova pàgina per obrir moments compartits per ID.
+- Millor obertura des de deep links i universal links.
+- Nou popup de benvinguda amb avatar de l'autor i botó per obrir Moments.
+- Millor càrrega d'imatge del moment i foto de perfil del autor.
+
+LLISTES I AUDIÈNCIA
+- Millores en gestió de llistes personalitzades.
+- Càrrega de membres més fiable.
+- Millor comportament quan hi ha llistes grans.
+
+PRIVACITAT I AJUSTOS
+- Correccions en visibilitat de contingut segons privadesa.
+- Ajustos de localització i textos a settings.
+- Pots eliminar moments de la teva col·lecció si passen a ser privats o restringits.
+- Hem netejat la interfície: els moments amb restriccions ara són més discrets i elegants.
+- S'ha reforçat la seguretat en compartir moments que tenen restriccions de visualització.
+
+En resum:
+Moments ara és més ràpid, més clar i més còmode d'usar en el dia a dia.

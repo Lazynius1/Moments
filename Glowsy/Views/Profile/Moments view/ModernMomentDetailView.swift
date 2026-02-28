@@ -44,6 +44,8 @@ struct ModernMomentDetailView: View {
     // ✅ NUEVOS: Navegación de perfil desde tags
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
+    @State private var showSpecificUserStories = false
+    @State private var selectedStoryUserId: String = ""
     
     private let privacyService = PrivacyService()
     private let firestoreService2 = FirestoreService()
@@ -70,7 +72,18 @@ struct ModernMomentDetailView: View {
                 // ✅ Header fijo superior con efecto cristal
                 ModernDetailHeader(
                     moment: moments[safe: currentIndex],
-                    safeAreaTop: safeAreaTop
+                    safeAreaTop: safeAreaTop,
+                    onAvatarTap: { userId, hasStory in
+                        let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !normalizedUserId.isEmpty else { return }
+                        if hasStory {
+                            selectedStoryUserId = normalizedUserId
+                            showSpecificUserStories = true
+                        } else {
+                            selectedUserId = normalizedUserId
+                            showUserProfile = true
+                        }
+                    }
                 )
                 .ignoresSafeArea(.container, edges: .top) // ✅ El header debe ignorar el safe area para pegarse al notch
                 .zIndex(10)
@@ -183,8 +196,24 @@ struct ModernMomentDetailView: View {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
         // ✅ Sheet de perfil para navegación de tags
-        .sheet(isPresented: $showUserProfile) {
-            UserProfileView(userId: selectedUserId)
+        .sheet(isPresented: $showUserProfile, onDismiss: {
+            selectedUserId = ""
+        }) {
+            if !selectedUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                UserProfileView(userId: selectedUserId)
+            }
+        }
+        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
+            selectedStoryUserId = ""
+        }) {
+            StoriesView(
+                startWithUserId: Binding(
+                    get: { selectedStoryUserId },
+                    set: { selectedStoryUserId = $0 }
+                )
+            )
+            .environmentObject(firestoreService)
+            .ignoresSafeArea(.keyboard)
         }
         .onAppear {
             currentIndex = initialIndex
@@ -347,6 +376,7 @@ struct ModernMomentDetailView: View {
 struct ModernDetailHeader: View {
     let moment: Moment?
     let safeAreaTop: CGFloat
+    let onAvatarTap: (String, Bool) -> Void
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -359,14 +389,21 @@ struct ModernDetailHeader: View {
                 Spacer()
                 
                 if let moment = moment {
+                    let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+
                     HStack(spacing: 10) {
-                        AsyncProfileImageView(userId: moment.authorId)
-                            .frame(width: 38, height: 38)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(.white.opacity(0.15), lineWidth: 0.5)
-                            )
+                        StoryRingAvatarView(
+                            userId: authorId,
+                            size: 38,
+                            lineWidth: 2.2,
+                            showBaseStroke: true,
+                            baseStrokeColor: .white.opacity(0.15),
+                            baseStrokeWidth: 0.5,
+                            onTap: { hasStory in
+                                guard !authorId.isEmpty else { return }
+                                onAvatarTap(authorId, hasStory)
+                            }
+                        )
                         
                         VStack(alignment: .leading, spacing: 0) {
                             HStack(spacing: 4) {
@@ -374,7 +411,7 @@ struct ModernDetailHeader: View {
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(.primary)
                                 
-                                VerifiedBadgeView(userId: moment.authorId, size: 13)
+                                VerifiedBadgeView(userId: authorId, size: 13)
                             }
                             
                             Text(moment.timestamp.timeAgoDisplay())

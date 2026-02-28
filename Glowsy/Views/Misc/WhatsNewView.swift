@@ -4,6 +4,7 @@ struct WhatsNewView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var appearAnimation = false
+    @State private var storiesAppear = false
     
     var body: some View {
         ZStack {
@@ -74,32 +75,68 @@ struct WhatsNewView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 26) {
                         WhatsNewFeatureRow(
-                            icon: "rectangle.portrait.on.rectangle.portrait",
-                            color: Color(hex: "4F46E5"),
+                            icon: "heart.circle.fill",
+                            color: .pink,
                             title: NSLocalizedString("whatsNew.echoes.title", comment: ""),
                             description: NSLocalizedString("whatsNew.echoes.description", comment: ""),
                             delay: 0.1
                         )
                         
                         WhatsNewFeatureRow(
-                            icon: "wifi.slash",
+                            icon: "bubble.left.and.bubble.right.fill",
                             color: .orange,
                             title: NSLocalizedString("whatsNew.apple.title", comment: ""),
                             description: NSLocalizedString("whatsNew.apple.description", comment: ""),
                             delay: 0.2
                         )
                         
-                        WhatsNewFeatureRow(
-                            icon: "photo.stack",
-                            color: Color(hex: "9333EA"),
-                            title: NSLocalizedString("whatsNew.redesign.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.redesign.description", comment: ""),
-                            delay: 0.3
-                        )
+                        // Stories row with colored audience names
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: "9333EA").opacity(colorScheme == .dark ? 0.2 : 0.1))
+                                    .frame(width: 50, height: 50)
+                                
+                                Image(systemName: "circle.dashed")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(Color(hex: "9333EA"))
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(NSLocalizedString("whatsNew.redesign.title", comment: ""))
+                                    .font(.custom("Poppins-SemiBold", size: 17))
+                                    .foregroundColor(.primary)
+                                
+                                (Text(NSLocalizedString("whatsNew.stories.prefix", comment: ""))
+                                    .foregroundColor(.secondary)
+                                + Text("Best Friends")
+                                    .foregroundColor(Color(hex: "24C26A"))
+                                + Text(", ")
+                                    .foregroundColor(.secondary)
+                                + Text("Mutuals")
+                                    .foregroundColor(Color(hex: "00B4D8"))
+                                + Text(NSLocalizedString("whatsNew.stories.connector", comment: ""))
+                                    .foregroundColor(.secondary)
+                                + Text(NSLocalizedString("whatsNew.stories.everyone", comment: ""))
+                                    .foregroundStyle(LinearGradient(colors: [.blue, .purple, .pink], startPoint: .leading, endPoint: .trailing))
+                                + Text(NSLocalizedString("whatsNew.stories.ending", comment: ""))
+                                    .foregroundColor(.secondary))
+                                    .font(.custom("Poppins-Regular", size: 15))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .offset(x: storiesAppear ? 0 : 50)
+                        .opacity(storiesAppear ? 1.0 : 0.0)
+                        .onAppear {
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.3)) {
+                                storiesAppear = true
+                            }
+                        }
                         
                         WhatsNewFeatureRow(
-                            icon: "bolt.fill",
-                            color: .pink,
+                            icon: "bookmark.fill",
+                            color: Color(hex: "4F46E5"),
                             title: NSLocalizedString("whatsNew.performance.title", comment: ""),
                             description: NSLocalizedString("whatsNew.performance.description", comment: ""),
                             delay: 0.4

@@ -878,16 +878,34 @@ class ChatService: ObservableObject {
                         "deletedFor": FieldValue.arrayUnion([user1Id]),
                         "deletedAt": FieldValue.serverTimestamp()
                     ], forDocument: doc.reference)
-                    
-                    // ✅ Marcar TODOS los mensajes como eliminados para este usuario (estilo nativo)
-                    self.markAllMessagesAsDeletedForUser(conversationId: doc.documentID, userId: user1Id)
                 }
 
                 batch.commit { error in
                     if let error = error {
                         completion(error)
                     } else {
-                        completion(nil)
+                        // ✅ Esperar a que el borrado "for user" de mensajes termine para evitar reaperturas con historial viejo.
+                        guard !conversationsToMarkAsDeleted.isEmpty else {
+                            completion(nil)
+                            return
+                        }
+
+                        let group = DispatchGroup()
+                        var firstError: Error?
+
+                        for doc in conversationsToMarkAsDeleted {
+                            group.enter()
+                            self.markAllMessagesAsDeletedForUser(conversationId: doc.documentID, userId: user1Id) { messageError in
+                                if firstError == nil, let messageError {
+                                    firstError = messageError
+                                }
+                                group.leave()
+                            }
+                        }
+
+                        group.notify(queue: .main) {
+                            completion(firstError)
+                        }
                     }
                 }
             }
@@ -910,20 +928,27 @@ class ChatService: ObservableObject {
     }
     
     // ✅ NUEVA FUNCIÓN: Marcar todos los mensajes como eliminados para un usuario
-    private func markAllMessagesAsDeletedForUser(conversationId: String, userId: String) {
+    private func markAllMessagesAsDeletedForUser(conversationId: String, userId: String, completion: ((Error?) -> Void)? = nil) {
         
         db.collection("conversations")
             .document(conversationId)
             .collection("messages")
             .getDocuments { snapshot, error in
                 if let error = error {
+                    completion?(error)
                     return
                 }
                 
                 guard let documents = snapshot?.documents else {
+                    completion?(nil)
                     return
                 }
                 
+                guard !documents.isEmpty else {
+                    completion?(nil)
+                    return
+                }
+
                 let batch = self.db.batch()
                 for doc in documents {
                     batch.updateData([
@@ -933,7 +958,9 @@ class ChatService: ObservableObject {
                 
                 batch.commit { error in
                     if let error = error {
+                        completion?(error)
                     } else {
+                        completion?(nil)
                     }
                 }
             }
@@ -1062,7 +1089,7 @@ class ChatService: ObservableObject {
                     if let participantData = data["participantData"] as? [String: [String: Any]],
                        let otherData = participantData[otherParticipantId] {
                         // ✅ Usar datos bidireccionales
-                        otherParticipantUsername = otherData["username"] as? String ?? "Usuario"
+                        otherParticipantUsername = otherData["username"] as? String ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
                         otherParticipantProfileImagePath = otherData["profileImagePath"] as? String ?? ""
                     } else {
                         // ✅ Fallback: usar datos del sistema anterior o cache
@@ -1071,7 +1098,7 @@ class ChatService: ObservableObject {
                             otherParticipantProfileImagePath = cachedUser.profileImagePath ?? ""
                         } else {
                             // Último fallback: datos almacenados del sistema anterior
-                            otherParticipantUsername = data["otherParticipantUsername"] as? String ?? "Usuario"
+                            otherParticipantUsername = data["otherParticipantUsername"] as? String ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
                             otherParticipantProfileImagePath = data["otherParticipantProfileImagePath"] as? String ?? ""
                         }
                     }
@@ -1135,7 +1162,15 @@ class ChatService: ObservableObject {
                 }
                 
                 guard let mediaUrl = url?.absoluteString else {
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener la URL del archivo"])))
+                    completion(
+                        .failure(
+                            NSError(
+                                domain: "",
+                                code: -1,
+                                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.fileUrlUnavailable", comment: "Unable to get media file URL")]
+                            )
+                        )
+                    )
                     return
                 }
                 
@@ -1420,7 +1455,14 @@ class ChatService: ObservableObject {
             if let user = user {
                 user1Data = user
             } else {
-                fetchError = NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener datos del usuario 1: \(user1Id)"])
+                fetchError = NSError(
+                    domain: "ChatService",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: String(
+                        format: NSLocalizedString("messaging.error.userDataFetch", comment: "Failed to load user data"),
+                        user1Id
+                    )]
+                )
             }
             group.leave()
         }
@@ -1431,7 +1473,14 @@ class ChatService: ObservableObject {
             if let user = user {
                 user2Data = user
             } else {
-                fetchError = NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo obtener datos del usuario 2: \(user2Id)"])
+                fetchError = NSError(
+                    domain: "ChatService",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: String(
+                        format: NSLocalizedString("messaging.error.userDataFetch", comment: "Failed to load user data"),
+                        user2Id
+                    )]
+                )
             }
             group.leave()
         }
@@ -1443,7 +1492,11 @@ class ChatService: ObservableObject {
             }
             
             guard let user1 = user1Data, let user2 = user2Data else {
-                let error = NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Datos de usuarios incompletos"])
+                let error = NSError(
+                    domain: "ChatService",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.userDataIncomplete", comment: "Incomplete user data")]
+                )
                 completion(.failure(error))
                 return
             }
@@ -1663,7 +1716,13 @@ class ChatService: ObservableObject {
             
             guard let doc = snapshot, doc.exists,
                   let participants = doc.data()?["participants"] as? [String] else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Conversación no encontrada"]))
+                completion(
+                    NSError(
+                        domain: "",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.conversationNotFound", comment: "Conversation not found")]
+                    )
+                )
                 return
             }
             
@@ -1672,9 +1731,10 @@ class ChatService: ObservableObject {
                 readStatus[participant] = (participant == senderId)
             }
             
-            // ✅ Verificar si la conversación está eliminada para algún participante y restaurarla
+            // ✅ Verificar si la conversación está eliminada y restaurarla para quien corresponda.
+            // Si el remitente envía un mensaje, la conversación debe reaparecer también para él.
             let deletedFor = doc.data()?["deletedFor"] as? [String] ?? []
-            let participantsToRestore = deletedFor.filter { $0 != senderId } // Restaurar para todos excepto el remitente
+            let participantsToRestore = deletedFor
             
             var updateData: [String: Any] = [
                 "lastMessage": lastMessage, // ✅ Preview descifrado para mostrar en la lista
@@ -1976,7 +2036,40 @@ extension ChatService {
                 
                 if let conversation = existingConversation {
                     let conversationId = conversation.documentID
-                    completion(.success(conversationId))
+                    let trimmedInitial = initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+                    // If caller provided an initial message, send it even when reusing an existing thread.
+                    // This fixes the "Send does nothing" flow from New Conversation when the thread already exists.
+                    guard !trimmedInitial.isEmpty else {
+                        completion(.success(conversationId))
+                        return
+                    }
+
+                    guard let self = self else {
+                        completion(
+                            .failure(
+                                NSError(
+                                    domain: "ChatService",
+                                    code: -2,
+                                    userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.serviceUnavailable", comment: "Messaging service unavailable")]
+                                )
+                            )
+                        )
+                        return
+                    }
+
+                    self.sendTextMessage(
+                        conversationId: conversationId,
+                        senderId: user1Id,
+                        content: trimmedInitial
+                    ) { sendResult in
+                        switch sendResult {
+                        case .success:
+                            completion(.success(conversationId))
+                        case .failure(let sendError):
+                            completion(.failure(sendError))
+                        }
+                    }
                 } else {
                     self?.checkMutualFollowAndCreateConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
                 }
@@ -2001,7 +2094,7 @@ extension ChatService {
                         domain: "ChatService",
                         code: 403,
                         userInfo: [
-                            NSLocalizedDescriptionKey: "Los usuarios no se siguen mutuamente. Se requiere una solicitud de mensaje."
+                            NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.messageRequestRequired", comment: "A message request is required to start this conversation")
                         ]
                     )
                     completion(.failure(error))

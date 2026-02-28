@@ -2718,110 +2718,19 @@ struct ModernPostCardView: View {
         }
         
         isLoadingStory = true
-
-        StorySeenStateService.shared.fetchEffectiveLastSeen(
+        
+        StoryRingResolverService.shared.resolve(
             viewerId: currentUserId,
-            authorId: moment.authorId
-        ) { effectiveLastSeenAt in
-            firestoreService.db.collection("users").document(moment.authorId).collection("stories")
-                .whereField("expirationDate", isGreaterThan: Date())
-                .getDocuments { snapshot, error in
-                    
-                    if let _ = error {
-                        DispatchQueue.main.async {
-                            self.hasStory = false
-                            self.hasUnseenStory = false
-                            self.storyCount = 0
-                            self.storyViewedStatus = []
-                            self.storyAudiences = []
-                            self.isLoadingStory = false
-                        }
-                        return
-                    }
-                    
-                    guard let documents = snapshot?.documents, !documents.isEmpty else {
-                        DispatchQueue.main.async {
-                            self.hasStory = false
-                            self.hasUnseenStory = false
-                            self.storyCount = 0
-                            self.storyViewedStatus = []
-                            self.storyAudiences = []
-                            self.isLoadingStory = false
-                        }
-                        return
-                    }
-
-                    let stories = documents.compactMap { try? $0.data(as: Story.self) }
-                    
-                    let group = DispatchGroup()
-                    var visibleStories: [(story: Story, wasViewed: Bool)] = []
-                    var hasUnseenStory = false
-                    let syncQueue = DispatchQueue(label: "post.story.visibility.check")
-
-                    for story in stories {
-                        group.enter()
-                        privacyService.canUserViewStoryEnhanced(story, viewerId: currentUserId) { canView in
-                            if canView {
-                                syncQueue.async {
-                                    let supportsShortcut = StorySeenStateService.shared.supportsShortcut(forAudience: story.audience)
-                                    if supportsShortcut, let effectiveLastSeenAt = effectiveLastSeenAt, story.timestamp <= effectiveLastSeenAt {
-                                        visibleStories.append((story: story, wasViewed: true))
-                                        group.leave()
-                                        return
-                                    }
-
-                                    if let storyId = story.id {
-                                        Firestore.firestore().collection("users").document(story.authorId)
-                                            .collection("stories").document(storyId)
-                                            .collection("viewers").document(currentUserId)
-                                            .getDocument { viewerDoc, _ in
-                                                let wasViewed = viewerDoc?.exists == true
-                                                syncQueue.async {
-                                                    if wasViewed, supportsShortcut {
-                                                        StorySeenStateService.shared.markSeen(
-                                                            viewerId: currentUserId,
-                                                            authorId: moment.authorId,
-                                                            timestamp: story.timestamp,
-                                                            syncRemote: true
-                                                        )
-                                                    }
-                                                    if !wasViewed {
-                                                        hasUnseenStory = true
-                                                    }
-                                                    visibleStories.append((story: story, wasViewed: wasViewed))
-                                                    group.leave()
-                                                }
-                                            }
-                                    } else {
-                                        hasUnseenStory = true
-                                        visibleStories.append((story: story, wasViewed: false))
-                                        group.leave()
-                                    }
-                                }
-                            } else {
-                                group.leave()
-                            }
-                        }
-                    }
-                    
-                    group.notify(queue: .main) {
-                        let resolvedState = syncQueue.sync {
-                            let sorted = visibleStories.sorted { $0.story.timestamp < $1.story.timestamp }
-                            let count = sorted.count
-                            let viewed = sorted.map { $0.wasViewed }
-                            let audiences = sorted.map { $0.story.audience }
-                            return (count > 0, hasUnseenStory, count, viewed, audiences)
-                        }
-                        DispatchQueue.main.async {
-                            self.hasStory = resolvedState.0
-                            self.hasUnseenStory = resolvedState.1
-                            self.storyCount = resolvedState.2
-                            self.storyViewedStatus = resolvedState.3
-                            self.storyAudiences = resolvedState.4
-                            self.isLoadingStory = false
-                        }
-                    }
-                }
+            authorId: moment.authorId,
+            privacyService: privacyService,
+            db: firestoreService.db
+        ) { snapshot in
+            self.hasStory = snapshot.hasStory
+            self.hasUnseenStory = snapshot.hasUnseenStory
+            self.storyCount = snapshot.storyCount
+            self.storyViewedStatus = snapshot.storyViewedStatus
+            self.storyAudiences = snapshot.storyAudiences
+            self.isLoadingStory = false
         }
     }
     
