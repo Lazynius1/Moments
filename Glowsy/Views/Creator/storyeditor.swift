@@ -413,8 +413,31 @@ struct StoryEditingView: View {
     }
     
     private func updateAudienceSetting() {
-        // Esta función se llama cuando el sheet se cierra
-        // La lógica ya está manejada por los bindings
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        // Convertir AudienceSetting → rawValue de ContentAudience para guardar
+        let audienceRaw: String
+        switch storyAudience {
+        case .everyone:     audienceRaw = ContentAudience.everyone.rawValue
+        case .mutuals:      audienceRaw = ContentAudience.connections.rawValue
+        case .admirers:     audienceRaw = ContentAudience.connections.rawValue
+        case .bestFriends:  audienceRaw = ContentAudience.bestFriends.rawValue
+        case .custom:       audienceRaw = (selectedListId != nil) ? ContentAudience.customList.rawValue : ContentAudience.custom.rawValue
+        case .onlyMe:       audienceRaw = ContentAudience.onlyMe.rawValue
+        }
+
+        var update: [String: Any] = [
+            "contentVisibilitySettings.storyAudience": audienceRaw
+        ]
+        if let listId = selectedListId {
+            update["contentVisibilitySettings.storyCustomListId"] = listId
+            update["contentVisibilitySettings.storyCustomListName"] = selectedListName ?? ""
+        }
+        if !customSelectedUsers.isEmpty {
+            update["contentVisibilitySettings.storyCustomUsers"] = customSelectedUsers
+        }
+
+        FirestoreService().db.collection("users").document(userId).updateData(update)
     }
     
     // 🔗 NUEVA FUNCIÓN: Convertir audiencia de continuación a ContentAudience

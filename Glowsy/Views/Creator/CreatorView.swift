@@ -3084,6 +3084,9 @@ struct CaptionAndDetailsView: View {
                 PhotoTagSelectionView(mediaItem: $selectedMediaItems[currentMediaTagIndex])
             }
         }
+        .onAppear {
+            loadDefaultPostAudience()
+        }
     }
     
     // ✅ FUNCIÓN ACTUALIZADA: Publicar momento con soporte para listas
@@ -3241,8 +3244,58 @@ struct CaptionAndDetailsView: View {
     }
     
     private func updateAudienceSetting() {
-        // Esta función se llama cuando el sheet se cierra
-        // La lógica ya está manejada por los bindings
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        let audienceRaw: String
+        switch audienceSetting {
+        case .everyone:    audienceRaw = ContentAudience.everyone.rawValue
+        case .mutuals:     audienceRaw = ContentAudience.connections.rawValue
+        case .admirers:    audienceRaw = ContentAudience.connections.rawValue
+        case .bestFriends: audienceRaw = ContentAudience.bestFriends.rawValue
+        case .custom:      audienceRaw = (selectedListId != nil) ? ContentAudience.customList.rawValue : ContentAudience.custom.rawValue
+        case .onlyMe:      audienceRaw = ContentAudience.onlyMe.rawValue
+        }
+
+        var update: [String: Any] = [
+            "contentVisibilitySettings.postAudience": audienceRaw
+        ]
+        if let listId = selectedListId {
+            update["contentVisibilitySettings.postCustomListId"] = listId
+            update["contentVisibilitySettings.postCustomListName"] = selectedListName ?? ""
+        }
+        if !customSelectedUsers.isEmpty {
+            update["contentVisibilitySettings.postCustomUsers"] = customSelectedUsers
+        }
+
+        FirestoreService().db.collection("users").document(userId).updateData(update)
+    }
+
+    private func loadDefaultPostAudience() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        FirestoreService().db.collection("users").document(userId).getDocument { document, _ in
+            DispatchQueue.main.async {
+                guard let data = document?.data(),
+                      let visibilitySettings = data["contentVisibilitySettings"] as? [String: Any] else { return }
+
+                if let postAudienceRaw = visibilitySettings["postAudience"] as? String,
+                   let contentAudience = ContentAudience(rawValue: postAudienceRaw) {
+                    switch contentAudience {
+                    case .everyone:    self.audienceSetting = .everyone
+                    case .connections: self.audienceSetting = .mutuals
+                    case .bestFriends: self.audienceSetting = .bestFriends
+                    case .custom:
+                        self.audienceSetting = .custom
+                        self.customSelectedUsers = visibilitySettings["postCustomUsers"] as? [String] ?? []
+                    case .customList:
+                        self.audienceSetting = .custom
+                        self.selectedListId = visibilitySettings["postCustomListId"] as? String
+                        self.selectedListName = visibilitySettings["postCustomListName"] as? String
+                    case .onlyMe:      self.audienceSetting = .onlyMe
+                    }
+                }
+            }
+        }
     }
 
     private func hapticNotification(_ type: UINotificationFeedbackGenerator.FeedbackType) {

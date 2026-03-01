@@ -22,194 +22,207 @@ struct ContentVisibilityView: View {
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(.gray)
                 } else {
-                    List {
-                    // Stories Settings
-                    Section {
-                        contentTypeHeader(
-                            icon: "circle.dashed",
-                            title: NSLocalizedString("contentVisibility.stories.title", comment: "Stories"),
-                            description: NSLocalizedString("contentVisibility.stories.description", comment: "Control who can see your stories")
-                        )
-                        
-                        // Current story audience
-                        Button(action: { showingStoryAudienceSelector = true }) {
-                            currentAudienceRow(
-                                audience: viewModel.storyAudience,
-                                customListName: viewModel.storyCustomListName,
-                                customCount: viewModel.storyCustomUsers.count
-                            )
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 28) {
+                            
+                            // MARK: Stories
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "circle.dashed")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                    Text(NSLocalizedString("contentVisibility.stories.title", comment: "Stories").uppercased())
+                                        .font(.custom("Poppins-Bold", size: 11))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                }
+                                .padding(.leading, 4)
+                                
+                                VStack(spacing: 0) {
+                                    Button(action: { showingStoryAudienceSelector = true }) {
+                                        currentAudienceRow(
+                                            audience: viewModel.storyAudience,
+                                            customListName: viewModel.storyCustomListName,
+                                            customCount: viewModel.storyCustomUsers.count
+                                        )
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    Divider().opacity(0.2).padding(.leading, 42)
+                                    
+                                    Button(action: { showingStoryInteractionSettings = true }) {
+                                        HStack(spacing: 14) {
+                                            Image(systemName: "gear")
+                                                .font(.system(size: 19, weight: .regular))
+                                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                .frame(width: 28, alignment: .center)
+                                            
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(NSLocalizedString("contentVisibility.interactions.title", comment: "Interactions title"))
+                                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                
+                                                Text(getInteractionSummary())
+                                                    .font(.custom("Poppins-Regular", size: 13))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .foregroundColor(.gray)
+                                                .font(.system(size: 12, weight: .semibold))
+                                        }
+                                        .padding(.vertical, 11)
+                                        .padding(.horizontal, 4)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                            }
+                            
+                            // MARK: Posts
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "square.grid.3x3")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                    Text(NSLocalizedString("contentVisibility.posts.title", comment: "Posts").uppercased())
+                                        .font(.custom("Poppins-Bold", size: 11))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                }
+                                .padding(.leading, 4)
+                                
+                                VStack(spacing: 0) {
+                                    Button(action: { showingPostAudienceSelector = true }) {
+                                        currentAudienceRow(
+                                            audience: viewModel.postAudience,
+                                            customListName: viewModel.postCustomListName,
+                                            customCount: viewModel.postCustomUsers.count
+                                        )
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                            }
+                            
+                            // MARK: Additional restrictions
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "eye.slash")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                    Text(NSLocalizedString("contentVisibility.additionalRestrictions", comment: "Additional restrictions header").uppercased())
+                                        .font(.custom("Poppins-Bold", size: 11))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                }
+                                .padding(.leading, 4)
+                                
+                                VStack(spacing: 0) {
+                                    NavigationLink(destination: HiddenFromView(viewModel: viewModel)) {
+                                        HStack(spacing: 14) {
+                                            Image(systemName: "eye.slash")
+                                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                .font(.system(size: 18))
+                                                .frame(width: 28, alignment: .center)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(NSLocalizedString("contentVisibility.hideFrom", comment: "Hide from label"))
+                                                    .font(.custom("Poppins-Medium", size: 15))
+                                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                Text(String(format: NSLocalizedString("contentVisibility.hiddenCount", comment: "Hidden users count"), viewModel.hiddenFromUsers.count))
+                                                    .font(.custom("Poppins-Regular", size: 13))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 11)
+                                        .padding(.horizontal, 4)
+                                    }
+                                }
+                            }
+                            
+                            // MARK: Audience lists
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(NSLocalizedString("contentVisibility.audienceLists", comment: "Audience lists header").uppercased())
+                                    .font(.custom("Poppins-Bold", size: 11))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                    .padding(.leading, 4)
+                                
+                                VStack(spacing: 0) {
+                                    NavigationLink(destination: CustomAudienceListsView()) {
+                                        HStack(spacing: 14) {
+                                            Image(systemName: "list.bullet.rectangle")
+                                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                .font(.system(size: 18))
+                                                .frame(width: 28, alignment: .center)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(NSLocalizedString("contentVisibility.manageCustomLists", comment: "Manage custom lists label"))
+                                                    .font(.custom("Poppins-Medium", size: 15))
+                                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                Text(NSLocalizedString("contentVisibility.createEditAudience", comment: "Create and edit custom audiences label"))
+                                                    .font(.custom("Poppins-Regular", size: 13))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 11)
+                                        .padding(.horizontal, 4)
+                                    }
+                                }
+                            }
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        // ✅ NUEVO: Configuración de interacciones
-                        Button(action: { showingStoryInteractionSettings = true }) {
-                            HStack(spacing: 16) {
-                                ZStack {
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                    }
+                } // end else
+            } // end ZStack
+            .navigationTitle(NSLocalizedString("contentVisibility.title", comment: "Content Privacy"))
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 36, height: 36)
+                                .overlay(
                                     Circle()
-                                        .fill(Color(hex: "4F46E5").opacity(0.2))
-                                        .frame(width: 48, height: 48)
-                                    
-                                    Image(systemName: "gear")
-                                        .font(.system(size: 20, weight: .medium))
-                                        .foregroundColor(Color(hex: "4F46E5"))
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(NSLocalizedString("contentVisibility.interactions.title", comment: "Interactions title"))
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    
-                                    Text(getInteractionSummary())
-                                        .font(.custom("Poppins-Regular", size: 13))
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.gray)
-                                    .font(.system(size: 12, weight: .semibold))
-                            }
-                            .padding()
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(16)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "4F46E5"))
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                    } header: {
-                        Text("")
-                    }
-                    .listRowBackground(SettingsListRowBackground())
-                    
-                    // Posts Settings
-                    Section {
-                        contentTypeHeader(
-                            icon: "square.grid.3x3",
-                            title: NSLocalizedString("contentVisibility.posts.title", comment: "Posts"),
-                            description: NSLocalizedString("contentVisibility.posts.description", comment: "Control who can see your posts")
-                        )
-                        
-                        // Current post audience
-                        Button(action: { showingPostAudienceSelector = true }) {
-                            currentAudienceRow(
-                                audience: viewModel.postAudience,
-                                customListName: viewModel.postCustomListName,
-                                customCount: viewModel.postCustomUsers.count
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                    } header: {
-                        Text("")
-                    }
-                    .listRowBackground(SettingsListRowBackground())
-                    
-                    // Hidden From Settings
-                    Section {
-                        NavigationLink(destination: HiddenFromView(viewModel: viewModel)) {
-                            HStack {
-                                Image(systemName: "eye.slash")
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    .font(.system(size: 18))
-                                    .frame(width: 24)
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(NSLocalizedString("contentVisibility.hideFrom", comment: "Hide from label"))
-                                        .font(.custom("Poppins-Medium", size: 15))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    
-                                    Text(String(format: NSLocalizedString("contentVisibility.hiddenCount", comment: "Hidden users count"), viewModel.hiddenFromUsers.count))
-                                        .font(.custom("Poppins-Regular", size: 13))
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                Spacer()
-                            }
-                        }
-                        
-                    } header: {
-                        Text(NSLocalizedString("contentVisibility.additionalRestrictions", comment: "Additional restrictions header"))
-                    }
-                    .listRowBackground(SettingsListRowBackground())
-                    
-                    // Quick Lists Management
-                    Section {
-                        NavigationLink(destination: CustomAudienceListsView()) {
-                            HStack {
-                                Image(systemName: "list.bullet.rectangle")
-                                    .foregroundColor(Color(hex: "4F46E5"))
-                                    .font(.system(size: 18))
-                                    .frame(width: 24)
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(NSLocalizedString("contentVisibility.manageCustomLists", comment: "Manage custom lists label"))
-                                        .font(.custom("Poppins-Medium", size: 15))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    
-                                    Text(NSLocalizedString("contentVisibility.createEditAudience", comment: "Create and edit custom audiences label"))
-                                        .font(.custom("Poppins-Regular", size: 13))
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                Spacer()
-                            }
-                        }
-                    } header: {
-                        Text(NSLocalizedString("contentVisibility.audienceLists", comment: "Audience lists header"))
-                    }
-                    .listRowBackground(SettingsListRowBackground())
-                }
-                .scrollContentBackground(.hidden)
-            }
-        }
-        .navigationTitle(NSLocalizedString("contentVisibility.title", comment: "Content Privacy"))
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 36, height: 36)
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                        
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "4F46E5"))
                     }
                 }
             }
-        }
-        .onAppear {
-            viewModel.loadSettings {
-                isLoading = false
+            .onAppear {
+                viewModel.loadSettings {
+                    isLoading = false
+                }
             }
-        }
-        .sheet(isPresented: $showingStoryAudienceSelector) {
-            StoryAudienceSelector(viewModel: viewModel)
-                .presentationBackground(.clear)
-        }
-        .sheet(isPresented: $showingPostAudienceSelector) {
-            PostAudienceSelector(viewModel: viewModel)
-                .presentationBackground(.clear)
-        }
-        // ✅ NUEVO: Sheet para configuración de interacciones
-        .sheet(isPresented: $showingStoryInteractionSettings) {
-            StoryInteractionSettingsView(viewModel: viewModel)
+            .sheet(isPresented: $showingStoryAudienceSelector) {
+                StoryAudienceSelector(viewModel: viewModel)
+                    .presentationBackground(.clear)
+            }
+            .sheet(isPresented: $showingPostAudienceSelector) {
+                PostAudienceSelector(viewModel: viewModel)
+                    .presentationBackground(.clear)
+            }
+            // ✅ NUEVO: Sheet para configuración de interacciones
+            .sheet(isPresented: $showingStoryInteractionSettings) {
+                StoryInteractionSettingsView(viewModel: viewModel)
+            }
         }
     }
-}
     
     // ✅ NUEVA FUNCIÓN: Resumen de configuración de interacciones
     private func getInteractionSummary() -> String {
@@ -229,55 +242,49 @@ struct ContentVisibilityView: View {
     }
     
     private func contentTypeHeader(icon: String, title: String, description: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .foregroundColor(Color(hex: "4F46E5"))
-                    .font(.system(size: 20))
-                
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .font(.system(size: 18, weight: .medium))
+
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
             }
-            
+
             Text(description)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.custom("Poppins-Regular", size: 13))
                 .foregroundColor(.gray)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
     
     private func currentAudienceRow(audience: ContentAudience, customListName: String?, customCount: Int) -> some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "4F46E5").opacity(0.2))
-                    .frame(width: 48, height: 48)
-                
-                Image(systemName: audience.icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Color(hex: "4F46E5"))
-            }
-            
+        HStack(spacing: 14) {
+            Image(systemName: audience.icon)
+                .font(.system(size: 19, weight: .regular))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .frame(width: 28, alignment: .center)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(getAudienceDisplayTitle(audience: audience, customListName: customListName))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
+
                 Text(getAudienceDisplayDescription(audience: audience, customCount: customCount))
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.gray)
             }
-            
+
             Spacer()
-            
+
             Image(systemName: "chevron.right")
                 .foregroundColor(.gray)
                 .font(.system(size: 12, weight: .semibold))
         }
-        .padding()
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(16)
+        .padding(.vertical, 11)
+        .padding(.horizontal, 4)
     }
     
     private func getAudienceDisplayTitle(audience: ContentAudience, customListName: String?) -> String {
@@ -415,45 +422,30 @@ struct InteractionToggleRow: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Ícono
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "4F46E5").opacity(isOn ? 0.2 : 0.1))
-                    .frame(width: 44, height: 44)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(isOn ? Color(hex: "4F46E5") : .gray)
-            }
-            
-            // Texto
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 19, weight: .regular))
+                .foregroundColor(isOn ? Color(hex: "4F46E5") : .gray)
+                .frame(width: 28, alignment: .center)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
+
                 Text(description)
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.gray)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            
+
             Spacer()
-            
-            // Toggle
+
             Toggle("", isOn: $isOn)
                 .toggleStyle(SwitchToggleStyle(tint: Color(hex: "4F46E5")))
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 11)
+        .padding(.horizontal, 4)
         .animation(.easeInOut(duration: 0.2), value: isOn)
     }
 }

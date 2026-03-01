@@ -28,19 +28,18 @@ struct UserActivityView: View {
                                 .foregroundColor(.gray)
                         }
 
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(NSLocalizedString("userActivity.simple.section.interactions", comment: "Interactions section title"))
-                                .font(.custom("Poppins-SemiBold", size: 18))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(ActivityInteractionCategory.allCases.enumerated()), id: \.element.id) { index, category in
+                                NavigationLink {
+                                    ActivityInteractionDetailView(category: category)
+                                } label: {
+                                    ActivityInteractionCategoryRow(category: category)
+                                }
+                                .buttonStyle(PlainButtonStyle())
 
-                            VStack(spacing: 8) {
-                                ForEach(ActivityInteractionCategory.allCases) { category in
-                                    NavigationLink {
-                                        ActivityInteractionDetailView(category: category)
-                                    } label: {
-                                        ActivityInteractionCategoryRow(category: category)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
+                                if index < ActivityInteractionCategory.allCases.count - 1 {
+                                    Divider()
+                                        .padding(.leading, 62)
                                 }
                             }
                         }
@@ -162,48 +161,117 @@ private enum ReactionsDateFilter: String, CaseIterable, Identifiable {
     }
 }
 
+private struct AnimatedReactionIcon: View {
+    private let reactions = ReactionType.allCases.map { $0.icon }
+    @State private var currentIndex = 0
+    @State private var scale: CGFloat = 1.0
+    @State private var opacity: Double = 1.0
+
+    var body: some View {
+        Text(reactions[currentIndex])
+            .font(.system(size: 22))
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .frame(width: 36, height: 36)
+            .onAppear {
+                Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        scale = 0.6
+                        opacity = 0
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        currentIndex = (currentIndex + 1) % reactions.count
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            scale = 1.0
+                            opacity = 1.0
+                        }
+                    }
+                }
+            }
+    }
+}
+
+
+private struct AnimatedCommentIcon: View {
+    @Environment(\.colorScheme) private var colorScheme
+    private let bubbles = [
+        "bubble.right",
+        "bubble.right.fill",
+        "bubble.left",
+        "bubble.left.fill",
+        "ellipsis.bubble",
+        "ellipsis.bubble.fill",
+    ]
+    @State private var currentIndex = 0
+    @State private var scale: CGFloat = 1.0
+    @State private var opacity: Double = 1.0
+
+    var body: some View {
+        Image(systemName: bubbles[currentIndex])
+            .font(.system(size: 20, weight: .regular))
+            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .frame(width: 36, height: 36)
+            .onAppear {
+                Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        scale = 0.7
+                        opacity = 0
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        currentIndex = (currentIndex + 1) % bubbles.count
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.55)) {
+                            scale = 1.0
+                            opacity = 1.0
+                        }
+                    }
+                }
+            }
+    }
+}
+
 private struct ActivityInteractionCategoryRow: View {
     @Environment(\.colorScheme) private var colorScheme
     let category: ActivityInteractionCategory
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(hex: "4F46E5").opacity(0.14))
-                    .frame(width: 40, height: 40)
-
-                Image(systemName: category.icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(hex: "4F46E5"))
+        HStack(spacing: 14) {
+            // Icon
+            Group {
+                if category == .reactions {
+                    AnimatedReactionIcon()
+                } else if category == .comments {
+                    AnimatedCommentIcon()
+                } else {
+                    Image(systemName: category.icon)
+                        .font(.system(size: 20, weight: .regular))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 36, height: 36)
+                }
             }
 
+            // Text
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString(category.titleKey, comment: "Interaction category title"))
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 Text(NSLocalizedString(category.subtitleKey, comment: "Interaction category subtitle"))
                     .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(.gray)
-                    .lineLimit(2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.gray.opacity(0.55))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary.opacity(0.5))
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.gray.opacity(0.18), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 12)
+        .padding(.horizontal, 4)
+        .contentShape(Rectangle())
     }
 }
 
@@ -242,19 +310,42 @@ private struct ActivityInteractionDetailView: View {
                 ProgressView(NSLocalizedString("userActivity.loading", comment: "Loading activity"))
                     .tint(Color(hex: "4F46E5"))
             } else if let errorMessage = viewModel.errorMessage {
-                VStack(spacing: 10) {
-                    Text(errorMessage)
-                        .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
+                let isOffline = errorMessage.localizedCaseInsensitiveContains("offline")
+                    || errorMessage.localizedCaseInsensitiveContains("internet")
+                    || errorMessage.localizedCaseInsensitiveContains("network")
+                    || errorMessage.localizedCaseInsensitiveContains("connection")
 
-                    Button(NSLocalizedString("userActivity.simple.retry", comment: "Retry activity load")) {
-                        viewModel.reload()
+                VStack(spacing: 16) {
+                    Text(isOffline ? "📡" : "⚠️")
+                        .font(.system(size: 48))
+
+                    VStack(spacing: 6) {
+                        Text(isOffline
+                             ? NSLocalizedString("userActivity.error.offline.title", comment: "Offline title")
+                             : NSLocalizedString("userActivity.error.generic.title", comment: "Generic error title"))
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .multilineTextAlignment(.center)
+
+                        Text(isOffline
+                             ? NSLocalizedString("userActivity.error.offline.subtitle", comment: "Offline subtitle")
+                             : NSLocalizedString("userActivity.error.generic.subtitle", comment: "Generic error subtitle"))
+                            .font(.custom("Poppins-Regular", size: 13))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
                     }
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(Color(hex: "4F46E5"))
+
+                    Button(action: { viewModel.reload() }) {
+                        Text(NSLocalizedString("userActivity.simple.retry", comment: "Retry activity load"))
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(Capsule().fill(Color(hex: "007AFF")))
+                    }
                 }
+                .padding(.horizontal, 32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if category == .reactions {
                 reactionsContent
             } else if category == .comments {
@@ -1533,6 +1624,138 @@ private struct ActivityEventItem: Identifiable {
     let icon: String
 }
 
+// MARK: - Activity Cache (UserDefaults)
+
+private struct CachedReactionPayload: Codable {
+    let id: String
+    let authorId: String
+    let momentId: String
+    let reactionType: String
+    let reactedAt: Double
+    let canView: Bool
+    // Moment thumbnail fields
+    var momentImagePath: String?
+    var momentVideoUrl: String?
+    var momentThumbnailUrl: String?
+    var momentContent: String?
+    var momentUsername: String?
+    var momentAuthorId: String?
+}
+
+private struct CachedCommentPayload: Codable {
+    let id: String
+    let authorId: String
+    let momentId: String
+    let commentId: String
+    let commentText: String
+    let commentedAt: Double
+    let canView: Bool
+    // Moment thumbnail fields
+    var momentImagePath: String?
+    var momentVideoUrl: String?
+    var momentThumbnailUrl: String?
+    var momentContent: String?
+    var momentUsername: String?
+    var momentAuthorId: String?
+}
+
+private enum ActivityCache {
+    private static func minimalMoment(from p: (imagePath: String?, videoUrl: String?, thumbnailUrl: String?, content: String?, username: String?, authorId: String?, id: String)) -> Moment {
+        Moment(
+            id: p.id,
+            authorId: p.authorId ?? "",
+            username: p.username ?? "",
+            content: p.content ?? "",
+            imagePath: p.imagePath,
+            videoUrl: p.videoUrl,
+            timestamp: Date(),
+            reactions: [:],
+            commentCount: 0,
+            profileImagePath: nil,
+            taggedUsers: nil,
+            location: nil,
+            audience: nil,
+            mediaItems: nil,
+            aspectRatio: nil,
+            customListId: nil,
+            thumbnailUrl: p.thumbnailUrl,
+            videoDuration: nil,
+            videoFileSize: nil,
+            videoResolution: nil,
+            disableComments: false,
+            hideLikeCounts: false,
+            allowSharing: true
+        )
+    }
+
+    static func saveReactions(_ items: [ActivityReactionItem], userId: String) {
+        let payloads = items.map { item -> CachedReactionPayload in
+            CachedReactionPayload(
+                id: item.id, authorId: item.authorId, momentId: item.momentId,
+                reactionType: item.reactionType, reactedAt: item.reactedAt.timeIntervalSince1970,
+                canView: item.canView,
+                momentImagePath: item.moment?.imagePath,
+                momentVideoUrl: item.moment?.videoUrl,
+                momentThumbnailUrl: item.moment?.thumbnailUrl,
+                momentContent: item.moment?.content,
+                momentUsername: item.moment?.username,
+                momentAuthorId: item.moment?.authorId
+            )
+        }
+        if let data = try? JSONEncoder().encode(payloads) {
+            UserDefaults.standard.set(data, forKey: "activityCache_reactions_\(userId)")
+        }
+    }
+
+    static func loadReactions(userId: String) -> [ActivityReactionItem] {
+        guard let data = UserDefaults.standard.data(forKey: "activityCache_reactions_\(userId)"),
+              let payloads = try? JSONDecoder().decode([CachedReactionPayload].self, from: data)
+        else { return [] }
+        return payloads.map { p in
+            let moment = minimalMoment(from: (p.momentImagePath, p.momentVideoUrl, p.momentThumbnailUrl, p.momentContent, p.momentUsername, p.momentAuthorId, p.momentId))
+            return ActivityReactionItem(
+                id: p.id, authorId: p.authorId, momentId: p.momentId,
+                reactionType: p.reactionType, reactedAt: Date(timeIntervalSince1970: p.reactedAt),
+                moment: moment, canView: p.canView
+            )
+        }
+    }
+
+    static func saveComments(_ items: [ActivityCommentItem], userId: String) {
+        let payloads = items.map { item -> CachedCommentPayload in
+            CachedCommentPayload(
+                id: item.id, authorId: item.authorId, momentId: item.momentId,
+                commentId: item.commentId, commentText: item.commentText,
+                commentedAt: item.commentedAt.timeIntervalSince1970, canView: item.canView,
+                momentImagePath: item.moment?.imagePath,
+                momentVideoUrl: item.moment?.videoUrl,
+                momentThumbnailUrl: item.moment?.thumbnailUrl,
+                momentContent: item.moment?.content,
+                momentUsername: item.moment?.username,
+                momentAuthorId: item.moment?.authorId
+            )
+        }
+        if let data = try? JSONEncoder().encode(payloads) {
+            UserDefaults.standard.set(data, forKey: "activityCache_comments_\(userId)")
+        }
+    }
+
+    static func loadComments(userId: String) -> [ActivityCommentItem] {
+        guard let data = UserDefaults.standard.data(forKey: "activityCache_comments_\(userId)"),
+              let payloads = try? JSONDecoder().decode([CachedCommentPayload].self, from: data)
+        else { return [] }
+        return payloads.map { p in
+            let moment = minimalMoment(from: (p.momentImagePath, p.momentVideoUrl, p.momentThumbnailUrl, p.momentContent, p.momentUsername, p.momentAuthorId, p.momentId))
+            return ActivityCommentItem(
+                id: p.id, authorId: p.authorId, momentId: p.momentId,
+                commentId: p.commentId, commentText: p.commentText,
+                commentedAt: Date(timeIntervalSince1970: p.commentedAt),
+                moment: moment, canView: p.canView
+            )
+        }
+    }
+}
+
 private final class ActivityInteractionDetailViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -1629,45 +1852,65 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
         }
     }
 
-    private func loadReactions(for _: String) {
+    private func loadReactions(for userId: String) {
         Task { [weak self] in
             guard let self = self else { return }
 
             do {
                 let page = try await self.fetchReactedMomentsPage(limit: 36, cursor: nil)
+                let sorted = page.items.sorted { $0.reactedAt > $1.reactedAt }
+                ActivityCache.saveReactions(sorted, userId: userId)
                 DispatchQueue.main.async {
-                    self.reactionItems = page.items.sorted { $0.reactedAt > $1.reactedAt }
+                    self.reactionItems = sorted
                     self.reactionsNextCursor = page.nextCursor
                     self.commentItems = []
                     self.events = []
                     self.isLoading = false
                 }
             } catch {
+                let cached = ActivityCache.loadReactions(userId: userId)
                 DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.errorMessage = error.localizedDescription
+                    if !cached.isEmpty {
+                        self.reactionItems = cached
+                        self.commentItems = []
+                        self.events = []
+                        self.isLoading = false
+                    } else {
+                        self.isLoading = false
+                        self.errorMessage = error.localizedDescription
+                    }
                 }
             }
         }
     }
 
-    private func loadComments(for _: String) {
+    private func loadComments(for userId: String) {
         Task { [weak self] in
             guard let self = self else { return }
 
             do {
                 let page = try await self.fetchCommentedMomentsPage(limit: 36, cursor: nil)
+                let sorted = page.items.sorted { $0.commentedAt > $1.commentedAt }
+                ActivityCache.saveComments(sorted, userId: userId)
                 DispatchQueue.main.async {
-                    self.commentItems = page.items.sorted { $0.commentedAt > $1.commentedAt }
+                    self.commentItems = sorted
                     self.commentsNextCursor = page.nextCursor
                     self.reactionItems = []
                     self.events = []
                     self.isLoading = false
                 }
             } catch {
+                let cached = ActivityCache.loadComments(userId: userId)
                 DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.errorMessage = error.localizedDescription
+                    if !cached.isEmpty {
+                        self.commentItems = cached
+                        self.reactionItems = []
+                        self.events = []
+                        self.isLoading = false
+                    } else {
+                        self.isLoading = false
+                        self.errorMessage = error.localizedDescription
+                    }
                 }
             }
         }

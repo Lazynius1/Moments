@@ -1684,98 +1684,80 @@ struct GlassmorphicStoryViewer: View {
         VStack(spacing: 0) {
             // Handle indicator
             RoundedRectangle(cornerRadius: 3)
-                .fill(Color.white.opacity(0.6))
-                .frame(width: 40, height: 5)
+                .fill(Color.white.opacity(0.5))
+                .frame(width: 36, height: 4)
                 .padding(.top, 12)
-                .padding(.bottom, 20)
-            
+                .padding(.bottom, 16)
+
             // Título
-            Text(story.authorId == Auth.auth().currentUser?.uid ? NSLocalizedString("storyContextMenu.myStory", comment: "My story title") : NSLocalizedString("storyContextMenu.options", comment: "Options title"))
+            Text(story.authorId == Auth.auth().currentUser?.uid
+                 ? NSLocalizedString("storyContextMenu.myStory", comment: "My story title")
+                 : NSLocalizedString("storyContextMenu.options", comment: "Options title"))
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
-                .padding(.bottom, 20)
-            
+                .padding(.bottom, 16)
+
+            // Divider superior
+            Divider().background(Color.white.opacity(0.12))
+
             if story.authorId == Auth.auth().currentUser?.uid {
                 // ACCIONES DEL PROPIETARIO
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 20) {
-                    ModernActionTile(
-                        icon: "eye.fill",
-                        title: NSLocalizedString("storyContextMenu.viewActivity", comment: "View activity button"),
-                        subtitle: NSLocalizedString("storyContextMenu.viewActivity.subtitle", comment: "View activity subtitle"),
-                        color: .blue
-                    ) {
-                        fetchViewersAndShow()
-                    }
-                    
-                    ModernActionTile(
-                        icon: "square.and.arrow.down",
-                        title: NSLocalizedString("storyContextMenu.save", comment: "Save story button"),
-                        subtitle: NSLocalizedString("storyContextMenu.save.subtitle", comment: "Save story subtitle"),
-                        color: .green
-                    ) {
-                        saveStoryToDevice()
-                        showQuickActions = false
-                        // ✅ REANUDAR después de cerrar menú
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            resumeStory()
-                        }
-                    }
-                    
-                    ModernActionTile(
-                        icon: "trash.fill",
-                        title: NSLocalizedString("storyContextMenu.delete", comment: "Delete story button"),
-                        subtitle: NSLocalizedString("storyContextMenu.delete.subtitle", comment: "Delete story subtitle"),
-                        color: .red
-                    ) {
-                        deleteStory()
-                        showQuickActions = false
-                        // ✅ NO reanudar aquí porque se cierra la vista
-                    }
+                MenuActionRow(icon: "eye.fill", color: .blue,
+                              title: NSLocalizedString("storyContextMenu.viewActivity", comment: "View activity button"),
+                              subtitle: NSLocalizedString("storyContextMenu.viewActivity.subtitle", comment: "View activity subtitle")) {
+                    fetchViewersAndShow()
                 }
-                
+                Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
+
+                MenuActionRow(icon: "square.and.arrow.down", color: .green,
+                              title: NSLocalizedString("storyContextMenu.save", comment: "Save story button"),
+                              subtitle: NSLocalizedString("storyContextMenu.save.subtitle", comment: "Save story subtitle")) {
+                    saveStoryToDevice()
+                    showQuickActions = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { resumeStory() }
+                }
+                Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
+
+                MenuActionRow(icon: "trash.fill", color: .red,
+                              title: NSLocalizedString("storyContextMenu.delete", comment: "Delete story button"),
+                              subtitle: NSLocalizedString("storyContextMenu.delete.subtitle", comment: "Delete story subtitle"),
+                              isDestructive: true) {
+                    deleteStory()
+                    showQuickActions = false
+                }
+
             } else {
-                // ✅ ACCIONES PARA HISTORIAS DE OTROS
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 20) {
-                    ModernActionTile(
-                        icon: "flag.fill",
-                        title: NSLocalizedString("storyContextMenu.report", comment: "Report story button"),
-                        subtitle: NSLocalizedString("storyContextMenu.report.subtitle", comment: "Report story subtitle"),
-                        color: .orange
-                    ) {
-                        onReportStory()
+                // ACCIONES PARA HISTORIAS DE OTROS
+                MenuActionRow(icon: "flag.fill", color: .orange,
+                              title: NSLocalizedString("storyContextMenu.report", comment: "Report story button"),
+                              subtitle: NSLocalizedString("storyContextMenu.report.subtitle", comment: "Report story subtitle")) {
+                    onReportStory()
+                    showQuickActions = false
+                }
+                Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
+
+                MenuActionRow(icon: "person.slash", color: .red,
+                              title: NSLocalizedString("storyContextMenu.block", comment: "Block user button"),
+                              subtitle: NSLocalizedString("storyContextMenu.block.subtitle", comment: "Block user subtitle"),
+                              isDestructive: true) {
+                    onBlockUser()
+                    showQuickActions = false
+                }
+
+                if canOptOutFromAuthorBestFriends {
+                    Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
+                    MenuActionRow(icon: "person.badge.minus", color: .green,
+                                  title: NSLocalizedString("storyContextMenu.leaveBestFriends", comment: "Leave best friends"),
+                                  subtitle: NSLocalizedString("storyContextMenu.leaveBestFriends.subtitle", comment: "Leave best friends subtitle"),
+                                  isDestructive: true) {
                         showQuickActions = false
-                        // ✅ NO reanudar aquí porque se abre otro sheet
-                
-                    }
-                    
-                    ModernActionTile(
-                        icon: "person.slash",
-                        title: NSLocalizedString("storyContextMenu.block", comment: "Block user button"),
-                        subtitle: NSLocalizedString("storyContextMenu.block.subtitle", comment: "Block user subtitle"),
-                        color: .red
-                    ) {
-                        onBlockUser()
-                        showQuickActions = false
-                        // ✅ NO reanudar aquí porque se abre confirmación
-                
-                    }
-                    
-                    if canOptOutFromAuthorBestFriends {
-                        ModernActionTile(
-                            icon: "person.badge.minus",
-                            title: NSLocalizedString("storyContextMenu.leaveBestFriends", comment: "Leave best friends"),
-                            subtitle: NSLocalizedString("storyContextMenu.leaveBestFriends.subtitle", comment: "Leave best friends subtitle"),
-                            color: .green
-                        ) {
-                            showQuickActions = false
-                            showBestFriendsOptOutConfirmation = true
-                        }
+                        showBestFriendsOptOutConfirmation = true
                     }
                 }
             }
-            
-            Spacer().frame(height: 30)
+
+            Divider().background(Color.white.opacity(0.12))
+            Spacer().frame(height: 28)
         }
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -1786,69 +1768,64 @@ struct GlassmorphicStoryViewer: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
                 )
         )
         .padding(.horizontal, 20)
         .onDisappear {
-            // ✅ REANUDAR solo si NO hay ningún otro overlay activo
             let isAnyOtherOverlayVisible = showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation
-            
             if !isAnyOtherOverlayVisible {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    resumeStory()
-                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { resumeStory() }
             }
         }
     }
 
-    // COMPONENTE: Tile del menú moderno con subtítulo
-    struct ModernActionTile: View {
+    // MARK: - Menu Action Row (vertical list style)
+    struct MenuActionRow: View {
         let icon: String
+        let color: Color
         let title: String
         let subtitle: String
-        let color: Color
+        var isDestructive: Bool = false
         let action: () -> Void
-        
+
         var body: some View {
             Button(action: action) {
-                VStack(spacing: 8) {
-                    // Ícono con fondo
+                HStack(spacing: 14) {
+                    // Icon badge
                     ZStack {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(color.opacity(0.15))
-                            .frame(width: 60, height: 60)
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(color.opacity(0.20))
+                            .frame(width: 38, height: 38)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(color.opacity(0.3), lineWidth: 1.5)
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(color.opacity(0.35), lineWidth: 1)
                             )
-                        
                         Image(systemName: icon)
-                            .font(.system(size: 24, weight: .medium))
+                            .font(.system(size: 17, weight: .medium))
                             .foregroundColor(color)
                     }
-                    
-                    // Título principal
-                    Text(title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
-                    
-                    // Subtítulo
-                    Text(subtitle)
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundColor(.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
+
+                    // Text
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(isDestructive ? .red : .white)
+                        Text(subtitle)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(.white.opacity(0.55))
+                    }
+
+                    Spacer()
                 }
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 13)
+                .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
         }
     }
+
     
     // MARK: - Bottom Area
     private var glassmorphicBottomArea: some View {
