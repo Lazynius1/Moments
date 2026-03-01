@@ -193,7 +193,7 @@ struct SettingsView: View {
                 )
             }
                     }
-            .fullScreenCover(isPresented: $isShowingQRCode) {
+            .sheet(isPresented: $isShowingQRCode) {
                 QRCodeView()
             }
             .fullScreenCover(isPresented: $isShowingContentVisibility) {
@@ -321,26 +321,24 @@ struct SettingsFormView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 24) {
-                // ✅ Bloque 1: TU CUENTA
+            LazyVStack(spacing: 28) {
                 SettingsGroup(title: NSLocalizedString("settings.group.account", comment: "Account")) {
                     ProfileSection(username: $username)
-                    
+
                     AccountSection(
                         username: $username,
                         email: $email,
                         phoneNumber: $phoneNumber,
                         isShowingQRCode: $isShowingQRCode
                     )
-                    
+
                     SecuritySection(
                         isShowingPasswordChange: $isShowingPasswordChange
                     )
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                
-                // ✅ Bloque 2: PRIVACIDAD Y SEGURIDAD
+
                 SettingsGroup(title: NSLocalizedString("settings.group.privacy", comment: "Privacy & Security")) {
                     PrivacySection(
                         isPrivate: $isPrivate,
@@ -355,14 +353,13 @@ struct SettingsFormView: View {
                         showReadReceipts: $showReadReceipts,
                         blockedAccountsCount: blockedAccountsCount
                     )
-                    
+
                     OnlineStatusSection()
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.1), value: animateSections)
-                
-                // ✅ Bloque 3: TU CONTENIDO Y ACTIVIDAD
+
                 SettingsGroup(title: NSLocalizedString("settings.group.content", comment: "Your Content & Activity")) {
                     ActivitySection(
                         isShowingSavedMoments: $isShowingSavedMoments,
@@ -370,7 +367,7 @@ struct SettingsFormView: View {
                         isShowingDataExport: $isShowingDataExport,
                         isShowingNovaMemory: $isShowingNovaMemory
                     )
-                    
+
                     ArchiveSection(
                         isShowingArchivedStories: $isShowingArchivedStories
                     )
@@ -378,8 +375,7 @@ struct SettingsFormView: View {
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.2), value: animateSections)
-                
-                // ✅ Bloque 4: NOTIFICACIONES
+
                 SettingsGroup(title: NSLocalizedString("settings.group.notifications", comment: "Notifications")) {
                     NotificationsSection(
                         viewModel: viewModel,
@@ -392,16 +388,14 @@ struct SettingsFormView: View {
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.3), value: animateSections)
-                
-                // ✅ Bloque 5: DATOS Y SOPORTE
+
                 SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Data & Support")) {
                     HelpSection()
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.4), value: animateSections)
-                
-                // ✅ Bloque 6: ZONA PELIGROSA
+
                 SettingsGroup(title: NSLocalizedString("settings.group.advanced", comment: "Advanced Settings")) {
                     AdvancedAccountSection(
                         isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement
@@ -413,8 +407,8 @@ struct SettingsFormView: View {
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.5), value: animateSections)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 24)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.6)) {
@@ -424,53 +418,27 @@ struct SettingsFormView: View {
     }
 }
 
-// ✅ NUEVO: Contenedor para agrupar ajustes con estética glassmorphic
+// Section group: plain list with a small caption header and thin dividers
 struct SettingsGroup<Content: View>: View {
     @Environment(\.colorScheme) var colorScheme
     let title: String
     let content: Content
-    
+
     init(title: String, @ViewBuilder content: () -> Content) {
         self.title = title
         self.content = content()
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
-                .font(.custom("Poppins-Bold", size: 12))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
-                .padding(.leading, 8)
-            
+                .font(.custom("Poppins-Bold", size: 11))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                .padding(.leading, 4)
+
             VStack(spacing: 0) {
                 content
             }
-            .background(
-                Group {
-                    if colorScheme == .dark {
-                        RoundedRectangle(cornerRadius: 24)
-                            .fill(Color.black.opacity(0.4))
-                    } else {
-                        RoundedRectangle(cornerRadius: 24)
-                            .fill(.ultraThinMaterial)
-                    }
-                }
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.4 : 0.05), radius: 10, x: 0, y: 5)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(colorScheme == .dark ? 0.1 : 0.5),
-                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
         }
     }
 }
@@ -485,8 +453,6 @@ struct SettingsRow: View {
     var isDestructive: Bool = false
     var isExternal: Bool = false
 
-    @State private var isPressed: Bool = false
-
     var body: some View {
         Group {
             if let destination = destination {
@@ -495,9 +461,7 @@ struct SettingsRow: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             } else {
-                Button(action: {
-                    action?()
-                }) {
+                Button(action: { action?() }) {
                     rowContent
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -506,95 +470,81 @@ struct SettingsRow: View {
     }
 
     private var rowContent: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(isDestructive ? Color.red.opacity(0.1) : Color(hex: "4F46E5").opacity(0.15))
-                    .frame(width: 40, height: 40)
-                
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(isDestructive ? .red : Color(hex: "4F46E5"))
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: 19, weight: .regular))
                     .foregroundColor(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
-                
-                if let subtitle = subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
+                    .frame(width: 28, alignment: .center)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.custom("Poppins-Medium", size: 15))
+                        .foregroundColor(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
+
+                    if let subtitle = subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(.gray)
+                    }
+                }
+
+                Spacer()
+
+                if isExternal {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.gray.opacity(0.5))
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.gray.opacity(0.3))
                 }
             }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
 
-            Spacer()
-
-            if isExternal {
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.gray.opacity(0.5))
-            } else {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.gray.opacity(0.3))
-            }
+            Divider()
+                .opacity(0.2)
+                .padding(.leading, 42)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial.opacity(isPressed ? 0.6 : 0.3))
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = pressing
-            }
-        }, perform: {})
     }
 }
 
-// ✅ NUEVA SECCIÓN: Wrapper para Account Management
 struct AdvancedAccountSection: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var isShowingAdvancedAccountManagement: Bool
-    
+
     var body: some View {
-        Button(action: {
-            isShowingAdvancedAccountManagement = true
-        }) {
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "4F46E5").opacity(0.15))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "gear.circle.fill")
-                        .foregroundColor(Color(hex: "4F46E5"))
-                        .font(.system(size: 18, weight: .medium))
+        Button(action: { isShowingAdvancedAccountManagement = true }) {
+            VStack(spacing: 0) {
+                HStack(spacing: 14) {
+                    Image(systemName: "gear.badge")
+                        .font(.system(size: 19, weight: .regular))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 28, alignment: .center)
+
+                    Text(NSLocalizedString("settings.advanced.title", comment: "Advanced"))
+                        .font(.custom("Poppins-Medium", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.gray.opacity(0.3))
                 }
-                
-                Text("settings.advanced.title")
-                    .font(.custom("Poppins-Medium", size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.gray.opacity(0.3))
+                .padding(.vertical, 11)
+                .padding(.horizontal, 4)
+                .contentShape(Rectangle())
+
+                Divider()
+                    .opacity(0.2)
+                    .padding(.leading, 42)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(.ultraThinMaterial.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -835,44 +785,34 @@ struct AccountSection: View {
     @Binding var isShowingQRCode: Bool
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
             SettingsRow(
                 icon: "person.crop.circle",
                 title: NSLocalizedString("settings.sections.personalInfo", comment: "Personal Information"),
                 subtitle: NSLocalizedString("settings.sections.personalInfo.subtitle", comment: "Name, phone, email"),
                 destination: AnyView(PersonalInfoView(username: $username, email: $email, phoneNumber: $phoneNumber))
             )
-            
+
             SettingsRow(
                 icon: "qrcode",
                 title: NSLocalizedString("settings.sections.qrCode", comment: "QR Code"),
                 subtitle: NSLocalizedString("settings.sections.qrCode.subtitle", comment: "Share your profile"),
-                action: {
-                    isShowingQRCode = true
-                }
+                action: { isShowingQRCode = true }
             )
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
     }
 }
 
 struct ArchiveSection: View {
     @Binding var isShowingArchivedStories: Bool
-    
+
     var body: some View {
-        VStack(spacing: 8) {
-            SettingsRow(
-                icon: "archivebox",
-                title: NSLocalizedString("settings.sections.archivedStories", comment: "Archived Stories"),
-                subtitle: NSLocalizedString("settings.sections.archivedStories.subtitle", comment: "View all your past stories"),
-                action: {
-                    isShowingArchivedStories = true
-                }
-            )
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
+        SettingsRow(
+            icon: "archivebox",
+            title: NSLocalizedString("settings.sections.archivedStories", comment: "Archived Stories"),
+            subtitle: NSLocalizedString("settings.sections.archivedStories.subtitle", comment: "View all your past stories"),
+            action: { isShowingArchivedStories = true }
+        )
     }
 }
 
@@ -891,122 +831,92 @@ struct PrivacySection: View {
     let blockedAccountsCount: Int
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "4F46E5").opacity(0.15))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "lock.fill")
-                        .foregroundColor(Color(hex: "4F46E5"))
-                        .font(.system(size: 18, weight: .medium))
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("settings.privacy.privateAccount")
-                        .font(.custom("Poppins-Medium", size: 16))
+        VStack(spacing: 0) {
+            // Private Account toggle — plain row with divider
+            VStack(spacing: 0) {
+                HStack(spacing: 14) {
+                    Image(systemName: isPrivate ? "lock" : "lock.open")
+                        .font(.system(size: 19, weight: .regular))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                    Text("settings.privacy.privateAccount.description")
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
-                }
-                
-                Spacer()
-                
-                Toggle("", isOn: $isPrivate)
-                    .labelsHidden()
-                    .onChange(of: isPrivate) { newValue in
-                        viewModel.updatePrivacySettings(isPrivate: newValue)
+                        .frame(width: 28, alignment: .center)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(NSLocalizedString("settings.privacy.privateAccount", comment: "Private account"))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                        Text(NSLocalizedString("settings.privacy.privateAccount.description", comment: "Private account description"))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(.gray)
                     }
+
+                    Spacer()
+
+                    Toggle("", isOn: $isPrivate)
+                        .labelsHidden()
+                        .onChange(of: isPrivate) { newValue in
+                            viewModel.updatePrivacySettings(isPrivate: newValue)
+                        }
+                }
+                .padding(.vertical, 11)
+                .padding(.horizontal, 4)
+
+                Divider().opacity(0.2).padding(.leading, 42)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(.ultraThinMaterial.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            
-            SettingsRow(
-                icon: "eye.slash",
+
+            SettingsRow(icon: "eye.slash",
                 title: NSLocalizedString("settings.sections.contentVisibility", comment: "Content Visibility"),
                 subtitle: NSLocalizedString("settings.sections.contentVisibility.subtitle", comment: "Manage who can see your content"),
-                action: {
-                    isShowingContentVisibility = true
-                }
-            )
-            
-            SettingsRow(
-                icon: "person.2.circle",
+                action: { isShowingContentVisibility = true })
+
+            SettingsRow(icon: "person.2.circle",
                 title: NSLocalizedString("settings.sections.connections", comment: "Connections"),
                 subtitle: getConnectionPrivacyStatus(),
-                action: {
-                    isShowingConnections = true
-                }
-            )
-            
-            SettingsRow(
-                icon: "person.2.fill",
+                action: { isShowingConnections = true })
+
+            SettingsRow(icon: "person.2.fill",
                 title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
                 subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
-                action: {
-                    isShowingBestFriends = true
-                }
-            )
-            
-            SettingsRow(
-                icon: "hand.raised",
+                action: { isShowingBestFriends = true })
+
+            SettingsRow(icon: "hand.raised",
                 title: NSLocalizedString("settings.sections.blockedAccounts", comment: "Blocked Accounts"),
                 subtitle: blockedAccountsSubtitle(),
-                action: {
-                    isShowingBlockedAccounts = true
-                }
-            )
-            
-            SettingsRow(
-                icon: "bell.slash",
+                action: { isShowingBlockedAccounts = true })
+
+            SettingsRow(icon: "bell.slash",
                 title: NSLocalizedString("settings.sections.mute", comment: "Mute"),
                 subtitle: NSLocalizedString("settings.sections.mute.subtitle", comment: "Accounts, words and phrases"),
-                action: {
-                    isShowingMute = true
-                }
-            )
-            
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "4F46E5").opacity(0.15))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "checkmark.circle")
-                        .foregroundColor(Color(hex: "4F46E5"))
-                        .font(.system(size: 18, weight: .medium))
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("settings.privacy.readReceipts.title")
-                        .font(.custom("Poppins-Medium", size: 16))
+                action: { isShowingMute = true })
+
+            // Read Receipts toggle — plain row, no divider at bottom (last item)
+            HStack(spacing: 14) {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 28, alignment: .center)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(NSLocalizedString("settings.privacy.readReceipts.title", comment: "Read receipts"))
+                        .font(.custom("Poppins-Medium", size: 15))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                    Text("settings.privacy.readReceipts.description")
+                    Text(NSLocalizedString("settings.privacy.readReceipts.description", comment: "Read receipts description"))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray)
                 }
-                
+
                 Spacer()
-                
+
                 Toggle("", isOn: $showReadReceipts)
                     .labelsHidden()
                     .onChange(of: showReadReceipts) { newValue in
                         viewModel.updateReadReceiptsPrivacy(enabled: newValue)
                     }
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(.ultraThinMaterial.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
         }
-        .padding(.bottom, 12)
-    }    
+    }
+
     private func getConnectionPrivacyStatus() -> String {
         let hiddenCount = (!showMutualConnections ? 1 : 0) + (!showFollowing ? 1 : 0)
         switch hiddenCount {
@@ -1047,9 +957,9 @@ struct ConnectionVisibilityView: View {
                     .foregroundColor(.gray)
             ) {
                 HStack {
-                    Image(systemName: "eye.slash.circle.fill")
-                        .foregroundColor(Color(hex: "4F46E5"))
-                        .font(.system(size: 20))
+                    Image(systemName: "eye.slash")
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .font(.system(size: 18))
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("settings.privacy.hideMutual")
@@ -1076,9 +986,9 @@ struct ConnectionVisibilityView: View {
                 .padding(.vertical, 4)
                 
                 HStack {
-                    Image(systemName: "eye.slash.circle.fill")
-                        .foregroundColor(Color(hex: "4F46E5"))
-                        .font(.system(size: 20))
+                    Image(systemName: "eye.slash")
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .font(.system(size: 18))
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("settings.privacy.hideFollowing")
@@ -1105,9 +1015,9 @@ struct ConnectionVisibilityView: View {
                 .padding(.vertical, 4)
                 
                 HStack {
-                    Image(systemName: "eye.slash.circle.fill")
-                        .foregroundColor(Color(hex: "4F46E5"))
-                        .font(.system(size: 20))
+                    Image(systemName: "eye.slash")
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .font(.system(size: 18))
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("settings.privacy.hideAdmirers")
@@ -1185,7 +1095,7 @@ struct SecuritySection: View {
     @State private var showAlert = false
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
             SettingsRow(
                 icon: "key",
                 title: NSLocalizedString("settings.sections.password", comment: "Password"),
@@ -1276,8 +1186,6 @@ struct SecuritySection: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
     }
     
     private func handleAppleLinkingResult(_ result: Result<ASAuthorization, Error>) {
@@ -1331,39 +1239,29 @@ struct ActivitySection: View {
     @Binding var isShowingUserActivity: Bool
     @Binding var isShowingDataExport: Bool
     @Binding var isShowingNovaMemory: Bool
-    
+
     var body: some View {
-        VStack(spacing: 8) {
-            SettingsRow(
-                icon: "bookmark",
+        VStack(spacing: 0) {
+            SettingsRow(icon: "bookmark",
                 title: NSLocalizedString("settings.sections.saved", comment: "Saved"),
                 subtitle: NSLocalizedString("settings.sections.saved.subtitle", comment: "Moments you've saved"),
-                action: { isShowingSavedMoments = true }
-            )
-            
-            SettingsRow(
-                icon: "clock",
+                action: { isShowingSavedMoments = true })
+
+            SettingsRow(icon: "clock",
                 title: NSLocalizedString("settings.sections.yourActivity", comment: "Your Activity"),
                 subtitle: NSLocalizedString("settings.sections.yourActivity.subtitle", comment: "Time in app, interactions"),
-                action: { isShowingUserActivity = true }
-            )
-            
-            SettingsRow(
-                icon: "brain.head.profile",
+                action: { isShowingUserActivity = true })
+
+            SettingsRow(icon: "brain.head.profile",
                 title: NSLocalizedString("nova.memory.title", comment: "Nova's Memory"),
                 subtitle: NSLocalizedString("nova.memory.description", comment: "Manage what Nova knows about you"),
-                action: { isShowingNovaMemory = true }
-            )
-            
-            SettingsRow(
-                icon: "arrow.down.circle",
+                action: { isShowingNovaMemory = true })
+
+            SettingsRow(icon: "arrow.down.circle",
                 title: NSLocalizedString("settings.sections.downloadData", comment: "Download Your Data"),
                 subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Request a copy of your data"),
-                action: { isShowingDataExport = true }
-            )
+                action: { isShowingDataExport = true })
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
     }
 }
 
@@ -1375,83 +1273,47 @@ struct NotificationsSection: View {
     @Binding var isShowingNotificationSettings: Bool
 
     var body: some View {
-        VStack(spacing: 8) {
-            SettingsRow(
-                icon: "bell",
+        VStack(spacing: 0) {
+            SettingsRow(icon: "bell",
                 title: NSLocalizedString("settings.sections.pushNotifications", comment: "Push Notifications"),
                 subtitle: NSLocalizedString("settings.sections.pushNotifications.subtitle", comment: "Posts, stories, comments"),
-                action: {
-                    isShowingNotificationSettings = true
-                }
-            )
-            
-            SettingsRow(
-                icon: "envelope",
+                action: { isShowingNotificationSettings = true })
+
+            SettingsRow(icon: "envelope",
                 title: NSLocalizedString("settings.sections.emailNotifications", comment: "Email Notifications"),
                 subtitle: NSLocalizedString("settings.sections.emailNotifications.subtitle", comment: "Activity summaries"),
-                action: {
-                    // TODO: Implementar vista de notificaciones por email
-                }
-            )
+                action: {})
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
     }
 }
 
 struct HelpSection: View {
     var body: some View {
-        VStack(spacing: 8) {
-            SettingsRow(
-                icon: "questionmark.circle",
+        VStack(spacing: 0) {
+            SettingsRow(icon: "questionmark.circle",
                 title: NSLocalizedString("settings.sections.helpCenter", comment: "Help Center"),
                 subtitle: NSLocalizedString("settings.sections.helpCenter.subtitle", comment: "Get answers to your questions"),
-                action: {
-                    if let url = URL(string: "https://momentsapp.app/help") {
-                        UIApplication.shared.open(url)
-                    }
-                },
-                isExternal: true
-            )
-            
-            SettingsRow(
-                icon: "exclamationmark.triangle",
+                action: { if let url = URL(string: "https://momentsapp.app/help") { UIApplication.shared.open(url) } },
+                isExternal: true)
+
+            SettingsRow(icon: "exclamationmark.triangle",
                 title: NSLocalizedString("settings.sections.reportProblem", comment: "Report a Problem"),
                 subtitle: NSLocalizedString("settings.sections.reportProblem.subtitle", comment: "Let us know if something isn't working"),
-                action: {
-                    if let url = URL(string: "https://momentsapp.app/report") {
-                        UIApplication.shared.open(url)
-                    }
-                },
-                isExternal: true
-            )
-            
-            SettingsRow(
-                icon: "doc.text",
+                action: { if let url = URL(string: "https://momentsapp.app/report") { UIApplication.shared.open(url) } },
+                isExternal: true)
+
+            SettingsRow(icon: "doc.text",
                 title: NSLocalizedString("settings.sections.termsOfUse", comment: "Terms of Use"),
                 subtitle: "",
-                action: {
-                    if let url = URL(string: "https://momentsapp.app/terms") {
-                        UIApplication.shared.open(url)
-                    }
-                },
-                isExternal: true
-            )
-            
-            SettingsRow(
-                icon: "hand.raised.circle",
+                action: { if let url = URL(string: "https://momentsapp.app/terms") { UIApplication.shared.open(url) } },
+                isExternal: true)
+
+            SettingsRow(icon: "hand.raised.circle",
                 title: NSLocalizedString("settings.sections.privacyPolicy", comment: "Privacy Policy"),
                 subtitle: "",
-                action: {
-                    if let url = URL(string: "https://momentsapp.app/privacy") {
-                        UIApplication.shared.open(url)
-                    }
-                },
-                isExternal: true
-            )
+                action: { if let url = URL(string: "https://momentsapp.app/privacy") { UIApplication.shared.open(url) } },
+                isExternal: true)
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
     }
 }
 
@@ -1462,36 +1324,24 @@ struct LogoutSection: View {
     @State private var showLogoutAlert: Bool = false
 
     var body: some View {
-        Button(action: {
-            showLogoutAlert = true
-        }) {
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(Color.red.opacity(0.1))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 18))
-                        .foregroundColor(.red)
-                }
-                
-                Text("settings.logout")
-                    .font(.custom("Poppins-Medium", size: 16))
+        Button(action: { showLogoutAlert = true }) {
+            HStack(spacing: 14) {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                    .font(.system(size: 19, weight: .regular))
                     .foregroundColor(.red)
-                
+                    .frame(width: 28, alignment: .center)
+
+                Text(NSLocalizedString("settings.logout", comment: "Log out"))
+                    .font(.custom("Poppins-Medium", size: 15))
+                    .foregroundColor(.red)
+
                 Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.red.opacity(0.5))
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 16)
-            .background(.ultraThinMaterial.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .alert("¿Cerrar sesión?", isPresented: $showLogoutAlert) {
             Button("Cancelar", role: .cancel) {}
             Button("Cerrar sesión", role: .destructive) {
@@ -1499,7 +1349,7 @@ struct LogoutSection: View {
                 dismiss()
             }
         } message: {
-            Text("settings.logout.confirm")
+            Text(NSLocalizedString("settings.logout.confirm", comment: "Logout confirm"))
         }
     }
 }
@@ -1721,63 +1571,52 @@ struct SettingsListRowBackground: View {
 struct OnlineStatusSection: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var onlineStatusService = OnlineStatusService()
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(onlineStatusService.currentUserStatus.color.opacity(0.2))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: onlineStatusService.currentUserStatus.icon)
-                        .foregroundColor(onlineStatusService.currentUserStatus.color)
-                        .font(.system(size: 18, weight: .medium))
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("settings.onlineStatus.title")
-                        .font(.custom("Poppins-Medium", size: 16))
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Image(systemName: onlineStatusService.currentUserStatus.icon)
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundColor(onlineStatusService.currentUserStatus.color)
+                    .frame(width: 28, alignment: .center)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(NSLocalizedString("settings.onlineStatus.title", comment: "Online Status"))
+                        .font(.custom("Poppins-Medium", size: 15))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     Text(String(format: NSLocalizedString("settings.onlineStatus.current", comment: "Current status"), onlineStatusService.currentUserStatus.displayName))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray)
                 }
-                
+
                 Spacer()
-                
+
                 Menu {
                     ForEach(OnlineStatus.allCases, id: \.self) { status in
-                        Button(action: {
-                            onlineStatusService.setGlobalStatus(status)
-                        }) {
+                        Button(action: { onlineStatusService.setGlobalStatus(status) }) {
                             HStack {
                                 Image(systemName: status.icon)
-                                    .foregroundColor(status.color)
                                 Text(status.displayName)
                             }
                         }
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text("settings.onlineStatus.select")
+                        Text(NSLocalizedString("settings.onlineStatus.select", comment: "Select"))
                             .font(.custom("Poppins-Medium", size: 13))
                         Image(systemName: "chevron.up.down")
                             .font(.system(size: 10, weight: .bold))
                     }
-                    .foregroundColor(Color(hex: "4F46E5"))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color(hex: "4F46E5").opacity(0.1))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color(colorScheme == .dark ? .white : .black).opacity(0.08))
                     .clipShape(Capsule())
                 }
             }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .background(.ultraThinMaterial.opacity(0.3))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
     }
 }
 

@@ -1456,20 +1456,20 @@
 /* Story ContextMenu */
 "storyContextMenu.myStory" = "Mi historia";
 "storyContextMenu.options" = "Opciones";
-"storyContextMenu.viewActivity" = "Ver\nActividad";
-"storyContextMenu.viewActivity.subtitle" = "Visualizaciones\ny reacciones";
+"storyContextMenu.viewActivity" = "Ver Actividad";
+"storyContextMenu.viewActivity.subtitle" = "Ver quién la vio";
 "storyContextMenu.save" = "Guardar";
-"storyContextMenu.save.subtitle" = "Descargar\nhistoria";
+"storyContextMenu.save.subtitle" = "Guardar en el carrete";
 "storyContextMenu.delete" = "Eliminar";
-"storyContextMenu.delete.subtitle" = "Borrar\nhistoria";
+"storyContextMenu.delete.subtitle" = "Borrar historia";
 "storyContextMenu.share" = "Compartir";
-"storyContextMenu.share.subtitle" = "Enviar\na otros";
+"storyContextMenu.share.subtitle" = "Enviar a otros";
 "storyContextMenu.report" = "Reportar";
-"storyContextMenu.report.subtitle" = "Contenido\ninapropiado";
+"storyContextMenu.report.subtitle" = "Contenido inapropiado";
 "storyContextMenu.block" = "Bloquear";
-"storyContextMenu.block.subtitle" = "No ver más\ncontenido";
-"storyContextMenu.leaveBestFriends" = "Salir de\nMejores";
-"storyContextMenu.leaveBestFriends.subtitle" = "No ver sus\nhistorias BF";
+"storyContextMenu.block.subtitle" = "No ver más contenido de este usuario";
+"storyContextMenu.leaveBestFriends" = "Salir de Mejores";
+"storyContextMenu.leaveBestFriends.subtitle" = "No ver más sus historias BFF";
 "storyContextMenu.scrollReactions" = "Desliza para más reacciones";
 
 "bestFriends.optOut.confirm.title" = "Salir de mejores amigos";
@@ -2433,3 +2433,10 @@
 "userActivity.simple.comments.yourComment" = "Tu comentario";
 "userActivity.simple.comments.momentNoContent" = "Moment sin texto";
 "userActivity.simple.comments.emptyComment" = "Sin texto";
+
+/* Your Activity - Error States */
+"userActivity.error.offline.title" = "Sin conexión";
+"userActivity.error.offline.subtitle" = "No hay internet. Conéctate y vuelve a intentarlo.";
+"userActivity.error.generic.title" = "Algo salió mal";
+"userActivity.error.generic.subtitle" = "Ocurrió un error inesperado. Inténtalo de nuevo.";
+

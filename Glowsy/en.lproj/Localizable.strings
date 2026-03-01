@@ -1461,20 +1461,20 @@
 /* Story ContextMenu */
 "storyContextMenu.myStory" = "My story";
 "storyContextMenu.options" = "Options";
-"storyContextMenu.viewActivity" = "View\nActivity";
-"storyContextMenu.viewActivity.subtitle" = "Views\nand reactions";
+"storyContextMenu.viewActivity" = "View Activity";
+"storyContextMenu.viewActivity.subtitle" = "See who viewed it";
 "storyContextMenu.save" = "Save";
-"storyContextMenu.save.subtitle" = "Download\nstory";
+"storyContextMenu.save.subtitle" = "Keep to your device";
 "storyContextMenu.delete" = "Delete";
-"storyContextMenu.delete.subtitle" = "Delete\nstory";
+"storyContextMenu.delete.subtitle" = "Delete story";
 "storyContextMenu.share" = "Share";
-"storyContextMenu.share.subtitle" = "Send\nto others";
+"storyContextMenu.share.subtitle" = "Send to others";
 "storyContextMenu.report" = "Report";
-"storyContextMenu.report.subtitle" = "Inappropriate\ncontent";
+"storyContextMenu.report.subtitle" = "Inappropriate content";
 "storyContextMenu.block" = "Block";
-"storyContextMenu.block.subtitle" = "Don't see\nmore content";
-"storyContextMenu.leaveBestFriends" = "Leave\nBest Friends";
-"storyContextMenu.leaveBestFriends.subtitle" = "Stop seeing\nBF stories";
+"storyContextMenu.block.subtitle" = "Don't see more content from this user";
+"storyContextMenu.leaveBestFriends" = "Leave Best Friends";
+"storyContextMenu.leaveBestFriends.subtitle" = "Stop seeing BF stories from this user";
 "storyContextMenu.scrollReactions" = "Scroll for more reactions";
 
 "bestFriends.optOut.confirm.title" = "Leave best friends";
@@ -2412,3 +2412,10 @@
 "userActivity.simple.comments.yourComment" = "Your comment";
 "userActivity.simple.comments.momentNoContent" = "Moment without text";
 "userActivity.simple.comments.emptyComment" = "No text";
+
+/* Your Activity - Error States */
+"userActivity.error.offline.title" = "No connection";
+"userActivity.error.offline.subtitle" = "Check your internet connection and try again.";
+"userActivity.error.generic.title" = "Something went wrong";
+"userActivity.error.generic.subtitle" = "An unexpected error occurred. Please try again.";
+

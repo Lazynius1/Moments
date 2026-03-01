@@ -1451,20 +1451,20 @@
 /* Story ContextMenu */
 "storyContextMenu.myStory" = "La meva història";
 "storyContextMenu.options" = "Opcions";
-"storyContextMenu.viewActivity" = "Veure\nActivitat";
-"storyContextMenu.viewActivity.subtitle" = "Visualitzacions\ni reaccions";
+"storyContextMenu.viewActivity" = "Veure Activitat";
+"storyContextMenu.viewActivity.subtitle" = "Mira qui l'ha vist";
 "storyContextMenu.save" = "Desar";
-"storyContextMenu.save.subtitle" = "Descarregar\nhistòria";
+"storyContextMenu.save.subtitle" = "Desar al carret";
 "storyContextMenu.delete" = "Eliminar";
-"storyContextMenu.delete.subtitle" = "Esborrar\nhistòria";
+"storyContextMenu.delete.subtitle" = "Esborrar història";
 "storyContextMenu.share" = "Compartir";
-"storyContextMenu.share.subtitle" = "Enviar\na altres";
+"storyContextMenu.share.subtitle" = "Enviar a altres";
 "storyContextMenu.report" = "Reportar";
-"storyContextMenu.report.subtitle" = "Contingut\ninapropiat";
+"storyContextMenu.report.subtitle" = "Contingut inapropiat";
 "storyContextMenu.block" = "Bloquejar";
-"storyContextMenu.block.subtitle" = "No veure més\ncontingut";
-"storyContextMenu.leaveBestFriends" = "Sortir de\nMillors";
-"storyContextMenu.leaveBestFriends.subtitle" = "No veure les\nhistòries BF";
+"storyContextMenu.block.subtitle" = "No veure més contingut d'aquest usuari";
+"storyContextMenu.leaveBestFriends" = "Sortir de Millors";
+"storyContextMenu.leaveBestFriends.subtitle" = "No veure més les seves històries BF";
 "storyContextMenu.scrollReactions" = "Desplaça't per a més reaccions";
 
 "bestFriends.optOut.confirm.title" = "Sortir de millors amics";
@@ -2417,3 +2417,10 @@
 "userActivity.simple.comments.yourComment" = "El teu comentari";
 "userActivity.simple.comments.momentNoContent" = "Moment sense text";
 "userActivity.simple.comments.emptyComment" = "Sense text";
+
+/* Your Activity - Error States */
+"userActivity.error.offline.title" = "Sense connexió";
+"userActivity.error.offline.subtitle" = "Comprova la teva connexió a internet i torna-ho a provar.";
+"userActivity.error.generic.title" = "Alguna cosa ha anat malament";
+"userActivity.error.generic.subtitle" = "S'ha produït un error inesperat. Torna-ho a provar.";
+
