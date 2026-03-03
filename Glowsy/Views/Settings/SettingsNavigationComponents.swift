@@ -9,43 +9,27 @@ struct SettingsNavigationBar: View {
     var body: some View {
         HStack {
             Button(action: { dismiss() }) {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                    
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "4F46E5"))
-                }
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 44, height: 44)
             }
             
             Spacer()
             
             Text(title)
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.custom("Poppins-SemiBold", size: 17))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Spacer()
             
             // Espacio para mantener el título centrado
-            Circle()
+            Rectangle()
                 .fill(.clear)
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .padding(.top, 4)
     }
 }
 
@@ -71,6 +55,7 @@ struct SettingsSubsectionBackground: View {
 
 // ✅ Wrapper para subsecciones con navegación consistente
 struct SettingsSubsectionWrapper<Content: View>: View {
+    @Environment(\.dismiss) var dismiss
     let title: String
     let content: Content
     
@@ -82,14 +67,18 @@ struct SettingsSubsectionWrapper<Content: View>: View {
     var body: some View {
         ZStack {
             SettingsSubsectionBackground()
-            
-            VStack(spacing: 0) {
-                SettingsNavigationBar(title: title)
-                    .padding(.top, 8)
-                
-                content
+            content
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                }
             }
         }
-        .navigationBarHidden(true)
     }
 } 

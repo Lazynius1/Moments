@@ -11,6 +11,7 @@ struct EchoHistoryView: View {
     @State private var isLoading = true
     @State private var listener: ListenerRegistration?
     @State private var selectedEcho: Echo?
+    @State private var showEchoInfoSheet = false
     
     private let echoService = EchoService.shared
     
@@ -40,6 +41,15 @@ struct EchoHistoryView: View {
                     }
                     .foregroundColor(Color.orange)
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showEchoInfoSheet = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Color.orange)
+                    }
+                }
             }
         }
         .onAppear {
@@ -50,6 +60,9 @@ struct EchoHistoryView: View {
         }
         .fullScreenCover(item: $selectedEcho) { echo in
             EchoViewerUI(echoId: echo.id ?? "", initialEcho: echo)
+        }
+        .sheet(isPresented: $showEchoInfoSheet) {
+            EchoHistoryInfoSheetView()
         }
     }
     
@@ -106,6 +119,64 @@ struct EchoHistoryView: View {
                 self.isLoading = false
             }
         }
+    }
+}
+
+private struct EchoHistoryInfoSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(NSLocalizedString("echo.info.title", comment: ""))
+                        .font(.system(size: 24, weight: .bold))
+
+                    infoRow(
+                        title: NSLocalizedString("echo.info.what.title", comment: ""),
+                        body: NSLocalizedString("echo.info.what.body", comment: "")
+                    )
+                    infoRow(
+                        title: NSLocalizedString("echo.info.how.title", comment: ""),
+                        body: NSLocalizedString("echo.info.how.body", comment: "")
+                    )
+                    infoRow(
+                        title: NSLocalizedString("echo.info.privacy.title", comment: ""),
+                        body: NSLocalizedString("echo.info.privacy.body", comment: "")
+                    )
+                    infoRow(
+                        title: NSLocalizedString("echo.info.controls.title", comment: ""),
+                        body: NSLocalizedString("echo.info.controls.body", comment: "")
+                    )
+                }
+                .padding(20)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                }
+            }
+        }
+    }
+
+    private func infoRow(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 15, weight: .semibold))
+            Text(body)
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 

@@ -456,7 +456,37 @@ struct SavedMomentsView: View {
                         .padding(.bottom, 10)
                 }
             }
-            .navigationBarHidden(true)
+            .navigationTitle(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
+            .navigationBarTitleDisplayMode(.large)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                    }
+                }
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Menu {
+                        ForEach(SavedSortMode.allCases, id: \.self) { mode in
+                            Button(mode.title) { sortMode = mode }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                    Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel selection mode") : NSLocalizedString("savedMoments.select", comment: "Enable selection mode")) {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                            isSelectionMode.toggle()
+                            if !isSelectionMode {
+                                selectedMomentIds.removeAll()
+                            }
+                        }
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(isSelectionMode ? .red : .primary)
+                }
+            }
             .onAppear {
                 if viewModel.moments.isEmpty && !viewModel.isLoading {
                     viewModel.loadSavedMoments()
@@ -501,7 +531,9 @@ struct SavedMomentsView: View {
             }
         } message: {
             if let moment = restrictedMomentToRemove {
-                Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), moment.username))
+                LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
+                    Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), username))
+                }
             } else {
                 Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
             }
@@ -530,7 +562,12 @@ struct SavedMomentsView: View {
     
     private var content: some View {
         VStack(spacing: 14) {
-            header
+            Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
+                .font(.custom("Poppins-Medium", size: 13))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.top, 4)
             searchBar
             mediaSegments
             collectionRail
@@ -542,11 +579,14 @@ struct SavedMomentsView: View {
     private var header: some View {
         HStack(spacing: 12) {
             Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(.ultraThinMaterial))
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                }
             }
             
             VStack(alignment: .leading, spacing: 2) {
@@ -1250,7 +1290,9 @@ struct ModernSavedMomentsDetailView: View {
             }
         } message: {
             if let moment = momentToRemove {
-                Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), moment.username))
+                LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
+                    Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), username))
+                }
             } else {
                 Text(NSLocalizedString("savedMoments.remove.message.generic", comment: "Remove generic message"))
             }
@@ -1382,7 +1424,7 @@ struct ModernSavedDetailHeader: View {
                             )
                         
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(moment.username)
+                            LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                                 .font(.custom("Poppins-SemiBold", size: 14))
                                 .foregroundColor(primaryTextColor)
                                 .lineLimit(1)

@@ -229,7 +229,7 @@ struct MomentDetailView: View {
                                     navigateToProfile = true
                                 }
                             }) {
-                                Text(moment.username)
+                                LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(.primary)
                             }

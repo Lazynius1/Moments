@@ -2424,3 +2424,29 @@
 "userActivity.error.generic.title" = "Alguna cosa ha anat malament";
 "userActivity.error.generic.subtitle" = "S'ha produït un error inesperat. Torna-ho a provar.";
 
+
+/* Username Change */
+"username.change.title" = "Canviar nom d'usuari";
+"username.change.subtitle" = "Pots canviar el teu nom d'usuari un cop cada 6 mesos.";
+"username.change.save" = "Desar";
+"username.available" = "✓ Nom d'usuari disponible";
+"username.taken" = "Aquest nom d'usuari ja està en ús";
+"username.rules" = "3–30 caràcters. Només lletres, números i _.";
+"username.availableOn" = "Disponible el %@";
+"username.error.length" = "El nom d'usuari ha de tenir entre 3 i 30 caràcters.";
+"username.error.characters" = "Només es permeten lletres, números i guions baixos.";
+"username.error.same" = "El nou nom d'usuari ha de ser diferent de l'actual.";
+"username.error.taken" = "Aquest nom d'usuari ja està en ús.";
+"username.error.cooldown" = "Podràs canviar el teu nom d'usuari el %@.";
+"settings.notConfigured" = "No configurat";
+
+/* Echo Info Sheet */
+"echo.info.title" = "Què és un Echo";
+"echo.info.what.title" = "Què és";
+"echo.info.what.body" = "Echo és una experiència compartida sobre un moment amb ubicació. Reuneix diverses perspectives del mateix instant en un sol fil visual i només s'obre quan almenys 2 participants accepten.";
+"echo.info.how.title" = "Com funciona";
+"echo.info.how.body" = "Echo detecta moments de mutuals a la mateixa zona (fins a 500 m) i dins la mateixa finestra de temps (24 h). Quan s'activa, pots navegar entre perspectives (barra inferior) i moments (amunt/avall).";
+"echo.info.privacy.title" = "Privadesa";
+"echo.info.privacy.body" = "Echo es crea entre mutuals, però conserva qui el podia veure en aquell moment. Si després canvia la relació, es continua veient; només es difumina si l'audiència del moment (best friends o llista personalitzada) no t'inclou. Dins d'Echo veus els teus moments i els dels participants que han acceptat.";
+"echo.info.controls.title" = "Controls";
+"echo.info.controls.body" = "Llisca amunt/avall per canviar de moment, fes servir la barra inferior per canviar de perspectiva i el menú per sortir de l'Echo. No en pots sortir mentre l'Echo estigui actiu: es desbloqueja quan acaba la finestra de 24 h. Si en surts, els teus moments s'eliminen d'aquest Echo.";

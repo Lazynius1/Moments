@@ -270,9 +270,11 @@ struct ModernCommentsView: View {
                 }
                 
                 HStack(spacing: 4) {
-                    Text(String(format: NSLocalizedString("modernComments.postOf", comment: "Post of user"), moment.username))
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
+                    LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
+                        Text(String(format: NSLocalizedString("modernComments.postOf", comment: "Post of user"), username))
+                    }
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.gray)
                     
                     VerifiedBadgeView(userId: moment.authorId, size: 10)
                 }

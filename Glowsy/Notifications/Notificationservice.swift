@@ -58,7 +58,7 @@ class NotificationService: ObservableObject {
                 self.canLoadMore = documents.count >= self.pageSize
                 
                 self.notifications = documents.compactMap { doc in
-                    try? doc.data(as: Notification.self)
+                    self.decodeNotificationDocument(doc)
                 }
                 // ✅ Guardar en caché local
                 // Si es el primer snapshot, usamos sync: true para purgar borrados del servidor
@@ -96,7 +96,7 @@ class NotificationService: ObservableObject {
                     self.canLoadMore = documents.count >= self.pageSize
                     
                     let newNotifications = documents.compactMap { doc in
-                        try? doc.data(as: Notification.self)
+                        self.decodeNotificationDocument(doc)
                     }
                     
                     self.notifications.append(contentsOf: newNotifications)
@@ -109,6 +109,19 @@ class NotificationService: ObservableObject {
     private func updateUnreadCount() {
         self.unreadCount = notifications.filter { $0.isPending }.count
         UIApplication.shared.applicationIconBadgeNumber = self.unreadCount
+    }
+
+    private func decodeNotificationDocument(_ doc: QueryDocumentSnapshot) -> Notification? {
+        do {
+            var notification = try doc.data(as: Notification.self)
+            if notification.id == nil || notification.id?.isEmpty == true {
+                notification.id = doc.documentID
+            }
+            return notification
+        } catch {
+            print("❌ NotificationService: Failed to decode notification \(doc.documentID): \(error)")
+            return nil
+        }
     }
     
     // MARK: - Notification Creation Engine (Internal)
@@ -264,11 +277,21 @@ class NotificationService: ObservableObject {
     }
     
     private func saveNotification(_ notification: Notification, for userId: String) {
-        guard let notificationId = notification.id else { return }
         do {
-            try db.collection("users").document(userId).collection("notifications").document(notificationId).setData(from: notification)
+            var notificationToSave = notification
+            let notificationsRef = db.collection("users").document(userId).collection("notifications")
+            let documentRef: DocumentReference
+
+            if let notificationId = notificationToSave.id, !notificationId.isEmpty {
+                documentRef = notificationsRef.document(notificationId)
+            } else {
+                documentRef = notificationsRef.document()
+                notificationToSave.id = documentRef.documentID
+            }
+
+            try documentRef.setData(from: notificationToSave)
             // ✅ Actualizar caché local si somos nosotros viendo este cambio (aunque normalmente lo hará el listener)
-            LocalPersistenceService.shared.saveNotifications([notification])
+            LocalPersistenceService.shared.saveNotifications([notificationToSave])
         } catch {
             print("❌ Error saving notification: \(error)")
         }

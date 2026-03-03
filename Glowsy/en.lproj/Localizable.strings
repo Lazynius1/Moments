@@ -2419,3 +2419,29 @@
 "userActivity.error.generic.title" = "Something went wrong";
 "userActivity.error.generic.subtitle" = "An unexpected error occurred. Please try again.";
 
+
+/* Username Change */
+"username.change.title" = "Change Username";
+"username.change.subtitle" = "You can change your username once every 6 months.";
+"username.change.save" = "Save";
+"username.available" = "✓ Username available";
+"username.taken" = "This username is already taken";
+"username.rules" = "3–30 characters. Letters, numbers and _ only.";
+"username.availableOn" = "Available from %@";
+"username.error.length" = "Username must be between 3 and 30 characters.";
+"username.error.characters" = "Only letters, numbers and underscores allowed.";
+"username.error.same" = "The new username must be different from your current one.";
+"username.error.taken" = "This username is already taken.";
+"username.error.cooldown" = "You can change your username again on %@.";
+"settings.notConfigured" = "Not set";
+
+/* Echo Info Sheet */
+"echo.info.title" = "What is an Echo";
+"echo.info.what.title" = "What it is";
+"echo.info.what.body" = "Echo is a shared experience around a location-tagged moment. It combines multiple perspectives of the same instant into one visual thread and only opens once at least 2 participants accept.";
+"echo.info.how.title" = "How it works";
+"echo.info.how.body" = "Echo detects moments from mutuals in the same area (up to 500 m) and time window (24 h). Once active, you can navigate between perspectives (bottom bar) and moments (up/down).";
+"echo.info.privacy.title" = "Privacy";
+"echo.info.privacy.body" = "Echo is created between mutuals, but it keeps who could view it at that time. If the relationship changes later, it remains visible; it only blurs when the moment audience (best friends or custom list) does not include you. Inside Echo, you see your moments and moments from participants who accepted.";
+"echo.info.controls.title" = "Controls";
+"echo.info.controls.body" = "Swipe up/down to change moments, use the bottom bar to switch perspectives, and the menu to leave the Echo. You cannot leave while the Echo is active: leaving unlocks when its 24 h window ends. If you leave, your moments are removed from that Echo.";

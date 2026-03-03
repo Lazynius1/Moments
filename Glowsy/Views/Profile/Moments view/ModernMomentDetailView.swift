@@ -378,6 +378,7 @@ struct ModernDetailHeader: View {
     let safeAreaTop: CGFloat
     let onAvatarTap: (String, Bool) -> Void
     @Environment(\.colorScheme) var colorScheme
+    @State private var liveUsername: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -392,9 +393,9 @@ struct ModernDetailHeader: View {
                     let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
 
                     HStack(spacing: 10) {
-                        StoryRingAvatarView(
-                            userId: authorId,
-                            size: 38,
+                            StoryRingAvatarView(
+                                userId: authorId,
+                                size: 38,
                             lineWidth: 2.2,
                             showBaseStroke: true,
                             baseStrokeColor: .white.opacity(0.15),
@@ -407,7 +408,7 @@ struct ModernDetailHeader: View {
                         
                         VStack(alignment: .leading, spacing: 0) {
                             HStack(spacing: 4) {
-                                Text(moment.username)
+                                Text(displayUsername(for: moment))
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(.primary)
                                 
@@ -432,6 +433,40 @@ struct ModernDetailHeader: View {
         .background(
             colorScheme == .dark ? Color(hex: "0A0A0A") : Color.white
         )
+        .onAppear {
+            resolveAuthorUsername()
+        }
+        .onChange(of: moment?.authorId) { _ in
+            resolveAuthorUsername()
+        }
+        .onChange(of: moment?.username) { _ in
+            if liveUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                resolveAuthorUsername()
+            }
+        }
+    }
+
+    private func displayUsername(for moment: Moment) -> String {
+        let fresh = liveUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return fresh.isEmpty ? moment.username : fresh
+    }
+
+    private func resolveAuthorUsername() {
+        guard let moment = moment else { return }
+        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty else {
+            liveUsername = ""
+            return
+        }
+
+        UserCacheService.shared.refreshUser(userId: authorId) { user in
+            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            DispatchQueue.main.async {
+                let currentAuthorId = self.moment?.authorId.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard currentAuthorId == authorId else { return }
+                self.liveUsername = fetchedUsername
+            }
+        }
     }
 }
 

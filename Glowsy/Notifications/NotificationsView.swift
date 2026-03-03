@@ -505,10 +505,8 @@ struct EnhancedNotificationRow: View {
     @ObservedObject var viewModel: NotificationsViewModel
     let colorScheme: ColorScheme
     let onTapAction: () -> Void
-    @State private var senderProfileImagePath: String?
-    @State private var isLoadingImage: Bool = true
-    @State private var imageLoadFailed: Bool = false
     @State private var showProfile = false
+    @State private var showStories = false
     @State private var momentImagePath: String?
     @State private var storyImagePath: String?
     @State private var isLoadingMomentImage: Bool = false
@@ -517,20 +515,31 @@ struct EnhancedNotificationRow: View {
     @State private var storyImageLoadFailed: Bool = false
     @State private var isFollowing: Bool = false
     @State private var isPressed: Bool = false
-    @State private var retryCount: Int = 0
-    private let maxRetries: Int = 2
+    @State private var senderUsernameOverride: String?
 
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar más pequeño
-            ProofileImageView(
-                imagePath: senderProfileImagePath,
-                colorScheme: colorScheme
-            )
-            .frame(width: 44, height: 44)
-            .clipShape(Circle())
-            .onTapGesture {
-                showProfile = true
+            // Avatar con Story Ring consistente con el resto de la app
+            if let senderId = group.notifications.first?.senderId, !senderId.isEmpty {
+                StoryRingAvatarView(
+                    userId: senderId,
+                    size: 44,
+                    lineWidth: 2.3,
+                    showBaseStroke: true,
+                    baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.12),
+                    baseStrokeWidth: 1,
+                    onTap: { hasStory in
+                        if hasStory {
+                            showStories = true
+                        } else {
+                            showProfile = true
+                        }
+                    }
+                )
+            } else {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 44, height: 44)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -569,8 +578,11 @@ struct EnhancedNotificationRow: View {
         .sheet(isPresented: $showProfile) {
             UserProfileView(userId: group.notifications.first!.senderId)
         }
+        .sheet(isPresented: $showStories) {
+            StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
+        }
         .onAppear {
-            fetchSenderProfileImage()
+            resolveSenderDisplayData()
             setupPreviews()
         }
     }
@@ -727,7 +739,7 @@ struct EnhancedNotificationRow: View {
                     ))
                 }
 
-            case .newFollower, .mutualConnection, .requestAccepted:
+            case .newFollower, .mutualConnection:
                 Button(action: {
                     toggleFollow()
                 }) {
@@ -752,6 +764,21 @@ struct EnhancedNotificationRow: View {
                                 ) // ✅ ADAPTATIVO
                         )
                         .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+            case .requestAccepted:
+                Button(action: { showProfile = true }) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 20))
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.green.opacity(0.45), lineWidth: 1)
+                        )
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -857,128 +884,121 @@ struct EnhancedNotificationRow: View {
 
     private func messageForGroup(_ group: NotificationGroup) -> AttributedString {
         let firstNotification = group.notifications.first!
+        let effectiveSenderUsername = senderDisplayName(for: firstNotification)
         if group.notifications.count > 1 && firstNotification.type != .profileVisit {
             switch firstNotification.type {
             case .like:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.like.multiple", comment: "Multiple likes"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.like.multiple", comment: "Multiple likes"), effectiveSenderUsername, group.notifications.count - 1))
             case .reaction:
                 // ✅ Mostrar el emoji de la reacción en grande
                 if let reactionString = firstNotification.reaction,
                    let reactionType = ReactionType(rawValue: reactionString) {
-                    let text = String(format: NSLocalizedString("notifications.message.reaction.multiple.withType", comment: "Multiple reactions with type"), firstNotification.senderUsername, reactionType.icon, group.notifications.count - 1)
+                    let text = String(format: NSLocalizedString("notifications.message.reaction.multiple.withType", comment: "Multiple reactions with type"), effectiveSenderUsername, reactionType.icon, group.notifications.count - 1)
                     var attributed = AttributedString(text)
                     if let range = attributed.range(of: reactionType.icon) {
                         attributed[range].font = .system(size: 18) // Emoji más grande
                     }
                     return attributed
                 } else {
-                    return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.multiple", comment: "Multiple reactions"), firstNotification.senderUsername, group.notifications.count - 1))
+                    return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.multiple", comment: "Multiple reactions"), effectiveSenderUsername, group.notifications.count - 1))
                 }
             case .mention:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.mention.multiple", comment: "Multiple mentions"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.mention.multiple", comment: "Multiple mentions"), effectiveSenderUsername, group.notifications.count - 1))
             case .newFollower:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.follow.multiple", comment: "Multiple follows"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.follow.multiple", comment: "Multiple follows"), effectiveSenderUsername, group.notifications.count - 1))
             case .followRequest:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.request.multiple", comment: "Multiple requests"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.request.multiple", comment: "Multiple requests"), effectiveSenderUsername, group.notifications.count - 1))
             case .requestAccepted:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.requestAccepted.multiple", comment: "Multiple accepted requests"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.requestAccepted.multiple", comment: "Multiple accepted requests"), effectiveSenderUsername, group.notifications.count - 1))
             case .mutualConnection:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.mutual.multiple", comment: "Multiple mutual connections"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.mutual.multiple", comment: "Multiple mutual connections"), effectiveSenderUsername, group.notifications.count - 1))
             case .comment:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.comment.multiple", comment: "Multiple comments"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.comment.multiple", comment: "Multiple comments"), effectiveSenderUsername, group.notifications.count - 1))
             case .storyReaction:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.story.multiple", comment: "Multiple story reactions"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.story.multiple", comment: "Multiple story reactions"), effectiveSenderUsername, group.notifications.count - 1))
             case .profileVisit:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.visit.multiple", comment: "Multiple profile visits"), firstNotification.visitCount ?? 0))
             case .message:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.message.multiple", comment: "Multiple messages"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.message.multiple", comment: "Multiple messages"), effectiveSenderUsername, group.notifications.count - 1))
             case .photoTag:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.multiple", comment: "Multiple photo tags"), firstNotification.senderUsername, group.notifications.count - 1))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.multiple", comment: "Multiple photo tags"), effectiveSenderUsername, group.notifications.count - 1))
             case .echoSuggestion:
                 return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
             }
         } else {
             switch firstNotification.type {
             case .like:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.like.single", comment: "Single like"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.like.single", comment: "Single like"), effectiveSenderUsername))
             case .reaction:
                 // ✅ Mostrar el emoji de la reacción en grande
                 if let reactionString = firstNotification.reaction,
                    let reactionType = ReactionType(rawValue: reactionString) {
-                    let text = String(format: NSLocalizedString("notifications.message.reaction.single.withType", comment: "Single reaction with type"), firstNotification.senderUsername, reactionType.icon)
+                    let text = String(format: NSLocalizedString("notifications.message.reaction.single.withType", comment: "Single reaction with type"), effectiveSenderUsername, reactionType.icon)
                     var attributed = AttributedString(text)
                     if let range = attributed.range(of: reactionType.icon) {
                         attributed[range].font = .system(size: 18) // Emoji más grande
                     }
                     return attributed
                 } else {
-                    return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.single", comment: "Single reaction"), firstNotification.senderUsername))
+                    return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.single", comment: "Single reaction"), effectiveSenderUsername))
                 }
             case .mention:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.mention.single", comment: "Single mention"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.mention.single", comment: "Single mention"), effectiveSenderUsername))
             case .newFollower:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.follow.single", comment: "Single follow"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.follow.single", comment: "Single follow"), effectiveSenderUsername))
             case .followRequest:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.request.single", comment: "Single request"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.request.single", comment: "Single request"), effectiveSenderUsername))
             case .requestAccepted:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.requestAccepted.single", comment: "Single accepted request"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.requestAccepted.single", comment: "Single accepted request"), effectiveSenderUsername))
             case .mutualConnection:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.mutual.single", comment: "Single mutual connection"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.mutual.single", comment: "Single mutual connection"), effectiveSenderUsername))
             case .comment:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.comment.single", comment: "Single comment"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.comment.single", comment: "Single comment"), effectiveSenderUsername))
             case .storyReaction:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.story.single", comment: "Single story reaction"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.story.single", comment: "Single story reaction"), effectiveSenderUsername))
             case .profileVisit:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.visit.single", comment: "Single profile visit"), firstNotification.visitCount ?? 0))
             case .message:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.message.single", comment: "Single message"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.message.single", comment: "Single message"), effectiveSenderUsername))
             case .photoTag:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.single", comment: "Single photo tag"), firstNotification.senderUsername))
+                return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.single", comment: "Single photo tag"), effectiveSenderUsername))
             case .echoSuggestion:
                 return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
             }
         }
     }
 
-    private func fetchSenderProfileImage() {
-        guard let senderId = group.notifications.first?.senderId, retryCount < maxRetries else {
-            DispatchQueue.main.async {
-                self.isLoadingImage = false
-                self.imageLoadFailed = true
-            }
-            return
+    private func senderDisplayName(for notification: Notification) -> String {
+        if let senderUsernameOverride, !senderUsernameOverride.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return senderUsernameOverride
         }
+        let username = notification.senderUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        if username.isEmpty {
+            return "Alguien"
+        }
+        return username
+    }
 
-        if let cachedPath = viewModel.getProfileImagePath(for: senderId) {
-            DispatchQueue.main.async {
-                self.senderProfileImagePath = cachedPath.isEmpty ? nil : cachedPath
-                self.isLoadingImage = false
-                self.imageLoadFailed = cachedPath.isEmpty
-            }
-            return
-        }
+    private func resolveSenderDisplayData() {
+        guard let senderId = group.notifications.first?.senderId, !senderId.isEmpty else { return }
+        let needsUsernameResolution: Bool = {
+            guard let current = group.notifications.first?.senderUsername else { return true }
+            let normalized = current.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return normalized.isEmpty || normalized == "alguien"
+        }()
+        if !needsUsernameResolution { return }
 
         let firestoreService = FirestoreService()
         firestoreService.fetchUser(userId: senderId) { result in
             switch result {
             case .success(let user):
                 DispatchQueue.main.async {
-                    self.senderProfileImagePath = user.profileImagePath?.isEmpty ?? true ? nil : user.profileImagePath
-                    self.isLoadingImage = false
-                    self.imageLoadFailed = user.profileImagePath?.isEmpty ?? true
-                    self.viewModel.updateProfileImageCache(for: senderId, imagePath: user.profileImagePath)
-                }
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.retryCount += 1
-                    if self.retryCount < self.maxRetries {
-                        self.fetchSenderProfileImage()
-                    } else {
-                        self.isLoadingImage = false
-                        self.imageLoadFailed = true
-                        self.viewModel.updateProfileImageCache(for: senderId, imagePath: nil)
+                    if !user.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        self.senderUsernameOverride = user.username
                     }
                 }
+            case .failure:
+                break
             }
         }
     }

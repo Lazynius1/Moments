@@ -66,12 +66,19 @@ struct GlassmorphicChatView: View {
     @State private var storyCount: Int = 0
     @State private var storyViewedStatus: [Bool] = []
     @State private var storyAudiences: [String?] = []
+    @State private var liveOtherParticipantUsername: String = ""
     
     // ✅ REACCIONES: Nuevo estado para Overlay
     @State private var reactionMessageOverlay: EnhancedMessage? = nil
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var otherParticipantDisplayName: String {
+        let fallback = viewModel.conversation.otherParticipantUsername ?? "Usuario"
+        let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return live.isEmpty ? fallback : live
     }
     
     private var searchCounterText: String {
@@ -281,7 +288,7 @@ struct GlassmorphicChatView: View {
                 }) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Text(viewModel.conversation.otherParticipantUsername ?? "Usuario")
+                            Text(otherParticipantDisplayName)
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
@@ -570,7 +577,7 @@ struct GlassmorphicChatView: View {
             if let replyingTo = replyingTo {
                 GlassmorphicReplyBar(
                     message: replyingTo,
-                    otherParticipantName: viewModel.conversation.otherParticipantUsername ?? "Usuario"
+                    otherParticipantName: otherParticipantDisplayName
                 ) {
                     self.replyingTo = nil
                 }
@@ -654,7 +661,7 @@ struct GlassmorphicChatView: View {
                 isCurrentUser: message.senderId == viewModel.currentUserId,
                 showAvatar: shouldShowAvatar(for: message, in: messages),
                 otherUserId: viewModel.conversation.otherParticipantId,
-                otherParticipantName: viewModel.conversation.otherParticipantUsername ?? "Usuario",
+                otherParticipantName: otherParticipantDisplayName,
                 repliedMessage: message.replyTo != nil ? viewModel.messages.first(where: { $0.id == message.replyTo }) : nil,
                 onReply: { replyingTo = message },
                 onReaction: { emoji in
@@ -738,6 +745,7 @@ struct GlassmorphicChatView: View {
         viewModel.isChatVisible = true  // ✅ Marcar chat como visible
         viewModel.startListening()
         setupOnlineStatusObserver()
+        refreshOtherParticipantUsername()
     }
     
     // ✅ REFACTORIZADO: Acciones al desaparecer
@@ -811,6 +819,22 @@ struct GlassmorphicChatView: View {
         }
         
         showEnhancedCamera = false
+    }
+
+    private func refreshOtherParticipantUsername() {
+        let otherUserId = viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !otherUserId.isEmpty else {
+            liveOtherParticipantUsername = ""
+            return
+        }
+
+        UserCacheService.shared.refreshUser(userId: otherUserId) { user in
+            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            DispatchQueue.main.async {
+                guard self.viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
+                self.liveOtherParticipantUsername = fetchedUsername
+            }
+        }
     }
     
     private func shouldShowAvatar(for message: EnhancedMessage, in messages: [EnhancedMessage]) -> Bool {

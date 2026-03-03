@@ -2424,7 +2424,7 @@ struct ModernLocationMomentRow: View {
                             .shadow(radius: 2)
                         
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("@\(moment.username)")
+                            LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username, prefix: "@")
                                 .font(.custom("Poppins-SemiBold", size: 13))
                                 .foregroundColor(.white)
                                 .shadow(radius: 2)

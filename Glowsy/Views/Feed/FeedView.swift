@@ -2275,12 +2275,19 @@ struct ModernPostCardView: View {
     @State private var storyViewedStatus: [Bool] = []
     @State private var storyAudiences: [String?] = []
     @State private var isLoadingStory: Bool = false
+    @State private var liveAuthorUsername: String = ""
     @State private var showStories = false
     @State private var showSpecificUserStories = false
     private let privacyService = PrivacyService()
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var displayAuthorUsername: String {
+        let fallback = moment.username
+        let live = liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return live.isEmpty ? fallback : live
     }
     
     // ✅ MEJORADO: AspectRatioType con soporte completo para todos los formatos
@@ -2552,12 +2559,15 @@ struct ModernPostCardView: View {
         .onAppear {
             if !hasLoadedInitialData {
                 loadAllPostData()
+                refreshAuthorUsername()
                 hasLoadedInitialData = true
                 
                 // ✅ MARCAR que ya no es primera aparición
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isFirstAppear = false
                 }
+            } else if liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                refreshAuthorUsername()
             }
             onNearEnd()
             
@@ -2628,7 +2638,7 @@ struct ModernPostCardView: View {
                                 // Navegar al perfil propio (Tab 4) o mostrar hoja
                                 NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
                             }) {
-                                Text("\(moment.username)")
+                                Text(displayAuthorUsername)
                                     .font(.custom("Poppins-SemiBold", size: 15))
                                     .foregroundColor(adaptiveColors.primary)
                             }
@@ -2638,7 +2648,7 @@ struct ModernPostCardView: View {
                                 // Navegar a perfil de otro usuario
                                 NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
                             }) {
-                                Text("\(moment.username)")
+                                Text(displayAuthorUsername)
                                     .font(.custom("Poppins-SemiBold", size: 15))
                                     .foregroundColor(adaptiveColors.primary)
                             }
@@ -2916,6 +2926,22 @@ struct ModernPostCardView: View {
                         self.isSaved = saved
                     }
                 }
+            }
+        }
+    }
+
+    private func refreshAuthorUsername() {
+        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty else {
+            liveAuthorUsername = ""
+            return
+        }
+
+        UserCacheService.shared.refreshUser(userId: authorId) { user in
+            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            DispatchQueue.main.async {
+                guard self.moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines) == authorId else { return }
+                self.liveAuthorUsername = fetchedUsername
             }
         }
     }

@@ -94,6 +94,9 @@ struct AppUser: Identifiable, Codable {
     
     // ✅ Privacy: Confirmaciones de lectura
     let showReadReceipts: Bool
+    
+    // ✅ Username change cooldown
+    let lastUsernameChange: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -133,6 +136,7 @@ struct AppUser: Identifiable, Codable {
         case lastSeen
         case isOnline
         case showReadReceipts
+        case lastUsernameChange
     }
 
     init(from decoder: Decoder) throws {
@@ -200,6 +204,13 @@ struct AppUser: Identifiable, Codable {
         
         self.isOnline = (try container.decodeIfPresent(Bool.self, forKey: .isOnline)) ?? false
         self.showReadReceipts = (try container.decodeIfPresent(Bool.self, forKey: .showReadReceipts)) ?? true
+        
+        // lastUsernameChange puede venir como Timestamp de Firestore
+        if let ts = try? container.decodeIfPresent(Timestamp.self, forKey: .lastUsernameChange) {
+            self.lastUsernameChange = ts.dateValue()
+        } else {
+            self.lastUsernameChange = nil
+        }
     }
 
     init(
@@ -239,7 +250,8 @@ struct AppUser: Identifiable, Codable {
         onlineStatus: OnlineStatus = .offline,
         lastSeen: Date? = nil,
         isOnline: Bool = false,
-        showReadReceipts: Bool = true
+        showReadReceipts: Bool = true,
+        lastUsernameChange: Date? = nil
     ) {
         self.id = id
         self.username = username
@@ -278,6 +290,7 @@ struct AppUser: Identifiable, Codable {
         self.lastSeen = lastSeen
         self.isOnline = isOnline
         self.showReadReceipts = showReadReceipts
+        self.lastUsernameChange = lastUsernameChange
     }
 }
 

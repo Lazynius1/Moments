@@ -800,6 +800,13 @@ struct SwipeableConversationRow: View {
 // ✅ COMPONENTE para resultados de conversaciones en búsqueda
 struct SearchConversationRow: View {
     let conversation: Conversation
+    @State private var liveOtherParticipantUsername: String = ""
+
+    private var displayUsername: String {
+        let fallback = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
+        let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return live.isEmpty ? fallback : live
+    }
     
     var body: some View {
         HStack(spacing: 14) {
@@ -807,7 +814,7 @@ struct SearchConversationRow: View {
                 .frame(width: 48, height: 48)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
+                Text(displayUsername)
                     .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(.white)
                 
@@ -826,6 +833,28 @@ struct SearchConversationRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .glassmorphic()
+        .onAppear {
+            refreshOtherParticipantUsername()
+        }
+        .onChange(of: conversation.otherParticipantId) { _ in
+            refreshOtherParticipantUsername()
+        }
+    }
+
+    private func refreshOtherParticipantUsername() {
+        let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !otherUserId.isEmpty else {
+            liveOtherParticipantUsername = ""
+            return
+        }
+
+        UserCacheService.shared.refreshUser(userId: otherUserId) { user in
+            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            DispatchQueue.main.async {
+                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
+                self.liveOtherParticipantUsername = fetchedUsername
+            }
+        }
     }
 }
 
@@ -907,7 +936,14 @@ struct GlassmorphicConversationRow: View {
     @State private var showingUserProfile = false
     @State private var showingStories = false
     @State private var storiesUserId: String = ""
+    @State private var liveOtherParticipantUsername: String = ""
     private let privacyService = PrivacyService()
+
+    private var displayUsername: String {
+        let fallback = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
+        let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return live.isEmpty ? fallback : live
+    }
     
     var body: some View {
         HStack(spacing: 14) {
@@ -950,7 +986,7 @@ struct GlassmorphicConversationRow: View {
                         showingUserProfile = true
                     }) {
                         HStack(spacing: 4) {
-                            Text(conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
+                            Text(displayUsername)
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
@@ -1011,6 +1047,10 @@ struct GlassmorphicConversationRow: View {
         .glassmorphic() // ✅ Mantener el efecto glassmorphic único (asegurar que este modificador también sea adaptativo)
         .onAppear {
             checkUserStories()
+            refreshOtherParticipantUsername()
+        }
+        .onChange(of: conversation.otherParticipantId) { _ in
+            refreshOtherParticipantUsername()
         }
         // ✅ NUEVO: Sheet para mostrar historias del usuario
         .sheet(isPresented: $showingStories) {
@@ -1039,6 +1079,22 @@ struct GlassmorphicConversationRow: View {
             self.storyCount = snapshot.storyCount
             self.storyViewedStatus = snapshot.storyViewedStatus
             self.storyAudiences = snapshot.storyAudiences
+        }
+    }
+
+    private func refreshOtherParticipantUsername() {
+        let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !otherUserId.isEmpty else {
+            liveOtherParticipantUsername = ""
+            return
+        }
+
+        UserCacheService.shared.refreshUser(userId: otherUserId) { user in
+            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            DispatchQueue.main.async {
+                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
+                self.liveOtherParticipantUsername = fetchedUsername
+            }
         }
     }
     

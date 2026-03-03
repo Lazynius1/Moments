@@ -142,10 +142,17 @@ struct ReelVideoView: View {
     @State private var storyAudiences: [String?] = []
     @State private var showingStories = false
     @State private var storiesUserId: String = ""
+    @State private var liveAuthorUsername: String = ""
     
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject private var firestoreService: FirestoreService
     private let privacyService = PrivacyService()
+
+    private var displayAuthorUsername: String {
+        let fallback = video.moment.username
+        let live = liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return live.isEmpty ? fallback : live
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -302,7 +309,7 @@ struct ReelVideoView: View {
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 6) {
-                                        Text(video.moment.username)
+                                        Text(displayAuthorUsername)
                                             .font(.custom("Poppins-SemiBold", size: 15))
                                             .foregroundColor(.white)
                                             .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
@@ -557,6 +564,7 @@ struct ReelVideoView: View {
                     setupVideo()
                     loadVideoData()
                     checkUserStories() // ✅ NUEVO: Verificar historias del usuario
+                    refreshAuthorUsername()
                     
                     // ✅ INSTANT PLAYBACK: Precargar siguientes videos
                     preloadNextVideos()
@@ -569,6 +577,7 @@ struct ReelVideoView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     setupVideo()
                     loadVideoData()
+                    refreshAuthorUsername()
                 }
             } else {
                 // Pausar inmediatamente cuando no está activo
@@ -621,6 +630,22 @@ struct ReelVideoView: View {
             self.storyCount = snapshot.storyCount
             self.storyViewedStatus = snapshot.storyViewedStatus
             self.storyAudiences = snapshot.storyAudiences
+        }
+    }
+
+    private func refreshAuthorUsername() {
+        let authorId = video.moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty else {
+            liveAuthorUsername = ""
+            return
+        }
+
+        UserCacheService.shared.refreshUser(userId: authorId) { user in
+            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            DispatchQueue.main.async {
+                guard self.video.moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines) == authorId else { return }
+                self.liveAuthorUsername = fetchedUsername
+            }
         }
     }
     
