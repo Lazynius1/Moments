@@ -576,6 +576,108 @@ class FirestoreService: ObservableObject {
         }
     }
     
+    // ✅ NUEVO: Cambio de username con cooldown de 6 meses
+    func changeUsername(
+        userId: String,
+        oldUsername: String,
+        newUsername: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        let clean = newUsername.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        // Validación básica
+        guard clean.count >= 3 && clean.count <= 30 else {
+            completion(.failure(NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("username.error.length", comment: "Username must be between 3 and 30 characters")])))
+            return
+        }
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789_")
+        guard clean.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+            completion(.failure(NSError(domain: "", code: 2, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("username.error.characters", comment: "Username can only contain letters, numbers, and underscores")])))
+            return
+        }
+        guard clean != oldUsername.lowercased() else {
+            completion(.failure(NSError(domain: "", code: 3, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("username.error.same", comment: "New username must be different from current")])))
+            return
+        }
+        
+        let userRef = db.collection("users").document(userId)
+        let oldUsernameRef = db.collection("usernames").document(oldUsername.lowercased())
+        let newUsernameRef = db.collection("usernames").document(clean)
+        
+        // 1. Verificar cooldown y disponibilidad en paralelo
+        userRef.getDocument { [weak self] userSnap, error in
+            guard let self = self else { return }
+            if let error = error { completion(.failure(error)); return }
+            let userData = userSnap?.data() ?? [:]
+            let userEmail =
+                (userData["email"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let fallbackAuthEmail =
+                Auth.auth().currentUser?.email?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Verificar cooldown de 6 meses
+            if let ts = userData["lastUsernameChange"] as? Timestamp {
+                let lastChange = ts.dateValue()
+                let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+                if lastChange > sixMonthsAgo {
+                    let nextAvailable = Calendar.current.date(byAdding: .month, value: 6, to: lastChange) ?? Date()
+                    let formatter = DateFormatter()
+                    formatter.dateStyle = .long
+                    formatter.locale = Locale.current
+                    let dateStr = formatter.string(from: nextAvailable)
+                    completion(.failure(NSError(domain: "", code: 4, userInfo: [NSLocalizedDescriptionKey: String(format: NSLocalizedString("username.error.cooldown", comment: "Username can be changed on %@"), dateStr)])))
+                    return
+                }
+            }
+            
+            // 2. Verificar disponibilidad del nuevo username
+            newUsernameRef.getDocument { snap, error in
+                if let error = error { completion(.failure(error)); return }
+                if snap?.exists == true {
+                    completion(.failure(NSError(domain: "", code: 5, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("username.error.taken", comment: "This username is already taken")])))
+                    return
+                }
+
+                oldUsernameRef.getDocument { oldUsernameSnap, error in
+                    if let error = error { completion(.failure(error)); return }
+
+                    // 3. Actualizar en batch atómico (preservando createdAt/email para login por username)
+                    var newUsernameData = oldUsernameSnap?.data() ?? [:]
+                    newUsernameData["userId"] = userId
+                    newUsernameData["updatedAt"] = FieldValue.serverTimestamp()
+
+                    if let email = userEmail, !email.isEmpty {
+                        newUsernameData["email"] = email
+                    } else if let email = fallbackAuthEmail, !email.isEmpty {
+                        newUsernameData["email"] = email
+                    }
+
+                    if newUsernameData["createdAt"] == nil {
+                        newUsernameData["createdAt"] = FieldValue.serverTimestamp()
+                    }
+
+                    let batch = self.db.batch()
+                    batch.deleteDocument(oldUsernameRef)
+                    batch.setData(newUsernameData, forDocument: newUsernameRef)
+                    batch.updateData([
+                        "username": clean,
+                        "lastUsernameChange": FieldValue.serverTimestamp()
+                    ], forDocument: userRef)
+
+                    batch.commit { error in
+                        if let error = error {
+                            completion(.failure(error))
+                        } else {
+                            completion(.success(()))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+
     // ✅ FUNCIÓN FETCHUSER CORREGIDA para manejar mejor los errores
     func fetchUser(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
         guard !userId.isEmpty else {
@@ -2079,12 +2181,27 @@ class FirestoreService: ObservableObject {
                 batch.deleteDocument(notificationRef)
                 
                 batch.commit { error in
-                    if error == nil {
-                        // ✅ Notificar al solicitante que su solicitud fue aceptada
+                    if let error = error {
+                        completion(error)
+                        return
+                    }
+
+                    // ✅ Notificar al solicitante que su solicitud fue aceptada
+                    // Usar username real del usuario que acepta para evitar fallback "Alguien".
+                    self.fetchUserProfile(userId: recipientId) { result in
+                        let accepterUsername: String?
+                        switch result {
+                        case .success(let accepterUser):
+                            accepterUsername = accepterUser.username
+                        case .failure:
+                            accepterUsername = nil
+                        }
+
                         Task { @MainActor in
                             NotificationService.shared.sendInteractionNotification(
-                                type: .requestAccepted, // Usar nuevo tipo
-                                to: senderId
+                                type: .requestAccepted,
+                                to: senderId,
+                                senderUsername: accepterUsername
                             )
                         }
                     }

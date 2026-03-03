@@ -550,19 +550,54 @@ class AuthService: ObservableObject {
                             return
                         }
                         
-                        guard let data = document?.data(),
-                              let email = data["email"] as? String else {
+                        guard let data = document?.data() else {
                             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
                             return
                         }
-                        
-                        // Iniciar sesión con el email obtenido
-                        Auth.auth().signIn(withEmail: email, password: password) { result, error in
-                            if let error = error {
-                                completion(.failure(self.mapAuthError(error)))
-                            } else {
-                                UserDefaults.standard.set(email, forKey: "cachedEmail_\(identifier.lowercased())")
-                                completion(.success(()))
+
+                        // Flujo principal: usernames/{username}.email
+                        if let email = data["email"] as? String, !email.isEmpty {
+                            Auth.auth().signIn(withEmail: email, password: password) { result, error in
+                                if let error = error {
+                                    completion(.failure(self.mapAuthError(error)))
+                                } else {
+                                    UserDefaults.standard.set(email, forKey: "cachedEmail_\(identifier.lowercased())")
+                                    completion(.success(()))
+                                }
+                            }
+                            return
+                        }
+
+                        // Fallback resiliente: si falta email pero existe userId, buscar email en users/{userId}
+                        guard let userId = data["userId"] as? String, !userId.isEmpty else {
+                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
+                            return
+                        }
+
+                        self.db.collection("users").document(userId).getDocument { userDoc, userError in
+                            if let userError = userError {
+                                completion(.failure(userError))
+                                return
+                            }
+
+                            guard let userEmail = userDoc?.data()?["email"] as? String, !userEmail.isEmpty else {
+                                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
+                                return
+                            }
+
+                            // Auto-repair del índice usernames para próximos logins
+                            self.db.collection("usernames").document(identifier.lowercased()).setData([
+                                "email": userEmail,
+                                "updatedAt": FieldValue.serverTimestamp()
+                            ], merge: true)
+
+                            Auth.auth().signIn(withEmail: userEmail, password: password) { result, error in
+                                if let error = error {
+                                    completion(.failure(self.mapAuthError(error)))
+                                } else {
+                                    UserDefaults.standard.set(userEmail, forKey: "cachedEmail_\(identifier.lowercased())")
+                                    completion(.success(()))
+                                }
                             }
                         }
                     }

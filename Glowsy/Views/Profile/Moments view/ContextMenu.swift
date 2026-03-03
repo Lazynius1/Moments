@@ -349,7 +349,8 @@ struct ModernContextMenuOverlay: View {
     // ✅ LÓGICA DE COMPARTIR INTEGRADA (Copiada de share.swift para consistencia)
     private func shareExternally() {
         guard moment.id != nil else { return }
-        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
+        let freshUsername = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
+        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), freshUsername)
         let shareUrlString = buildMomentShareLink(moment)
         let shareUrl = URL(string: shareUrlString)!
         
@@ -538,7 +539,7 @@ struct ModernContextMenuContent: View {
                     .clipShape(Circle())
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(moment.username)
+                    LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     

@@ -2054,7 +2054,9 @@ struct ProfileSavedContent: View {
                 }
             } message: {
                 if let moment = restrictedMomentToRemove {
-                    Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), moment.username))
+                    LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
+                        Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), username))
+                    }
                 } else {
                     Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
                 }

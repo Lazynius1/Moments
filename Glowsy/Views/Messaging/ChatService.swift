@@ -2114,11 +2114,12 @@ extension ChatService {
         // 🔐 Encrypt content before sending (Async)
         Task {
             let encryptedContent = await encryptMessageContent(shareText, for: conversationId)
+            let freshMomentAuthor = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
             
             // ✅ Create shared moment data as [String: String] (compatible con tu EnhancedMessage)
             let sharedMomentData: [String: String] = [
                 "momentId": moment.id ?? "",
-                "momentAuthor": moment.username,
+                "momentAuthor": freshMomentAuthor,
                 "momentAuthorId": moment.authorId,  // ✅ Agregar el ID del autor
                 "momentContent": moment.content,
                 "momentImageUrl": moment.thumbnailUrl ?? moment.imagePath ?? "", // ✅ MEJORADO: Usar thumbnailUrl si existe

@@ -111,7 +111,8 @@ struct ModernShareBottomSheet: View {
     
     private func shareExternally() {
         guard moment.id != nil else { return }
-        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
+        let freshUsername = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
+        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), freshUsername)
         let shareUrl = URL(string: buildMomentShareURLString(moment))!
         
         let activityController = UIActivityViewController(
@@ -194,7 +195,9 @@ struct MainActionsView: View {
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.primary)
                     
-                    Text(String(format: NSLocalizedString("share.moment.from", comment: ""), moment.username))
+                    LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
+                        Text(String(format: NSLocalizedString("share.moment.from", comment: ""), username))
+                    }
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.secondary)
                 }
@@ -399,7 +402,9 @@ struct ModernShareSheet: View {
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.primary)
                     
-                    Text(String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username))
+                    LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
+                        Text(String(format: NSLocalizedString("share.moment.by", comment: ""), username))
+                    }
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.secondary)
                 }
@@ -595,7 +600,8 @@ struct ModernShareSheet: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               moment.id != nil else { return }
         
-        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), moment.username)
+        let freshUsername = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
+        let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), freshUsername)
         let momentUrl = buildMomentShareURLString(moment)
         
         for userId in selectedUsers {

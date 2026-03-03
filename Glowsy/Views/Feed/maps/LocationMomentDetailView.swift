@@ -713,7 +713,7 @@ struct LocationMomentCard: View {
             
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 3) {
-                    Text("\(moment.username)")
+                    LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                         .font(.custom("Poppins-SemiBold", size: 14))
                         .foregroundColor(adaptiveColors.primary)
                     

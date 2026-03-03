@@ -97,7 +97,7 @@ struct ShareMomentSticker: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(moment.username)
+                        LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                             .font(.custom("Poppins-Bold", size: 13))
                             .foregroundColor(.white)
                     }
@@ -169,4 +169,3 @@ struct ShareMomentSticker: View {
         return 340 // Fallback estándar (aprox 3:4)
     }
 }
-

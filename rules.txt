@@ -187,7 +187,13 @@ service cloud.firestore {
             (request.resource.data.diff(resource.data).affectedKeys().hasAny(['onlineStatus', 'lastSeen', 'isOnline']) &&
              (!("onlineStatus" in request.resource.data) || request.resource.data.onlineStatus is string) &&
              (!("lastSeen" in request.resource.data) || request.resource.data.lastSeen is timestamp) &&
-             (!("isOnline" in request.resource.data) || request.resource.data.isOnline is bool))
+             (!("isOnline" in request.resource.data) || request.resource.data.isOnline is bool)) ||
+            // ✅ NUEVO: Regla para cambio de username (solo el propio campo + cooldown)
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'lastUsernameChange']) &&
+             request.resource.data.username is string &&
+             request.resource.data.username.size() >= 3 &&
+             request.resource.data.username.size() <= 30 &&
+             request.resource.data.lastUsernameChange is timestamp)
           );
 
           allow delete: if request.auth != null && request.auth.uid == userId;
@@ -1173,8 +1179,9 @@ service cloud.firestore {
             allow read: if true;
             allow create: if request.auth != null
                 && request.auth.uid == request.resource.data.userId
-                && request.resource.data.email is string
-                && request.resource.data.email.size() > 0;  // ✅ Sin validación estricta del token
+                // ✅ ACTUALIZADO: email es opcional (no se incluye en cambio de username)
+                && (!("email" in request.resource.data) || request.resource.data.email is string)
+                && request.resource.data.userId is string;
     
             allow update: if request.auth != null
                 && request.auth.uid == resource.data.userId

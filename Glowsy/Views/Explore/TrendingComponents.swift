@@ -488,22 +488,24 @@ struct ForYouMomentCard: View {
             
             // Info del momento en la parte inferior
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(Color.white.opacity(0.9))
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Text(String(trendingMoment.moment.username.prefix(1)).uppercased())
-                                .font(.custom("Poppins-Bold", size: 10))
-                                .foregroundColor(.black)
-                        )
-                    
-                    Text("@\(trendingMoment.moment.username)")
-                        .font(.custom("Poppins-SemiBold", size: 12))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
-                    
-                    Spacer()
+                LiveUsernameContent(userId: trendingMoment.moment.authorId, fallbackUsername: trendingMoment.moment.username) { username in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: 24, height: 24)
+                            .overlay(
+                                Text(String(username.prefix(1)).uppercased())
+                                    .font(.custom("Poppins-Bold", size: 10))
+                                    .foregroundColor(.black)
+                            )
+                        
+                        Text("@\(username)")
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                        
+                        Spacer()
+                    }
                 }
                 
                 if !trendingMoment.moment.content.isEmpty {

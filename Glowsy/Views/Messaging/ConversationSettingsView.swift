@@ -13,9 +13,16 @@ struct ConversationSettingsView: View {
     @State private var otherUserStatus: OnlineStatus = .offline
     @State private var otherUserLastSeen: Date?
     @State private var statusListener: ListenerRegistration?
+    @State private var liveOtherParticipantUsername: String = ""
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var otherParticipantDisplayName: String {
+        let fallback = conversation.otherParticipantUsername ?? "Usuario"
+        let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return live.isEmpty ? fallback : live
     }
     
     var body: some View {
@@ -97,6 +104,7 @@ struct ConversationSettingsView: View {
         .onAppear {
             viewModel.loadConversationData(conversation: conversation)
             setupOnlineStatusObserver()
+            refreshOtherParticipantUsername()
         }
         .onDisappear {
             statusListener?.remove()
@@ -156,7 +164,7 @@ struct ConversationSettingsView: View {
                 
                 VStack(spacing: 6) {
                     // Name
-                    Text(conversation.otherParticipantUsername ?? "Usuario")
+                    Text(otherParticipantDisplayName)
                         .font(.custom("Poppins-Bold", size: 24))
                         .foregroundColor(adaptiveColors.primary)
                     
@@ -186,6 +194,22 @@ struct ConversationSettingsView: View {
             }
             .padding(.top, 40)
             .padding(.bottom, 20)
+        }
+    }
+
+    private func refreshOtherParticipantUsername() {
+        let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !otherUserId.isEmpty else {
+            liveOtherParticipantUsername = ""
+            return
+        }
+
+        UserCacheService.shared.refreshUser(userId: otherUserId) { user in
+            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            DispatchQueue.main.async {
+                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
+                self.liveOtherParticipantUsername = fetchedUsername
+            }
         }
     }
     

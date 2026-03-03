@@ -2440,3 +2440,29 @@
 "userActivity.error.generic.title" = "Algo salió mal";
 "userActivity.error.generic.subtitle" = "Ocurrió un error inesperado. Inténtalo de nuevo.";
 
+
+/* Username Change */
+"username.change.title" = "Cambiar nombre de usuario";
+"username.change.subtitle" = "Puedes cambiar tu nombre de usuario una vez cada 6 meses.";
+"username.change.save" = "Guardar";
+"username.available" = "✓ Nombre de usuario disponible";
+"username.taken" = "Este nombre de usuario ya está en uso";
+"username.rules" = "3–30 caracteres. Solo letras, números y _.";
+"username.availableOn" = "Disponible el %@";
+"username.error.length" = "El nombre de usuario debe tener entre 3 y 30 caracteres.";
+"username.error.characters" = "Solo se permiten letras, números y guiones bajos.";
+"username.error.same" = "El nuevo nombre de usuario debe ser diferente al actual.";
+"username.error.taken" = "Este nombre de usuario ya está en uso.";
+"username.error.cooldown" = "Podrás cambiar tu nombre de usuario el %@.";
+"settings.notConfigured" = "No configurado";
+
+/* Echo Info Sheet */
+"echo.info.title" = "Qué es un Echo";
+"echo.info.what.title" = "Qué es";
+"echo.info.what.body" = "Echo es una experiencia compartida sobre un momento con ubicación. Reúne varias perspectivas del mismo instante en un solo hilo visual y solo se abre cuando al menos 2 participantes aceptan.";
+"echo.info.how.title" = "Cómo funciona";
+"echo.info.how.body" = "Echo detecta momentos de mutuals en la misma zona (hasta 500 m) y en la misma ventana de tiempo (24 h). Cuando se activa, puedes navegar entre perspectivas (barra inferior) y entre momentos (arriba/abajo).";
+"echo.info.privacy.title" = "Privacidad";
+"echo.info.privacy.body" = "Echo se crea entre mutuals, pero conserva quién podía verlo en ese momento. Si después cambia la relación, se sigue viendo; solo se difumina si la audiencia del momento (best friends o lista personalizada) no te incluye. Además, dentro del Echo ves tus momentos y los de quienes hayan aceptado.";
+"echo.info.controls.title" = "Controles";
+"echo.info.controls.body" = "Desliza arriba/abajo para cambiar de momento, usa la barra inferior para cambiar de perspectiva y el menú para salir del Echo. No puedes salir mientras el Echo esté activo: se desbloquea cuando termina su ventana de 24 h. Si sales, tus momentos se quitan de ese Echo.";
