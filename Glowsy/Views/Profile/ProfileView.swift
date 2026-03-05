@@ -607,15 +607,19 @@ struct ModernProfileContentView: View {
                                         
                                         LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
                                             ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                                                ModernMomentThumbnail(
-                                                    moment: moment,
-                                                    size: itemWidth,
-                                                    customListNamesById: viewModel.customListNamesById,
-                                                    onTap: {
-                                                        selectedMomentIndex = index
-                                                        showMomentDetail = true
-                                                    }
-                                                )
+                                                ScreenshotProtectedView(
+                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                                ) {
+                                                    ModernMomentThumbnail(
+                                                        moment: moment,
+                                                        size: itemWidth,
+                                                        customListNamesById: viewModel.customListNamesById,
+                                                        onTap: {
+                                                            selectedMomentIndex = index
+                                                            showMomentDetail = true
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                         .padding(.horizontal, 8)
@@ -666,22 +670,26 @@ struct ModernProfileContentView: View {
                                             GridItem(.flexible(), spacing: 4)
                                         ], spacing: 4) {
                                             ForEach(Array(viewModel.taggedMoments.enumerated()), id: \.element.id) { index, moment in
-                                                Button(action: {
-                                                    selectedMomentIndex = index
-                                                    showMomentDetail = true
-                                                }) {
-                                                    if let imagePath = moment.imagePath, let url = URL(string: imagePath) {
-                                                        AsyncImage(url: url) { image in
-                                                            image
-                                                                .resizable()
-                                                                .aspectRatio(contentMode: .fill)
-                                                        } placeholder: {
-                                                            Rectangle()
-                                                                .fill(Color.gray.opacity(0.3))
+                                                ScreenshotProtectedView(
+                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                                ) {
+                                                    Button(action: {
+                                                        selectedMomentIndex = index
+                                                        showMomentDetail = true
+                                                    }) {
+                                                        if let imagePath = moment.imagePath, let url = URL(string: imagePath) {
+                                                            AsyncImage(url: url) { image in
+                                                                image
+                                                                    .resizable()
+                                                                    .aspectRatio(contentMode: .fill)
+                                                            } placeholder: {
+                                                                Rectangle()
+                                                                    .fill(Color.gray.opacity(0.3))
+                                                            }
+                                                            .frame(width: (UIScreen.main.bounds.width - 16) / 3, height: (UIScreen.main.bounds.width - 16) / 3)
+                                                            .clipped()
+                                                            .cornerRadius(4)
                                                         }
-                                                        .frame(width: (UIScreen.main.bounds.width - 16) / 3, height: (UIScreen.main.bounds.width - 16) / 3)
-                                                        .clipped()
-                                                        .cornerRadius(4)
                                                     }
                                                 }
                                             }
@@ -1978,18 +1986,23 @@ struct ProfileSavedContent: View {
                         spacing: gridSpacing
                     ) {
                         ForEach(Array(previewMoments.enumerated()), id: \.offset) { index, moment in
-                            ProfileSavedMomentThumbnail(
-                                moment: moment,
-                                size: gridItemSize,
-                                isRestricted: isMomentRestricted(moment),
-                                onTap: {
-                                    handleSavedMomentTap(
-                                        moment: moment,
-                                        sourceMoments: filteredMoments,
-                                        fallbackIndex: index
-                                    )
-                                }
-                            )
+                            ScreenshotProtectedView(
+                                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                            ) {
+                                ProfileSavedMomentThumbnail(
+                                    moment: moment,
+                                    size: gridItemSize,
+                                    isRestricted: isMomentRestricted(moment),
+                                    isMutedRestriction: isMomentRestricted(moment) && isMomentMuted(moment),
+                                    onTap: {
+                                        handleSavedMomentTap(
+                                            moment: moment,
+                                            sourceMoments: filteredMoments,
+                                            fallbackIndex: index
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -2006,18 +2019,23 @@ struct ProfileSavedContent: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(Array(recentMoments.enumerated()), id: \.offset) { _, moment in
-                                    ProfileSavedMomentThumbnail(
-                                        moment: moment,
-                                        size: 92,
-                                        isRestricted: isMomentRestricted(moment),
-                                        onTap: {
-                                            handleSavedMomentTap(
-                                                moment: moment,
-                                                sourceMoments: recentMoments,
-                                                fallbackIndex: 0
-                                            )
-                                        }
-                                    )
+                                    ScreenshotProtectedView(
+                                        isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                    ) {
+                                        ProfileSavedMomentThumbnail(
+                                            moment: moment,
+                                            size: 92,
+                                            isRestricted: isMomentRestricted(moment),
+                                            isMutedRestriction: isMomentRestricted(moment) && isMomentMuted(moment),
+                                            onTap: {
+                                                handleSavedMomentTap(
+                                                    moment: moment,
+                                                    sourceMoments: recentMoments,
+                                                    fallbackIndex: 0
+                                                )
+                                            }
+                                        )
+                                    }
                                 }
                             }
                             .padding(.horizontal, 20)
@@ -2054,8 +2072,10 @@ struct ProfileSavedContent: View {
                 }
             } message: {
                 if let moment = restrictedMomentToRemove {
-                    LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
-                        Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), username))
+                    if isMomentMuted(moment) {
+                        Text(NSLocalizedString("savedMoments.remove.message.muted", comment: "Moment hidden due to muted account"))
+                    } else {
+                        Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
                     }
                 } else {
                     Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
@@ -2067,6 +2087,10 @@ struct ProfileSavedContent: View {
     private func isMomentRestricted(_ moment: Moment) -> Bool {
         guard let momentId = moment.id else { return true }
         return !(viewModel.visibilityByMomentId[momentId] ?? true)
+    }
+
+    private func isMomentMuted(_ moment: Moment) -> Bool {
+        viewModel.isMomentFromMutedUser(moment)
     }
 
     private func handleSavedMomentTap(moment: Moment, sourceMoments: [Moment], fallbackIndex: Int) {
@@ -2118,6 +2142,7 @@ struct ProfileSavedMomentThumbnail: View {
     let moment: Moment
     let size: CGFloat
     let isRestricted: Bool
+    let isMutedRestriction: Bool
     let onTap: () -> Void
     @Environment(\.colorScheme) var colorScheme
     
@@ -2284,13 +2309,23 @@ struct ProfileSavedMomentThumbnail: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.white.opacity(0.95))
 
-                Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
+                Text(
+                    NSLocalizedString(
+                        isMutedRestriction ? "savedMoments.restricted.muted.title" : "savedMoments.restricted.title",
+                        comment: "Saved moment restricted title"
+                    )
+                )
                     .font(.custom("Poppins-SemiBold", size: 9))
                     .foregroundColor(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
-                Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
+                Text(
+                    NSLocalizedString(
+                        isMutedRestriction ? "savedMoments.restricted.muted.subtitle" : "savedMoments.restricted.subtitle",
+                        comment: "Saved moment restricted subtitle"
+                    )
+                )
                     .font(.custom("Poppins-Regular", size: 8))
                     .foregroundColor(.white.opacity(0.84))
                     .lineLimit(2)

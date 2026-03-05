@@ -547,6 +547,8 @@
 "settings.profile.phone" = "Telèfon";
 
 "settings.schedule.save" = "Desar horari";
+"settings.schedule.saving" = "Desant...";
+"settings.schedule.saved" = "Horari desat";
 "settings.onlineStatus.title" = "Estat en línia";
 "settings.onlineStatus.current" = "Estat actual: %@";
 "settings.onlineStatus.change" = "Canviar estat";
@@ -986,6 +988,11 @@
 "feed.reels.tapToView" = "Toca per veure";
 "feed.reels.badge" = "Reels";
 
+/* Screenshot Protection */
+"moment.private.screenshotMessage" = "Aquest moment és privat";
+
+
+
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
 "stickerview.yourStickers" = "Els teus stickers";
@@ -1249,6 +1256,7 @@
 "savedMoments.remove.message.user" = "Vols eliminar el moment de %@ dels teus guardats?";
 "savedMoments.remove.message.generic" = "Vols eliminar aquest moment dels teus guardats?";
 "savedMoments.remove.message.restricted" = "Aquest moment ja no està disponible. El vols eliminar de la teva col·lecció?";
+"savedMoments.remove.message.muted" = "Aquest moment està ocult perquè tens aquest compte silenciat. El vols eliminar de la teva col·lecció?";
 "savedMoments.cancel" = "Cancel·lar";
 "savedMoments.remove.confirm" = "Eliminar";
 "savedMoments.saved" = "GUARDAT";
@@ -1384,6 +1392,8 @@
 "modernComments.editing" = "Editant comentari";
 "modernComments.viewMoreReplies" = "Veure %d resposta(s) més";
 "modernComments.edited" = "(editat)";
+"modernComments.mutedWord.placeholder" = "Comentari ocult per paraula silenciada";
+"modernComments.mutedWord.reveal" = "Mostrar temporalment";
 "modernComments.empty.title" = "No hi ha comentaris encara";
 "modernComments.empty.description" = "Sigues el primer a comentar aquest moment";
 
@@ -1557,6 +1567,22 @@
 "userActivity.event.action.mentionUsed" = "Has mencionat algú";
 "userActivity.event.action.reactionGiven" = "Has reaccionat a un moment";
 "userActivity.event.action.stickerReply" = "Has respost a un sticker";
+"userActivity.simple.stickers.actorFallback" = "Usuari";
+"userActivity.simple.stickers.poll.title" = "%@ ha votat";
+"userActivity.simple.stickers.poll.action" = "ha votat";
+"userActivity.simple.stickers.poll.subtitle" = "Has votat: %@";
+"userActivity.simple.stickers.poll.optionFallback" = "Opció %d";
+"userActivity.simple.stickers.poll.subtitleFallback" = "Has votat en una enquesta";
+"userActivity.simple.stickers.question.title" = "%@ ha respost";
+"userActivity.simple.stickers.question.action" = "ha respost";
+"userActivity.simple.stickers.question.subtitleFallback" = "Has respost una pregunta";
+"userActivity.simple.stickers.poll.context" = "Votació de %@";
+"userActivity.simple.stickers.question.context" = "Pregunta de %@";
+"userActivity.simple.stickers.poll.contextPrefix" = "Votació de";
+"userActivity.simple.stickers.question.contextPrefix" = "Pregunta de";
+"userActivity.simple.stickers.selectedCount" = "%d seleccionats";
+"userActivity.simple.stickers.delete.single" = "Eliminar resposta";
+"userActivity.simple.stickers.delete.multiple" = "Eliminar respostes";
 "userActivity.event.content.published" = "Has publicat un moment";
 "userActivity.event.time.minutes" = "Has estat %@ min a Moments";
 "userActivity.event.time.sessions" = "Has obert Moments %@ vegades";
@@ -2043,22 +2069,33 @@
 "notifications.empty.default" = "No hi ha notificacions";
 "notifications.empty.mentions" = "Sense mencions encara";
 
-/* Whats New v2.3 */
+/* Whats New v2.6 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Versió 2.5.0";
-"whatsNew.echoes.title" = "Els Teus Amics Primer";
-"whatsNew.echoes.description" = "El teu feed prioritza les persones que més t'importen. A més, és més ràpid i consumeix menys bateria.";
-"whatsNew.apple.title" = "Xat Millorat";
-"whatsNew.apple.description" = "Vídeos més ràpids, cercador i estats de missatge més clars.";
+"whatsNew.subtitle" = "Versió 2.6.0";
+"whatsNew.button" = "Explorar Moments 2.6";
+
+/* Blackout feature */
+"whatsNew.blackout.title" = "El Contingut Privat Ara Està Protegit";
+"whatsNew.blackout.description" = "Blackout protegeix qualsevol moment o història amb una audiència diferent de \"everyone\", així com els mitjans efímers als xats. Les captures d'aquesta pantalla sortiran invisibles. Prova-ho ara!";
+"whatsNew.blackout.demo.label" = "¡Prova-ho! Fes una captura ara";
+"whatsNew.blackout.demo.instructions" = "Prem alhora el botó lateral i els dos botons de volum";
+"whatsNew.blackout.demo.hint" = "Aquesta pantalla serà invisible al teu carret";
+
+/* La Teva Activitat */
+"whatsNew.activity.title" = "Revisa la Teva Activitat";
+"whatsNew.activity.description" = "Una nova secció per gestionar les teves reaccions, comentaris i mencions en un sol lloc.";
+
+/* Stories */
 "whatsNew.redesign.title" = "Històries Més Clares";
-"whatsNew.redesign.description" = "Els anells ara mostren millor si vas publicar per a Best Friends, Mutuals o tothom.";
-"whatsNew.stories.prefix" = "Els anells mostren ";
-"whatsNew.stories.connector" = " o ";
-"whatsNew.stories.everyone" = "tothom";
-"whatsNew.stories.ending" = " d'un cop d'ull.";
-"whatsNew.performance.title" = "La Teva Col·lecció, Les Teves Regles";
-"whatsNew.performance.description" = "Guardats redissenyat. Ara pots eliminar moments que ja no estan disponibles.";
-"whatsNew.button" = "Explorar Moments 2.5";
+"whatsNew.stories.description" = "Els anells ara són més consistents a tota l'app amb millors indicadors visuals d'audiència.";
+
+/* Echoes */
+"whatsNew.echoes.title" = "Echoes, Reimaginats";
+"whatsNew.echoes.description" = "Visor i historial redissenyats. A més, una descripció més clara de com funciona.";
+
+/* Settings redesign */
+"whatsNew.settings.title" = "Un Menú d'Ajustos Més Net";
+"whatsNew.settings.description" = "Els ajustos han estat completament redissenyats per ser més intuïtius i fàcils de navegar.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
@@ -2342,6 +2379,10 @@
 "settings.group.advanced" = "CONFIGURACIÓ AVANÇADA";
 "savedMoments.restricted.title" = "Ja no disponible";
 "savedMoments.restricted.subtitle" = "Ja no hi tens accés";
+"savedMoments.restricted.muted.title" = "Compte silenciat";
+"savedMoments.restricted.muted.subtitle" = "Has silenciat aquest compte";
+"userActivity.restricted.mutedComment.title" = "Comentari silenciat";
+"userActivity.restricted.mutedComment.subtitle" = "Conté una paraula silenciada";
 
 /* Profile UI Labels */
 "profile.ui.followers" = "Seguidors";
@@ -2409,8 +2450,11 @@
 "userActivity.simple.filters.author.sheet.title" = "Filtrar per usuari";
 "userActivity.simple.filters.author.search" = "Cercar username";
 "userActivity.simple.reactions.selectedCount" = "%d seleccionats";
+"userActivity.simple.tags.selectedCount" = "%d seleccionats";
 "userActivity.simple.reactions.delete.single" = "Eliminar reacció";
 "userActivity.simple.reactions.delete.multiple" = "Eliminar reaccions";
+"userActivity.simple.tags.remove.single" = "Treure etiqueta";
+"userActivity.simple.tags.remove.multiple" = "Treure etiquetes";
 "userActivity.simple.comments.selectedCount" = "%d seleccionats";
 "userActivity.simple.comments.delete.single" = "Eliminar comentari";
 "userActivity.simple.comments.delete.multiple" = "Eliminar comentaris";
@@ -2450,3 +2494,6 @@
 "echo.info.privacy.body" = "Echo es crea entre mutuals, però conserva qui el podia veure en aquell moment. Si després canvia la relació, es continua veient; només es difumina si l'audiència del moment (best friends o llista personalitzada) no t'inclou. Dins d'Echo veus els teus moments i els dels participants que han acceptat.";
 "echo.info.controls.title" = "Controls";
 "echo.info.controls.body" = "Llisca amunt/avall per canviar de moment, fes servir la barra inferior per canviar de perspectiva i el menú per sortir de l'Echo. No en pots sortir mentre l'Echo estigui actiu: es desbloqueja quan acaba la finestra de 24 h. Si en surts, els teus moments s'eliminen d'aquest Echo.";
+
+"notifications.export.download" = "Descarregar";
+"notifications.message.dataExportReady" = "La teva exportació de dades està a punt per descarregar.";

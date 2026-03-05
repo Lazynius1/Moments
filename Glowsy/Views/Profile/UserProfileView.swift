@@ -683,14 +683,18 @@ struct UserModernPublicProfileView: View {
                                     
                                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
                                         ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                                            UserModernMomentThumbnail(
-                                                moment: moment,
-                                                size: itemWidth,
-                                                onTap: {
-                                                    selectedMomentIndex = index
-                                                    showMomentDetail = true
-                                                }
-                                            )
+                                            ScreenshotProtectedView(
+                                                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                            ) {
+                                                UserModernMomentThumbnail(
+                                                    moment: moment,
+                                                    size: itemWidth,
+                                                    onTap: {
+                                                        selectedMomentIndex = index
+                                                        showMomentDetail = true
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                     .padding(.horizontal, 8)
@@ -732,14 +736,18 @@ struct UserModernPublicProfileView: View {
                                         
                                         LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
                                             ForEach(Array(viewModel.taggedMoments.enumerated()), id: \.element.id) { index, moment in
-                                                UserModernMomentThumbnail(
-                                                    moment: moment,
-                                                    size: itemWidth,
-                                                    onTap: {
-                                                        selectedMomentIndex = index
-                                                        showMomentDetail = true
-                                                    }
-                                                )
+                                                ScreenshotProtectedView(
+                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                                ) {
+                                                    UserModernMomentThumbnail(
+                                                        moment: moment,
+                                                        size: itemWidth,
+                                                        onTap: {
+                                                            selectedMomentIndex = index
+                                                            showMomentDetail = true
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                         .padding(.horizontal, 8)

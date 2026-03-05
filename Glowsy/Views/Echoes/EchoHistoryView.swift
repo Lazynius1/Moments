@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import Kingfisher
 
 /// Vista que muestra el historial de Echoes del usuario
 struct EchoHistoryView: View {
@@ -14,6 +15,7 @@ struct EchoHistoryView: View {
     @State private var showEchoInfoSheet = false
     
     private let echoService = EchoService.shared
+    private var activeCount: Int { echoes.filter { $0.status == .active }.count }
     
     var body: some View {
         NavigationView {
@@ -29,7 +31,10 @@ struct EchoHistoryView: View {
                 } else if echoes.isEmpty {
                     emptyStateView
                 } else {
-                    echoListView
+                    VStack(spacing: 12) {
+                        summaryHeader
+                        echoListView
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("echo.history.title", comment: ""))
@@ -103,6 +108,28 @@ struct EchoHistoryView: View {
             }
             .padding()
         }
+    }
+
+    private var summaryHeader: some View {
+        HStack(spacing: 10) {
+            infoChip(icon: "waveform.path.ecg", text: "\(echoes.count) Echoes")
+            infoChip(icon: "dot.radiowaves.left.and.right", text: "\(activeCount) active")
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+
+    private func infoChip(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+            Text(text)
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundColor(.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: Capsule())
     }
     
     // MARK: - Data
@@ -205,23 +232,44 @@ struct EchoHistoryCard: View {
         case .completed: return NSLocalizedString("echo.status.completed", comment: "")
         }
     }
+
+    private var previewURL: URL? {
+        let candidate = echo.moments.last?.thumbnailUrl ?? echo.moments.last?.mediaUrl
+        guard let path = candidate else { return nil }
+        return URL(string: path)
+    }
+
+    private var expiresLabel: String {
+        if echo.expiresAt <= Date() {
+            return NSLocalizedString("echo.status.expired", comment: "")
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: echo.expiresAt, relativeTo: Date())
+    }
     
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Icono de Echo
+                // Preview de Echo
                 ZStack {
-                    Image(systemName: "camera.aperture")
-                        .font(.system(size: 24))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.orange, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
+                    if let previewURL {
+                        KFImage(previewURL)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: "camera.aperture")
+                            .font(.system(size: 24))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.orange, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
+                    }
                 }
-                .frame(width: 50, height: 50)
+                .frame(width: 56, height: 56)
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 
@@ -248,7 +296,7 @@ struct EchoHistoryCard: View {
                         Text("•")
                             .foregroundColor(.secondary)
                         
-                        Text(echo.createdAt, style: .date)
+                        Text(expiresLabel)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -257,17 +305,19 @@ struct EchoHistoryCard: View {
                 Spacer()
                 
                 // Estado
-                Text(statusText)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(statusColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(statusColor.opacity(0.15))
-                    .clipShape(Capsule())
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary)
+                VStack(alignment: .trailing, spacing: 8) {
+                    Text(statusText)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(statusColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(statusColor.opacity(0.15))
+                        .clipShape(Capsule())
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(12)
             .background(
@@ -279,8 +329,8 @@ struct EchoHistoryCard: View {
                     .stroke(
                         LinearGradient(
                             colors: colorScheme == .dark ?
-                                [Color.white.opacity(0.1), Color.orange.opacity(0.2)] :
-                                [Color.black.opacity(0.05), Color.orange.opacity(0.2)],
+                                [Color.white.opacity(0.14), Color.white.opacity(0.06)] :
+                                [Color.black.opacity(0.10), Color.black.opacity(0.04)],
                             startPoint: .top,
                             endPoint: .bottom
                         ),

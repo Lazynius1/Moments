@@ -556,6 +556,8 @@
 "settings.profile.email" = "Email";
 "settings.profile.phone" = "Teléfono";
 "settings.schedule.save" = "Guardar horario";
+"settings.schedule.saving" = "Guardando...";
+"settings.schedule.saved" = "Horario guardado";
 "settings.onlineStatus.title" = "Estado en línea";
 "settings.onlineStatus.current" = "Estado actual: %@";
 "settings.onlineStatus.change" = "Cambiar estado";
@@ -1000,6 +1002,13 @@
 "feed.forYou.description" = "Contenido recomendado para ti";
 "feed.reels.tapToView" = "Toca para ver";
 "feed.reels.badge" = "Reels";
+"feed.uploading.more" = "momentos subiendo";
+"feed.uploading.newMoment" = "Nuevo momento";
+
+/* Screenshot Protection */
+"moment.private.screenshotMessage" = "Este momento es privado";
+
+
 
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
@@ -1254,6 +1263,7 @@
 "savedMoments.remove.message.user" = "¿Quieres eliminar el momento de %@ de tus guardados?";
 "savedMoments.remove.message.generic" = "¿Quieres eliminar este momento de tus guardados?";
 "savedMoments.remove.message.restricted" = "Este momento ya no está disponible. ¿Quieres eliminarlo de tu colección?";
+"savedMoments.remove.message.muted" = "Este momento está oculto porque tienes esta cuenta silenciada. ¿Quieres eliminarlo de tu colección?";
 "savedMoments.cancel" = "Cancelar";
 "savedMoments.remove.confirm" = "Eliminar";
 "savedMoments.saved" = "GUARDADO";
@@ -1389,6 +1399,8 @@
 "modernComments.editing" = "Editando comentario";
 "modernComments.viewMoreReplies" = "Ver %d respuesta(s) más";
 "modernComments.edited" = "(editado)";
+"modernComments.mutedWord.placeholder" = "Comentario oculto por palabra silenciada";
+"modernComments.mutedWord.reveal" = "Mostrar temporalmente";
 "modernComments.empty.title" = "No hay comentarios aún";
 "modernComments.empty.description" = "Sé el primero en comentar este momento";
 
@@ -1562,6 +1574,22 @@
 "userActivity.event.action.mentionUsed" = "Mencionaste a alguien";
 "userActivity.event.action.reactionGiven" = "Reaccionaste a un moment";
 "userActivity.event.action.stickerReply" = "Respondiste a un sticker";
+"userActivity.simple.stickers.actorFallback" = "Usuario";
+"userActivity.simple.stickers.poll.title" = "%@ ha votado";
+"userActivity.simple.stickers.poll.action" = "ha votado";
+"userActivity.simple.stickers.poll.subtitle" = "Votaste: %@";
+"userActivity.simple.stickers.poll.optionFallback" = "Opción %d";
+"userActivity.simple.stickers.poll.subtitleFallback" = "Votaste en una encuesta";
+"userActivity.simple.stickers.question.title" = "%@ ha respondido";
+"userActivity.simple.stickers.question.action" = "ha respondido";
+"userActivity.simple.stickers.question.subtitleFallback" = "Respondiste una pregunta";
+"userActivity.simple.stickers.poll.context" = "Votación de %@";
+"userActivity.simple.stickers.question.context" = "Pregunta de %@";
+"userActivity.simple.stickers.poll.contextPrefix" = "Votación de";
+"userActivity.simple.stickers.question.contextPrefix" = "Pregunta de";
+"userActivity.simple.stickers.selectedCount" = "%d seleccionados";
+"userActivity.simple.stickers.delete.single" = "Eliminar respuesta";
+"userActivity.simple.stickers.delete.multiple" = "Eliminar respuestas";
 "userActivity.event.content.published" = "Publicaste un moment";
 "userActivity.event.time.minutes" = "Estuviste %@ min en Moments";
 "userActivity.event.time.sessions" = "Abriste Moments %@ veces";
@@ -2058,22 +2086,33 @@
 "notifications.message.message.single" = "%@ te envió un mensaje";
 "notifications.message.message.multiple" = "%@ y %d personas más te enviaron mensajes";
 
-/* Whats New v2.3 */
+/* Whats New v2.6 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Versión 2.5.0";
-"whatsNew.echoes.title" = "Tus Amigos Primero";
-"whatsNew.echoes.description" = "Tu feed prioriza a quienes más te importan. Además, es más rápido y consume menos batería.";
-"whatsNew.apple.title" = "Chat Mejorado";
-"whatsNew.apple.description" = "Vídeos más rápidos, buscador y estados de mensaje más claros.";
+"whatsNew.subtitle" = "Versión 2.6.0";
+"whatsNew.button" = "Explorar Moments 2.6";
+
+/* Blackout feature */
+"whatsNew.blackout.title" = "El Contenido Privado Ahora Está Protegido";
+"whatsNew.blackout.description" = "Blackout protege cualquier momento o historia cuya audiencia no sea \"everyone\", así como los medios efímeros en los chats. Las capturas de esta pantalla saldrán invisibles. ¡Pruébalo ahora!";
+"whatsNew.blackout.demo.label" = "¡Pruébalo! Haz una captura ahora";
+"whatsNew.blackout.demo.instructions" = "Pulsa a la vez el botón lateral y los dos botones de volumen";
+"whatsNew.blackout.demo.hint" = "Esta pantalla será invisible en tu carrete";
+
+/* Tu Actividad */
+"whatsNew.activity.title" = "Revisa tu Actividad";
+"whatsNew.activity.description" = "Una nueva sección para gestionar tus reacciones, comentarios y menciones en un solo lugar.";
+
+/* Stories */
 "whatsNew.redesign.title" = "Historias Más Claras";
-"whatsNew.redesign.description" = "Los anillos ahora muestran mejor si publicaste para Best Friends, Mutuals o todos.";
-"whatsNew.stories.prefix" = "Los anillos muestran ";
-"whatsNew.stories.connector" = " o ";
-"whatsNew.stories.everyone" = "todos";
-"whatsNew.stories.ending" = " de un vistazo.";
-"whatsNew.performance.title" = "Tu Colección, Tu Control";
-"whatsNew.performance.description" = "Guardados rediseñado. Ahora puedes eliminar momentos que ya no están disponibles.";
-"whatsNew.button" = "Explorar Moments 2.5";
+"whatsNew.stories.description" = "Los anillos ahora son más consistentes en toda la app con mejores indicadores visuales de audiencia.";
+
+/* Echoes */
+"whatsNew.echoes.title" = "Echoes, Reimaginados";
+"whatsNew.echoes.description" = "Visor e historial rediseñados. Además, una descripción más clara de cómo funciona.";
+
+/* Settings redesign */
+"whatsNew.settings.title" = "Un Menú de Ajustes Más Limpio";
+"whatsNew.settings.description" = "Los ajustes han sido completamente rediseñados para ser más intuitivos y fáciles de navegar.";
 
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
@@ -2358,6 +2397,10 @@
 "settings.group.advanced" = "AJUSTES AVANZADOS";
 "savedMoments.restricted.title" = "Ya no disponible";
 "savedMoments.restricted.subtitle" = "Ya no tienes acceso";
+"savedMoments.restricted.muted.title" = "Cuenta silenciada";
+"savedMoments.restricted.muted.subtitle" = "Has silenciado esta cuenta";
+"userActivity.restricted.mutedComment.title" = "Comentario silenciado";
+"userActivity.restricted.mutedComment.subtitle" = "Contiene una palabra silenciada";
 
 /* Profile UI Labels */
 "profile.ui.followers" = "Seguidores";
@@ -2425,8 +2468,11 @@
 "userActivity.simple.filters.author.sheet.title" = "Filtrar por usuario";
 "userActivity.simple.filters.author.search" = "Buscar username";
 "userActivity.simple.reactions.selectedCount" = "%d seleccionados";
+"userActivity.simple.tags.selectedCount" = "%d seleccionados";
 "userActivity.simple.reactions.delete.single" = "Eliminar reacción";
 "userActivity.simple.reactions.delete.multiple" = "Eliminar reacciones";
+"userActivity.simple.tags.remove.single" = "Quitar etiqueta";
+"userActivity.simple.tags.remove.multiple" = "Quitar etiquetas";
 "userActivity.simple.comments.selectedCount" = "%d seleccionados";
 "userActivity.simple.comments.delete.single" = "Eliminar comentario";
 "userActivity.simple.comments.delete.multiple" = "Eliminar comentarios";
@@ -2466,3 +2512,6 @@
 "echo.info.privacy.body" = "Echo se crea entre mutuals, pero conserva quién podía verlo en ese momento. Si después cambia la relación, se sigue viendo; solo se difumina si la audiencia del momento (best friends o lista personalizada) no te incluye. Además, dentro del Echo ves tus momentos y los de quienes hayan aceptado.";
 "echo.info.controls.title" = "Controles";
 "echo.info.controls.body" = "Desliza arriba/abajo para cambiar de momento, usa la barra inferior para cambiar de perspectiva y el menú para salir del Echo. No puedes salir mientras el Echo esté activo: se desbloquea cuando termina su ventana de 24 h. Si sales, tus momentos se quitan de ese Echo.";
+
+"notifications.export.download" = "Descargar";
+"notifications.message.dataExportReady" = "Tu exportación está lista para descargar.";

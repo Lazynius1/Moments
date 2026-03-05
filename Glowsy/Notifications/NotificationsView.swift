@@ -32,84 +32,78 @@ struct NotificationsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
-                headerView
                 tabBarView
                 contentView
             }
-            .background(
-                Group {
-                    if colorScheme == .dark {
-                        // Mismo fondo que el Feed - negro suave y elegante
-                        Color(hex: "0A0A0A")
-                    } else {
-                        // Fondo claro elegante
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.white,
-                                Color(hex: "f8f9fa"),
-                                Color(hex: "e9ecef"),
-                                Color.white
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    }
-                }
-            )
-            .navigationBarHidden(true)
-            .onAppear {
-                
-                // Cargar notificaciones
-                Task {
-                    await viewModel.refreshNotifications()
-                }
-                
-                // Marcar como vistas inmediatamente
-                clearNotificationsAutomatically()
-            }
-            .onDisappear {
-                onNotificationsCleared?()
-            }
-            .alert(isPresented: $viewModel.showError) {
-                Alert(
-                    title: Text("notifications.error.title"),
-                    message: Text(viewModel.errorMessage ?? NSLocalizedString("notifications.error.unknown", comment: "Unknown error message")),
-                    dismissButton: .default(Text("notifications.ok"))
-                )
-            }
-            .sheet(item: $selectedMoment) { moment in
-                MomentDetailView(moment: moment)
-            }
-            .fullScreenCover(isPresented: $showStoryViewer) {
-                if let story = selectedStory {
-                    GlassmorphicStoryViewer(
-                        story: story,
-                        storyCount: 1,
-                        storyIndex: 0,
-                        screenSize: UIScreen.main.bounds.size,
-                        storyViewModel: storyViewModel,
-                        showingReportSheet: .constant(false),
-                        showingBlockConfirmation: .constant(false),
-                        onReportStory: { },
-                        onBlockUser: { },
-                        onNext: {
-                            // ✅ Cerrar automáticamente al terminar
-                            showStoryViewer = false
-                        },
-                        onPrevious: { },
-                        onClose: { showStoryViewer = false },
-                        onProfileTap: { }
-                    )
-                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseStoryViewer"))) { _ in
-                        showStoryViewer = false
-                    }
+            .background(colorScheme == .dark ? Color.black : Color.white)
             .background(
                 NavigationLink(destination: chatDestination, isActive: $showChat) {
                     EmptyView()
                 }
             )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                    }
+                }
+
+                ToolbarItem(placement: .principal) {
+                    Text("notifications.title")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                }
+            }
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(colorScheme == .dark ? Color.black.opacity(0.72) : Color.white.opacity(0.78), for: .navigationBar)
+        }
+        .onAppear {
+            Task {
+                await viewModel.refreshNotifications()
+            }
+            clearNotificationsAutomatically()
+        }
+        .onDisappear {
+            onNotificationsCleared?()
+        }
+        .alert(isPresented: $viewModel.showError) {
+            Alert(
+                title: Text("notifications.error.title"),
+                message: Text(viewModel.errorMessage ?? NSLocalizedString("notifications.error.unknown", comment: "Unknown error message")),
+                dismissButton: .default(Text("notifications.ok"))
+            )
+        }
+        .sheet(item: $selectedMoment) { moment in
+            MomentDetailView(moment: moment)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showStoryViewer) {
+            if let story = selectedStory {
+                GlassmorphicStoryViewer(
+                    story: story,
+                    storyCount: 1,
+                    storyIndex: 0,
+                    screenSize: UIScreen.main.bounds.size,
+                    storyViewModel: storyViewModel,
+                    showingReportSheet: .constant(false),
+                    showingBlockConfirmation: .constant(false),
+                    onReportStory: { },
+                    onBlockUser: { },
+                    onNext: {
+                        showStoryViewer = false
+                    },
+                    onPrevious: { },
+                    onClose: { showStoryViewer = false },
+                    onProfileTap: { }
+                )
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseStoryViewer"))) { _ in
+                    showStoryViewer = false
                 }
             }
         }
@@ -125,67 +119,30 @@ struct NotificationsView: View {
         
     }
     
-    // ✅ HEADER ADAPTATIVO
-    private var headerView: some View {
-        HStack {
-                Text("notifications.title")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-            
-            Spacer()
-            
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .frame(width: 32, height: 32)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Rectangle()
-                        .stroke(
-                            colorScheme == .dark ?
-                            Color.white.opacity(0.1) :
-                            Color.black.opacity(0.1),
-                            lineWidth: 0.5
-                        ),
-                    alignment: .bottom
-                )
-        )
-    }
-
     // ✅ TAB BAR ADAPTATIVO
     @ViewBuilder private var tabBarView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 20) {
+            HStack(spacing: 18) {
                 ForEach(NotificationTab.allCases, id: \.self) { tab in
                     Button(action: {
-                        withAnimation(.spring(response: 0.3)) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
                             viewModel.selectedTab = tab
                         }
                     }) {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 7) {
                             HStack(spacing: 6) {
                                 Text(NSLocalizedString(tab.rawValue, comment: "Notification tab"))
-                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .font(.system(size: 14, weight: viewModel.selectedTab == tab ? .semibold : .medium))
                                     .foregroundColor(
                                     viewModel.selectedTab == tab ?
                                         (colorScheme == .dark ? .white : .black) :
-                                        .gray
+                                        .gray.opacity(0.82)
                                     )
                                 
                                 // Badge para solicitudes pendientes
                                 if tab == .requests && viewModel.pendingRequestsCount > 0 {
                                     Text("\(viewModel.pendingRequestsCount)")
-                                        .font(.custom("Poppins-Bold", size: 10))
+                                        .font(.system(size: 10, weight: .bold))
                                         .foregroundColor(.white)
                                         .frame(width: 18, height: 18)
                                         .background(Color.red)
@@ -196,11 +153,7 @@ struct NotificationsView: View {
                             if viewModel.selectedTab == tab {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(
-                                        LinearGradient(
-                                            colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
+                                        colorScheme == .dark ? Color.white : Color.black
                                     )
                                     .frame(height: 2)
                                     .matchedGeometryEffect(id: "tab", in: tabAnimation)
@@ -215,9 +168,15 @@ struct NotificationsView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 10)
         }
-        .background(.ultraThinMaterial)
+        .background(colorScheme == .dark ? Color.black : Color.white)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                .frame(height: 0.5)
+        }
     }
 
     private var contentView: some View {
@@ -350,7 +309,7 @@ struct NotificationsView: View {
                     }
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 4)
         }
     }
     
@@ -361,12 +320,13 @@ struct NotificationsView: View {
         var body: some View {
             HStack {
                 Text(localizedDateString(dateString))
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.8))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.6))
+                    .textCase(.uppercase)
                 Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 8)
             .background(colorScheme == .dark ? Color(hex: "0A0A0A") : Color.white)
         }
         
@@ -412,6 +372,13 @@ struct NotificationsView: View {
             if let echoId = firstNotification.echoId {
                 NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
             }
+        case .dataExportReady:
+            guard
+                let rawUrl = firstNotification.downloadURL,
+                let url = URL(string: rawUrl),
+                UIApplication.shared.canOpenURL(url)
+            else { return }
+            UIApplication.shared.open(url)
         }
     }
 
@@ -523,8 +490,8 @@ struct EnhancedNotificationRow: View {
             if let senderId = group.notifications.first?.senderId, !senderId.isEmpty {
                 StoryRingAvatarView(
                     userId: senderId,
-                    size: 44,
-                    lineWidth: 2.3,
+                    size: 42,
+                    lineWidth: 2.1,
                     showBaseStroke: true,
                     baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.12),
                     baseStrokeWidth: 1,
@@ -539,19 +506,19 @@ struct EnhancedNotificationRow: View {
             } else {
                 Circle()
                     .fill(.ultraThinMaterial)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 42, height: 42)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 // Texto compacto
                 Text(messageForGroup(group))
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(2)
                 
                 Text(group.notifications.first!.timestamp, style: .relative)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.gray.opacity(0.8))
+                    .foregroundColor(.gray.opacity(0.72))
             }
             
             Spacer()
@@ -559,11 +526,14 @@ struct EnhancedNotificationRow: View {
             trailingContent
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isPressed ? Color.primary.opacity(0.05) : Color.clear)
-        )
+        .padding(.vertical, 10)
+        .background(isPressed ? Color.primary.opacity(0.04) : Color.clear)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06))
+                .frame(height: 0.5)
+                .padding(.leading, 70)
+        }
         .onTapGesture {
             onTapAction()
         }
@@ -832,6 +802,26 @@ struct EnhancedNotificationRow: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
+            case .dataExportReady:
+                Button(action: onTapAction) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(NSLocalizedString("notifications.export.download", comment: "Download export button"))
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(Color(hex: "007AFF"))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color(hex: "007AFF").opacity(0.35), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+
             default:
                 EmptyView()
             }
@@ -885,7 +875,17 @@ struct EnhancedNotificationRow: View {
     private func messageForGroup(_ group: NotificationGroup) -> AttributedString {
         let firstNotification = group.notifications.first!
         let effectiveSenderUsername = senderDisplayName(for: firstNotification)
-        if group.notifications.count > 1 && firstNotification.type != .profileVisit {
+        let reactionAggregateCount = (firstNotification.type == .reaction)
+            ? max(1, firstNotification.reactionCount ?? group.notifications.count)
+            : group.notifications.count
+        let hasMultipleActors: Bool
+        if firstNotification.type == .reaction {
+            hasMultipleActors = reactionAggregateCount > 1
+        } else {
+            hasMultipleActors = group.notifications.count > 1
+        }
+
+        if hasMultipleActors && firstNotification.type != .profileVisit {
             switch firstNotification.type {
             case .like:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.like.multiple", comment: "Multiple likes"), effectiveSenderUsername, group.notifications.count - 1))
@@ -893,14 +893,14 @@ struct EnhancedNotificationRow: View {
                 // ✅ Mostrar el emoji de la reacción en grande
                 if let reactionString = firstNotification.reaction,
                    let reactionType = ReactionType(rawValue: reactionString) {
-                    let text = String(format: NSLocalizedString("notifications.message.reaction.multiple.withType", comment: "Multiple reactions with type"), effectiveSenderUsername, reactionType.icon, group.notifications.count - 1)
+                    let text = String(format: NSLocalizedString("notifications.message.reaction.multiple.withType", comment: "Multiple reactions with type"), effectiveSenderUsername, reactionType.icon, reactionAggregateCount - 1)
                     var attributed = AttributedString(text)
                     if let range = attributed.range(of: reactionType.icon) {
                         attributed[range].font = .system(size: 18) // Emoji más grande
                     }
                     return attributed
                 } else {
-                    return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.multiple", comment: "Multiple reactions"), effectiveSenderUsername, group.notifications.count - 1))
+                    return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.multiple", comment: "Multiple reactions"), effectiveSenderUsername, reactionAggregateCount - 1))
                 }
             case .mention:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.mention.multiple", comment: "Multiple mentions"), effectiveSenderUsername, group.notifications.count - 1))
@@ -924,6 +924,12 @@ struct EnhancedNotificationRow: View {
                 return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.multiple", comment: "Multiple photo tags"), effectiveSenderUsername, group.notifications.count - 1))
             case .echoSuggestion:
                 return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
+            case .dataExportReady:
+                let exportMessage = firstNotification.message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if exportMessage.isEmpty {
+                    return AttributedString(NSLocalizedString("notifications.message.dataExportReady", comment: "Data export ready notification"))
+                }
+                return AttributedString(exportMessage)
             }
         } else {
             switch firstNotification.type {
@@ -964,6 +970,12 @@ struct EnhancedNotificationRow: View {
                 return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.single", comment: "Single photo tag"), effectiveSenderUsername))
             case .echoSuggestion:
                 return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
+            case .dataExportReady:
+                let exportMessage = firstNotification.message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if exportMessage.isEmpty {
+                    return AttributedString(NSLocalizedString("notifications.message.dataExportReady", comment: "Data export ready notification"))
+                }
+                return AttributedString(exportMessage)
             }
         }
     }

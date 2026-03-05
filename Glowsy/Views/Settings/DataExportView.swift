@@ -523,8 +523,7 @@ class DataExportViewModel: ObservableObject {
     @Published var daysUntilNextRequest = 0
     
     private let db = Firestore.firestore()
-    private let exportService = DataExportService()
-    private let backgroundManager = BackgroundExportManager.shared
+    private var currentRequestListener: ListenerRegistration?
     
     func checkExistingRequests() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -555,6 +554,7 @@ class DataExportViewModel: ObservableObject {
                                 if let statusString = data["status"] as? String,
                                    statusString != "completed" && statusString != "failed" {
                                     self?.loadCurrentRequest(from: data, documentId: document.documentID)
+                                    self?.observeRequestProgress(requestId: document.documentID, userId: userId)
                                 }
                             }
                         }
@@ -571,6 +571,7 @@ class DataExportViewModel: ObservableObject {
         switch statusString {
         case "pending": status = .pending
         case "processing": status = .processing
+        case "uploading": status = .processing
         case "ready": status = .ready
         case "completed": status = .completed
         case "failed": status = .failed
@@ -636,14 +637,34 @@ class DataExportViewModel: ObservableObject {
                             exportType: self?.selectedExportType ?? .complete,
                             format: self?.selectedFormat ?? .json
                         )
+                        self?.observeRequestProgress(requestId: requestId, userId: userId)
                         
-                        // Start background processing
-                        self?.backgroundManager.processExportRequest(
-                            requestId: requestId,
-                            userId: userId,
-                            exportType: self?.selectedExportType ?? .complete,
-                            format: self?.selectedFormat ?? .json
-                        )
+                        // El procesamiento se hace server-side con Cloud Functions
+                        // al crear dataExportRequests/{requestId}.
+                    }
+                }
+            }
+    }
+
+    deinit {
+        currentRequestListener?.remove()
+    }
+
+    private func observeRequestProgress(requestId: String, userId: String) {
+        currentRequestListener?.remove()
+        currentRequestListener = db.collection("users")
+            .document(userId)
+            .collection("dataExportRequests")
+            .document(requestId)
+            .addSnapshotListener { [weak self] snapshot, _ in
+                guard let self = self, let data = snapshot?.data() else { return }
+                DispatchQueue.main.async {
+                    self.loadCurrentRequest(from: data, documentId: requestId)
+                    if let statusString = data["status"] as? String {
+                        if statusString == "ready" || statusString == "completed" || statusString == "failed" {
+                            self.currentRequestListener?.remove()
+                            self.currentRequestListener = nil
+                        }
                     }
                 }
             }

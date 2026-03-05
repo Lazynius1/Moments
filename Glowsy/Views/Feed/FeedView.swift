@@ -18,6 +18,15 @@ import Combine
 import WidgetKit
 import SwiftData
 
+private extension Moment {
+    var feedViewIdentity: String {
+        if let id, !id.isEmpty {
+            return "\(authorId)_\(id)"
+        }
+        return "\(authorId)_\(timestamp.timeIntervalSince1970)_\(content.prefix(24))"
+    }
+}
+
 struct FeedView: View {
     private typealias StoryUserState = (userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])
 
@@ -38,7 +47,6 @@ struct FeedView: View {
     @State private var showNotifications = false
     @State private var showMessages = false
     @State private var showStories = false
-    @State private var showingComments = false
     @State private var selectedMoment: Moment?
     @Binding var showCreatorView: Bool
     @State private var currentTime = Date()
@@ -257,7 +265,7 @@ struct FeedView: View {
         .onDisappear {
             // cleanupListeners() // ❌ ELIMINAR
         }
-            .sheet(isPresented: $showNotifications) {
+            .fullScreenCover(isPresented: $showNotifications) {
                 NotificationsView(onNotificationsCleared: {
 
                 // ✅ No es necesario actualizar hasUnreadNotifications localmente
@@ -285,9 +293,16 @@ struct FeedView: View {
                     .environmentObject(firestoreService)
                     .ignoresSafeArea(.keyboard) // ✅ Agregar aquí
             }
-            .sheet(isPresented: $showingComments, onDismiss: {
-                selectedMoment = nil
-            }) {
+            .sheet(
+                isPresented: Binding(
+                    get: { selectedMoment != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            selectedMoment = nil
+                        }
+                    }
+                )
+            ) {
                 if let moment = selectedMoment {
                     ModernCommentsView(moment: moment)
                         .environmentObject(firestoreService)
@@ -315,13 +330,15 @@ struct FeedView: View {
         }
 
 
-            .fullScreenCover(isPresented: $showMomentDetail) {
+            .sheet(isPresented: $showMomentDetail) {
                 if let momentId = targetMomentId, let userId = targetMomentUserId {
                     MomentDetailFromNotificationView(
                         momentId: momentId,
                         userId: userId,
                         isPresented: $showMomentDetail
                     )
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
                     .onDisappear {
                         targetMomentId = nil
                         targetMomentUserId = nil
@@ -391,11 +408,6 @@ struct FeedView: View {
                 Task {
                     await loadStoryUsers(userId: userId)
                 }
-            }
-        }
-        .onChange(of: showingComments) { newValue in
-            if !newValue {
-                selectedMoment = nil
             }
         }
         // ✅ RESTAURADO: Listener para navegación a perfil interna
@@ -849,88 +861,93 @@ struct FeedView: View {
                         Spacer()
                             .frame(height: headerHeight + segmentedToggleHeight + 35)
                         
-                        ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
+                        ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                             VStack(spacing: max(15, screenHeight * 0.02)) {
                                 
-                                ModernPostCardView(
-                                    moment: moment,
-                                    availableHeight: availableHeight,
-                                    colorScheme: colorScheme,
-                                    onComment: {
-                                        selectedMoment = moment
-                                        showingComments = true
-                                    },
-                                    onNearEnd: {
-                                        if moment.id == viewModel.moments.last?.id,
-                                           let userId = Auth.auth().currentUser?.uid {
-                                            viewModel.loadMoreMoments(userId: userId)
-                                        }
-                                    },
-                                    onHashtagTap: { hashtag in
-                        
-                                        selectedHashtag = "#\(hashtag)"
-                                        showExploreWithHashtag = true
-                                    },
-                                    onLocationTap: { locationName, coordinate in
-                                        DispatchQueue.main.async {
-                                            self.selectedLocationName = locationName
-                                            self.selectedLocationCoordinate = coordinate
-                                            self.showingLocationMap = true
-                                        }
-                                    },
-                                    // ✅ NUEVO: Callback para mostrar menú contextual global
-                                    onContextMenu: { moment in
-    
-                                        selectedMomentForMenu = moment
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            showGlobalContextMenu = true
-                                        }
-                                    },
-                                    onTagTap: { userId in
-                                        // ✅ Tag Navigation
-                                        selectedUserId = userId
-                                        showUserProfile = true
-                                    },
-                                    onPeek: { imageURL, ratio, isPressing in
-                                        // ✅ PREFETCHING POR INTENCIÓN (ESTRATEGIA 3)
-                                        // Si el usuario empieza a presionar (Peek), cargamos la versión de alta resolución proactivamente
-                                        if isPressing, let url = URL(string: imageURL) {
-                                            KingfisherManager.shared.retrieveImage(with: url) { _ in }
-                                        }
-                                        
-                                        // ✅ LONG PRESS PEEK (Visual)
-                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                            if isPressing {
-                                                peekImageURL = imageURL
-                                                peekAspectRatio = ratio
-                                                isPeeking = true
-                                            } else {
-                                                isPeeking = false
+                                // ✅ Protección de screenshots para momentos privados
+                                // Solo los momentos con audiencia "everyone" son visibles en capturas.
+                                ScreenshotProtectedView(
+                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                ) {
+                                    ModernPostCardView(
+                                        moment: moment,
+                                        availableHeight: availableHeight,
+                                        colorScheme: colorScheme,
+                                        onComment: {
+                                            selectedMoment = moment
+                                        },
+                                        onNearEnd: {
+                                            if moment.id == viewModel.moments.last?.id,
+                                               let userId = Auth.auth().currentUser?.uid {
+                                                viewModel.loadMoreMoments(userId: userId)
+                                            }
+                                        },
+                                        onHashtagTap: { hashtag in
+                            
+                                            selectedHashtag = "#\(hashtag)"
+                                            showExploreWithHashtag = true
+                                        },
+                                        onLocationTap: { locationName, coordinate in
+                                            DispatchQueue.main.async {
+                                                self.selectedLocationName = locationName
+                                                self.selectedLocationCoordinate = coordinate
+                                                self.showingLocationMap = true
+                                            }
+                                        },
+                                        // ✅ NUEVO: Callback para mostrar menú contextual global
+                                        onContextMenu: { moment in
+        
+                                            selectedMomentForMenu = moment
+                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                                showGlobalContextMenu = true
+                                            }
+                                        },
+                                        onTagTap: { userId in
+                                            // ✅ Tag Navigation
+                                            selectedUserId = userId
+                                            showUserProfile = true
+                                        },
+                                        onPeek: { imageURL, ratio, isPressing in
+                                            // ✅ PREFETCHING POR INTENCIÓN (ESTRATEGIA 3)
+                                            // Si el usuario empieza a presionar (Peek), cargamos la versión de alta resolución proactivamente
+                                            if isPressing, let url = URL(string: imageURL) {
+                                                KingfisherManager.shared.retrieveImage(with: url) { _ in }
+                                            }
+                                            
+                                            // ✅ LONG PRESS PEEK (Visual)
+                                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                                if isPressing {
+                                                    peekImageURL = imageURL
+                                                    peekAspectRatio = ratio
+                                                    isPeeking = true
+                                                } else {
+                                                    isPeeking = false
+                                                }
                                             }
                                         }
+                                    )
+                                    .onAppear {
+                                        // ✅ PREFETCHING DE LISTA (ESTRATEGIA 1)
+                                        // Cuando un post aparece, precargamos las imágenes de los siguientes 5
+                                        let nextIndex = index + 1
+                                        let prefetchRange = nextIndex..<(nextIndex + 5)
+                                        let urlsToPrefetch = viewModel.moments[safe: prefetchRange].compactMap { moment -> URL? in
+                                            guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
+                                            return URL(string: firstMedia)
+                                        }
+                                        if !urlsToPrefetch.isEmpty {
+                                            ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetch)
+                                        }
                                     }
-                                )
-                                .onAppear {
-                                    // ✅ PREFETCHING DE LISTA (ESTRATEGIA 1)
-                                    // Cuando un post aparece, precargamos las imágenes de los siguientes 5
-                                    let nextIndex = index + 1
-                                    let prefetchRange = nextIndex..<(nextIndex + 5)
-                                    let urlsToPrefetch = viewModel.moments[safe: prefetchRange].compactMap { moment -> URL? in
-                                        guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
-                                        return URL(string: firstMedia)
-                                    }
-                                    if !urlsToPrefetch.isEmpty {
-                                        ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetch)                                    }
+                                    .environmentObject(firestoreService)
+                                    .environmentObject(viewModel)
                                 }
-                                .environmentObject(firestoreService)
-                                .environmentObject(viewModel)
-    
+
                                 let adInterval = selectedFeedType == .forYou ? 3 : 5
                                 if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
                                     SmartNativeAdView()
                                         .onAppear {
                                             AnalyticsService.shared.trackFeatureUsage("native_ad_shown")
-    
                                         }
                                 }
                             }
@@ -1507,10 +1524,11 @@ struct FeedView: View {
         await withCheckedContinuation { continuation in
             isLoadingStories = true
             
-            firestoreService.fetchFollowing(userId: userId) { result in
-                switch result {
-                case .success(let followingUsers):
-                    let followingIds = followingUsers.map { $0.id }
+            firestoreService.fetchMutedUserIds(userId: userId) { mutedUserIds in
+                firestoreService.fetchFollowing(userId: userId) { result in
+                    switch result {
+                    case .success(let followingUsers):
+                        let followingIds = followingUsers.map { $0.id }.filter { !mutedUserIds.contains($0) }
                     var allUserIds = [userId] // Empezar contigo
                     allUserIds.append(contentsOf: followingIds)
                     
@@ -1620,22 +1638,23 @@ struct FeedView: View {
                         }
                     }
                     
-                case .failure:
-                    // ✅ CORREGIDO: Fallback también debe verificar tu historia
-                    self.checkUserStories(userId: userId, currentUserId: userId) { hasStory, hasUnseen, storyCount, viewedStatus, audiences in
-                        DispatchQueue.main.async {
-                            // Guardar en cache también en fallback
-                            self.cachedStories[userId] = hasStory
-                            self.cachedUnseenStories[userId] = hasUnseen
-                            
-                            self.storyUsers = [(userId: userId, hasStory: hasStory, hasUnseenStory: false, storyCount: storyCount, storyViewedStatus: viewedStatus, storyAudiences: audiences)]
-                            self.isLoadingStories = false
-                            continuation.resume()
+                    case .failure:
+                        // ✅ CORREGIDO: Fallback también debe verificar tu historia
+                        self.checkUserStories(userId: userId, currentUserId: userId) { hasStory, hasUnseen, storyCount, viewedStatus, audiences in
+                            DispatchQueue.main.async {
+                                // Guardar en cache también en fallback
+                                self.cachedStories[userId] = hasStory
+                                self.cachedUnseenStories[userId] = hasUnseen
+                                
+                                self.storyUsers = [(userId: userId, hasStory: hasStory, hasUnseenStory: false, storyCount: storyCount, storyViewedStatus: viewedStatus, storyAudiences: audiences)]
+                                self.isLoadingStories = false
+                                continuation.resume()
+                            }
                         }
                     }
                 }
             }
-        }
+    }
     }
 
     private func loadStoryUsersFromBatchedStories(
@@ -2581,6 +2600,10 @@ struct ModernPostCardView: View {
                   let momentId = moment.id,
                   firestoreService.hasLoadedSavedMoments(for: currentUserId) else { return }
             isSaved = firestoreService.savedMomentIds.contains(momentId)
+        }
+        .onChange(of: moment.authorId) { _ in
+            liveAuthorUsername = ""
+            refreshAuthorUsername()
         }
 
         .fullScreenCover(isPresented: $showSpecificUserStories) {
@@ -3619,6 +3642,9 @@ class FeedViewModel: ObservableObject {
     private var pendingUpdates: [String: DispatchWorkItem] = [:]
     private let updateDebounceTime: TimeInterval = 0.3
     private var lastUpdateHashes: [String: Int] = [:]
+    private var mutedUserIdsCache: Set<String> = []
+    private var mutedUserIdsCacheTimestamp: Date = .distantPast
+    private let mutedUserIdsCacheTTL: TimeInterval = 20
     
     // 🚀 Backend feed pagination state (per feed type)
     private var backendCursors: [FeedType: FeedCursor?] = [:]
@@ -3639,6 +3665,8 @@ class FeedViewModel: ObservableObject {
         backendCursors.removeAll()
         feedLoadedFromBackend = [.following: false, .forYou: false]
         backendReachedEnd = [.following: false, .forYou: false]
+        mutedUserIdsCache.removeAll()
+        mutedUserIdsCacheTimestamp = .distantPast
         clearListeners()
         
         // ✅ OFFLINE: Al refrescar, mantenemos lo que hay hasta que llegue lo nuevo
@@ -3668,6 +3696,35 @@ class FeedViewModel: ObservableObject {
         return LocalPersistenceService.shared.loadFeedMoments()
     }
 
+    private func resolveMutedUserIds(viewerId: String, forceRefresh: Bool = false, completion: @escaping (Set<String>) -> Void) {
+        guard !viewerId.isEmpty else {
+            completion([])
+            return
+        }
+
+        let cacheAge = Date().timeIntervalSince(mutedUserIdsCacheTimestamp)
+        if !forceRefresh, cacheAge < mutedUserIdsCacheTTL {
+            completion(mutedUserIdsCache)
+            return
+        }
+
+        firestoreService.fetchMutedUserIds(userId: viewerId) { [weak self] mutedIds in
+            Task { @MainActor in
+                self?.mutedUserIdsCache = mutedIds
+                self?.mutedUserIdsCacheTimestamp = Date()
+                completion(mutedIds)
+            }
+        }
+    }
+
+    private func resolveMutedUserIdsAsync(viewerId: String, forceRefresh: Bool = false) async -> Set<String> {
+        await withCheckedContinuation { continuation in
+            resolveMutedUserIds(viewerId: viewerId, forceRefresh: forceRefresh) { mutedIds in
+                continuation.resume(returning: mutedIds)
+            }
+        }
+    }
+
     // MARK: - Main Functions
     
     func fetchMoments(userId: String, feedType: FeedType? = nil) {
@@ -3678,21 +3735,26 @@ class FeedViewModel: ObservableObject {
             self.currentFeedType = targetFeedType
             self.isLoading = true
             self.errorMessage = nil
-            
-            // ✅ OFFLINE: Cargar caché inmediatamente
-            let cached = self.loadFeedFromCache(type: targetFeedType)
-            if !cached.isEmpty && self.moments.isEmpty {
-                self.moments = cached
-                
-                if targetFeedType == .following {
-                    self.followingMoments = cached
-                } else {
-                    self.forYouMoments = cached
+        }
+
+        resolveMutedUserIds(viewerId: userId) { [weak self] mutedUserIds in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                // ✅ OFFLINE: Cargar caché inmediatamente, respetando cuentas silenciadas.
+                let cached = self.loadFeedFromCache(type: targetFeedType)
+                let visibleCached = cached.filter { !mutedUserIds.contains($0.authorId) }
+                if !visibleCached.isEmpty && self.moments.isEmpty {
+                    self.moments = visibleCached
+
+                    if targetFeedType == .following {
+                        self.followingMoments = visibleCached
+                    } else {
+                        self.forYouMoments = visibleCached
+                    }
+
+                    let videoUrls = visibleCached.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
                 }
-                
-                // Precargar videos del caché
-                let videoUrls = cached.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                VideoPreloader.shared.preloadAssets(urls: videoUrls)
             }
         }
         
@@ -3733,12 +3795,15 @@ class FeedViewModel: ObservableObject {
             
             Task {
                 let feedTypeStr = feed == .forYou ? "forYou" : "following"
+                let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
                 if let result = await BackendFeedService.shared.fetchFeedPage(
                     feedType: feedTypeStr,
                     cursor: cursor,
                     limit: 20
                 ) {
-                    let newMoments = result.moments.sorted { $0.timestamp > $1.timestamp }
+                    let newMoments = result.moments
+                        .filter { !mutedUserIds.contains($0.authorId) }
+                        .sorted { $0.timestamp > $1.timestamp }
                     let existingIds = Set(self.moments.map { $0.id })
                     let uniqueNew = newMoments.filter { !existingIds.contains($0.id) }
                     
@@ -3836,9 +3901,12 @@ class FeedViewModel: ObservableObject {
     private func fetchFollowingMoments(userId: String) {
         // 🚀 Backend-first: try Cloud Function, fallback to legacy
         Task {
+            let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
             if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "following", limit: 40) {
                 // ✅ Backend success — moments already privacy-filtered server-side
-                let moments = result.moments.sorted { $0.timestamp > $1.timestamp }
+                let moments = result.moments
+                    .filter { !mutedUserIds.contains($0.authorId) }
+                    .sorted { $0.timestamp > $1.timestamp }
                 
                 // Apply affinity sorting (same as legacy)
                 let finalMoments = self.applyAffinitySorting(moments: moments, feedType: .following)
@@ -3907,8 +3975,11 @@ class FeedViewModel: ObservableObject {
     private func fetchForYouMoments(userId: String) {
         // 🚀 Backend-first: try Cloud Function, fallback to legacy
         Task {
+            let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
             if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "forYou", limit: 60) {
-                let moments = result.moments.sorted { $0.timestamp > $1.timestamp }
+                let moments = result.moments
+                    .filter { !mutedUserIds.contains($0.authorId) }
+                    .sorted { $0.timestamp > $1.timestamp }
                 let finalMoments = self.applyAffinitySorting(moments: moments, feedType: .forYou)
                 
                 await MainActor.run {

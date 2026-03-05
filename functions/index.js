@@ -3,6 +3,9 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
+const JSZip = require('jszip');
+const crypto = require('crypto');
+const path = require('path');
 setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -29,6 +32,418 @@ function parseJsonBody(req) {
   }
 }
 
+function toSerializable(value) {
+  if (value === null || value === undefined) return null;
+  if (value instanceof admin.firestore.Timestamp) return value.toDate().toISOString();
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof admin.firestore.GeoPoint) {
+    return { latitude: value.latitude, longitude: value.longitude };
+  }
+  if (Array.isArray(value)) return value.map(toSerializable);
+  if (typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = toSerializable(v);
+    return out;
+  }
+  return value;
+}
+
+async function fetchUserSubcollection(userId, name) {
+  const snap = await admin.firestore()
+    .collection('users')
+    .doc(userId)
+    .collection(name)
+    .get();
+  return snap.docs.map((doc) => ({ documentId: doc.id, ...toSerializable(doc.data()) }));
+}
+
+async function fetchUserConversations(userId) {
+  const conversationsSnap = await admin.firestore()
+    .collection('conversations')
+    .where('participants', 'array-contains', userId)
+    .get();
+
+  const conversations = [];
+  for (const convoDoc of conversationsSnap.docs) {
+    const conversationId = convoDoc.id;
+    const conversationData = convoDoc.data() || {};
+    const sharedKey = await fetchConversationSharedKey(conversationId, conversationData);
+    const messagesSnap = await admin.firestore()
+      .collection('conversations')
+      .doc(conversationId)
+      .collection('messages')
+      .orderBy('timestamp')
+      .get();
+
+    const messages = messagesSnap.docs.map((msgDoc) => {
+      const rawMessage = msgDoc.data() || {};
+      const serializedMessage = {
+        messageId: msgDoc.id,
+        ...toSerializable(rawMessage)
+      };
+      if (typeof rawMessage.content === 'string' && rawMessage.content.trim().length > 0) {
+        const decrypted = decryptChatContent(rawMessage.content, sharedKey);
+        serializedMessage.contentDecrypted = decrypted;
+      }
+      return serializedMessage;
+    });
+
+    conversations.push({
+      conversationId,
+      ...toSerializable(conversationData),
+      messages
+    });
+  }
+  return conversations;
+}
+
+async function fetchConversationSharedKey(conversationId, conversationData) {
+  if (typeof conversationData.sharedEncryptionKey === 'string' && conversationData.sharedEncryptionKey.length > 0) {
+    return conversationData.sharedEncryptionKey;
+  }
+  if (typeof conversationData.encryptionKey === 'string' && conversationData.encryptionKey.length > 0) {
+    return conversationData.encryptionKey;
+  }
+  try {
+    const sharedDoc = await admin.firestore()
+      .collection('conversations')
+      .doc(conversationId)
+      .collection('encryption')
+      .doc('shared')
+      .get();
+    const data = sharedDoc.data() || {};
+    if (typeof data.encryptionKey === 'string' && data.encryptionKey.length > 0) {
+      return data.encryptionKey;
+    }
+  } catch (error) {
+    // Best-effort fallback only.
+  }
+  return null;
+}
+
+function decryptChatContent(encryptedContent, keyBase64) {
+  if (!encryptedContent || !keyBase64) return null;
+  try {
+    const combined = Buffer.from(encryptedContent, 'base64');
+    const key = Buffer.from(keyBase64, 'base64');
+    if (combined.length < 12 + 16 || key.length !== 32) return null;
+    const iv = combined.subarray(0, 12);
+    const tag = combined.subarray(combined.length - 16);
+    const ciphertext = combined.subarray(12, combined.length - 16);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted.toString('utf8');
+  } catch (error) {
+    return null;
+  }
+}
+
+async function fetchNovaConversations(userId) {
+  const [titlesSnap, conversationsSnap] = await Promise.all([
+    admin.firestore()
+      .collection('geminiConversationTitles')
+      .where('userId', '==', userId)
+      .orderBy('lastUpdated', 'desc')
+      .get(),
+    admin.firestore()
+      .collection('geminiConversations')
+      .where('userId', '==', userId)
+      .orderBy('lastUpdated', 'desc')
+      .get()
+  ]);
+
+  return {
+    titles: titlesSnap.docs.map((doc) => ({ conversationId: doc.id, ...toSerializable(doc.data()) })),
+    conversations: conversationsSnap.docs.map((doc) => ({ conversationId: doc.id, ...toSerializable(doc.data()) }))
+  };
+}
+
+function sanitizeFileName(value) {
+  return String(value || 'file').replace(/[\/\\?%*:|"<>]/g, '_');
+}
+
+function inferFileExtension(url, contentType = '') {
+  const ct = String(contentType || '').toLowerCase();
+  if (ct.includes('image/jpeg')) return 'jpg';
+  if (ct.includes('image/png')) return 'png';
+  if (ct.includes('image/webp')) return 'webp';
+  if (ct.includes('image/gif')) return 'gif';
+  if (ct.includes('video/mp4')) return 'mp4';
+  if (ct.includes('video/quicktime')) return 'mov';
+  try {
+    const pathname = new URL(url).pathname;
+    const ext = path.extname(pathname).replace('.', '').toLowerCase();
+    if (ext && ext.length <= 5) return ext;
+  } catch (error) {
+    // Ignore and fallback.
+  }
+  return 'bin';
+}
+
+async function addMediaFilesToZip(zip, mediaUrls) {
+  const uniqueUrls = Array.from(new Set((mediaUrls || []).filter((url) => typeof url === 'string' && url.trim().length > 0)));
+  const limits = {
+    maxFiles: 120,
+    maxTotalBytes: 200 * 1024 * 1024,
+    maxSingleFileBytes: 30 * 1024 * 1024
+  };
+  let totalBytes = 0;
+  const manifest = {
+    requested: uniqueUrls.length,
+    downloaded: [],
+    skipped: []
+  };
+
+  for (let i = 0; i < uniqueUrls.length; i += 1) {
+    const mediaUrl = uniqueUrls[i];
+    if (manifest.downloaded.length >= limits.maxFiles) {
+      manifest.skipped.push({ url: mediaUrl, reason: 'max_files_reached' });
+      continue;
+    }
+    if (totalBytes >= limits.maxTotalBytes) {
+      manifest.skipped.push({ url: mediaUrl, reason: 'max_total_size_reached' });
+      continue;
+    }
+
+    try {
+      const response = await fetch(mediaUrl, { signal: AbortSignal.timeout(12000) });
+      if (!response.ok) {
+        manifest.skipped.push({ url: mediaUrl, reason: `http_${response.status}` });
+        continue;
+      }
+      const contentLengthHeader = response.headers.get('content-length');
+      const declaredBytes = contentLengthHeader ? Number(contentLengthHeader) : 0;
+      if (Number.isFinite(declaredBytes) && declaredBytes > limits.maxSingleFileBytes) {
+        manifest.skipped.push({ url: mediaUrl, reason: 'single_file_too_large' });
+        continue;
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      if (buffer.length === 0) {
+        manifest.skipped.push({ url: mediaUrl, reason: 'empty_file' });
+        continue;
+      }
+      if (buffer.length > limits.maxSingleFileBytes) {
+        manifest.skipped.push({ url: mediaUrl, reason: 'single_file_too_large' });
+        continue;
+      }
+      if ((totalBytes + buffer.length) > limits.maxTotalBytes) {
+        manifest.skipped.push({ url: mediaUrl, reason: 'max_total_size_reached' });
+        continue;
+      }
+
+      const ext = inferFileExtension(mediaUrl, response.headers.get('content-type') || '');
+      const fileName = `media/media_${String(manifest.downloaded.length + 1).padStart(4, '0')}.${ext}`;
+      zip.file(fileName, buffer);
+      totalBytes += buffer.length;
+      manifest.downloaded.push({
+        file: fileName,
+        bytes: buffer.length,
+        sourceUrl: mediaUrl
+      });
+    } catch (error) {
+      manifest.skipped.push({
+        url: mediaUrl,
+        reason: String(error?.name || error?.message || 'download_error')
+      });
+    }
+  }
+
+  manifest.totalDownloadedBytes = totalBytes;
+  return manifest;
+}
+
+function collectMediaUrlsFromPayload(payload) {
+  const urls = new Set();
+  const push = (url) => {
+    if (typeof url === 'string' && url.trim()) urls.add(url.trim());
+  };
+
+  for (const moment of payload.moments || []) {
+    push(moment.imagePath);
+    push(moment.imageUrl);
+    push(moment.videoUrl);
+    if (Array.isArray(moment.mediaItems)) {
+      for (const item of moment.mediaItems) push(item?.url);
+    }
+  }
+
+  for (const story of payload.stories || []) {
+    const mediaItem = story.mediaItem || {};
+    push(mediaItem.url);
+    push(mediaItem.thumbnailUrl);
+  }
+
+  for (const convo of payload.conversations || []) {
+    for (const msg of convo.messages || []) {
+      push(msg.mediaUrl);
+      push(msg.thumbnailUrl);
+    }
+  }
+
+  push(payload.profile?.profileImagePath);
+  return Array.from(urls);
+}
+
+async function buildDataExportPayload(userId, exportType, requestedFormat) {
+  const userSnap = await admin.firestore().collection('users').doc(userId).get();
+  const profile = userSnap.exists ? toSerializable(userSnap.data()) : {};
+
+  const payload = {
+    exportInfo: {
+      exportDate: new Date().toISOString(),
+      version: '2.0',
+      platform: 'server',
+      requestedFormat,
+      exportType
+    },
+    profile
+  };
+
+  if (exportType !== 'mediaOnly') {
+    payload.moments = await fetchUserSubcollection(userId, 'moments');
+    payload.stories = await fetchUserSubcollection(userId, 'stories');
+    payload.connections = await fetchUserSubcollection(userId, 'connections');
+    payload.admirers = await fetchUserSubcollection(userId, 'admirers');
+    payload.notifications = await fetchUserSubcollection(userId, 'notifications');
+    payload.activityStats = await fetchUserSubcollection(userId, 'dailyStats');
+    payload.loginActivity = await fetchUserSubcollection(userId, 'loginActivity');
+    payload.savedMoments = await fetchUserSubcollection(userId, 'savedMoments');
+    payload.visits = await fetchUserSubcollection(userId, 'visits');
+    payload.visitSummaries = await fetchUserSubcollection(userId, 'visitSummaries');
+    payload.conversations = await fetchUserConversations(userId);
+    payload.nova = await fetchNovaConversations(userId);
+  } else {
+    // For media-only exports we still need source docs to discover media URLs.
+    payload.moments = await fetchUserSubcollection(userId, 'moments');
+    payload.stories = await fetchUserSubcollection(userId, 'stories');
+    payload.conversations = await fetchUserConversations(userId);
+  }
+
+  if (exportType !== 'textOnly') {
+    payload.mediaUrls = collectMediaUrlsFromPayload(payload);
+  }
+
+  if (exportType === 'mediaOnly') {
+    // Keep output lightweight and privacy-friendly.
+    delete payload.moments;
+    delete payload.stories;
+    delete payload.conversations;
+  }
+
+  return payload;
+}
+
+function escapeCsvCell(value) {
+  if (value === null || value === undefined) return '';
+  const str = typeof value === 'string' ? value : JSON.stringify(value);
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function flattenRow(row) {
+  const out = {};
+  for (const [key, value] of Object.entries(row || {})) {
+    if (value === null || value === undefined) {
+      out[key] = '';
+    } else if (typeof value === 'object') {
+      out[key] = JSON.stringify(value);
+    } else {
+      out[key] = String(value);
+    }
+  }
+  return out;
+}
+
+function rowsToCsv(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return '';
+  const flattened = rows.map(flattenRow);
+  const headers = Array.from(new Set(flattened.flatMap((row) => Object.keys(row))));
+  const headerLine = headers.map(escapeCsvCell).join(',');
+  const lines = flattened.map((row) => headers.map((h) => escapeCsvCell(row[h] || '')).join(','));
+  return [headerLine, ...lines].join('\n');
+}
+
+function buildCsvFiles(payload) {
+  const csvFiles = [];
+  const mappings = [
+    ['moments', payload.moments],
+    ['stories', payload.stories],
+    ['notifications', payload.notifications],
+    ['connections', payload.connections],
+    ['admirers', payload.admirers],
+    ['saved_moments', payload.savedMoments]
+  ];
+  for (const [name, rows] of mappings) {
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+    const csv = rowsToCsv(rows);
+    if (!csv) continue;
+    csvFiles.push({
+      path: `csv/${name}.csv`,
+      content: csv
+    });
+  }
+  return csvFiles;
+}
+
+function buildReadmeContent(payload, requestedFormat, exportType) {
+  const now = new Date().toISOString();
+  return [
+    '# Moments Data Export',
+    '',
+    `Generated at: ${now}`,
+    `Format requested: ${requestedFormat}`,
+    `Export type: ${exportType}`,
+    '',
+    'Included:',
+    '- export.json (full structured data)',
+    '- meta.json (metadata)',
+    '- conversations/*.json (direct messages with best-effort decrypted text)',
+    '- nova/*.json (Nova conversations/titles; encrypted text when key is unavailable server-side)',
+    '- media/* (downloaded media files when requested and reachable)',
+    '- csv/*.csv (if CSV format was requested)',
+    ''
+  ].join('\n');
+}
+
+async function buildExportZipBuffer(payload, requestedFormat, exportType) {
+  const zip = new JSZip();
+  zip.file('export.json', JSON.stringify(payload, null, 2));
+  zip.file('meta.json', JSON.stringify(payload.exportInfo || {}, null, 2));
+  zip.file('README.txt', buildReadmeContent(payload, requestedFormat, exportType));
+
+  for (const conversation of payload.conversations || []) {
+    const fileId = sanitizeFileName(conversation.conversationId || 'conversation');
+    zip.file(`conversations/${fileId}.json`, JSON.stringify(conversation, null, 2));
+  }
+
+  if (payload.nova) {
+    zip.file('nova/titles.json', JSON.stringify(payload.nova.titles || [], null, 2));
+    zip.file('nova/conversations.json', JSON.stringify(payload.nova.conversations || [], null, 2));
+  }
+
+  if (String(requestedFormat || '').toLowerCase() === 'csv') {
+    const csvFiles = buildCsvFiles(payload);
+    for (const csvFile of csvFiles) {
+      zip.file(csvFile.path, csvFile.content);
+    }
+  }
+
+  if (exportType !== 'textOnly') {
+    const mediaManifest = await addMediaFilesToZip(zip, payload.mediaUrls || []);
+    zip.file('media/manifest.json', JSON.stringify(mediaManifest, null, 2));
+  }
+
+  return zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 }
+  });
+}
+
 async function verifyFirebaseAuth(req, res) {
   const authHeader = req.get('authorization') || '';
   if (!authHeader.startsWith('Bearer ')) {
@@ -50,6 +465,94 @@ async function verifyFirebaseAuth(req, res) {
     return null;
   }
 }
+
+exports.onDataExportRequestCreated = onDocumentCreated({
+  document: 'users/{userId}/dataExportRequests/{requestId}',
+  timeoutSeconds: 540,
+  memory: '1GiB'
+}, async (event) => {
+  const userId = event.params.userId;
+  const requestId = event.params.requestId;
+  const requestRef = admin.firestore().doc(`users/${userId}/dataExportRequests/${requestId}`);
+
+  const requestData = event.data?.data() || {};
+  const status = requestData.status || 'pending';
+  if (status !== 'pending') return;
+
+  const exportType = requestData.exportType || 'complete';
+  const requestedFormat = requestData.format || 'json';
+
+  try {
+    await requestRef.update({
+      status: 'processing',
+      progress: 0.1,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    const payload = await buildDataExportPayload(userId, exportType, requestedFormat);
+
+    await requestRef.update({
+      status: 'uploading',
+      progress: 0.75,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    const now = new Date();
+    const stamp = now.toISOString().replace(/[:.]/g, '-');
+    const objectName = `exports/${userId}/moments_export_${stamp}.zip`;
+    const file = admin.storage().bucket().file(objectName);
+    const body = await buildExportZipBuffer(payload, requestedFormat, exportType);
+
+    await file.save(body, {
+      resumable: false,
+      metadata: {
+        contentType: 'application/zip',
+        cacheControl: 'private, max-age=0, no-cache'
+      }
+    });
+
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const [downloadURL] = await file.getSignedUrl({
+      action: 'read',
+      expires: expiresAt
+    });
+
+    await requestRef.update({
+      status: 'ready',
+      progress: 1.0,
+      downloadURL,
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      expirationDate: admin.firestore.Timestamp.fromDate(expiresAt),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    await admin.firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('notifications')
+      .add({
+        type: 'data_export_ready',
+        title: 'Tu exportación está lista',
+        message: 'Hemos preparado tu archivo de datos. El enlace de descarga expirará en 7 días.',
+        downloadURL,
+        senderId: 'system',
+        senderUsername: 'Moments',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        isPending: true,
+        isRead: false
+      });
+
+    console.log(`✅ data export ready: user=${userId} request=${requestId}`);
+  } catch (error) {
+    console.error(`❌ data export failed: user=${userId} request=${requestId}`, error);
+    await requestRef.update({
+      status: 'failed',
+      progress: 0.0,
+      errorMessage: error?.message || 'Export failed',
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+});
 
 exports.proxyOpenAIModeration = onRequest(
   {
@@ -276,6 +779,128 @@ async function removeInvalidToken(userId, fcmToken) {
   }
 }
 
+function parseTimeToMinutes(value) {
+  if (typeof value !== 'string') return null;
+  const parts = value.split(':');
+  if (parts.length !== 2) return null;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function isDoNotDisturbActive(userData) {
+  if (!userData) return false;
+  const startMinutes = parseTimeToMinutes(userData.activeHoursStart);
+  const endMinutes = parseTimeToMinutes(userData.activeHoursEnd);
+  if (startMinutes === null || endMinutes === null) return false;
+
+  const timezone = userData.notificationTimeZone || userData.timeZone || userData.timezone || null;
+  const now = new Date();
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (timezone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: timezone
+      }).formatToParts(now);
+
+      const hourPart = parts.find(p => p.type === 'hour')?.value;
+      const minutePart = parts.find(p => p.type === 'minute')?.value;
+      const tzHour = Number(hourPart);
+      const tzMinute = Number(minutePart);
+
+      if (Number.isInteger(tzHour) && Number.isInteger(tzMinute)) {
+        currentMinutes = tzHour * 60 + tzMinute;
+      }
+    } catch (error) {
+      // Fallback to server-local time if timezone is invalid.
+    }
+  }
+
+  if (startMinutes > endMinutes) {
+    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+  }
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+}
+
+function normalizeMutedWords(words) {
+  if (!Array.isArray(words)) return [];
+  return words
+    .map((word) => (typeof word === 'string' ? word.trim().toLowerCase() : ''))
+    .filter((word) => word.length > 0);
+}
+
+function getMuteSettings(userData) {
+  const raw = userData && typeof userData.muteSettings === 'object' && userData.muteSettings !== null
+    ? userData.muteSettings
+    : {};
+  const mutedUsers = Array.isArray(raw.mutedUsers)
+    ? raw.mutedUsers.filter((id) => typeof id === 'string' && id.trim().length > 0)
+    : [];
+
+  return {
+    muteNotifications: raw.muteNotifications === true,
+    hideFromSearch: raw.hideFromSearch === true,
+    mutedUsers: new Set(mutedUsers),
+    mutedWords: normalizeMutedWords(raw.mutedWords)
+  };
+}
+
+function textContainsMutedWord(text, mutedWords) {
+  if (!text || mutedWords.length === 0) return false;
+  const normalizedText = String(text).toLowerCase();
+  return mutedWords.some((word) => normalizedText.includes(word));
+}
+
+function shouldSilenceNotificationForUser(receiverData, options = {}) {
+  const muteSettings = getMuteSettings(receiverData);
+  if (muteSettings.muteNotifications) {
+    return true;
+  }
+
+  const senderId = typeof options.senderId === 'string' ? options.senderId : '';
+  if (senderId && muteSettings.mutedUsers.has(senderId)) {
+    return true;
+  }
+
+  const candidateTexts = Array.isArray(options.candidateTexts) ? options.candidateTexts : [];
+  return candidateTexts.some((text) => textContainsMutedWord(text, muteSettings.mutedWords));
+}
+
+function pickMomentPreviewUrl(momentData) {
+  if (!momentData || typeof momentData !== 'object') return null;
+
+  if (typeof momentData.thumbnailUrl === 'string' && momentData.thumbnailUrl.trim()) {
+    return momentData.thumbnailUrl.trim();
+  }
+  if (typeof momentData.imageUrl === 'string' && momentData.imageUrl.trim()) {
+    return momentData.imageUrl.trim();
+  }
+
+  if (Array.isArray(momentData.mediaItems)) {
+    for (const item of momentData.mediaItems) {
+      if (!item || typeof item !== 'object') continue;
+      if (typeof item.thumbnailUrl === 'string' && item.thumbnailUrl.trim()) {
+        return item.thumbnailUrl.trim();
+      }
+      if (typeof item.url === 'string' && item.url.trim()) {
+        return item.url.trim();
+      }
+    }
+  }
+
+  if (typeof momentData.videoUrl === 'string' && momentData.videoUrl.trim()) {
+    return momentData.videoUrl.trim();
+  }
+
+  return null;
+}
+
 // ✅ Contar mensajes no leídos EN UNA CONVERSACIÓN ESPECÍFICA
 async function getUnreadMessagesInConversation(conversationId, userId) {
   try {
@@ -311,7 +936,22 @@ async function getPendingCommentCount(momentOwnerId, momentId) {
   try {
     const snap = await admin.firestore()
       .collection(`users/${momentOwnerId}/notifications`)
-      .where('type', '==', 'momentComment')
+      .where('type', '==', 'comment')
+      .where('momentId', '==', momentId)
+      .where('isPending', '==', true)
+      .get();
+    return snap.size + 1;
+  } catch (error) {
+    return 1;
+  }
+}
+
+// ✅ Contar reacciones pendientes en un momento específico (para título agrupado correcto)
+async function getPendingMomentReactionCount(momentOwnerId, momentId) {
+  try {
+    const snap = await admin.firestore()
+      .collection(`users/${momentOwnerId}/notifications`)
+      .where('type', '==', 'reaction')
       .where('momentId', '==', momentId)
       .where('isPending', '==', true)
       .get();
@@ -451,6 +1091,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     const reacterData = reacterDoc.data();
     const momentOwnerData = momentOwnerDoc.data();
     const momentData = momentDoc.data();
+    const momentPreviewUrl = pickMomentPreviewUrl(momentData);
 
     // Validar datos requeridos
     if (!validateUserData(reacterData) || !validateUserData(momentOwnerData)) {
@@ -464,8 +1105,8 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     }
 
     // Obtener FCM token del dueño del momento
-    const fcmToken = momentOwnerData.fcmToken;
-    if (!fcmToken) return null;
+    const fcmToken = momentOwnerData.fcmToken || null;
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(momentOwnerData);
 
     // ✅ MAPEAR REACTIONTYPE A EMOJIS - SOLO LAS NUEVAS REACCIONES
     const reactionEmojis = {
@@ -497,7 +1138,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
     // ✅ Incrementar contador de reacciones con transacción idempotente
     const momentRef = admin.firestore().doc(`users/${userId}/moments/${momentId}`);
     const reactionRef = admin.firestore().doc(`users/${userId}/moments/${momentId}/reactions/${reactionId}`);
-    const newReactionCount = await admin.firestore().runTransaction(async (tx) => {
+    const reactionTx = await admin.firestore().runTransaction(async (tx) => {
       const [momentSnap, reactionSnap] = await Promise.all([tx.get(momentRef), tx.get(reactionRef)]);
       const alreadyProcessed = reactionSnap.exists && reactionSnap.get('processed') === true;
       if (!momentSnap.exists) {
@@ -505,33 +1146,58 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
       }
       const currentCount = momentSnap.get('reactionCount') || 0;
       if (alreadyProcessed) {
-        return currentCount;
+        return { newReactionCount: currentCount, alreadyProcessed: true };
       }
       tx.update(momentRef, { reactionCount: admin.firestore.FieldValue.increment(1) });
       tx.update(reactionRef, { processed: true });
-      return currentCount + 1;
+      return { newReactionCount: currentCount + 1, alreadyProcessed: false };
     });
+    if (reactionTx.alreadyProcessed) return null;
+    const newReactionCount = reactionTx.newReactionCount;
+
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(momentOwnerData, {
+      senderId: reaction.userId,
+      candidateTexts: [reaction.reactionType, momentData?.content]
+    });
+    if (isSilencedByMuteSettings) {
+      return null;
+    }
 
     // ✅ TÍTULO DINÁMICO basado en número de reacciones
     const username = reacterData.username || 'Alguien';
-    const reactionCount = Math.max(1, newReactionCount);
+
+    const reactionNotificationId = `reaction_${momentId}`;
+    const reactionNotificationRef = admin.firestore().doc(`users/${userId}/notifications/${reactionNotificationId}`);
+    const legacyPendingSnap = await admin.firestore()
+      .collection(`users/${userId}/notifications`)
+      .where('type', '==', 'reaction')
+      .where('momentId', '==', momentId)
+      .where('isPending', '==', true)
+      .get();
+    const legacyPendingDocs = legacyPendingSnap.docs.filter(doc => doc.id !== reactionNotificationId);
+    const totalReactionCount = Math.max(1, Number(newReactionCount || 1));
+    const pendingReactionCount = totalReactionCount;
 
     // Determinar claves de localización
     let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
-    if (reactionCount === 1) {
+    if (pendingReactionCount === 1) {
       titleLocKey = 'notification.momentReaction.single.title';
       titleLocArgs = [username, emoji];
       bodyLocKey = 'notification.momentReaction.single.body';
       bodyLocArgs = [];
     } else {
       titleLocKey = 'notification.momentReaction.multiple.title';
-      titleLocArgs = [username, String(reactionCount - 1)];
+      titleLocArgs = [username, String(pendingReactionCount - 1)];
       bodyLocKey = 'notification.momentReaction.multiple.body';
-      bodyLocArgs = [String(reactionCount)];
+      bodyLocArgs = [String(pendingReactionCount)];
     }
 
     // ✅ Obtener conteos actualizados para el Widget
-    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'momentReaction', notificationId: reactionId });
+    const counts = await getUnreadCounts(userId, {
+      type: 'notification',
+      notificationType: 'momentReaction',
+      notificationId: reactionNotificationId
+    });
 
     const message = {
       token: fcmToken,
@@ -545,6 +1211,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
         targetId: momentId,
         senderUsername: reacterData.username,
         senderProfileImage: reacterData.profileImagePath || '',
+        mediaUrl: momentPreviewUrl || '',
         reactionCount: String(newReactionCount),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
@@ -568,34 +1235,43 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
             'mutable-content': 1,
             'thread-id': `moment_reactions_${momentId}`,
             'summary-arg': reacterData.username,
-            'summary-arg-count': newReactionCount
+            'summary-arg-count': pendingReactionCount
           }
         }
       }
     };
 
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación enviada: ${username} -> ${momentOwnerData.username} (${reaction.reactionType}) - Total: ${reactionCount}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
+    if (shouldSendPush) {
+      try {
+        await admin.messaging().send(message);
+        console.log(`✅ Notificación enviada: ${username} -> ${momentOwnerData.username} (${reaction.reactionType}) - Pending: ${pendingReactionCount}`);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(userId, fcmToken);
+        }
+        throw error;
       }
-      throw error;
     }
 
-    // Crear notificación en Firestore
-    await admin.firestore().collection(`users/${userId}/notifications`).add({
-      type: 'reaction', // ✅ CORREGIDO: Para reacciones en momentos
+    // ✅ Instagram-like: una notificación agregada por momento
+    await reactionNotificationRef.set({
+      type: 'reaction',
       senderId: reaction.userId,
-      senderUsername: username, // ✅ Usar username validado
+      senderUsername: username,
       senderProfileImage: reacterData.profileImagePath || '',
       momentId: momentId,
       reactionType: reaction.reactionType,
-      reactionCount: reactionCount, // ✅ Usar reactionCount validado
+      reactionCount: pendingReactionCount,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       isPending: true
-    });
+    }, { merge: true });
+
+    // Limpieza de migración: eliminar documentos legacy para este momento.
+    if (legacyPendingDocs.length > 0) {
+      const batch = admin.firestore().batch();
+      legacyPendingDocs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
 
   } catch (error) {
     console.error('❌ Error sending reaction notification:', error);
@@ -611,7 +1287,7 @@ exports.updateBadge = onDocumentCreated('users/{userId}/notifications/{notificat
     if (!userDoc.exists) return null;
 
     const userData = userDoc.data();
-    if (!validateUserData(userData) || !userData.fcmToken) return null;
+    if (!validateUserData(userData) || !userData.fcmToken || isDoNotDisturbActive(userData) || getMuteSettings(userData).muteNotifications) return null;
 
     const notifications = await admin.firestore()
       .collection(`users/${userId}/notifications`)
@@ -691,15 +1367,18 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
   try {
     if (comment.authorId === userId) return null;
 
-    const [commenterDoc, momentOwnerDoc] = await Promise.all([
+    const [commenterDoc, momentOwnerDoc, momentDoc] = await Promise.all([
       admin.firestore().doc(`users/${comment.authorId}`).get(),
-      admin.firestore().doc(`users/${userId}`).get()
+      admin.firestore().doc(`users/${userId}`).get(),
+      admin.firestore().doc(`users/${userId}/moments/${momentId}`).get()
     ]);
 
     if (!commenterDoc.exists || !momentOwnerDoc.exists) return null;
 
     const commenterData = commenterDoc.data();
     const momentOwnerData = momentOwnerDoc.data();
+    const momentData = momentDoc.exists ? momentDoc.data() : null;
+    const momentPreviewUrl = pickMomentPreviewUrl(momentData);
 
     if (!validateUserData(commenterData) || !validateUserData(momentOwnerData)) {
       console.warn('⚠️ Datos de usuario incompletos para comentario');
@@ -708,8 +1387,8 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
 
     if (!commenterData.isActive || !momentOwnerData.isActive) return null;
 
-    const fcmToken = momentOwnerData.fcmToken;
-    if (!fcmToken) return null;
+    const fcmToken = momentOwnerData.fcmToken || null;
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(momentOwnerData);
 
     const commentPreview = comment.text && comment.text.trim()
       ? comment.text.substring(0, 50) + (comment.text.length > 50 ? '...' : '')
@@ -729,6 +1408,14 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
       return false; // no estaba procesado, ahora marcado
     });
     if (processed) return null;
+
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(momentOwnerData, {
+      senderId: comment.authorId,
+      candidateTexts: [comment.text, momentData?.content]
+    });
+    if (isSilencedByMuteSettings) {
+      return null;
+    }
 
     // ✅ Obtener conteos actualizados para el Widget
     const [counts, commentCount] = await Promise.all([
@@ -762,6 +1449,7 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
         targetId: momentId,
         senderUsername: commenterData.username,
         senderProfileImage: commenterData.profileImagePath || '',
+        mediaUrl: momentPreviewUrl || '',
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -792,14 +1480,16 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
       }
     };
 
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación de comentario enviada: ${commenterData.username} -> ${momentOwnerData.username}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
+    if (shouldSendPush) {
+      try {
+        await admin.messaging().send(message);
+        console.log(`✅ Notificación de comentario enviada: ${commenterData.username} -> ${momentOwnerData.username}`);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(userId, fcmToken);
+        }
+        throw error;
       }
-      throw error;
     }
 
     await admin.firestore().collection(`users/${userId}/notifications`).add({
@@ -844,13 +1534,6 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
 
     if (!followerData.isActive || !userData.isActive) return null;
 
-    const fcmToken = userData.fcmToken;
-    if (!fcmToken) return null;
-
-    const cleanImageUrl = followerData.profileImagePath
-      ? followerData.profileImagePath.replace(':443', '')
-      : null;
-
     // ✅ Idempotencia por follow
     const followRef = admin.firestore().doc(`users/${userId}/followers/${followerId}`);
     const already = await admin.firestore().runTransaction(async (tx) => {
@@ -862,25 +1545,36 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     });
     if (already) return null;
 
+    const isSilencedForUser = shouldSilenceNotificationForUser(userData, {
+      senderId: followerId,
+      candidateTexts: [followerData.username]
+    });
+
+    const fcmToken = userData.fcmToken || null;
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(userData);
+
     // ✅ NUEVO: Verificar si se crea una conexión mutua
     const isMutualConnection = await checkMutualConnection(userId, followerId);
 
-    let notificationTitle, notificationBody, notificationType;
-
     if (isMutualConnection) {
-      // ✅ CONEXIÓN MUTUA
-      notificationTitle = `Ahora tienes una conexión mutua con ${followerData.username}`;
-      notificationBody = '¡Ambos se siguen mutuamente!';
-      notificationType = 'mutualConnection';
+      if (!isSilencedForUser) {
+        await sendMutualConnectionNotification(userData, followerData, userId, followerId);
+        await admin.firestore().collection(`users/${userId}/notifications`).add({
+          type: 'mutualConnection',
+          senderId: followerId,
+          senderUsername: followerData.username,
+          senderProfileImage: followerData.profileImagePath || '',
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          isPending: true
+        });
+      }
 
-      // ✅ ENVIAR NOTIFICACIÓN AL USUARIO ORIGINAL
-      await sendMutualConnectionNotification(userData, followerData, userId, followerId);
-
-      // ✅ ENVIAR NOTIFICACIÓN AL SEGUIDOR TAMBIÉN
-      if (followerData.fcmToken) {
+      const isSilencedForFollower = shouldSilenceNotificationForUser(followerData, {
+        senderId: userId,
+        candidateTexts: [userData.username]
+      });
+      if (!isSilencedForFollower) {
         await sendMutualConnectionNotification(followerData, userData, followerId, userId);
-
-        // ✅ GUARDAR NOTIFICACIÓN EN FIRESTORE PARA EL SEGUIDOR TAMBIÉN
         await admin.firestore().collection(`users/${followerId}/notifications`).add({
           type: 'mutualConnection',
           senderId: userId,
@@ -890,68 +1584,71 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
           isPending: true
         });
       }
+      return null;
+    }
 
+    if (isSilencedForUser) {
+      return null;
+    }
+
+    // Obtener conteos
+    const [counts, followerCount] = await Promise.all([
+      getUnreadCounts(userId, { type: 'notification', notificationType: 'newFollower' }),
+      getPendingFollowerCount(userId)
+    ]);
+
+    // Determinar claves de localización
+    let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
+    if (followerCount > 1) {
+      titleLocKey = 'notification.follower.multiple.title';
+      titleLocArgs = [followerData.username, String(followerCount - 1)];
+      bodyLocKey = 'notification.follower.multiple.body';
+      bodyLocArgs = [String(followerCount)];
     } else {
-      // ✅ SEGUIDOR NORMAL
-      notificationType = 'newFollower';
+      titleLocKey = 'notification.follower.single.title';
+      titleLocArgs = [followerData.username];
+      bodyLocKey = 'notification.follower.single.body';
+      bodyLocArgs = [];
+    }
 
-      // Obtener conteos
-      const [counts, followerCount] = await Promise.all([
-        getUnreadCounts(userId, { type: 'notification', notificationType: 'newFollower' }),
-        getPendingFollowerCount(userId)
-      ]);
-
-      // Determinar claves de localización
-      let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
-      if (followerCount > 1) {
-        titleLocKey = 'notification.follower.multiple.title';
-        titleLocArgs = [followerData.username, String(followerCount - 1)];
-        bodyLocKey = 'notification.follower.multiple.body';
-        bodyLocArgs = [String(followerCount)];
-      } else {
-        titleLocKey = 'notification.follower.single.title';
-        titleLocArgs = [followerData.username];
-        bodyLocKey = 'notification.follower.single.body';
-        bodyLocArgs = [];
-      }
-
-      // ✅ ENVIAR NOTIFICACIÓN NORMAL
-      const message = {
-        token: fcmToken,
-        data: {
-          type: 'new_follower',
-          followerId: followerId,
-          userId: userId,
-          targetType: 'profile',
-          targetId: followerId,
-          senderUsername: followerData.username,
-          senderProfileImage: followerData.profileImagePath || '',
-          unreadMessages: String(counts.unreadMessages),
-          unreadNotifications: String(counts.unreadNotifications),
-          unreadEchoes: String(counts.unreadEchoes),
-          unreadTags: String(counts.unreadTags),
+    // ✅ ENVIAR NOTIFICACIÓN NORMAL
+    const message = {
+      token: fcmToken,
+      data: {
+        type: 'new_follower',
+        followerId: followerId,
+        userId: userId,
+        targetType: 'profile',
+        targetId: followerId,
+        senderUsername: followerData.username,
+        senderProfileImage: followerData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
+      },
+      apns: {
+        headers: {
+          'apns-collapse-id': `followers_${userId}`
         },
-        apns: {
-          headers: {
-            'apns-collapse-id': `followers_${userId}`
-          },
-          payload: {
-            aps: {
-              alert: {
-                'title-loc-key': titleLocKey,
-                'title-loc-args': titleLocArgs,
-                'loc-key': bodyLocKey,
-                'loc-args': bodyLocArgs
-              },
-              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
-              sound: 'default',
-              'mutable-content': 1,
-              'thread-id': `new_followers_${userId}`
-            }
+        payload: {
+          aps: {
+            alert: {
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
+              'loc-key': bodyLocKey,
+              'loc-args': bodyLocArgs
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            sound: 'default',
+            'mutable-content': 1,
+            'thread-id': `new_followers_${userId}`
           }
         }
-      };
+      }
+    };
 
+    if (shouldSendPush) {
       try {
         await admin.messaging().send(message);
         console.log(`✅ Notificación de seguidor enviada: ${followerData.username} -> ${userData.username}`);
@@ -963,9 +1660,8 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
       }
     }
 
-    // ✅ GUARDAR NOTIFICACIÓN EN FIRESTORE
     await admin.firestore().collection(`users/${userId}/notifications`).add({
-      type: notificationType,
+      type: 'newFollower',
       senderId: followerId,
       senderUsername: followerData.username,
       senderProfileImage: followerData.profileImagePath || '',
@@ -996,6 +1692,18 @@ async function checkMutualConnection(user1Id, user2Id) {
 // ✅ FUNCIÓN AUXILIAR: Enviar notificación de conexión mutua
 async function sendMutualConnectionNotification(receiverData, senderData, receiverId, senderId) {
   try {
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(receiverData, {
+      senderId: senderId,
+      candidateTexts: [senderData?.username]
+    });
+    if (isSilencedByMuteSettings) {
+      return;
+    }
+
+    if (!receiverData.fcmToken || isDoNotDisturbActive(receiverData)) {
+      return;
+    }
+
     const message = {
       token: receiverData.fcmToken,
       notification: {
@@ -1091,7 +1799,15 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
         return null;
       }
 
-      if (!receiverData.fcmToken) {
+      const isSilencedByMuteSettings = shouldSilenceNotificationForUser(receiverData, {
+        senderId: message.senderId,
+        candidateTexts: [message.text, message.caption, message.type]
+      });
+      if (isSilencedByMuteSettings) {
+        return null;
+      }
+
+      if (!receiverData.fcmToken || isDoNotDisturbActive(receiverData)) {
         return null;
       }
 
@@ -1244,14 +1960,22 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
 
     if (!reacterData.isActive || !storyOwnerData.isActive) return null;
 
-    const fcmToken = storyOwnerData.fcmToken;
-    if (!fcmToken) return null;
+    const fcmToken = storyOwnerData.fcmToken || null;
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(storyOwnerData);
 
     const emoji = reaction.reaction || '❤️';
 
     const cleanImageUrl = reacterData.profileImagePath
       ? reacterData.profileImagePath.replace(':443', '')
       : null;
+
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(storyOwnerData, {
+      senderId: reaction.userId,
+      candidateTexts: [reaction.reaction]
+    });
+    if (isSilencedByMuteSettings) {
+      return null;
+    }
 
     // ✅ Obtener conteos actualizados para el Widget
     const [counts, reactionCount] = await Promise.all([
@@ -1311,14 +2035,16 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
       }
     };
 
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación de reacción a historia enviada: ${reacterData.username} -> ${storyOwnerData.username} (${emoji})`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
+    if (shouldSendPush) {
+      try {
+        await admin.messaging().send(message);
+        console.log(`✅ Notificación de reacción a historia enviada: ${reacterData.username} -> ${storyOwnerData.username} (${emoji})`);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(userId, fcmToken);
+        }
+        throw error;
       }
-      throw error;
     }
 
     await admin.firestore().collection(`users/${userId}/notifications`).add({
@@ -1362,12 +2088,20 @@ exports.onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFoll
 
     if (!requesterData.isActive || !userData.isActive) return null;
 
-    const fcmToken = userData.fcmToken;
-    if (!fcmToken) return null;
+    const fcmToken = userData.fcmToken || null;
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(userData);
 
     const cleanImageUrl = requesterData.profileImagePath
       ? requesterData.profileImagePath.replace(':443', '')
       : null;
+
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(userData, {
+      senderId: request.senderId,
+      candidateTexts: [requesterData.username]
+    });
+    if (isSilencedByMuteSettings) {
+      return null;
+    }
 
     // ✅ Obtener conteos actualizados para el Widget
     const [counts, requestCount] = await Promise.all([
@@ -1426,14 +2160,16 @@ exports.onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFoll
       }
     };
 
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación de solicitud enviada: ${requesterData.username} -> ${userData.username}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
+    if (shouldSendPush) {
+      try {
+        await admin.messaging().send(message);
+        console.log(`✅ Notificación de solicitud enviada: ${requesterData.username} -> ${userData.username}`);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(userId, fcmToken);
+        }
+        throw error;
       }
-      throw error;
     }
 
     await admin.firestore().collection(`users/${userId}/notifications`).add({
@@ -1478,15 +2214,20 @@ exports.onMentionNotification = onDocumentCreated('users/{userId}/notifications/
 
     if (!senderData.isActive || !userData.isActive) return null;
 
-    const fcmToken = userData.fcmToken;
-    if (!fcmToken) return null;
+    const mentionRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(userData, {
+      senderId: notification.senderId,
+      candidateTexts: [notification.text, notification.commentText, notification.content, notification.caption]
+    });
+    if (isSilencedByMuteSettings) {
+      await mentionRef.delete().catch(() => null);
+      return null;
+    }
 
-    const cleanImageUrl = senderData.profileImagePath
-      ? senderData.profileImagePath.replace(':443', '')
-      : null;
+    const fcmToken = userData.fcmToken;
+    if (!fcmToken || isDoNotDisturbActive(userData)) return null;
 
     // ✅ Idempotencia por notificación de mención
-    const mentionRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
     const done = await admin.firestore().runTransaction(async (tx) => {
       const mSnap = await tx.get(mentionRef);
       if (!mSnap.exists) return true;
@@ -1609,15 +2350,20 @@ exports.onPhotoTagNotification = onDocumentCreated('users/{userId}/notifications
 
     if (!senderData.isActive || !userData.isActive) return null;
 
-    const fcmToken = userData.fcmToken;
-    if (!fcmToken) return null;
+    const tagRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(userData, {
+      senderId: notification.senderId,
+      candidateTexts: [notification.text, notification.commentText, notification.content, notification.caption]
+    });
+    if (isSilencedByMuteSettings) {
+      await tagRef.delete().catch(() => null);
+      return null;
+    }
 
-    const cleanImageUrl = senderData.profileImagePath
-      ? senderData.profileImagePath.replace(':443', '')
-      : null;
+    const fcmToken = userData.fcmToken;
+    if (!fcmToken || isDoNotDisturbActive(userData)) return null;
 
     // ✅ Idempotencia por notificación de etiqueta
-    const tagRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
     const done = await admin.firestore().runTransaction(async (tx) => {
       const tSnap = await tx.get(tagRef);
       if (!tSnap.exists) return true;
@@ -1685,54 +2431,100 @@ exports.onPhotoTagNotification = onDocumentCreated('users/{userId}/notifications
 exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{momentId}/reactions/{reactionId}', async (event) => {
   const snap = event.data;
   const { userId, momentId, reactionId } = event.params;
-  const reaction = snap.data();
+  const reaction = snap?.data() || {};
 
   try {
     // ✅ Decrementar el contador de reacciones
     const momentRef = admin.firestore().doc(`users/${userId}/moments/${momentId}`);
     await momentRef.update({ reactionCount: admin.firestore.FieldValue.increment(-1) });
 
-    // ✅ ELIMINAR TODAS LAS NOTIFICACIONES EXISTENTES de este momento
-    const notificationsSnapshot = await admin.firestore()
+    // ✅ Instagram-like: actualizar solo la notificación agregada del momento.
+    const removedByUserId = typeof reaction.userId === 'string' ? reaction.userId : '';
+    if (!removedByUserId) {
+      return null;
+    }
+
+    const reactionNotificationId = `reaction_${momentId}`;
+    const reactionNotificationRef = admin.firestore().doc(`users/${userId}/notifications/${reactionNotificationId}`);
+    const reactionNotificationSnap = await reactionNotificationRef.get();
+    if (!reactionNotificationSnap.exists) {
+      return null;
+    }
+
+    const reactionNotificationData = reactionNotificationSnap.data() || {};
+    if (reactionNotificationData.type !== 'reaction' || reactionNotificationData.isPending !== true) {
+      return null;
+    }
+
+    // Limpieza de migración: eliminar documentos legacy para este momento.
+    const legacyPendingSnap = await admin.firestore()
       .collection(`users/${userId}/notifications`)
-      .where('type', '==', 'reaction') // ✅ CORREGIDO: Buscar notificaciones de tipo 'reaction'
+      .where('type', '==', 'reaction')
       .where('momentId', '==', momentId)
+      .where('isPending', '==', true)
       .get();
+    const legacyPendingDocs = legacyPendingSnap.docs.filter(doc => doc.id !== reactionNotificationId);
+    if (legacyPendingDocs.length > 0) {
+      const cleanupBatch = admin.firestore().batch();
+      legacyPendingDocs.forEach(doc => cleanupBatch.delete(doc.ref));
+      await cleanupBatch.commit();
+    }
 
-    // Eliminar todas las notificaciones de reacción para este momento
-    const deletePromises = notificationsSnapshot.docs.map(doc => doc.ref.delete());
-    await Promise.all(deletePromises);
+    const currentPendingCount = Math.max(1, Number(reactionNotificationData.reactionCount || 1));
 
-    console.log(`🗑️ Eliminadas ${notificationsSnapshot.size} notificaciones de reacción para momento ${momentId}`);
+    const momentAfterUpdateSnap = await momentRef.get();
+    const totalReactionCount = Math.max(0, Number(momentAfterUpdateSnap.get('reactionCount') || 0));
 
-    // ✅ SI QUEDAN REACCIONES, CREAR NUEVA NOTIFICACIÓN AGRUPADA
-    const remainingReactionsSnapshot = await admin.firestore()
-      .collection(`users/${userId}/moments/${momentId}/reactions`)
-      .get();
+    if (totalReactionCount === 0) {
+      await reactionNotificationRef.delete();
+      console.log(`🗑️ Eliminada notificación agregada de reacción para momento ${momentId}`);
+      return null;
+    }
 
-    if (remainingReactionsSnapshot.size > 0) {
-      // Obtener datos de la primera reacción restante
-      const firstReaction = remainingReactionsSnapshot.docs[0].data();
-      const reacterDoc = await admin.firestore().doc(`users/${firstReaction.userId}`).get();
+    const updatePayload = {
+      reactionCount: totalReactionCount
+    };
 
-      if (reacterDoc.exists) {
-        const reacterData = reacterDoc.data();
+    // Si el actor visible era justo quien quitó la reacción, sustituimos por la reacción más reciente restante.
+    if (reactionNotificationData.senderId === removedByUserId) {
+      const remainingReactionsSnap = await admin.firestore()
+        .collection(`users/${userId}/moments/${momentId}/reactions`)
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .get();
 
-        // Crear nueva notificación agrupada
-        await admin.firestore().collection(`users/${userId}/notifications`).add({
-          type: 'reaction', // ✅ CORREGIDO: Para reacciones en momentos
-          senderId: firstReaction.userId,
-          senderUsername: reacterData.username,
-          senderProfileImage: reacterData.profileImagePath || '',
-          momentId: momentId,
-          reactionCount: remainingReactionsSnapshot.size,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          isPending: true
-        });
+      if (remainingReactionsSnap.empty) {
+        await reactionNotificationRef.delete();
+        console.log(`🗑️ Eliminada notificación agregada: no quedan reacciones para ${momentId}`);
+        return null;
+      }
 
-        console.log(`✅ Nueva notificación agrupada creada para ${remainingReactionsSnapshot.size} reacciones restantes`);
+      const remainingReaction = remainingReactionsSnap.docs[0].data() || {};
+      const replacementSenderId = remainingReaction.userId || reactionNotificationData.senderId;
+      let replacementSenderUsername = reactionNotificationData.senderUsername || 'Alguien';
+      let replacementSenderProfileImage = reactionNotificationData.senderProfileImage || '';
+
+      if (replacementSenderId) {
+        const replacementSenderDoc = await admin.firestore().doc(`users/${replacementSenderId}`).get();
+        if (replacementSenderDoc.exists) {
+          const replacementSenderData = replacementSenderDoc.data() || {};
+          replacementSenderUsername = replacementSenderData.username || replacementSenderUsername;
+          replacementSenderProfileImage = replacementSenderData.profileImagePath || replacementSenderProfileImage;
+        }
+      }
+
+      updatePayload.senderId = replacementSenderId;
+      updatePayload.senderUsername = replacementSenderUsername;
+      updatePayload.senderProfileImage = replacementSenderProfileImage;
+      updatePayload.reactionType = remainingReaction.reactionType || reactionNotificationData.reactionType || '';
+      const replacementTimestamp = remainingReaction.timestamp || null;
+      if (replacementTimestamp) {
+        updatePayload.timestamp = replacementTimestamp;
       }
     }
+
+    await reactionNotificationRef.set(updatePayload, { merge: true });
+    console.log(`✅ Actualizada notificación agregada de reacción para ${momentId}: ${currentPendingCount} -> ${totalReactionCount}`);
 
   } catch (error) {
     console.error('❌ Error handling moment reaction removal:', error);
@@ -1816,8 +2608,8 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
     }
 
     // Obtener FCM token del creador de la cadena
-    const fcmToken = chainCreatorData.fcmToken;
-    if (!fcmToken) return null;
+    const fcmToken = chainCreatorData.fcmToken || null;
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(chainCreatorData);
 
     // Limpiar URL de imagen
     const cleanImageUrl = continuerData.profileImagePath
@@ -1834,6 +2626,14 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       return false;
     });
     if (alreadyProcessed) return null;
+
+    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(chainCreatorData, {
+      senderId: story.authorId,
+      candidateTexts: [story.chainTitle]
+    });
+    if (isSilencedByMuteSettings) {
+      return null;
+    }
 
     // Obtener todas las historias de la cadena para contar partes
     const chainStoriesSnapshot = await admin.firestore()
@@ -1911,14 +2711,16 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       }
     };
 
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación de Story Chain enviada: ${username} -> ${chainCreatorData.username} (${story.chainTitle}) - Parte ${story.chainPosition}/${totalParts}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
+    if (shouldSendPush) {
+      try {
+        await admin.messaging().send(message);
+        console.log(`✅ Notificación de Story Chain enviada: ${username} -> ${chainCreatorData.username} (${story.chainTitle}) - Parte ${story.chainPosition}/${totalParts}`);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(userId, fcmToken);
+        }
+        throw error;
       }
-      throw error;
     }
 
     // Crear notificación en Firestore
@@ -1990,7 +2792,17 @@ exports.onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
       if (!userDoc.exists) return null;
 
       const userData = userDoc.data();
-      if (!validateUserData(userData) || !userData.fcmToken) return null;
+      if (!validateUserData(userData)) return null;
+
+      const isSilencedByMuteSettings = shouldSilenceNotificationForUser(userData, {
+        senderId: hostId,
+        candidateTexts: [echo.title, echo.topic, hostData.username]
+      });
+      if (isSilencedByMuteSettings) {
+        return null;
+      }
+
+      const shouldSendPush = Boolean(userData.fcmToken) && !isDoNotDisturbActive(userData);
 
       // ✅ Obtener conteos actualizados para este receptor (CON CONTEXTO PARA EVITAR RACE CONDITION)
       const counts = await getUnreadCounts(recipientId, { type: 'notification', notificationType: 'echoSuggestion' });
@@ -2032,13 +2844,15 @@ exports.onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
         }
       };
 
-      try {
-        await admin.messaging().send(message);
-      } catch (error) {
-        if (error.code === 'messaging/registration-token-not-registered') {
-          await removeInvalidToken(recipientId, userData.fcmToken);
+      if (shouldSendPush) {
+        try {
+          await admin.messaging().send(message);
+        } catch (error) {
+          if (error.code === 'messaging/registration-token-not-registered') {
+            await removeInvalidToken(recipientId, userData.fcmToken);
+          }
+          console.error(`❌ Error enviando FCM de Echo a ${recipientId}:`, error);
         }
-        console.error(`❌ Error enviando FCM de Echo a ${recipientId}:`, error);
       }
 
       // 3. Crear notificación en Firestore
@@ -2787,6 +3601,423 @@ exports.getReactedMomentsPage = onRequest(
 );
 
 /**
+ * 😊 getStickerRepliesPage — Returns viewer sticker interactions:
+ * - poll votes (with selected option text)
+ * - question responses (with question + response text)
+ *
+ * POST body: { cursor?: { timestamp: number }, limit?: number }
+ */
+exports.getStickerRepliesPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 80)) : 40;
+    const cursorTimestamp = Number(body?.cursor?.timestamp || 0);
+    const db = admin.firestore();
+
+    const parseStoryPath = (path) => {
+      const parts = String(path || '').split('/');
+      if (parts.length >= 6 && parts[0] === 'users' && parts[2] === 'stories') {
+        return { authorId: parts[1], storyId: parts[3] };
+      }
+      return null;
+    };
+
+    try {
+      const scanLimit = Math.max(limit * 6, 120);
+      const viewerSnap = await db.collection('users').doc(uid).get();
+      const viewerData = viewerSnap.exists ? (viewerSnap.data() || {}) : {};
+      const actorUsername = typeof viewerData.username === 'string' ? viewerData.username : null;
+      const actorProfileImagePath = typeof viewerData.profileImagePath === 'string' ? viewerData.profileImagePath : null;
+
+      let pollQuery = db.collectionGroup('pollVotes')
+        .where('userId', '==', uid)
+        .orderBy('timestamp', 'desc');
+
+      let questionQuery = db.collectionGroup('questionResponses')
+        .where('userId', '==', uid)
+        .orderBy('timestamp', 'desc');
+
+      if (Number.isFinite(cursorTimestamp) && cursorTimestamp > 0) {
+        const cursorTs = admin.firestore.Timestamp.fromMillis(cursorTimestamp);
+        pollQuery = pollQuery.startAfter(cursorTs);
+        questionQuery = questionQuery.startAfter(cursorTs);
+      }
+
+      const [pollSnap, questionSnap] = await Promise.all([
+        pollQuery.limit(scanLimit).get(),
+        questionQuery.limit(scanLimit).get()
+      ]);
+
+      const pollCandidates = [];
+      const questionCandidates = [];
+      const metadataKeys = new Set();
+
+      for (const doc of pollSnap.docs) {
+        const pathInfo = parseStoryPath(doc.ref.path);
+        if (!pathInfo) continue;
+
+        const data = doc.data() || {};
+        const timestampMs = tsToMillis(data.timestamp);
+        if (!timestampMs) continue;
+
+        const option = Number.isInteger(data.option) ? data.option : null;
+        pollCandidates.push({
+          id: doc.id,
+          kind: 'poll',
+          authorId: pathInfo.authorId,
+          storyId: pathInfo.storyId,
+          timestampMs,
+          option
+        });
+        metadataKeys.add(`poll:${pathInfo.authorId}:${pathInfo.storyId}`);
+      }
+
+      for (const doc of questionSnap.docs) {
+        const pathInfo = parseStoryPath(doc.ref.path);
+        if (!pathInfo) continue;
+        if (doc.id === 'metadata') continue;
+
+        const data = doc.data() || {};
+        const timestampMs = tsToMillis(data.timestamp);
+        if (!timestampMs) continue;
+
+        questionCandidates.push({
+          id: doc.id,
+          kind: 'question',
+          authorId: pathInfo.authorId,
+          storyId: pathInfo.storyId,
+          timestampMs,
+          responseText: typeof data.response === 'string' ? data.response : ''
+        });
+        metadataKeys.add(`question:${pathInfo.authorId}:${pathInfo.storyId}`);
+      }
+
+      const merged = [...pollCandidates, ...questionCandidates].sort((a, b) => {
+        if (a.timestampMs !== b.timestampMs) return b.timestampMs - a.timestampMs;
+        return String(b.id).localeCompare(String(a.id));
+      });
+
+      if (merged.length === 0) {
+        res.status(200).json({
+          items: [],
+          nextCursor: null,
+          source: 'backend',
+          totalCandidates: 0
+        });
+        return;
+      }
+
+      const metadataMap = new Map();
+      const metadataRefs = [];
+      const storyMap = new Map();
+      for (const key of metadataKeys) {
+        const [kind, authorId, storyId] = key.split(':');
+        if (kind === 'poll') {
+          metadataRefs.push({
+            key,
+            ref: db.doc(`users/${authorId}/stories/${storyId}/pollVotes/metadata`)
+          });
+        } else if (kind === 'question') {
+          metadataRefs.push({
+            key,
+            ref: db.doc(`users/${authorId}/stories/${storyId}/questionResponses/metadata`)
+          });
+        }
+      }
+
+      for (let i = 0; i < metadataRefs.length; i += 100) {
+        const chunk = metadataRefs.slice(i, i + 100);
+        if (chunk.length === 0) continue;
+        const docs = await db.getAll(...chunk.map(c => c.ref));
+        for (let j = 0; j < docs.length; j += 1) {
+          const source = chunk[j];
+          const snap = docs[j];
+          metadataMap.set(source.key, snap.exists ? (snap.data() || {}) : {});
+        }
+      }
+
+      // Story-level fallback: some polls/questions keep their text inside story stickers.
+      const uniqueStories = new Map(); // storyKey -> ref
+      for (const candidate of merged) {
+        const storyKey = `${candidate.authorId}:${candidate.storyId}`;
+        if (!uniqueStories.has(storyKey)) {
+          uniqueStories.set(storyKey, db.doc(`users/${candidate.authorId}/stories/${candidate.storyId}`));
+        }
+      }
+
+      const storyEntries = [...uniqueStories.entries()];
+      for (let i = 0; i < storyEntries.length; i += 100) {
+        const chunk = storyEntries.slice(i, i + 100);
+        if (chunk.length === 0) continue;
+        const docs = await db.getAll(...chunk.map(([, ref]) => ref));
+        for (let j = 0; j < docs.length; j += 1) {
+          const [storyKey] = chunk[j];
+          const snap = docs[j];
+          storyMap.set(storyKey, snap.exists ? (snap.data() || {}) : {});
+        }
+      }
+
+      const firstPollArrayFromStory = (storyData) => {
+        if (!storyData || typeof storyData !== 'object') return [];
+        const stickerContainers = [];
+        if (Array.isArray(storyData.stickers)) stickerContainers.push(...storyData.stickers);
+        if (Array.isArray(storyData.stickerData)) stickerContainers.push(...storyData.stickerData);
+
+        for (const sticker of stickerContainers) {
+          if (!sticker || typeof sticker !== 'object') continue;
+          const interactionData = sticker.interactionData && typeof sticker.interactionData === 'object'
+            ? sticker.interactionData
+            : {};
+          const directPollData = Array.isArray(sticker.pollData) ? sticker.pollData : null;
+          const directPollOptions = Array.isArray(sticker.pollOptions) ? sticker.pollOptions : null;
+          const interactionPollData = Array.isArray(interactionData.pollData) ? interactionData.pollData : null;
+          const interactionPollOptions = Array.isArray(interactionData.pollOptions) ? interactionData.pollOptions : null;
+          const anyPollArray = interactionPollData || interactionPollOptions || directPollData || directPollOptions;
+          if (anyPollArray && anyPollArray.length > 0) return anyPollArray;
+        }
+        return [];
+      };
+
+      const firstQuestionTextFromStory = (storyData) => {
+        if (!storyData || typeof storyData !== 'object') return null;
+        const stickerContainers = [];
+        if (Array.isArray(storyData.stickers)) stickerContainers.push(...storyData.stickers);
+        if (Array.isArray(storyData.stickerData)) stickerContainers.push(...storyData.stickerData);
+
+        for (const sticker of stickerContainers) {
+          if (!sticker || typeof sticker !== 'object') continue;
+          const interactionData = sticker.interactionData && typeof sticker.interactionData === 'object'
+            ? sticker.interactionData
+            : {};
+          const directQuestionText = typeof sticker.questionText === 'string' ? sticker.questionText : null;
+          const interactionQuestionText = typeof interactionData.questionText === 'string' ? interactionData.questionText : null;
+          const value = interactionQuestionText || directQuestionText;
+          if (value && value.trim()) return value;
+        }
+        return null;
+      };
+
+      const items = [];
+      for (const candidate of merged) {
+        const storyKey = `${candidate.authorId}:${candidate.storyId}`;
+        const storyData = storyMap.get(storyKey) || {};
+        const targetUsername = typeof storyData.username === 'string' ? storyData.username : null;
+
+        if (candidate.kind === 'poll') {
+          const key = `poll:${candidate.authorId}:${candidate.storyId}`;
+          const metadata = metadataMap.get(key) || {};
+          const pollData = Array.isArray(metadata.pollData) ? metadata.pollData : [];
+          const storyPollData = firstPollArrayFromStory(storyData);
+
+          let optionText = '';
+          if (Number.isInteger(candidate.option) && candidate.option >= 0) {
+            const metadataRaw = pollData[candidate.option + 1];
+            const storyRaw = storyPollData[candidate.option + 1];
+            const storyRawNoQuestion = storyPollData[candidate.option];
+            if (typeof metadataRaw === 'string' && metadataRaw.trim()) optionText = metadataRaw;
+            else if (typeof storyRaw === 'string' && storyRaw.trim()) optionText = storyRaw;
+            else if (typeof storyRawNoQuestion === 'string' && storyRawNoQuestion.trim()) optionText = storyRawNoQuestion;
+          }
+
+          items.push({
+            id: `${candidate.authorId}_${candidate.storyId}_${candidate.id}`,
+            sourceId: candidate.id,
+            kind: 'poll',
+            authorId: candidate.authorId,
+            storyId: candidate.storyId,
+            targetUsername,
+            actorId: uid,
+            actorUsername,
+            actorProfileImagePath,
+            timestamp: candidate.timestampMs,
+            pollOption: Number.isInteger(candidate.option) ? candidate.option : null,
+            pollOptionText: optionText || null,
+            questionText: null,
+            responseText: null
+          });
+        } else {
+          const key = `question:${candidate.authorId}:${candidate.storyId}`;
+          const metadata = metadataMap.get(key) || {};
+          const metadataQuestionText = typeof metadata.questionText === 'string' ? metadata.questionText : null;
+          const storyQuestionText = firstQuestionTextFromStory(storyData);
+          const questionText = metadataQuestionText || storyQuestionText;
+
+          items.push({
+            id: `${candidate.authorId}_${candidate.storyId}_${candidate.id}`,
+            sourceId: candidate.id,
+            kind: 'question',
+            authorId: candidate.authorId,
+            storyId: candidate.storyId,
+            targetUsername,
+            actorId: uid,
+            actorUsername,
+            actorProfileImagePath,
+            timestamp: candidate.timestampMs,
+            pollOption: null,
+            pollOptionText: null,
+            questionText,
+            responseText: candidate.responseText || null
+          });
+        }
+
+        if (items.length >= limit) break;
+      }
+
+      let nextCursor = null;
+      const hasMoreScanned = pollSnap.size >= scanLimit || questionSnap.size >= scanLimit;
+      if (hasMoreScanned) {
+        const lastPollTs = pollSnap.size > 0 ? tsToMillis(pollSnap.docs[pollSnap.docs.length - 1].data().timestamp) : null;
+        const lastQuestionTs = questionSnap.size > 0 ? tsToMillis(questionSnap.docs[questionSnap.docs.length - 1].data().timestamp) : null;
+        const minTs = [lastPollTs, lastQuestionTs]
+          .filter((v) => Number.isFinite(v) && v > 0)
+          .reduce((acc, v) => Math.min(acc, v), Number.POSITIVE_INFINITY);
+        if (Number.isFinite(minTs) && minTs > 0) {
+          nextCursor = { timestamp: minTs };
+        }
+      }
+
+      console.log(`✅ getStickerRepliesPage: uid=${uid}, poll=${pollCandidates.length}, question=${questionCandidates.length}, returned=${items.length}`);
+      res.status(200).json({
+        items,
+        nextCursor,
+        source: 'backend',
+        totalCandidates: merged.length
+      });
+    } catch (error) {
+      console.error('❌ getStickerRepliesPage error:', error);
+      res.status(500).json({ error: 'Sticker replies fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 🏷️ getTaggedMomentsPage — Returns moments where viewer is tagged.
+ *
+ * Rule: if viewer is tagged in a moment, canView is true regardless of audience.
+ *
+ * POST body: { cursor?: { timestamp: number }, limit?: number }
+ * Response:  {
+ *   items: [{ moment, taggedAt, authorId, momentId, canView }],
+ *   nextCursor,
+ *   source,
+ *   totalCandidates
+ * }
+ */
+exports.getTaggedMomentsPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 60)) : 30;
+    const cursorTimestamp = Number(body?.cursor?.timestamp || 0);
+
+    const db = admin.firestore();
+
+    try {
+      let query = db.collectionGroup('moments')
+        .where('taggedUsers', 'array-contains', uid)
+        .orderBy('timestamp', 'desc');
+
+      if (Number.isFinite(cursorTimestamp) && cursorTimestamp > 0) {
+        query = query.startAfter(admin.firestore.Timestamp.fromMillis(cursorTimestamp));
+      }
+
+      const snap = await query.limit(limit).get();
+
+      if (snap.empty) {
+        res.status(200).json({
+          items: [],
+          nextCursor: null,
+          source: 'backend',
+          totalCandidates: 0
+        });
+        return;
+      }
+
+      const items = [];
+      for (const doc of snap.docs) {
+        const pathParts = doc.ref.path.split('/');
+        if (pathParts.length < 4 || pathParts[0] !== 'users' || pathParts[2] !== 'moments') {
+          continue;
+        }
+
+        const authorId = pathParts[1];
+        const momentId = pathParts[3];
+        const momentData = doc.data() || {};
+        const taggedUsers = Array.isArray(momentData.taggedUsers) ? momentData.taggedUsers : [];
+        const canView = taggedUsers.includes(uid);
+        if (!canView) continue;
+
+        items.push({
+          moment: serializeMoment(doc.id, momentData),
+          taggedAt: tsToMillis(momentData.timestamp),
+          authorId,
+          momentId,
+          canView: true
+        });
+      }
+
+      let nextCursor = null;
+      if (snap.size >= limit) {
+        const lastDoc = snap.docs[snap.docs.length - 1];
+        const lastTs = tsToMillis(lastDoc.data().timestamp);
+        if (lastTs) {
+          nextCursor = { timestamp: lastTs };
+        }
+      }
+
+      console.log(`✅ getTaggedMomentsPage: uid=${uid}, scanned=${snap.size}, returned=${items.length}`);
+
+      res.status(200).json({
+        items,
+        nextCursor,
+        source: 'backend',
+        totalCandidates: items.length
+      });
+    } catch (error) {
+      console.error('❌ getTaggedMomentsPage error:', error);
+      res.status(500).json({ error: 'Tagged moments fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
  * 💬 getCommentedMomentsPage — Returns moments where viewer has commented.
  *
  * POST body: { cursor?: { timestamp: number }, limit?: number }
@@ -3124,6 +4355,223 @@ exports.deleteMyCommentsBatch = onRequest(
     } catch (error) {
       console.error('❌ deleteMyCommentsBatch error:', error);
       res.status(500).json({ error: 'Delete comments batch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 🏷️ removeMyTagsBatch — Removes the viewer from tagged moments in batch.
+ *
+ * POST body: { moments: [{ authorId, momentId }] }
+ */
+exports.removeMyTagsBatch = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 20
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawMoments = Array.isArray(body.moments) ? body.moments : [];
+    if (rawMoments.length === 0) {
+      res.status(400).json({ error: 'No moments provided' });
+      return;
+    }
+
+    const targets = rawMoments
+      .map((item) => ({
+        authorId: typeof item?.authorId === 'string' ? item.authorId.trim() : '',
+        momentId: typeof item?.momentId === 'string' ? item.momentId.trim() : ''
+      }))
+      .filter((item) => item.authorId && item.momentId);
+
+    if (targets.length === 0) {
+      res.status(400).json({ error: 'Invalid moments payload' });
+      return;
+    }
+
+    const db = admin.firestore();
+    let updated = 0;
+    let skipped = 0;
+
+    try {
+      for (let i = 0; i < targets.length; i += 100) {
+        const chunk = targets.slice(i, i + 100);
+        if (chunk.length === 0) continue;
+
+        const refs = chunk.map((target) => db.doc(`users/${target.authorId}/moments/${target.momentId}`));
+        const docs = await db.getAll(...refs);
+        const batch = db.batch();
+
+        for (let j = 0; j < docs.length; j += 1) {
+          const doc = docs[j];
+          if (!doc.exists) {
+            skipped += 1;
+            continue;
+          }
+
+          const data = doc.data() || {};
+          const taggedUsers = Array.isArray(data.taggedUsers) ? data.taggedUsers : [];
+          if (!taggedUsers.includes(uid)) {
+            skipped += 1;
+            continue;
+          }
+
+          const nextTaggedUsers = taggedUsers.filter((id) => id !== uid);
+
+          // Best effort: also remove tag entries in mediaItems.tags where userId/taggedUserId == uid.
+          const mediaItems = Array.isArray(data.mediaItems) ? data.mediaItems : [];
+          const nextMediaItems = mediaItems.map((mediaItem) => {
+            if (!mediaItem || typeof mediaItem !== 'object') return mediaItem;
+            const mediaTags = Array.isArray(mediaItem.tags) ? mediaItem.tags : null;
+            if (!mediaTags) return mediaItem;
+            const filteredTags = mediaTags.filter((tag) => {
+              if (!tag || typeof tag !== 'object') return true;
+              const tagUserId = typeof tag.userId === 'string' ? tag.userId : '';
+              const taggedUserId = typeof tag.taggedUserId === 'string' ? tag.taggedUserId : '';
+              return tagUserId !== uid && taggedUserId !== uid;
+            });
+            return {
+              ...mediaItem,
+              tags: filteredTags
+            };
+          });
+
+          batch.update(doc.ref, {
+            taggedUsers: nextTaggedUsers,
+            mediaItems: nextMediaItems
+          });
+          updated += 1;
+        }
+
+        await batch.commit();
+      }
+
+      console.log(`✅ removeMyTagsBatch: uid=${uid}, updated=${updated}, skipped=${skipped}`);
+      res.status(200).json({ updated, skipped });
+    } catch (error) {
+      console.error('❌ removeMyTagsBatch error:', error);
+      res.status(500).json({ error: 'Remove tags batch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 🧹 removeMyStickerRepliesBatch — Deletes viewer's sticker replies (poll votes + question replies).
+ *
+ * POST body: { replies: [{ kind: "poll"|"question", authorId, storyId, sourceId? }] }
+ */
+exports.removeMyStickerRepliesBatch = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 20
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawReplies = Array.isArray(body.replies) ? body.replies : [];
+    const trimmed = rawReplies.slice(0, 80);
+    const db = admin.firestore();
+
+    try {
+      const unique = new Map();
+      for (const item of trimmed) {
+        const kind = typeof item?.kind === 'string' ? item.kind.trim().toLowerCase() : '';
+        const authorId = typeof item?.authorId === 'string' ? item.authorId.trim() : '';
+        const storyId = typeof item?.storyId === 'string' ? item.storyId.trim() : '';
+        const sourceId = typeof item?.sourceId === 'string' ? item.sourceId.trim() : '';
+        if (!kind || !authorId || !storyId) continue;
+        if (kind !== 'poll' && kind !== 'question') continue;
+        const key = `${kind}_${authorId}_${storyId}_${sourceId}`;
+        if (!unique.has(key)) {
+          unique.set(key, { kind, authorId, storyId, sourceId });
+        }
+      }
+
+      const targets = [...unique.values()];
+      if (targets.length === 0) {
+        res.status(200).json({ deleted: 0, skipped: 0 });
+        return;
+      }
+
+      const batch = db.batch();
+      let deleted = 0;
+      let skipped = 0;
+
+      for (const target of targets) {
+        if (target.kind === 'poll') {
+          const ref = db.doc(`users/${target.authorId}/stories/${target.storyId}/pollVotes/${uid}`);
+          const snap = await ref.get();
+          if (!snap.exists) {
+            skipped += 1;
+            continue;
+          }
+          const data = snap.data() || {};
+          if (data.userId !== uid) {
+            skipped += 1;
+            continue;
+          }
+          batch.delete(ref);
+          deleted += 1;
+          continue;
+        }
+
+        if (target.kind === 'question') {
+          if (!target.sourceId) {
+            skipped += 1;
+            continue;
+          }
+          const ref = db.doc(`users/${target.authorId}/stories/${target.storyId}/questionResponses/${target.sourceId}`);
+          const snap = await ref.get();
+          if (!snap.exists) {
+            skipped += 1;
+            continue;
+          }
+          const data = snap.data() || {};
+          if (data.userId !== uid) {
+            skipped += 1;
+            continue;
+          }
+          batch.delete(ref);
+          deleted += 1;
+        }
+      }
+
+      if (deleted > 0) {
+        await batch.commit();
+      }
+
+      console.log(`✅ removeMyStickerRepliesBatch: uid=${uid}, deleted=${deleted}, skipped=${skipped}`);
+      res.status(200).json({ deleted, skipped });
+    } catch (error) {
+      console.error('❌ removeMyStickerRepliesBatch error:', error);
+      res.status(500).json({ error: 'Remove sticker replies batch failed', details: error.message });
     }
   }
 );

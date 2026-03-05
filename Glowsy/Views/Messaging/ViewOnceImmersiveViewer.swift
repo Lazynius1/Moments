@@ -146,30 +146,34 @@ struct ViewOnceImmersiveViewer: View {
     // MARK: - Content Views
     
     private var imageContent: some View {
-        KFImage(URL(string: message.mediaUrl ?? ""))
-            .resizable()
-            .scaledToFill() // ✅ Fill screen like stories
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
+        ScreenshotProtectedView(isProtected: true) {
+            KFImage(URL(string: message.mediaUrl ?? ""))
+                .resizable()
+                .scaledToFill() // ✅ Fill screen like stories
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+        }
     }
     
     private var videoContent: some View {
         Group {
             if let urlString = message.mediaUrl, let url = URL(string: urlString) {
-                MomentsVideoPlayer(
-                    url: url,
-                    isLooping: true,
-                    isPaused: isPaused, // ✅ Pass pause state
-                    videoGravity: .resizeAspectFill, // ✅ Fill screen like stories
-                    onDurationReceived: { dur in
-                        self.duration = dur
-                    },
-                    onProgressUpdate: { current in
-                        if !isPaused {
-                            self.progress = current
+                ScreenshotProtectedView(isProtected: true) {
+                    MomentsVideoPlayer(
+                        url: url,
+                        isLooping: true,
+                        isPaused: isPaused, // ✅ Pass pause state
+                        videoGravity: .resizeAspectFill, // ✅ Fill screen like stories
+                        onDurationReceived: { dur in
+                            self.duration = dur
+                        },
+                        onProgressUpdate: { current in
+                            if !isPaused {
+                                self.progress = current
+                            }
                         }
-                    }
-                )
+                    )
+                }
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "video.slash")

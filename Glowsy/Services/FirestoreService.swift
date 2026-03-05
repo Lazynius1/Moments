@@ -1214,9 +1214,51 @@ class FirestoreService: ObservableObject {
                         return nil
                     }
                 }
-                
-                completion(.success(users))
+
+                self.applySearchMuteFilterIfNeeded(users: users) { filteredUsers in
+                    completion(.success(Array(filteredUsers.prefix(max(1, limit)))))
+                }
             }
+    }
+
+    private func applySearchMuteFilterIfNeeded(users: [AppUser], completion: @escaping ([AppUser]) -> Void) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion(users)
+            return
+        }
+
+        db.collection("users").document(currentUserId).getDocument { snapshot, _ in
+            guard
+                let muteSettings = snapshot?.data()?["muteSettings"] as? [String: Any],
+                let hideFromSearch = muteSettings["hideFromSearch"] as? Bool,
+                hideFromSearch
+            else {
+                completion(users)
+                return
+            }
+
+            let mutedUsers = Set((muteSettings["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
+            guard !mutedUsers.isEmpty else {
+                completion(users)
+                return
+            }
+
+            completion(users.filter { !mutedUsers.contains($0.id) })
+        }
+    }
+
+    func fetchMutedUserIds(userId: String, completion: @escaping (Set<String>) -> Void) {
+        guard !userId.isEmpty else {
+            completion([])
+            return
+        }
+
+        db.collection("users").document(userId).getDocument { snapshot, _ in
+            let muteSettings = snapshot?.data()?["muteSettings"] as? [String: Any]
+            let mutedUsers = (muteSettings?["mutedUsers"] as? [String] ?? [])
+                .filter { !$0.isEmpty }
+            completion(Set(mutedUsers))
+        }
     }
     
     func fetchUsers(userIds: [String], completion: @escaping (Result<[AppUser], Error>) -> Void) {
@@ -1882,8 +1924,10 @@ class FirestoreService: ObservableObject {
                 let users = snapshot?.documents.compactMap { doc -> AppUser? in
                     try? doc.data(as: AppUser.self)
                 }.filter { $0.id != currentUserId } ?? []
-                
-                completion(.success(users))
+
+                self.applySearchMuteFilterIfNeeded(users: users) { filteredUsers in
+                    completion(.success(filteredUsers))
+                }
             }
     }
     
@@ -2898,9 +2942,11 @@ class FirestoreService: ObservableObject {
 
     func updateActiveHours(userId: String, startHour: String, endHour: String, completion: @escaping (Error?) -> Void) {
         let userRef = db.collection("users").document(userId)
+        let timezoneIdentifier = TimeZone.current.identifier
         userRef.updateData([
             "activeHoursStart": startHour,
-            "activeHoursEnd": endHour
+            "activeHoursEnd": endHour,
+            "notificationTimeZone": timezoneIdentifier
         ]) { error in
             completion(error)
         }

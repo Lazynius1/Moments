@@ -63,8 +63,10 @@ struct EchoViewerUI: View {
                                 guard viewModel.isEchoActive else { return }
                                 let threshold: CGFloat = 50
                                 if value.translation.height < -threshold {
+                                    HapticManager.shared.selection()
                                     viewModel.switchVerticalIndex(to: viewModel.currentVerticalIndex + 1)
                                 } else if value.translation.height > threshold {
+                                    HapticManager.shared.selection()
                                     viewModel.switchVerticalIndex(to: viewModel.currentVerticalIndex - 1)
                                 }
                                 dragOffset = 0
@@ -222,46 +224,75 @@ struct EchoViewerUI: View {
     }
     
     private func headerUI() -> some View {
-        HStack(spacing: 4) {
-            // Segmented Progress Bar for Perspectives (Horizontal only now)
+        VStack(spacing: 10) {
             if !viewModel.groupedPerspectives.isEmpty {
                 HStack(spacing: 4) {
                     ForEach(0..<viewModel.groupedPerspectives.count, id: \.self) { index in
                         Capsule()
-                            .fill(index <= viewModel.currentPerspectiveIndex ? Color.white : Color.white.opacity(0.3))
-                            .frame(height: 3)
+                            .fill(index < viewModel.currentPerspectiveIndex ? Color.white : Color.white.opacity(0.28))
+                            .frame(height: 2.8)
+                            .overlay(alignment: .leading) {
+                                if index == viewModel.currentPerspectiveIndex {
+                                    Capsule()
+                                        .fill(Color.white)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
                     }
                 }
-                .padding(.horizontal, 16)
-                .animation(.spring(), value: viewModel.currentPerspectiveIndex)
+                .padding(.horizontal, 14)
+                .animation(.easeInOut(duration: 0.18), value: viewModel.currentPerspectiveIndex)
             }
             
-            Spacer()
-            
-            Menu {
-                if let uid = Auth.auth().currentUser?.uid {
-                    Button(role: .destructive) { leaveEchoAction(userId: uid) } label: {
-                        Label(NSLocalizedString("echo.viewer.leave", comment: ""), systemImage: "rectangle.portrait.and.arrow.right")
+            HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    if viewModel.currentPerspectiveIndex < viewModel.groupedPerspectives.count {
+                        let p = viewModel.groupedPerspectives[viewModel.currentPerspectiveIndex]
+                        AsyncProfileImageView(userId: p.authorId)
+                            .frame(width: 36, height: 36)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(p.username)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                            Text(relativeTimeText(from: viewModel.currentMoment?.timestamp))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.white.opacity(0.72))
+                        }
                     }
                 }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(8)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
+                .padding(.leading, 2)
+                
+                Spacer()
+                
+                Menu {
+                    if let uid = Auth.auth().currentUser?.uid {
+                        Button(role: .destructive) { leaveEchoAction(userId: uid) } label: {
+                            Label(NSLocalizedString("echo.viewer.leave", comment: ""), systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+                
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
             }
-            
-            Button { dismiss() } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(8)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-            }
-            .padding(.trailing, 16)
+            .padding(.horizontal, 16)
         }
     }
     
@@ -332,21 +363,32 @@ struct EchoViewerUI: View {
     private func perspectiveSwitcher(echo: Echo) -> some View {
         VStack(spacing: 12) {
             Text(NSLocalizedString("echo.viewer.perspective.change", comment: ""))
-                .font(.system(size: 12, weight: .bold)).foregroundColor(.white).textCase(.uppercase)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(.ultraThinMaterial).clipShape(Capsule())
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.white.opacity(0.9))
+                .textCase(.uppercase)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(0..<viewModel.groupedPerspectives.count, id: \.self) { index in
                         let p = viewModel.groupedPerspectives[index]
-                        Button { viewModel.switchPerspective(to: index) } label: {
+                        Button {
+                            guard index != viewModel.currentPerspectiveIndex else { return }
+                            HapticManager.shared.selection()
+                            viewModel.switchPerspective(to: index)
+                        } label: {
                             VStack(spacing: 6) {
                                 ZStack(alignment: .trailing) {
                                     AsyncProfileImageView(userId: p.authorId)
-                                        .frame(width: 50, height: 50).clipShape(Circle())
-                                        .overlay(Circle().stroke(viewModel.currentPerspectiveIndex == index ? Color.orange : Color.clear, lineWidth: 3))
-                                        .shadow(color: viewModel.currentPerspectiveIndex == index ? .orange.opacity(0.5) : .clear, radius: 8)
+                                        .frame(width: 52, height: 52)
+                                        .clipShape(Circle())
+                                        .overlay(Circle().stroke(viewModel.currentPerspectiveIndex == index ? Color.white : Color.white.opacity(0.22), lineWidth: viewModel.currentPerspectiveIndex == index ? 2.2 : 1))
+                                        .shadow(color: viewModel.currentPerspectiveIndex == index ? .white.opacity(0.35) : .clear, radius: 8)
+                                        .scaleEffect(viewModel.currentPerspectiveIndex == index ? 1.04 : 1.0)
+                                        .animation(.easeOut(duration: 0.18), value: viewModel.currentPerspectiveIndex)
                                     
                                     // Comentado para usar el lateral indicador, o dejarlo como "pista" visual sutil
                                     /*
@@ -365,15 +407,28 @@ struct EchoViewerUI: View {
                                 
                                 Text(p.username)
                                     .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(viewModel.currentPerspectiveIndex == index ? .white : .white.opacity(0.6))
+                                    .foregroundColor(viewModel.currentPerspectiveIndex == index ? .white : .white.opacity(0.66))
+                                    .lineLimit(1)
+                                    .frame(maxWidth: 72)
                             }
                         }
                     }
                 }
                 .padding(.horizontal, 20)
+                .padding(.vertical, 8)
             }
+            .scrollClipDisabled()
         }
-        .padding(.top, 20).padding(.bottom, 30).frame(maxWidth: .infinity)
+        .padding(.top, 18)
+        .padding(.bottom, 14)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func relativeTimeText(from date: Date?) -> String {
+        guard let date else { return "" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
     
     private func leaveEchoAction(userId: String) {
@@ -450,8 +505,7 @@ struct EchoViewerUI: View {
     }
     
     private func openInMaps(coordinate: Moment.LocationCoordinate, name: String?) {
-        let impact = UIImpactFeedbackGenerator(style: .light)
-        impact.impactOccurred()
+        HapticManager.shared.lightImpact()
         let placemark = MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude))
         let mapItem = MKMapItem(placemark: placemark)
         mapItem.name = name ?? "Ubicación del Echo"

@@ -180,8 +180,8 @@ class EchoViewModel: ObservableObject {
         isVideoPlaying = false
         
         // 🚀 Agregamos un pequeñísimo delay igual que en StoriesView para asegurar cleanup
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            withAnimation(.easeInOut(duration: 0.4)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+            withAnimation(.easeInOut(duration: 0.24)) {
                 self.currentPerspectiveIndex = index
                 self.currentVerticalIndex = 0 // ✅ Reset vertical index when changing person / Reset a 0
                 self.ripplePhase = 0
@@ -193,7 +193,7 @@ class EchoViewModel: ObservableObject {
             }
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             self.ripplePhase = 0
         }
     }
@@ -207,8 +207,8 @@ class EchoViewModel: ObservableObject {
         isVideoPlaying = false
         
         // 🚀 Delay sutil para que el player actual reciba el 'pause' antes de ser desmontado
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+            withAnimation(.easeOut(duration: 0.22)) {
                 self.currentVerticalIndex = index
                 
                 // 2. Solo activar video si el siguiente momento es un video

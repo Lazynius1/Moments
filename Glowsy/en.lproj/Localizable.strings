@@ -560,6 +560,8 @@
 "settings.profile.email" = "Email";
 "settings.profile.phone" = "Phone";
 "settings.schedule.save" = "Save schedule";
+"settings.schedule.saving" = "Saving...";
+"settings.schedule.saved" = "Schedule saved";
 "settings.onlineStatus.title" = "Online Status";
 "settings.onlineStatus.current" = "Current status: %@";
 "settings.onlineStatus.change" = "Change status";
@@ -994,6 +996,11 @@
 "feed.reels.tapToView" = "Tap to view";
 "feed.reels.badge" = "Reels";
 
+/* Screenshot Protection */
+"moment.private.screenshotMessage" = "This moment is private";
+
+
+
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
 "stickerview.yourStickers" = "Your Stickers";
@@ -1259,6 +1266,7 @@
 "savedMoments.remove.message.user" = "Do you want to remove %@'s moment from your saved?";
 "savedMoments.remove.message.generic" = "Do you want to remove this moment from your saved?";
 "savedMoments.remove.message.restricted" = "This moment is no longer available. Do you want to remove it from your collection?";
+"savedMoments.remove.message.muted" = "This moment is hidden because this account is muted. Do you want to remove it from your collection?";
 "savedMoments.cancel" = "Cancel";
 "savedMoments.remove.confirm" = "Remove";
 "savedMoments.saved" = "SAVED";
@@ -1394,6 +1402,8 @@
 "modernComments.editing" = "Editing comment";
 "modernComments.viewMoreReplies" = "View %d more reply(ies)";
 "modernComments.edited" = "(edited)";
+"modernComments.mutedWord.placeholder" = "Comment hidden due to muted word";
+"modernComments.mutedWord.reveal" = "Show temporarily";
 "modernComments.empty.title" = "No comments yet";
 "modernComments.empty.description" = "Be the first to comment on this moment";
 
@@ -1567,6 +1577,22 @@
 "userActivity.event.action.mentionUsed" = "You mentioned someone";
 "userActivity.event.action.reactionGiven" = "You reacted to a moment";
 "userActivity.event.action.stickerReply" = "You replied to a sticker";
+"userActivity.simple.stickers.actorFallback" = "User";
+"userActivity.simple.stickers.poll.title" = "%@ voted";
+"userActivity.simple.stickers.poll.action" = "voted";
+"userActivity.simple.stickers.poll.subtitle" = "You voted: %@";
+"userActivity.simple.stickers.poll.optionFallback" = "Option %d";
+"userActivity.simple.stickers.poll.subtitleFallback" = "You voted in a poll";
+"userActivity.simple.stickers.question.title" = "%@ replied";
+"userActivity.simple.stickers.question.action" = "replied";
+"userActivity.simple.stickers.question.subtitleFallback" = "You replied to a question";
+"userActivity.simple.stickers.poll.context" = "Poll by %@";
+"userActivity.simple.stickers.question.context" = "Question by %@";
+"userActivity.simple.stickers.poll.contextPrefix" = "Poll by";
+"userActivity.simple.stickers.question.contextPrefix" = "Question by";
+"userActivity.simple.stickers.selectedCount" = "%d selected";
+"userActivity.simple.stickers.delete.single" = "Delete reply";
+"userActivity.simple.stickers.delete.multiple" = "Delete replies";
 "userActivity.event.content.published" = "You published a moment";
 "userActivity.event.time.minutes" = "You spent %@ min in Moments";
 "userActivity.event.time.sessions" = "You opened Moments %@ times";
@@ -2039,22 +2065,33 @@
 "banner.verb.story" = "reacted to your story";
 "banner.verb.message" = "sent you a message";
 
-/* Whats New v2.5 */
+/* Whats New v2.6 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.5.0";
-"whatsNew.echoes.title" = "Your Friends First";
-"whatsNew.echoes.description" = "Your feed now prioritizes who matters most. Plus, it's faster and uses less battery.";
-"whatsNew.apple.title" = "Improved Chat";
-"whatsNew.apple.description" = "Faster videos, in-chat search, and clearer message statuses.";
+"whatsNew.subtitle" = "Version 2.6.0";
+"whatsNew.button" = "Explore Moments 2.6";
+
+/* Blackout feature */
+"whatsNew.blackout.title" = "Private Content is Now Protected";
+"whatsNew.blackout.description" = "Blackout protects any moment or story whose audience is not \"everyone\", as well as ephemeral media in chats. Screenshots of this screen will appear invisible. Try it now!";
+"whatsNew.blackout.demo.label" = "Try it! Take a screenshot now";
+"whatsNew.blackout.demo.instructions" = "Press the side button and both volume buttons at the same time";
+"whatsNew.blackout.demo.hint" = "This screen will be invisible in your gallery";
+
+/* Your Activity */
+"whatsNew.activity.title" = "Review Your Activity";
+"whatsNew.activity.description" = "A new section to manage your reactions, comments, and mentions in one single place.";
+
+/* Stories */
 "whatsNew.redesign.title" = "Clearer Stories";
-"whatsNew.redesign.description" = "Story rings now better show if you posted for Best Friends, Mutuals, or everyone.";
-"whatsNew.stories.prefix" = "Rings now show ";
-"whatsNew.stories.connector" = " or ";
-"whatsNew.stories.everyone" = "everyone";
-"whatsNew.stories.ending" = " at a glance.";
-"whatsNew.performance.title" = "Your Collection, Your Rules";
-"whatsNew.performance.description" = "Redesigned saved screen. You can now remove moments that are no longer available.";
-"whatsNew.button" = "Explore Moments 2.5";
+"whatsNew.stories.description" = "Story rings are now more consistent across the app, with better visual cues for Best Friends and Mutuals audiences.";
+
+/* Echoes */
+"whatsNew.echoes.title" = "Echoes, Reimagined";
+"whatsNew.echoes.description" = "Redesigned viewer and history for Echoes. Plus, clearer in-app explanation of how they work.";
+
+/* Settings redesign */
+"whatsNew.settings.title" = "A Cleaner Settings Menu";
+"whatsNew.settings.description" = "Settings has been fully redesigned to be more intuitive and easier to navigate.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
@@ -2337,6 +2374,10 @@
 "settings.group.advanced" = "ADVANCED SETTINGS";
 "savedMoments.restricted.title" = "No longer available";
 "savedMoments.restricted.subtitle" = "You no longer have access";
+"savedMoments.restricted.muted.title" = "Muted account";
+"savedMoments.restricted.muted.subtitle" = "You muted this account";
+"userActivity.restricted.mutedComment.title" = "Muted comment";
+"userActivity.restricted.mutedComment.subtitle" = "Contains a muted word";
 
 /* Profile UI Labels */
 "profile.ui.followers" = "Followers";
@@ -2404,8 +2445,11 @@
 "userActivity.simple.filters.author.sheet.title" = "Filter by user";
 "userActivity.simple.filters.author.search" = "Search username";
 "userActivity.simple.reactions.selectedCount" = "%d selected";
+"userActivity.simple.tags.selectedCount" = "%d selected";
 "userActivity.simple.reactions.delete.single" = "Delete reaction";
 "userActivity.simple.reactions.delete.multiple" = "Delete reactions";
+"userActivity.simple.tags.remove.single" = "Remove tag";
+"userActivity.simple.tags.remove.multiple" = "Remove tags";
 "userActivity.simple.comments.selectedCount" = "%d selected";
 "userActivity.simple.comments.delete.single" = "Delete comment";
 "userActivity.simple.comments.delete.multiple" = "Delete comments";
@@ -2445,3 +2489,6 @@
 "echo.info.privacy.body" = "Echo is created between mutuals, but it keeps who could view it at that time. If the relationship changes later, it remains visible; it only blurs when the moment audience (best friends or custom list) does not include you. Inside Echo, you see your moments and moments from participants who accepted.";
 "echo.info.controls.title" = "Controls";
 "echo.info.controls.body" = "Swipe up/down to change moments, use the bottom bar to switch perspectives, and the menu to leave the Echo. You cannot leave while the Echo is active: leaving unlocks when its 24 h window ends. If you leave, your moments are removed from that Echo.";
+
+"notifications.export.download" = "Download";
+"notifications.message.dataExportReady" = "Your data export is ready to download.";
