@@ -10,6 +10,9 @@ class PrivacyService {
     private var inFlightBlockChecks: [String: [(Bool) -> Void]] = [:]
     private var inFlightBestFriendChecks: [String: [(Bool) -> Void]] = [:]
     private var inFlightHiddenChecks: [String: [(Bool) -> Void]] = [:]
+    private let mutedUsersCacheQueue = DispatchQueue(label: "privacy.muted.cache", attributes: .concurrent)
+    private var mutedUsersCache: [String: (ids: Set<String>, updatedAt: Date)] = [:]
+    private let mutedUsersCacheTTL: TimeInterval = 20
 
     init() {
         db = Firestore.firestore()
@@ -1057,76 +1060,88 @@ extension PrivacyService {
             completion(false)
             return
         }
-        
-        
+
         // 1. Si es el autor, siempre puede verlo
         if moment.authorId == viewerId {
             completion(true)
             return
         }
 
-        // 1.5 Si está etiquetado, puede verlo
-        if let taggedUsers = moment.taggedUsers, taggedUsers.contains(viewerId) {
-            completion(true)
-            return
-        }
-        
-        // 2. Verificar bloqueos
-        checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
+        // 1.25 Si el autor está silenciado, ocultar momento en todas las superficies.
+        isAuthorMutedForViewer(viewerId: viewerId, authorId: moment.authorId) { [weak self] isMuted in
             guard let self = self else {
                 completion(false)
                 return
             }
-            
-            if isBlocked {
+
+            if isMuted {
                 completion(false)
                 return
             }
 
-            // 2.5 Verificar si el viewer está en "hiddenFromUsers" del autor
-            self.isViewerHiddenFromAuthorContent(authorId: moment.authorId, viewerId: viewerId) { isHidden in
-                if isHidden {
+            // 1.5 Si está etiquetado, puede verlo
+            if let taggedUsers = moment.taggedUsers, taggedUsers.contains(viewerId) {
+                completion(true)
+                return
+            }
+
+            // 2. Verificar bloqueos
+            self.checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
+                guard let self = self else {
                     completion(false)
                     return
                 }
-            
-                // 3. Verificar según la audiencia del momento
-                let audience = moment.audience ?? "everyone"
-                
-                switch audience {
-                case "everyone":
-                    self.canViewUserContentAfterBlockCheck(viewerId: viewerId, targetUserId: moment.authorId) { canView in
-                        completion(canView)
-                    }
-                    
-                case "connections":
-                    self.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
-                    
-                case "bestFriends":
-                    self.checkIfBestFriend(userId: moment.authorId, friendId: viewerId) { isBestFriend in
-                        completion(isBestFriend)
-                    }
-                    
-                case "custom":
-                    self.checkCustomAudience(
-                        contentType: "moment",
-                        contentId: momentId,
-                        authorId: moment.authorId,
-                        viewerId: viewerId
-                    ) { canView in
-                        completion(canView)
-                    }
-                    
-                case "customList":
-                    self.checkCustomListMembership(
-                        for: moment,
-                        viewerId: viewerId
-                    ) { isMember in
-                        completion(isMember)
-                    }
-                    
-                default:
+
+                if isBlocked {
                     completion(false)
+                    return
+                }
+
+                // 2.5 Verificar si el viewer está en "hiddenFromUsers" del autor
+                self.isViewerHiddenFromAuthorContent(authorId: moment.authorId, viewerId: viewerId) { isHidden in
+                    if isHidden {
+                        completion(false)
+                        return
+                    }
+
+                    // 3. Verificar según la audiencia del momento
+                    let audience = moment.audience ?? "everyone"
+
+                    switch audience {
+                    case "everyone":
+                        self.canViewUserContentAfterBlockCheck(viewerId: viewerId, targetUserId: moment.authorId) { canView in
+                            completion(canView)
+                        }
+
+                    case "connections":
+                        self.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
+
+                    case "bestFriends":
+                        self.checkIfBestFriend(userId: moment.authorId, friendId: viewerId) { isBestFriend in
+                            completion(isBestFriend)
+                        }
+
+                    case "custom":
+                        self.checkCustomAudience(
+                            contentType: "moment",
+                            contentId: momentId,
+                            authorId: moment.authorId,
+                            viewerId: viewerId
+                        ) { canView in
+                            completion(canView)
+                        }
+
+                    case "customList":
+                        self.checkCustomListMembership(
+                            for: moment,
+                            viewerId: viewerId
+                        ) { isMember in
+                            completion(isMember)
+                        }
+
+                    default:
+                        completion(false)
+                    }
                 }
             }
         }
@@ -1134,62 +1149,78 @@ extension PrivacyService {
     
     // MARK: - Actualizar canUserViewStory para soportar listas
     func canUserViewStoryEnhanced(_ story: Story, viewerId: String, completion: @escaping (Bool) -> Void) {
-        
+
         // 1. Si es el autor, siempre puede verla
         if story.authorId == viewerId {
             completion(true)
             return
         }
-        
-        // 2. Verificar bloqueos
-        checkMutualBlocks(viewerId: viewerId, targetUserId: story.authorId) { [weak self] isBlocked in
-            if isBlocked {
+
+        // 1.25 Si el autor está silenciado, ocultar historia.
+        isAuthorMutedForViewer(viewerId: viewerId, authorId: story.authorId) { [weak self] isMuted in
+            guard let self = self else {
+                completion(false)
+                return
+            }
+            if isMuted {
                 completion(false)
                 return
             }
 
-            self?.isViewerHiddenFromAuthorContent(authorId: story.authorId, viewerId: viewerId) { isHidden in
-                if isHidden {
+            // 2. Verificar bloqueos
+            self.checkMutualBlocks(viewerId: viewerId, targetUserId: story.authorId) { [weak self] isBlocked in
+                guard let self = self else {
                     completion(false)
                     return
                 }
-            
-                // 3. Verificar audiencia de la historia
-                let audience = story.audience ?? "everyone"
-                
-                switch audience {
-                case "everyone":
-                    self?.canViewUserContentAfterBlockCheck(viewerId: viewerId, targetUserId: story.authorId, completion: completion)
-                    
-                case "connections":
-                    self?.checkMutualConnection(user1: viewerId, user2: story.authorId, completion: completion)
-                    
-                case "bestFriends":
-                    self?.checkIfBestFriend(userId: story.authorId, friendId: viewerId, completion: completion)
-                    
-                case "custom":
-                    // Audiencia personalizada simple
-                    self?.checkCustomAudience(
-                        contentType: "story",
-                        contentId: story.id ?? "",
-                        authorId: story.authorId,
-                        viewerId: viewerId,
-                        completion: completion
-                    )
-                    
-                case "customList":
-                    // Nueva audiencia: lista personalizada reutilizable
-                    self?.checkCustomListMembership(
-                        for: story,
-                        viewerId: viewerId,
-                        completion: completion
-                    )
-                    
-                case "onlyMe":
+                if isBlocked {
                     completion(false)
-                    
-                default:
-                    completion(false)
+                    return
+                }
+
+                self.isViewerHiddenFromAuthorContent(authorId: story.authorId, viewerId: viewerId) { isHidden in
+                    if isHidden {
+                        completion(false)
+                        return
+                    }
+
+                    // 3. Verificar audiencia de la historia
+                    let audience = story.audience ?? "everyone"
+
+                    switch audience {
+                    case "everyone":
+                        self.canViewUserContentAfterBlockCheck(viewerId: viewerId, targetUserId: story.authorId, completion: completion)
+
+                    case "connections":
+                        self.checkMutualConnection(user1: viewerId, user2: story.authorId, completion: completion)
+
+                    case "bestFriends":
+                        self.checkIfBestFriend(userId: story.authorId, friendId: viewerId, completion: completion)
+
+                    case "custom":
+                        // Audiencia personalizada simple
+                        self.checkCustomAudience(
+                            contentType: "story",
+                            contentId: story.id ?? "",
+                            authorId: story.authorId,
+                            viewerId: viewerId,
+                            completion: completion
+                        )
+
+                    case "customList":
+                        // Nueva audiencia: lista personalizada reutilizable
+                        self.checkCustomListMembership(
+                            for: story,
+                            viewerId: viewerId,
+                            completion: completion
+                        )
+
+                    case "onlyMe":
+                        completion(false)
+
+                    default:
+                        completion(false)
+                    }
                 }
             }
         }
@@ -1218,6 +1249,30 @@ extension PrivacyService {
             self.resolveInFlightHiddenCheck(key: key, result: hiddenFromUsers.contains(viewerId))
         }
     }
+
+    private func isAuthorMutedForViewer(viewerId: String, authorId: String, completion: @escaping (Bool) -> Void) {
+        guard !viewerId.isEmpty, !authorId.isEmpty else {
+            completion(false)
+            return
+        }
+        guard viewerId != authorId else {
+            completion(false)
+            return
+        }
+
+        let cachedEntry = mutedUsersCacheQueue.sync { mutedUsersCache[viewerId] }
+        if let cachedEntry, Date().timeIntervalSince(cachedEntry.updatedAt) <= mutedUsersCacheTTL {
+            completion(cachedEntry.ids.contains(authorId))
+            return
+        }
+
+        firestoreService.fetchMutedUserIds(userId: viewerId) { [weak self] mutedIds in
+            self?.mutedUsersCacheQueue.async(flags: .barrier) {
+                self?.mutedUsersCache[viewerId] = (ids: mutedIds, updatedAt: Date())
+            }
+            completion(mutedIds.contains(authorId))
+        }
+    }
     
     // ✅ NUEVA FUNCIÓN: Verificar visibilidad para ExploreView (más permisiva)
     func canUserViewMomentInExplore(_ moment: Moment, viewerId: String, completion: @escaping (Bool) -> Void) {
@@ -1227,60 +1282,75 @@ extension PrivacyService {
             completion(true)
             return
         }
-        
-        // 2. Verificar bloqueos primero (esto siempre aplica)
-        checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
-            if isBlocked {
+
+        isAuthorMutedForViewer(viewerId: viewerId, authorId: moment.authorId) { [weak self] isMuted in
+            guard let self = self else {
+                completion(false)
+                return
+            }
+            if isMuted {
                 completion(false)
                 return
             }
 
-            self?.isViewerHiddenFromAuthorContent(authorId: moment.authorId, viewerId: viewerId) { isHidden in
-                if isHidden {
+            // 2. Verificar bloqueos primero (esto siempre aplica)
+            self.checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
+                guard let self = self else {
                     completion(false)
                     return
                 }
-            
-                // 3. Verificar según la audiencia del momento
-                let audience = moment.audience ?? "everyone"
-                
-                switch audience {
-                case "everyone":
-                    // Para contenido público, solo verificar si el perfil del autor es accesible
-                    self?.canViewUserContentForExplore(viewerId: viewerId, targetUserId: moment.authorId, completion: completion)
-                    
-                case "connections":
-                    // Solo mostrar si hay conexión mutua
-                    self?.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
-                    
-                case "bestFriends":
-                    // Solo mostrar si es mejor amigo
-                    self?.checkIfBestFriend(userId: moment.authorId, friendId: viewerId, completion: completion)
-                    
-                case "custom":
-                    // Solo mostrar si está en la audiencia personalizada
-                    self?.checkCustomAudience(
-                        contentType: "moment",
-                        contentId: moment.id ?? "",
-                        authorId: moment.authorId,
-                        viewerId: viewerId,
-                        completion: completion
-                    )
-                    
-                case "customList":
-                    // Solo mostrar si está en la lista personalizada
-                    self?.checkCustomListMembership(
-                        for: moment,
-                        viewerId: viewerId,
-                        completion: completion
-                    )
-                    
-                case "onlyMe":
-                    // Nunca mostrar en Explore (solo para el autor)
+                if isBlocked {
                     completion(false)
-                    
-                default:
-                    completion(false)
+                    return
+                }
+
+                self.isViewerHiddenFromAuthorContent(authorId: moment.authorId, viewerId: viewerId) { isHidden in
+                    if isHidden {
+                        completion(false)
+                        return
+                    }
+
+                    // 3. Verificar según la audiencia del momento
+                    let audience = moment.audience ?? "everyone"
+
+                    switch audience {
+                    case "everyone":
+                        // Para contenido público, solo verificar si el perfil del autor es accesible
+                        self.canViewUserContentForExplore(viewerId: viewerId, targetUserId: moment.authorId, completion: completion)
+
+                    case "connections":
+                        // Solo mostrar si hay conexión mutua
+                        self.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
+
+                    case "bestFriends":
+                        // Solo mostrar si es mejor amigo
+                        self.checkIfBestFriend(userId: moment.authorId, friendId: viewerId, completion: completion)
+
+                    case "custom":
+                        // Solo mostrar si está en la audiencia personalizada
+                        self.checkCustomAudience(
+                            contentType: "moment",
+                            contentId: moment.id ?? "",
+                            authorId: moment.authorId,
+                            viewerId: viewerId,
+                            completion: completion
+                        )
+
+                    case "customList":
+                        // Solo mostrar si está en la lista personalizada
+                        self.checkCustomListMembership(
+                            for: moment,
+                            viewerId: viewerId,
+                            completion: completion
+                        )
+
+                    case "onlyMe":
+                        // Nunca mostrar en Explore (solo para el autor)
+                        completion(false)
+
+                    default:
+                        completion(false)
+                    }
                 }
             }
         }

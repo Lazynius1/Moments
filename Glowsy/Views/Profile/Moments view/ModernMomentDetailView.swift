@@ -18,7 +18,6 @@ struct ModernMomentDetailView: View {
     @State private var peekImageURL: String? = nil
     @State private var peekAspectRatio: CGFloat = 1.0
     @State private var isPeeking = false
-    @State private var showingComments = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
     @State private var trackedMomentViewIds: Set<String> = []
@@ -159,7 +158,16 @@ struct ModernMomentDetailView: View {
         }
     }
     .navigationBarHidden(true)
-        .sheet(isPresented: $showingComments) {
+        .sheet(
+            isPresented: Binding(
+                get: { selectedMoment != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        selectedMoment = nil
+                    }
+                }
+            )
+        ) {
             if let moment = selectedMoment {
                 ModernCommentsView(moment: moment)
                     .environmentObject(firestoreService)
@@ -282,41 +290,44 @@ struct ModernMomentDetailView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 40) {
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
-                        ModernDetailMomentCard(
-                            moment: moment,
-                            availableHeight: geometry.size.height - 200,
-                            onComment: {
-                                selectedMoment = moment
-                                showingComments = true
-                            },
-                            onContextMenu: {
-                                contextMenuMoment = moment
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    showContextMenu = true
-                                }
-                            },
-                            onHashtagTap: { hashtag in
-                                selectedHashtag = "#\(hashtag)"
-                                showExploreWithHashtag = true
-                            },
-                            onTagTap: { userId in
-                                // ✅ NAVEGACIÓN A PERFIL
-                                selectedUserId = userId
-                                showUserProfile = true
-                            },
-                            onPeek: { imageURL, ratio, isPressing in
-                                // ✅ LONG PRESS PEEK
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                    if isPressing {
-                                        peekImageURL = imageURL
-                                        peekAspectRatio = ratio
-                                        isPeeking = true
-                                    } else {
-                                        isPeeking = false
+                        ScreenshotProtectedView(
+                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                        ) {
+                            ModernDetailMomentCard(
+                                moment: moment,
+                                availableHeight: geometry.size.height - 200,
+                                onComment: {
+                                    selectedMoment = moment
+                                },
+                                onContextMenu: {
+                                    contextMenuMoment = moment
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        showContextMenu = true
+                                    }
+                                },
+                                onHashtagTap: { hashtag in
+                                    selectedHashtag = "#\(hashtag)"
+                                    showExploreWithHashtag = true
+                                },
+                                onTagTap: { userId in
+                                    // ✅ NAVEGACIÓN A PERFIL
+                                    selectedUserId = userId
+                                    showUserProfile = true
+                                },
+                                onPeek: { imageURL, ratio, isPressing in
+                                    // ✅ LONG PRESS PEEK
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                        if isPressing {
+                                            peekImageURL = imageURL
+                                            peekAspectRatio = ratio
+                                            isPeeking = true
+                                        } else {
+                                            isPeeking = false
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                         .id(index)
                         .environmentObject(firestoreService)
                         .onAppear {

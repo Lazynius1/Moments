@@ -5,8 +5,16 @@ import Kingfisher
 
 // ✅ VISTA DE COMENTARIOS MODERNA MEJORADA CON ANIDACIÓN
 struct ModernCommentsView: View {
+    private struct CommentFilterResult {
+        let visible: [Comment]
+        let mutedWordMaskedIds: Set<String>
+    }
+
     let moment: Moment
     @State private var comments: [Comment] = []
+    @State private var mutedUserIds: Set<String> = []
+    @State private var mutedWordsNormalized: [String] = []
+    @State private var temporarilyRevealedCommentIds: Set<String> = []
     @State private var newComment: String = ""
     @State private var editingCommentId: String? = nil
     @State private var editingCommentContent: String = ""
@@ -19,6 +27,7 @@ struct ModernCommentsView: View {
     @State private var selectedStoryUserId: String = ""
     @State private var isLoading = true
     @State private var commentsListener: ListenerRegistration?
+    @State private var muteSettingsListener: ListenerRegistration?
     @EnvironmentObject private var firestoreService: FirestoreService
     @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
@@ -31,8 +40,20 @@ struct ModernCommentsView: View {
     }
     
     // Computed properties para mejor organización
+    private var commentFilterResult: CommentFilterResult {
+        applyCommentMuteFilters(to: comments)
+    }
+
+    private var filteredComments: [Comment] {
+        commentFilterResult.visible
+    }
+
+    private var mutedWordMaskedCommentIds: Set<String> {
+        commentFilterResult.mutedWordMaskedIds
+    }
+
     private var rootComments: [Comment] {
-        comments.filter { $0.parentCommentId == nil }
+        filteredComments.filter { $0.parentCommentId == nil }
             .sorted { comment1, comment2 in
                 switch sortOption {
                 case .newest:
@@ -48,7 +69,7 @@ struct ModernCommentsView: View {
     }
     
     private var totalCommentsCount: Int {
-        comments.count
+        filteredComments.count
     }
     
     var body: some View {
@@ -112,6 +133,7 @@ struct ModernCommentsView: View {
             
             // ✅ NUEVO: Pequeño delay para asegurar que el estado se resetee
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.setupMuteSettingsListener()
                 self.setupCommentsListener()
             }
         }
@@ -135,17 +157,20 @@ struct ModernCommentsView: View {
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.setupMuteSettingsListener()
                 self.setupCommentsListener()
             }
         }
         .onDisappear {
             commentsListener?.remove()
+            muteSettingsListener?.remove()
             
             // ✅ NUEVO: Limpiar estado al desaparecer
             DispatchQueue.main.async {
                 self.isLoading = false
                 self.comments = []
                 self.commentsListener = nil
+                self.muteSettingsListener = nil
             }
         }
         .alert(NSLocalizedString("modernComments.delete.title", comment: "Delete comment"), isPresented: $showDeleteAlert) {
@@ -252,7 +277,7 @@ struct ModernCommentsView: View {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                             .scaleEffect(0.7)
-                    } else if !comments.isEmpty {
+                    } else if !filteredComments.isEmpty {
                         Text("\(totalCommentsCount)")
                             .font(.custom("Poppins-Bold", size: 11))
                             .foregroundColor(.white)
@@ -381,12 +406,15 @@ struct ModernCommentsView: View {
                                     )
                                 }
                             },
+                            maskedCommentIds: mutedWordMaskedCommentIds,
+                            temporarilyRevealedCommentIds: temporarilyRevealedCommentIds,
+                            onRevealTemporarily: revealMutedCommentTemporarily,
                             nestingLevel: 0 // ✅ Comenzar en nivel 0
                         )
                         .environmentObject(firestoreService)
                     }
                     
-                    if comments.isEmpty {
+                    if rootComments.isEmpty {
                         ModernEmptyCommentsView()
                             .padding(.vertical, 60)
                     }
@@ -606,9 +634,154 @@ struct ModernCommentsView: View {
     
     // ✅ Función auxiliar para obtener comentarios anidados
     private func getNestedComments(for parentId: String) -> [Comment] {
-        return comments
+        return filteredComments
             .filter { $0.parentCommentId == parentId }
             .sorted { $0.timestamp < $1.timestamp }
+    }
+
+    private func setupMuteSettingsListener() {
+        guard let currentUserId = Auth.auth().currentUser?.uid, !currentUserId.isEmpty else {
+            DispatchQueue.main.async {
+                self.mutedUserIds = []
+                self.mutedWordsNormalized = []
+            }
+            return
+        }
+
+        muteSettingsListener?.remove()
+        muteSettingsListener = firestoreService.db
+            .collection("users")
+            .document(currentUserId)
+            .addSnapshotListener { snapshot, _ in
+                let muteSettings = snapshot?.data()?["muteSettings"] as? [String: Any] ?? [:]
+                let mutedUsers = Set((muteSettings["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
+                let mutedWords = (muteSettings["mutedWords"] as? [String] ?? [])
+                    .map { normalizeMutedText($0) }
+                    .filter { !$0.isEmpty }
+
+                DispatchQueue.main.async {
+                    self.mutedUserIds = mutedUsers
+                    self.mutedWordsNormalized = mutedWords
+                }
+            }
+    }
+
+    private enum CommentMuteFilterReason {
+        case mutedAccount
+        case mutedWord
+    }
+
+    private func applyCommentMuteFilters(to source: [Comment]) -> CommentFilterResult {
+        guard !source.isEmpty else { return CommentFilterResult(visible: [], mutedWordMaskedIds: []) }
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            return CommentFilterResult(visible: source, mutedWordMaskedIds: [])
+        }
+
+        let hasUserMute = !mutedUserIds.isEmpty
+        let hasWordMute = !mutedWordsNormalized.isEmpty
+        guard hasUserMute || hasWordMute else {
+            return CommentFilterResult(visible: source, mutedWordMaskedIds: [])
+        }
+
+        var childrenByParent: [String: [String]] = [:]
+        for comment in source {
+            guard let id = comment.id else { continue }
+            if let parentId = comment.parentCommentId {
+                childrenByParent[parentId, default: []].append(id)
+            }
+        }
+
+        var flaggedByReason: [String: CommentMuteFilterReason] = [:]
+        for comment in source {
+            guard let id = comment.id else { continue }
+            if let reason = muteReason(for: comment, currentUserId: currentUserId) {
+                flaggedByReason[id] = reason
+            }
+        }
+
+        guard !flaggedByReason.isEmpty else {
+            return CommentFilterResult(visible: source, mutedWordMaskedIds: [])
+        }
+
+        var mutedWordMaskedIds = Set<String>()
+        var hiddenIds = Set<String>()
+        var branchHiddenIds = Set<String>()
+
+        for (id, reason) in flaggedByReason {
+            switch reason {
+            case .mutedAccount:
+                hiddenIds.insert(id)
+                branchHiddenIds.insert(id)
+            case .mutedWord:
+                let hasChildren = !(childrenByParent[id] ?? []).isEmpty
+                if hasChildren {
+                    mutedWordMaskedIds.insert(id)
+                } else {
+                    hiddenIds.insert(id)
+                    branchHiddenIds.insert(id)
+                }
+            }
+        }
+
+        if !branchHiddenIds.isEmpty {
+            var changed = true
+            while changed {
+                changed = false
+                for comment in source {
+                    guard let id = comment.id, !hiddenIds.contains(id) else { continue }
+                    guard let parentId = comment.parentCommentId, branchHiddenIds.contains(parentId) else { continue }
+                    hiddenIds.insert(id)
+                    branchHiddenIds.insert(id)
+                    changed = true
+                }
+            }
+        }
+
+        mutedWordMaskedIds = Set(mutedWordMaskedIds.filter { !hiddenIds.contains($0) })
+
+        let visible = source.filter { comment in
+            guard let id = comment.id else { return true }
+            return !hiddenIds.contains(id)
+        }
+
+        return CommentFilterResult(visible: visible, mutedWordMaskedIds: mutedWordMaskedIds)
+    }
+
+    private func muteReason(for comment: Comment, currentUserId: String) -> CommentMuteFilterReason? {
+        if comment.authorId == currentUserId {
+            return nil
+        }
+
+        if mutedUserIds.contains(comment.authorId) {
+            return .mutedAccount
+        }
+
+        guard !mutedWordsNormalized.isEmpty else { return nil }
+        let normalizedContent = normalizeMutedText(comment.content)
+        guard !normalizedContent.isEmpty else { return nil }
+
+        return mutedWordsNormalized.contains { normalizedContent.contains($0) } ? .mutedWord : nil
+    }
+
+    private static func normalizeMutedText(_ text: String) -> String {
+        text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: .current)
+            .lowercased()
+    }
+
+    private func normalizeMutedText(_ text: String) -> String {
+        Self.normalizeMutedText(text)
+    }
+
+    private func revealMutedCommentTemporarily(_ commentId: String) {
+        guard !commentId.isEmpty else { return }
+        temporarilyRevealedCommentIds.insert(commentId)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+            withAnimation(.easeOut(duration: 0.2)) {
+                _ = temporarilyRevealedCommentIds.remove(commentId)
+            }
+        }
     }
     
     private func setupCommentsListener() {
@@ -950,6 +1123,9 @@ struct EnhancedModernCommentRow: View {
     let isExpanded: Bool
     let onToggleExpand: (String) -> Void
     let onAvatarTap: (String, Bool) -> Void
+    let maskedCommentIds: Set<String>
+    let temporarilyRevealedCommentIds: Set<String>
+    let onRevealTemporarily: (String) -> Void
     let nestingLevel: Int // ✅ NUEVO: Nivel de anidación
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme
@@ -977,6 +1153,20 @@ struct EnhancedModernCommentRow: View {
     // ✅ Línea vertical para mostrar jerarquía
     private var shouldShowConnectorLine: Bool {
         nestingLevel > 0
+    }
+
+    private var isMutedWordMasked: Bool {
+        guard let commentId = comment.id else { return false }
+        return maskedCommentIds.contains(commentId)
+    }
+
+    private var isTemporarilyRevealed: Bool {
+        guard let commentId = comment.id else { return false }
+        return temporarilyRevealedCommentIds.contains(commentId)
+    }
+
+    private var isMaskApplied: Bool {
+        isMutedWordMasked && !isTemporarilyRevealed
     }
     
     var body: some View {
@@ -1029,6 +1219,9 @@ struct EnhancedModernCommentRow: View {
                             isExpanded: false,
                             onToggleExpand: onToggleExpand,
                             onAvatarTap: onAvatarTap,
+                            maskedCommentIds: maskedCommentIds,
+                            temporarilyRevealedCommentIds: temporarilyRevealedCommentIds,
+                            onRevealTemporarily: onRevealTemporarily,
                             nestingLevel: nestingLevel + 1 // ✅ Incrementar nivel
                         )
                         .environmentObject(firestoreService)
@@ -1222,7 +1415,7 @@ struct EnhancedModernCommentRow: View {
     }
     
     private var shouldShowSwipeActions: Bool {
-        canEdit || canDelete
+        !isMaskApplied && (canEdit || canDelete)
     }
     
     private var actionWidth: CGFloat {
@@ -1320,16 +1513,50 @@ struct EnhancedModernCommentRow: View {
     // ✅ Contenido con menciones destacadas
     private var contentWithMentions: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(displayContent)
-                .font(.custom("Poppins-Regular", size: nestingLevel == 0 ? 14 : 13))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                .multilineTextAlignment(.leading)
-                .overlay(
-                    // ✅ Destacar @menciones
-                    mentionOverlay
-                )
-            
-            if isLongComment {
+            ZStack(alignment: .leading) {
+                Text(displayContent)
+                    .font(.custom("Poppins-Regular", size: nestingLevel == 0 ? 14 : 13))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
+                    .multilineTextAlignment(.leading)
+                    .overlay(
+                        // ✅ Destacar @menciones
+                        mentionOverlay
+                    )
+                    .blur(radius: isMaskApplied ? 8 : 0)
+
+                if isMaskApplied {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                            Text(NSLocalizedString("modernComments.mutedWord.placeholder", comment: "Muted word placeholder in comments"))
+                                .font(.custom("Poppins-Medium", size: 12))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .lineLimit(2)
+                        }
+
+                        if let commentId = comment.id {
+                            Button(action: {
+                                onRevealTemporarily(commentId)
+                            }) {
+                                Text(NSLocalizedString("modernComments.mutedWord.reveal", comment: "Temporarily reveal muted word comment"))
+                                    .font(.custom("Poppins-SemiBold", size: 11))
+                                    .foregroundColor(colorScheme == .dark ? .black : .white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(colorScheme == .dark ? Color.white : Color.black, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+
+            if isLongComment && !isMaskApplied {
                 Button(action: { showFullContent.toggle() }) {
                     Text(showFullContent ? "Ver menos" : "Ver más")
                         .font(.custom("Poppins-Medium", size: 11))
@@ -1388,27 +1615,29 @@ struct EnhancedModernCommentRow: View {
     // ✅ Botones de acción mejorados
     private var actionButtons: some View {
         HStack(spacing: 16) {
-            // ✅ Like button
-            CommentActionButton(
-                icon: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false ? "heart.fill" : "heart",
-                text: "",
-                count: (comment.reactions["like"]?.count ?? 0) > 0 ? comment.reactions["like"]?.count : nil,
-                isActive: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false,
-                activeColor: .red
-            ) {
-                onLike(comment)
-            }
-            
-            // ✅ Reply button (solo para niveles bajos)
-            if nestingLevel < maxNestingLevel {
+            if !isMaskApplied {
+                // ✅ Like button
                 CommentActionButton(
-                    icon: "arrowshape.turn.up.left",
-                    text: "Responder",
-                    count: nil,
-                    isActive: false,
-                    activeColor: colorScheme == .dark ? .white : .black
+                    icon: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false ? "heart.fill" : "heart",
+                    text: "",
+                    count: (comment.reactions["like"]?.count ?? 0) > 0 ? comment.reactions["like"]?.count : nil,
+                    isActive: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false,
+                    activeColor: .red
                 ) {
-                    onReply(comment)
+                    onLike(comment)
+                }
+                
+                // ✅ Reply button (solo para niveles bajos)
+                if nestingLevel < maxNestingLevel {
+                    CommentActionButton(
+                        icon: "arrowshape.turn.up.left",
+                        text: "Responder",
+                        count: nil,
+                        isActive: false,
+                        activeColor: colorScheme == .dark ? .white : .black
+                    ) {
+                        onReply(comment)
+                    }
                 }
             }
             

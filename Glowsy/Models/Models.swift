@@ -1246,11 +1246,15 @@ struct Notification: Identifiable, Codable {
     let senderUsername: String
     let timestamp: Date
     var isPending: Bool
+    let title: String?
+    let message: String?
+    let downloadURL: String?
     let momentId: String?
     let visitCount: Int?
     let storyId: String?
     let storyAuthorId: String?
     let reaction: String?
+    let reactionCount: Int?
     let commentId: String? // ✅ NUEVO: Para identificar comentarios específicos
     let echoId: String? // ✅ NUEVO: Para identificar el Echo sugerido
     
@@ -1261,11 +1265,16 @@ struct Notification: Identifiable, Codable {
         case senderUsername
         case timestamp
         case isPending
+        case isRead
+        case title
+        case message
+        case downloadURL
         case momentId
         case visitCount
         case storyId
         case storyAuthorId
         case reaction
+        case reactionCount
         case reactionType // ✅ COMPATIBILIDAD: El servidor usa este campo para momentos
         case commentText  // ✅ COMPATIBILIDAD: El servidor usa este campo para comentarios
         case commentId
@@ -1278,11 +1287,15 @@ struct Notification: Identifiable, Codable {
          senderUsername: String,
          timestamp: Date = Date(),
          isPending: Bool = true,
+         title: String? = nil,
+         message: String? = nil,
+         downloadURL: String? = nil,
          momentId: String? = nil,
          visitCount: Int? = nil,
          storyId: String? = nil,
          storyAuthorId: String? = nil,
          reaction: String? = nil,
+         reactionCount: Int? = nil,
          commentId: String? = nil,
          echoId: String? = nil) {
         
@@ -1292,11 +1305,15 @@ struct Notification: Identifiable, Codable {
         self.senderUsername = senderUsername
         self.timestamp = timestamp
         self.isPending = isPending
+        self.title = title
+        self.message = message
+        self.downloadURL = downloadURL
         self.momentId = momentId
         self.visitCount = visitCount
         self.storyId = storyId
         self.storyAuthorId = storyAuthorId
         self.reaction = reaction
+        self.reactionCount = reactionCount
         self.commentId = commentId
         self.echoId = echoId
     }
@@ -1306,11 +1323,25 @@ struct Notification: Identifiable, Codable {
         self.id = try container.decodeIfPresent(String.self, forKey: .id)
         let typeString = try container.decode(String.self, forKey: .type)
         self.type = NotificationType(rawValue: typeString) ?? .newFollower
-        self.senderId = try container.decode(String.self, forKey: .senderId)
-        self.senderUsername = try container.decode(String.self, forKey: .senderUsername)
-        let timestamp = try container.decode(Timestamp.self, forKey: .timestamp)
-        self.timestamp = timestamp.dateValue()
-        self.isPending = try container.decode(Bool.self, forKey: .isPending)
+        self.senderId = try container.decodeIfPresent(String.self, forKey: .senderId) ?? ""
+        self.senderUsername = try container.decodeIfPresent(String.self, forKey: .senderUsername) ?? ""
+        if let firebaseTimestamp = try? container.decode(Timestamp.self, forKey: .timestamp) {
+            self.timestamp = firebaseTimestamp.dateValue()
+        } else if let date = try? container.decode(Date.self, forKey: .timestamp) {
+            self.timestamp = date
+        } else {
+            self.timestamp = Date()
+        }
+        if let pending = try container.decodeIfPresent(Bool.self, forKey: .isPending) {
+            self.isPending = pending
+        } else if let isRead = try container.decodeIfPresent(Bool.self, forKey: .isRead) {
+            self.isPending = !isRead
+        } else {
+            self.isPending = true
+        }
+        self.title = try container.decodeIfPresent(String.self, forKey: .title)
+        self.message = try container.decodeIfPresent(String.self, forKey: .message)
+        self.downloadURL = try container.decodeIfPresent(String.self, forKey: .downloadURL)
         self.momentId = try container.decodeIfPresent(String.self, forKey: .momentId)
         self.visitCount = try container.decodeIfPresent(Int.self, forKey: .visitCount)
         self.storyId = try container.decodeIfPresent(String.self, forKey: .storyId)
@@ -1329,6 +1360,7 @@ struct Notification: Identifiable, Codable {
         } else {
             self.reaction = nil
         }
+        self.reactionCount = try container.decodeIfPresent(Int.self, forKey: .reactionCount)
         
         self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
         self.echoId = try container.decodeIfPresent(String.self, forKey: .echoId)
@@ -1342,11 +1374,15 @@ struct Notification: Identifiable, Codable {
         try container.encode(senderUsername, forKey: .senderUsername)
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
         try container.encode(isPending, forKey: .isPending)
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(message, forKey: .message)
+        try container.encodeIfPresent(downloadURL, forKey: .downloadURL)
         try container.encodeIfPresent(momentId, forKey: .momentId)
         try container.encodeIfPresent(visitCount, forKey: .visitCount)
         try container.encodeIfPresent(storyId, forKey: .storyId)
         try container.encodeIfPresent(storyAuthorId, forKey: .storyAuthorId)
         try container.encodeIfPresent(reaction, forKey: .reaction)
+        try container.encodeIfPresent(reactionCount, forKey: .reactionCount)
         try container.encodeIfPresent(commentId, forKey: .commentId)
         try container.encodeIfPresent(echoId, forKey: .echoId)
     }
@@ -1366,6 +1402,7 @@ enum NotificationType: String, Codable, CaseIterable {
     case message = "message" // ✅ NUEVO: Para mensajes directos (DM)
     case photoTag = "photoTag" // ✅ NUEVO: Para etiquetas en fotos
     case echoSuggestion = "echoSuggestion" // 🌊 NUEVO: Sugerencia de Echo (Nova Spark)
+    case dataExportReady = "data_export_ready"
 
     var displayName: String {
         switch self {
@@ -1382,6 +1419,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .message: return "Mensajes"
         case .photoTag: return "Etiquetas en fotos"
         case .echoSuggestion: return "Sugerencia de Echo"
+        case .dataExportReady: return "Exportación de datos"
         }
     }
     
@@ -1400,6 +1438,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .message: return "envelope.fill"
         case .photoTag: return "person.crop.rectangle"
         case .echoSuggestion: return "sparkles.rectangle.stack"
+        case .dataExportReady: return "tray.and.arrow.down.fill"
         }
     }
 }

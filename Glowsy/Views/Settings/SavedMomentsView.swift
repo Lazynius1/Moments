@@ -11,6 +11,7 @@ class SavedMomentsViewModel: ObservableObject {
     @Published var moments: [Moment] = []
     @Published var savedMomentIds: [String] = []
     @Published var visibilityByMomentId: [String: Bool] = [:]
+    @Published private(set) var mutedUserIds: Set<String> = []
     @Published var isLoading = false
     @Published var error: Error?
     
@@ -26,7 +27,11 @@ class SavedMomentsViewModel: ObservableObject {
 
         isLoading = true
         error = nil
-        
+        firestoreService.fetchMutedUserIds(userId: userId) { [weak self] mutedIds in
+            DispatchQueue.main.async {
+                self?.mutedUserIds = mutedIds
+            }
+        }
         
         // Cargar los IDs de momentos guardados primero
         firestoreService.db.collection("users").document(userId).collection("savedMoments")
@@ -209,6 +214,10 @@ class SavedMomentsViewModel: ObservableObject {
     // MARK: - Public Methods
     func isMomentSaved(momentId: String) -> Bool {
         return savedMomentIds.contains(momentId)
+    }
+
+    func isMomentFromMutedUser(_ moment: Moment) -> Bool {
+        mutedUserIds.contains(moment.authorId)
     }
 
     func removeMoment(momentId: String, completion: @escaping (Error?) -> Void = { _ in }) {
@@ -531,8 +540,10 @@ struct SavedMomentsView: View {
             }
         } message: {
             if let moment = restrictedMomentToRemove {
-                LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
-                    Text(String(format: NSLocalizedString("savedMoments.remove.message.user", comment: "Remove moment from user"), username))
+                if viewModel.isMomentFromMutedUser(moment) {
+                    Text(NSLocalizedString("savedMoments.remove.message.muted", comment: "Moment hidden due to muted account"))
+                } else {
+                    Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
                 }
             } else {
                 Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
@@ -743,24 +754,30 @@ struct SavedMomentsView: View {
                         let moment = filteredMoments[index]
                         let momentId = moment.id ?? UUID().uuidString
                         let isRestricted = !(viewModel.visibilityByMomentId[momentId] ?? true)
+                        let isMutedRestriction = isRestricted && viewModel.isMomentFromMutedUser(moment)
                         
-                        SavedMomentGridCard(
-                            moment: moment,
-                            isRestricted: isRestricted,
-                            isSelectionMode: isSelectionMode,
-                            isSelected: selectedMomentIds.contains(momentId),
-                            onTap: {
-                                handleTap(moment: moment, currentList: filteredMoments)
-                            },
-                            onLongPress: {
-                                if !isSelectionMode {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                        isSelectionMode = true
+                        ScreenshotProtectedView(
+                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                        ) {
+                            SavedMomentGridCard(
+                                moment: moment,
+                                isRestricted: isRestricted,
+                                isMutedRestriction: isMutedRestriction,
+                                isSelectionMode: isSelectionMode,
+                                isSelected: selectedMomentIds.contains(momentId),
+                                onTap: {
+                                    handleTap(moment: moment, currentList: filteredMoments)
+                                },
+                                onLongPress: {
+                                    if !isSelectionMode {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                                            isSelectionMode = true
+                                        }
                                     }
+                                    toggleSelection(moment: moment)
                                 }
-                                toggleSelection(moment: moment)
-                            }
-                        )
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, 10)
@@ -991,6 +1008,7 @@ struct SavedMomentsView: View {
 private struct SavedMomentGridCard: View {
     let moment: Moment
     let isRestricted: Bool
+    let isMutedRestriction: Bool
     let isSelectionMode: Bool
     let isSelected: Bool
     let onTap: () -> Void
@@ -1053,13 +1071,23 @@ private struct SavedMomentGridCard: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white.opacity(0.95))
 
-                Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
+                Text(
+                    NSLocalizedString(
+                        isMutedRestriction ? "savedMoments.restricted.muted.title" : "savedMoments.restricted.title",
+                        comment: "Saved moment restricted title"
+                    )
+                )
                     .font(.custom("Poppins-SemiBold", size: 10))
                     .foregroundColor(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
-                Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
+                Text(
+                    NSLocalizedString(
+                        isMutedRestriction ? "savedMoments.restricted.muted.subtitle" : "savedMoments.restricted.subtitle",
+                        comment: "Saved moment restricted subtitle"
+                    )
+                )
                     .font(.custom("Poppins-Regular", size: 9))
                     .foregroundColor(.white.opacity(0.84))
                     .lineLimit(2)
@@ -1188,7 +1216,6 @@ struct ModernSavedMomentsDetailView: View {
     
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
-    @State private var showingComments = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
     @State private var showingRemoveAlert = false
@@ -1268,7 +1295,16 @@ struct ModernSavedMomentsDetailView: View {
             }
         }
         .navigationBarHidden(true)
-        .sheet(isPresented: $showingComments) {
+        .sheet(
+            isPresented: Binding(
+                get: { selectedMoment != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        selectedMoment = nil
+                    }
+                }
+            )
+        ) {
             if let moment = selectedMoment {
                 ModernCommentsView(moment: moment)
                     .environmentObject(firestoreService)
@@ -1309,38 +1345,41 @@ struct ModernSavedMomentsDetailView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 40) {
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
-                        ModernSavedDetailMomentCard(
-                            moment: moment,
-                            availableHeight: geometry.size.height - 200,
-                            onComment: {
-                                selectedMoment = moment
-                                showingComments = true
-                            },
-                            onRemove: {
-                                momentToRemove = moment
-                                showingRemoveAlert = true
-                            },
-                            onPeek: { imageURL, ratio, isPressing in
-                                if isPressing {
-                                    peekImageURL = imageURL
-                                    peekAspectRatio = max(ratio, 0.1)
-                                    isPeeking = true
-                                    withAnimation(.easeOut(duration: 0.18)) {
-                                        peekOverlayProgress = 1
-                                    }
-                                } else {
-                                    withAnimation(.easeIn(duration: 0.16)) {
-                                        peekOverlayProgress = 0
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                                        guard peekOverlayProgress <= 0.01 else { return }
-                                        isPeeking = false
-                                        peekImageURL = nil
-                                        peekAspectRatio = 1.0
+                        ScreenshotProtectedView(
+                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                        ) {
+                            ModernSavedDetailMomentCard(
+                                moment: moment,
+                                availableHeight: geometry.size.height - 200,
+                                onComment: {
+                                    selectedMoment = moment
+                                },
+                                onRemove: {
+                                    momentToRemove = moment
+                                    showingRemoveAlert = true
+                                },
+                                onPeek: { imageURL, ratio, isPressing in
+                                    if isPressing {
+                                        peekImageURL = imageURL
+                                        peekAspectRatio = max(ratio, 0.1)
+                                        isPeeking = true
+                                        withAnimation(.easeOut(duration: 0.18)) {
+                                            peekOverlayProgress = 1
+                                        }
+                                    } else {
+                                        withAnimation(.easeIn(duration: 0.16)) {
+                                            peekOverlayProgress = 0
+                                        }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                                            guard peekOverlayProgress <= 0.01 else { return }
+                                            isPeeking = false
+                                            peekImageURL = nil
+                                            peekAspectRatio = 1.0
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                         .id(index)
                         .environmentObject(firestoreService)
                         .onAppear {

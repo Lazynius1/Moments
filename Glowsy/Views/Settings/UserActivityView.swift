@@ -277,8 +277,11 @@ private struct ActivityInteractionDetailView: View {
     @State private var isSelectionMode = false
     @State private var selectedReactionIds: Set<String> = []
     @State private var selectedCommentIds: Set<String> = []
+    @State private var selectedEventIds: Set<String> = []
     @State private var isDeletingSelectedReactions = false
+    @State private var isRemovingSelectedTags = false
     @State private var isDeletingSelectedComments = false
+    @State private var isDeletingSelectedEvents = false
 
     init(category: ActivityInteractionCategory) {
         self.category = category
@@ -330,18 +333,18 @@ private struct ActivityInteractionDetailView: View {
                 }
                 .padding(.horizontal, 32)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if category == .reactions {
+            } else if category == .reactions || category == .tags {
                 reactionsContent
             } else if category == .comments {
                 commentsContent
             } else {
-                eventsList
+                eventsContent
             }
         }
         .navigationTitle(NSLocalizedString(category.titleKey, comment: "Interaction detail title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if category == .reactions || category == .comments {
+            if category == .reactions || category == .comments || category == .tags || category == .stickerReplies {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(isSelectionMode
                            ? NSLocalizedString("savedMoments.cancel", comment: "Cancel")
@@ -351,6 +354,7 @@ private struct ActivityInteractionDetailView: View {
                             if !isSelectionMode {
                                 selectedReactionIds.removeAll()
                                 selectedCommentIds.removeAll()
+                                selectedEventIds.removeAll()
                             }
                         }
                     }
@@ -369,11 +373,17 @@ private struct ActivityInteractionDetailView: View {
             let validIds = Set(visibleIds)
             selectedCommentIds = Set(selectedCommentIds.filter { validIds.contains($0) })
         }
+        .onChange(of: filteredEventItems.map(\.id)) { visibleIds in
+            let validIds = Set(visibleIds)
+            selectedEventIds = Set(selectedEventIds.filter { validIds.contains($0) })
+        }
         .safeAreaInset(edge: .bottom) {
-            if category == .reactions, isSelectionMode {
+            if (category == .reactions || category == .tags), isSelectionMode {
                 reactionsSelectionBar
             } else if category == .comments, isSelectionMode {
                 commentsSelectionBar
+            } else if category == .stickerReplies, isSelectionMode {
+                eventsSelectionBar
             }
         }
         .sheet(isPresented: $showingAuthorFilterSheet) {
@@ -596,10 +606,12 @@ private struct ActivityInteractionDetailView: View {
         let usernames = authorUsernameMap
         let sourceAuthorIds: [String] = {
             switch category {
-            case .reactions:
+            case .reactions, .tags:
                 return viewModel.reactionItems.map { $0.authorId }
             case .comments:
                 return viewModel.commentItems.map { $0.authorId }
+            case .stickerReplies:
+                return viewModel.events.compactMap { $0.targetAuthorId }
             default:
                 return []
             }
@@ -624,7 +636,7 @@ private struct ActivityInteractionDetailView: View {
     private var authorUsernameMap: [String: String] {
         var map: [String: String] = [:]
         switch category {
-        case .reactions:
+        case .reactions, .tags:
             for item in viewModel.reactionItems {
                 if map[item.authorId] == nil,
                    let username = item.moment?.username,
@@ -638,6 +650,15 @@ private struct ActivityInteractionDetailView: View {
                    let username = item.moment?.username,
                    !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     map[item.authorId] = username
+                }
+            }
+        case .stickerReplies:
+            for item in viewModel.events {
+                guard let authorId = item.targetAuthorId, !authorId.isEmpty else { continue }
+                if map[authorId] == nil,
+                   let username = item.targetUsername,
+                   !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    map[authorId] = username
                 }
             }
         default:
@@ -782,22 +803,85 @@ private struct ActivityInteractionDetailView: View {
         .padding(.bottom, 6)
     }
 
+    private var eventsContent: some View {
+        VStack(spacing: 0) {
+            reactionsFiltersBar
+
+            if reactionsDateFilter == .custom {
+                customDateRangeControls
+            }
+
+            eventsList
+        }
+    }
+
     private var eventsList: some View {
         Group {
-            if viewModel.events.isEmpty {
+            if filteredEventItems.isEmpty {
                 emptyState(textKey: category.emptyKey)
             } else {
                 ScrollView {
                     VStack(spacing: 10) {
-                        ForEach(viewModel.events) { item in
-                            ActivityEventRow(item: item)
+                        ForEach(filteredEventItems) { item in
+                            Button {
+                                if isSelectionMode {
+                                    toggleEventSelection(for: item.id)
+                                }
+                            } label: {
+                                ActivityEventRow(
+                                    item: item,
+                                    isSelectionMode: isSelectionMode,
+                                    isSelected: selectedEventIds.contains(item.id),
+                                    onOpenTargetProfile: {
+                                        guard let authorId = item.targetAuthorId, !authorId.isEmpty else { return }
+                                        openAuthor(authorId: authorId, hasStory: false)
+                                    }
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 12)
                     .padding(.top, 10)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, isSelectionMode ? 88 : 20)
                 }
             }
+        }
+    }
+
+    private var filteredEventItems: [ActivityEventItem] {
+        let filteredByDate = viewModel.events.filter { item in
+            switch reactionsDateFilter {
+            case .all:
+                return true
+            case .week:
+                let from = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+                return item.timestamp >= from
+            case .month:
+                let from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date.distantPast
+                return item.timestamp >= from
+            case .year:
+                let from = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date.distantPast
+                return item.timestamp >= from
+            case .custom:
+                let calendar = Calendar.current
+                let start = calendar.startOfDay(for: min(customDateFrom, customDateTo))
+                let endBase = max(customDateFrom, customDateTo)
+                let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endBase) ?? endBase
+                return item.timestamp >= start && item.timestamp <= end
+            }
+        }
+
+        let authorFiltered = filteredByDate.filter { item in
+            guard let selectedAuthorId, !selectedAuthorId.isEmpty else { return true }
+            return item.targetAuthorId == selectedAuthorId
+        }
+
+        switch reactionsSort {
+        case .newest:
+            return authorFiltered.sorted { $0.timestamp > $1.timestamp }
+        case .oldest:
+            return authorFiltered.sorted { $0.timestamp < $1.timestamp }
         }
     }
 
@@ -815,6 +899,10 @@ private struct ActivityInteractionDetailView: View {
 
     private var reactionsSelectionBar: some View {
         let selectedCount = selectedReactionIds.count
+        let isTagsCategory = (category == .tags)
+        let countText = isTagsCategory
+            ? String(format: NSLocalizedString("userActivity.simple.tags.selectedCount", comment: "Selected tagged moments count"), selectedCount)
+            : String(format: NSLocalizedString("userActivity.simple.reactions.selectedCount", comment: "Selected reactions count"), selectedCount)
 
         return VStack(spacing: 10) {
             Divider()
@@ -828,7 +916,7 @@ private struct ActivityInteractionDetailView: View {
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
-                Text(String(format: NSLocalizedString("userActivity.simple.reactions.selectedCount", comment: "Selected reactions count"), selectedCount))
+                Text(countText)
                     .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(.gray)
 
@@ -836,22 +924,30 @@ private struct ActivityInteractionDetailView: View {
 
                 Button {
                     Task {
-                        await deleteSelectedReactions()
+                        if isTagsCategory {
+                            await removeSelectedTags()
+                        } else {
+                            await deleteSelectedReactions()
+                        }
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        if isDeletingSelectedReactions {
+                        if isTagsCategory ? isRemovingSelectedTags : isDeletingSelectedReactions {
                             ProgressView()
                                 .tint(.white)
                                 .scaleEffect(0.8)
                         } else {
-                            Image(systemName: "heart.slash.fill")
+                            Image(systemName: isTagsCategory ? "tag.slash.fill" : "heart.slash.fill")
                                 .font(.system(size: 12, weight: .semibold))
                         }
 
-                        Text(selectedCount == 1
-                             ? NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete one reaction")
-                             : NSLocalizedString("userActivity.simple.reactions.delete.multiple", comment: "Delete multiple reactions"))
+                        Text(isTagsCategory
+                             ? (selectedCount == 1
+                                ? NSLocalizedString("userActivity.simple.tags.remove.single", comment: "Remove one tag")
+                                : NSLocalizedString("userActivity.simple.tags.remove.multiple", comment: "Remove multiple tags"))
+                             : (selectedCount == 1
+                                ? NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete one reaction")
+                                : NSLocalizedString("userActivity.simple.reactions.delete.multiple", comment: "Delete multiple reactions")))
                             .font(.custom("Poppins-SemiBold", size: 13))
                     }
                     .foregroundColor(.white)
@@ -859,7 +955,7 @@ private struct ActivityInteractionDetailView: View {
                     .padding(.vertical, 10)
                     .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
                 }
-                .disabled(selectedCount == 0 || isDeletingSelectedReactions)
+                .disabled(selectedCount == 0 || (isTagsCategory ? isRemovingSelectedTags : isDeletingSelectedReactions))
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 14)
@@ -923,6 +1019,59 @@ private struct ActivityInteractionDetailView: View {
         .background(.ultraThinMaterial)
     }
 
+    private var eventsSelectionBar: some View {
+        let selectedCount = selectedEventIds.count
+
+        return VStack(spacing: 10) {
+            Divider()
+                .opacity(0.15)
+
+            HStack(spacing: 10) {
+                Text("\(selectedCount)")
+                    .font(.custom("Poppins-Bold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
+
+                Text(String(format: NSLocalizedString("userActivity.simple.stickers.selectedCount", comment: "Selected sticker replies count"), selectedCount))
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.gray)
+
+                Spacer()
+
+                Button {
+                    Task { await deleteSelectedEvents() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if isDeletingSelectedEvents {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+
+                        Text(selectedCount == 1
+                             ? NSLocalizedString("userActivity.simple.stickers.delete.single", comment: "Delete one sticker reply")
+                             : NSLocalizedString("userActivity.simple.stickers.delete.multiple", comment: "Delete multiple sticker replies"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
+                }
+                .disabled(selectedCount == 0 || isDeletingSelectedEvents)
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
+    }
+
     private func toggleSelection(for reactionId: String) {
         if selectedReactionIds.contains(reactionId) {
             selectedReactionIds.remove(reactionId)
@@ -936,6 +1085,14 @@ private struct ActivityInteractionDetailView: View {
             selectedCommentIds.remove(commentId)
         } else {
             selectedCommentIds.insert(commentId)
+        }
+    }
+
+    private func toggleEventSelection(for eventId: String) {
+        if selectedEventIds.contains(eventId) {
+            selectedEventIds.remove(eventId)
+        } else {
+            selectedEventIds.insert(eventId)
         }
     }
 
@@ -968,6 +1125,25 @@ private struct ActivityInteractionDetailView: View {
         }
     }
 
+    private func removeSelectedTags() async {
+        guard !selectedReactionIds.isEmpty else { return }
+        isRemovingSelectedTags = true
+        let idsToRemove = selectedReactionIds
+
+        let result = await viewModel.removeTags(withIds: idsToRemove)
+
+        await MainActor.run {
+            isRemovingSelectedTags = false
+            switch result {
+            case .success:
+                selectedReactionIds.removeAll()
+                isSelectionMode = false
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     private func deleteSelectedComments() async {
         guard !selectedCommentIds.isEmpty else { return }
         isDeletingSelectedComments = true
@@ -980,6 +1156,25 @@ private struct ActivityInteractionDetailView: View {
             switch result {
             case .success:
                 selectedCommentIds.removeAll()
+                isSelectionMode = false
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func deleteSelectedEvents() async {
+        guard !selectedEventIds.isEmpty else { return }
+        isDeletingSelectedEvents = true
+        let idsToDelete = selectedEventIds
+
+        let result = await viewModel.removeStickerReplies(withIds: idsToDelete)
+
+        await MainActor.run {
+            isDeletingSelectedEvents = false
+            switch result {
+            case .success:
+                selectedEventIds.removeAll()
                 isSelectionMode = false
             case .failure(let error):
                 viewModel.errorMessage = error.localizedDescription
@@ -1180,19 +1375,26 @@ private struct ActivityCommentMomentPreview: View {
     @State private var isGeneratingThumbnail = false
 
     var body: some View {
-        ZStack {
-            if let moment {
-                preview(for: moment)
-            } else {
-                placeholder
-            }
+        ScreenshotProtectedView(isProtected: isProtectedMoment(moment)) {
+            ZStack {
+                if let moment {
+                    preview(for: moment)
+                } else {
+                    placeholder
+                }
 
-            if !canView {
-                restrictedOverlay
+                if !canView {
+                    restrictedOverlay
+                }
             }
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func isProtectedMoment(_ moment: Moment?) -> Bool {
+        guard let audience = moment?.audience?.lowercased() else { return false }
+        return audience != "everyone"
     }
 
     @ViewBuilder
@@ -1320,44 +1522,139 @@ private struct ActivityCommentMomentPreview: View {
 private struct ActivityEventRow: View {
     @Environment(\.colorScheme) private var colorScheme
     let item: ActivityEventItem
+    let isSelectionMode: Bool
+    let isSelected: Bool
+    let onOpenTargetProfile: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "4F46E5").opacity(0.13))
-                    .frame(width: 32, height: 32)
-
-                Image(systemName: item.icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "4F46E5"))
-            }
+            avatar
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.title)
-                    .font(.custom("Poppins-SemiBold", size: 13))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .lineLimit(2)
-
-                if !item.subtitle.isEmpty {
-                    Text(item.subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
+                if let actionText = item.actionText, !actionText.isEmpty {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(item.title)
+                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .lineLimit(1)
+                        Text(actionText)
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .lineLimit(1)
+                    }
+                } else {
+                    Text(item.title)
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(2)
                 }
 
-                Text(item.timestamp.timeAgoDisplay())
-                    .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundColor(.gray.opacity(0.85))
+                if !item.subtitle.isEmpty {
+                    Text(item.subtitle)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 6) {
+                    Text(item.timestamp.timeAgoDisplay())
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(.gray.opacity(0.85))
+
+                    if hasContext {
+                        Text("•")
+                            .font(.custom("Poppins-Regular", size: 10))
+                            .foregroundColor(.gray.opacity(0.7))
+
+                        if let username = item.targetUsername,
+                           !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(contextPrefix)
+                                .font(.custom("Poppins-Regular", size: 11))
+                                .foregroundColor(.gray.opacity(0.85))
+
+                            Button {
+                                onOpenTargetProfile()
+                            } label: {
+                                Text(username)
+                                    .font(.custom("Poppins-SemiBold", size: 11))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .lineLimit(1)
+                            }
+                            .buttonStyle(.plain)
+                        } else if let context = item.contextText, !context.isEmpty {
+                            Text(context)
+                                .font(.custom("Poppins-Regular", size: 11))
+                                .foregroundColor(.gray.opacity(0.85))
+                                .lineLimit(1)
+                        }
+                    }
+                }
             }
 
             Spacer(minLength: 0)
+
+            if isSelectionMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
+            }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
-        )
+        .padding(.vertical, 8)
+    }
+
+    private var hasContext: Bool {
+        if let username = item.targetUsername, !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        if let context = item.contextText, !context.isEmpty {
+            return true
+        }
+        return false
+    }
+
+    private var contextPrefix: String {
+        switch item.kind?.lowercased() {
+        case "poll":
+            return NSLocalizedString("userActivity.simple.stickers.poll.contextPrefix", comment: "Poll context prefix")
+        case "question":
+            return NSLocalizedString("userActivity.simple.stickers.question.contextPrefix", comment: "Question context prefix")
+        default:
+            return ""
+        }
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        if let path = item.actorProfileImagePath,
+           !path.isEmpty,
+           let url = URL(string: path) {
+            KFImage(url)
+                .placeholder {
+                    fallbackAvatar
+                }
+                .resizable()
+                .scaledToFill()
+                .frame(width: 34, height: 34)
+                .clipShape(Circle())
+        } else if let userId = item.actorId, !userId.isEmpty {
+            AsyncProfileImageView(userId: userId)
+                .frame(width: 34, height: 34)
+                .clipShape(Circle())
+        } else {
+            fallbackAvatar
+        }
+    }
+
+    private var fallbackAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: "4F46E5").opacity(0.13))
+                .frame(width: 34, height: 34)
+
+            Image(systemName: item.icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Color(hex: "4F46E5"))
+        }
     }
 }
 
@@ -1371,35 +1668,42 @@ private struct ActivityReactionMomentCard: View {
     @State private var isGeneratingThumbnail = false
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            cardPreview
-                .frame(width: size, height: size)
-                .blur(radius: item.canView ? 0 : 16)
-                .clipped()
+        ScreenshotProtectedView(isProtected: isProtectedMoment(item.moment)) {
+            ZStack(alignment: .topLeading) {
+                cardPreview
+                    .frame(width: size, height: size)
+                    .blur(radius: item.canView ? 0 : 16)
+                    .clipped()
 
-            if !item.canView {
-                restrictedOverlay
-            }
+                if !item.canView {
+                    restrictedOverlay
+                }
 
-            reactionBadge
-                .padding(6)
+                reactionBadge
+                    .padding(6)
 
-            if isSelectionMode {
-                VStack {
-                    HStack {
+                if isSelectionMode {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
+                                .padding(6)
+                        }
                         Spacer()
-                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
-                            .padding(6)
                     }
-                    Spacer()
                 }
             }
+            .frame(width: size, height: size)
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .frame(width: size, height: size)
-        .contentShape(RoundedRectangle(cornerRadius: 8))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func isProtectedMoment(_ moment: Moment?) -> Bool {
+        guard let audience = moment?.audience?.lowercased() else { return false }
+        return audience != "everyone"
     }
 
     @ViewBuilder
@@ -1566,6 +1870,9 @@ private struct ActivityReactionMomentCard: View {
     }
 
     private func reactionStyle(from rawValue: String) -> (icon: String, label: String, color: Color) {
+        if rawValue.lowercased() == "tagged" {
+            return ("🏷️", NSLocalizedString("profile.tab.tagged", comment: "Tagged tab"), Color(hex: "F59E0B"))
+        }
         if let type = ReactionType(rawValue: rawValue) {
             return (type.icon, type.displayName, type.color)
         }
@@ -1606,6 +1913,50 @@ private struct ActivityEventItem: Identifiable {
     let subtitle: String
     let timestamp: Date
     let icon: String
+    let actorId: String?
+    let actorUsername: String?
+    let actorProfileImagePath: String?
+    let actionText: String?
+    let kind: String?
+    let targetAuthorId: String?
+    let targetUsername: String?
+    let storyId: String?
+    let sourceId: String?
+    let contextText: String?
+
+    init(
+        id: String,
+        title: String,
+        subtitle: String,
+        timestamp: Date,
+        icon: String,
+        actorId: String? = nil,
+        actorUsername: String? = nil,
+        actorProfileImagePath: String? = nil,
+        actionText: String? = nil,
+        kind: String? = nil,
+        targetAuthorId: String? = nil,
+        targetUsername: String? = nil,
+        storyId: String? = nil,
+        sourceId: String? = nil,
+        contextText: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.timestamp = timestamp
+        self.icon = icon
+        self.actorId = actorId
+        self.actorUsername = actorUsername
+        self.actorProfileImagePath = actorProfileImagePath
+        self.actionText = actionText
+        self.kind = kind
+        self.targetAuthorId = targetAuthorId
+        self.targetUsername = targetUsername
+        self.storyId = storyId
+        self.sourceId = sourceId
+        self.contextText = contextText
+    }
 }
 
 // MARK: - Activity Cache (UserDefaults)
@@ -1836,6 +2187,115 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
         }
     }
 
+    func removeTags(withIds ids: Set<String>) async -> Result<Void, Error> {
+        guard !ids.isEmpty else { return .success(()) }
+        guard let currentUser = Auth.auth().currentUser else {
+            return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")]))
+        }
+
+        let targets = reactionItems
+            .filter { ids.contains($0.id) }
+            .map { ["authorId": $0.authorId, "momentId": $0.momentId] }
+        guard !targets.isEmpty else { return .success(()) }
+
+        do {
+            let idToken = try await currentUser.getIDToken()
+            guard let projectId = FirebaseApp.app()?.options.projectID, !projectId.isEmpty else {
+                return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing Firebase project ID"]))
+            }
+
+            guard let url = URL(string: "https://europe-southwest1-\(projectId).cloudfunctions.net/removeMyTagsBatch") else {
+                return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"]))
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 20
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["moments": targets])
+
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend response"]))
+            }
+            guard http.statusCode == 200 else {
+                return .failure(NSError(domain: "", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: "Backend error \(http.statusCode)"]))
+            }
+
+            await MainActor.run {
+                self.reactionItems.removeAll { ids.contains($0.id) }
+            }
+            return .success(())
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    func removeStickerReplies(withIds ids: Set<String>) async -> Result<Void, Error> {
+        guard !ids.isEmpty else { return .success(()) }
+        guard let currentUserId = Auth.auth().currentUser?.uid, !currentUserId.isEmpty else {
+            return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")]))
+        }
+
+        let targets = events.filter { ids.contains($0.id) }
+        guard !targets.isEmpty else { return .success(()) }
+
+        let payload = targets.compactMap { item -> [String: String]? in
+            guard let kind = item.kind, !kind.isEmpty,
+                  let authorId = item.targetAuthorId, !authorId.isEmpty,
+                  let storyId = item.storyId, !storyId.isEmpty else {
+                return nil
+            }
+            var map: [String: String] = [
+                "kind": kind,
+                "authorId": authorId,
+                "storyId": storyId
+            ]
+            if let sourceId = item.sourceId, !sourceId.isEmpty {
+                map["sourceId"] = sourceId
+            }
+            return map
+        }
+
+        guard !payload.isEmpty else { return .success(()) }
+
+        do {
+            guard let currentUser = Auth.auth().currentUser else {
+                return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")]))
+            }
+            let idToken = try await currentUser.getIDToken()
+            guard let projectId = FirebaseApp.app()?.options.projectID, !projectId.isEmpty else {
+                return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing Firebase project ID"]))
+            }
+            guard let url = URL(string: "https://europe-southwest1-\(projectId).cloudfunctions.net/removeMyStickerRepliesBatch") else {
+                return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"]))
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 20
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["replies": payload])
+
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend response"]))
+            }
+            guard http.statusCode == 200 else {
+                return .failure(NSError(domain: "", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: "Backend error \(http.statusCode)"]))
+            }
+
+            await MainActor.run {
+                self.events.removeAll { ids.contains($0.id) }
+            }
+            return .success(())
+        } catch {
+            return .failure(error)
+        }
+    }
+
     private func loadReactions(for userId: String) {
         Task { [weak self] in
             guard let self = self else { return }
@@ -1901,86 +2361,180 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
     }
 
     private func loadTags(for userId: String) {
-        let group = DispatchGroup()
-        var merged: [ActivityEventItem] = []
-
-        group.enter()
-        fetchNotifications(userId: userId) { items in
-            let tags = items.compactMap { item -> ActivityEventItem? in
-                let sender = item.senderUsername?.isEmpty == false ? item.senderUsername! : "@user"
-
-                if item.type == "mention" {
-                    return ActivityEventItem(
-                        id: "notif_mention_\(item.id)",
-                        title: String(format: NSLocalizedString("userActivity.event.mention.received", comment: "Mention received"), sender),
-                        subtitle: NSLocalizedString("userActivity.event.subtitle.open", comment: "Open content"),
-                        timestamp: item.timestamp,
-                        icon: "at"
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let page = try await self.fetchTaggedMomentsPage(limit: 60, cursor: nil)
+                let mapped: [ActivityReactionItem] = page.items.compactMap { item in
+                    let moment = item.moment.toMoment()
+                    let timestamp = item.taggedAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? moment.timestamp
+                    let authorId = item.authorId ?? moment.authorId
+                    guard let momentId = item.momentId ?? moment.id,
+                          !authorId.isEmpty, !momentId.isEmpty else { return nil }
+                    return ActivityReactionItem(
+                        id: "\(authorId)_\(momentId)",
+                        authorId: authorId,
+                        momentId: momentId,
+                        reactionType: "tagged",
+                        reactedAt: timestamp,
+                        moment: moment,
+                        canView: true
                     )
                 }
-
-                if item.type == "photoTag" {
-                    return ActivityEventItem(
-                        id: "notif_phototag_\(item.id)",
-                        title: String(format: NSLocalizedString("userActivity.event.photoTag.received", comment: "Photo tag received"), sender),
-                        subtitle: NSLocalizedString("userActivity.event.subtitle.open", comment: "Open content"),
-                        timestamp: item.timestamp,
-                        icon: "tag.fill"
-                    )
+                DispatchQueue.main.async {
+                    self.reactionItems = mapped.sorted { $0.reactedAt > $1.reactedAt }
+                    self.commentItems = []
+                    self.events = []
+                    self.isLoading = false
                 }
-
-                return nil
+            } catch {
+                self.loadTagsLegacy(for: userId)
             }
-            merged.append(contentsOf: tags)
-            group.leave()
-        }
-
-        group.enter()
-        fetchInteractionEvents(userId: userId) { items in
-            let tags = items.compactMap { item -> ActivityEventItem? in
-                let type = item.interactionType.lowercased()
-                guard type == "mention_usage" else { return nil }
-                return ActivityEventItem(
-                    id: "event_mention_\(item.id)",
-                    title: NSLocalizedString("userActivity.event.action.mentionUsed", comment: "Mention used"),
-                    subtitle: NSLocalizedString("userActivity.event.subtitle.you", comment: "Your action"),
-                    timestamp: item.timestamp,
-                    icon: "at"
-                )
-            }
-            merged.append(contentsOf: tags)
-            group.leave()
-        }
-
-        group.notify(queue: .main) {
-            self.events = merged.sorted { $0.timestamp > $1.timestamp }
-            self.reactionItems = []
-            self.commentItems = []
-            self.isLoading = false
         }
     }
 
-    private func loadStickerReplies(for userId: String) {
-        fetchInteractionEvents(userId: userId) { [weak self] items in
-            guard let self = self else { return }
+    private func loadTagsLegacy(for userId: String) {
+        db.collectionGroup("moments")
+            .whereField("taggedUsers", arrayContains: userId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                if let _ = error {
+                    DispatchQueue.main.async {
+                        self.reactionItems = []
+                        self.commentItems = []
+                        self.events = []
+                        self.isLoading = false
+                    }
+                    return
+                }
 
-            let stickers = items.compactMap { item -> ActivityEventItem? in
-                let type = item.interactionType.lowercased()
-                guard type.contains("sticker") || type.contains("question") else { return nil }
-                return ActivityEventItem(
-                    id: "event_sticker_\(item.id)",
-                    title: NSLocalizedString("userActivity.event.action.stickerReply", comment: "Sticker reply"),
-                    subtitle: NSLocalizedString("userActivity.event.subtitle.you", comment: "Your action"),
-                    timestamp: item.timestamp,
-                    icon: "face.smiling"
-                )
+                let mapped: [ActivityReactionItem] = snapshot?.documents.compactMap { doc in
+                    guard let moment = try? doc.data(as: Moment.self) else { return nil }
+                    let authorId = moment.authorId
+                    guard let momentId = moment.id, !authorId.isEmpty, !momentId.isEmpty else { return nil }
+                    return ActivityReactionItem(
+                        id: "\(authorId)_\(momentId)",
+                        authorId: authorId,
+                        momentId: momentId,
+                        reactionType: "tagged",
+                        reactedAt: moment.timestamp,
+                        moment: moment,
+                        canView: true
+                    )
+                } ?? []
+
+                DispatchQueue.main.async {
+                    self.reactionItems = mapped.sorted { $0.reactedAt > $1.reactedAt }
+                    self.commentItems = []
+                    self.events = []
+                    self.isLoading = false
+                }
             }
+    }
 
-            DispatchQueue.main.async {
-                self.events = stickers.sorted { $0.timestamp > $1.timestamp }
-                self.reactionItems = []
-                self.commentItems = []
-                self.isLoading = false
+    private func loadStickerReplies(for _: String) {
+        Task {
+            do {
+                let page = try await self.fetchStickerRepliesPage(limit: 80, cursor: nil)
+                let mapped: [ActivityEventItem] = page.items.compactMap { item in
+                    let timestamp = item.timestamp.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date()
+                    let kind = item.kind.lowercased()
+                    let actorName = (item.actorUsername ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let displayName = actorName.isEmpty
+                        ? NSLocalizedString("userActivity.simple.stickers.actorFallback", comment: "Sticker actor fallback")
+                        : actorName
+
+                    if kind == "poll" {
+                        let optionText = (item.pollOptionText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        let optionFallback: String
+                        if let option = item.pollOption {
+                            optionFallback = String(
+                                format: NSLocalizedString("userActivity.simple.stickers.poll.optionFallback", comment: "Poll option fallback"),
+                                option + 1
+                            )
+                        } else {
+                            optionFallback = ""
+                        }
+                        let resolvedOptionText = optionText.isEmpty ? optionFallback : optionText
+                        let subtitle = resolvedOptionText.isEmpty
+                            ? NSLocalizedString("userActivity.simple.stickers.poll.subtitleFallback", comment: "Poll response fallback")
+                            : String(format: NSLocalizedString("userActivity.simple.stickers.poll.subtitle", comment: "Poll response subtitle"), resolvedOptionText)
+                        return ActivityEventItem(
+                            id: "event_poll_\(item.id)",
+                            title: displayName,
+                            subtitle: subtitle,
+                            timestamp: timestamp,
+                            icon: "checkmark.circle.fill",
+                            actorId: item.actorId,
+                            actorUsername: item.actorUsername,
+                            actorProfileImagePath: item.actorProfileImagePath,
+                            actionText: NSLocalizedString("userActivity.simple.stickers.poll.action", comment: "Poll response action"),
+                            kind: "poll",
+                            targetAuthorId: item.authorId,
+                            targetUsername: item.targetUsername,
+                            storyId: item.storyId,
+                            sourceId: item.sourceId,
+                            contextText: String(
+                                format: NSLocalizedString("userActivity.simple.stickers.poll.context", comment: "Poll context"),
+                                (item.targetUsername ?? "").isEmpty
+                                    ? NSLocalizedString("onlineStatus.unknown", comment: "Unknown")
+                                    : (item.targetUsername ?? "")
+                            )
+                        )
+                    }
+
+                    if kind == "question" {
+                        let questionText = (item.questionText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        let responseText = (item.responseText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        let subtitle: String
+                        if !responseText.isEmpty {
+                            subtitle = responseText
+                        } else if !questionText.isEmpty {
+                            subtitle = questionText
+                        } else {
+                            subtitle = NSLocalizedString("userActivity.simple.stickers.question.subtitleFallback", comment: "Question response fallback")
+                        }
+                        return ActivityEventItem(
+                            id: "event_question_\(item.id)",
+                            title: displayName,
+                            subtitle: subtitle,
+                            timestamp: timestamp,
+                            icon: "questionmark.bubble.fill",
+                            actorId: item.actorId,
+                            actorUsername: item.actorUsername,
+                            actorProfileImagePath: item.actorProfileImagePath,
+                            actionText: NSLocalizedString("userActivity.simple.stickers.question.action", comment: "Question response action"),
+                            kind: "question",
+                            targetAuthorId: item.authorId,
+                            targetUsername: item.targetUsername,
+                            storyId: item.storyId,
+                            sourceId: item.sourceId,
+                            contextText: String(
+                                format: NSLocalizedString("userActivity.simple.stickers.question.context", comment: "Question context"),
+                                (item.targetUsername ?? "").isEmpty
+                                    ? NSLocalizedString("onlineStatus.unknown", comment: "Unknown")
+                                    : (item.targetUsername ?? "")
+                            )
+                        )
+                    }
+
+                    return nil
+                }
+
+                DispatchQueue.main.async {
+                    self.events = mapped.sorted { $0.timestamp > $1.timestamp }
+                    self.reactionItems = []
+                    self.commentItems = []
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.events = []
+                    self.reactionItems = []
+                    self.commentItems = []
+                    self.isLoading = false
+                    self.errorMessage = NSLocalizedString("userActivity.simple.empty.stickers", comment: "No sticker replies")
+                }
             }
         }
     }
@@ -2029,6 +2583,53 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
     private struct BackendCommentsResponse: Codable {
         let items: [BackendCommentedItem]
         let nextCursor: BackendCommentsCursor?
+        let source: String
+        let totalCandidates: Int
+    }
+
+    private struct BackendTagsCursor: Codable {
+        let timestamp: Double
+    }
+
+    private struct BackendTaggedItem: Codable {
+        let moment: BackendMoment
+        let taggedAt: Double?
+        let authorId: String?
+        let momentId: String?
+        let canView: Bool?
+    }
+
+    private struct BackendTagsResponse: Codable {
+        let items: [BackendTaggedItem]
+        let nextCursor: BackendTagsCursor?
+        let source: String
+        let totalCandidates: Int
+    }
+
+    private struct BackendStickerRepliesCursor: Codable {
+        let timestamp: Double
+    }
+
+    private struct BackendStickerReplyItem: Codable {
+        let id: String
+        let sourceId: String?
+        let kind: String
+        let authorId: String?
+        let storyId: String?
+        let targetUsername: String?
+        let actorId: String?
+        let actorUsername: String?
+        let actorProfileImagePath: String?
+        let timestamp: Double?
+        let questionText: String?
+        let responseText: String?
+        let pollOption: Int?
+        let pollOptionText: String?
+    }
+
+    private struct BackendStickerRepliesResponse: Codable {
+        let items: [BackendStickerReplyItem]
+        let nextCursor: BackendStickerRepliesCursor?
         let source: String
         let totalCandidates: Int
     }
@@ -2163,6 +2764,82 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
         }
 
         return (mapped, decoded.nextCursor)
+    }
+
+    private func fetchTaggedMomentsPage(limit: Int, cursor: BackendTagsCursor?) async throws -> (items: [BackendTaggedItem], nextCursor: BackendTagsCursor?) {
+        guard let currentUser = Auth.auth().currentUser else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")])
+        }
+
+        let idToken = try await currentUser.getIDToken()
+        guard let projectId = FirebaseApp.app()?.options.projectID, !projectId.isEmpty else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing Firebase project ID"])
+        }
+
+        guard let url = URL(string: "https://europe-southwest1-\(projectId).cloudfunctions.net/getTaggedMomentsPage") else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"])
+        }
+
+        var payload: [String: Any] = ["limit": limit]
+        if let cursor = cursor {
+            payload["cursor"] = ["timestamp": cursor.timestamp]
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend response"])
+        }
+        guard http.statusCode == 200 else {
+            throw NSError(domain: "", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: "Backend error \(http.statusCode)"])
+        }
+
+        let decoded = try JSONDecoder().decode(BackendTagsResponse.self, from: data)
+        return (decoded.items, decoded.nextCursor)
+    }
+
+    private func fetchStickerRepliesPage(limit: Int, cursor: BackendStickerRepliesCursor?) async throws -> (items: [BackendStickerReplyItem], nextCursor: BackendStickerRepliesCursor?) {
+        guard let currentUser = Auth.auth().currentUser else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")])
+        }
+
+        let idToken = try await currentUser.getIDToken()
+        guard let projectId = FirebaseApp.app()?.options.projectID, !projectId.isEmpty else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing Firebase project ID"])
+        }
+
+        guard let url = URL(string: "https://europe-southwest1-\(projectId).cloudfunctions.net/getStickerRepliesPage") else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"])
+        }
+
+        var payload: [String: Any] = ["limit": limit]
+        if let cursor = cursor {
+            payload["cursor"] = ["timestamp": cursor.timestamp]
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend response"])
+        }
+        guard http.statusCode == 200 else {
+            throw NSError(domain: "", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: "Backend error \(http.statusCode)"])
+        }
+
+        let decoded = try JSONDecoder().decode(BackendStickerRepliesResponse.self, from: data)
+        return (decoded.items, decoded.nextCursor)
     }
 
     private func deleteCommentsBatch(_ items: [ActivityCommentItem]) async throws {

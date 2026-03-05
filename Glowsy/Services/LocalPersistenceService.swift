@@ -1061,11 +1061,15 @@ final class LocalPersistenceService: ObservableObject {
         existing.senderUsername = new.senderUsername
         existing.timestamp = new.timestamp
         existing.isPending = new.isPending
+        existing.title = new.title
+        existing.message = new.message
+        existing.downloadURL = new.downloadURL
         existing.momentId = new.momentId
         existing.visitCount = new.visitCount
         existing.storyId = new.storyId
         existing.storyAuthorId = new.storyAuthorId
         existing.reaction = new.reaction
+        existing.reactionCount = new.reactionCount
         existing.commentId = new.commentId
         existing.echoId = new.echoId
         existing.lastSyncedAt = Date()

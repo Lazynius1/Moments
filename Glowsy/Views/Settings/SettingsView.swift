@@ -1657,6 +1657,10 @@ struct NotificationSettingsView: View {
     @Binding var isScheduleEnabled: Bool
     @Binding var startTime: Date
     @Binding var endTime: Date
+    @State private var isSavingSchedule: Bool = false
+    @State private var showSavedSchedule: Bool = false
+    @State private var showScheduleError: Bool = false
+    @State private var scheduleErrorMessage: String = ""
     
     var body: some View {
         NavigationView {
@@ -1691,20 +1695,57 @@ struct NotificationSettingsView: View {
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                             Button(action: {
-                                viewModel.updateActiveHours(startTime: startTime, endTime: endTime)
+                                guard !isSavingSchedule else { return }
+                                isSavingSchedule = true
+                                HapticManager.shared.lightImpact()
+                                viewModel.updateActiveHours(startTime: startTime, endTime: endTime) { error in
+                                    DispatchQueue.main.async {
+                                        isSavingSchedule = false
+                                        if let error = error {
+                                            HapticManager.shared.notification(.error)
+                                            scheduleErrorMessage = error.localizedDescription
+                                            showScheduleError = true
+                                            return
+                                        }
+                                        
+                                        HapticManager.shared.notification(.success)
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                                            showSavedSchedule = true
+                                        }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+                                            withAnimation(.easeOut(duration: 0.2)) {
+                                                showSavedSchedule = false
+                                            }
+                                        }
+                                    }
+                                }
                             }) {
-                                Text(NSLocalizedString("settings.schedule.save", comment: "Save schedule"))
-                                    .font(.custom("Poppins-SemiBold", size: 14))
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(hex: "4F46E5").opacity(0.5), lineWidth: 1.5)
-                                    )
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                HStack(spacing: 8) {
+                                    if isSavingSchedule {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
+                                            .scaleEffect(0.85)
+                                        Text(NSLocalizedString("settings.schedule.saving", comment: "Saving schedule"))
+                                    } else {
+                                        Image(systemName: "checkmark.circle")
+                                        Text(NSLocalizedString("settings.schedule.save", comment: "Save schedule"))
+                                    }
+                                }
+                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(hex: "4F46E5").opacity(0.5), lineWidth: 1.5)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .scaleEffect(isSavingSchedule ? 0.98 : 1.0)
+                                .animation(.easeInOut(duration: 0.15), value: isSavingSchedule)
                             }
+                            .buttonStyle(SaveSchedulePressStyle())
+                            .disabled(isSavingSchedule)
                         }
                     }
                     .listRowBackground(SettingsListRowBackground())
@@ -1748,6 +1789,42 @@ struct NotificationSettingsView: View {
                     .listRowBackground(SettingsListRowBackground())
                 }
                 .scrollContentBackground(.hidden)
+
+                if showSavedSchedule {
+                    VStack {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text(NSLocalizedString("settings.schedule.saved", comment: "Schedule saved"))
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(colorScheme == .dark ? 0.22 : 0.45),
+                                            Color.white.opacity(colorScheme == .dark ? 0.08 : 0.20)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.12), radius: 12, y: 6)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 20)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        Spacer()
+                    }
+                    .allowsHitTesting(false)
+                }
             }
             .navigationTitle(NSLocalizedString("settings.notifications", comment: "Notifications"))
             .navigationBarTitleDisplayMode(.inline)
@@ -1762,7 +1839,21 @@ struct NotificationSettingsView: View {
                     }
                 }
             }
+            .alert(NSLocalizedString("settings.error.title", comment: "Error"), isPresented: $showScheduleError) {
+                Button(NSLocalizedString("settings.ok", comment: "OK"), role: .cancel) { }
+            } message: {
+                Text(scheduleErrorMessage)
+            }
         }
+    }
+}
+
+private struct SaveSchedulePressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
     }
 }
 
@@ -1888,13 +1979,14 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    func updateActiveHours(startTime: Date, endTime: Date) {
+    func updateActiveHours(startTime: Date, endTime: Date, completion: ((Error?) -> Void)? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         let startHour = dateFormatter.string(from: startTime)
         let endHour = dateFormatter.string(from: endTime)
         firestoreService.updateActiveHours(userId: userId, startHour: startHour, endHour: endHour) { error in
             if let error = error {
             }
+            completion?(error)
         }
     }
 

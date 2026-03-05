@@ -259,7 +259,12 @@ struct MomentDetailView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
                 // ✅ Contenido del momento con aspect ratio dinámico
-                momentContentCard
+                // ✅ Protección de screenshots para momentos privados
+                ScreenshotProtectedView(
+                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                ) {
+                    momentContentCard
+                }
                 
                 // ✅ Comentarios inline
                 if !moment.disableComments {

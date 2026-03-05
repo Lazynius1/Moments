@@ -1063,44 +1063,48 @@ struct MomentCard: View {
     let onTap: () -> Void
     
     var body: some View {
-        Button(action: onTap) {
-            GeometryReader { geometry in
-                ZStack {
-                    Color.gray.opacity(0.1)
-                    
-                    if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
-                        ExploreVideoThumbnailView(videoUrl: videoUrl, thumbnailUrl: moment.thumbnailUrl)
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: geometry.size.width, height: geometry.size.width)
-                            .clipped()
-                            .overlay(
-                                ZStack {
-                                    Circle()
-                                        .fill(.ultraThinMaterial)
-                                        .frame(width: 24, height: 24)
-                                    
-                                    Image(systemName: "play.fill")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.white)
+        ScreenshotProtectedView(
+            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+        ) {
+            Button(action: onTap) {
+                GeometryReader { geometry in
+                    ZStack {
+                        Color.gray.opacity(0.1)
+                        
+                        if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
+                            ExploreVideoThumbnailView(videoUrl: videoUrl, thumbnailUrl: moment.thumbnailUrl)
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width, height: geometry.size.width)
+                                .clipped()
+                                .overlay(
+                                    ZStack {
+                                        Circle()
+                                            .fill(.ultraThinMaterial)
+                                            .frame(width: 24, height: 24)
+                                        
+                                        Image(systemName: "play.fill")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding(8),
+                                    alignment: .bottomTrailing
+                                )
+                        } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
+                            KFImage(url)
+                                .placeholder {
+                                    Color.gray.opacity(0.2)
                                 }
-                                .padding(8),
-                                alignment: .bottomTrailing
-                            )
-                    } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-                        KFImage(url)
-                            .placeholder {
-                                Color.gray.opacity(0.2)
-                            }
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: geometry.size.width, height: geometry.size.width)
-                            .clipped()
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width, height: geometry.size.width)
+                                .clipped()
+                        }
                     }
                 }
+                .aspectRatio(1, contentMode: .fit) 
             }
-            .aspectRatio(1, contentMode: .fit) 
+            .buttonStyle(PlainButtonStyle())
         }
-        .buttonStyle(PlainButtonStyle())
     }
     
     @ViewBuilder
@@ -1108,6 +1112,7 @@ struct MomentCard: View {
         EmptyView() // Not used in this simplified version
     }
 }
+
 
 
 // MARK: - Video Thumbnail View
@@ -2057,49 +2062,34 @@ extension ExploreViewModel {
     // ✅ BUSCAR usuarios (función original mejorada CON FILTRADO COMPLETO)
     private func searchUsers(username: String) {
         filteredMoments = [] // Limpiar momentos
-        
-        firestoreService.db.collection("users")
-            .whereField("username", isGreaterThanOrEqualTo: username)
-            .whereField("username", isLessThanOrEqualTo: username + "\u{f8ff}")
-            .limit(to: 20)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-                
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self.errorMessage = "Error al buscar usuarios: \(error.localizedDescription)"
-                    }
-                    return
+        let cleanUsername = username.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanUsername.isEmpty else {
+            searchedUsers = []
+            return
+        }
+
+        firestoreService.searchUsers(query: cleanUsername, limit: 20) { [weak self] result in
+            guard let self = self else { return }
+
+            switch result {
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.errorMessage = "Error al buscar usuarios: \(error.localizedDescription)"
                 }
-                
-                guard let documents = snapshot?.documents else {
-                    DispatchQueue.main.async {
-                        self.searchedUsers = []
-                    }
-                    return
-                }
-                
-                let users = documents.compactMap { doc -> AppUser? in
-                    try? doc.data(as: AppUser.self)
-                }.filter { user in
-                    // ✅ FILTROS DE PRIVACIDAD (igual que antes):
-                    // 1. No debe ser tu propio usuario
-                    guard user.id != self.currentUserId else { return false }
-                    
-                    // 2. No debe estar en tu lista de bloqueados
+            case .success(let users):
+                let currentUserId = self.currentUserId ?? ""
+                let filteredUsers = users.filter { user in
+                    guard user.id != currentUserId else { return false }
                     guard !self.blockedUsers.contains(user.id) else { return false }
-                    
-                    // 3. No debes estar en su lista de bloqueados
-                    guard !(user.blockedUsers ?? []).contains(self.currentUserId ?? "") else { return false }
-                    
+                    guard !(user.blockedUsers ?? []).contains(currentUserId) else { return false }
                     return true
                 }
-                
+
                 DispatchQueue.main.async {
-                    self.searchedUsers = users
-            
+                    self.searchedUsers = filteredUsers
                 }
             }
+        }
     }
     private func searchHashtags(hashtag: String) {
         

@@ -1,0 +1,52 @@
+Novedades de Moments (v2.6.0)
+
+Hemos pulido Moments para que todo sea mas consistente, mas claro y mas fiable en el uso diario.
+
+Lo mas importante de esta version:
+
+PRIVACIDAD MAS CONSISTENTE
+- Mejor aplicacion de privacidad en las vistas donde aparece contenido (feed, explore, perfil y guardados).
+- En guardados, cuando ya no puedes ver un momento, ahora se muestra estado restringido de forma clara.
+- Mejor comportamiento de cuentas silenciadas y palabras silenciadas en distintos flujos de la app.
+
+HISTORIAS Y ANILLOS
+- Los anillos de historias se muestran con mas consistencia en mas pantallas.
+- Mejor reflejo visual de audiencias (best friends y mutuals) en el estado de historias.
+- Correcciones en el estado visto/no visto para evitar inconsistencias.
+- Mejoras en vistas de actividad de historias y en la presentacion de audiencia/listas.
+
+AJUSTES Y PERFILES
+- Rediseño completo del menu de ajustes, mas limpio, moderno e intuitivo.
+- Rediseño y ajustes visuales en guardados para una experiencia mas limpia.
+- Mejoras de layout en vistas de detalle de momentos.
+- Mejor consistencia de colores y adaptacion a modo claro/oscuro.
+
+NOTIFICACIONES Y ACTIVIDAD
+- Mejoras en la pantalla de notificaciones para una lectura mas clara.
+- Ajustes en agrupacion de notificaciones para evitar mensajes confusos.
+- Mejoras en “Tu actividad” (especialmente reacciones y comentarios) con una base mas solida para filtrar y gestionar contenido.
+
+ECHOES
+- Mejoras de UX/UI en historial y visualizador de Echoes.
+- Se mejoro la explicacion in-app de como funciona Echoes para que sea mas facil de entender.
+
+COMPARTIR Y ENLACES
+- Flujo de compartir mas consistente en toda la app.
+- Mejor comportamiento al abrir enlaces de momentos desde la web/app.
+- Ajustes en previsualizacion y carga de autor/contenido compartido.
+
+EXPORTACION DE DATOS (CAMBIO IMPORTANTE)
+- La exportacion ahora se procesa en backend (Cloud Functions), incluso si cierras la app.
+- Descarga en ZIP con estructura mas completa.
+- Incluye datos principales, metadatos, conversaciones y medios disponibles.
+- Mejor trazabilidad del progreso y estado de exportacion.
+
+SEGURIDAD VISUAL
+- Blackout aplicado en contenido sensible (privado / una sola visualizacion).
+
+LOCALE Y ESTABILIDAD
+- Correcciones de textos y localizacion (ES/EN/CA).
+- Correccion de errores y mejoras generales de estabilidad.
+
+En resumen:
+Moments ahora es mas robusto en privacidad, mas consistente en historias/perfiles y mas fiable en procesos clave como exportacion y notificaciones.

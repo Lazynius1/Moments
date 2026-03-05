@@ -15,7 +15,6 @@ struct LocationMomentDetailView: View {
     
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
-    @State private var showingComments = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
     @State private var trackedMomentViewIds: Set<String> = []
@@ -118,7 +117,16 @@ struct LocationMomentDetailView: View {
             }
         }
         .navigationBarHidden(true)
-        .sheet(isPresented: $showingComments) {
+        .sheet(
+            isPresented: Binding(
+                get: { selectedMoment != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        selectedMoment = nil
+                    }
+                }
+            )
+        ) {
             if let moment = selectedMoment {
                 ModernCommentsView(moment: moment)
                     .environmentObject(firestoreService)
@@ -469,28 +477,31 @@ struct LocationMomentDetailView: View {
     private func locationMomentsCarousel(geometry: GeometryProxy) -> some View {
         TabView(selection: $currentIndex) {
             ForEach(Array(locationMoments.enumerated()), id: \.offset) { index, moment in
-                LocationMomentCard(
-                    moment: moment,
-                    availableHeight: geometry.size.height - 160,
-                    colorScheme: colorScheme,
-                    commentCount: commentCounts[moment.id ?? ""] ?? 0,
-                    isSaved: savedStates[moment.id ?? ""] ?? false,
-                    isSaveLoading: loadingStates[moment.id ?? ""] ?? false,
-                    onComment: {
-                        selectedMoment = moment
-                        showingComments = true
-                    },
-                    onSave: {
-                        toggleSave(for: moment)
-                    },
-                    onContextMenu: {
-                        contextMenuMoment = moment
-                        showContextMenu = true
-                    },
-                    onAvatarTap: { userId, hasStory in
-                        handleAvatarTap(userId: userId, hasStory: hasStory)
-                    }
-                )
+                ScreenshotProtectedView(
+                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                ) {
+                    LocationMomentCard(
+                        moment: moment,
+                        availableHeight: geometry.size.height - 160,
+                        colorScheme: colorScheme,
+                        commentCount: commentCounts[moment.id ?? ""] ?? 0,
+                        isSaved: savedStates[moment.id ?? ""] ?? false,
+                        isSaveLoading: loadingStates[moment.id ?? ""] ?? false,
+                        onComment: {
+                            selectedMoment = moment
+                        },
+                        onSave: {
+                            toggleSave(for: moment)
+                        },
+                        onContextMenu: {
+                            contextMenuMoment = moment
+                            showContextMenu = true
+                        },
+                        onAvatarTap: { userId, hasStory in
+                            handleAvatarTap(userId: userId, hasStory: hasStory)
+                        }
+                    )
+                }
                 .tag(index)
                 .environmentObject(firestoreService)
             }

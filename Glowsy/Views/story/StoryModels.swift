@@ -2166,10 +2166,11 @@ struct GlassmorphicStoryViewer: View {
     }
     
     private var contentView: some View {
-        ZStack {
-            // ✅ CONTENIDO PRINCIPAL (imagen/video)
-            Group {
-                if story.mediaItem.type == .video, let url = URL(string: story.mediaItem.url) {
+        ScreenshotProtectedView(isProtected: (story.audience?.lowercased() ?? "") != "everyone") {
+            ZStack {
+                // ✅ CONTENIDO PRINCIPAL (imagen/video)
+                Group {
+                    if story.mediaItem.type == .video, let url = URL(string: story.mediaItem.url) {
                     GlassmorphicStoryVideoPlayer(
                         url: url,
                         isPlaying: Binding(
@@ -2266,6 +2267,7 @@ struct GlassmorphicStoryViewer: View {
             }
         }
         .clipped() // Ensure content doesn't overflow
+        }
     }
     
     private var navigationTouchAreas: some View {

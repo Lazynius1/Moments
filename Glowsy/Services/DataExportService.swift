@@ -1,5 +1,6 @@
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseStorage
 import Foundation
 import MessageUI
 import UIKit
@@ -10,12 +11,13 @@ class DataExportService: ObservableObject {
     private let db = Firestore.firestore()
     
     func generateRealDataExport(
+        userId: String,
         exportType: ExportType,
         format: ExportFormat,
         completion: @escaping (Result<URL, Error>) -> Void
     ) {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"])))
+        guard !userId.isEmpty else {
+            completion(.failure(NSError(domain: "DataExportService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no válido"])))
             return
         }
         
@@ -494,6 +496,13 @@ class DataExportService: ObservableObject {
         if let mediaUrls = userData.mediaUrls {
             try createMediaUrlsCSV(mediaUrls: mediaUrls, directory: tempDir)
         }
+
+        // ✅ Export detallado tipo "Instagram-like"
+        // 1) Conversaciones completas en JSON por conversación
+        // 2) Descarga de multimedia al ZIP (best effort)
+        try createDetailedConversationsExport(conversations: userData.conversations ?? [], directory: tempDir)
+        let allMediaUrls = collectAllMediaUrls(userData: userData)
+        try createDownloadedMediaExport(mediaUrls: allMediaUrls, directory: tempDir)
         
         // Create README file
         try createReadmeFile(directory: tempDir)
@@ -672,9 +681,11 @@ class DataExportService: ObservableObject {
         - **connections.csv**: Personas que sigues
         - **admirers.csv**: Personas que te siguen
         - **conversations.csv**: Resumen de tus conversaciones
+        - **conversations/**: Conversaciones completas en JSON (mensajes y metadatos)
         - **activity_stats.csv**: Estadísticas de uso de la app
         - **login_activity.csv**: Historial de inicios de sesión
         - **media_urls.csv**: URLs de todos tus archivos multimedia
+        - **media/**: Archivos multimedia descargados (si disponibles)
         
         ## Formato de fechas:
         Todas las fechas están en formato ISO 8601 (YYYY-MM-DDTHH:MM:SSZ)
@@ -697,12 +708,140 @@ class DataExportService: ObservableObject {
         }
         
         let fileManager = FileManager.default
-        let files = try fileManager.contentsOfDirectory(at: sourceDirectory, includingPropertiesForKeys: nil)
-        
-        for fileURL in files {
-            let fileName = fileURL.lastPathComponent
-            try archive.addEntry(with: fileName, relativeTo: sourceDirectory, compressionMethod: .deflate)
+        guard let enumerator = fileManager.enumerator(at: sourceDirectory, includingPropertiesForKeys: [.isDirectoryKey]) else {
+            return
         }
+        
+        for case let fileURL as URL in enumerator {
+            let values = try fileURL.resourceValues(forKeys: [.isDirectoryKey])
+            if values.isDirectory == true { continue }
+            
+            let relativePath = fileURL.path.replacingOccurrences(of: sourceDirectory.path + "/", with: "")
+            try archive.addEntry(with: relativePath, relativeTo: sourceDirectory, compressionMethod: .deflate)
+        }
+    }
+
+    // MARK: - Detailed Conversations & Media Export
+    private func createDetailedConversationsExport(conversations: [[String: Any]], directory: URL) throws {
+        let conversationsDir = directory.appendingPathComponent("conversations")
+        try FileManager.default.createDirectory(at: conversationsDir, withIntermediateDirectories: true)
+        
+        for originalConversation in conversations {
+            var conversation = originalConversation
+            let conversationId = (conversation["conversationId"] as? String) ?? UUID().uuidString
+
+            // ✅ Conversaciones cifradas: exportamos SIEMPRE payload original
+            // y, cuando este dispositivo tiene la clave, añadimos contentDecrypted.
+            if var messages = conversation["messages"] as? [[String: Any]] {
+                for index in messages.indices {
+                    if let encryptedContent = messages[index]["content"] as? String,
+                       !encryptedContent.isEmpty {
+                        messages[index]["contentDecrypted"] = decryptMessageContentSync(
+                            encryptedContent,
+                            conversationId: conversationId
+                        ) as Any
+                    }
+                }
+                conversation["messages"] = messages
+            }
+
+            let safeId = sanitizeFileName(conversationId)
+            let fileURL = conversationsDir.appendingPathComponent("\(safeId).json")
+            
+            let jsonData = try JSONSerialization.data(
+                withJSONObject: makeJSONObjectSerializable(conversation),
+                options: [.prettyPrinted]
+            )
+            try jsonData.write(to: fileURL)
+        }
+    }
+    
+    private func createDownloadedMediaExport(mediaUrls: [String], directory: URL) throws {
+        guard !mediaUrls.isEmpty else { return }
+        
+        let mediaDir = directory.appendingPathComponent("media")
+        try FileManager.default.createDirectory(at: mediaDir, withIntermediateDirectories: true)
+        
+        var index = 0
+        for rawUrl in mediaUrls {
+            guard let remoteURL = URL(string: rawUrl), !rawUrl.isEmpty else { continue }
+            
+            // Best effort: si falla una URL, seguimos con el resto.
+            if let data = try? Data(contentsOf: remoteURL), !data.isEmpty {
+                let ext = inferFileExtension(from: remoteURL, data: data)
+                let fileName = String(format: "media_%04d.%@", index, ext)
+                let destination = mediaDir.appendingPathComponent(fileName)
+                try? data.write(to: destination)
+                index += 1
+            }
+        }
+    }
+    
+    private func collectAllMediaUrls(userData: UserExportData) -> [String] {
+        var urls = Set(userData.mediaUrls ?? [])
+        
+        for conversation in userData.conversations ?? [] {
+            let messages = conversation["messages"] as? [[String: Any]] ?? []
+            for message in messages {
+                if let mediaUrl = message["mediaUrl"] as? String, !mediaUrl.isEmpty {
+                    urls.insert(mediaUrl)
+                }
+                if let thumbnailUrl = message["thumbnailUrl"] as? String, !thumbnailUrl.isEmpty {
+                    urls.insert(thumbnailUrl)
+                }
+            }
+        }
+        
+        return Array(urls)
+    }
+    
+    private func makeJSONObjectSerializable(_ value: Any) -> Any {
+        switch value {
+        case let timestamp as Timestamp:
+            return ISO8601DateFormatter().string(from: timestamp.dateValue())
+        case let date as Date:
+            return ISO8601DateFormatter().string(from: date)
+        case let dict as [String: Any]:
+            var result: [String: Any] = [:]
+            for (key, nestedValue) in dict {
+                result[key] = makeJSONObjectSerializable(nestedValue)
+            }
+            return result
+        case let array as [Any]:
+            return array.map { makeJSONObjectSerializable($0) }
+        default:
+            return value
+        }
+    }
+    
+    private func sanitizeFileName(_ value: String) -> String {
+        let invalid = CharacterSet(charactersIn: "/\\?%*|\"<>:")
+        return value.components(separatedBy: invalid).joined(separator: "_")
+    }
+    
+    private func inferFileExtension(from url: URL, data: Data) -> String {
+        let ext = url.pathExtension.lowercased()
+        if !ext.isEmpty && ext.count <= 5 {
+            return ext
+        }
+        if data.starts(with: [0xFF, 0xD8, 0xFF]) { return "jpg" }
+        if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return "png" }
+        if data.starts(with: [0x47, 0x49, 0x46]) { return "gif" }
+        if data.starts(with: [0x00, 0x00, 0x00]) { return "mp4" }
+        return "bin"
+    }
+
+    private func decryptMessageContentSync(_ encryptedContent: String, conversationId: String) -> String? {
+        let semaphore = DispatchSemaphore(value: 0)
+        var decrypted: String?
+        
+        Task {
+            decrypted = await EncryptionService.shared.decryptChatMessage(encryptedContent, for: conversationId)
+            semaphore.signal()
+        }
+        
+        _ = semaphore.wait(timeout: .now() + 2.0)
+        return decrypted
     }
     
     private func formatTimestamp(_ timestamp: Any?) -> String {
@@ -720,9 +859,8 @@ class DataExportService: ObservableObject {
     }
     
     // MARK: - Request Management
-    func updateExportRequestProgress(requestId: String, progress: Double, status: String) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+    func updateExportRequestProgress(userId: String, requestId: String, progress: Double, status: String) {
+        guard !userId.isEmpty else { return }
         db.collection("users").document(userId).collection("dataExportRequests").document(requestId)
             .updateData([
                 "progress": progress,
@@ -731,9 +869,8 @@ class DataExportService: ObservableObject {
             ])
     }
     
-    func completeExportRequest(requestId: String, downloadURL: String) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+    func completeExportRequest(userId: String, requestId: String, downloadURL: String) {
+        guard !userId.isEmpty else { return }
         db.collection("users").document(userId).collection("dataExportRequests").document(requestId)
             .updateData([
                 "status": "ready",
@@ -745,14 +882,42 @@ class DataExportService: ObservableObject {
     }
     
     // MARK: - Cloud Storage Upload
-    func uploadToCloudStorage(fileURL: URL, completion: @escaping (Result<String, Error>) -> Void) {
-        // In production, upload to Firebase Storage and return download URL
+    func uploadToCloudStorage(userId: String, fileURL: URL, completion: @escaping (Result<String, Error>) -> Void) {
+        guard !userId.isEmpty else {
+            completion(.failure(NSError(domain: "DataExportService", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "Usuario no válido"
+            ])))
+            return
+        }
+
         let fileName = fileURL.lastPathComponent
-        let downloadURL = "https://firebasestorage.googleapis.com/export/\(fileName)"
-        
-        // Simulate upload delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            completion(.success(downloadURL))
+        let storagePath = "exports/\(userId)/\(fileName)"
+        let storageRef = Storage.storage().reference().child(storagePath)
+
+        let metadata = StorageMetadata()
+        metadata.contentType = "application/zip"
+
+        storageRef.putFile(from: fileURL, metadata: metadata) { _, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+
+            storageRef.downloadURL { url, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let absolute = url?.absoluteString, !absolute.isEmpty else {
+                    completion(.failure(NSError(domain: "DataExportService", code: -2, userInfo: [
+                        NSLocalizedDescriptionKey: "No se pudo obtener la URL de descarga"
+                    ])))
+                    return
+                }
+
+                completion(.success(absolute))
+            }
         }
     }
 }
@@ -786,32 +951,32 @@ class BackgroundExportManager: ObservableObject {
             guard let self = self else { return }
             
             // Update status to processing
-            self.exportService.updateExportRequestProgress(requestId: requestId, progress: 0.1, status: "processing")
+            self.exportService.updateExportRequestProgress(userId: userId, requestId: requestId, progress: 0.1, status: "processing")
             
             // Generate the export
-            self.exportService.generateRealDataExport(exportType: exportType, format: format) { result in
+            self.exportService.generateRealDataExport(userId: userId, exportType: exportType, format: format) { result in
                 switch result {
                 case .success(let fileURL):
                     // Update progress
-                    self.exportService.updateExportRequestProgress(requestId: requestId, progress: 0.8, status: "uploading")
+                    self.exportService.updateExportRequestProgress(userId: userId, requestId: requestId, progress: 0.8, status: "uploading")
                     
                     // Upload to cloud storage
-                    self.exportService.uploadToCloudStorage(fileURL: fileURL) { uploadResult in
+                    self.exportService.uploadToCloudStorage(userId: userId, fileURL: fileURL) { uploadResult in
                         switch uploadResult {
                         case .success(let downloadURL):
                             // Complete the request
-                            self.exportService.completeExportRequest(requestId: requestId, downloadURL: downloadURL)
+                            self.exportService.completeExportRequest(userId: userId, requestId: requestId, downloadURL: downloadURL)
                             
                             // Send notification email (in production)
                             self.sendCompletionEmail(userId: userId, downloadURL: downloadURL)
                             
                         case .failure(let error):
-                            self.exportService.updateExportRequestProgress(requestId: requestId, progress: 0.0, status: "failed")
+                            self.exportService.updateExportRequestProgress(userId: userId, requestId: requestId, progress: 0.0, status: "failed")
                         }
                     }
                     
                 case .failure(let error):
-                    self.exportService.updateExportRequestProgress(requestId: requestId, progress: 0.0, status: "failed")
+                    self.exportService.updateExportRequestProgress(userId: userId, requestId: requestId, progress: 0.0, status: "failed")
                 }
             }
         }
@@ -826,6 +991,9 @@ class BackgroundExportManager: ObservableObject {
             "title": "Tu exportación está lista",
             "message": "Hemos preparado tu archivo de datos. El enlace de descarga expirará en 7 días.",
             "downloadURL": downloadURL,
+            "senderId": "system",
+            "senderUsername": "Moments",
+            "isPending": true,
             "timestamp": Timestamp(date: Date()),
             "isRead": false
         ]

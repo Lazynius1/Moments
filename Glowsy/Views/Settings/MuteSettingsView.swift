@@ -508,8 +508,8 @@ struct AddMutedWordView: View {
 class MuteSettingsViewModel: ObservableObject {
     @Published var mutedUsers: [AppUser] = []
     @Published var mutedWords: [String] = []
-    @Published var muteNotifications = true
-    @Published var hideFromSearch = true
+    @Published var muteNotifications = false
+    @Published var hideFromSearch = false
     
     private let firestoreService = FirestoreService()
     
@@ -519,21 +519,58 @@ class MuteSettingsViewModel: ObservableObject {
             return
         }
         
-        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
+        firestoreService.db.collection("users").document(userId).getDocument { [weak self] snapshot, _ in
+            guard let self = self else {
+                completion()
+                return
+            }
+            
+            let rawSettings = snapshot?.data()?["muteSettings"] as? [String: Any] ?? [:]
+            let mutedUserIds = rawSettings["mutedUsers"] as? [String] ?? []
+            let words = rawSettings["mutedWords"] as? [String] ?? []
+            let muteNotifs = rawSettings["muteNotifications"] as? Bool ?? false
+            let hideSearch = rawSettings["hideFromSearch"] as? Bool ?? false
+            
             DispatchQueue.main.async {
-                switch result {
-                case .success(let user):
-                    // Load mute settings from user data
-                    // For now, using empty defaults
-                    self?.mutedUsers = []
-                    self?.mutedWords = []
-                    self?.muteNotifications = true
-                    self?.hideFromSearch = true
-                case .failure(_):
-                    break
-                }
+                self.mutedWords = words
+                self.muteNotifications = muteNotifs
+                self.hideFromSearch = hideSearch
+            }
+            
+            self.loadMutedUsers(userIds: mutedUserIds) {
                 completion()
             }
+        }
+    }
+
+    private func loadMutedUsers(userIds: [String], completion: @escaping () -> Void) {
+        guard !userIds.isEmpty else {
+            DispatchQueue.main.async {
+                self.mutedUsers = []
+                completion()
+            }
+            return
+        }
+        
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var loadedById: [String: AppUser] = [:]
+        
+        for mutedUserId in userIds {
+            group.enter()
+            firestoreService.fetchUserProfile(userId: mutedUserId) { result in
+                if case .success(let user) = result {
+                    lock.lock()
+                    loadedById[user.id] = user
+                    lock.unlock()
+                }
+                group.leave()
+            }
+        }
+        
+        group.notify(queue: .main) {
+            self.mutedUsers = userIds.compactMap { loadedById[$0] }
+            completion()
         }
     }
     
@@ -596,4 +633,3 @@ struct LiistRowBackground: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
-
