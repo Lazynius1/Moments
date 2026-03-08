@@ -244,6 +244,11 @@ class EchoViewModel: ObservableObject {
                     DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = false }
                     return
                 }
+
+                if let moment = try? snapshot?.data(as: Moment.self), moment.isArchived == true {
+                    DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = false }
+                    return
+                }
                 
                 let audience = momentRef.audience ?? "everyone"
                 

@@ -3003,6 +3003,9 @@ async function batchLoadAuthorDocs(authorIds) {
 async function canViewerSeeMoment(moment, viewerId, viewerCtx, authorData) {
   const db = admin.firestore();
 
+  // Archived moments are hidden outside the dedicated archived activity view.
+  if (moment.isArchived === true) return false;
+
   // 1. Author always sees own content
   if (moment.authorId === viewerId) return true;
 
@@ -3328,6 +3331,7 @@ exports.getFeedPage = onRequest(
       const now = Date.now();
       const nonScheduledCandidates = candidatesAfterCursor.filter(doc => {
         const data = doc.data();
+        if (data.isArchived === true) return false;
         if (data.authorId === uid) return true; // author always sees own
         const schedMs = tsToMillis(data.scheduledDate);
         if (schedMs && schedMs > now) return false;
@@ -3351,7 +3355,8 @@ exports.getFeedPage = onRequest(
             authorId: data.authorId,
             audience: data.audience,
             taggedUsers: data.taggedUsers,
-            customListId: data.customListId
+            customListId: data.customListId,
+            isArchived: data.isArchived === true
           };
           const canView = await canViewerSeeMoment(momentForCheck, uid, viewerCtx, authorData);
           return { doc, data, canView };
@@ -3544,6 +3549,7 @@ exports.getReactedMomentsPage = onRequest(
         if (!momentDoc || !momentDoc.exists) continue;
 
         const momentData = momentDoc.data() || {};
+        if (momentData.isArchived === true) continue;
         const authorData = authorMap.get(candidate.authorId);
         if (!authorData) continue;
 
@@ -3553,7 +3559,8 @@ exports.getReactedMomentsPage = onRequest(
             authorId: candidate.authorId,
             audience: momentData.audience,
             taggedUsers: momentData.taggedUsers,
-            customListId: momentData.customListId
+            customListId: momentData.customListId,
+            isArchived: momentData.isArchived === true
           },
           uid,
           viewerCtx,
@@ -3980,6 +3987,7 @@ exports.getTaggedMomentsPage = onRequest(
         const authorId = pathParts[1];
         const momentId = pathParts[3];
         const momentData = doc.data() || {};
+        if (momentData.isArchived === true) continue;
         const taggedUsers = Array.isArray(momentData.taggedUsers) ? momentData.taggedUsers : [];
         const canView = taggedUsers.includes(uid);
         if (!canView) continue;
@@ -4159,6 +4167,7 @@ exports.getCommentedMomentsPage = onRequest(
         if (!momentDoc || !momentDoc.exists) continue;
 
         const momentData = momentDoc.data() || {};
+        if (momentData.isArchived === true) continue;
         const authorData = authorMap.get(candidate.authorId);
         if (!authorData) continue;
 
@@ -4168,7 +4177,8 @@ exports.getCommentedMomentsPage = onRequest(
             authorId: candidate.authorId,
             audience: momentData.audience,
             taggedUsers: momentData.taggedUsers,
-            customListId: momentData.customListId
+            customListId: momentData.customListId,
+            isArchived: momentData.isArchived === true
           },
           uid,
           viewerCtx,

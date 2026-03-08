@@ -1031,6 +1031,10 @@ extension GlassmorphicChatView {
                     if let document = document, document.exists {
                         do {
                             var moment = try document.data(as: Moment.self)
+                            guard moment.isArchived != true else {
+                                self.showingMomentError = true
+                                return
+                            }
                             moment.id = document.documentID
                             
                             self.selectedMoment = moment

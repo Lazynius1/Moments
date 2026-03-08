@@ -1444,6 +1444,8 @@
 /* ContextMenu */
 "contextMenu.editMoment" = "Edit moment";
 "contextMenu.editMoment.subtitle" = "Change description";
+"contextMenu.archiveMoment" = "Archive moment";
+"contextMenu.archiveMoment.subtitle" = "Hide from your profile";
 "contextMenu.deleteMoment" = "Delete moment";
 "contextMenu.deleteMoment.subtitle" = "Delete permanently";
 "contextMenu.shareMoment" = "Share moment";
@@ -1570,7 +1572,14 @@
 "userActivity.event.storyReaction.received" = "%@ reacted to your story";
 "userActivity.event.mention.received" = "%@ mentioned you";
 "userActivity.event.photoTag.received" = "%@ tagged you in a photo";
+"userActivity.event.echo.title" = "Echo in %@";
+"userActivity.event.echo.subtitle" = "%d participants • %@";
+"userActivity.event.follow.subtitle" = "Followed you on %@";
+"userActivity.event.visit.subtitle" = "Visited your profile on %@";
+"userActivity.event.action.viewProfile" = "View profile";
+"userActivity.event.action.viewEcho" = "View Echo";
 "userActivity.event.subtitle.open" = "Tap to open";
+"echo.unknownLocation" = "Unknown location";
 "userActivity.event.subtitle.you" = "Activity done by you";
 "userActivity.event.action.commentCreated" = "You commented on a moment";
 "userActivity.event.action.messageSent" = "You sent a message";
@@ -2412,6 +2421,9 @@
 /* User Activity Simple */
 "userActivity.simple.headline" = "A place to manage all your activity";
 "userActivity.simple.subtitle" = "Review interactions by type and open each detail view.";
+"userActivity.section.interactions" = "Interactions";
+"userActivity.section.content" = "Your Content";
+"userActivity.section.history" = "History";
 "userActivity.simple.section.interactions" = "Interactions";
 "userActivity.simple.item.reactions.title" = "Reactions";
 "userActivity.simple.item.reactions.subtitle" = "Moments you reacted to and reaction type";
@@ -2421,11 +2433,37 @@
 "userActivity.simple.item.tags.subtitle" = "Mentions and tags in content";
 "userActivity.simple.item.stickers.title" = "Sticker replies";
 "userActivity.simple.item.stickers.subtitle" = "Activity related to stickers and questions";
+"userActivity.simple.item.archived.title" = "Archived";
+"userActivity.simple.item.archived.subtitle" = "View and manage your archived content";
+"userActivity.simple.item.recentlyDeleted.title" = "Recently Deleted";
+"userActivity.simple.item.recentlyDeleted.subtitle" = "Content you have recently deleted";
+"userActivity.simple.item.echoes.title" = "Echoes";
+"userActivity.simple.item.echoes.subtitle" = "Invitation and interaction history";
+"userActivity.simple.item.followers.title" = "Followers";
+"userActivity.simple.item.followers.subtitle" = "New followers and following activity";
+"userActivity.simple.item.visits.title" = "Visits";
+"userActivity.simple.item.visits.subtitle" = "People who have visited your profile";
 "userActivity.simple.empty.reactions" = "You haven't reacted to any moment yet";
 "userActivity.simple.empty.comments" = "No comment activity yet";
 "userActivity.simple.empty.tags" = "No recent tags or mentions";
 "userActivity.simple.empty.stickers" = "No recent sticker replies";
+"userActivity.simple.empty.archived" = "No archived content yet";
+"userActivity.simple.empty.recentlyDeleted" = "No recently deleted content";
+"userActivity.simple.empty.echoes" = "No Echoes activity yet";
+"userActivity.simple.empty.followers" = "No recent follower activity";
+"userActivity.simple.empty.visits" = "No recent profile visits";
+
+/* Generic Errors */
+"errors.operationCancelled" = "Operation cancelled";
+"errors.documentNotFound" = "Document not found";
+"errors.momentNotFound" = "Moment not found";
+"errors.storyNotFound" = "Story not found";
+"userActivity.simple.recentlyDeleted.restore.single" = "Restore";
+"userActivity.simple.recentlyDeleted.restore.multiple" = "Restore";
+"userActivity.simple.recentlyDeleted.delete.single" = "Delete permanently";
+"userActivity.simple.recentlyDeleted.delete.multiple" = "Delete permanently";
 "userActivity.simple.retry" = "Retry";
+"userActivity.event.archived.action.restore" = "Restore";
 "userActivity.simple.reaction.unknown" = "Reaction";
 "userActivity.simple.filters.sort" = "Sort";
 "userActivity.simple.filters.sort.newest" = "Newest";
@@ -2492,3 +2530,8 @@
 
 "notifications.export.download" = "Download";
 "notifications.message.dataExportReady" = "Your data export is ready to download.";
+"feed.echo.actions.title" = "Echoes";
+"feed.echo.actions.message" = "You have %d pending invitations.";
+"feed.echo.actions.viewInvitations" = "View invitations";
+"feed.echo.actions.viewHistory" = "View history";
+"feed.echo.actions.cancel" = "Cancel";

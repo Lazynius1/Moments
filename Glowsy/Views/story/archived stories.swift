@@ -11,6 +11,8 @@ struct ArchiveView: View {
     @State private var showStoryViewer = false
     @State private var showStoryStats = false
     @State private var viewMode: ArchiveViewMode = .vertical
+    private let embedInNavigation: Bool
+    private let showsCustomDismiss: Bool
     
     enum ArchiveViewMode: String, CaseIterable {
         case vertical = "Vertical"
@@ -23,34 +25,49 @@ struct ArchiveView: View {
             }
         }
     }
+
+    init(embedInNavigation: Bool = true, showsCustomDismiss: Bool = true) {
+        self.embedInNavigation = embedInNavigation
+        self.showsCustomDismiss = showsCustomDismiss
+    }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-            
+        Group {
+            if embedInNavigation {
+                NavigationView {
+                    archiveContent
+                }
+            } else {
+                archiveContent
+            }
+        }
+    }
+
+    private var archiveContent: some View {
+        ZStack {
+            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+
             if viewModel.isLoading {
                 VStack(spacing: 16) {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(1.2)
-                    
+
                     Text("archivedStories.loading")
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(.gray)
                 }
             } else if viewModel.groupedStories.isEmpty {
-                // Empty state
                 VStack(spacing: 20) {
                     Image(systemName: "archivebox")
                         .font(.system(size: 60))
                         .foregroundColor(.gray.opacity(0.5))
-                    
+
                     VStack(spacing: 8) {
                         Text("archivedStories.empty.title")
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
+
                         Text("archivedStories.empty.description")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray)
@@ -59,7 +76,6 @@ struct ArchiveView: View {
                 }
                 .padding()
             } else {
-                // Archive content
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(viewModel.groupedStories.keys.sorted().reversed(), id: \.self) { dateKey in
@@ -96,8 +112,9 @@ struct ArchiveView: View {
         }
         .navigationTitle(NSLocalizedString("archivedStories.archive", comment: "Archive navigation title"))
         .navigationBarTitleDisplayMode(.large)
-        .navigationBarBackButtonHidden(true)
+        .navigationBarBackButtonHidden(showsCustomDismiss)
         .toolbar {
+            if showsCustomDismiss {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
@@ -106,6 +123,7 @@ struct ArchiveView: View {
                             .frame(width: 44, height: 44)
                     }
                 }
+            }
             
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
@@ -145,7 +163,6 @@ struct ArchiveView: View {
             if let story = selectedStory {
                 StoryStatsView(story: story)
             }
-        }
         }
     }
 }

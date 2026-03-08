@@ -31,9 +31,6 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         let field = UITextField()
         field.isSecureTextEntry = true
         field.backgroundColor = .clear
-        field.autocorrectionType = .no
-        field.spellCheckingType = .no
-        field.textContentType = .none
         // Eliminar comportamiento de texto/teclado
         field.inputView = UIView()
         field.inputAccessoryView = UIView()

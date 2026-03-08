@@ -1104,6 +1104,14 @@ struct SharedMomentMessageBubble: View {
                 return
             }
 
+            guard moment.isArchived != true else {
+                DispatchQueue.main.async {
+                    self.canViewMoment = false
+                    self.isLoading = false
+                }
+                return
+            }
+
             self.privacyService.canUserViewMomentEnhanced(moment, viewerId: currentUserId) { canView in
                 DispatchQueue.main.async {
                     self.canViewMoment = canView
