@@ -1441,6 +1441,8 @@
 /* ContextMenu */
 "contextMenu.editMoment" = "Editar momento";
 "contextMenu.editMoment.subtitle" = "Cambiar descripción";
+"contextMenu.archiveMoment" = "Archivar momento";
+"contextMenu.archiveMoment.subtitle" = "Ocultarlo de tu perfil";
 "contextMenu.deleteMoment" = "Eliminar momento";
 "contextMenu.deleteMoment.subtitle" = "Eliminar permanentemente";
 "contextMenu.shareMoment" = "Compartir momento";
@@ -1567,7 +1569,14 @@
 "userActivity.event.storyReaction.received" = "%@ reaccionó a tu historia";
 "userActivity.event.mention.received" = "%@ te mencionó";
 "userActivity.event.photoTag.received" = "%@ te etiquetó en una foto";
+"userActivity.event.echo.title" = "Echo en %@";
+"userActivity.event.echo.subtitle" = "%d participantes • %@";
+"userActivity.event.follow.subtitle" = "Te siguió el %@";
+"userActivity.event.visit.subtitle" = "Visitó tu perfil el %@";
+"userActivity.event.action.viewProfile" = "Ver perfil";
+"userActivity.event.action.viewEcho" = "Ver Echo";
 "userActivity.event.subtitle.open" = "Toca para abrir";
+"echo.unknownLocation" = "Ubicación desconocida";
 "userActivity.event.subtitle.you" = "Actividad hecha por ti";
 "userActivity.event.action.commentCreated" = "Comentaste un moment";
 "userActivity.event.action.messageSent" = "Enviaste un mensaje";
@@ -2435,6 +2444,9 @@
 /* User Activity Simple */
 "userActivity.simple.headline" = "Un lugar donde administrar toda tu actividad";
 "userActivity.simple.subtitle" = "Revisa tus interacciones por tipo y entra al detalle.";
+"userActivity.section.interactions" = "Interacciones";
+"userActivity.section.content" = "Tu Contenido";
+"userActivity.section.history" = "Historial";
 "userActivity.simple.section.interactions" = "Interacciones";
 "userActivity.simple.item.reactions.title" = "Reacciones";
 "userActivity.simple.item.reactions.subtitle" = "Moments a los que reaccionaste y tipo de reacción";
@@ -2444,10 +2456,29 @@
 "userActivity.simple.item.tags.subtitle" = "Menciones y etiquetas en contenido";
 "userActivity.simple.item.stickers.title" = "Respuestas a sticker";
 "userActivity.simple.item.stickers.subtitle" = "Actividad relacionada con stickers y preguntas";
+"userActivity.simple.item.archived.title" = "Archivados";
+"userActivity.simple.item.archived.subtitle" = "Ver y gestionar tu contenido archivado";
+"userActivity.simple.item.recentlyDeleted.title" = "Eliminados recientemente";
+"userActivity.simple.item.recentlyDeleted.subtitle" = "Contenido que has borrado recientemente";
+"userActivity.simple.item.echoes.title" = "Echoes";
+"userActivity.simple.item.echoes.subtitle" = "Historial de invitaciones e interacciones";
+"userActivity.simple.item.followers.title" = "Seguidores";
+"userActivity.simple.item.followers.subtitle" = "Seguidores nuevos y seguidos";
+"userActivity.simple.item.visits.title" = "Visitas";
+"userActivity.simple.item.visits.subtitle" = "Personas que han visitado tu perfil";
 "userActivity.simple.empty.reactions" = "Aún no has reaccionado a ningún moment";
 "userActivity.simple.empty.comments" = "No hay actividad de comentarios";
 "userActivity.simple.empty.tags" = "No hay etiquetas ni menciones recientes";
 "userActivity.simple.empty.stickers" = "No hay respuestas a sticker recientes";
+"userActivity.simple.empty.archived" = "No hay contenido archivado";
+"userActivity.simple.empty.recentlyDeleted" = "No hay contenido eliminado recientemente";
+"userActivity.simple.empty.echoes" = "No hay actividad de Echoes";
+"userActivity.simple.empty.followers" = "No hay cambios recientes en seguidores";
+"userActivity.simple.empty.visits" = "Nadie ha visitado tu perfil recientemente";
+"userActivity.simple.recentlyDeleted.restore.single" = "Restaurar";
+"userActivity.simple.recentlyDeleted.restore.multiple" = "Restaurar";
+"userActivity.simple.recentlyDeleted.delete.single" = "Eliminar permanentemente";
+"userActivity.simple.recentlyDeleted.delete.multiple" = "Eliminar permanentemente";
 "userActivity.simple.retry" = "Reintentar";
 "userActivity.simple.reaction.unknown" = "Reacción";
 "userActivity.simple.filters.sort" = "Ordenar";
@@ -2479,6 +2510,13 @@
 "userActivity.simple.comments.yourComment" = "Tu comentario";
 "userActivity.simple.comments.momentNoContent" = "Moment sin texto";
 "userActivity.simple.comments.emptyComment" = "Sin texto";
+"userActivity.event.archived.action.restore" = "Restaurar";
+
+/* Generic Errors */
+"errors.operationCancelled" = "Operación cancelada";
+"errors.documentNotFound" = "Documento no encontrado";
+"errors.momentNotFound" = "Momento no encontrado";
+"errors.storyNotFound" = "Historia no encontrada";
 
 /* Your Activity - Error States */
 "userActivity.error.offline.title" = "Sin conexión";
@@ -2515,3 +2553,8 @@
 
 "notifications.export.download" = "Descargar";
 "notifications.message.dataExportReady" = "Tu exportación está lista para descargar.";
+"feed.echo.actions.title" = "Echoes";
+"feed.echo.actions.message" = "Tienes %d invitaciones pendientes.";
+"feed.echo.actions.viewInvitations" = "Ver invitaciones";
+"feed.echo.actions.viewHistory" = "Ver historial";
+"feed.echo.actions.cancel" = "Cancelar";

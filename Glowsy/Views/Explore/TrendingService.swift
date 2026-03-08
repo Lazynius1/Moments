@@ -109,6 +109,7 @@ class TrendingService: ObservableObject {
                 let decodedMoments = snapshot?.documents.compactMap { doc -> Moment? in
                     guard var moment = try? doc.data(as: Moment.self) else { return nil }
                     moment.id = doc.documentID
+                    guard moment.isArchived != true else { return nil }
                     return moment
                 } ?? []
 
@@ -180,6 +181,7 @@ class TrendingService: ObservableObject {
                 let decodedMoments = snapshot?.documents.compactMap { doc -> Moment? in
                     guard var moment = try? doc.data(as: Moment.self) else { return nil }
                     moment.id = doc.documentID
+                    guard moment.isArchived != true else { return nil }
                     return moment
                 } ?? []
 
@@ -264,6 +266,7 @@ class TrendingService: ObservableObject {
                     do {
                         var moment = try doc.data(as: Moment.self)
                         moment.id = doc.documentID
+                        guard moment.isArchived != true else { continue }
                         
                         // Excluir momentos del propio usuario
                         guard moment.authorId != userId else { continue }

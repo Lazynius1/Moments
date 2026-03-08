@@ -3119,7 +3119,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 }
                 
                 let allMoments = documents.compactMap { doc -> Moment? in
-                    try? doc.data(as: Moment.self)
+                    guard let moment = try? doc.data(as: Moment.self) else { return nil }
+                    return moment.isArchived == true ? nil : moment
                 }
                 
                 // ✅ IMPORTANTE: Filtrar por audiencia usando PrivacyService

@@ -596,116 +596,28 @@ struct FeedView: View {
     private var floatingFeedSelector: some View {
         VStack {
             Spacer()
-                .frame(height: 100) // Espacio del header
+                .frame(height: 76) // Posición compacta original
             
-            HStack(spacing: 12) {
-                // 🌊 IZQUIERDA: Indicador de Echoes pendientes
-                if !pendingEchoes.isEmpty {
-                    Button(action: {
-                        if let firstPending = pendingEchoes.first, let echoId = firstPending.id {
-                            selectedPendingEchoId = echoId
-                            showPendingEchoInvitation = true
-                        }
-                    }) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.orange, .yellow],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [.orange.opacity(0.6), .yellow.opacity(0.4)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
-                                        )
-                                )
-                            
-                            // Badge con número
-                            Text("\(pendingEchoes.count)")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 16, height: 16)
-                                .background(Color.orange)
-                                .clipShape(Circle())
-                                .offset(x: 4, y: -4)
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .transition(.scale.combined(with: .opacity))
-                }
-                
-                // Centro: Feed Toggle
-                FloatingGlassFeedToggle(selectedFeedType: $selectedFeedType)
-                
-                // 🌊 DERECHA: Botón historial de Echoes
-                Button(action: {
-                    showEchoHistory = true
-                }) {
-                    // Icono de obturador dividido en 2 colores
-                    ZStack {
-                        // Mitad izquierda - Naranja
-                        Image(systemName: "camera.aperture")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: .orange, location: 0),
-                                        .init(color: .orange, location: 0.5),
-                                        .init(color: .purple.opacity(0.8), location: 0.5),
-                                        .init(color: .purple, location: 1)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    }
-                    .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [.orange.opacity(0.5), .purple.opacity(0.5)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            .padding(.horizontal, 12)
-            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
-            .onChange(of: selectedFeedType) { newFeedType in
-                // ✅ NUEVO: Guardar la preferencia del usuario
-                UserDefaults.standard.selectedFeedType = newFeedType
-                
-                // ✅ Cambiar tipo de feed cuando se selecciona
-                if let userId = Auth.auth().currentUser?.uid {
-                    viewModel.switchFeedType(to: newFeedType, userId: userId)
-                }
-                
-                // ✅ NUEVO: Track analytics para preferencias
-                AnalyticsService.shared.trackFeatureUsage("feed_type_changed_to_\(newFeedType.rawValue)")
-            }
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pendingEchoes.count)
+            // Centro: Feed Toggle
+            FloatingGlassFeedToggle(selectedFeedType: $selectedFeedType)
             
             Spacer()
         }
+        .padding(.horizontal, 12)
+        .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+        .onChange(of: selectedFeedType) { newFeedType in
+            // ✅ NUEVO: Guardar la preferencia del usuario
+            UserDefaults.standard.selectedFeedType = newFeedType
+            
+            // ✅ Cambiar tipo de feed cuando se selecciona
+            if let userId = Auth.auth().currentUser?.uid {
+                viewModel.switchFeedType(to: newFeedType, userId: userId)
+            }
+            
+            // ✅ NUEVO: Track analytics para preferencias
+            AnalyticsService.shared.trackFeatureUsage("feed_type_changed_to_\(newFeedType.rawValue)")
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pendingEchoes.count)
         .zIndex(998)
     }
     
@@ -794,10 +706,27 @@ struct FeedView: View {
                 
                 // Botones integrados con espaciado natural
                 HStack(spacing: 20) {
-                    ModernStoryButton(colorScheme: colorScheme) {
-                        AnalyticsService.shared.trackInteraction("stories_button_tapped")
-                        AnalyticsService.shared.trackFeatureUsage("stories")
-                        showStories = true
+                    // 🌊 Echo History & Pending Indicator
+                    if !pendingEchoes.isEmpty {
+                        Menu {
+                            Button(NSLocalizedString("feed.echo.actions.viewInvitations", comment: "View pending invitations")) {
+                                if let firstPending = pendingEchoes.first, let echoId = firstPending.id {
+                                    selectedPendingEchoId = echoId
+                                    showPendingEchoInvitation = true
+                                }
+                            }
+                            Button(NSLocalizedString("feed.echo.actions.viewHistory", comment: "View echo history")) {
+                                showEchoHistory = true
+                            }
+                        } label: {
+                            echoApertureIcon
+                        }
+                    } else {
+                        Button(action: {
+                            showEchoHistory = true
+                        }) {
+                            echoApertureIcon
+                        }
                     }
                     
                     // ✅ NUEVO: Botón del mapa global
@@ -831,17 +760,44 @@ struct FeedView: View {
                 }
                 .padding(.trailing, 12)
             }
-            .padding(.vertical, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 4)
             .background(
                 Rectangle()
                     .fill(.ultraThinMaterial)
                     .overlay(
                         colorScheme == .light ?
                         Color.white.opacity(0.15) :
-                        Color.black.opacity(0.4) // Oscurecimiento mucho más fuerte para evitar el gris
+                        Color.black.opacity(0.4)
                     )
                     .ignoresSafeArea(edges: .top)
             )
+    }
+
+    private var echoApertureIcon: some View {
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: "camera.aperture")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.orange, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: 36, height: 36)
+
+            if !pendingEchoes.isEmpty {
+                Text("\(pendingEchoes.count)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 16, height: 16)
+                    .background(Color.orange)
+                    .clipShape(Circle())
+                    .offset(x: 5, y: -5)
+                    .transition(.scale)
+            }
+        }
     }
     
     // ✅ Contenido del scroll
@@ -850,7 +806,7 @@ struct FeedView: View {
             ZStack {
                 ScrollView(.vertical, showsIndicators: false) {
                     let screenHeight = UIScreen.main.bounds.height
-                    let headerHeight = 100.0
+                    let headerHeight = 76.0
                     let progressBarHeight = uploadService.uploadingMoments.isEmpty ? 0.0 : 50.0
                     let segmentedToggleHeight = 35.0
                     let tabbarHeight = 50.0
@@ -859,7 +815,7 @@ struct FeedView: View {
                     LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                         // ✅ Espacio para que el primer post empiece debajo del header
                         Spacer()
-                            .frame(height: headerHeight + segmentedToggleHeight + 35)
+                            .frame(height: headerHeight + segmentedToggleHeight + 25)
                         
                         ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                             VStack(spacing: max(15, screenHeight * 0.02)) {
@@ -3802,6 +3758,7 @@ class FeedViewModel: ObservableObject {
                     limit: 20
                 ) {
                     let newMoments = result.moments
+                        .filter { $0.isArchived != true }
                         .filter { !mutedUserIds.contains($0.authorId) }
                         .sorted { $0.timestamp > $1.timestamp }
                     let existingIds = Set(self.moments.map { $0.id })
@@ -3905,6 +3862,7 @@ class FeedViewModel: ObservableObject {
             if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "following", limit: 40) {
                 // ✅ Backend success — moments already privacy-filtered server-side
                 let moments = result.moments
+                    .filter { $0.isArchived != true }
                     .filter { !mutedUserIds.contains($0.authorId) }
                     .sorted { $0.timestamp > $1.timestamp }
                 
@@ -3978,6 +3936,7 @@ class FeedViewModel: ObservableObject {
             let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
             if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "forYou", limit: 60) {
                 let moments = result.moments
+                    .filter { $0.isArchived != true }
                     .filter { !mutedUserIds.contains($0.authorId) }
                     .sorted { $0.timestamp > $1.timestamp }
                 let finalMoments = self.applyAffinitySorting(moments: moments, feedType: .forYou)
@@ -4632,6 +4591,18 @@ class FeedViewModel: ObservableObject {
                         
                         var updatedMoment = try document.data(as: Moment.self)
                         updatedMoment.id = documentID
+
+                        // Si se archiva en tiempo real, retirarlo inmediatamente del feed.
+                        if updatedMoment.isArchived == true {
+                            DispatchQueue.main.async {
+                                self.moments.removeAll { $0.id == momentId }
+                                self.followingMoments.removeAll { $0.id == momentId }
+                                self.forYouMoments.removeAll { $0.id == momentId }
+                                self.saveFeedToCache(moments: self.followingMoments, type: .following, sync: false)
+                                self.saveFeedToCache(moments: self.forYouMoments, type: .forYou, sync: false)
+                            }
+                            return
+                        }
                         
                         // ✅ NUEVO: Solo actualizar si hay cambios significativos
                         guard self.shouldUpdateMoment(momentId: momentId, newMoment: updatedMoment) else {

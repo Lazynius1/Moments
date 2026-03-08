@@ -125,64 +125,183 @@ class FirestoreService: ObservableObject {
     }
 
     func deleteMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
-        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        let userRef = db.collection("users").document(userId)
+        let momentRef = userRef.collection("moments").document(momentId)
+        let recentlyDeletedRef = userRef.collection("recentlyDeleted").document(momentId)
         
-        // Primero obtener el momento para limpiar archivos de Storage
-        momentRef.getDocument { [weak self] snapshot, error in
+        // Soft delete: Mover a la colección 'recentlyDeleted'
+        momentRef.getDocument { snapshot, error in
             if let error = error {
                 completion(error)
                 return
             }
             
-            guard let self = self else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+            guard let data = snapshot?.data() else {
+                completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.momentNotFound", comment: "Moment not found")]))
                 return
             }
             
-            // Obtener rutas de archivos para eliminar de Storage
-            let data = snapshot?.data()
-            let imagePath = data?["imagePath"] as? String
-            let videoUrl = data?["videoUrl"] as? String
+            var deletedData = data
+            deletedData["deletedAt"] = FieldValue.serverTimestamp()
+            deletedData["type"] = "moment"
             
-            // Eliminar el documento del momento
-            momentRef.delete { error in
+            // Guardar en recentlyDeleted
+            recentlyDeletedRef.setData(deletedData) { error in
                 if let error = error {
                     completion(error)
                     return
                 }
                 
-                // Eliminar archivos de Storage en segundo plano
+                // Borrar de la colección original
+                momentRef.delete { error in
+                    completion(error)
+                }
+            }
+        }
+    }
+
+
+    func permanentlyDeleteMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+        let recentlyDeletedRef = db.collection("users").document(userId).collection("recentlyDeleted").document(momentId)
+        
+        recentlyDeletedRef.getDocument { [weak self] snapshot, error in
+            if let error = error {
+                completion(error)
+                return
+            }
+            
+            guard let self = self else { return }
+            
+            let data = snapshot?.data()
+            let imagePath = data?["imagePath"] as? String
+            let videoUrl = data?["videoUrl"] as? String
+            
+            recentlyDeletedRef.delete { error in
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                
+                // Limpiar Storage
                 let storageService = StorageService()
-                let cleanupGroup = DispatchGroup()
-                
                 if let imagePath = imagePath, !imagePath.isEmpty {
-                    cleanupGroup.enter()
-                    storageService.deleteMedia(path: imagePath) { error in
-                        if let error = error {
-                            // Error silencioso para limpieza de archivos
-                        }
-                        cleanupGroup.leave()
-                    }
+                    storageService.deleteMedia(path: imagePath) { _ in }
                 }
-                
                 if let videoUrl = videoUrl, !videoUrl.isEmpty {
-                    cleanupGroup.enter()
-                    storageService.deleteMedia(path: videoUrl) { error in
-                        if let error = error {
-                            // Error silencioso para limpieza de archivos
-                        }
-                        cleanupGroup.leave()
-                    }
+                    storageService.deleteMedia(path: videoUrl) { _ in }
                 }
                 
-                cleanupGroup.notify(queue: .main) {
-                    // Limpieza completada
-                }
-                
-                // Completar la operación aunque falle la limpieza de archivos
                 completion(nil)
             }
         }
+    }
+
+    func permanentlyDeleteMoment(momentId: String, userId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            permanentlyDeleteMoment(userId: userId, momentId: momentId) { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    func restoreMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+        let userRef = db.collection("users").document(userId)
+        let momentRef = userRef.collection("moments").document(momentId)
+        let recentlyDeletedRef = userRef.collection("recentlyDeleted").document(momentId)
+        
+        recentlyDeletedRef.getDocument { snapshot, error in
+            if let error = error {
+                completion(error)
+                return
+            }
+            
+            guard var data = snapshot?.data() else {
+                completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.documentNotFound", comment: "Document not found")]))
+                return
+            }
+            
+            // Limpiar metadatos de borrado
+            data.removeValue(forKey: "deletedAt")
+            data.removeValue(forKey: "type")
+            
+            // Restaurar a la colección original
+            momentRef.setData(data) { error in
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                
+                // Borrar de recentlyDeleted
+                recentlyDeletedRef.delete { error in
+                    completion(error)
+                }
+            }
+        }
+    }
+
+    func restoreMoment(momentId: String, userId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            restoreMoment(userId: userId, momentId: momentId) { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    func archiveMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        momentRef.updateData([
+            "isArchived": true,
+            "archivedAt": FieldValue.serverTimestamp()
+        ]) { error in
+            completion(error)
+        }
+    }
+
+    func unarchiveMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        momentRef.updateData([
+            "isArchived": FieldValue.delete(),
+            "archivedAt": FieldValue.delete()
+        ]) { error in
+            completion(error)
+        }
+    }
+
+    func unarchiveMoment(momentId: String, userId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            unarchiveMoment(userId: userId, momentId: momentId) { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    func fetchArchivedMoments(userId: String, completion: @escaping (Result<[Moment], Error>) -> Void) {
+        db.collection("users").document(userId).collection("moments")
+            .whereField("isArchived", isEqualTo: true)
+            .order(by: "archivedAt", descending: true)
+            .limit(to: 100)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                let moments = snapshot?.documents.compactMap { doc -> Moment? in
+                    try? doc.data(as: Moment.self)
+                } ?? []
+                completion(.success(moments))
+            }
     }
 
     func deleteMomentComments(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
@@ -350,6 +469,25 @@ class FirestoreService: ObservableObject {
                 completion(.success(visits))
             }
     }
+
+    func fetchVisitsWithUsers(userId: String) async throws -> [(user: AppUser, visit: Visit)] {
+        let snapshot = try await db.collection("users").document(userId).collection("visits")
+            .order(by: "timestamp", descending: true)
+            .limit(to: 50)
+            .getDocuments()
+            
+        let visits = snapshot.documents.compactMap { try? $0.data(as: Visit.self) }
+        if visits.isEmpty { return [] }
+        
+        let visitorIds = Array(Set(visits.map { $0.visitorId }))
+        let users = try await fetchUsersAsync(userIds: visitorIds)
+        let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
+        
+        return visits.compactMap { visit in
+            guard let user = userDict[visit.visitorId] else { return nil }
+            return (user, visit)
+        }
+    }
     // FUNCIONES DE VISITAS //
     
     func registerVisit(visitorId: String, to targetUserId: String, completion: @escaping (Error?) -> Void) {
@@ -363,7 +501,7 @@ class FirestoreService: ObservableObject {
         // ✅ VERIFICAR BLOQUEOS
         checkIfBlocked(currentUserId: visitorId, targetUserId: targetUserId) { [weak self] isBlockedByVisitor, isVisitorBlocked, error in
             guard let self = self else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
                 return
             }
             
@@ -694,7 +832,7 @@ class FirestoreService: ObservableObject {
                 return
             }
             guard let document = snapshot, document.exists else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Documento no encontrado"])))
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.documentNotFound", comment: "Document not found")])))
                 return
             }
             do {
@@ -799,7 +937,7 @@ class FirestoreService: ObservableObject {
             }
 
             guard let document = snapshot, document.exists else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Documento no encontrado"])))
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.documentNotFound", comment: "Document not found")])))
                 return
             }
 
@@ -946,7 +1084,7 @@ class FirestoreService: ObservableObject {
                 completion(NSError(
                     domain: "",
                     code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]
+                    userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]
                 ))
                 return
             }
@@ -1053,7 +1191,7 @@ class FirestoreService: ObservableObject {
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
                 return
             }
 
@@ -1350,6 +1488,7 @@ class FirestoreService: ObservableObject {
                     // 🔥 FILTRAR MOMENTOS PROGRAMADOS (Solo mostrar si la fecha programada ya pasó o si no tiene fecha)
                     let now = Date()
                     let filteredMoments = allMoments.filter { moment in
+                        if moment.isArchived == true { return false }
                         guard let scheduledDate = moment.scheduledDate else { return true }
                         return scheduledDate <= now
                     }
@@ -1405,6 +1544,7 @@ class FirestoreService: ObservableObject {
                     // 🔥 FILTRAR MOMENTOS PROGRAMADOS
                     let now = Date()
                     let filteredMoments = allMoments.filter { moment in
+                        if moment.isArchived == true { return false }
                         guard let scheduledDate = moment.scheduledDate else { return true }
                         return scheduledDate <= now
                     }
@@ -1459,6 +1599,9 @@ class FirestoreService: ObservableObject {
                 let now = Date()
                 
                 let filteredMoments = moments.filter { moment in
+                    // Excluir momentos archivados del perfil principal
+                    if moment.isArchived == true { return false }
+                    
                     // Si el usuario es el autor, sí puede ver sus propios momentos programados
                     if moment.authorId == currentUserId {
                         return true
@@ -1971,7 +2114,7 @@ class FirestoreService: ObservableObject {
         // Primero verificar si ya existe una reacción de este usuario
         reactionRef.getDocument { [weak self] snapshot, error in
             guard let self = self else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
                 return
             }
             
@@ -2757,6 +2900,58 @@ class FirestoreService: ObservableObject {
         }
     }
 
+    // This is a helper method for async operations, assuming it exists elsewhere or is intended to be added.
+    // If not, the `fetchFollowersWithTimestamps` method will not compile.
+    private func fetchUsersAsync(userIds: [String]) async throws -> [AppUser] {
+        guard !userIds.isEmpty else { return [] }
+
+        let batchSize = 10
+        let batches = userIds.chunked(into: batchSize)
+        var allUsers: [AppUser] = []
+
+        for batch in batches {
+            let snapshot = try await db.collection("users")
+                .whereField(FieldPath.documentID(), in: batch)
+                .getDocuments()
+
+            let users = snapshot.documents.compactMap { document -> AppUser? in
+                do {
+                    let user = try document.data(as: AppUser.self)
+                    return user.isActive ? user : nil
+                } catch {
+                    return nil
+                }
+            }
+            allUsers.append(contentsOf: users)
+        }
+        return allUsers
+    }
+
+    func fetchFollowersWithTimestamps(userId: String) async throws -> [(user: AppUser, timestamp: Date)] {
+        let snapshot = try await db.collection("users").document(userId).collection("followers")
+            .order(by: "timestamp", descending: true)
+            .limit(to: 100)
+            .getDocuments()
+            
+        let followerData = snapshot.documents.compactMap { doc -> (id: String, timestamp: Date)? in
+            let data = doc.data()
+            guard let id = data["userId"] as? String,
+                  let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else { return nil }
+            return (id, timestamp)
+        }
+        
+        if followerData.isEmpty { return [] }
+        
+        let followerIds = followerData.map { $0.id }
+        let users = try await fetchUsersAsync(userIds: followerIds)
+        let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
+        
+        return followerData.compactMap { item in
+            guard let user = userDict[item.id] else { return nil }
+            return (user, item.timestamp)
+        }
+    }
+
     func fetchFollowers(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
         
         db.collection("users").document(userId).collection("followers")
@@ -3012,7 +3207,7 @@ class FirestoreService: ObservableObject {
     func canViewContent(currentUserId: String, targetUserId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
         self.fetchUserProfile(userId: targetUserId) { [weak self] result in
             guard let self = self else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"])))
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")])))
                 return
             }
             switch result {
@@ -3064,12 +3259,16 @@ class FirestoreService: ObservableObject {
             }
 
             guard let document = snapshot, document.exists else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Momento no encontrado"])))
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.momentNotFound", comment: "Moment not found")])))
                 return
             }
 
             do {
                 let moment = try document.data(as: Moment.self)
+                if moment.isArchived == true {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.momentNotFound", comment: "Moment not found")])))
+                    return
+                }
                 completion(.success(moment))
             } catch {
                 completion(.failure(error))
@@ -3087,7 +3286,7 @@ class FirestoreService: ObservableObject {
 
         self.fetchUserProfile(userId: excludingUserId) { [weak self] result in
             guard let self = self else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"])))
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")])))
                 return
             }
 
@@ -3287,6 +3486,9 @@ class FirestoreService: ObservableObject {
         let now = Date()
 
         return moments.filter { moment in
+            if moment.isArchived == true {
+                return false
+            }
             if moment.authorId == currentUserId {
                 return true
             }
@@ -3504,7 +3706,7 @@ extension FirestoreService {
         
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
-                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
                 return
             }
             
@@ -3642,7 +3844,7 @@ extension FirestoreService {
 
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
-                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
                 return
             }
 
@@ -3953,7 +4155,7 @@ extension FirestoreService {
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
-                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
                 return
             }
             
@@ -4079,7 +4281,7 @@ extension FirestoreService {
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
             guard let self = self else {
-                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operación cancelada"]))
+                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
                 return
             }
 

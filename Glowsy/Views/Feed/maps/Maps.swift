@@ -1671,6 +1671,10 @@ class LocationSearchService {
                     do {
                         var moment = try document.data(as: Moment.self)
                         moment.id = document.documentID
+                        guard moment.isArchived != true else {
+                            group.leave()
+                            continue
+                        }
                         
                         // ✅ Verificar que tenga imagen y username
                         guard let imagePath = moment.imagePath, !imagePath.isEmpty,

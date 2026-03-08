@@ -47,7 +47,8 @@ class EchoService {
                 
                 let snapshot = try await momentQuery.getDocuments()
                 let allNearbyMoments = snapshot.documents.compactMap { doc -> Moment? in
-                    try? doc.data(as: Moment.self)
+                    guard let moment = try? doc.data(as: Moment.self) else { return nil }
+                    return moment.isArchived == true ? nil : moment
                 }.filter { moment in
                     guard let friendCoord = moment.locationCoordinate else { return false }
                     let distance = calculateDistance(from: coordinate, to: friendCoord)

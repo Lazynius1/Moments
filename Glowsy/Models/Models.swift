@@ -341,7 +341,8 @@ struct Moment: Identifiable, Codable, Equatable {
     let videoFileSize: Int64?        // Tamaño en bytes
     let videoResolution: String?     // "1080x1920", "1080x1080", etc.
     let scheduledDate: Date?         // ✅ NUEVO: Fecha programada
-    
+    let isArchived: Bool?             // ✅ NUEVO: Momento archivado
+    let archivedAt: Date?             // ✅ NUEVO: Fecha de archivo
     // Helper properties for scheduling
     var isScheduled: Bool {
         guard let scheduledDate = scheduledDate else { return false }
@@ -393,6 +394,7 @@ struct Moment: Identifiable, Codable, Equatable {
         // ✅ NUEVAS CLAVES
         case disableComments, hideLikeCounts, allowSharing
         case scheduledDate
+        case isArchived, archivedAt
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
         case trendingScore, engagementRate
     }
@@ -445,6 +447,13 @@ struct Moment: Identifiable, Codable, Equatable {
             self.scheduledDate = try container.decodeIfPresent(Date.self, forKey: .scheduledDate)
         }
         
+        self.isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived)
+        if let archivedTimestamp = try? container.decodeIfPresent(Timestamp.self, forKey: .archivedAt) {
+            self.archivedAt = archivedTimestamp.dateValue()
+        } else {
+            self.archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
+        }
+        
         self.disableComments = (try? container.decodeIfPresent(Bool.self, forKey: .disableComments)) ?? false
         self.hideLikeCounts = (try? container.decodeIfPresent(Bool.self, forKey: .hideLikeCounts)) ?? false
         self.allowSharing = (try? container.decodeIfPresent(Bool.self, forKey: .allowSharing)) ?? true
@@ -485,6 +494,10 @@ struct Moment: Identifiable, Codable, Equatable {
         if let scheduledDate = scheduledDate {
             try container.encode(Timestamp(date: scheduledDate), forKey: .scheduledDate)
         }
+        if let archivedAt = archivedAt {
+            try container.encode(Timestamp(date: archivedAt), forKey: .archivedAt)
+        }
+        try container.encodeIfPresent(isArchived, forKey: .isArchived)
         
         try container.encode(disableComments, forKey: .disableComments)
         try container.encode(hideLikeCounts, forKey: .hideLikeCounts)
@@ -525,7 +538,9 @@ struct Moment: Identifiable, Codable, Equatable {
         allowSharing: Bool,
         scheduledDate: Date? = nil,
         trendingScore: Double? = nil,
-        engagementRate: Double? = nil
+        engagementRate: Double? = nil,
+        isArchived: Bool? = nil,
+        archivedAt: Date? = nil
     ) {
         self.id = id
         self.authorId = authorId
@@ -554,6 +569,8 @@ struct Moment: Identifiable, Codable, Equatable {
         self.scheduledDate = scheduledDate // ✅ FIXED: Asignar fecha programada
         self.trendingScore = trendingScore
         self.engagementRate = engagementRate
+        self.isArchived = isArchived
+        self.archivedAt = archivedAt
     }
 }
 

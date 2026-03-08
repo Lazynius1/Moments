@@ -805,6 +805,14 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
+ 
+      // ✅ NUEVA: Reglas para la subcolección de contenidos eliminados temporalmente (Soft Delete)
+      match /recentlyDeleted/{deletedId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+        allow update: if false; // El contenido borrado no se edita, solo se restaura (delete + create original) o se borra definitivamente
+      }
 
       // Estado de historias vistas por author (cache cross-device)
       match /storySeen/{authorId} {

@@ -633,53 +633,126 @@ class StoryViewModel: ObservableObject {
             return
         }
         
-        // ✅ PRIMERO: Obtener la historia para extraer la URL del media
-        firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
-            .getDocument { [weak self] document, error in
-                guard let self = self else { return }
-                
+        let storyRef = firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
+        let recentlyDeletedRef = firestoreService.db.collection("users").document(userId).collection("recentlyDeleted").document(storyId)
+        
+        // Soft delete: Mover a la colección 'recentlyDeleted'
+        storyRef.getDocument { [weak self] document, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                completion(error)
+                return
+            }
+            
+            guard let data = document?.data() else {
+                completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.storyNotFound", comment: "Story not found")]))
+                return
+            }
+            
+            var deletedData = data
+            deletedData["deletedAt"] = FieldValue.serverTimestamp()
+            deletedData["type"] = "story"
+            
+            // Guardar en recentlyDeleted
+            recentlyDeletedRef.setData(deletedData) { error in
                 if let error = error {
                     completion(error)
                     return
                 }
                 
-                guard let data = document?.data(),
-                      let mediaItemData = data["mediaItem"] as? [String: Any],
-                      let mediaUrl = mediaItemData["url"] as? String else {
+                // Borrar de la colección original
+                storyRef.delete { firestoreError in
+                    if let firestoreError = firestoreError {
+                        completion(firestoreError)
+                    } else {
+                        // ✅ SwiftData: Actualizar caché local
+                        if var userStories = self.stories[userId] {
+                            userStories.removeAll { $0.id == storyId }
+                            self.stories[userId] = userStories
+                        }
+                        
+                        LocalPersistenceService.shared.deleteStory(storyId: storyId)
+                        self.firestoreService.rebuildStorySummary(for: userId) { _ in }
+                        self.checkActiveStories(userId: userId)
+                        completion(nil)
+                    }
+                }
+            }
+        }
+    }
+
+    func permanentlyDeleteStory(userId: String, storyId: String, completion: @escaping (Error?) -> Void) {
+        let recentlyDeletedRef = firestoreService.db.collection("users").document(userId).collection("recentlyDeleted").document(storyId)
+        
+        recentlyDeletedRef.getDocument { [weak self] snapshot, error in
+            if let error = error {
+                completion(error)
+                return
+            }
+            
+            guard let self = self, let data = snapshot?.data() else {
+                completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.storyNotFound", comment: "Story not found")]))
+                return
+            }
+            
+            // Extraer mediaUrl para limpieza de Storage
+            let mediaItemData = data["mediaItem"] as? [String: Any]
+            let mediaUrl = mediaItemData?["url"] as? String
+            
+            recentlyDeletedRef.delete { error in
+                if let error = error {
                     completion(error)
                     return
                 }
                 
-                // ✅ SEGUNDO: Eliminar el media de Firebase Storage
-                self.deleteMediaFromStorage(mediaUrl: mediaUrl) { storageError in
-                    if let storageError = storageError {
-                        // Continuar aunque falle el borrado del media
+                if let mediaUrl = mediaUrl {
+                    self.deleteMediaFromStorage(mediaUrl: mediaUrl) { _ in }
+                }
+                
+                completion(nil)
+            }
+        }
+    }
+
+    func restoreStory(userId: String, storyId: String, completion: @escaping (Error?) -> Void) {
+        let storyRef = firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
+        let recentlyDeletedRef = firestoreService.db.collection("users").document(userId).collection("recentlyDeleted").document(storyId)
+        
+        recentlyDeletedRef.getDocument { [weak self] snapshot, error in
+            if let error = error {
+                completion(error)
+                return
+            }
+            
+            guard let self = self, var data = snapshot?.data() else {
+                completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.documentNotFound", comment: "Document not found")]))
+                return
+            }
+            
+            // Limpiar metadatos de borrado
+            data.removeValue(forKey: "deletedAt")
+            data.removeValue(forKey: "type")
+            
+            // Restaurar a la colección original
+            storyRef.setData(data) { error in
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                
+                // Borrar de recentlyDeleted
+                recentlyDeletedRef.delete { error in
+                    if let error = error {
+                        completion(error)
+                    } else {
+                        self.firestoreService.rebuildStorySummary(for: userId) { _ in }
+                        self.checkActiveStories(userId: userId)
+                        completion(nil)
                     }
-                    
-                     // ✅ TERCERO: Eliminar la historia de Firestore
-                     self.firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
-                         .delete { firestoreError in
-                             if let firestoreError = firestoreError {
-                                 completion(firestoreError)
-                             } else {
-                                 // ✅ SwiftData: Actualizar caché local eliminando la historia borrada de forma global
-                                 if var userStories = self.stories[userId] {
-                                     userStories.removeAll { $0.id == storyId }
-                                     self.stories[userId] = userStories
-                                 }
-                                 
-                                 // ✅ SURGICAL DELETION: Eliminar del caché global por ID
-                                 LocalPersistenceService.shared.deleteStory(storyId: storyId)
-                                 self.firestoreService.rebuildStorySummary(for: userId) { rebuildError in
-                                     _ = rebuildError
-                                 }
-                                 
-                                 self.checkActiveStories(userId: userId)
-                                 completion(nil)
-                             }
-                         }
                 }
             }
+        }
     }
     
     // ✅ FUNCIÓN: Eliminar media de Firebase Storage

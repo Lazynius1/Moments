@@ -1434,6 +1434,8 @@
 /* ContextMenu */
 "contextMenu.editMoment" = "Editar moment";
 "contextMenu.editMoment.subtitle" = "Canviar descripció";
+"contextMenu.archiveMoment" = "Arxivar moment";
+"contextMenu.archiveMoment.subtitle" = "Amagar-lo del teu perfil";
 "contextMenu.deleteMoment" = "Eliminar moment";
 "contextMenu.deleteMoment.subtitle" = "Eliminar permanentment";
 "contextMenu.shareMoment" = "Compartir moment";
@@ -1560,7 +1562,14 @@
 "userActivity.event.storyReaction.received" = "%@ ha reaccionat a la teva història";
 "userActivity.event.mention.received" = "%@ t'ha mencionat";
 "userActivity.event.photoTag.received" = "%@ t'ha etiquetat en una foto";
+"userActivity.event.echo.title" = "Echo a %@";
+"userActivity.event.echo.subtitle" = "%d participants • %@";
+"userActivity.event.follow.subtitle" = "Et va seguir el %@";
+"userActivity.event.visit.subtitle" = "Va visitar el teu perfil el %@";
+"userActivity.event.action.viewProfile" = "Veure perfil";
+"userActivity.event.action.viewEcho" = "Veure Echo";
 "userActivity.event.subtitle.open" = "Toca per obrir";
+"echo.unknownLocation" = "Ubicació desconeguda";
 "userActivity.event.subtitle.you" = "Activitat feta per tu";
 "userActivity.event.action.commentCreated" = "Has comentat un moment";
 "userActivity.event.action.messageSent" = "Has enviat un missatge";
@@ -2413,11 +2422,15 @@
 "messaging.error.userDataIncomplete" = "Dades d'usuari incompletes.";
 "messaging.error.messageRequestRequired" = "Els usuaris no se segueixen mútuament. Cal una sol·licitud de missatge.";
 "messaging.error.fileUrlUnavailable" = "No s'ha pogut obtenir l'URL del fitxer.";
+"profile.moreInfo" = "Més informació";
 
 /* User Activity Simple */
 "userActivity.simple.headline" = "Un lloc on gestionar tota la teva activitat";
 "userActivity.simple.subtitle" = "Revisa les teves interaccions per tipus i entra al detall.";
 "userActivity.simple.section.interactions" = "Interaccions";
+"userActivity.section.interactions" = "Interaccions";
+"userActivity.section.content" = "El teu contingut";
+"userActivity.section.history" = "Historial";
 "userActivity.simple.item.reactions.title" = "Reaccions";
 "userActivity.simple.item.reactions.subtitle" = "Moments on has reaccionat i tipus de reacció";
 "userActivity.simple.item.comments.title" = "Comentaris";
@@ -2426,10 +2439,25 @@
 "userActivity.simple.item.tags.subtitle" = "Mencions i etiquetes en contingut";
 "userActivity.simple.item.stickers.title" = "Respostes a sticker";
 "userActivity.simple.item.stickers.subtitle" = "Activitat relacionada amb stickers i preguntes";
+"userActivity.simple.item.archived.title" = "Arxivats";
+"userActivity.simple.item.archived.subtitle" = "Veure i gestionar el teu contingut arxivat";
+"userActivity.simple.item.recentlyDeleted.title" = "Eliminats recentment";
+"userActivity.simple.item.recentlyDeleted.subtitle" = "Contingut que has eliminat recentment";
+"userActivity.simple.item.echoes.title" = "Echoes";
+"userActivity.simple.item.echoes.subtitle" = "Historial d'invitacions i interaccions";
+"userActivity.simple.item.followers.title" = "Seguidors";
+"userActivity.simple.item.followers.subtitle" = "Nous seguidors i activitat de seguiment";
+"userActivity.simple.item.visits.title" = "Visites";
+"userActivity.simple.item.visits.subtitle" = "Persones que han visitat el teu perfil";
 "userActivity.simple.empty.reactions" = "Encara no has reaccionat a cap moment";
 "userActivity.simple.empty.comments" = "No hi ha activitat de comentaris";
 "userActivity.simple.empty.tags" = "No hi ha etiquetes ni mencions recents";
 "userActivity.simple.empty.stickers" = "No hi ha respostes a sticker recents";
+"userActivity.simple.empty.archived" = "No hi ha contingut arxivat";
+"userActivity.simple.empty.recentlyDeleted" = "No hi ha contingut eliminat recentment";
+"userActivity.simple.empty.echoes" = "No hi ha activitat d'Echoes";
+"userActivity.simple.empty.followers" = "No hi ha canvis recents en seguidors";
+"userActivity.simple.empty.visits" = "Ningú ha visitat el teu perfil recentment";
 "userActivity.simple.retry" = "Tornar a provar";
 "userActivity.simple.reaction.unknown" = "Reacció";
 "userActivity.simple.filters.sort" = "Ordenar";
@@ -2458,9 +2486,18 @@
 "userActivity.simple.comments.selectedCount" = "%d seleccionats";
 "userActivity.simple.comments.delete.single" = "Eliminar comentari";
 "userActivity.simple.comments.delete.multiple" = "Eliminar comentaris";
+"userActivity.simple.recentlyDeleted.restore.single" = "Restaurar";
+"userActivity.simple.recentlyDeleted.delete.single" = "Eliminar permanentment";
+"userActivity.event.archived.action.restore" = "Restaurar";
 "userActivity.simple.comments.yourComment" = "El teu comentari";
 "userActivity.simple.comments.momentNoContent" = "Moment sense text";
 "userActivity.simple.comments.emptyComment" = "Sense text";
+
+/* Generic Errors */
+"errors.operationCancelled" = "Operació cancel·lada";
+"errors.documentNotFound" = "Document no trobat";
+"errors.momentNotFound" = "Moment no trobat";
+"errors.storyNotFound" = "Història no trobada";
 
 /* Your Activity - Error States */
 "userActivity.error.offline.title" = "Sense connexió";
@@ -2497,3 +2534,8 @@
 
 "notifications.export.download" = "Descarregar";
 "notifications.message.dataExportReady" = "La teva exportació de dades està a punt per descarregar.";
+"feed.echo.actions.title" = "Echoes";
+"feed.echo.actions.message" = "Tens %d invitacions pendents.";
+"feed.echo.actions.viewInvitations" = "Veure invitacions";
+"feed.echo.actions.viewHistory" = "Veure historial";
+"feed.echo.actions.cancel" = "Cancel·lar";

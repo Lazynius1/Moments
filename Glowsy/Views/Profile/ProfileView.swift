@@ -620,6 +620,38 @@ struct ModernProfileContentView: View {
                                                         }
                                                     )
                                                 }
+                                                .contextMenu {
+                                                    Button {
+                                                        if let momentId = moment.id {
+                                                            FirestoreService.shared.archiveMoment(userId: moment.authorId, momentId: momentId) { _ in
+                                                                viewModel.moments.removeAll { $0.id == momentId }
+                                                            }
+                                                        }
+                                                    } label: {
+                                                        Label(NSLocalizedString("contextMenu.archiveMoment", comment: "Archive"), systemImage: "archivebox")
+                                                    }
+
+                                                    Button {
+                                                        // Abrir edición: reutilizar el mismo flujo que el menú contextual
+                                                        NotificationCenter.default.post(
+                                                            name: NSNotification.Name("EditMoment"),
+                                                            object: moment
+                                                        )
+                                                    } label: {
+                                                        Label(NSLocalizedString("contextMenu.editMoment", comment: "Edit"), systemImage: "pencil")
+                                                    }
+
+                                                    Button(role: .destructive) {
+                                                        if let momentId = moment.id {
+                                                            FirestoreService.shared.deleteMoment(userId: moment.authorId, momentId: momentId) { _ in
+                                                                viewModel.moments.removeAll { $0.id == momentId }
+                                                                LocalPersistenceService.shared.deleteMoment(momentId: momentId)
+                                                            }
+                                                        }
+                                                    } label: {
+                                                        Label(NSLocalizedString("contextMenu.deleteMoment", comment: "Delete"), systemImage: "trash")
+                                                    }
+                                                }
                                             }
                                         }
                                         .padding(.horizontal, 8)
@@ -2897,7 +2929,8 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     
                     if let documents = snapshot?.documents {
                         self.taggedMoments = documents.compactMap { doc -> Moment? in
-                            try? doc.data(as: Moment.self)
+                            guard let moment = try? doc.data(as: Moment.self) else { return nil }
+                            return moment.isArchived == true ? nil : moment
                         }
                     }
                 }
