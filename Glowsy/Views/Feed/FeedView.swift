@@ -2353,7 +2353,7 @@ struct ModernPostCardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 6) {
             // Header del post con círculo de historia
             postHeaderView
                 .opacity(isImmersive ? 0 : 1)
@@ -2651,13 +2651,11 @@ struct ModernPostCardView: View {
                 
                 if let location = moment.location, !location.isEmpty {
                     Button(action: {
-        
-
-                        
                         let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmedLocation.isEmpty else {
                             return
                         }
+                        
                         onLocationTap(trimmedLocation, moment.locationCoordinate?.toCLLocationCoordinate2D)
                     }) {
                         HStack(spacing: 4) {
@@ -2687,7 +2685,7 @@ struct ModernPostCardView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .padding(.vertical, 9)
         .onAppear {
             checkUserStories()
         }

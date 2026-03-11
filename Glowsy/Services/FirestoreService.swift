@@ -1257,6 +1257,10 @@ class FirestoreService: ObservableObject {
                             if let location = sticker.location {
                                 stickerData["location"] = location
                             }
+                            if let latitude = sticker.latitude, let longitude = sticker.longitude {
+                                stickerData["latitude"] = latitude
+                                stickerData["longitude"] = longitude
+                            }
                             if let questionText = sticker.questionText {
                                 stickerData["questionText"] = questionText
                             }
@@ -2982,30 +2986,56 @@ class FirestoreService: ObservableObject {
             }
     }
 
+    // MARK: - ACCOUNT HISTORY
+    func logAccountHistoryEvent(userId: String, type: AccountHistoryEventType, oldValue: String?, newValue: String?) {
+        let collection = db.collection("users").document(userId).collection("accountHistory")
+        
+        // Prevent generic duplicates
+        if oldValue == newValue { return }
+        
+        let event = AccountHistoryItem(type: type, oldValue: oldValue, newValue: newValue)
+        do {
+            _ = try collection.addDocument(from: event)
+        } catch {
+            print("❌ FirestoreService: Error logging account history event - \(error)")
+        }
+    }
+    
+    func fetchAccountHistory(userId: String) async throws -> [AccountHistoryItem] {
+        let snapshot = try await db.collection("users").document(userId).collection("accountHistory")
+            .order(by: "timestamp", descending: true)
+            .getDocuments()
+            
+        return snapshot.documents.compactMap { try? $0.data(as: AccountHistoryItem.self) }
+    }
+    
     // MARK: - RESTO DE FUNCIONES SIN CAMBIOS
-    func updateBio(userId: String, bio: String, completion: @escaping (Error?) -> Void) {
+    func updateBio(userId: String, oldBio: String? = nil, newBio: String, completion: @escaping (Error?) -> Void) {
         self.db.collection("users").document(userId).updateData([
-            "bio": bio
+            "bio": newBio
         ]) { error in
             if let error = error {
                 completion(error)
             } else {
+                if oldBio != newBio {
+                    self.logAccountHistoryEvent(userId: userId, type: .bio, oldValue: oldBio, newValue: newBio)
+                }
                 completion(nil)
             }
         }
     }
     
     // ✅ NUEVO: Actualizar bio y link
-    func updateProfileDetails(userId: String, bio: String?, websiteUrl: String?, completion: @escaping (Error?) -> Void) {
+    func updateProfileDetails(userId: String, oldBio: String? = nil, newBio: String?, oldWebsite: String? = nil, newWebsite: String?, completion: @escaping (Error?) -> Void) {
         var data: [String: Any] = [:]
         
-        if let bio = bio {
-            data["bio"] = bio
+        if let newBio = newBio {
+            data["bio"] = newBio
         }
         
         // Permitimos guardar cadena vacía para borrar el link
-        if let websiteUrl = websiteUrl {
-            data["websiteUrl"] = websiteUrl
+        if let newWebsite = newWebsite {
+            data["websiteUrl"] = newWebsite
         }
         
         guard !data.isEmpty else {
@@ -3014,6 +3044,14 @@ class FirestoreService: ObservableObject {
         }
         
         self.db.collection("users").document(userId).updateData(data) { error in
+            if error == nil {
+                if let newB = newBio, newB != oldBio {
+                    self.logAccountHistoryEvent(userId: userId, type: .bio, oldValue: oldBio, newValue: newB)
+                }
+                if let newW = newWebsite, newW != oldWebsite {
+                    self.logAccountHistoryEvent(userId: userId, type: .website, oldValue: oldWebsite, newValue: newW)
+                }
+            }
             completion(error)
         }
     }
@@ -3912,6 +3950,10 @@ extension FirestoreService {
                             if let location = sticker.location {
                                 stickerData["location"] = location
                             }
+                            if let latitude = sticker.latitude, let longitude = sticker.longitude {
+                                stickerData["latitude"] = latitude
+                                stickerData["longitude"] = longitude
+                            }
                             if let questionText = sticker.questionText {
                                 stickerData["questionText"] = questionText
                             }
@@ -4348,6 +4390,10 @@ extension FirestoreService {
                             }
                             if let location = sticker.location {
                                 stickerData["location"] = location
+                            }
+                            if let latitude = sticker.latitude, let longitude = sticker.longitude {
+                                stickerData["latitude"] = latitude
+                                stickerData["longitude"] = longitude
                             }
                             if let questionText = sticker.questionText {
                                 stickerData["questionText"] = questionText

@@ -1218,6 +1218,22 @@
 "settings.sections.helpCenter.subtitle" = "Obtén respostes a les teves preguntes";
 "settings.sections.reportProblem" = "Reportar un problema";
 "settings.sections.reportProblem.subtitle" = "Fes-nos saber si alguna cosa no funciona";
+
+/* Time Spent */
+"userActivity.timeSpent.dailyLimit.title" = "Límit Diari";
+"userActivity.timeSpent.dailyLimit.subtitle" = "Afegeix un límit per al temps que passes cada dia.";
+"userActivity.timeSpent.dailyLimit.descTitle" = "Estableix el teu ritme";
+"userActivity.timeSpent.dailyLimit.descBody" = "Moments t'enviarà una notificació quan superis el temps que hagis decidit passar a l'aplicació cada dia.";
+"userActivity.timeSpent.dailyLimit.toggle" = "Avís de límit diari";
+"userActivity.timeSpent.dailyLimit.pickerTitle" = "Durada del límit";
+"userActivity.timeSpent.limitReached.title" = "Moments";
+"userActivity.timeSpent.limitReached.inAppTitle" = "Límit diari assolit";
+"userActivity.timeSpent.limitReached.body" = "Has arribat al teu límit diari de temps a Moments.";
+
+"userActivity.timeSpent.restMode.title" = "Mode Descans";
+"userActivity.timeSpent.restMode.subtitle" = "Tria les hores del dia a les quals vols silenciar les notificacions push.";
+"userActivity.timeSpent.restMode.descTitle" = "Moment de pausa";
+"userActivity.timeSpent.restMode.descBody" = "Silencia les notificacions push de Moments durant les hores que triïs per evitar distraccions.";
 "settings.sections.termsOfUse" = "Termes d'ús";
 "settings.sections.privacyPolicy" = "Política de privadesa";
 
@@ -1514,8 +1530,19 @@
 "userActivity.module.tags.subtitle" = "Ús de mencions, etiquetes i respostes d'sticker";
 "userActivity.module.time.title" = "Temps a l'app";
 "userActivity.module.time.subtitle" = "Sessions, dies actius i mitjana diària";
-"userActivity.module.content.title" = "Contingut";
-"userActivity.module.content.subtitle" = "Publicació de moments i ús de feed/històries";
+"userActivity.module.content.title" = "Contingut eliminat i arxivat";
+"userActivity.module.content.subtitle" = "Gestiona els moments desats i històries arxivades";
+"userActivity.section.sharedContent" = "Contingut que has compartit";
+"userActivity.simple.item.moments" = "Publicacions";
+"userActivity.simple.item.moments.subtitle" = "Gestiona les teves fotos i vídeos";
+"userActivity.simple.item.reels" = "Reels";
+"userActivity.simple.item.reels.subtitle" = "Gestiona els teus reels";
+"userActivity.simple.empty.moments" = "Sembla que encara no tens publicacions";
+"userActivity.simple.empty.reels" = "Sembla que encara no tens reels compartits";
+"userActivity.simple.empty.echoes" = "No s'han trobat ecos al teu historial";
+"userActivity.simple.empty.tags" = "No tens mencions o etiquetes recents";
+"userActivity.simple.empty.followers" = "Encara no tens seguidors registrats";
+"userActivity.simple.empty.visits" = "Ningú ha visitat el teu perfil darrerament";
 "userActivity.module.tags.hint" = "Aquesta secció s'anirà refinant amb més desglossament d'etiquetes i stickers.";
 "userActivity.module.content.hint" = "Pots gestionar el contingut des de Guardats i Històries arxivades a Ajustos.";
 "userActivity.metric.totalTime" = "Temps total";
@@ -1805,6 +1832,7 @@
 /* Archived Stories */
 "archivedStories.grid" = "Graella";
 "archivedStories.archive" = "Arxiu";
+"archivedStories.headerTitle" = "Arxiu d'històries";
 "archivedStories.today" = "Avui";
 "archivedStories.yesterday" = "Ahir";
 "archivedStories.video" = "Vídeo";
@@ -1815,6 +1843,8 @@
 "archivedStories.stats.reach" = "Abast";
 "archivedStories.stats.title" = "Estadístiques";
 "archivedStories.user" = "Usuari";
+"archivedStories.stats.empty.viewers" = "Encara no hi ha visualitzacions.";
+"archivedStories.stats.empty.reactions" = "Encara no hi ha reaccions.";
 
 /* Network Status - Offline Banners */
 "network.offline.title" = "Modo offline";
@@ -1986,6 +2016,7 @@
 /* Maps */
 "maps.location.moments" = "%d moments";
 "maps.bottomSheet.moments" = "%d moments";
+"maps.search.thisArea" = "Buscar en aquesta zona";
 "maps.bottomSheet.loading.moments" = "Carregant moments...";
 "maps.bottomSheet.loading.filtering" = "Filtrant per privadesa";
 "maps.bottomSheet.empty.title" = "No hi ha moments en aquest lloc 🥲";
@@ -2439,8 +2470,9 @@
 "userActivity.simple.item.tags.subtitle" = "Mencions i etiquetes en contingut";
 "userActivity.simple.item.stickers.title" = "Respostes a sticker";
 "userActivity.simple.item.stickers.subtitle" = "Activitat relacionada amb stickers i preguntes";
-"userActivity.simple.item.archived.title" = "Arxivats";
+"userActivity.simple.item.archived.title" = "Moments arxivats";
 "userActivity.simple.item.archived.subtitle" = "Veure i gestionar el teu contingut arxivat";
+"userActivity.simple.item.archived.headerTitle" = "Arxiu de moments";
 "userActivity.simple.item.recentlyDeleted.title" = "Eliminats recentment";
 "userActivity.simple.item.recentlyDeleted.subtitle" = "Contingut que has eliminat recentment";
 "userActivity.simple.item.echoes.title" = "Echoes";
@@ -2539,3 +2571,64 @@
 "feed.echo.actions.viewInvitations" = "Veure invitacions";
 "feed.echo.actions.viewHistory" = "Veure historial";
 "feed.echo.actions.cancel" = "Cancel·lar";
+
+"archivedStories.filter.all" = "Tot";
+"archivedStories.filter.photos" = "Fotos";
+"archivedStories.filter.videos" = "Vídeos";
+"archivedStories.filter.empty" = "No hi ha històries en aquest filtre.";
+
+"archivedStories.filter.media" = "Multimèdia";
+
+"archivedStories.mode.stories" = "Històries";
+"archivedStories.mode.calendar" = "Calendari";
+"archivedStories.mode.map" = "Mapa";
+"archivedStories.calendar.empty" = "No hi ha històries en aquesta data.";
+"archivedStories.map.empty" = "No hi ha històries geolocalitzades en aquest filtre.";
+"archivedStories.map.sheet.title" = "Històries en aquest lloc";
+
+/* Time Spent Activity */
+"userActivity.section.usage" = "COM FARES SERVIR MOMENTS";
+"userActivity.timeSpent.rowTitle" = "Temps invertit";
+"userActivity.timeSpent.rowSubtitle" = "Consulta quant temps passes a Moments";
+"userActivity.timeSpent.title" = "Temps a Moments";
+"userActivity.timeSpent.average" = "Mitjana diària";
+"userActivity.timeSpent.details.title" = "Temps a Moments";
+"userActivity.timeSpent.details.subtitle" = "Consulta quant temps passes a Moments cada dia. Fem servir aquestes dades per ajudar-te a gestionar el teu temps.";
+"userActivity.timeSpent.manage.title" = "Gestiona el teu temps";
+"userActivity.timeSpent.manage.desc" = "Fer pauses és important. Pots configurar límits diaris a la configuració del dispositiu per gestionar el teu temps de pantalla.";
+"userActivity.timeSpent.navTitle" = "Temps invertit";
+
+// Time Spent Additional Settings
+"userActivity.timeSpent.dailyLimit.title" = "Límit diari";
+"userActivity.timeSpent.dailyLimit.subtitle" = "Afegeix un límit per al temps que passes cada dia.";
+"userActivity.timeSpent.restMode.title" = "Mode Descans";
+"userActivity.timeSpent.restMode.subtitle" = "Tria les hores del dia a les què vols silenciar les notificacions push.";
+
+// Recent Searches
+"userActivity.recentSearches.title" = "Cerques recents";
+"userActivity.recentSearches.subtitle" = "Consulta l'historial del que has buscat recentment.";
+"userActivity.recentSearches.empty" = "No hi ha cerques recents";
+"userActivity.recentSearches.clearAll" = "Esborrar-ho tot";
+"explore.recentSearches.type.user" = "Usuari";
+"explore.recentSearches.type.hashtag" = "Hashtag";
+"explore.recentSearches.type.location" = "Ubicació";
+"explore.recentSearches.type.text" = "Cerca textual";
+
+// Account History
+"userActivity.accountHistory.title" = "Informació sobre l'historial del compte";
+"userActivity.accountHistory.subtitle" = "Revisa els canvis que has fet al teu compte.";
+"userActivity.accountHistory.description" = "Revisa els canvis que has fet al teu compte des que el vas crear.";
+"userActivity.accountHistory.joined" = "T'has unit a Moments";
+"userActivity.accountHistory.noChanges" = "No s'han trobat canvis.";
+"userActivity.simple.filters.type" = "Tipus";
+
+// Account History Types
+"accountHistory.type.join" = "Creació del compte";
+"accountHistory.type.username" = "Nom d'usuari";
+"accountHistory.type.bio" = "Biografia";
+"accountHistory.type.website" = "Lloc web";
+"accountHistory.type.privacy" = "Privacitat";
+"accountHistory.filter.all" = "Tots";
+"accountHistory.filter.oldest" = "Més antics";
+"accountHistory.filter.newest" = "Més recents";
+"accountHistory.changes" = "Canvis";

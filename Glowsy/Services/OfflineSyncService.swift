@@ -247,7 +247,13 @@ class OfflineSyncService: ObservableObject {
                             var syncError: Error?
                             
                             group.enter()
-                            FirestoreService.shared.updateProfileDetails(userId: payload.userId, bio: payload.bio, websiteUrl: payload.websiteUrl) { error in
+                            FirestoreService.shared.updateProfileDetails(
+                                userId: payload.userId,
+                                oldBio: payload.oldBio,
+                                newBio: payload.bio,
+                                oldWebsite: payload.oldWebsiteUrl,
+                                newWebsite: payload.websiteUrl
+                            ) { error in
                                 if let error = error { syncError = error }
                                 group.leave()
                             }

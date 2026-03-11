@@ -1190,12 +1190,18 @@ final class LocalPersistenceService: ObservableObject {
     
     // MARK: - 👤 PROFILE UPDATE (Optimistic)
     
-    func updateProfile(userId: String, bio: String?, website: String?, interests: [String]?, profileImageLocalPath: String?) async {
+    func updateProfile(userId: String, bio: String?, oldBio: String? = nil, website: String?, oldWebsite: String? = nil, interests: [String]?, profileImageLocalPath: String?) async {
         guard let context = modelContext else { return }
+        
+        var actualOldBio = oldBio
+        var actualOldWebsite = oldWebsite
         
         // 1. Optimistic UI
         let userDescriptor = FetchDescriptor<CachedUser>(predicate: #Predicate { $0.userId == userId })
         if let currentUser = (try? context.fetch(userDescriptor))?.first {
+            if actualOldBio == nil { actualOldBio = currentUser.bio }
+            if actualOldWebsite == nil { actualOldWebsite = currentUser.websiteUrl }
+            
             if let bio = bio { currentUser.bio = bio }
             if let website = website { currentUser.websiteUrl = website }
             if let interests = interests {
@@ -1212,7 +1218,9 @@ final class LocalPersistenceService: ObservableObject {
         let payload = ProfileUpdatePayload(
             userId: userId,
             bio: bio,
+            oldBio: actualOldBio,
             websiteUrl: website,
+            oldWebsiteUrl: actualOldWebsite,
             interests: interests,
             profileImageLocalPath: profileImageLocalPath,
             isImageUpdate: profileImageLocalPath != nil

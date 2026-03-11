@@ -22,6 +22,10 @@ struct GlowsyApp: App {
     init() {
         FirebaseApp.configure()
 
+        // Bootstrap global time tracking so Time Spent and Daily Limit work
+        // without requiring the user to open the Time Spent screens first.
+        _ = TimeSpentManager.shared
+
         let settings = FirestoreSettings()
         // ✅ LÍMITE FIREBASE: 100MB máximo para cache persistente
         settings.cacheSettings = PersistentCacheSettings(

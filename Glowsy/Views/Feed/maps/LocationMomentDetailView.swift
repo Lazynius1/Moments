@@ -45,6 +45,15 @@ struct LocationMomentDetailView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
     
+    private var currentHeaderLocationName: String {
+        guard let moment = locationMoments[safe: currentIndex],
+              let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !location.isEmpty else {
+            return locationName
+        }
+        return location
+    }
+    
     init(locationMoments: [Moment], initialIndex: Int, locationName: String, isPresented: Binding<Bool>) {
         self.locationMoments = locationMoments
         self.initialIndex = initialIndex
@@ -57,7 +66,6 @@ struct LocationMomentDetailView: View {
         print(".")
         return GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
-            let safeAreaBottom = geometry.safeAreaInsets.bottom
             
             ZStack(alignment: .top) {
                 // ✅ Fondo moderno como el feed
@@ -92,7 +100,7 @@ struct LocationMomentDetailView: View {
                     .opacity(backgroundOpacity)
                 
                 locationMomentsCarousel(geometry: geometry)
-                    .padding(.top, locationMoments.count > 1 ? 95 : 80) // Vuelto a un valor seguro pero optimizado
+                    .padding(.top, locationMoments.count > 1 ? 72 : 60)
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                 
@@ -331,7 +339,7 @@ struct LocationMomentDetailView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 1) { // Alineación leading para el texto, pero el bloque está centrado
-                        Text(locationName)
+                        Text(currentHeaderLocationName)
                             .font(.custom("Poppins-SemiBold", size: 17)) // Tamaño ajustado
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
@@ -507,7 +515,8 @@ struct LocationMomentDetailView: View {
             }
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-        .ignoresSafeArea(.container, edges: .top)
+        .background(Color.clear)
+        .ignoresSafeArea(.container, edges: [.top, .bottom])
         .onChange(of: currentIndex) { newIndex in
         }
     }
@@ -600,15 +609,6 @@ struct LocationMomentCard: View {
     enum AspectRatioType {
         case square, portrait, landscape, reels
         
-        var maxHeight: CGFloat {
-            switch self {
-            case .square: return 450
-            case .portrait: return 550
-            case .landscape: return 300
-            case .reels: return 1000 // Inmersivo
-            }
-        }
-        
         var exactRatio: CGFloat {
             switch self {
             case .square: return 1.0
@@ -635,13 +635,25 @@ struct LocationMomentCard: View {
         
         let calculatedHeight = maxWidth / aspectRatio
         
-        // Para Reels, dejamos que crezca más libremente
-        if aspectRatioType == .reels {
-            let maxReelsHeight = availableHeight + 100 // Permitir que sea inmersivo
-            return min(calculatedHeight, maxReelsHeight)
+        let dynamicMaxHeight: CGFloat
+        switch aspectRatioType {
+        case .square:
+            dynamicMaxHeight = min(availableHeight * 0.82, 680)
+        case .portrait:
+            dynamicMaxHeight = min(availableHeight * 0.92, 820)
+        case .landscape:
+            dynamicMaxHeight = min(availableHeight * 0.68, 440)
+        case .reels:
+            dynamicMaxHeight = availableHeight * 1.02
         }
         
-        return min(calculatedHeight, aspectRatioType.maxHeight)
+        // Para Reels, ocupar casi todo el viewport disponible para evitar huecos inferiores.
+        if aspectRatioType == .reels {
+            let minReelsHeight = availableHeight * 0.96
+            return min(max(calculatedHeight, minReelsHeight), dynamicMaxHeight)
+        }
+        
+        return min(calculatedHeight, dynamicMaxHeight)
     }
     
     var body: some View {
@@ -703,8 +715,10 @@ struct LocationMomentCard: View {
                 // Espacio inferior eliminado
             }
             .padding(.horizontal, 15)
+            .frame(maxWidth: .infinity, minHeight: availableHeight, alignment: .top)
         }
-        .ignoresSafeArea(.container, edges: [.top, .bottom])
+        .background(Color.clear)
+        .ignoresSafeArea(.container, edges: .top)
     }
     
     // ✅ Header compacto de autor dentro de la card

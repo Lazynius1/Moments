@@ -849,6 +849,22 @@
 "audience.people.count.short" = "%d personas";
 "audience.selectPeople" = "Seleccionar %d personas";
 
+/* Time Spent */
+"userActivity.timeSpent.dailyLimit.title" = "Límite Diario";
+"userActivity.timeSpent.dailyLimit.subtitle" = "Añade un límite para el tiempo que pasas cada día.";
+"userActivity.timeSpent.dailyLimit.descTitle" = "Establece tu ritmo";
+"userActivity.timeSpent.dailyLimit.descBody" = "Moments te enviará una notificación cuando rebase el tiempo que hayas decidido pasar en la aplicación cada día.";
+"userActivity.timeSpent.dailyLimit.toggle" = "Aviso de límite diario";
+"userActivity.timeSpent.dailyLimit.pickerTitle" = "Duración del límite";
+"userActivity.timeSpent.limitReached.title" = "Moments";
+"userActivity.timeSpent.limitReached.inAppTitle" = "Límite diario alcanzado";
+"userActivity.timeSpent.limitReached.body" = "Has alcanzado tu límite diario de tiempo en Moments.";
+
+"userActivity.timeSpent.restMode.title" = "Modo Descanso";
+"userActivity.timeSpent.restMode.subtitle" = "Elige las horas del día a las que quieres silenciar las notificaciones push.";
+"userActivity.timeSpent.restMode.descTitle" = "Momento de pausa";
+"userActivity.timeSpent.restMode.descBody" = "Silencia las notificaciones push de Moments durante las horas que elijas para evitar distracciones.";
+
 /* Audience Types */
 "audience.type.everyone" = "Todos";
 "audience.type.connections" = "Mutuos";
@@ -1521,8 +1537,19 @@
 "userActivity.module.tags.subtitle" = "Uso de menciones, etiquetas y respuestas de stickers";
 "userActivity.module.time.title" = "Tiempo en la app";
 "userActivity.module.time.subtitle" = "Sesiones, días activos y promedio diario";
-"userActivity.module.content.title" = "Contenido";
-"userActivity.module.content.subtitle" = "Publicación de moments y uso de feed/historias";
+"userActivity.module.content.title" = "Contenido eliminado y archivado";
+"userActivity.module.content.subtitle" = "Gestiona tus momentos guardados e historias archivadas";
+"userActivity.section.sharedContent" = "Contenido que has compartido";
+"userActivity.simple.item.moments" = "Publicaciones";
+"userActivity.simple.item.moments.subtitle" = "Gestiona tus fotos y videos";
+"userActivity.simple.item.reels" = "Reels";
+"userActivity.simple.item.reels.subtitle" = "Gestiona tus reels";
+"userActivity.simple.empty.moments" = "Parece que aún no tienes publicaciones";
+"userActivity.simple.empty.reels" = "Parece que aún no tienes reels compartidos";
+"userActivity.simple.empty.echoes" = "No se han encontrado ecos en tu historial";
+"userActivity.simple.empty.tags" = "No tienes menciones o etiquetas recientes";
+"userActivity.simple.empty.followers" = "Aún no tienes seguidores registrados";
+"userActivity.simple.empty.visits" = "Nadie ha visitado tu perfil recientemente";
 "userActivity.module.tags.hint" = "Esta sección se irá afinando con más desglose de eventos de etiquetas y stickers.";
 "userActivity.module.content.hint" = "Puedes gestionar tu contenido en Guardados e Historias archivadas desde Ajustes.";
 "userActivity.metric.totalTime" = "Tiempo total";
@@ -1816,6 +1843,7 @@
 /* Archived Stories */
 "archivedStories.grid" = "Cuadrícula";
 "archivedStories.archive" = "Archivo";
+"archivedStories.headerTitle" = "Archivo de historias";
 "archivedStories.today" = "Hoy";
 "archivedStories.yesterday" = "Ayer";
 "archivedStories.video" = "Video";
@@ -1826,6 +1854,8 @@
 "archivedStories.stats.reach" = "Alcance";
 "archivedStories.stats.title" = "Estadísticas";
 "archivedStories.user" = "Usuario";
+"archivedStories.stats.empty.viewers" = "Aún no hay visualizaciones.";
+"archivedStories.stats.empty.reactions" = "Aún no hay reacciones.";
 
 /* Network Status - Offline Banners */
 "network.offline.title" = "Modo offline";
@@ -1997,6 +2027,7 @@
 /* Maps */
 "maps.location.moments" = "%d momentos";
 "maps.bottomSheet.moments" = "%d momentos";
+"maps.search.thisArea" = "Buscar en esta zona";
 "maps.bottomSheet.loading.moments" = "Cargando momentos...";
 "maps.bottomSheet.loading.filtering" = "Filtrando por privacidad";
 "maps.bottomSheet.empty.title" = "No hay momentos en este lugar 🥲";
@@ -2456,8 +2487,9 @@
 "userActivity.simple.item.tags.subtitle" = "Menciones y etiquetas en contenido";
 "userActivity.simple.item.stickers.title" = "Respuestas a sticker";
 "userActivity.simple.item.stickers.subtitle" = "Actividad relacionada con stickers y preguntas";
-"userActivity.simple.item.archived.title" = "Archivados";
+"userActivity.simple.item.archived.title" = "Momentos archivados";
 "userActivity.simple.item.archived.subtitle" = "Ver y gestionar tu contenido archivado";
+"userActivity.simple.item.archived.headerTitle" = "Archivo de momentos";
 "userActivity.simple.item.recentlyDeleted.title" = "Eliminados recientemente";
 "userActivity.simple.item.recentlyDeleted.subtitle" = "Contenido que has borrado recientemente";
 "userActivity.simple.item.echoes.title" = "Echoes";
@@ -2558,3 +2590,64 @@
 "feed.echo.actions.viewInvitations" = "Ver invitaciones";
 "feed.echo.actions.viewHistory" = "Ver historial";
 "feed.echo.actions.cancel" = "Cancelar";
+
+"archivedStories.filter.all" = "Todo";
+"archivedStories.filter.photos" = "Fotos";
+"archivedStories.filter.videos" = "Videos";
+"archivedStories.filter.empty" = "No hay historias en este filtro.";
+
+"archivedStories.filter.media" = "Medios";
+
+"archivedStories.mode.stories" = "Historias";
+"archivedStories.mode.calendar" = "Calendario";
+"archivedStories.mode.map" = "Mapa";
+"archivedStories.calendar.empty" = "No hay historias en esta fecha.";
+"archivedStories.map.empty" = "No hay historias geolocalizadas en este filtro.";
+"archivedStories.map.sheet.title" = "Historias en este lugar";
+
+/* Time Spent Activity */
+"userActivity.section.usage" = "CÓMO USAS MOMENTS";
+"userActivity.timeSpent.rowTitle" = "Tiempo invertido";
+"userActivity.timeSpent.rowSubtitle" = "Consulta cuánto tiempo pasas en Moments";
+"userActivity.timeSpent.title" = "Tiempo en Moments";
+"userActivity.timeSpent.average" = "Promedio diario";
+"userActivity.timeSpent.details.title" = "Tiempo en Moments";
+"userActivity.timeSpent.details.subtitle" = "Consulta cuánto tiempo pasas en Moments cada día. Usamos estos datos para ayudarte a gestionar tu tiempo.";
+"userActivity.timeSpent.manage.title" = "Gestiona tu tiempo";
+"userActivity.timeSpent.manage.desc" = "Tomar descansos es importante. Puedes configurar límites diarios en los Ajustes de tu dispositivo para gestionar tu tiempo de pantalla.";
+"userActivity.timeSpent.navTitle" = "Tiempo invertido";
+
+// Time Spent Additional Settings
+"userActivity.timeSpent.dailyLimit.title" = "Límite diario";
+"userActivity.timeSpent.dailyLimit.subtitle" = "Añade un límite para el tiempo que pasas cada día.";
+"userActivity.timeSpent.restMode.title" = "Modo descanso";
+"userActivity.timeSpent.restMode.subtitle" = "Elige las horas del día a las que quieres silenciar las notificaciones push.";
+
+// Recent Searches
+"userActivity.recentSearches.title" = "Búsquedas recientes";
+"userActivity.recentSearches.subtitle" = "Consulta el historial de lo que has buscado recientemente.";
+"userActivity.recentSearches.empty" = "No hay búsquedas recientes";
+"userActivity.recentSearches.clearAll" = "Borrar todo";
+"explore.recentSearches.type.user" = "Usuario";
+"explore.recentSearches.type.hashtag" = "Hashtag";
+"explore.recentSearches.type.location" = "Ubicación";
+"explore.recentSearches.type.text" = "Búsqueda textual";
+
+// Account History
+"userActivity.accountHistory.title" = "Información sobre el historial de la cuenta";
+"userActivity.accountHistory.subtitle" = "Revisa los cambios que has hecho a tu cuenta.";
+"userActivity.accountHistory.description" = "Revisa los cambios que has hecho en tu cuenta desde que la creaste.";
+"userActivity.accountHistory.joined" = "Te uniste a Moments";
+"userActivity.accountHistory.noChanges" = "No se encontraron cambios.";
+"userActivity.simple.filters.type" = "Tipo";
+
+// Account History Types
+"accountHistory.type.join" = "Creación de cuenta";
+"accountHistory.type.username" = "Nombre de usuario";
+"accountHistory.type.bio" = "Biografía";
+"accountHistory.type.website" = "Sitio web";
+"accountHistory.type.privacy" = "Privacidad";
+"accountHistory.filter.all" = "Todos";
+"accountHistory.filter.oldest" = "Más antiguos";
+"accountHistory.filter.newest" = "Más recientes";
+"accountHistory.changes" = "Cambios";

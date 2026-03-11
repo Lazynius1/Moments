@@ -848,6 +848,21 @@
 "audience.type.customList" = "Custom list";
 "audience.type.onlyMe" = "Only me";
 
+/* Time Spent */
+"userActivity.timeSpent.dailyLimit.title" = "Daily Limit";
+"userActivity.timeSpent.dailyLimit.subtitle" = "Set a daily time limit for your usage.";
+"userActivity.timeSpent.dailyLimit.descTitle" = "Set your pace";
+"userActivity.timeSpent.dailyLimit.descBody" = "Moments will notify you when you reach the amount of time you’ve decided to spend on the app each day.";
+"userActivity.timeSpent.dailyLimit.toggle" = "Daily limit reminder";
+"userActivity.timeSpent.dailyLimit.pickerTitle" = "Limit duration";
+"userActivity.timeSpent.limitReached.title" = "Moments";
+"userActivity.timeSpent.limitReached.inAppTitle" = "Daily limit reached";
+"userActivity.timeSpent.limitReached.body" = "You have reached your daily time limit on Moments.";
+
+"userActivity.timeSpent.restMode.title" = "Rest Mode";
+"userActivity.timeSpent.restMode.subtitle" = "Choose the hours of the day when you want to mute push notifications.";
+"userActivity.timeSpent.restMode.descTitle" = "Time to pause";
+"userActivity.timeSpent.restMode.descBody" = "Mute push notifications from Moments during your chosen hours to avoid distractions.";
 /* Audience Descriptions */
 "audience.description.everyone" = "Anyone can see this content";
 "audience.description.connections" = "Only people you follow and follow you";
@@ -1524,8 +1539,19 @@
 "userActivity.module.tags.subtitle" = "Mentions, tags, and sticker reply usage";
 "userActivity.module.time.title" = "Time in app";
 "userActivity.module.time.subtitle" = "Sessions, active days, and daily average";
-"userActivity.module.content.title" = "Content";
-"userActivity.module.content.subtitle" = "Moment publishing and feed/story usage";
+"userActivity.module.content.title" = "Deleted and archived content";
+"userActivity.module.content.subtitle" = "Manage your saved moments and archived stories";
+"userActivity.section.sharedContent" = "Content you've shared";
+"userActivity.simple.item.moments" = "Posts";
+"userActivity.simple.item.moments.subtitle" = "Manage your photos and videos";
+"userActivity.simple.item.reels" = "Reels";
+"userActivity.simple.item.reels.subtitle" = "Manage your reels";
+"userActivity.simple.empty.moments" = "It looks like you don't have any posts yet";
+"userActivity.simple.empty.reels" = "It looks like you don't have any shared reels yet";
+"userActivity.simple.empty.echoes" = "No echoes found in your history";
+"userActivity.simple.empty.tags" = "You don't have any recent mentions or tags";
+"userActivity.simple.empty.followers" = "You don't have any followers yet";
+"userActivity.simple.empty.visits" = "No one has visited your profile recently";
 "userActivity.module.tags.hint" = "This section will improve with deeper breakdown for tags and sticker events.";
 "userActivity.module.content.hint" = "You can manage content from Saved and Archived Stories in Settings.";
 "userActivity.metric.totalTime" = "Total time";
@@ -1790,6 +1816,7 @@
 /* Archived Stories */
 "archivedStories.grid" = "Grid";
 "archivedStories.archive" = "Archive";
+"archivedStories.headerTitle" = "Story archive";
 "archivedStories.today" = "Today";
 "archivedStories.yesterday" = "Yesterday";
 "archivedStories.video" = "Video";
@@ -1800,6 +1827,8 @@
 "archivedStories.stats.reach" = "Reach";
 "archivedStories.stats.title" = "Statistics";
 "archivedStories.user" = "User";
+"archivedStories.stats.empty.viewers" = "No views yet.";
+"archivedStories.stats.empty.reactions" = "No reactions yet.";
 
 /* Network Status - Offline Banners */
 "network.offline.title" = "Offline mode";
@@ -1971,6 +2000,7 @@
 /* Maps */
 "maps.location.moments" = "%d moments";
 "maps.bottomSheet.moments" = "%d moments";
+"maps.search.thisArea" = "Search this area";
 "maps.bottomSheet.loading.moments" = "Loading moments...";
 "maps.bottomSheet.loading.filtering" = "Filtering by privacy";
 "maps.bottomSheet.empty.title" = "No moments in this place 🥲";
@@ -2433,8 +2463,9 @@
 "userActivity.simple.item.tags.subtitle" = "Mentions and tags in content";
 "userActivity.simple.item.stickers.title" = "Sticker replies";
 "userActivity.simple.item.stickers.subtitle" = "Activity related to stickers and questions";
-"userActivity.simple.item.archived.title" = "Archived";
+"userActivity.simple.item.archived.title" = "Archived moments";
 "userActivity.simple.item.archived.subtitle" = "View and manage your archived content";
+"userActivity.simple.item.archived.headerTitle" = "Moments archive";
 "userActivity.simple.item.recentlyDeleted.title" = "Recently Deleted";
 "userActivity.simple.item.recentlyDeleted.subtitle" = "Content you have recently deleted";
 "userActivity.simple.item.echoes.title" = "Echoes";
@@ -2535,3 +2566,64 @@
 "feed.echo.actions.viewInvitations" = "View invitations";
 "feed.echo.actions.viewHistory" = "View history";
 "feed.echo.actions.cancel" = "Cancel";
+
+"archivedStories.filter.all" = "All";
+"archivedStories.filter.photos" = "Photos";
+"archivedStories.filter.videos" = "Videos";
+"archivedStories.filter.empty" = "No stories in this filter.";
+
+"archivedStories.filter.media" = "Media";
+
+"archivedStories.mode.stories" = "Stories";
+"archivedStories.mode.calendar" = "Calendar";
+"archivedStories.mode.map" = "Map";
+"archivedStories.calendar.empty" = "No stories on this date.";
+"archivedStories.map.empty" = "No geolocated stories in this filter.";
+"archivedStories.map.sheet.title" = "Stories in this place";
+
+/* Time Spent Activity */
+"userActivity.section.usage" = "HOW YOU USE MOMENTS";
+"userActivity.timeSpent.rowTitle" = "Time Spent";
+"userActivity.timeSpent.rowSubtitle" = "See how much time you spend on Moments";
+"userActivity.timeSpent.title" = "Time on Moments";
+"userActivity.timeSpent.average" = "Daily average";
+"userActivity.timeSpent.details.title" = "Time on Moments";
+"userActivity.timeSpent.details.subtitle" = "See how much time you spend on Moments each day. We use this data to help you manage your time.";
+"userActivity.timeSpent.manage.title" = "Manage Your Time";
+"userActivity.timeSpent.manage.desc" = "Taking breaks is important. You can set daily limits in your device Settings to help manage your screen time.";
+"userActivity.timeSpent.navTitle" = "Time Spent";
+
+// Time Spent Additional Settings
+"userActivity.timeSpent.dailyLimit.title" = "Daily limit";
+"userActivity.timeSpent.dailyLimit.subtitle" = "Add a limit for the time you spend each day.";
+"userActivity.timeSpent.restMode.title" = "Rest Mode";
+"userActivity.timeSpent.restMode.subtitle" = "Choose the hours of the day you want to mute push notifications.";
+
+// Recent Searches
+"userActivity.recentSearches.title" = "Recent Searches";
+"userActivity.recentSearches.subtitle" = "View the history of what you've looked for recently.";
+"userActivity.recentSearches.empty" = "No recent searches";
+"userActivity.recentSearches.clearAll" = "Clear all";
+"explore.recentSearches.type.user" = "User";
+"explore.recentSearches.type.hashtag" = "Hashtag";
+"explore.recentSearches.type.location" = "Location";
+"explore.recentSearches.type.text" = "Text search";
+
+// Account History
+"userActivity.accountHistory.title" = "Account History Information";
+"userActivity.accountHistory.subtitle" = "Review the changes you've made to your account.";
+"userActivity.accountHistory.description" = "Check the changes you have made to your account since you created it.";
+"userActivity.accountHistory.joined" = "You joined Moments";
+"userActivity.accountHistory.noChanges" = "No changes found.";
+"userActivity.simple.filters.type" = "Type";
+
+// Account History Types
+"accountHistory.type.join" = "Joined Moments";
+"accountHistory.type.username" = "Username";
+"accountHistory.type.bio" = "Bio";
+"accountHistory.type.website" = "Website";
+"accountHistory.type.privacy" = "Privacy";
+"accountHistory.filter.all" = "All";
+"accountHistory.filter.oldest" = "Oldest first";
+"accountHistory.filter.newest" = "Newest first";
+"accountHistory.changes" = "Changes";

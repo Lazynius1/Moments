@@ -3171,6 +3171,96 @@ function serializeRestrictedMoment(docId, data) {
   };
 }
 
+function isFirestoreFailedPrecondition(error) {
+  if (!error) return false;
+  const code = error.code;
+  const codeStr = typeof code === 'string' ? code.toLowerCase() : String(code || '');
+  return code === 9 || codeStr.includes('failed-precondition') || codeStr === '9';
+}
+
+async function buildMapFallbackCandidateUserIds(uid, viewerCtx, db) {
+  const followingIds = [...viewerCtx.following];
+  const extraIds = new Set(followingIds);
+  extraIds.add(uid);
+
+  const [suggestedSnap, popularSnap] = await Promise.all([
+    db.collection('users')
+      .where('isActive', '==', true)
+      .limit(40)
+      .get(),
+    db.collection('users')
+      .limit(30)
+      .get()
+  ]);
+
+  suggestedSnap.docs.forEach((d) => {
+    if (d.id !== uid && !viewerCtx.blockedUsers.has(d.id)) {
+      extraIds.add(d.id);
+    }
+  });
+
+  popularSnap.docs.forEach((d) => {
+    if (d.id !== uid && !viewerCtx.blockedUsers.has(d.id)) {
+      extraIds.add(d.id);
+    }
+  });
+
+  return [...extraIds];
+}
+
+async function fetchMapCandidatesByAuthorBatches(db, candidateUserIds, mode, filters) {
+  if (!Array.isArray(candidateUserIds) || candidateUserIds.length === 0) return [];
+
+  const userBatches = [];
+  for (let i = 0; i < candidateUserIds.length; i += 10) {
+    userBatches.push(candidateUserIds.slice(i, i + 10));
+  }
+
+  const perBatchLimit = mode === 'location' ? 80 : 120;
+  const allDocs = [];
+
+  await Promise.all(userBatches.map(async (batch) => {
+    const snap = await db.collectionGroup('moments')
+      .where('authorId', 'in', batch)
+      .orderBy('timestamp', 'desc')
+      .limit(perBatchLimit)
+      .get();
+    snap.docs.forEach((doc) => allDocs.push(doc));
+  }));
+
+  const seen = new Set();
+  const unique = [];
+  for (const doc of allDocs) {
+    const path = doc.ref.path;
+    if (!seen.has(path)) {
+      seen.add(path);
+      unique.push(doc);
+    }
+  }
+
+  if (mode === 'location') {
+    const locationName = filters.locationName || '';
+    return unique.filter((doc) => {
+      const data = doc.data() || {};
+      return String(data.location || '') === locationName;
+    });
+  }
+
+  const latitudeMin = filters.latitudeMin;
+  const latitudeMax = filters.latitudeMax;
+  const longitudeMin = filters.longitudeMin;
+  const longitudeMax = filters.longitudeMax;
+
+  return unique.filter((doc) => {
+    const data = doc.data() || {};
+    const coord = data.locationCoordinate || {};
+    const lat = Number(coord.latitude);
+    const lon = Number(coord.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+    return lat >= latitudeMin && lat <= latitudeMax && lon >= longitudeMin && lon <= longitudeMax;
+  });
+}
+
 /**
  * 🚀 getFeedPage — Backend-first feed endpoint.
  *
@@ -3423,6 +3513,201 @@ exports.getFeedPage = onRequest(
     } catch (error) {
       console.error('❌ getFeedPage error:', error);
       res.status(500).json({ error: 'Feed fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 🗺️ getMapMomentsPage — Returns moments visible to the viewer for map surfaces.
+ *
+ * POST body:
+ * {
+ *   mode: "region" | "location",
+ *   centerLatitude?: number,
+ *   centerLongitude?: number,
+ *   latitudeDelta?: number,
+ *   longitudeDelta?: number,
+ *   locationName?: string,
+ *   limit?: number
+ * }
+ *
+ * Response:
+ * {
+ *   moments: [...],
+ *   source: "backend",
+ *   totalCandidates: number
+ * }
+ */
+exports.getMapMomentsPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const mode = body.mode === 'location' ? 'location' : 'region';
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 120)) : 80;
+
+    const db = admin.firestore();
+
+    try {
+      const viewerCtx = await buildViewerContext(uid);
+
+      let query = db.collectionGroup('moments');
+      let longitudeMin = -180;
+      let longitudeMax = 180;
+      let latitudeMin = -90;
+      let latitudeMax = 90;
+      let debugScope = 'region';
+
+      if (mode === 'location') {
+        const locationName = typeof body.locationName === 'string' ? body.locationName.trim() : '';
+        if (!locationName) {
+          res.status(400).json({ error: 'Missing locationName' });
+          return;
+        }
+        debugScope = `location:${locationName}`;
+        query = query.where('location', '==', locationName).limit(Math.max(limit * 4, 200));
+      } else {
+        const centerLatitude = Number(body.centerLatitude);
+        const centerLongitude = Number(body.centerLongitude);
+        const latitudeDelta = Number(body.latitudeDelta);
+        const longitudeDelta = Number(body.longitudeDelta);
+
+        const validRegion = Number.isFinite(centerLatitude)
+          && Number.isFinite(centerLongitude)
+          && Number.isFinite(latitudeDelta)
+          && Number.isFinite(longitudeDelta)
+          && latitudeDelta > 0
+          && longitudeDelta > 0;
+
+        if (!validRegion) {
+          res.status(400).json({ error: 'Invalid region payload' });
+          return;
+        }
+
+        latitudeMin = Math.max(-90, centerLatitude - (latitudeDelta / 2));
+        latitudeMax = Math.min(90, centerLatitude + (latitudeDelta / 2));
+        longitudeMin = Math.max(-180, centerLongitude - (longitudeDelta / 2));
+        longitudeMax = Math.min(180, centerLongitude + (longitudeDelta / 2));
+
+        query = query
+          .where('locationCoordinate.latitude', '>=', latitudeMin)
+          .where('locationCoordinate.latitude', '<=', latitudeMax)
+          .orderBy('locationCoordinate.latitude')
+          .limit(Math.max(limit * 4, 220));
+      }
+
+      let snapshot;
+      let usedFallbackPath = false;
+      try {
+        snapshot = await query.get();
+      } catch (queryError) {
+        if (!isFirestoreFailedPrecondition(queryError)) {
+          throw queryError;
+        }
+
+        usedFallbackPath = true;
+        const fallbackCandidateUserIds = await buildMapFallbackCandidateUserIds(uid, viewerCtx, db);
+        const fallbackDocs = await fetchMapCandidatesByAuthorBatches(
+          db,
+          fallbackCandidateUserIds,
+          mode,
+          {
+            locationName: mode === 'location' ? (typeof body.locationName === 'string' ? body.locationName.trim() : '') : '',
+            latitudeMin,
+            latitudeMax,
+            longitudeMin,
+            longitudeMax
+          }
+        );
+        snapshot = { docs: fallbackDocs };
+      }
+
+      const nowMs = Date.now();
+
+      // Primary candidate window (non-archived + no future scheduled for non-authors + in longitude bounds for region mode)
+      const candidateDocs = snapshot.docs.filter((doc) => {
+        const data = doc.data() || {};
+
+        if (data.isArchived === true) return false;
+
+        if (data.authorId !== uid) {
+          const scheduledMs = tsToMillis(data.scheduledDate);
+          if (scheduledMs && scheduledMs > nowMs) return false;
+        }
+
+        if (mode !== 'location') {
+          const coord = data.locationCoordinate || {};
+          const lon = Number(coord.longitude);
+          if (!Number.isFinite(lon)) return false;
+          if (lon < longitudeMin || lon > longitudeMax) return false;
+        }
+
+        return true;
+      });
+
+      const authorIds = [...new Set(candidateDocs.map((d) => (d.data() || {}).authorId).filter(Boolean))];
+      const authorMap = await batchLoadAuthorDocs(authorIds);
+
+      const privacyResults = await Promise.all(
+        candidateDocs.map(async (doc) => {
+          const data = doc.data() || {};
+          const authorData = authorMap.get(data.authorId);
+          if (!authorData) return { doc, data, canView: false };
+
+          const momentForCheck = {
+            id: doc.id,
+            authorId: data.authorId,
+            audience: data.audience,
+            taggedUsers: data.taggedUsers,
+            customListId: data.customListId,
+            isArchived: data.isArchived === true
+          };
+
+          const canView = await canViewerSeeMoment(momentForCheck, uid, viewerCtx, authorData);
+          return { doc, data, canView };
+        })
+      );
+
+      const visible = privacyResults
+        .filter((entry) => entry.canView)
+        .sort((a, b) => {
+          const tsA = tsToMillis(a.data.timestamp) || 0;
+          const tsB = tsToMillis(b.data.timestamp) || 0;
+          if (tsB !== tsA) return tsB - tsA;
+          return String(b.doc.id).localeCompare(String(a.doc.id));
+        })
+        .slice(0, limit);
+
+      const moments = visible.map(({ doc, data }) => serializeMoment(doc.id, data));
+
+      const pathTag = usedFallbackPath ? 'fallback_author_batches' : 'geo_query';
+      console.log(`✅ getMapMomentsPage: uid=${uid}, scope=${debugScope}, path=${pathTag}, candidates=${candidateDocs.length}, visible=${visible.length}, returned=${moments.length}`);
+
+      res.status(200).json({
+        moments,
+        source: 'backend',
+        totalCandidates: candidateDocs.length
+      });
+    } catch (error) {
+      console.error('❌ getMapMomentsPage error:', error);
+      res.status(500).json({ error: 'Map moments fetch failed', details: error.message });
     }
   }
 );

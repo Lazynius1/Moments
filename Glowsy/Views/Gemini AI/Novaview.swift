@@ -2615,7 +2615,7 @@ class GeminiViewModel: ObservableObject {
         self.vertexAI = VertexAI.vertexAI(location: "global")
         
         // Inicialización básica (se actualizará cuando carguen los datos del usuario)
-        self.model = vertexAI.generativeModel(modelName: "gemini-3-flash-preview")
+        self.model = vertexAI.generativeModel(modelName: "gemini-3.1-flash-lite-preview")
         
         Task {
             await MainActor.run {
@@ -2659,7 +2659,7 @@ class GeminiViewModel: ObservableObject {
         }
         
         self.model = vertexAI.generativeModel(
-            modelName: "gemini-3-flash-preview",
+            modelName: "gemini-3.1-flash-lite-preview",
             generationConfig: config,
             safetySettings: safetySettings,
             systemInstruction: ModelContent(role: "system", parts: [systemInstruction])
@@ -4286,7 +4286,7 @@ class GeminiViewModel: ObservableObject {
             do {
                 let response = try await generateContentWithRetry(prompt: prompt, maxRetries: 2)
                 if let newBio = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    self.firestoreService.updateBio(userId: userId, bio: newBio) { error in
+                    self.firestoreService.updateBio(userId: userId, newBio: newBio) { error in
                         Task { @MainActor in
                             
                             if let error = error {

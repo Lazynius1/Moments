@@ -23,12 +23,12 @@ struct UserActivityView: View {
                                 .font(.custom("Poppins-Bold", size: 30))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .multilineTextAlignment(.leading)
-
+                            
                             Text(NSLocalizedString("userActivity.simple.subtitle", comment: "Activity subtitle"))
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.gray)
                         }
-
+                        
                         VStack(alignment: .leading, spacing: 32) {
                             // SECCIÓN: INTERACCIONES
                             activitySection(
@@ -36,20 +36,32 @@ struct UserActivityView: View {
                                 categories: [.reactions, .comments, .tags, .stickerReplies]
                             )
                             
-                            // SECCIÓN: TU CONTENIDO
+                            // SECCIÓN: CONTENIDO ELIMINADO Y ARCHIVADO
                             activitySection(
-                                title: NSLocalizedString("userActivity.section.content", comment: "Content section"),
+                                title: NSLocalizedString("userActivity.module.content.title", comment: "Content section"),
                                 categories: [.archived, .storiesArchive, .recentlyDeleted]
+                            )
+                            
+                            // SECCIÓN: CONTENIDO COMPARTIDO
+                            activitySection(
+                                title: NSLocalizedString("userActivity.section.sharedContent", comment: "Shared content section"),
+                                categories: [.moments, .reels, .echoes]
                             )
                             
                             // SECCIÓN: HISTORIAL
                             activitySection(
                                 title: NSLocalizedString("userActivity.section.history", comment: "History section"),
-                                categories: [.echoes, .followers, .visits]
+                                categories: [.followers, .visits]
+                            )
+                            
+                            // SECCIÓN: CÓMO USAS MOMENTS
+                            activitySection(
+                                title: NSLocalizedString("userActivity.section.usage", value: "HOW YOU USE MOMENTS", comment: "Usage section"),
+                                categories: [.timeSpent, .searches, .accountHistory]
                             )
                         }
                     }
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 12)
                     .padding(.top, 16)
                     .padding(.bottom, 24)
                 }
@@ -106,14 +118,68 @@ struct UserActivityView: View {
         }
     }
 
+    // Removed custom timeSpentSection() method -> now using activitySection()
+
     @ViewBuilder
     private func activityDestination(for category: ActivityInteractionCategory) -> some View {
         switch category {
+        case .archived:
+            ArchivedMomentsView()
         case .storiesArchive:
             ArchiveView(embedInNavigation: false, showsCustomDismiss: false)
+        case .timeSpent:
+            TimeSpentDetailsView()
+        case .searches:
+            SearchHistoryActivityView()
+        case .accountHistory:
+            AccountHistoryActivityView()
         default:
             ActivityInteractionDetailView(category: category)
         }
+    }
+}
+
+struct ArchivedMomentsView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var navigateToStoriesArchive = false
+    
+    private var archivedMomentsHeaderTitle: String {
+        NSLocalizedString("userActivity.simple.item.archived.headerTitle", comment: "Archived moments header title")
+    }
+    
+    private var archivedStoriesHeaderTitle: String {
+        NSLocalizedString("archivedStories.headerTitle", comment: "Archive Stories header title")
+    }
+    
+    var body: some View {
+        ActivityInteractionDetailView(category: .archived)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Menu {
+                        Label(archivedMomentsHeaderTitle, systemImage: "checkmark")
+                        Button(archivedStoriesHeaderTitle) {
+                            navigateToStoriesArchive = true
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(archivedMomentsHeaderTitle)
+                                .font(.custom("Poppins-SemiBold", size: 17))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    }
+                }
+            }
+            .background(
+                NavigationLink(
+                    destination: ArchiveView(embedInNavigation: false, showsCustomDismiss: false),
+                    isActive: $navigateToStoriesArchive
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            )
     }
 }
 
@@ -134,6 +200,15 @@ private enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
     case followers
     case visits
 
+    // Shared Content
+    case moments
+    case reels
+    
+    // Usage
+    case timeSpent
+    case searches
+    case accountHistory
+
     var id: String { rawValue }
 
     var titleKey: String {
@@ -148,6 +223,11 @@ private enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         case .echoes: return "userActivity.simple.item.echoes.title"
         case .followers: return "userActivity.simple.item.followers.title"
         case .visits: return "userActivity.simple.item.visits.title"
+        case .moments: return "userActivity.simple.item.moments"
+        case .reels: return "userActivity.simple.item.reels"
+        case .timeSpent: return "userActivity.timeSpent.rowTitle"
+        case .searches: return "userActivity.recentSearches.title"
+        case .accountHistory: return "userActivity.accountHistory.title"
         }
     }
 
@@ -163,6 +243,11 @@ private enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         case .echoes: return "userActivity.simple.item.echoes.subtitle"
         case .followers: return "userActivity.simple.item.followers.subtitle"
         case .visits: return "userActivity.simple.item.visits.subtitle"
+        case .moments: return "userActivity.simple.item.moments.subtitle"
+        case .reels: return "userActivity.simple.item.reels.subtitle"
+        case .timeSpent: return "userActivity.timeSpent.rowSubtitle"
+        case .searches: return "userActivity.recentSearches.subtitle"
+        case .accountHistory: return "userActivity.accountHistory.subtitle"
         }
     }
 
@@ -178,6 +263,11 @@ private enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         case .echoes: return "camera.aperture"
         case .followers: return "person.badge.plus"
         case .visits: return "eye.fill"
+        case .moments: return "square.grid.2x2.fill"
+        case .reels: return "play.square.stack.fill"
+        case .timeSpent: return "clock.fill"
+        case .searches: return "magnifyingglass"
+        case .accountHistory: return "calendar.badge.clock"
         }
     }
 
@@ -193,6 +283,10 @@ private enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         case .echoes: return "userActivity.simple.empty.echoes"
         case .followers: return "userActivity.simple.empty.followers"
         case .visits: return "userActivity.simple.empty.visits"
+        case .moments: return "userActivity.simple.empty.moments"
+        case .reels: return "userActivity.simple.empty.reels"
+        case .searches: return "userActivity.recentSearches.empty"
+        case .timeSpent, .accountHistory: return ""
         }
     }
 
@@ -208,6 +302,11 @@ private enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         case .echoes: return Color(hex: "3B82F6")      // azul
         case .followers: return Color(hex: "10B981")   // verde
         case .visits: return Color(hex: "F59E0B")      // ambar
+        case .moments: return Color(hex: "0EA5E9")     // sky
+        case .reels: return Color(hex: "8B5CF6")        // violeta
+        case .timeSpent: return Color(hex: "8B5CF6")   // violeta
+        case .searches: return Color(hex: "3B82F6")    // azul
+        case .accountHistory: return Color(hex: "3B82F6")    // azul
         }
     }
 }
@@ -246,11 +345,50 @@ private enum ReactionsDateFilter: String, CaseIterable, Identifiable {
     }
 }
 
+private extension Moment {
+    var hasVideoMedia: Bool {
+        videoUrl != nil || mediaItems?.first?.type == .video
+    }
+
+    var parsedAspectRatioValue: Double? {
+        guard let raw = aspectRatio?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else {
+            return nil
+        }
+
+        let separators = CharacterSet(charactersIn: ":/xX")
+        let parts = raw.components(separatedBy: separators).filter { !$0.isEmpty }
+        if parts.count == 2,
+           let w = Double(parts[0]),
+           let h = Double(parts[1]),
+           h > 0 {
+            return w / h
+        }
+
+        if let direct = Double(raw), direct > 0 {
+            return direct
+        }
+
+        return nil
+    }
+
+    var isVerticalReelAspect: Bool {
+        guard let ratio = parsedAspectRatioValue else { return false }
+        let target = 9.0 / 16.0
+        return abs(ratio - target) <= 0.05
+    }
+
+    var isReelCandidate: Bool {
+        hasVideoMedia && isVerticalReelAspect
+    }
+}
+
 private struct AnimatedReactionIcon: View {
     private let reactions = ReactionType.allCases.map { $0.icon }
     @State private var currentIndex = 0
     @State private var scale: CGFloat = 1.0
     @State private var opacity: Double = 1.0
+    @State private var timer: Timer?
 
     var body: some View {
         Text(reactions[currentIndex])
@@ -259,7 +397,8 @@ private struct AnimatedReactionIcon: View {
             .opacity(opacity)
             .frame(width: 36, height: 36)
             .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
+                guard timer == nil else { return }
+                timer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
                     withAnimation(.easeOut(duration: 0.2)) {
                         scale = 0.6
                         opacity = 0
@@ -272,6 +411,10 @@ private struct AnimatedReactionIcon: View {
                         }
                     }
                 }
+            }
+            .onDisappear {
+                timer?.invalidate()
+                timer = nil
             }
     }
 }
@@ -290,6 +433,7 @@ private struct AnimatedCommentIcon: View {
     @State private var currentIndex = 0
     @State private var scale: CGFloat = 1.0
     @State private var opacity: Double = 1.0
+    @State private var timer: Timer?
 
     var body: some View {
         Image(systemName: bubbles[currentIndex])
@@ -299,7 +443,8 @@ private struct AnimatedCommentIcon: View {
             .opacity(opacity)
             .frame(width: 36, height: 36)
             .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                guard timer == nil else { return }
+                timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
                     withAnimation(.easeOut(duration: 0.15)) {
                         scale = 0.7
                         opacity = 0
@@ -312,6 +457,10 @@ private struct AnimatedCommentIcon: View {
                         }
                     }
                 }
+            }
+            .onDisappear {
+                timer?.invalidate()
+                timer = nil
             }
     }
 }
@@ -372,17 +521,6 @@ private struct ActivityInteractionCategoryRow: View {
                     .foregroundColor(.secondary.opacity(0.5))
             }
 
-            // Thumbnail strip (hide for sticker replies; it's visually noisy and redundant there)
-            if category != .stickerReplies, let thumbs = summary?.thumbnails, !thumbs.isEmpty {
-                HStack(spacing: 4) {
-                    ForEach(thumbs) { thumb in
-                        StripThumbCell(thumb: thumb)
-                    }
-                    Spacer()
-                }
-                .padding(.leading, 50)
-                .padding(.bottom, 4)
-            }
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 4)
@@ -503,6 +641,7 @@ private struct ActivityInteractionDetailView: View {
     @State private var selectedCommentIds: Set<String> = []
     @State private var selectedEventIds: Set<String> = []
     @State private var selectedEchoId: String?
+    @State private var longPressActivatedItemId: String?
     @State private var isDeletingSelectedReactions = false
     @State private var isRemovingSelectedTags = false
     @State private var isDeletingSelectedComments = false
@@ -513,6 +652,60 @@ private struct ActivityInteractionDetailView: View {
         _viewModel = StateObject(wrappedValue: ActivityInteractionDetailViewModel(category: category))
     }
 
+    private var sectionHorizontalPadding: CGFloat { 8 }
+    
+    private var detailNavigationTitleKey: String {
+        switch category {
+        case .archived:
+            return "userActivity.simple.item.archived.headerTitle"
+        default:
+            return category.titleKey
+        }
+    }
+    
+    private var selectionToolbarButtonTitle: String? {
+        switch category {
+        case .reactions, .comments, .tags, .stickerReplies, .recentlyDeleted:
+            return isSelectionMode
+                ? NSLocalizedString("savedMoments.cancel", comment: "Cancel")
+                : NSLocalizedString("savedMoments.select", comment: "Select")
+        case .archived:
+            return isSelectionMode
+                ? NSLocalizedString("savedMoments.cancel", comment: "Cancel")
+                : nil
+        default:
+            return nil
+        }
+    }
+    
+    private func handleSelectionToolbarTap() {
+        switch category {
+        case .reactions, .comments, .tags, .stickerReplies:
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                isSelectionMode.toggle()
+                if !isSelectionMode {
+                    selectedReactionIds.removeAll()
+                    selectedCommentIds.removeAll()
+                    selectedEventIds.removeAll()
+                }
+            }
+        case .recentlyDeleted:
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                isSelectionMode.toggle()
+                if !isSelectionMode {
+                    selectedReactionIds.removeAll()
+                }
+            }
+        case .archived:
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                isSelectionMode = false
+                selectedReactionIds.removeAll()
+            }
+        default:
+            break
+        }
+    }
+
     var body: some View {
         ZStack {
             Color(colorScheme == .dark ? .black : .white)
@@ -520,7 +713,7 @@ private struct ActivityInteractionDetailView: View {
 
             mainContent
         }
-        .navigationTitle(NSLocalizedString(category.titleKey, comment: "Interaction detail title"))
+        .navigationTitle(NSLocalizedString(detailNavigationTitleKey, comment: "Interaction detail title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             navigationToolbar
@@ -531,6 +724,11 @@ private struct ActivityInteractionDetailView: View {
         .onChange(of: filteredReactionItems.map(\.id)) { visibleIds in
             let validIds = Set(visibleIds)
             selectedReactionIds = Set(selectedReactionIds.filter { validIds.contains($0) })
+        }
+        .onChange(of: selectedReactionIds) { ids in
+            if (category == .archived || category == .recentlyDeleted), isSelectionMode, ids.isEmpty {
+                isSelectionMode = false
+            }
         }
         .onChange(of: filteredCommentItems.map(\.id)) { visibleIds in
             let validIds = Set(visibleIds)
@@ -598,6 +796,8 @@ private struct ActivityInteractionDetailView: View {
             reactionsContent
         } else if category == .comments {
             commentsContent
+        } else if category == .moments || category == .reels {
+            momentsContent
         } else {
             eventsContent
         }
@@ -609,22 +809,25 @@ private struct ActivityInteractionDetailView: View {
             || errorMessage.localizedCaseInsensitiveContains("internet")
             || errorMessage.localizedCaseInsensitiveContains("network")
             || errorMessage.localizedCaseInsensitiveContains("connection")
+        let errorIcon = isOffline ? "📡" : "⚠️"
+        let titleKey = isOffline
+            ? "userActivity.error.offline.title"
+            : "userActivity.error.generic.title"
+        let subtitleKey = isOffline
+            ? "userActivity.error.offline.subtitle"
+            : "userActivity.error.generic.subtitle"
 
         VStack(spacing: 16) {
-            Text(isOffline ? "📡" : "⚠️")
+            Text(errorIcon)
                 .font(.system(size: 48))
 
             VStack(spacing: 6) {
-                Text(isOffline
-                     ? NSLocalizedString("userActivity.error.offline.title", comment: "Offline title")
-                     : NSLocalizedString("userActivity.error.generic.title", comment: "Generic error title"))
+                Text(NSLocalizedString(titleKey, comment: "Error title"))
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
 
-                Text(isOffline
-                     ? NSLocalizedString("userActivity.error.offline.subtitle", comment: "Offline subtitle")
-                     : NSLocalizedString("userActivity.error.generic.subtitle", comment: "Generic error subtitle"))
+                Text(NSLocalizedString(subtitleKey, comment: "Error subtitle"))
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -643,34 +846,15 @@ private struct ActivityInteractionDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    @ViewBuilder
-    private var navigationToolbar: some View {
-        if category == .reactions || category == .comments || category == .tags || category == .stickerReplies {
-            Button(isSelectionMode
-                   ? NSLocalizedString("savedMoments.cancel", comment: "Cancel")
-                   : NSLocalizedString("savedMoments.select", comment: "Select")) {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                    isSelectionMode.toggle()
-                    if !isSelectionMode {
-                        selectedReactionIds.removeAll()
-                        selectedCommentIds.removeAll()
-                        selectedEventIds.removeAll()
-                    }
+    @ToolbarContentBuilder
+    private var navigationToolbar: some ToolbarContent {
+        if let title = selectionToolbarButtonTitle {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(title) {
+                    handleSelectionToolbarTap()
                 }
+                .font(.custom("Poppins-SemiBold", size: 14))
             }
-            .font(.custom("Poppins-SemiBold", size: 14))
-        } else if category == .recentlyDeleted || category == .archived {
-            Button(isSelectionMode
-                   ? NSLocalizedString("savedMoments.cancel", comment: "Cancel")
-                   : NSLocalizedString("savedMoments.select", comment: "Select")) {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                    isSelectionMode.toggle()
-                    if !isSelectionMode {
-                        selectedReactionIds.removeAll()
-                    }
-                }
-            }
-            .font(.custom("Poppins-SemiBold", size: 14))
         }
     }
 
@@ -717,6 +901,19 @@ private struct ActivityInteractionDetailView: View {
         }
     }
 
+    private var momentsContent: some View {
+        VStack(spacing: 0) {
+            // Keep the same filters bar for consistency (Sort, and eventually Date)
+            reactionsFiltersBar
+
+            if reactionsDateFilter == .custom {
+                customDateRangeControls
+            }
+
+            momentsGrid
+        }
+    }
+
     private var reactionsGrid: some View {
         GeometryReader { geometry in
             if filteredReactionItems.isEmpty {
@@ -725,7 +922,7 @@ private struct ActivityInteractionDetailView: View {
             } else {
                 let spacing: CGFloat = 2
                 let totalSpacing: CGFloat = spacing * 2
-                let side = floor((geometry.size.width - 32 - totalSpacing) / 3) // 16 + 16 horizontal padding
+                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
                 let columns = [
                     GridItem(.fixed(side), spacing: spacing),
                     GridItem(.fixed(side), spacing: spacing),
@@ -735,29 +932,80 @@ private struct ActivityInteractionDetailView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: spacing) {
                         ForEach(filteredReactionItems) { item in
-                            Button {
+                            ActivityReactionMomentCard(
+                                item: item,
+                                size: side,
+                                isSelectionMode: isSelectionMode,
+                                isSelected: selectedReactionIds.contains(item.id)
+                            )
+                            .frame(width: side, height: side)
+                            .contentShape(RoundedRectangle(cornerRadius: 8))
+                            .onTapGesture {
+                                if longPressActivatedItemId == item.id {
+                                    longPressActivatedItemId = nil
+                                    return
+                                }
                                 if isSelectionMode {
                                     toggleSelection(for: item.id)
                                     return
                                 }
                                 guard item.canView, let moment = item.moment else { return }
                                 selectedMomentForDetail = moment
-                            } label: {
-                                ActivityReactionMomentCard(
-                                    item: item,
-                                    size: side,
-                                    isSelectionMode: isSelectionMode,
-                                    isSelected: selectedReactionIds.contains(item.id)
-                                )
                             }
-                            .buttonStyle(.plain)
-                            .frame(width: side, height: side)
-                            .contentShape(RoundedRectangle(cornerRadius: 8))
+                            .onLongPressGesture(minimumDuration: 0.3) {
+                                guard category == .archived || category == .recentlyDeleted else { return }
+                                longPressActivatedItemId = item.id
+                                if !isSelectionMode {
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                                        isSelectionMode = true
+                                    }
+                                }
+                                selectedReactionIds.insert(item.id)
+                            }
                         }
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, sectionHorizontalPadding)
                     .padding(.top, 8)
                     .padding(.bottom, isSelectionMode ? 88 : 12)
+                }
+            }
+        }
+    }
+
+    private var momentsGrid: some View {
+        GeometryReader { geometry in
+            if filteredMoments.isEmpty {
+                emptyState(textKey: category.emptyKey)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
+                let spacing: CGFloat = 2
+                let totalSpacing: CGFloat = spacing * 2
+                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
+                let columns = [
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing)
+                ]
+
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: spacing) {
+                        ForEach(filteredMoments) { moment in
+                            ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+                                ModernMomentThumbnail(
+                                    moment: moment,
+                                    size: side,
+                                    customListNamesById: viewModel.customListNamesById,
+                                    onTap: {
+                                        selectedMomentForDetail = moment
+                                    }
+                                )
+                                .frame(width: side, height: side)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, sectionHorizontalPadding)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
                 }
             }
         }
@@ -791,7 +1039,7 @@ private struct ActivityInteractionDetailView: View {
                             )
                         }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, sectionHorizontalPadding)
                     .padding(.top, 10)
                     .padding(.bottom, isSelectionMode ? 88 : 16)
                 }
@@ -873,6 +1121,38 @@ private struct ActivityInteractionDetailView: View {
             return authorFiltered.sorted { $0.commentedAt > $1.commentedAt }
         case .oldest:
             return authorFiltered.sorted { $0.commentedAt < $1.commentedAt }
+        }
+    }
+
+    private var filteredMoments: [Moment] {
+        let filteredByDate = viewModel.moments.filter { moment in
+            let date = moment.timestamp
+            switch reactionsDateFilter {
+            case .all:
+                return true
+            case .week:
+                let from = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+                return date >= from
+            case .month:
+                let from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date.distantPast
+                return date >= from
+            case .year:
+                let from = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date.distantPast
+                return date >= from
+            case .custom:
+                let calendar = Calendar.current
+                let start = calendar.startOfDay(for: min(customDateFrom, customDateTo))
+                let endBase = max(customDateFrom, customDateTo)
+                let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endBase) ?? endBase
+                return date >= start && date <= end
+            }
+        }
+
+        switch reactionsSort {
+        case .newest:
+            return filteredByDate.sorted { $0.timestamp > $1.timestamp }
+        case .oldest:
+            return filteredByDate.sorted { $0.timestamp < $1.timestamp }
         }
     }
 
@@ -995,7 +1275,7 @@ private struct ActivityInteractionDetailView: View {
                     }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, sectionHorizontalPadding)
             .padding(.top, 8)
             .padding(.bottom, 6)
         }
@@ -1084,7 +1364,7 @@ private struct ActivityInteractionDetailView: View {
                     )
             )
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, sectionHorizontalPadding)
         .padding(.bottom, 6)
     }
 
@@ -1137,7 +1417,7 @@ private struct ActivityInteractionDetailView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, sectionHorizontalPadding)
                     .padding(.top, 10)
                     .padding(.bottom, isSelectionMode ? 88 : 20)
                 }
@@ -1186,7 +1466,7 @@ private struct ActivityInteractionDetailView: View {
             echoesInfoChip(icon: "waveform.path.ecg", text: "\(viewModel.events.count) Echoes")
             echoesInfoChip(icon: "dot.radiowaves.left.and.right", text: "\(activeEchoesCount) active")
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, sectionHorizontalPadding)
         .padding(.top, 10)
         .padding(.bottom, 2)
     }
@@ -1284,7 +1564,7 @@ private struct ActivityInteractionDetailView: View {
                     .disabled(selectedCount == 0 || viewModel.isLoading)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, sectionHorizontalPadding)
             .padding(.vertical, 12)
             .background(
                 Rectangle()
@@ -1353,7 +1633,7 @@ private struct ActivityInteractionDetailView: View {
                     .disabled(selectedCount == 0 || viewModel.isLoading)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, sectionHorizontalPadding)
             .padding(.vertical, 12)
             .background(
                 Rectangle()
@@ -1425,7 +1705,7 @@ private struct ActivityInteractionDetailView: View {
                 .disabled(selectedCount == 0 || (isTagsCategory ? isRemovingSelectedTags : isDeletingSelectedReactions))
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, sectionHorizontalPadding)
             .padding(.bottom, 8)
         }
         .background(.ultraThinMaterial)
@@ -1480,7 +1760,7 @@ private struct ActivityInteractionDetailView: View {
                 .disabled(selectedCount == 0 || isDeletingSelectedComments)
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, sectionHorizontalPadding)
             .padding(.bottom, 8)
         }
         .background(.ultraThinMaterial)
@@ -1533,7 +1813,7 @@ private struct ActivityInteractionDetailView: View {
                 .disabled(selectedCount == 0 || isDeletingSelectedEvents)
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, sectionHorizontalPadding)
             .padding(.bottom, 8)
         }
         .background(.ultraThinMaterial)
@@ -2298,8 +2578,13 @@ private struct ActivityReactionMomentCard: View {
                     restrictedOverlay
                 }
 
-                reactionBadge
-                    .padding(6)
+                if item.reactionType == "moment" || item.reactionType == "reel" || item.reactionType == "archived" || item.reactionType == "recentlyDeleted" {
+                    audienceBadge
+                        .padding(6)
+                } else {
+                    reactionBadge
+                        .padding(6)
+                }
 
                 if isSelectionMode {
                     VStack {
@@ -2486,6 +2771,54 @@ private struct ActivityReactionMomentCard: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
+    }
+
+    private var audienceBadge: some View {
+        guard let moment = item.moment else { return AnyView(EmptyView()) }
+        
+        let normalizedAudience = moment.audience?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "") ?? "everyone"
+            
+        let icon: String
+        let title: String
+        let background: Color
+        
+        switch normalizedAudience {
+        case "bestfriends", "bestfriend":
+            icon = "heart.fill"
+            title = NSLocalizedString("audience.type.bestFriends", comment: "")
+            background = Color(hex: "24C26A").opacity(0.92)
+        case "connections", "connection", "mutuals", "mutual":
+            icon = "person.2.fill"
+            title = NSLocalizedString("audience.type.connections", comment: "")
+            background = Color(hex: "00B4D8").opacity(0.92)
+        case "onlyme":
+            icon = "lock.fill"
+            title = NSLocalizedString("audience.type.onlyMe", comment: "")
+            background = Color.black.opacity(0.78)
+        default:
+            icon = "globe"
+            title = NSLocalizedString("audience.type.everyone", comment: "")
+            background = Color(hex: "0EA5A3").opacity(0.9)
+        }
+        
+        return AnyView(
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 8, weight: .bold))
+                Text(title)
+                    .font(.custom("Poppins-SemiBold", size: 8))
+                    .lineLimit(1)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(background)
+            .clipShape(Capsule())
+        )
     }
 
     private func reactionStyle(from rawValue: String) -> (icon: String, label: String, color: Color) {
@@ -2812,7 +3145,9 @@ private final class ActivitySummaryViewModel: ObservableObject {
             ActivityInteractionDetailViewModel(category: .recentlyDeleted),
             ActivityInteractionDetailViewModel(category: .echoes),
             ActivityInteractionDetailViewModel(category: .followers),
-            ActivityInteractionDetailViewModel(category: .visits)
+            ActivityInteractionDetailViewModel(category: .visits),
+            ActivityInteractionDetailViewModel(category: .moments),
+            ActivityInteractionDetailViewModel(category: .reels)
         ]
         
         for vm in dummyVMs {
@@ -2843,44 +3178,6 @@ private final class ActivitySummaryViewModel: ObservableObject {
             let stickerRepliesCount = ActivityCache.loadStickerReplyCount(userId: userId)
             let db = Firestore.firestore()
 
-            func thumbs(from items: [ActivityReactionItem]) -> [ThumbInfo] {
-                items.prefix(4).compactMap { item -> ThumbInfo? in
-                    let thumbUrl = item.moment?.thumbnailUrl ?? ""
-                    let imageUrl = item.moment?.imagePath ?? ""
-                    let videoUrl = item.moment?.videoUrl ?? ""
-                    let staticUrl = thumbUrl.isEmpty ? imageUrl : thumbUrl
-                    // For canView=false, still build a ThumbInfo so we show the lock placeholder
-                    if staticUrl.isEmpty && videoUrl.isEmpty && item.canView { return nil }
-                    let url = staticUrl.isEmpty ? videoUrl : staticUrl
-                    let audience = item.moment?.audience?.lowercased() ?? ""
-                    return ThumbInfo(
-                        id: url.isEmpty ? item.id : url,
-                        url: staticUrl,
-                        videoUrl: staticUrl.isEmpty && !videoUrl.isEmpty ? videoUrl : nil,
-                        isProtected: audience != "everyone",
-                        canView: item.canView
-                    )
-                }
-            }
-
-            func thumbs(from items: [ActivityCommentItem]) -> [ThumbInfo] {
-                items.prefix(4).compactMap { item -> ThumbInfo? in
-                    let thumbUrl = item.moment?.thumbnailUrl ?? ""
-                    let imageUrl = item.moment?.imagePath ?? ""
-                    let videoUrl = item.moment?.videoUrl ?? ""
-                    let staticUrl = thumbUrl.isEmpty ? imageUrl : thumbUrl
-                    if staticUrl.isEmpty && videoUrl.isEmpty && item.canView { return nil }
-                    let url = staticUrl.isEmpty ? videoUrl : staticUrl
-                    let audience = item.moment?.audience?.lowercased() ?? ""
-                    return ThumbInfo(
-                        id: url.isEmpty ? item.id : url,
-                        url: staticUrl,
-                        videoUrl: staticUrl.isEmpty && !videoUrl.isEmpty ? videoUrl : nil,
-                        isProtected: audience != "everyone",
-                        canView: item.canView
-                    )
-                }
-            }
 
             // ✅ NUEVA: Cargar conteos reales para categorías de historial
             async let echoesCount = await withCheckedContinuation { continuation in
@@ -2907,17 +3204,43 @@ private final class ActivitySummaryViewModel: ObservableObject {
                 .getDocuments()
                 .count
 
+            async let allMomentsResult = await withCheckedContinuation { (continuation: CheckedContinuation<[Moment], Never>) in
+                FirestoreService.shared.fetchMoments(for: userId) { result in
+                    switch result {
+                    case .success(let moments):
+                        continuation.resume(returning: moments)
+                    case .failure:
+                        continuation.resume(returning: [])
+                    }
+                }
+            }
+            
+            let allMoments = await allMomentsResult
+            let momentsCount = allMoments.filter { moment in
+                let isArchived = moment.isArchived ?? false
+                let isReel = moment.isReelCandidate
+                return !isArchived && !isReel
+            }.count
+            
+            let reelsCount = allMoments.filter { moment in
+                let isArchived = moment.isArchived ?? false
+                let isReel = moment.isReelCandidate
+                return !isArchived && isReel
+            }.count
+
             let result: [ActivityInteractionCategory: ActivityCategorySummary] = [
-                .reactions: ActivityCategorySummary(count: reactions.count, thumbnails: thumbs(from: reactions)),
-                .comments:  ActivityCategorySummary(count: comments.count,  thumbnails: thumbs(from: comments)),
-                .tags:      ActivityCategorySummary(count: tagged.count,    thumbnails: thumbs(from: tagged)),
+                .reactions: ActivityCategorySummary(count: reactions.count, thumbnails: []),
+                .comments:  ActivityCategorySummary(count: comments.count,  thumbnails: []),
+                .tags:      ActivityCategorySummary(count: tagged.count,    thumbnails: []),
                 .stickerReplies: ActivityCategorySummary(count: stickerRepliesCount, thumbnails: []),
                 .recentlyDeleted: ActivityCategorySummary(count: ActivityCache.loadRecentlyDeletedCount(userId: userId), thumbnails: []),
                 .archived: ActivityCategorySummary(count: await archivedCount, thumbnails: []),
                 .storiesArchive: ActivityCategorySummary(count: (await storiesArchiveCount) ?? 0, thumbnails: []),
                 .echoes: ActivityCategorySummary(count: await echoesCount, thumbnails: []),
                 .followers: ActivityCategorySummary(count: (try? await followersCount) ?? 0, thumbnails: []),
-                .visits: ActivityCategorySummary(count: (try? await visitsCount) ?? 0, thumbnails: [])
+                .visits: ActivityCategorySummary(count: (try? await visitsCount) ?? 0, thumbnails: []),
+                .moments: ActivityCategorySummary(count: momentsCount, thumbnails: []),
+                .reels: ActivityCategorySummary(count: reelsCount, thumbnails: [])
             ]
 
             await MainActor.run {
@@ -2933,6 +3256,8 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
     @Published var reactionItems: [ActivityReactionItem] = []
     @Published var commentItems: [ActivityCommentItem] = []
     @Published var events: [ActivityEventItem] = []
+    @Published var moments: [Moment] = [] // ✅ NUEVO: Para Moments y Reels (estilo ProfileView)
+    @Published var customListNamesById: [String: String] = [:] // ✅ NUEVO: Para resolver audiencias custom
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -2984,12 +3309,22 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
             self.isLoading = false
         case .recentlyDeleted:
             loadRecentlyDeleted(for: userId)
+        case .moments:
+            fetchCustomAudienceListNames(userId: userId) { [weak self] in
+                self?.loadMoments(for: userId)
+            }
+        case .reels:
+            fetchCustomAudienceListNames(userId: userId) { [weak self] in
+                self?.loadReels(for: userId)
+            }
         case .echoes:
             loadEchoes(for: userId)
         case .followers:
             loadFollowers(for: userId)
         case .visits:
             loadVisits(for: userId)
+        case .timeSpent, .searches, .accountHistory:
+            self.isLoading = false
         }
     }
 
@@ -3430,9 +3765,153 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
             case .failure(let error):
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    if self.moments.isEmpty {
+                        self.errorMessage = error.localizedDescription
+                    } else {
+                        self.errorMessage = nil
+                    }
+                }
+            }
+        }
+    }
+
+    private func fetchCustomAudienceListNames(userId: String, completion: (() -> Void)? = nil) {
+        FirestoreService.shared.fetchCustomLists(for: userId) { [weak self] result in
+            guard let self = self else {
+                completion?()
+                return
+            }
+            guard case .success(let lists) = result else {
+                completion?()
+                return
+            }
+
+            let map = lists.reduce(into: [String: String]()) { partialResult, list in
+                guard let id = list.id else { return }
+                partialResult[id] = list.name
+            }
+
+            DispatchQueue.main.async {
+                self.customListNamesById = map
+                completion?()
+            }
+        }
+    }
+
+    private func loadMoments(for userId: String) {
+        // 1. Load from local cache for immediate UI
+        Task { @MainActor in
+            let cached = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
+            let filtered = cached.filter { moment in
+                let isArchived = moment.isArchived ?? false
+                let isReel = moment.isReelCandidate
+                return !isArchived && !isReel
+            }
+            
+            await MainActor.run {
+                if !filtered.isEmpty {
+                    self.moments = filtered
+                    self.isLoading = false
+                }
+            }
+        }
+
+        // 2. Fetch from Firestore
+        FirestoreService.shared.fetchMoments(for: userId) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let moments):
+                Task { @MainActor in
+                    LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+                }
+
+                let filtered = moments.filter { moment in
+                    let isArchived = moment.isArchived ?? false
+                    let isReel = moment.isReelCandidate
+                    return !isArchived && !isReel
+                }
+                
+                DispatchQueue.main.async {
+                    self.moments = filtered
+                    self.reactionItems = []
+                    self.commentItems = []
+                    self.events = []
+                    self.isLoading = false
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    if self.moments.isEmpty {
+                        self.errorMessage = error.localizedDescription
+                    } else {
+                        self.errorMessage = nil
+                    }
+                }
+            }
+        }
+    }
+
+    private func loadReels(for userId: String) {
+        // 1. Load from local cache
+        Task { @MainActor in
+            let cached = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
+            let filtered = cached.filter { moment in
+                let isArchived = moment.isArchived ?? false
+                let isReel = moment.isReelCandidate
+                return !isArchived && isReel
+            }
+            
+            await MainActor.run {
+                if !filtered.isEmpty {
+                    self.moments = filtered
+                    self.isLoading = false
+                }
+            }
+        }
+
+        // 2. Fetch from Firestore
+        FirestoreService.shared.fetchMoments(for: userId) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let moments):
+                Task { @MainActor in
+                    LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+                }
+
+                let filtered = moments.filter { moment in
+                    let isArchived = moment.isArchived ?? false
+                    let isReel = moment.isReelCandidate
+                    return !isArchived && isReel
+                }
+                
+                DispatchQueue.main.async {
+                    self.moments = filtered
+                    self.reactionItems = []
+                    self.commentItems = []
+                    self.events = []
+                    self.isLoading = false
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isLoading = false
                     self.errorMessage = error.localizedDescription
                 }
             }
+        }
+    }
+
+    private func mapMomentsToReactionItems(_ moments: [Moment], type: String) -> [ActivityReactionItem] {
+        moments.compactMap { moment in
+            guard let id = moment.id else { return nil }
+            return ActivityReactionItem(
+                id: id,
+                authorId: moment.authorId,
+                momentId: id,
+                reactionType: type,
+                reactedAt: moment.timestamp,
+                moment: moment,
+                canView: true
+            )
         }
     }
 

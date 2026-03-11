@@ -41,16 +41,35 @@ struct InAppBannerView: View {
     
     // Cache simple en memoria para esta sesión de vista
     @State private var profileCache: [String: String] = [:]
+
+    private func isSystemTimeLimitBanner(_ notification: Notification) -> Bool {
+        notification.senderId == "system_time_limit"
+    }
     
     private func bannerContent(for notification: Notification) -> some View {
-        Button(action: {
+        let isTimeLimit = isSystemTimeLimitBanner(notification)
+        let accentColor = isTimeLimit ? Color.orange : colorFor(notification.type)
+
+        return Button(action: {
             handleTap(on: notification)
         }) {
             HStack(spacing: 12) {
-                AsyncProfileImageView(userId: notification.senderId)
-                    .frame(width: 42, height: 42)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                if isTimeLimit {
+                    ZStack {
+                        Circle()
+                            .fill(accentColor.opacity(0.16))
+                            .frame(width: 42, height: 42)
+                        Image(systemName: "hourglass.circle.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(accentColor)
+                    }
+                    .overlay(Circle().stroke(accentColor.opacity(0.35), lineWidth: 1))
+                } else {
+                    AsyncProfileImageView(userId: notification.senderId)
+                        .frame(width: 42, height: 42)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     // Header: Username + Verb
@@ -58,16 +77,23 @@ struct InAppBannerView: View {
                         Text(notification.senderUsername)
                             .font(.custom("Poppins-Bold", size: 14))
                             .foregroundColor(.primary)
-                        
-                        Text(verbFor(notification.type))
-                            .font(.custom("Poppins-Medium", size: 13))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
+
+                        if !isTimeLimit {
+                            Text(verbFor(notification.type))
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                     
                     // Detailed Content
                     Group {
-                        if notification.type == .reaction || notification.type == .storyReaction {
+                        if isTimeLimit, let content = notification.reaction, !content.isEmpty {
+                            Text(content)
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .foregroundColor(.secondary.opacity(0.92))
+                                .lineLimit(2)
+                        } else if notification.type == .reaction || notification.type == .storyReaction {
                             if let content = notification.reaction {
                                 if let type = ReactionType(rawValue: content) {
                                     Text(type.icon)
@@ -89,7 +115,7 @@ struct InAppBannerView: View {
                 Spacer()
                 
                 // Icon or Preview
-                if let previewPath = contentPreviewImage, let url = URL(string: previewPath) {
+                if !isTimeLimit, let previewPath = contentPreviewImage, let url = URL(string: previewPath) {
                     KFImage(url)
                         .resizable()
                         .scaledToFill()
@@ -97,17 +123,17 @@ struct InAppBannerView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(colorFor(notification.type).opacity(0.3), lineWidth: 1)
+                                .stroke(accentColor.opacity(0.3), lineWidth: 1)
                         )
                 } else {
                     ZStack {
                         Circle()
-                            .fill(colorFor(notification.type).opacity(0.15))
+                            .fill(accentColor.opacity(0.15))
                             .frame(width: 32, height: 32)
                         
-                        Image(systemName: notification.type.systemIconName)
+                        Image(systemName: isTimeLimit ? "clock.fill" : notification.type.systemIconName)
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(colorFor(notification.type))
+                            .foregroundColor(accentColor)
                     }
                 }
             }
@@ -119,9 +145,9 @@ struct InAppBannerView: View {
                     .stroke(
                         LinearGradient(
                             colors: [
-                                colorFor(notification.type).opacity(0.6),
-                                colorFor(notification.type).opacity(0.1),
-                                colorFor(notification.type).opacity(0.6)
+                                accentColor.opacity(0.6),
+                                accentColor.opacity(0.1),
+                                accentColor.opacity(0.6)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -146,6 +172,9 @@ struct InAppBannerView: View {
     }
     
     private func loadImages(for notification: Notification) {
+        if isSystemTimeLimitBanner(notification) {
+            return
+        }
         // 1. Avatar handled by AsyncProfileImageView
         
         // 2. Cargar Preview (Moment o Story)
@@ -207,6 +236,9 @@ struct InAppBannerView: View {
     
     private func handleTap(on notification: Notification) {
         service.dismissManually()
+        if isSystemTimeLimitBanner(notification) {
+            return
+        }
         
         switch notification.type {
         case .comment, .like, .reaction, .mention:

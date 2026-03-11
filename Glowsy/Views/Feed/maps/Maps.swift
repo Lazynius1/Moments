@@ -5,6 +5,7 @@ import MapKit
 import CoreLocation
 import Kingfisher
 import FirebaseAuth
+import FirebaseCore
 import FirebaseFirestore
 import WeatherKit
 
@@ -22,7 +23,9 @@ struct LocationMapView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var locationMoments: [Moment] = []  // ✅ USAR MOMENT EN VEZ DE LocationMoment
+    @State private var nearbyMoments: [Moment] = []
     @State private var isLoadingMoments = false
+    @State private var isLoadingNearbyMoments = false
     @State private var showingGallery = false
     @State private var selectedMoment: Moment?  // ✅ USAR MOMENT
     @State private var showingProfile = false
@@ -38,6 +41,9 @@ struct LocationMapView: View {
     @State private var showingBottomSheet = false
     @State private var bottomSheetOffset: CGFloat = 300
     @State private var isDragging = false
+    @State private var showSearchInAreaButton = false
+    @State private var lastNearbyQueryKey: String = ""
+    @State private var mapHeaderLocationName: String = ""
     
     // ✅ NUEVO: Estado para manejar mejor la carga inicial
     @State private var hasInitializedMap = false
@@ -49,17 +55,74 @@ struct LocationMapView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
     
+    private var mapDisplayMoments: [Moment] {
+        let combined = locationMoments + nearbyMoments
+        var seen = Set<String>()
+        var result: [Moment] = []
+        for moment in combined {
+            let key = momentMapKey(moment)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            result.append(moment)
+        }
+        return result
+    }
+    
+    private var mapCombinedAnnotations: [CombinedMapAnnotation] {
+        var groupedMoments: [String: [Moment]] = [:]
+        var groupedCoordinates: [String: CLLocationCoordinate2D] = [:]
+        var groupedLocationTitles: [String: String] = [:]
+
+        for moment in mapDisplayMoments {
+            guard let coordinate = moment.locationCoordinate?.toCLLocationCoordinate2D,
+                  CLLocationCoordinate2DIsValid(coordinate) else { continue }
+
+            let clusterKey = locationClusterKey(for: moment, coordinate: coordinate)
+            groupedMoments[clusterKey, default: []].append(moment)
+
+            if groupedCoordinates[clusterKey] == nil {
+                groupedCoordinates[clusterKey] = coordinate
+            }
+            if groupedLocationTitles[clusterKey] == nil,
+               let title = normalizedLocationName(from: moment) {
+                groupedLocationTitles[clusterKey] = title
+            }
+        }
+
+        var items: [CombinedMapAnnotation] = groupedMoments.compactMap { key, moments in
+            guard let coordinate = groupedCoordinates[key] else { return nil }
+            let sortedMoments = moments.sorted { $0.timestamp > $1.timestamp }
+            return CombinedMapAnnotation(
+                id: "cluster-\(key)",
+                coordinate: coordinate,
+                locationTitle: groupedLocationTitles[key],
+                moment: sortedMoments.first,
+                moments: sortedMoments
+            )
+        }
+
+        items.sort { lhs, rhs in
+            let leftDate = lhs.primaryMoment?.timestamp ?? .distantPast
+            let rightDate = rhs.primaryMoment?.timestamp ?? .distantPast
+            return leftDate > rightDate
+        }
+        return items
+    }
+    
+    private var effectiveHeaderLocationName: String {
+        let trimmed = mapHeaderLocationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        return locationName
+    }
+    
     var body: some View {
         ZStack {
             // ✅ EL MAPA OCUPA TODO EL FONDO
             modernMapView
                 .ignoresSafeArea()
-            
-            // ✅ HEADER DE PILLS FLOTANTES
-            VStack(spacing: 0) {
-                modernHeaderView
-                Spacer()
-            }
+                .overlay(alignment: .top) {
+                    topControlsOverlay
+                }
             
             // ✅ BARRA DE ESTADÍSTICAS (SI EXISTE) - La movimos dentro de modernHeaderView en el paso anterior, 
             // pero si hay componentes adicionales los manejamos aquí.
@@ -69,7 +132,7 @@ struct LocationMapView: View {
                     isPresented: $showingBottomSheet,
                     moments: locationMoments,
                     isLoadingMoments: isLoadingMoments,
-                    locationName: locationName,
+                    locationName: effectiveHeaderLocationName,
                     colorScheme: colorScheme,
                     onMomentTap: { moment in
                         // ✅ SOLUCIÓN MÁS ROBUSTA: Usar Task con @MainActor para evitar "Modifying state during view update"
@@ -77,7 +140,7 @@ struct LocationMapView: View {
                             // ✅ Pequeño delay para asegurar que la vista termine de actualizarse
                             try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 segundos
                             
-                            if let selectedIndex = locationMoments.firstIndex(where: { $0.id == moment.id }) {
+                            if let selectedIndex = locationMoments.firstIndex(where: { momentMapKey($0) == momentMapKey(moment) }) {
                                 selectedMoment = moment
                                 selectedMomentIndex = selectedIndex
                                 showingDetail = true
@@ -89,6 +152,9 @@ struct LocationMapView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
+            if mapHeaderLocationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                mapHeaderLocationName = locationName
+            }
             // ✅ MEJORADO: Verificar si ya tenemos coordenadas válidas antes de hacer setup
             if let coordinate = coordinate, CLLocationCoordinate2DIsValid(coordinate) {
                 setupMapWithCoordinate(coordinate)
@@ -102,13 +168,25 @@ struct LocationMapView: View {
                 setupMapWithCoordinate(newCoordinate)
             }
         }
+        .onChange(of: region.center.latitude) { _ in
+            handleMapRegionChanged()
+        }
+        .onChange(of: region.center.longitude) { _ in
+            handleMapRegionChanged()
+        }
+        .onChange(of: region.span.latitudeDelta) { _ in
+            handleMapRegionChanged()
+        }
+        .onChange(of: region.span.longitudeDelta) { _ in
+            handleMapRegionChanged()
+        }
         .onReceive(locationManager.$authorizationStatus) { status in
             handleLocationPermissionChange(status)
         }
         // ✅ SHEETS SIN CAMBIOS
         .sheet(isPresented: $showingGallery) {
             ModernLocationGalleryView(
-                locationName: locationName,
+                locationName: effectiveHeaderLocationName,
                 moments: locationMoments,
                 colorScheme: colorScheme,
                 isPresented: $showingGallery
@@ -123,7 +201,7 @@ struct LocationMapView: View {
             LocationMomentDetailView(
                 locationMoments: locationMoments,
                 initialIndex: selectedMomentIndex,
-                locationName: locationName,
+                locationName: effectiveHeaderLocationName,
                 isPresented: $showingDetail
             )
         }
@@ -169,6 +247,45 @@ struct LocationMapView: View {
         }
     }
     
+    private var topControlsOverlay: some View {
+        VStack(spacing: 0) {
+            modernHeaderView
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
+    
+    private var searchInAreaButton: some View {
+        Button {
+            searchInCurrentArea()
+        } label: {
+            HStack(spacing: 8) {
+                if isLoadingNearbyMoments {
+                    ProgressView()
+                        .scaleEffect(0.9)
+                } else {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                
+                Text(NSLocalizedString("maps.search.thisArea", comment: "Search in this area"))
+                    .font(.custom("Poppins-SemiBold", size: 13))
+            }
+            .foregroundColor(adaptiveColors.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                    )
+            )
+            .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
+        }
+        .buttonStyle(.plain)
+    }
+    
     private var modernHeaderView: some View {
         VStack(alignment: .trailing, spacing: 12) {
             // ✅ FILA SUPERIOR: PILLS DE NAVEGACIÓN Y ACCIÓN
@@ -183,7 +300,7 @@ struct LocationMapView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(locationName)
+                        Text(effectiveHeaderLocationName)
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(adaptiveColors.primary)
                             .lineLimit(1)
@@ -234,17 +351,6 @@ struct LocationMapView: View {
                                     }
                                 }
                             }
-                            
-                            Rectangle()
-                                .fill(adaptiveColors.secondary.opacity(0.2))
-                                .frame(width: 1, height: 24)
-                        }
-                        
-                        Button(action: shareLocation) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(adaptiveColors.primary.opacity(0.7))
-                                .frame(width: 32, height: 32)
                         }
                     }
                     .padding(.leading, 16)
@@ -274,6 +380,17 @@ struct LocationMapView: View {
                 }
             }
             .padding(.horizontal, 16)
+
+            if hasInitializedMap && showSearchInAreaButton {
+                HStack {
+                    Spacer()
+                    searchInAreaButton
+                    Spacer()
+                }
+                .padding(.top, 10)
+                .padding(.horizontal, 16)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
             
             // ✅ PILL LATERAL: ESTADÍSTICAS (Vertical a la derecha)
             if !locationMoments.isEmpty {
@@ -392,14 +509,20 @@ struct LocationMapView: View {
             } else {
                 ZStack {
                     // ✅ MAPA BASE
-                    Map(coordinateRegion: $region, annotationItems: annotations) { annotation in
+                    Map(coordinateRegion: $region, annotationItems: mapCombinedAnnotations) { annotation in
                         MapAnnotation(coordinate: annotation.coordinate) {
-                            WeatherAwareLocationPin(
-                                locationName: locationName,
-                                colorScheme: colorScheme,
-                                weather: currentWeather,
-                                effectsEnabled: weatherEffectsEnabled
-                            )
+                            if let moment = annotation.primaryMoment {
+                                Button {
+                                    openMomentFromMapAnnotation(annotation)
+                                } label: {
+                                    MapMomentPin(
+                                        moment: moment,
+                                        colorScheme: colorScheme,
+                                        count: annotation.count
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
                     .mapStyle(getMapStyle())
@@ -615,6 +738,36 @@ struct LocationMapView: View {
     }
 
 extension LocationMapView {
+    private var normalizedLocationNameQuery: String {
+        locationName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+    }
+    
+    private var isGenericLocationQuery: Bool {
+        let normalizedDefault = NSLocalizedString("feed.location.default", comment: "Default location name")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+        
+        let genericValues: Set<String> = [
+            "",
+            normalizedDefault,
+            "ubicacion",
+            "location",
+            "ubicacion actual",
+            "current location",
+            "ubicacion seleccionada",
+            "selected location",
+            "ubicacion desconocida",
+            "unknown location",
+            "location unavailable",
+            "ubicacion no disponible"
+        ]
+        
+        return genericValues.contains(normalizedLocationNameQuery)
+    }
     
     // MARK: - Funciones de permisos y setup
     func checkLocationPermissionsAndSetup() {
@@ -669,6 +822,12 @@ extension LocationMapView {
             return
         }
         
+        // Evita geocodear placeholders ("Ubicación", "Location", etc.).
+        if isGenericLocationQuery {
+            setupDefaultLocation(showMessage: false)
+            return
+        }
+        
         // ✅ MEJORADO: Si no hay coordenadas, intentar geocoding con mejor manejo
         geocodeLocationWithRetry()
     }
@@ -678,7 +837,12 @@ extension LocationMapView {
         let geocoder = CLGeocoder()
         
         // ✅ MEJORADO: Usar el nombre de ubicación tal como viene
-        let searchQuery = locationName
+        let searchQuery = locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if searchQuery.isEmpty || isGenericLocationQuery {
+            setupDefaultLocation(showMessage: false)
+            return
+        }
         
         // ✅ NUEVO: Geocoding con timeout y reintentos
         geocoder.geocodeAddressString(searchQuery) { placemarks, error in
@@ -699,12 +863,12 @@ extension LocationMapView {
                             self.errorMessage = "Búsqueda cancelada"
                         default:
                             // ✅ MEJORADO: Para errores de geocoding, mostrar ubicación por defecto
-                            self.setupDefaultLocation()
+                            self.setupDefaultLocation(showMessage: true)
                             return
                         }
                     } else {
                         // ✅ MEJORADO: Para errores generales, mostrar ubicación por defecto
-                        self.setupDefaultLocation()
+                        self.setupDefaultLocation(showMessage: true)
                         return
                     }
                     
@@ -776,6 +940,9 @@ extension LocationMapView {
             self.hasInitializedMap = true
             self.isLoading = false
             self.errorMessage = nil
+            self.nearbyMoments = []
+            self.lastNearbyQueryKey = self.nearbyQueryKey(for: self.region)
+            self.showSearchInAreaButton = true
             
 
             
@@ -786,7 +953,7 @@ extension LocationMapView {
     }
     
     // ✅ NUEVA FUNCIÓN: Configurar ubicación por defecto cuando falla el geocoding
-    private func setupDefaultLocation() {
+    private func setupDefaultLocation(showMessage: Bool = true) {
 
         
         // ✅ Usar ubicación por defecto (Madrid, España)
@@ -809,7 +976,12 @@ extension LocationMapView {
             ))
             
             self.isLoading = false
-            self.errorMessage = "Mostrando ubicación por defecto. '\(self.locationName)' no se pudo encontrar."
+            self.errorMessage = showMessage
+                ? "Mostrando ubicación por defecto. '\(self.locationName)' no se pudo encontrar."
+                : nil
+            self.nearbyMoments = []
+            self.lastNearbyQueryKey = self.nearbyQueryKey(for: self.region)
+            self.showSearchInAreaButton = true
             
 
             
@@ -857,6 +1029,97 @@ extension LocationMapView {
                 
                 // ✅ AGREGAR ESTA LÍNEA:
                 if !moments.isEmpty {
+                    self.showingBottomSheet = true
+                }
+            }
+        }
+    }
+    
+    private func momentMapKey(_ moment: Moment) -> String {
+        if let id = moment.id, !id.isEmpty { return id }
+        return "\(moment.authorId)|\(Int(moment.timestamp.timeIntervalSince1970))|\(moment.content)"
+    }
+
+    private func locationClusterKey(for moment: Moment, coordinate: CLLocationCoordinate2D) -> String {
+        let lat = (coordinate.latitude * 10_000).rounded() / 10_000
+        let lon = (coordinate.longitude * 10_000).rounded() / 10_000
+        let normalizedLocation = normalizedLocationName(from: moment)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        return "\(lat)|\(lon)|\(normalizedLocation)"
+    }
+    
+    private func openMomentFromMapAnnotation(_ annotation: CombinedMapAnnotation) {
+        let clusterMoments: [Moment] = {
+            if !annotation.moments.isEmpty { return annotation.moments }
+            if let single = annotation.moment { return [single] }
+            return []
+        }()
+        guard !clusterMoments.isEmpty else { return }
+
+        locationMoments = clusterMoments
+        if let title = annotation.locationTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !title.isEmpty {
+            mapHeaderLocationName = title
+        } else if let fallbackTitle = normalizedLocationName(from: clusterMoments[0]) {
+            mapHeaderLocationName = fallbackTitle
+        }
+
+        selectedMoment = clusterMoments[0]
+        selectedMomentIndex = 0
+        showingBottomSheet = true
+    }
+    
+    private func normalizedLocationName(from moment: Moment) -> String? {
+        guard let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !location.isEmpty else {
+            return nil
+        }
+        return location
+    }
+    
+    private func handleMapRegionChanged() {
+        guard hasInitializedMap else { return }
+        let _ = nearbyQueryKey(for: region)
+        showSearchInAreaButton = true
+    }
+    
+    private func searchInCurrentArea() {
+        let queryKey = nearbyQueryKey(for: region)
+        showSearchInAreaButton = true
+        loadNearbyMoments(in: region, queryKey: queryKey)
+    }
+    
+    private func nearbyQueryKey(for region: MKCoordinateRegion) -> String {
+        let lat = (region.center.latitude * 100).rounded() / 100
+        let lon = (region.center.longitude * 100).rounded() / 100
+        let latDelta = (region.span.latitudeDelta * 100).rounded() / 100
+        let lonDelta = (region.span.longitudeDelta * 100).rounded() / 100
+        return "\(lat)|\(lon)|\(latDelta)|\(lonDelta)"
+    }
+    
+    private func loadNearbyMoments(in region: MKCoordinateRegion, queryKey: String) {
+        DispatchQueue.main.async {
+            self.isLoadingNearbyMoments = true
+            self.lastNearbyQueryKey = queryKey
+        }
+        
+        LocationSearchService.shared.searchMomentsInRegion(
+            region: region,
+            currentUserId: Auth.auth().currentUser?.uid
+        ) { moments in
+            DispatchQueue.main.async {
+                // Evitar resultados stale si el usuario ya movió el mapa a otra región.
+                guard self.lastNearbyQueryKey == queryKey else { return }
+                self.nearbyMoments = moments
+                self.isLoadingNearbyMoments = false
+                self.showSearchInAreaButton = false
+
+                if !moments.isEmpty {
+                    self.locationMoments = moments
+                    if let firstLocation = moments.compactMap({ self.normalizedLocationName(from: $0) }).first {
+                        self.mapHeaderLocationName = firstLocation
+                    }
                     self.showingBottomSheet = true
                 }
             }
@@ -1241,6 +1504,158 @@ struct MapsLocationAnnotation: Identifiable {
     let title: String
 }
 
+private extension Moment {
+    var mapHasVideoMedia: Bool {
+        if let mediaItems, mediaItems.contains(where: { $0.type == .video }) {
+            return true
+        }
+        if let videoUrl = videoUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !videoUrl.isEmpty {
+            return true
+        }
+        return false
+    }
+    
+    var mapHasRenderableMedia: Bool {
+        if let mediaItems, mediaItems.contains(where: { !$0.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            return true
+        }
+        
+        if let imagePath = imagePath?.trimmingCharacters(in: .whitespacesAndNewlines), !imagePath.isEmpty {
+            return true
+        }
+        
+        if let videoUrl = videoUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !videoUrl.isEmpty {
+            return true
+        }
+        
+        return false
+    }
+    
+    var mapPreferredImageURL: String? {
+        if let mediaItems {
+            if let firstImage = mediaItems.first(where: { $0.type == .image }) {
+                let imageURL = firstImage.url.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !imageURL.isEmpty { return imageURL }
+            }
+            
+            if let firstVideo = mediaItems.first(where: { $0.type == .video }) {
+                if let thumb = firstVideo.thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumb.isEmpty {
+                    return thumb
+                }
+                let fallback = firstVideo.url.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !fallback.isEmpty { return fallback }
+            }
+        }
+        
+        if let thumbnailUrl = thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumbnailUrl.isEmpty {
+            return thumbnailUrl
+        }
+        
+        if let imagePath = imagePath?.trimmingCharacters(in: .whitespacesAndNewlines), !imagePath.isEmpty {
+            return imagePath
+        }
+        
+        return nil
+    }
+    
+    var mapPreferredVideoThumbnailURL: String? {
+        if let mediaItems, let firstVideo = mediaItems.first(where: { $0.type == .video }) {
+            if let thumb = firstVideo.thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumb.isEmpty {
+                return thumb
+            }
+            let fallback = firstVideo.url.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !fallback.isEmpty { return fallback }
+        }
+        
+        if let thumbnailUrl = thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumbnailUrl.isEmpty {
+            return thumbnailUrl
+        }
+        
+        if let imagePath = imagePath?.trimmingCharacters(in: .whitespacesAndNewlines), !imagePath.isEmpty {
+            return imagePath
+        }
+        
+        return nil
+    }
+}
+
+struct CombinedMapAnnotation: Identifiable {
+    let id: String
+    let coordinate: CLLocationCoordinate2D
+    let locationTitle: String?
+    let moment: Moment?
+    let moments: [Moment]
+
+    var primaryMoment: Moment? {
+        moment ?? moments.first
+    }
+
+    var count: Int {
+        if !moments.isEmpty { return moments.count }
+        return moment == nil ? 0 : 1
+    }
+}
+
+struct MapMomentPin: View {
+    let moment: Moment
+    let colorScheme: ColorScheme
+    let count: Int
+
+    private var pinSize: CGFloat { count > 1 ? 58 : 50 }
+    private var mediaSize: CGFloat { pinSize - 6 }
+    
+    var body: some View {
+        ZStack {
+            if let previewURL, let url = URL(string: previewURL) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: mediaSize, height: mediaSize)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                    )
+                    .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 2)
+            } else {
+                Circle()
+                    .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.15))
+                    .frame(width: mediaSize, height: mediaSize)
+                    .overlay(
+                        ZStack {
+                            Image(systemName: "photo")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                        }
+                    )
+                    .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 2)
+            }
+
+            if count > 1 {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Text("+\(count)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.black.opacity(0.72)))
+                            .offset(x: 8, y: -8)
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+    
+    private var previewURL: String? {
+        moment.mapPreferredImageURL ?? moment.mapPreferredVideoThumbnailURL
+    }
+}
+
 // ✅ PIN MODERNO CON TU ESTILO
 struct ModernLocationPin: View {
     let locationName: String
@@ -1423,51 +1838,62 @@ struct ModernLocationPhotoCard: View {
     }
     
     var body: some View {
-        // ✅ USAR moment.imagePath EN VEZ DE moment.imageUrl
-        AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 90, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(
-                            LinearGradient(
-                                colors: [.white.opacity(0.3), .clear],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
+        ZStack {
+            if moment.mapHasVideoMedia {
+                MapsVideoThumbnailView(
+                    moment: moment,
+                    size: CGSize(width: 90, height: 120),
+                    cornerRadius: 14,
+                    colorScheme: colorScheme
+                )
+            } else {
+                AsyncImage(url: URL(string: moment.mapPreferredImageURL ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 90, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.3), .clear],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
                         )
-                )
-                .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        imageLoaded = true
-                    }
-                }
-        } placeholder: {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.ultraThinMaterial)
-                .frame(width: 70, height: 70)
-                .overlay(
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .tint(adaptiveColors.accent)
-                        .scaleEffect(0.7)
-                )
-                .overlay(
+                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
+                } placeholder: {
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(
-                            LinearGradient(
-                                colors: adaptiveColors.overlayStroke,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 70, height: 70)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .tint(adaptiveColors.accent)
+                                .scaleEffect(0.7)
                         )
-                )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: adaptiveColors.overlayStroke,
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                }
+            }
+        }
+        .onAppear {
+            guard !imageLoaded else { return }
+            withAnimation(.easeInOut(duration: 0.3)) {
+                imageLoaded = true
+            }
         }
         .scaleEffect(imageLoaded ? 1.0 : 0.95)
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: imageLoaded)
@@ -1593,37 +2019,28 @@ struct ModernLocationGalleryView: View {
                         selectedMoment = moment
                         showingDetail = true
                     }) {
-                        KFImage(URL(string: moment.imagePath ?? ""))
-                            .placeholder {
-                                Rectangle()
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(ProgressView().tint(adaptiveColors.accent))
-                            }
-                            .resizable()
-                            .aspectRatio(1, contentMode: .fill)
-                            .frame(maxWidth: .infinity)
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipped()
-                            .overlay(
-                                // Overlay sutil para video
-                                Group {
-                                    if moment.videoUrl != nil {
-                                        VStack {
-                                            Spacer()
-                                            HStack {
-                                                Spacer()
-                                                Image(systemName: "play.fill")
-                                                    .font(.system(size: 10))
-                                                    .foregroundColor(.white)
-                                                    .padding(6)
-                                                    .background(.black.opacity(0.4))
-                                                    .clipShape(Circle())
-                                                    .padding(6)
-                                            }
-                                        }
+                        Group {
+                            if moment.mapHasVideoMedia {
+                                MapsVideoThumbnailView(
+                                    moment: moment,
+                                    size: CGSize(width: 120, height: 120),
+                                    cornerRadius: 0,
+                                    colorScheme: colorScheme
+                                )
+                            } else {
+                                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
+                                    .placeholder {
+                                        Rectangle()
+                                            .fill(.ultraThinMaterial)
+                                            .overlay(ProgressView().tint(adaptiveColors.accent))
                                     }
-                                }
-                            )
+                                    .resizable()
+                                    .aspectRatio(1, contentMode: .fill)
+                                    .frame(maxWidth: .infinity)
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .clipped()
+                            }
+                        }
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -1639,20 +2056,152 @@ class LocationSearchService {
     static let shared = LocationSearchService()
     private let db = Firestore.firestore()
     private let privacyService = PrivacyService()
+    private let functionsRegion = "europe-southwest1"
     
     private init() {}
+    
+    private struct BackendMapMomentsResponse: Codable {
+        let moments: [BackendMoment]
+        let source: String?
+        let totalCandidates: Int?
+    }
+    
+    private enum MapQueryMode {
+        case location(String)
+        case region(MKCoordinateRegion)
+    }
     
     func searchMomentsByLocation(
         locationName: String,
         currentUserId: String?,
         completion: @escaping ([Moment]) -> Void
     ) {
+        guard currentUserId != nil else {
+            searchMomentsByLocationLegacy(
+                locationName: locationName,
+                currentUserId: currentUserId,
+                completion: completion
+            )
+            return
+        }
+        
+        fetchMapMomentsFromBackend(mode: .location(locationName), limit: 400) { [weak self] backendMoments in // ✅ Aumentado límite para no perder posts antiguos
+            if let backendMoments {
+                completion(backendMoments)
+                return
+            }
+            
+            self?.searchMomentsByLocationLegacy(
+                locationName: locationName,
+                currentUserId: currentUserId,
+                completion: completion
+            )
+        }
+    }
+    
+    func searchMomentsInRegion(
+        region: MKCoordinateRegion,
+        currentUserId: String?,
+        completion: @escaping ([Moment]) -> Void
+    ) {
+        guard currentUserId != nil else {
+            searchMomentsInRegionLegacy(
+                region: region,
+                currentUserId: currentUserId,
+                completion: completion
+            )
+            return
+        }
+        
+        fetchMapMomentsFromBackend(mode: .region(region), limit: 400) { [weak self] backendMoments in // ✅ Aumentado límite para no perder posts antiguos
+            if let backendMoments {
+                completion(backendMoments)
+                return
+            }
+            
+            self?.searchMomentsInRegionLegacy(
+                region: region,
+                currentUserId: currentUserId,
+                completion: completion
+            )
+        }
+    }
+    
+    private func fetchMapMomentsFromBackend(
+        mode: MapQueryMode,
+        limit: Int,
+        completion: @escaping ([Moment]?) -> Void
+    ) {
+        guard let user = Auth.auth().currentUser else {
+            completion(nil)
+            return
+        }
+        
+        Task {
+            do {
+                let idToken = try await user.getIDToken()
+                guard let projectId = FirebaseApp.app()?.options.projectID, !projectId.isEmpty else {
+                    await MainActor.run { completion(nil) }
+                    return
+                }
+                
+                guard let url = URL(string: "https://\(functionsRegion)-\(projectId).cloudfunctions.net/getMapMomentsPage") else {
+                    await MainActor.run { completion(nil) }
+                    return
+                }
+                
+                var body: [String: Any] = ["limit": limit]
+                switch mode {
+                case .location(let locationName):
+                    body["mode"] = "location"
+                    body["locationName"] = locationName
+                case .region(let region):
+                    body["mode"] = "region"
+                    body["centerLatitude"] = region.center.latitude
+                    body["centerLongitude"] = region.center.longitude
+                    body["latitudeDelta"] = region.span.latitudeDelta
+                    body["longitudeDelta"] = region.span.longitudeDelta
+                }
+                
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                request.timeoutInterval = 15
+                
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                    await MainActor.run { completion(nil) }
+                    return
+                }
+                
+                let decoded = try JSONDecoder().decode(BackendMapMomentsResponse.self, from: data)
+                let moments = decoded.moments
+                    .map { $0.toMoment() }
+                    .filter { $0.isArchived != true }
+                    .sorted { $0.timestamp > $1.timestamp }
+                
+                await MainActor.run { completion(moments) }
+            } catch {
+                await MainActor.run { completion(nil) }
+            }
+        }
+    }
+    
+    private func searchMomentsByLocationLegacy(
+        locationName: String,
+        currentUserId: String?,
+        completion: @escaping ([Moment]) -> Void
+    ) {
+        let now = Date()
+        
         db.collectionGroup("moments")
             .whereField("location", isEqualTo: locationName)
             .whereField("audience", isEqualTo: "everyone")
-            .limit(to: 20)
+            .limit(to: 400) // ✅ Limite super alto para pillar posts antiguos sin saturar la RAM
             .getDocuments { [weak self] snapshot, error in
-                if let error = error {
+                if let _ = error {
                     completion([])
                     return
                 }
@@ -1671,32 +2220,36 @@ class LocationSearchService {
                     do {
                         var moment = try document.data(as: Moment.self)
                         moment.id = document.documentID
+                        
                         guard moment.isArchived != true else {
                             group.leave()
                             continue
                         }
                         
-                        // ✅ Verificar que tenga imagen y username
-                        guard let imagePath = moment.imagePath, !imagePath.isEmpty,
+                        let isAuthor = (currentUserId == moment.authorId)
+                        if !isAuthor,
+                           let scheduledDate = moment.scheduledDate,
+                           scheduledDate > now {
+                            group.leave()
+                            continue
+                        }
+                        
+                        guard moment.mapHasRenderableMedia,
                               !moment.username.isEmpty else {
                             group.leave()
                             continue
                         }
                         
-                        // Verificar privacidad si hay usuario actual
                         if let currentUserId = currentUserId {
                             self?.privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
                                 if canView {
                                     syncQueue.async {
                                         moments.append(moment)
                                     }
-                                } else {
-                                    // Momento filtrado por privacidad
                                 }
                                 group.leave()
                             }
                         } else {
-                            // Sin usuario, agregar directamente
                             syncQueue.async {
                                 moments.append(moment)
                             }
@@ -1708,8 +2261,100 @@ class LocationSearchService {
                 }
                 
                 group.notify(queue: .main) {
-                    let sortedMoments = moments.sorted { $0.timestamp > $1.timestamp }
-                    completion(sortedMoments)
+                    completion(moments.sorted { $0.timestamp > $1.timestamp })
+                }
+            }
+    }
+    
+    private func searchMomentsInRegionLegacy(
+        region: MKCoordinateRegion,
+        currentUserId: String?,
+        completion: @escaping ([Moment]) -> Void
+    ) {
+        let now = Date()
+        let latitudeMin = max(-90.0, region.center.latitude - (region.span.latitudeDelta / 2.0))
+        let latitudeMax = min(90.0, region.center.latitude + (region.span.latitudeDelta / 2.0))
+        let longitudeMin = max(-180.0, region.center.longitude - (region.span.longitudeDelta / 2.0))
+        let longitudeMax = min(180.0, region.center.longitude + (region.span.longitudeDelta / 2.0))
+        
+        db.collectionGroup("moments")
+            .whereField("audience", isEqualTo: "everyone")
+            .whereField("locationCoordinate.latitude", isGreaterThanOrEqualTo: latitudeMin)
+            .whereField("locationCoordinate.latitude", isLessThanOrEqualTo: latitudeMax)
+            .order(by: "locationCoordinate.latitude")
+            .limit(to: 400) // ✅ Limite super alto para pillar posts antiguos sin saturar la RAM
+            .getDocuments { [weak self] snapshot, error in
+                if let _ = error {
+                    completion([])
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion([])
+                    return
+                }
+                
+                let group = DispatchGroup()
+                var moments: [Moment] = []
+                let syncQueue = DispatchQueue(label: "location.region.moments.sync")
+                
+                for document in documents {
+                    group.enter()
+                    do {
+                        var moment = try document.data(as: Moment.self)
+                        moment.id = document.documentID
+                        
+                        guard moment.isArchived != true else {
+                            group.leave()
+                            continue
+                        }
+                        
+                        let isAuthor = (currentUserId == moment.authorId)
+                        if !isAuthor,
+                           let scheduledDate = moment.scheduledDate,
+                           scheduledDate > now {
+                            group.leave()
+                            continue
+                        }
+                        
+                        guard moment.mapHasRenderableMedia,
+                              !moment.username.isEmpty else {
+                            group.leave()
+                            continue
+                        }
+                        
+                        guard let coordinate = moment.locationCoordinate else {
+                            group.leave()
+                            continue
+                        }
+                        
+                        guard coordinate.longitude >= longitudeMin, coordinate.longitude <= longitudeMax else {
+                            group.leave()
+                            continue
+                        }
+                        
+                        if let currentUserId = currentUserId {
+                            self?.privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
+                                if canView {
+                                    syncQueue.async {
+                                        moments.append(moment)
+                                    }
+                                }
+                                group.leave()
+                            }
+                        } else {
+                            syncQueue.async {
+                                moments.append(moment)
+                            }
+                            group.leave()
+                        }
+                    } catch {
+                        group.leave()
+                    }
+                }
+                
+                group.notify(queue: .main) {
+                    completion(moments.sorted { $0.timestamp > $1.timestamp })
                 }
             }
     }
@@ -1895,9 +2540,13 @@ struct LocationBottomSheet: View {
     let colorScheme: ColorScheme
     let onMomentTap: (Moment) -> Void
     
-    @State private var offset: CGFloat = 300
-    @State private var isDragging = false
+    @State private var offset: CGFloat = UIScreen.main.bounds.height
     @State private var viewMode: ViewMode = .gallery
+    @State private var dragStartOffset: CGFloat = 0
+    
+    private let sheetLargeOffset: CGFloat = 0
+    private let sheetMediumOffset: CGFloat = 170
+    private let sheetHiddenOffset: CGFloat = UIScreen.main.bounds.height + 60
     
     enum ViewMode: String, CaseIterable {
         case gallery = "gallery"
@@ -1932,7 +2581,6 @@ struct LocationBottomSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 24))
                     .shadow(color: adaptiveColors.shadowColor, radius: 20, x: 0, y: -8)
                     .offset(y: offset)
-                    .gesture(dragGesture)
                     // Eliminamos el frames fijos aquí para que el contenido mande si es poco
                     .frame(maxHeight: min(geometry.size.height * 0.8, geometry.size.height - 100), alignment: .bottom)
                 }
@@ -1988,6 +2636,7 @@ struct LocationBottomSheet: View {
             .frame(width: 40, height: 6)
             .padding(.top, 10)
             .padding(.bottom, 2)
+            .gesture(dragGesture)
     }
     
     // ✅ HEADER CON GLASSMORPHISM
@@ -2093,25 +2742,20 @@ struct LocationBottomSheet: View {
                 emptyView
                     .padding(.vertical, 40)
             } else {
-                let content = VStack(spacing: 0) {
-                    if viewMode == .gallery {
-                        galleryView
-                    } else {
-                        modernListView
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if viewMode == .gallery {
+                            galleryView
+                        } else {
+                            modernListView
+                        }
                     }
+                    .id("\(viewMode.rawValue)-\(moments.count)")
+                    .padding(.bottom, 30)
                 }
-                
-                if moments.count <= 6 {
-                    content
-                        .padding(.bottom, 30) // Espacio para el safe area/gesto
-                } else {
-                    ScrollView {
-                        content
-                            .padding(.bottom, 30)
-                    }
-                    .scrollIndicators(.hidden)
-                    .frame(maxHeight: 500) // Límite para scroll
-                }
+                .scrollIndicators(.hidden)
+                .scrollDisabled(viewMode == .gallery && moments.count <= 3)
+                .frame(maxHeight: viewMode == .list ? UIScreen.main.bounds.height * 0.72 : (moments.count <= 3 ? 320 : 500))
             }
         }
     }
@@ -2128,7 +2772,7 @@ struct LocationBottomSheet: View {
                                 .fill(.ultraThinMaterial)
                             
                             // ✅ DETECTAR SI ES VIDEO O IMAGEN
-                            if moment.videoUrl != nil {
+                            if moment.mapHasVideoMedia {
                                 MapsVideoThumbnailView(
                                     moment: moment,
                                     size: CGSize(width: geometry.size.width, height: geometry.size.width),
@@ -2136,7 +2780,7 @@ struct LocationBottomSheet: View {
                                     colorScheme: colorScheme
                                 )
                             } else {
-                                KFImage(URL(string: moment.imagePath ?? ""))
+                                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
                                     .placeholder {
                                         ProgressView()
                                             .tint(adaptiveColors.accent)
@@ -2266,18 +2910,21 @@ struct LocationBottomSheet: View {
     private var dragGesture: some Gesture {
         DragGesture()
             .onChanged { value in
-                isDragging = true
-                let newOffset = max(0, value.translation.height)
-                offset = newOffset
+                if abs(value.translation.height) < 0.5 {
+                    dragStartOffset = offset
+                }
+                let proposed = dragStartOffset + value.translation.height
+                offset = min(max(proposed, sheetLargeOffset), sheetHiddenOffset)
             }
             .onEnded { value in
-                isDragging = false
                 let velocity = value.predictedEndTranslation.height
                 
-                if velocity > 200 || offset > 150 {
+                if velocity > 280 || offset > 240 {
                     hideBottomSheet()
+                } else if velocity < -180 || offset < 85 {
+                    snapToLarge()
                 } else {
-                    showBottomSheet()
+                    snapToMedium()
                 }
             }
     }
@@ -2285,17 +2932,29 @@ struct LocationBottomSheet: View {
     // ✅ FUNCIONES DE ANIMACIÓN
     private func showBottomSheet() {
         withAnimation(.interactiveSpring(response: 0.6, dampingFraction: 0.8)) {
-            offset = 0
+            offset = sheetMediumOffset
         }
     }
     
     private func hideBottomSheet() {
         withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.9)) {
-            offset = 300
+            offset = sheetHiddenOffset
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             isPresented = false
+        }
+    }
+    
+    private func snapToMedium() {
+        withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.85)) {
+            offset = sheetMediumOffset
+        }
+    }
+    
+    private func snapToLarge() {
+        withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.85)) {
+            offset = sheetLargeOffset
         }
     }
     
@@ -2334,7 +2993,7 @@ struct MapsVideoThumbnailView: View {
     var body: some View {
         ZStack {
             // ✅ THUMBNAIL DEL VIDEO
-            AsyncImage(url: URL(string: moment.thumbnailUrl ?? moment.imagePath ?? "")) { image in
+            AsyncImage(url: URL(string: moment.mapPreferredVideoThumbnailURL ?? "")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -2423,8 +3082,11 @@ struct ModernLocationMomentRow: View {
                     
                     // Info sutil sobre la imagen
                     HStack(spacing: 10) {
-                        ProfileImageeView(imagePath: moment.profileImagePath, size: 32)
-                            .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
+                        StoryRingAvatarView(
+                            userId: moment.authorId,
+                            size: 32,
+                            lineWidth: 2.2
+                        )
                             .shadow(radius: 2)
                         
                         VStack(alignment: .leading, spacing: 0) {
@@ -2440,9 +3102,6 @@ struct ModernLocationMomentRow: View {
                         }
                         
                         Spacer()
-                        
-                        // Badge de audiencia
-                        audienceBadge
                     }
                     .padding(12)
                 }
@@ -2481,7 +3140,7 @@ struct ModernLocationMomentRow: View {
     
     @ViewBuilder
     private var mediaPreview: some View {
-        if moment.videoUrl != nil {
+        if moment.mapHasVideoMedia {
             MapsVideoThumbnailView(
                 moment: moment,
                 size: CGSize(width: UIScreen.main.bounds.width - 40, height: 180),
@@ -2489,7 +3148,7 @@ struct ModernLocationMomentRow: View {
                 colorScheme: colorScheme
             )
         } else {
-            AsyncImage(url: URL(string: moment.imagePath ?? "")) { image in
+            AsyncImage(url: URL(string: moment.mapPreferredImageURL ?? "")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -2501,50 +3160,6 @@ struct ModernLocationMomentRow: View {
                     .fill(.ultraThinMaterial)
                     .overlay(ProgressView().tint(adaptiveColors.accent))
             }
-        }
-    }
-    
-    private var audienceBadge: some View {
-        HStack(spacing: 4) {
-            Image(systemName: getAudienceIcon(moment.audience ?? "everyone"))
-                .font(.system(size: 8, weight: .bold))
-            Text(getAudienceLabel(moment.audience ?? "everyone").uppercased())
-                .font(.custom("Poppins-Bold", size: 8))
-        }
-        .foregroundColor(.white)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(getAudienceColor(moment.audience ?? "everyone").opacity(0.8))
-        )
-        .shadow(color: .black.opacity(0.2), radius: 2)
-    }
-    
-    private func getAudienceIcon(_ audience: String) -> String {
-        switch audience {
-        case "everyone": return "globe"
-        case "connections": return "person.2.fill"
-        case "bestFriends": return "heart.fill"
-        default: return "globe"
-        }
-    }
-    
-    private func getAudienceLabel(_ audience: String) -> String {
-        switch audience {
-        case "everyone": return "Público"
-        case "connections": return "Seguidos"
-        case "bestFriends": return "Amigos"
-        default: return "Público"
-        }
-    }
-    
-    private func getAudienceColor(_ audience: String) -> Color {
-        switch audience {
-        case "everyone": return .green
-        case "connections": return .blue
-        case "bestFriends": return .pink
-        default: return .gray
         }
     }
     
