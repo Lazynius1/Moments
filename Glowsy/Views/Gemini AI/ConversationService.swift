@@ -8,7 +8,7 @@ import FirebaseAuth
 class ConversationService: ObservableObject {
     private let db = Firestore.firestore()
     private let vertexAI = VertexAI.vertexAI(location: "global")
-    private lazy var model = vertexAI.generativeModel(modelName: "gemini-3-flash-preview")
+    private lazy var model = vertexAI.generativeModel(modelName: "gemini-3.1-flash-lite-preview")
     private let encryptionService = EncryptionService.shared
     
     // MARK: - Published Properties for SwiftUI

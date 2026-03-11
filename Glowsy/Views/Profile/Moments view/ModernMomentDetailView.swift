@@ -4,6 +4,7 @@ import FirebaseFirestore
 import Kingfisher
 import AVKit
 import AVFoundation
+import CoreLocation
 
 // MARK: - ✅ Vista detallada de momentos con diseño del feed y aspect ratios
 struct ModernMomentDetailView: View {
@@ -45,6 +46,7 @@ struct ModernMomentDetailView: View {
     @State private var selectedUserId: String = ""
     @State private var showSpecificUserStories = false
     @State private var selectedStoryUserId: String = ""
+    @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
     
     private let privacyService = PrivacyService()
     private let firestoreService2 = FirestoreService()
@@ -82,6 +84,9 @@ struct ModernMomentDetailView: View {
                             selectedUserId = normalizedUserId
                             showUserProfile = true
                         }
+                    },
+                    onLocationTap: { tappedMoment in
+                        openLocationMap(for: tappedMoment)
                     }
                 )
                 .ignoresSafeArea(.container, edges: .top) // ✅ El header debe ignorar el safe area para pegarse al notch
@@ -223,6 +228,16 @@ struct ModernMomentDetailView: View {
             .environmentObject(firestoreService)
             .ignoresSafeArea(.keyboard)
         }
+        .fullScreenCover(item: $selectedLocationMoment) { moment in
+            LocationMapView(
+                locationName: resolvedLocationName(moment.location ?? ""),
+                coordinate: moment.locationCoordinate?.toCLLocationCoordinate2D,
+                isPresented: Binding(
+                    get: { selectedLocationMoment != nil },
+                    set: { if !$0 { selectedLocationMoment = nil } }
+                )
+            )
+        }
         .onAppear {
             currentIndex = initialIndex
             trackMomentViewIfNeeded(for: moments[safe: initialIndex])
@@ -282,6 +297,16 @@ struct ModernMomentDetailView: View {
         Task { @MainActor in
             AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
         }
+    }
+    
+    private func resolvedLocationName(_ rawValue: String) -> String {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        return NSLocalizedString("feed.location.default", comment: "Default location name")
+    }
+    
+    private func openLocationMap(for moment: Moment) {
+        self.selectedLocationMoment = moment
     }
     
     // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual
@@ -388,6 +413,7 @@ struct ModernDetailHeader: View {
     let moment: Moment?
     let safeAreaTop: CGFloat
     let onAvatarTap: (String, Bool) -> Void
+    let onLocationTap: (Moment) -> Void
     @Environment(\.colorScheme) var colorScheme
     @State private var liveUsername: String = ""
 
@@ -429,6 +455,25 @@ struct ModernDetailHeader: View {
                             Text(moment.timestamp.timeAgoDisplay())
                                 .font(.custom("Poppins-Regular", size: 10))
                                 .foregroundColor(.secondary.opacity(0.7))
+                            
+                            if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+                               !location.isEmpty {
+                                Button(action: {
+                                    onLocationTap(moment)
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "location.fill")
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(.blue.opacity(0.85))
+                                        
+                                        Text(location)
+                                            .font(.custom("Poppins-Regular", size: 11))
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
                         }
                     }
                 }

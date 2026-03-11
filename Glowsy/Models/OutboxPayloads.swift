@@ -91,7 +91,9 @@ struct DeleteMomentPayload: Codable {
 struct ProfileUpdatePayload: Codable {
     let userId: String
     let bio: String?
+    let oldBio: String?
     let websiteUrl: String?
+    let oldWebsiteUrl: String?
     let interests: [String]?
     let profileImageLocalPath: String? // Path to local image file to upload
     let isImageUpdate: Bool

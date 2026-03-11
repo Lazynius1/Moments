@@ -4,6 +4,7 @@ import FirebaseFirestore
 import Kingfisher
 import AVKit
 import AVFoundation
+import CoreLocation
 
 struct MomentDetailView: View {
     let moment: Moment
@@ -37,6 +38,8 @@ struct MomentDetailView: View {
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var showingStories = false
+    @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
+    private let firestoreService = FirestoreService()
     
 
     init(moment: Moment) {
@@ -180,6 +183,26 @@ struct MomentDetailView: View {
         .sheet(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(moment.authorId))
         }
+        .fullScreenCover(item: $selectedLocationMoment) { moment in
+            LocationMapView(
+                locationName: resolvedLocationName(moment.location ?? ""),
+                coordinate: moment.locationCoordinate?.toCLLocationCoordinate2D,
+                isPresented: Binding(
+                    get: { selectedLocationMoment != nil },
+                    set: { if !$0 { selectedLocationMoment = nil } }
+                )
+            )
+        }
+    }
+    
+    private func resolvedLocationName(_ rawValue: String) -> String {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        return NSLocalizedString("feed.location.default", comment: "Default location name")
+    }
+    
+    private func openLocationMap(for moment: Moment) {
+        self.selectedLocationMoment = moment
     }
     
     // MARK: - Componentes Modernos
@@ -241,6 +264,25 @@ struct MomentDetailView: View {
                         Text(moment.timestamp.timeAgoDisplay())
                             .font(.custom("Poppins-Regular", size: 10))
                             .foregroundColor(.secondary.opacity(0.7))
+                        
+                        if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+                           !location.isEmpty {
+                            Button(action: {
+                                openLocationMap(for: moment)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "location.fill")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(.blue.opacity(0.85))
+                                    
+                                    Text(location)
+                                        .font(.custom("Poppins-Regular", size: 11))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
                     }
                 }
 
