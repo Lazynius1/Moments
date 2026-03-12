@@ -7,6 +7,13 @@ yarn-error.log*
 firebase-debug.log*
 firebase-debug.*.log*
 
+# macOS / Xcode local state
+.DS_Store
+rules.txt
+*.xcuserstate
+**/xcuserdata/
+*.xcbkptlist
+
 # Firebase cache
 .firebase/
 
