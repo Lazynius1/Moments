@@ -2140,19 +2140,19 @@
 
 /* Tu Actividad */
 "whatsNew.activity.title" = "Revisa tu Actividad";
-"whatsNew.activity.description" = "Una nueva sección para gestionar tus reacciones, comentarios y menciones en un solo lugar.";
+"whatsNew.activity.description" = "Ahora puedes revisar mejor tus reacciones, comentarios, etiquetas, respuestas a stickers y mucho mas desde un solo lugar.";
 
-/* Stories */
-"whatsNew.redesign.title" = "Historias Más Claras";
-"whatsNew.stories.description" = "Los anillos ahora son más consistentes en toda la app con mejores indicadores visuales de audiencia.";
+/* Archive */
+"whatsNew.archive.title" = "Tu Archivo, Mucho Mejor";
+"whatsNew.archive.description" = "Explora tus historias archivadas en cuadrícula, calendario y mapa, con una navegación mucho más cómoda.";
 
-/* Echoes */
-"whatsNew.echoes.title" = "Echoes, Reimaginados";
-"whatsNew.echoes.description" = "Visor e historial rediseñados. Además, una descripción más clara de cómo funciona.";
+/* Notifications */
+"whatsNew.notifications.title" = "Notificaciones Mas Claras";
+"whatsNew.notifications.description" = "La bandeja se entiende mejor y varios flujos de avisos, solicitudes y aperturas ahora son mas fiables.";
 
-/* Settings redesign */
-"whatsNew.settings.title" = "Un Menú de Ajustes Más Limpio";
-"whatsNew.settings.description" = "Los ajustes han sido completamente rediseñados para ser más intuitivos y fáciles de navegar.";
+/* Privacy */
+"whatsNew.privacy.title" = "Privacidad Más Consistente";
+"whatsNew.privacy.description" = "Contenido restringido, cuentas silenciadas y palabras silenciadas ahora se comportan de forma más clara y coherente.";
 
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";

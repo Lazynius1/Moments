@@ -56,6 +56,14 @@ class DrawingViewController: UIViewController {
     private let toolPicker = PKToolPicker()
     private var selectedColor: UIColor = .white
     private var backgroundImageView: UIImageView?
+    private var brushWidth: CGFloat = 7
+    private var isEraserSelected = false
+    private var colorButtons: [UIButton] = []
+    private weak var penButton: UIButton?
+    private weak var neonButton: UIButton?
+    private weak var markerButton: UIButton?
+    private weak var arrowButton: UIButton?
+    private weak var eraserButton: UIButton?
     
     enum BrushType {
         case pen, neon, marker, arrow
@@ -68,7 +76,7 @@ class DrawingViewController: UIViewController {
     }
     
     private func setupUI() {
-        view.backgroundColor = .black
+        view.backgroundColor = .clear
         
         // Agregar imagen de fondo si existe
         if let backgroundImage = backgroundImage {
@@ -84,6 +92,19 @@ class DrawingViewController: UIViewController {
                 imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
                 imageView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
             ])
+            
+            let dimView = UIView()
+            dimView.translatesAutoresizingMaskIntoConstraints = false
+            dimView.backgroundColor = UIColor.black.withAlphaComponent(0.10)
+            view.addSubview(dimView)
+            NSLayoutConstraint.activate([
+                dimView.topAnchor.constraint(equalTo: view.topAnchor),
+                dimView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                dimView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                dimView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            ])
+        } else {
+            view.backgroundColor = .black
         }
         
         // Canvas setup - TRANSPARENTE
@@ -97,31 +118,52 @@ class DrawingViewController: UIViewController {
         // Top toolbar
         let topToolbar = UIView()
         topToolbar.translatesAutoresizingMaskIntoConstraints = false
-        topToolbar.backgroundColor = .black.withAlphaComponent(0.8)
+        topToolbar.backgroundColor = UIColor.black.withAlphaComponent(0.16)
+        topToolbar.layer.cornerRadius = 22
+        topToolbar.layer.borderWidth = 1
+        topToolbar.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        topToolbar.clipsToBounds = true
         view.addSubview(topToolbar)
+        addBlurBackground(to: topToolbar)
         
         // Close button
         let closeButton = UIButton(type: .system)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+        closeButton.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)), for: .normal)
         closeButton.tintColor = .white
+        closeButton.backgroundColor = UIColor.black.withAlphaComponent(0.22)
+        closeButton.layer.cornerRadius = 15
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         topToolbar.addSubview(closeButton)
+        
+        let undoButton = createToolButton(imageName: "arrow.uturn.backward", action: #selector(undoTapped))
+        topToolbar.addSubview(undoButton)
+        
+        let redoButton = createToolButton(imageName: "arrow.uturn.forward", action: #selector(redoTapped))
+        topToolbar.addSubview(redoButton)
         
         // Done button
         let doneButton = UIButton(type: .system)
         doneButton.translatesAutoresizingMaskIntoConstraints = false
-        doneButton.setTitle("Hecho", for: .normal)
+        doneButton.setTitle(NSLocalizedString("creator.done", comment: "Done"), for: .normal)
         doneButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         doneButton.setTitleColor(.white, for: .normal)
+        doneButton.backgroundColor = UIColor.black.withAlphaComponent(0.22)
+        doneButton.layer.cornerRadius = 15
+        doneButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
         doneButton.addTarget(self, action: #selector(doneTapped), for: .touchUpInside)
         topToolbar.addSubview(doneButton)
         
         // Bottom toolbar
         let bottomToolbar = UIView()
         bottomToolbar.translatesAutoresizingMaskIntoConstraints = false
-        bottomToolbar.backgroundColor = .black.withAlphaComponent(0.8)
+        bottomToolbar.backgroundColor = UIColor.black.withAlphaComponent(0.16)
+        bottomToolbar.layer.cornerRadius = 26
+        bottomToolbar.layer.borderWidth = 1
+        bottomToolbar.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        bottomToolbar.clipsToBounds = true
         view.addSubview(bottomToolbar)
+        addBlurBackground(to: bottomToolbar)
         
         // Tool buttons
         let penButton = createToolButton(imageName: "pencil", action: #selector(penSelected))
@@ -129,16 +171,32 @@ class DrawingViewController: UIViewController {
         let markerButton = createToolButton(imageName: "highlighter", action: #selector(markerSelected))
         let arrowButton = createToolButton(imageName: "arrow.up.right", action: #selector(arrowSelected))
         let eraserButton = createToolButton(imageName: "eraser", action: #selector(eraserSelected))
-        let undoButton = createToolButton(imageName: "arrow.uturn.backward", action: #selector(undoTapped))
         let clearButton = createToolButton(imageName: "trash", action: #selector(clearTapped))
         
-        let toolStack = UIStackView(arrangedSubviews: [penButton, neonButton, markerButton, arrowButton, eraserButton, undoButton, clearButton])
+        self.penButton = penButton
+        self.neonButton = neonButton
+        self.markerButton = markerButton
+        self.arrowButton = arrowButton
+        self.eraserButton = eraserButton
+        
+        let toolStack = UIStackView(arrangedSubviews: [penButton, neonButton, markerButton, arrowButton, eraserButton, clearButton])
         toolStack.translatesAutoresizingMaskIntoConstraints = false
         toolStack.axis = .horizontal
         toolStack.distribution = .equalSpacing
-        toolStack.spacing = 20
+        toolStack.spacing = 10
         bottomToolbar.addSubview(toolStack)
         
+        let widthSlider = UISlider()
+        widthSlider.translatesAutoresizingMaskIntoConstraints = false
+        widthSlider.minimumValue = 2
+        widthSlider.maximumValue = 26
+        widthSlider.value = Float(brushWidth)
+        widthSlider.minimumTrackTintColor = .white
+        widthSlider.maximumTrackTintColor = UIColor.white.withAlphaComponent(0.28)
+        widthSlider.thumbTintColor = .white
+        widthSlider.addTarget(self, action: #selector(brushWidthChanged(_:)), for: .valueChanged)
+        bottomToolbar.addSubview(widthSlider)
+
         // Color picker
         let colorStack = createColorPicker()
         colorStack.translatesAutoresizingMaskIntoConstraints = false
@@ -147,44 +205,64 @@ class DrawingViewController: UIViewController {
         // Constraints
         NSLayoutConstraint.activate([
             // Canvas
-            canvasView.topAnchor.constraint(equalTo: topToolbar.bottomAnchor),
+            canvasView.topAnchor.constraint(equalTo: view.topAnchor),
             canvasView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             canvasView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            canvasView.bottomAnchor.constraint(equalTo: bottomToolbar.topAnchor),
+            canvasView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
             // Top toolbar
-            topToolbar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            topToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            topToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            topToolbar.heightAnchor.constraint(equalToConstant: 60),
+            topToolbar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            topToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
+            topToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
+            topToolbar.heightAnchor.constraint(equalToConstant: 58),
             
             // Close button
-            closeButton.leadingAnchor.constraint(equalTo: topToolbar.leadingAnchor, constant: 20),
+            closeButton.leadingAnchor.constraint(equalTo: topToolbar.leadingAnchor, constant: 12),
             closeButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
+            closeButton.widthAnchor.constraint(equalToConstant: 30),
+            closeButton.heightAnchor.constraint(equalToConstant: 30),
+            
+            // Undo button
+            undoButton.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 10),
+            undoButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
+            
+            // Redo button
+            redoButton.leadingAnchor.constraint(equalTo: undoButton.trailingAnchor, constant: 8),
+            redoButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
             
             // Done button
-            doneButton.trailingAnchor.constraint(equalTo: topToolbar.trailingAnchor, constant: -20),
+            doneButton.trailingAnchor.constraint(equalTo: topToolbar.trailingAnchor, constant: -12),
             doneButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
             
             // Bottom toolbar
-            bottomToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            bottomToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            bottomToolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            bottomToolbar.heightAnchor.constraint(equalToConstant: 120),
+            bottomToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
+            bottomToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
+            bottomToolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            bottomToolbar.heightAnchor.constraint(equalToConstant: 154),
             
             // Tool stack
             toolStack.centerXAnchor.constraint(equalTo: bottomToolbar.centerXAnchor),
-            toolStack.topAnchor.constraint(equalTo: bottomToolbar.topAnchor, constant: 20),
+            toolStack.topAnchor.constraint(equalTo: bottomToolbar.topAnchor, constant: 14),
             
+            // Width slider
+            widthSlider.leadingAnchor.constraint(equalTo: bottomToolbar.leadingAnchor, constant: 16),
+            widthSlider.trailingAnchor.constraint(equalTo: bottomToolbar.trailingAnchor, constant: -16),
+            widthSlider.topAnchor.constraint(equalTo: toolStack.bottomAnchor, constant: 10),
+
             // Color stack
             colorStack.centerXAnchor.constraint(equalTo: bottomToolbar.centerXAnchor),
-            colorStack.bottomAnchor.constraint(equalTo: bottomToolbar.bottomAnchor, constant: -20)
+            colorStack.bottomAnchor.constraint(equalTo: bottomToolbar.bottomAnchor, constant: -12),
+            colorStack.topAnchor.constraint(equalTo: widthSlider.bottomAnchor, constant: 8)
         ])
         
         // Setup tool picker
         toolPicker.setVisible(false, forFirstResponder: canvasView)
         toolPicker.addObserver(canvasView)
         canvasView.becomeFirstResponder()
+
+        updateCurrentTool()
+        updateToolSelectionUI()
+        updateColorSelectionUI()
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -194,8 +272,14 @@ class DrawingViewController: UIViewController {
     
     private func createToolButton(imageName: String, action: Selector) -> UIButton {
         let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: imageName), for: .normal)
+        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+        button.setImage(UIImage(systemName: imageName, withConfiguration: symbolConfig), for: .normal)
         button.tintColor = .white
+        button.backgroundColor = UIColor.black.withAlphaComponent(0.22)
+        button.layer.cornerRadius = 16
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
     }
@@ -214,12 +298,25 @@ class DrawingViewController: UIViewController {
             button.addTarget(self, action: #selector(colorSelected(_:)), for: .touchUpInside)
             return button
         }
+        colorButtons = buttons
         
         let stack = UIStackView(arrangedSubviews: buttons)
         stack.axis = .horizontal
-        stack.spacing = 15
+        stack.spacing = 11
         stack.distribution = .equalSpacing
         return stack
+    }
+
+    private func addBlurBackground(to container: UIView) {
+        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        blur.translatesAutoresizingMaskIntoConstraints = false
+        container.insertSubview(blur, at: 0)
+        NSLayoutConstraint.activate([
+            blur.topAnchor.constraint(equalTo: container.topAnchor),
+            blur.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            blur.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            blur.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
     }
     
     @objc private func closeTapped() {
@@ -241,66 +338,113 @@ class DrawingViewController: UIViewController {
         onDismiss?()
     }
     
-    @objc private func penSelected() {
-        selectedBrush = .pen
-        updateCurrentTool()
-    }
-    
-    @objc private func neonSelected() {
-        selectedBrush = .neon
-        updateCurrentTool()
-    }
-    
-    @objc private func markerSelected() {
-        selectedBrush = .marker
-        updateCurrentTool()
-    }
-    
-    @objc private func arrowSelected() {
-        selectedBrush = .arrow
-        updateCurrentTool()
-    }
-    
     private func updateCurrentTool() {
+        guard !isEraserSelected else {
+            canvasView.tool = PKEraserTool(.bitmap)
+            return
+        }
+
         switch selectedBrush {
         case .pen:
-            canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: 3)
+            canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: brushWidth)
         case .neon:
-            canvasView.tool = PKInkingTool(.marker, color: selectedColor, width: 8)
+            canvasView.tool = PKInkingTool(.marker, color: selectedColor.withAlphaComponent(0.9), width: max(4, brushWidth * 1.35))
         case .marker:
-            canvasView.tool = PKInkingTool(.marker, color: selectedColor.withAlphaComponent(0.4), width: 25)
+            canvasView.tool = PKInkingTool(.marker, color: selectedColor.withAlphaComponent(0.40), width: max(10, brushWidth * 2.4))
         case .arrow:
-            canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: 4)
+            canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: max(3, brushWidth * 0.9))
         }
     }
     
     @objc private func eraserSelected() {
-        canvasView.tool = PKEraserTool(.bitmap)
+        isEraserSelected = true
+        updateToolSelectionUI()
+        updateCurrentTool()
     }
     
     @objc private func undoTapped() {
         canvasView.drawing = canvasView.drawing
         canvasView.undoManager?.undo()
     }
+
+    @objc private func redoTapped() {
+        canvasView.undoManager?.redo()
+    }
     
     @objc private func clearTapped() {
         canvasView.drawing = PKDrawing()
     }
     
+    @objc private func brushWidthChanged(_ sender: UISlider) {
+        brushWidth = CGFloat(sender.value)
+        updateCurrentTool()
+    }
+
     @objc private func colorSelected(_ sender: UIButton) {
         selectedColor = sender.backgroundColor ?? .white
-        
-        // Update border for all color buttons
-        if let superview = sender.superview {
-            for subview in superview.subviews {
-                if let button = subview as? UIButton {
-                    button.layer.borderWidth = button == sender ? 3 : 1
-                }
-            }
+        if isEraserSelected {
+            isEraserSelected = false
+            updateToolSelectionUI()
         }
-        
-        // Update current tool with new color
+        updateColorSelectionUI()
         updateCurrentTool()
+    }
+
+    @objc private func penSelected() {
+        selectedBrush = .pen
+        isEraserSelected = false
+        updateToolSelectionUI()
+        updateCurrentTool()
+    }
+    
+    @objc private func neonSelected() {
+        selectedBrush = .neon
+        isEraserSelected = false
+        updateToolSelectionUI()
+        updateCurrentTool()
+    }
+    
+    @objc private func markerSelected() {
+        selectedBrush = .marker
+        isEraserSelected = false
+        updateToolSelectionUI()
+        updateCurrentTool()
+    }
+    
+    @objc private func arrowSelected() {
+        selectedBrush = .arrow
+        isEraserSelected = false
+        updateToolSelectionUI()
+        updateCurrentTool()
+    }
+
+    private func updateColorSelectionUI() {
+        for button in colorButtons {
+            let isSelected = button.backgroundColor == selectedColor
+            button.layer.borderWidth = isSelected ? 3 : 1
+            button.layer.borderColor = UIColor.white.cgColor
+            button.transform = isSelected ? CGAffineTransform(scaleX: 1.08, y: 1.08) : .identity
+        }
+    }
+
+    private func updateToolSelectionUI() {
+        let active: UIButton? = {
+            if isEraserSelected { return eraserButton }
+            switch selectedBrush {
+            case .pen: return penButton
+            case .neon: return neonButton
+            case .marker: return markerButton
+            case .arrow: return arrowButton
+            }
+        }()
+
+        let all = [penButton, neonButton, markerButton, arrowButton, eraserButton]
+        for button in all {
+            let isActive = (button === active)
+            button?.backgroundColor = isActive ? UIColor.white.withAlphaComponent(0.28) : UIColor.black.withAlphaComponent(0.22)
+            button?.layer.borderWidth = isActive ? 1 : 0
+            button?.layer.borderColor = UIColor.white.withAlphaComponent(0.55).cgColor
+        }
     }
 }
 import SwiftUI
@@ -5227,111 +5371,382 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
 // MARK: - Story Text Editor Implementation
 
 struct StoryTextEditor: View {
+    @Binding var isPresented: Bool
     @Binding var text: String
     @Binding var selectedStyle: StoryEditingView.TextStyle
-    @Environment(\.dismiss) private var dismiss
+    @Binding var textColor: Color
+    @Binding var textAlignment: TextAlignment
+    @Binding var textBackgroundFill: StoryEditingView.TextBackgroundFill
     @FocusState private var isTextFieldFocused: Bool
-    
-    @State private var textColor: Color = .white
-    @State private var textAlignment: TextAlignment = .center
-    
+    @State private var keyboardHeight: CGFloat = 0
+    @State private var activeTool: EditorTool = .font
+
+    enum EditorTool: CaseIterable {
+        case font, color, background, effect, align
+    }
+
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.9)
+        GeometryReader { proxy in
+            let keyboardInset = max(0, keyboardHeight - proxy.safeAreaInsets.bottom)
+
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.08),
+                        Color.black.opacity(0.22),
+                        Color.black.opacity(0.32)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
                 .onTapGesture {
-                    dismiss()
-                }
-            
-            VStack(spacing: 0) {
-                Spacer()
-                
-                // Text input area
-                VStack(spacing: 20) {
-                    TextField("", text: $text, prompt: Text("creator.addText").foregroundColor(.gray))
-                        .font(selectedStyle.font)
-                        .foregroundColor(textColor)
-                        .multilineTextAlignment(textAlignment)
-                        .focused($isTextFieldFocused)
-                        .padding()
-                        .background(selectedStyle.backgroundColor)
-                        .cornerRadius(10)
-                        .padding(.horizontal)
-                    
-                    // Style options
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 15) {
-                            ForEach([StoryEditingView.TextStyle.modern, .classic, .neon, .typewriter, .bold], id: \.self) { style in
-                                TextStyleOption(
-                                    style: style,
-                                    isSelected: selectedStyle == style
-                                ) {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        selectedStyle = style
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Color picker
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 15) {
-                            ForEach([Color.white, .black, .red, .orange, .yellow, .green, .blue, .purple, .pink], id: \.self) { color in
-                                ColorOption(
-                                    color: color,
-                                    isSelected: textColor == color
-                                ) {
-                                    textColor = color
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Alignment options
-                    HStack(spacing: 30) {
-                        AlignmentButton(
-                            alignment: .leading,
-                            currentAlignment: $textAlignment,
-                            icon: "text.alignleft"
-                        )
-                        
-                        AlignmentButton(
-                            alignment: .center,
-                            currentAlignment: $textAlignment,
-                            icon: "text.aligncenter"
-                        )
-                        
-                        AlignmentButton(
-                            alignment: .trailing,
-                            currentAlignment: $textAlignment,
-                            icon: "text.alignright"
-                        )
-                    }
-                    .padding()
+                    hideKeyboard()
                 }
                 
-                // Done button
-                Button(action: {
-                    dismiss()
-                }) {
-                    Text("creator.done")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
+                VStack(spacing: 0) {
+                    HStack {
+                        Button(action: { isPresented = false }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 34, height: 34)
+                                .liquidGlass(in: Circle())
+                        }
+                        Spacer()
+                        Button(action: { isPresented = false }) {
+                            Text("creator.done")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .liquidGlass(in: Capsule())
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                    .padding(.top, 8)
+                    
+                    Spacer(minLength: keyboardInset > 0 ? 10 : 22)
+                    
+                    ZStack(alignment: .topLeading) {
+                        if text.isEmpty {
+                            Text("creator.addText")
+                                .font(.system(size: 30, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white.opacity(0.58))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 10)
+                        }
+                        
+                        TextEditor(text: $text)
+                            .font(selectedStyle.font)
+                            .foregroundColor(textColor)
+                            .multilineTextAlignment(textAlignment)
+                            .focused($isTextFieldFocused)
+                            .scrollContentBackground(.hidden)
+                            .background(Color.clear)
+                            .frame(minHeight: 130, maxHeight: 240)
+                            .padding(.horizontal, 0)
+                            .padding(.vertical, 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
+                    .padding(.horizontal, 24)
+                    
+                    Spacer(minLength: keyboardInset > 0 ? 8 : 12)
+
+                    VStack(spacing: 10) {
+                        toolContentRow
+
+                        HStack(spacing: 12) {
+                            toolButton(icon: "textformat", tool: .font)
+                            toolButton(icon: "paintpalette", tool: .color)
+                            toolButton(icon: "character.textbox", tool: .background)
+                            toolButton(icon: "sparkles", tool: .effect)
+                            toolButton(icon: alignmentIcon, tool: .align)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    }
                 }
-                .padding(.bottom)
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, keyboardInset + 12)
+                .animation(.easeOut(duration: 0.24), value: keyboardInset)
             }
         }
         .onAppear {
-            isTextFieldFocused = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isTextFieldFocused = true
+            }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            updateKeyboardHeight(notification as Foundation.Notification)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardHeight = 0
+        }
+    }
+
+    @ViewBuilder
+    private var toolContentRow: some View {
+        switch activeTool {
+        case .font:
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach([StoryEditingView.TextStyle.modern, .classic, .neon, .typewriter, .bold], id: \.self) { style in
+                        fontPill(for: style)
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+            .frame(height: 40)
+
+        case .color:
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach([Color.white, .black, .red, .orange, .yellow, .green, .blue, .purple, .pink], id: \.self) { color in
+                        ColorOption(
+                            color: color,
+                            isSelected: textColor == color
+                        ) {
+                            if textBackgroundFill == .white && isLightColor(color) {
+                                textColor = .black
+                            } else if textBackgroundFill == .black && isDarkColor(color) {
+                                textColor = .white
+                            } else {
+                                textColor = color
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+            .frame(height: 44)
+
+        case .effect:
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    effectPill(title: "Classic", style: .classic)
+                    effectPill(title: "Fill", style: .modern)
+                    effectPill(title: "Glow", style: .neon)
+                    effectPill(title: "Bold", style: .bold)
+                    effectPill(title: "Mono", style: .typewriter)
+                }
+                .padding(.horizontal, 2)
+            }
+            .frame(height: 40)
+
+        case .background:
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    backgroundFillPill(title: "None", fill: .none)
+                    backgroundFillPill(title: "Black", fill: .black)
+                    backgroundFillPill(title: "White", fill: .white)
+                }
+                .padding(.horizontal, 2)
+            }
+            .frame(height: 40)
+
+        case .align:
+            HStack(spacing: 12) {
+                AlignmentButton(
+                    alignment: .leading,
+                    currentAlignment: $textAlignment,
+                    icon: "text.alignleft"
+                )
+                
+                AlignmentButton(
+                    alignment: .center,
+                    currentAlignment: $textAlignment,
+                    icon: "text.aligncenter"
+                )
+                
+                AlignmentButton(
+                    alignment: .trailing,
+                    currentAlignment: $textAlignment,
+                    icon: "text.alignright"
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .frame(height: 40)
+        }
+    }
+
+    private func fontPill(for style: StoryEditingView.TextStyle) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                selectedStyle = style
+            }
+        } label: {
+            Text(fontLabel(for: style))
+                .font(.system(size: 13, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(selectedStyle == style ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(selectedStyle == style ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func effectPill(title: String, style: StoryEditingView.TextStyle) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                selectedStyle = style
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .background(selectedStyle == style ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(selectedStyle == style ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func backgroundFillPill(title: String, fill: StoryEditingView.TextBackgroundFill) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                textBackgroundFill = fill
+                if fill == .white && isLightColor(textColor) {
+                    textColor = .black
+                } else if fill == .black && isDarkColor(textColor) {
+                    textColor = .white
+                }
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .background(textBackgroundFill == fill ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(textBackgroundFill == fill ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toolButton(icon: String, tool: EditorTool) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                activeTool = tool
+            }
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(activeTool == tool ? .white : .white.opacity(0.82))
+                .frame(width: 36, height: 36)
+                .background(activeTool == tool ? Color.white.opacity(0.24) : Color.white.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(activeTool == tool ? Color.white.opacity(0.52) : Color.white.opacity(0.14), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var alignmentIcon: String {
+        switch textAlignment {
+        case .leading:
+            return "text.alignleft"
+        case .trailing:
+            return "text.alignright"
+        default:
+            return "text.aligncenter"
+        }
+    }
+
+    private func fontLabel(for style: StoryEditingView.TextStyle) -> String {
+        switch style {
+        case .modern:
+            return "Modern"
+        case .classic:
+            return "Classic"
+        case .neon:
+            return "Neon"
+        case .typewriter:
+            return "Mono"
+        case .bold:
+            return "Bold"
+        }
+    }
+
+    private func isLightColor(_ color: Color) -> Bool {
+        let uiColor = UIColor(color)
+
+        var white: CGFloat = 0
+        var alpha: CGFloat = 0
+        if uiColor.getWhite(&white, alpha: &alpha) {
+            return white > 0.82
+        }
+
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        if uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+            let luminance = (0.299 * red) + (0.587 * green) + (0.114 * blue)
+            return luminance > 0.82
+        }
+
+        return false
+    }
+
+    private func isDarkColor(_ color: Color) -> Bool {
+        let uiColor = UIColor(color)
+
+        var white: CGFloat = 0
+        var alpha: CGFloat = 0
+        if uiColor.getWhite(&white, alpha: &alpha) {
+            return white < 0.22
+        }
+
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        if uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+            let luminance = (0.299 * red) + (0.587 * green) + (0.114 * blue)
+            return luminance < 0.22
+        }
+
+        return false
+    }
+
+    private func alignmentForText(_ alignment: TextAlignment) -> Alignment {
+        switch alignment {
+        case .leading:
+            return .leading
+        case .trailing:
+            return .trailing
+        default:
+            return .center
+        }
+    }
+
+    private func updateKeyboardHeight(_ notification: Foundation.Notification) {
+        guard let userInfo = notification.userInfo,
+              let keyboardFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
+            return
+        }
+
+        let screenHeight = UIScreen.main.bounds.height
+        keyboardHeight = max(0, screenHeight - keyboardFrame.minY)
     }
 }
 
@@ -5353,22 +5768,22 @@ struct TextStyleOption: View {
     var body: some View {
         Button(action: onTap) {
             Text(stylePreview)
-                .font(style.font)
+                .font(.system(size: 19, weight: .semibold, design: .rounded))
                 .foregroundColor(.white)
-                .frame(width: 60, height: 60)
+                .frame(width: 46, height: 46)
                 .background(
                     ZStack {
                         style.backgroundColor
                         
                         if style.backgroundColor == .clear {
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 12)
                                 .stroke(Color.white.opacity(0.3), lineWidth: 1)
                         }
                     }
                 )
-                .cornerRadius(8)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
                 )
         }
@@ -5382,19 +5797,25 @@ struct ColorOption: View {
     
     var body: some View {
         Button(action: onTap) {
-            Circle()
-                .fill(color)
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Circle()
-                        .stroke(color == .white ? Color.gray : Color.white, lineWidth: 2)
-                )
-                .overlay(
-                    Circle()
-                        .stroke(isSelected ? Color.white : Color.clear, lineWidth: 3)
-                        .padding(-4)
-                )
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 20, height: 20)
+                    .overlay(
+                        Circle()
+                            .stroke(color == .white ? Color.gray : Color.white, lineWidth: 1.2)
+                    )
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(isSelected ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
+            )
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -5408,14 +5829,18 @@ struct AlignmentButton: View {
             currentAlignment = alignment
         }) {
             Image(systemName: icon)
-                .font(.system(size: 20))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(currentAlignment == alignment ? .white : .gray)
-                .frame(width: 44, height: 44)
-                .background(
-                    currentAlignment == alignment ? Color.gray.opacity(0.3) : Color.clear
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(currentAlignment == alignment ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(currentAlignment == alignment ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
                 )
-                .cornerRadius(8)
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -5502,6 +5927,10 @@ struct StoryOverlaysView: View {
     @Binding var text: String
     @Binding var textPosition: CGPoint
     @Binding var textStyle: StoryEditingView.TextStyle
+    @Binding var textColor: Color
+    @Binding var textAlignment: TextAlignment
+    @Binding var textBackgroundFill: StoryEditingView.TextBackgroundFill
+    @Binding var isTextEditorPresented: Bool
     @Binding var stickers: [StickerItem]
     @Binding var drawingImage: UIImage?
     
@@ -5562,13 +5991,25 @@ struct StoryOverlaysView: View {
             }
             
             // Text overlay
-            if !text.isEmpty {
+            if !text.isEmpty && !isTextEditorPresented {
                 Text(text)
                     .font(textStyle.font)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(textStyle.backgroundColor)
-                    .cornerRadius(8)
+                    .foregroundColor(textColor)
+                    .multilineTextAlignment(textAlignment)
+                    .lineLimit(nil)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .background(
+                        Group {
+                            if let backgroundColor = textBackgroundColor {
+                                backgroundColor
+                            }
+                        }
+                    )
+                    .clipShape(
+                        RoundedRectangle(cornerRadius: textBackgroundColor == nil ? 0 : 10, style: .continuous)
+                    )
+                    .padding(.horizontal, 24)
                     .position(textPosition)
                     .scaleEffect(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
                     .opacity(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
@@ -5703,6 +6144,17 @@ struct StoryOverlaysView: View {
         }
 
     }
+
+    private var textBackgroundColor: Color? {
+        switch textBackgroundFill {
+        case .none:
+            return nil
+        case .black:
+            return Color.black.opacity(0.58)
+        case .white:
+            return Color.white.opacity(0.90)
+        }
+    }
     
     private func handleStickerTap(_ sticker: StickerItem) {
         switch sticker.type {
@@ -5804,6 +6256,9 @@ struct StickerOverlayView: View {
     @State private var scale: CGFloat
     @State private var rotation: Angle
     @State private var showInteractionFeedback = false
+    @State private var selfieCaptureTrigger = false
+    @State private var selfieSwitchCameraTrigger = false
+    @State private var lastSelfieSwitchAt: Date = .distantPast
     
     init(sticker: Binding<StickerItem>, isSelected: Bool, isDragging: Bool,
          onUpdate: @escaping (StickerItem) -> Void,
@@ -5889,6 +6344,50 @@ struct StickerOverlayView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 28))
                         .allowsHitTesting(false)
                 }
+            } else if isLiveSelfieSticker {
+                ZStack {
+                    SelfieStickerLiveCameraView(
+                        captureTrigger: $selfieCaptureTrigger,
+                        switchCameraTrigger: $selfieSwitchCameraTrigger
+                    ) { capturedImage in
+                        let targetSize = max(sticker.image.size.width, 100)
+                        let stickerImage = makeCapturedSelfieStickerImage(from: capturedImage, size: targetSize)
+                        let capturedSticker = StickerItem(
+                            id: sticker.id,
+                            image: stickerImage,
+                            position: currentPosition,
+                            scale: scale,
+                            rotation: rotation,
+                            gifURL: nil,
+                            videoURL: nil,
+                            isAnimated: false,
+                            type: .selfie,
+                            interactionData: nil
+                        )
+                        sticker = capturedSticker
+                        onUpdate(capturedSticker)
+                    }
+                    .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                    .clipShape(Circle())
+
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2)
+                        .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Image(systemName: "camera.circle.fill")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
+                                .padding(8)
+                        }
+                    }
+                }
+                .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                .allowsHitTesting(false)
             } else if sticker.type == .poll, let pollData = sticker.interactionData?.pollData {
                 // POLL INTERACTIVO
                 InteractivePollSticker(
@@ -6076,12 +6575,21 @@ struct StickerOverlayView: View {
             } else {
                 // STICKER ESTÁTICO / IMAGEN (Emoji, Generic, etc.)
                 // ✅ FIX: Usar tamaño natural de la imagen
-                Image(uiImage: sticker.image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit) // Asegurar aspecto correcto
-                    .frame(width: sticker.image.size.width, height: sticker.image.size.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-                    .allowsHitTesting(false)
+                if sticker.type == .selfie {
+                    Image(uiImage: sticker.image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                        .clipShape(Circle())
+                        .allowsHitTesting(false)
+                } else {
+                    Image(uiImage: sticker.image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit) // Asegurar aspecto correcto
+                        .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                        .allowsHitTesting(false)
+                }
             }
         }
         .rotationEffect(rotation)
@@ -6094,6 +6602,16 @@ struct StickerOverlayView: View {
         .onTapGesture {
             handleStickerTap()
         }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45)
+                .onEnded { _ in
+                    guard isLiveSelfieSticker else { return }
+                    lastSelfieSwitchAt = Date()
+                    selfieSwitchCameraTrigger.toggle()
+                    let feedback = UIImpactFeedbackGenerator(style: .rigid)
+                    feedback.impactOccurred()
+                }
+        )
         .gesture(
             // ✅ DRAG GESTURE - Completamente libre
             DragGesture()
@@ -6158,6 +6676,15 @@ struct StickerOverlayView: View {
     }
     
     private func handleStickerTap() {
+        if isLiveSelfieSticker {
+            // Evita capturar justo después de long-press para cambiar cámara.
+            if Date().timeIntervalSince(lastSelfieSwitchAt) < 0.35 { return }
+            selfieCaptureTrigger.toggle()
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            return
+        }
+
         // ✅ Feedback visual MUY sutil
         withAnimation(.spring(response: 0.15, dampingFraction: 0.9)) {
             showInteractionFeedback = true
@@ -6175,6 +6702,274 @@ struct StickerOverlayView: View {
             withAnimation(.easeOut(duration: 0.15)) {
                 showInteractionFeedback = false
             }
+        }
+    }
+
+    private var isLiveSelfieSticker: Bool {
+        sticker.type == .selfie && sticker.interactionData?.caption == "selfie_live"
+    }
+
+    private func makeCapturedSelfieStickerImage(from originalImage: UIImage, size: CGFloat) -> UIImage {
+        let selfieImage = downscaleSelfieImageIfNeeded(originalImage)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        return renderer.image { context in
+            let rect = CGRect(x: 0, y: 0, width: size, height: size)
+            let circlePath = UIBezierPath(ovalIn: rect)
+            UIColor.clear.setFill()
+            circlePath.fill()
+            let imageRect = rect.insetBy(dx: size * 0.018, dy: size * 0.018)
+            let imageCirclePath = UIBezierPath(ovalIn: imageRect)
+            context.cgContext.saveGState()
+            imageCirclePath.addClip()
+
+            let aspectRatio = selfieImage.size.width / max(selfieImage.size.height, 1)
+            let drawRect: CGRect
+            if aspectRatio > 1 {
+                let drawHeight = imageRect.height
+                let drawWidth = drawHeight * aspectRatio
+                let drawX = imageRect.midX - drawWidth / 2
+                drawRect = CGRect(x: drawX, y: imageRect.minY, width: drawWidth, height: drawHeight)
+            } else {
+                let drawWidth = imageRect.width
+                let drawHeight = drawWidth / max(aspectRatio, 0.0001)
+                let drawY = imageRect.midY - drawHeight / 2
+                drawRect = CGRect(x: imageRect.minX, y: drawY, width: drawWidth, height: drawHeight)
+            }
+
+            selfieImage.draw(in: drawRect)
+            context.cgContext.restoreGState()
+
+            UIColor.white.setStroke()
+            circlePath.lineWidth = max(1.6, size * 0.016)
+            circlePath.stroke()
+        }
+    }
+
+    private func downscaleSelfieImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 900) -> UIImage {
+        if image.size.width <= maxDimension && image.size.height <= maxDimension {
+            return image
+        }
+
+        let aspectRatio = image.size.width / max(image.size.height, 1)
+        let newSize: CGSize
+        if image.size.width > image.size.height {
+            newSize = CGSize(width: maxDimension, height: maxDimension / aspectRatio)
+        } else {
+            newSize = CGSize(width: maxDimension * aspectRatio, height: maxDimension)
+        }
+
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
+}
+
+struct SelfieStickerLiveCameraView: UIViewRepresentable {
+    @Binding var captureTrigger: Bool
+    @Binding var switchCameraTrigger: Bool
+    let onPhotoCaptured: (UIImage) -> Void
+
+    func makeUIView(context: Context) -> SelfieStickerCameraPreviewView {
+        let view = SelfieStickerCameraPreviewView()
+        view.onPhotoCaptured = onPhotoCaptured
+        return view
+    }
+
+    func updateUIView(_ uiView: SelfieStickerCameraPreviewView, context: Context) {
+        if captureTrigger != context.coordinator.lastCaptureState {
+            context.coordinator.lastCaptureState = captureTrigger
+            uiView.capturePhoto()
+        }
+        if switchCameraTrigger != context.coordinator.lastSwitchCameraState {
+            context.coordinator.lastSwitchCameraState = switchCameraTrigger
+            uiView.toggleCamera()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var lastCaptureState = false
+        var lastSwitchCameraState = false
+    }
+}
+
+final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegate {
+    private let session = AVCaptureSession()
+    private let sessionQueue = DispatchQueue(label: "moments.selfieSticker.camera")
+    private let photoOutput = AVCapturePhotoOutput()
+    private var currentInput: AVCaptureDeviceInput?
+    private var currentCameraPosition: AVCaptureDevice.Position = .front
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var isConfigured = false
+
+    var onPhotoCaptured: ((UIImage) -> Void)?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        layer.cornerRadius = 18
+        clipsToBounds = true
+        configureCamera()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        backgroundColor = .black
+        layer.cornerRadius = 18
+        clipsToBounds = true
+        configureCamera()
+    }
+
+    deinit {
+        sessionQueue.async { [session] in
+            if session.isRunning {
+                session.stopRunning()
+            }
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        previewLayer?.frame = bounds
+    }
+
+    func capturePhoto() {
+        sessionQueue.async {
+            guard self.isConfigured else { return }
+            let settings = AVCapturePhotoSettings()
+            settings.flashMode = .off
+            if let connection = self.photoOutput.connection(with: .video) {
+                if connection.isVideoOrientationSupported {
+                    connection.videoOrientation = .portrait
+                }
+                if connection.isVideoMirroringSupported {
+                    connection.automaticallyAdjustsVideoMirroring = false
+                    connection.isVideoMirrored = (self.currentCameraPosition == .front)
+                }
+            }
+            self.photoOutput.capturePhoto(with: settings, delegate: self)
+        }
+    }
+
+    func toggleCamera() {
+        sessionQueue.async {
+            guard self.isConfigured else { return }
+            let newPosition: AVCaptureDevice.Position = self.currentCameraPosition == .front ? .back : .front
+            guard let newDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: newPosition),
+                  let newInput = try? AVCaptureDeviceInput(device: newDevice) else { return }
+
+            self.session.beginConfiguration()
+            if let existing = self.currentInput {
+                self.session.removeInput(existing)
+            }
+
+            if self.session.canAddInput(newInput) {
+                self.session.addInput(newInput)
+                self.currentInput = newInput
+                self.currentCameraPosition = newPosition
+            } else if let oldInput = self.currentInput, self.session.canAddInput(oldInput) {
+                self.session.addInput(oldInput)
+            }
+            self.session.commitConfiguration()
+
+            DispatchQueue.main.async {
+                self.applyPreviewConnectionConfiguration()
+            }
+        }
+    }
+
+    private func configureCamera() {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            setupSession()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                if granted {
+                    self.setupSession()
+                }
+            }
+        default:
+            break
+        }
+    }
+
+    private func setupSession() {
+        sessionQueue.async {
+            guard !self.isConfigured else { return }
+            self.session.beginConfiguration()
+            self.session.sessionPreset = .photo
+
+            guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: self.currentCameraPosition),
+                  let input = try? AVCaptureDeviceInput(device: camera),
+                  self.session.canAddInput(input) else {
+                self.session.commitConfiguration()
+                return
+            }
+
+            self.session.addInput(input)
+            self.currentInput = input
+
+            guard self.session.canAddOutput(self.photoOutput) else {
+                self.session.commitConfiguration()
+                return
+            }
+
+            self.session.addOutput(self.photoOutput)
+            self.photoOutput.isHighResolutionCaptureEnabled = false
+            self.session.commitConfiguration()
+            self.isConfigured = true
+
+            DispatchQueue.main.async {
+                let previewLayer = AVCaptureVideoPreviewLayer(session: self.session)
+                previewLayer.videoGravity = .resizeAspectFill
+                previewLayer.frame = self.bounds
+                self.layer.insertSublayer(previewLayer, at: 0)
+                self.previewLayer = previewLayer
+                self.applyPreviewConnectionConfiguration()
+            }
+
+            self.session.startRunning()
+        }
+    }
+
+    private func applyPreviewConnectionConfiguration() {
+        guard let previewConnection = previewLayer?.connection else { return }
+        if previewConnection.isVideoOrientationSupported {
+            previewConnection.videoOrientation = .portrait
+        }
+        if previewConnection.isVideoMirroringSupported {
+            previewConnection.automaticallyAdjustsVideoMirroring = false
+            previewConnection.isVideoMirrored = (currentCameraPosition == .front)
+        }
+    }
+
+    func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: Error?
+    ) {
+        guard error == nil,
+              let data = photo.fileDataRepresentation(),
+              let image = UIImage(data: data) else { return }
+
+        let normalized = image.normalizedUp()
+        DispatchQueue.main.async {
+            self.onPhotoCaptured?(normalized)
+        }
+    }
+}
+
+private extension UIImage {
+    func normalizedUp() -> UIImage {
+        if imageOrientation == .up { return self }
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: size))
         }
     }
 }

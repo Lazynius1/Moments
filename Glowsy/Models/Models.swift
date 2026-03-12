@@ -1128,6 +1128,11 @@ struct StickerData: Codable {
     
     // ✅ FUNCIÓN extractContent ACTUALIZADA para incluir música y renderizar imágenes a Base64
     private static func extractContent(from sticker: StickerItem) -> String {
+        // Selfie stickers need alpha channel to avoid black corners after upload/render.
+        if sticker.type == .selfie, let pngData = sticker.image.pngData() {
+            return pngData.base64EncodedString()
+        }
+
         // 1. PRIORIDAD: Shared Moments y otros que requieren Base64 para el template visual
         // Esto garantiza que el sticker se vea perfecto en el visor aunque no cargue el media aún
         if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment].contains(sticker.type) {

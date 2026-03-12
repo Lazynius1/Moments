@@ -2123,19 +2123,19 @@
 
 /* La Teva Activitat */
 "whatsNew.activity.title" = "Revisa la Teva Activitat";
-"whatsNew.activity.description" = "Una nova secció per gestionar les teves reaccions, comentaris i mencions en un sol lloc.";
+"whatsNew.activity.description" = "Ara pots revisar millor les teves reaccions, comentaris, etiquetes, respostes a stickers i molt més des d'un sol lloc.";
 
-/* Stories */
-"whatsNew.redesign.title" = "Històries Més Clares";
-"whatsNew.stories.description" = "Els anells ara són més consistents a tota l'app amb millors indicadors visuals d'audiència.";
+/* Archive */
+"whatsNew.archive.title" = "Un Arxiu Molt Millor";
+"whatsNew.archive.description" = "Explora les teves històries arxivades en quadrícula, calendari i mapa amb una navegació molt més còmoda.";
 
-/* Echoes */
-"whatsNew.echoes.title" = "Echoes, Reimaginats";
-"whatsNew.echoes.description" = "Visor i historial redissenyats. A més, una descripció més clara de com funciona.";
+/* Notifications */
+"whatsNew.notifications.title" = "Notificacions Més Clares";
+"whatsNew.notifications.description" = "La safata s'entén millor i diversos fluxos d'avisos, sol·licituds i obertures ara són més fiables.";
 
-/* Settings redesign */
-"whatsNew.settings.title" = "Un Menú d'Ajustos Més Net";
-"whatsNew.settings.description" = "Els ajustos han estat completament redissenyats per ser més intuïtius i fàcils de navegar.";
+/* Privacy */
+"whatsNew.privacy.title" = "Privacitat Més Consistent";
+"whatsNew.privacy.description" = "El contingut restringit, els comptes silenciats i les paraules silenciades ara es comporten d'una manera més clara i coherent.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";

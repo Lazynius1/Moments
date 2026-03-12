@@ -10,6 +10,7 @@ struct LocationMomentDetailView: View {
     let locationMoments: [Moment]
     let initialIndex: Int
     let locationName: String
+    @Binding var momentAvailability: [String: Bool]
     @Binding var isPresented: Bool
     @Environment(\.colorScheme) var colorScheme
     
@@ -54,10 +55,17 @@ struct LocationMomentDetailView: View {
         return location
     }
     
-    init(locationMoments: [Moment], initialIndex: Int, locationName: String, isPresented: Binding<Bool>) {
+    init(
+        locationMoments: [Moment],
+        initialIndex: Int,
+        locationName: String,
+        momentAvailability: Binding<[String: Bool]> = .constant([:]),
+        isPresented: Binding<Bool>
+    ) {
         self.locationMoments = locationMoments
         self.initialIndex = initialIndex
         self.locationName = locationName
+        self._momentAvailability = momentAvailability
         self._isPresented = isPresented
         self._currentIndex = State(initialValue: initialIndex)
     }
@@ -485,11 +493,13 @@ struct LocationMomentDetailView: View {
     private func locationMomentsCarousel(geometry: GeometryProxy) -> some View {
         TabView(selection: $currentIndex) {
             ForEach(Array(locationMoments.enumerated()), id: \.offset) { index, moment in
+                let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
                 ScreenshotProtectedView(
                     isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
                 ) {
                     LocationMomentCard(
                         moment: moment,
+                        isAvailable: isAvailable,
                         availableHeight: geometry.size.height - 160,
                         colorScheme: colorScheme,
                         commentCount: commentCounts[moment.id ?? ""] ?? 0,
@@ -586,6 +596,7 @@ struct LocationMomentDetailView: View {
 // MARK: - ✅ Tarjeta de momento de ubicación REFACTORIZADA
 struct LocationMomentCard: View {
     let moment: Moment
+    let isAvailable: Bool
     let availableHeight: CGFloat
     let colorScheme: ColorScheme
     let commentCount: Int
@@ -716,6 +727,14 @@ struct LocationMomentCard: View {
             }
             .padding(.horizontal, 15)
             .frame(maxWidth: .infinity, minHeight: availableHeight, alignment: .top)
+        }
+        .disabled(!isAvailable)
+        .blur(radius: isAvailable ? 0 : 20)
+        .overlay {
+            if !isAvailable {
+                MomentUnavailableOverlay(compact: false, cornerRadius: 24)
+                    .allowsHitTesting(false)
+            }
         }
         .background(Color.clear)
         .ignoresSafeArea(.container, edges: .top)
@@ -1184,6 +1203,15 @@ struct LocationMomentCard: View {
         } else {
             self.aspectRatioType = .square
         }
+    }
+}
+
+private extension Moment {
+    var mapAvailabilityKey: String {
+        if let id = id?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
+            return id
+        }
+        return "\(authorId)|\(Int(timestamp.timeIntervalSince1970))|\(content)"
     }
 }
 

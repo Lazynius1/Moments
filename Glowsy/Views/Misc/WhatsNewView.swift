@@ -76,7 +76,6 @@ struct WhatsNewView: View {
                     VStack(spacing: 22) {
 
                         // 🔒 Blackout — toda la pantalla desaparece en una captura
-                        // 🔒 Blackout — toda la pantalla desaparece en una captura
                         VStack(spacing: 16) {
                             WhatsNewFeatureRow(
                                 icon: "lock.shield.fill",
@@ -98,26 +97,26 @@ struct WhatsNewView: View {
                         )
 
                         WhatsNewFeatureRow(
-                            icon: "circle.dashed",
-                            color: Color(hex: "9333EA"),
-                            title: NSLocalizedString("whatsNew.redesign.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.stories.description", comment: ""),
+                            icon: "archivebox.fill",
+                            color: Color(hex: "F59E0B"),
+                            title: NSLocalizedString("whatsNew.archive.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.archive.description", comment: ""),
                             delay: 0.3
                         )
 
                         WhatsNewFeatureRow(
-                            icon: "heart.circle.fill",
-                            color: .pink,
-                            title: NSLocalizedString("whatsNew.echoes.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.echoes.description", comment: ""),
+                            icon: "bell.badge.fill",
+                            color: Color(hex: "EC4899"),
+                            title: NSLocalizedString("whatsNew.notifications.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.notifications.description", comment: ""),
                             delay: 0.4
                         )
 
                         WhatsNewFeatureRow(
-                            icon: "gearshape.2.fill",
-                            color: Color(hex: "4F46E5"),
-                            title: NSLocalizedString("whatsNew.settings.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.settings.description", comment: ""),
+                            icon: "eye.slash.fill",
+                            color: Color(hex: "10B981"),
+                            title: NSLocalizedString("whatsNew.privacy.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.privacy.description", comment: ""),
                             delay: 0.5
                         )
                     }

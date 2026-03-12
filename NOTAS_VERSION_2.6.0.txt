@@ -1,52 +1,121 @@
 Novedades de Moments (v2.6.0)
 
-Hemos pulido Moments para que todo sea mas consistente, mas claro y mas fiable en el uso diario.
+Hemos pulido Moments para que se sienta mas claro, mas consistente y mas fiable en el uso diario.
 
 Lo mas importante de esta version:
 
-PRIVACIDAD MAS CONSISTENTE
-- Mejor aplicacion de privacidad en las vistas donde aparece contenido (feed, explore, perfil y guardados).
-- En guardados, cuando ya no puedes ver un momento, ahora se muestra estado restringido de forma clara.
+BLACKOUT
+- Blackout protege momentos e historias privadas, ademas de contenido efimero en mensajes.
+- Las capturas de ese contenido ahora salen ocultas para reforzar la privacidad visual.
+
+TU ACTIVIDAD, MUCHO MAS COMPLETA
+- Nueva organizacion por secciones para encontrar mejor lo que haces en la app.
+- Ahora puedes revisar mejor tus reacciones, comentarios, etiquetas y respuestas a stickers, archivados, eliminados recientemente, publicaciones, reels, Echoes, busquedas, historial y tiempo invertido.
+- Se mejoro la base para filtrar, ordenar y gestionar contenido con mas comodidad.
+
+ARCHIVO RENOVADO
+- Nuevo archivo de historias con vistas mas utiles.
+- Ahora puedes explorar tus historias archivadas en cuadrícula, calendario y mapa.
+- Mejor acceso entre archivo de historias y archivo de momentos para moverte mas rapido entre ambos.
+
+PRIVACIDAD Y CONTENIDO RESTRINGIDO
+- La privacidad se aplica de forma mas consistente en feed, explore, perfil, mapas, guardados y otras vistas donde aparece contenido.
+- Cuando un momento ya no esta disponible para ti, ahora se muestra de forma mucho mas clara.
 - Mejor comportamiento de cuentas silenciadas y palabras silenciadas en distintos flujos de la app.
+- Se refuerza la coherencia entre audiencias, contenido oculto y vistas guardadas.
 
-HISTORIAS Y ANILLOS
-- Los anillos de historias se muestran con mas consistencia en mas pantallas.
-- Mejor reflejo visual de audiencias (best friends y mutuals) en el estado de historias.
-- Correcciones en el estado visto/no visto para evitar inconsistencias.
-- Mejoras en vistas de actividad de historias y en la presentacion de audiencia/listas.
+NOTIFICACIONES Y FLUJOS MAS FIABLES
+- Pantalla de notificaciones mas limpia y facil de leer.
+- Mejor agrupacion para evitar mensajes confusos o resucitar notificaciones antiguas.
+- Ajustes en varios flujos de seguimiento, solicitudes y apertura de contenido desde notificaciones.
 
-AJUSTES Y PERFILES
-- Rediseño completo del menu de ajustes, mas limpio, moderno e intuitivo.
-- Rediseño y ajustes visuales en guardados para una experiencia mas limpia.
-- Mejoras de layout en vistas de detalle de momentos.
-- Mejor consistencia de colores y adaptacion a modo claro/oscuro.
-
-NOTIFICACIONES Y ACTIVIDAD
-- Mejoras en la pantalla de notificaciones para una lectura mas clara.
-- Ajustes en agrupacion de notificaciones para evitar mensajes confusos.
-- Mejoras en “Tu actividad” (especialmente reacciones y comentarios) con una base mas solida para filtrar y gestionar contenido.
-
-ECHOES
-- Mejoras de UX/UI en historial y visualizador de Echoes.
-- Se mejoro la explicacion in-app de como funciona Echoes para que sea mas facil de entender.
-
-COMPARTIR Y ENLACES
-- Flujo de compartir mas consistente en toda la app.
-- Mejor comportamiento al abrir enlaces de momentos desde la web/app.
-- Ajustes en previsualizacion y carga de autor/contenido compartido.
-
-EXPORTACION DE DATOS (CAMBIO IMPORTANTE)
-- La exportacion ahora se procesa en backend (Cloud Functions), incluso si cierras la app.
-- Descarga en ZIP con estructura mas completa.
-- Incluye datos principales, metadatos, conversaciones y medios disponibles.
-- Mejor trazabilidad del progreso y estado de exportacion.
-
-SEGURIDAD VISUAL
-- Blackout aplicado en contenido sensible (privado / una sola visualizacion).
-
-LOCALE Y ESTABILIDAD
-- Correcciones de textos y localizacion (ES/EN/CA).
-- Correccion de errores y mejoras generales de estabilidad.
+ESTABILIDAD Y LOCALIZACION
+- Correcciones de textos y localizacion en ES, EN y CA.
+- Mejoras generales de estabilidad, consistencia visual y pequeños errores repartidos por la app.
 
 En resumen:
-Moments ahora es mas robusto en privacidad, mas consistente en historias/perfiles y mas fiable en procesos clave como exportacion y notificaciones.
+Moments 2.6.0 pone el foco en privacidad visual, actividad, archivo y fiabilidad general. Todo se siente mas ordenado, mas solido y mas facil de gestionar.
+
+----------------------------------------
+ENGLISH
+----------------------------------------
+
+What's New in Moments (v2.6.0)
+
+We have refined Moments to make it feel clearer, more consistent, and more reliable in everyday use.
+
+The most important changes in this version:
+
+BLACKOUT
+- Blackout protects private moments and stories, as well as ephemeral media in messages.
+- Screenshots of that content are now hidden to reinforce visual privacy.
+
+YOUR ACTIVITY, NOW MUCH MORE COMPLETE
+- New section-based organization makes it easier to find what you do in the app.
+- You can now review reactions, comments, tags, sticker replies, archived content, recently deleted items, posts, reels, Echoes, searches, history, and time spent more easily.
+- The foundation for filtering, sorting, and managing content has also been improved.
+
+ARCHIVE, IMPROVED
+- A new stories archive with more useful views.
+- You can now explore your archived stories in grid, calendar, and map view.
+- Better access between the stories archive and the moments archive so you can move faster between both.
+
+PRIVACY AND RESTRICTED CONTENT
+- Privacy is now applied more consistently across feed, explore, profile, maps, saved items, and other places where content appears.
+- When a moment is no longer available to you, it is now shown in a much clearer way.
+- Muted accounts and muted words now behave better across different parts of the app.
+- Audience rules, hidden content, and saved views now feel much more coherent.
+
+NOTIFICATIONS AND MORE RELIABLE FLOWS
+- A cleaner notifications screen that is easier to read.
+- Better grouping to avoid confusing messages or reviving old notifications.
+- Improvements across follow requests, notification flows, and opening content from notifications.
+
+STABILITY AND LOCALIZATION
+- Text and localization fixes in ES, EN, and CA.
+- General stability improvements, more visual consistency, and many small fixes throughout the app.
+
+In summary:
+Moments 2.6.0 focuses on visual privacy, activity, archive, and overall reliability. Everything feels more organized, more solid, and easier to manage.
+
+----------------------------------------
+CATALA
+----------------------------------------
+
+Novetats de Moments (v2.6.0)
+
+Hem polit Moments perquè se senti més clar, més consistent i més fiable en l'ús diari.
+
+El més important d'aquesta versió:
+
+BLACKOUT
+- Blackout protegeix moments i històries privades, així com el contingut efímer als missatges.
+- Les captures d'aquest contingut ara queden ocultes per reforçar la privacitat visual.
+
+LA TEVA ACTIVITAT, MOLT MÉS COMPLETA
+- Nova organització per seccions per trobar millor tot el que fas a l'app.
+- Ara pots revisar millor les teves reaccions, comentaris, etiquetes, respostes a stickers, arxivats, eliminats recentment, publicacions, reels, Echoes, cerques, historial i temps invertit.
+- També s'ha millorat la base per filtrar, ordenar i gestionar contingut amb més comoditat.
+
+ARXIU RENOVAT
+- Nou arxiu d'històries amb vistes més útils.
+- Ara pots explorar les teves històries arxivades en quadrícula, calendari i mapa.
+- Millor accés entre l'arxiu d'històries i l'arxiu de moments per moure't més ràpid entre tots dos.
+
+PRIVACITAT I CONTINGUT RESTRINGIT
+- La privacitat s'aplica ara de manera més consistent al feed, explore, perfil, mapes, guardats i altres llocs on apareix contingut.
+- Quan un moment ja no està disponible per a tu, ara es mostra d'una manera molt més clara.
+- Els comptes silenciats i les paraules silenciades funcionen millor en diferents fluxos de l'app.
+- Les audiències, el contingut ocult i les vistes guardades ara se senten molt més coherents.
+
+NOTIFICACIONS I FLUXOS MÉS FIABLES
+- Pantalla de notificacions més neta i més fàcil de llegir.
+- Millor agrupació per evitar missatges confusos o que reapareguin notificacions antigues.
+- Ajustos en diversos fluxos de seguiment, sol·licituds i obertura de contingut des de notificacions.
+
+ESTABILITAT I LOCALITZACIÓ
+- Correccions de textos i localització en ES, EN i CA.
+- Millores generals d'estabilitat, més consistència visual i petits errors corregits arreu de l'app.
+
+En resum:
+Moments 2.6.0 posa el focus en la privacitat visual, l'activitat, l'arxiu i la fiabilitat general. Tot se sent més ordenat, més sòlid i més fàcil de gestionar.

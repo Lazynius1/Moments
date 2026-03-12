@@ -2118,19 +2118,19 @@
 
 /* Your Activity */
 "whatsNew.activity.title" = "Review Your Activity";
-"whatsNew.activity.description" = "A new section to manage your reactions, comments, and mentions in one single place.";
+"whatsNew.activity.description" = "You can now review reactions, comments, tags, sticker replies, and more from one place.";
 
-/* Stories */
-"whatsNew.redesign.title" = "Clearer Stories";
-"whatsNew.stories.description" = "Story rings are now more consistent across the app, with better visual cues for Best Friends and Mutuals audiences.";
+/* Archive */
+"whatsNew.archive.title" = "A Better Archive";
+"whatsNew.archive.description" = "Browse your archived stories in grid, calendar, and map views with a much smoother flow.";
 
-/* Echoes */
-"whatsNew.echoes.title" = "Echoes, Reimagined";
-"whatsNew.echoes.description" = "Redesigned viewer and history for Echoes. Plus, clearer in-app explanation of how they work.";
+/* Notifications */
+"whatsNew.notifications.title" = "Clearer Notifications";
+"whatsNew.notifications.description" = "The inbox is easier to read and several notification, request, and opening flows are now more reliable.";
 
-/* Settings redesign */
-"whatsNew.settings.title" = "A Cleaner Settings Menu";
-"whatsNew.settings.description" = "Settings has been fully redesigned to be more intuitive and easier to navigate.";
+/* Privacy */
+"whatsNew.privacy.title" = "More Consistent Privacy";
+"whatsNew.privacy.description" = "Restricted content, muted accounts, and muted words now behave in a clearer and more consistent way.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
