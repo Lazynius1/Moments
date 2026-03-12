@@ -1313,7 +1313,7 @@ struct GlassmorphicStoryViewer: View {
             height: height
         )
     }
-    
+
     private func stickerDisplayPosition(_ sticker: StickerItem, containerSize: CGSize) -> CGPoint {
         let contentRect = stickerContentRect(containerSize: containerSize)
         return CGPoint(
@@ -2239,7 +2239,7 @@ struct GlassmorphicStoryViewer: View {
     }
     
     private var contentView: some View {
-        ScreenshotProtectedView(isProtected: (story.audience?.lowercased() ?? "") != "everyone") {
+        ScreenshotProtectedView(isProtected: (story.audience?.lowercased() ?? "") != "everyone", fillsContainer: true) {
             ZStack {
                 // ✅ CONTENIDO PRINCIPAL (imagen/video)
                 Group {

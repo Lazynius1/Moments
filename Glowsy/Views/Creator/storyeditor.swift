@@ -3,6 +3,7 @@ import SwiftUI
 import AVFoundation
 import AVKit
 import FirebaseAuth
+import PencilKit
 
 // MARK: - Editable Image View
 struct EditableImageView: View {
@@ -71,6 +72,9 @@ struct StoryEditingView: View {
     @State private var showAlert = false
     @State private var storyText = ""
     @State private var textPosition: CGPoint = CGPoint(x: UIScreen.main.bounds.width / 2, y: 100)
+    @State private var storyTextColor: Color = .white
+    @State private var storyTextAlignment: TextAlignment = .center
+    @State private var storyTextBackground: TextBackgroundFill = .none
     @State private var selectedStickers: [StickerItem] = []
     @State private var showingTextEditor = false
     @State private var showingStickerPicker = false
@@ -154,14 +158,20 @@ struct StoryEditingView: View {
             }
         }
     }
+
+    enum TextBackgroundFill: String, CaseIterable {
+        case none
+        case black
+        case white
+    }
     
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ZStack {
                 backgroundMediaView()
                 
-                // Drawing overlay
-                if let drawing = drawingImage {
+                // Drawing overlay preview when text editor is open
+                if let drawing = drawingImage, showingTextEditor {
                     Image(uiImage: drawing)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -170,39 +180,68 @@ struct StoryEditingView: View {
                 }
                 
                 // Overlays
-                StoryOverlaysView(
-                    text: $storyText,
-                    textPosition: $textPosition,
-                    textStyle: $selectedTextStyle,
-                    stickers: $selectedStickers,
-                    drawingImage: $drawingImage,
-                    onNavigateToProfile: { userId in
-                        handleProfileNavigation(userId: userId)
-                    },
-                    onNavigateToLocation: { locationName, coordinate in
-                        handleLocationNavigation(locationName: locationName, coordinate: coordinate)
-                    }
-                )
-                .id(forceUpdate)
-                .ignoresSafeArea()
+                if !showingTextEditor && !showingDrawing {
+                    StoryOverlaysView(
+                        text: $storyText,
+                        textPosition: $textPosition,
+                        textStyle: $selectedTextStyle,
+                        textColor: $storyTextColor,
+                        textAlignment: $storyTextAlignment,
+                        textBackgroundFill: $storyTextBackground,
+                        isTextEditorPresented: $showingTextEditor,
+                        stickers: $selectedStickers,
+                        drawingImage: $drawingImage,
+                        onNavigateToProfile: { userId in
+                            handleProfileNavigation(userId: userId)
+                        },
+                        onNavigateToLocation: { locationName, coordinate in
+                            handleLocationNavigation(locationName: locationName, coordinate: coordinate)
+                        }
+                    )
+                    .id(forceUpdate)
+                    .ignoresSafeArea()
+                }
 
                 // Controls
-                VStack {
-                    topBarView()
-                    
-                    HStack {
+                if !showingTextEditor && !showingDrawing {
+                    VStack {
+                        topBarView()
+                        
+                        HStack {
+                            Spacer()
+                            sideToolbarView()
+                        }
+                        
                         Spacer()
-                        sideToolbarView()
+                        
+                        // Video playback controls
+                        if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
+                            VideoControlsOverlay()
+                        }
+                        
+                        bottomControlsView()
                     }
-                    
-                    Spacer()
-                    
-                    // Video playback controls
-                    if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
-                        VideoControlsOverlay()
-                    }
-                    
-                    bottomControlsView()
+                }
+
+                if showingDrawing {
+                    StoryDrawingEditorOverlay(
+                        isPresented: $showingDrawing,
+                        drawingImage: $drawingImage
+                    )
+                    .zIndex(45)
+                }
+
+                if showingTextEditor {
+                    StoryTextEditor(
+                        isPresented: $showingTextEditor,
+                        text: $storyText,
+                        selectedStyle: $selectedTextStyle,
+                        textColor: $storyTextColor,
+                        textAlignment: $storyTextAlignment,
+                        textBackgroundFill: $storyTextBackground
+                    )
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .zIndex(40)
                 }
             }
             .navigationDestination(for: String.self) { userId in
@@ -303,19 +342,8 @@ struct StoryEditingView: View {
                 isPresented: $showingLocationMap
             )
         }
-        .sheet(isPresented: $showingTextEditor) {
-            StoryTextEditor(
-                text: $storyText,
-                selectedStyle: $selectedTextStyle
-            )
-        }
         .sheet(isPresented: $showingStickerPicker) {
             StickerPickerView(selectedStickers: $selectedStickers)
-        }
-        .fullScreenCover(isPresented: $showingDrawing) {
-            DrawingView(backgroundImage: selectedMediaItems.first?.image) { drawing in
-                drawingImage = drawing
-            }
         }
         .overlay(
             Group {
@@ -361,7 +389,7 @@ struct StoryEditingView: View {
         try? AVAudioSession.sharedInstance().setActive(false)
         
     }
-    
+
     // ✅ NUEVAS FUNCIONES AUXILIARES
     private func getAudienceIcon() -> String {
         if storyAudience == .custom && selectedListId != nil {
@@ -878,21 +906,21 @@ struct StoryEditingView: View {
         
         let baseImage: UIImage = firstMedia.image
         
-        // ✅ RESOLUCIÓN COMPLETAMENTE DINÁMICA: Mantener el aspect ratio original siempre
-        // Bloqueamos el ancho a 1080 (HD) y calculamos la altura según el contenido
-        let baseWidth = baseImage.size.width
-        let baseHeight = baseImage.size.height
-        let contentAspectRatio = baseWidth / baseHeight
-        
-        // Calculamos el alto objetivo manteniendo el ratio (HD)
-        let targetHeight = 1080 / contentAspectRatio
-        var targetSize = CGSize(width: 1080, height: targetHeight)
-        
-        // Sanity check: Si por alguna razón el ratio es absurdo, limitamos para evitar accidentes
-        if targetHeight > 3000 { targetSize.height = 3000 }
-        if targetHeight < 500 { targetSize.height = 500 }
-        
         let screenSize = UIScreen.main.bounds.size
+        
+        // ✅ Canvas de salida con el mismo ratio que el editor (WYSIWYG)
+        // Así dibujo/texto/stickers mantienen proporciones al pasar a viewer.
+        let safeScreenWidth = max(screenSize.width, 1)
+        let safeScreenHeight = max(screenSize.height, 1)
+        let screenAspectRatio = safeScreenWidth / safeScreenHeight
+        
+        let targetWidth: CGFloat = 1080
+        let targetHeight = targetWidth / max(screenAspectRatio, 0.0001)
+        var targetSize = CGSize(width: targetWidth, height: targetHeight)
+        
+        // Sanity check para evitar tamaños extremos.
+        if targetSize.height > 3000 { targetSize.height = 3000 }
+        if targetSize.height < 1200 { targetSize.height = 1200 }
         
         // scaling factors
         let scaleFactorX = targetSize.width / screenSize.width
@@ -973,21 +1001,32 @@ struct StoryEditingView: View {
                 context.cgContext.translateBy(x: offsetX, y: offsetY)
             }
             
-            // Draw image scaled to fit/fill
+            // Draw image with the same rule as editor:
+            // horizontal -> fit, vertical -> fill
             let imageRatio = renderImage.size.width / renderImage.size.height
             let targetRatio = targetSize.width / targetSize.height
+            let useFit = imageRatio > 1.0
+            let mediaIsWider = imageRatio > targetRatio
             
             let finalWidth: CGFloat
             let finalHeight: CGFloat
             
-            if imageRatio > targetRatio {
-                // Horizontal image
-                finalWidth = targetSize.width
-                finalHeight = targetSize.width / imageRatio
+            if useFit {
+                if mediaIsWider {
+                    finalWidth = targetSize.width
+                    finalHeight = targetSize.width / imageRatio
+                } else {
+                    finalHeight = targetSize.height
+                    finalWidth = targetSize.height * imageRatio
+                }
             } else {
-                // Vertical image
-                finalHeight = targetSize.height
-                finalWidth = targetSize.height * imageRatio
+                if mediaIsWider {
+                    finalHeight = targetSize.height
+                    finalWidth = targetSize.height * imageRatio
+                } else {
+                    finalWidth = targetSize.width
+                    finalHeight = targetSize.width / imageRatio
+                }
             }
             
             let imageRect = CGRect(
@@ -1008,7 +1047,7 @@ struct StoryEditingView: View {
             // 4. Text overlay
             if !storyText.isEmpty {
                 let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = .center
+                paragraphStyle.alignment = nsTextAlignment(from: storyTextAlignment)
                 
                 let baseFontSize: CGFloat = 28
                 let scaledFontSize = baseFontSize * max(scaleFactorX, scaleFactorY)
@@ -1024,37 +1063,33 @@ struct StoryEditingView: View {
                 
                 let attributes: [NSAttributedString.Key: Any] = [
                     .font: font,
-                    .foregroundColor: UIColor.white,
+                    .foregroundColor: UIColor(storyTextColor),
                     .paragraphStyle: paragraphStyle
                 ]
                 
-                let textSize = storyText.size(withAttributes: attributes)
+                let attributedText = NSAttributedString(string: storyText, attributes: attributes)
+                let maxTextWidth = rect.width * 0.82
+                let measuredSize = attributedText.boundingRect(
+                    with: CGSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    context: nil
+                ).integral.size
+                let drawTextWidth = min(maxTextWidth, max(1, measuredSize.width))
                 let textRect = CGRect(
-                    x: (textPosition.x * scaleFactorX) - textSize.width / 2,
-                    y: (textPosition.y * scaleFactorY) - textSize.height / 2,
-                    width: textSize.width,
-                    height: textSize.height
+                    x: (textPosition.x * scaleFactorX) - drawTextWidth / 2,
+                    y: (textPosition.y * scaleFactorY) - measuredSize.height / 2,
+                    width: drawTextWidth,
+                    height: measuredSize.height
                 )
                 
                 let scaleFactor = max(scaleFactorX, scaleFactorY)
-                
-                switch selectedTextStyle {
-                case .modern, .neon, .typewriter:
-                    let bgColor: UIColor = {
-                        switch selectedTextStyle {
-                        case .modern: return .black.withAlphaComponent(0.6)
-                        case .neon: return .purple.withAlphaComponent(0.8)
-                        case .typewriter: return .gray.withAlphaComponent(0.7)
-                        default: return .clear
-                        }
-                    }()
-                    bgColor.setFill()
+                if let backgroundUIColor = textBackgroundUIColor() {
+                    backgroundUIColor.setFill()
                     let backgroundRect = textRect.insetBy(dx: -16 * scaleFactor, dy: -8 * scaleFactor)
                     UIBezierPath(roundedRect: backgroundRect, cornerRadius: 8 * scaleFactor).fill()
-                default: break
                 }
                 
-                storyText.draw(in: textRect, withAttributes: attributes)
+                attributedText.draw(in: textRect)
             }
             
             // 5. Stickers overlay
@@ -1255,7 +1290,32 @@ struct StoryEditingView: View {
         selectedStickers = []
         drawingImage = nil
         selectedTextStyle = .modern
+        storyTextColor = .white
+        storyTextAlignment = .center
+        storyTextBackground = .none
         
+    }
+
+    private func nsTextAlignment(from alignment: TextAlignment) -> NSTextAlignment {
+        switch alignment {
+        case .leading:
+            return .left
+        case .trailing:
+            return .right
+        default:
+            return .center
+        }
+    }
+
+    private func textBackgroundUIColor() -> UIColor? {
+        switch storyTextBackground {
+        case .none:
+            return nil
+        case .black:
+            return UIColor.black.withAlphaComponent(0.58)
+        case .white:
+            return UIColor.white.withAlphaComponent(0.90)
+        }
     }
     
     // 🔗 MANEJAR ERRORES DE LÍMITES DE STORY CHAINS
@@ -1852,7 +1912,7 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
         Coordinator(self)
     }
     
-    class Coordinator: NSObject {
+class Coordinator: NSObject {
         let parent: CameraPreviewRepresentable
         var lastCaptureState: Bool = false
         
@@ -1861,6 +1921,264 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
         }
     }
 }
+
+private enum StoryDrawingBrush {
+    case pen
+    case neon
+    case marker
+}
+
+private struct StoryDrawingEditorOverlay: View {
+    @Binding var isPresented: Bool
+    @Binding var drawingImage: UIImage?
+
+    @State private var baseDrawing: UIImage?
+    @State private var brush: StoryDrawingBrush = .pen
+    @State private var brushWidth: CGFloat = 7
+    @State private var color: UIColor = .white
+
+    @State private var clearToken = 0
+    @State private var undoToken = 0
+    @State private var redoToken = 0
+    @State private var exportToken = 0
+
+    init(isPresented: Binding<Bool>, drawingImage: Binding<UIImage?>) {
+        self._isPresented = isPresented
+        self._drawingImage = drawingImage
+        self._baseDrawing = State(initialValue: drawingImage.wrappedValue)
+    }
+
+    var body: some View {
+        ZStack {
+            if let baseDrawing {
+                Image(uiImage: baseDrawing)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                    .allowsHitTesting(false)
+            }
+
+            StoryDrawingCanvasView(
+                brush: $brush,
+                color: $color,
+                brushWidth: $brushWidth,
+                clearToken: $clearToken,
+                undoToken: $undoToken,
+                redoToken: $redoToken,
+                exportToken: $exportToken
+            ) { strokesImage, hasStrokes in
+                if hasStrokes {
+                    if let base = baseDrawing {
+                        drawingImage = merge(base: base, overlay: strokesImage)
+                    } else {
+                        drawingImage = strokesImage
+                    }
+                } else {
+                    drawingImage = baseDrawing
+                }
+                isPresented = false
+            }
+            .ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 34, height: 34)
+                            .liquidGlass(in: Circle())
+                    }
+                    Spacer()
+                    Button(action: {
+                        exportToken += 1
+                    }) {
+                        Text("creator.done")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .liquidGlass(in: Capsule())
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 56)
+
+                Spacer()
+
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        brushButton(icon: "pencil", brushType: .pen)
+                        brushButton(icon: "sparkles", brushType: .neon)
+                        brushButton(icon: "highlighter", brushType: .marker)
+
+                        Button(action: { undoToken += 1 }) {
+                            Image(systemName: "arrow.uturn.backward")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 36, height: 36)
+                                .liquidGlass(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+
+                        Button(action: { redoToken += 1 }) {
+                            Image(systemName: "arrow.uturn.forward")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 36, height: 36)
+                                .liquidGlass(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+
+                        Button(action: {
+                            baseDrawing = nil
+                            clearToken += 1
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 36, height: 36)
+                                .liquidGlass(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                    }
+
+                    Slider(value: $brushWidth, in: 2...26)
+                        .accentColor(.white)
+                        .padding(.horizontal, 4)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(drawingPalette, id: \.self) { paletteColor in
+                                Button(action: { color = paletteColor }) {
+                                    Circle()
+                                        .fill(Color(paletteColor))
+                                        .frame(width: 28, height: 28)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(color == paletteColor ? 0.95 : 0.25), lineWidth: color == paletteColor ? 2 : 1)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .frame(height: 34)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
+            }
+        }
+    }
+
+    private var drawingPalette: [UIColor] {
+        [.white, .black, .systemRed, .systemOrange, .systemYellow, .systemGreen, .systemBlue, .systemPurple]
+    }
+
+    private func merge(base: UIImage, overlay: UIImage) -> UIImage {
+        let size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            base.draw(in: CGRect(origin: .zero, size: size))
+            overlay.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+
+    @ViewBuilder
+    private func brushButton(icon: String, brushType: StoryDrawingBrush) -> some View {
+        let isSelected = brush == brushType
+        Button(action: { brush = brushType }) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 36, height: 36)
+                .background(isSelected ? Color.white.opacity(0.24) : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(isSelected ? Color.white.opacity(0.52) : Color.white.opacity(0.14), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct StoryDrawingCanvasView: UIViewRepresentable {
+    @Binding var brush: StoryDrawingBrush
+    @Binding var color: UIColor
+    @Binding var brushWidth: CGFloat
+
+    @Binding var clearToken: Int
+    @Binding var undoToken: Int
+    @Binding var redoToken: Int
+    @Binding var exportToken: Int
+
+    let onExport: (UIImage, Bool) -> Void
+
+    func makeUIView(context: Context) -> PKCanvasView {
+        let canvas = PKCanvasView()
+        canvas.backgroundColor = .clear
+        canvas.isOpaque = false
+        canvas.drawingPolicy = .anyInput
+        canvas.alwaysBounceVertical = false
+        canvas.alwaysBounceHorizontal = false
+        canvas.showsVerticalScrollIndicator = false
+        canvas.showsHorizontalScrollIndicator = false
+        canvas.contentInset = .zero
+        canvas.contentSize = UIScreen.main.bounds.size
+        return canvas
+    }
+
+    func updateUIView(_ uiView: PKCanvasView, context: Context) {
+        uiView.tool = currentTool()
+
+        if clearToken != context.coordinator.lastClearToken {
+            context.coordinator.lastClearToken = clearToken
+            uiView.drawing = PKDrawing()
+        }
+
+        if undoToken != context.coordinator.lastUndoToken {
+            context.coordinator.lastUndoToken = undoToken
+            uiView.undoManager?.undo()
+        }
+
+        if redoToken != context.coordinator.lastRedoToken {
+            context.coordinator.lastRedoToken = redoToken
+            uiView.undoManager?.redo()
+        }
+
+        if exportToken != context.coordinator.lastExportToken {
+            context.coordinator.lastExportToken = exportToken
+            let hasStrokes = !uiView.drawing.strokes.isEmpty
+            let exported = uiView.drawing.image(from: uiView.bounds, scale: UIScreen.main.scale)
+            onExport(exported, hasStrokes)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var lastClearToken = 0
+        var lastUndoToken = 0
+        var lastRedoToken = 0
+        var lastExportToken = 0
+    }
+
+    private func currentTool() -> PKInkingTool {
+        switch brush {
+        case .pen:
+            return PKInkingTool(.pen, color: color, width: brushWidth)
+        case .neon:
+            return PKInkingTool(.marker, color: color.withAlphaComponent(0.90), width: max(4, brushWidth * 1.35))
+        case .marker:
+            return PKInkingTool(.marker, color: color.withAlphaComponent(0.40), width: max(10, brushWidth * 2.4))
+        }
+    }
+}
+
 // MARK: - Filter Selector View
 struct FilterSelectorView: View {
     @Binding var selectedFilter: FilterService.FilterType

@@ -10,11 +10,12 @@ import UIKit
 
 struct ScreenshotProtectedView<Content: View>: View {
     let isProtected: Bool
+    var fillsContainer: Bool = false
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         if isProtected {
-            SecureContentRepresentable(content: content)
+            SecureContentRepresentable(fillsContainer: fillsContainer, content: content)
         } else {
             content()
         }
@@ -23,6 +24,7 @@ struct ScreenshotProtectedView<Content: View>: View {
 
 // MARK: - SecureContentRepresentable
 private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
+    var fillsContainer: Bool = false
     @ViewBuilder let content: () -> Content
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -36,7 +38,22 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         field.inputAccessoryView = UIView()
         field.tintColor = .clear
 
-        let hostingVC = UIHostingController(rootView: content())
+        let finalContent = AnyView(
+            Group {
+                if fillsContainer {
+                    content().ignoresSafeArea(.all)
+                } else {
+                    content()
+                }
+            }
+        )
+        let hostingVC = UIHostingController(rootView: finalContent)
+        if #available(iOS 15.0, *) {
+            // Further try to remove any internal safe area padding
+            if fillsContainer {
+                hostingVC.safeAreaRegions = []
+            }
+        }
         hostingVC.view.backgroundColor = .clear
         context.coordinator.hostingVC = hostingVC
 
@@ -45,6 +62,11 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         let target: UIView = field.subviews.first ?? field
         target.addSubview(hostingVC.view)
         hostingVC.view.translatesAutoresizingMaskIntoConstraints = false
+        
+        if fillsContainer {
+            hostingVC.view.insetsLayoutMarginsFromSafeArea = false
+        }
+
         NSLayoutConstraint.activate([
             hostingVC.view.topAnchor.constraint(equalTo: target.topAnchor),
             hostingVC.view.bottomAnchor.constraint(equalTo: target.bottomAnchor),
@@ -56,7 +78,16 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextField, context: Context) {
-        context.coordinator.hostingVC?.rootView = content()
+        let finalContent = AnyView(
+            Group {
+                if fillsContainer {
+                    content().ignoresSafeArea(.all)
+                } else {
+                    content()
+                }
+            }
+        )
+        context.coordinator.hostingVC?.rootView = finalContent
     }
 
     // sizeThatFits (iOS 16+) — le dice a SwiftUI exactamente cuánto mide el contenido
@@ -66,6 +97,10 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         uiView: UITextField,
         context: Context
     ) -> CGSize? {
+        if fillsContainer {
+            return nil // Let SwiftUI handle the layout filling the available space
+        }
+        
         guard let hostingVC = context.coordinator.hostingVC else { return nil }
         let targetSize = CGSize(
             width: proposal.width ?? UIScreen.main.bounds.width,
@@ -75,7 +110,7 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
     }
 
     class Coordinator {
-        var hostingVC: UIHostingController<Content>?
+        var hostingVC: UIHostingController<AnyView>?
     }
 }
 
@@ -83,7 +118,7 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
 extension View {
     /// Protege esta vista de screenshots y grabaciones de pantalla.
     /// El contenido aparece normal en la app pero sale negro en capturas.
-    func screenshotProtected(when isProtected: Bool = true) -> some View {
-        ScreenshotProtectedView(isProtected: isProtected) { self }
+    func screenshotProtected(when isProtected: Bool = true, fillsContainer: Bool = false) -> some View {
+        ScreenshotProtectedView(isProtected: isProtected, fillsContainer: fillsContainer) { self }
     }
 }

@@ -13,6 +13,13 @@ struct EchoViewerUI: View {
     // ✅ Gesture State
     @State private var dragOffset: CGFloat = 0
     @State private var showLockoutAlert = false // ✅ NUEVO
+    @State private var selectedLocationPresentation: EchoLocationPresentation?
+    
+    private struct EchoLocationPresentation: Identifiable {
+        let id: String
+        let locationName: String
+        let coordinate: CLLocationCoordinate2D
+    }
     
     init(echoId: String, initialEcho: Echo? = nil) {
         self.echoId = echoId
@@ -101,6 +108,18 @@ struct EchoViewerUI: View {
             }
         }
         .onAppear { viewModel.loadEcho() }
+        .fullScreenCover(item: $selectedLocationPresentation) { presentation in
+            LocationMapView(
+                locationName: presentation.locationName,
+                coordinate: presentation.coordinate,
+                echoHistoryUserId: Auth.auth().currentUser?.uid,
+                echoHistoryOnly: true,
+                isPresented: Binding(
+                    get: { selectedLocationPresentation != nil },
+                    set: { if !$0 { selectedLocationPresentation = nil } }
+                )
+            )
+        }
     }
     
     private var unavailableOverlay: some View {
@@ -328,7 +347,7 @@ struct EchoViewerUI: View {
     
     private func locationContextBox(echo: Echo) -> some View {
         Button {
-            openInMaps(coordinate: echo.location, name: echo.locationName)
+            openInAppMap(for: echo)
         } label: {
             HStack(spacing: 12) {
                 ZStack {
@@ -504,12 +523,20 @@ struct EchoViewerUI: View {
         }
     }
     
-    private func openInMaps(coordinate: Moment.LocationCoordinate, name: String?) {
+    private func openInAppMap(for echo: Echo) {
         HapticManager.shared.lightImpact()
-        let placemark = MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude))
-        let mapItem = MKMapItem(placemark: placemark)
-        mapItem.name = name ?? "Ubicación del Echo"
-        mapItem.openInMaps()
+        let resolvedLocationName = (echo.locationName ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        selectedLocationPresentation = EchoLocationPresentation(
+            id: echo.id ?? UUID().uuidString,
+            locationName: resolvedLocationName.isEmpty
+                ? NSLocalizedString("echo.viewer.location.fallback", comment: "")
+                : resolvedLocationName,
+            coordinate: CLLocationCoordinate2D(
+            latitude: echo.location.latitude,
+            longitude: echo.location.longitude
+        )
+        )
     }
 }
 

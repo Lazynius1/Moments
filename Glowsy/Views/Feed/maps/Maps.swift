@@ -12,8 +12,24 @@ import WeatherKit
 struct LocationMapView: View {
     let locationName: String
     let coordinate: CLLocationCoordinate2D?
+    let echoHistoryUserId: String?
+    let echoHistoryOnly: Bool
     @Binding var isPresented: Bool
     @Environment(\.colorScheme) var colorScheme
+    
+    init(
+        locationName: String,
+        coordinate: CLLocationCoordinate2D?,
+        echoHistoryUserId: String? = nil,
+        echoHistoryOnly: Bool = false,
+        isPresented: Binding<Bool>
+    ) {
+        self.locationName = locationName
+        self.coordinate = coordinate
+        self.echoHistoryUserId = echoHistoryUserId
+        self.echoHistoryOnly = echoHistoryOnly
+        self._isPresented = isPresented
+    }
     
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060),
@@ -24,6 +40,8 @@ struct LocationMapView: View {
     @State private var errorMessage: String?
     @State private var locationMoments: [Moment] = []  // ✅ USAR MOMENT EN VEZ DE LocationMoment
     @State private var nearbyMoments: [Moment] = []
+    @State private var echoHistoryMoments: [Moment] = []
+    @State private var echoIdByMomentIdentity: [String: String] = [:]
     @State private var isLoadingMoments = false
     @State private var isLoadingNearbyMoments = false
     @State private var showingGallery = false
@@ -44,12 +62,18 @@ struct LocationMapView: View {
     @State private var showSearchInAreaButton = false
     @State private var lastNearbyQueryKey: String = ""
     @State private var mapHeaderLocationName: String = ""
+    @State private var momentAvailability: [String: Bool] = [:]
+    @State private var availabilityValidationToken = UUID()
     
     // ✅ NUEVO: Estado para manejar mejor la carga inicial
     @State private var hasInitializedMap = false
     
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService()
+    
+    private var isEchoHistoryMode: Bool {
+        echoHistoryOnly
+    }
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -60,12 +84,18 @@ struct LocationMapView: View {
         var seen = Set<String>()
         var result: [Moment] = []
         for moment in combined {
-            let key = momentMapKey(moment)
+            let key = selectionKey(for: moment)
             guard !seen.contains(key) else { continue }
             seen.insert(key)
             result.append(moment)
         }
         return result
+    }
+
+    private var mapPinMoments: [Moment] {
+        mapDisplayMoments.filter { moment in
+            momentAvailability[moment.mapAvailabilityKey] ?? true
+        }
     }
     
     private var mapCombinedAnnotations: [CombinedMapAnnotation] {
@@ -73,7 +103,7 @@ struct LocationMapView: View {
         var groupedCoordinates: [String: CLLocationCoordinate2D] = [:]
         var groupedLocationTitles: [String: String] = [:]
 
-        for moment in mapDisplayMoments {
+        for moment in mapPinMoments {
             guard let coordinate = moment.locationCoordinate?.toCLLocationCoordinate2D,
                   CLLocationCoordinate2DIsValid(coordinate) else { continue }
 
@@ -81,7 +111,11 @@ struct LocationMapView: View {
             groupedMoments[clusterKey, default: []].append(moment)
 
             if groupedCoordinates[clusterKey] == nil {
-                groupedCoordinates[clusterKey] = coordinate
+                if isEchoHistoryMode, let echoId = echoId(for: moment) {
+                    groupedCoordinates[clusterKey] = jitteredCoordinate(for: coordinate, seed: echoId)
+                } else {
+                    groupedCoordinates[clusterKey] = coordinate
+                }
             }
             if groupedLocationTitles[clusterKey] == nil,
                let title = normalizedLocationName(from: moment) {
@@ -131,6 +165,7 @@ struct LocationMapView: View {
             LocationBottomSheet(
                     isPresented: $showingBottomSheet,
                     moments: locationMoments,
+                    momentAvailability: momentAvailability,
                     isLoadingMoments: isLoadingMoments,
                     locationName: effectiveHeaderLocationName,
                     colorScheme: colorScheme,
@@ -140,7 +175,7 @@ struct LocationMapView: View {
                             // ✅ Pequeño delay para asegurar que la vista termine de actualizarse
                             try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 segundos
                             
-                            if let selectedIndex = locationMoments.firstIndex(where: { momentMapKey($0) == momentMapKey(moment) }) {
+                            if let selectedIndex = locationMoments.firstIndex(where: { selectionKey(for: $0) == selectionKey(for: moment) }) {
                                 selectedMoment = moment
                                 selectedMomentIndex = selectedIndex
                                 showingDetail = true
@@ -202,6 +237,7 @@ struct LocationMapView: View {
                 locationMoments: locationMoments,
                 initialIndex: selectedMomentIndex,
                 locationName: effectiveHeaderLocationName,
+                momentAvailability: $momentAvailability,
                 isPresented: $showingDetail
             )
         }
@@ -1018,6 +1054,11 @@ extension LocationMapView {
             self.isLoadingMoments = true
         }
         
+        if isEchoHistoryMode {
+            loadEchoHistoryMoments()
+            return
+        }
+        
         // ✅ USAR TU SERVICIO EXISTENTE DE MOMENTOS EN VEZ DE CREAR UNO NUEVO
         LocationSearchService.shared.searchMomentsByLocation(
             locationName: locationName,
@@ -1025,6 +1066,7 @@ extension LocationMapView {
         ) { moments in
             DispatchQueue.main.async {
                 self.locationMoments = moments
+                self.refreshMomentAvailability(for: moments)
                 self.isLoadingMoments = false
                 
                 // ✅ AGREGAR ESTA LÍNEA:
@@ -1036,8 +1078,14 @@ extension LocationMapView {
     }
     
     private func momentMapKey(_ moment: Moment) -> String {
-        if let id = moment.id, !id.isEmpty { return id }
-        return "\(moment.authorId)|\(Int(moment.timestamp.timeIntervalSince1970))|\(moment.content)"
+        moment.mapAvailabilityKey
+    }
+    
+    private func selectionKey(for moment: Moment) -> String {
+        if isEchoHistoryMode {
+            return momentIdentityKey(moment)
+        }
+        return momentMapKey(moment)
     }
 
     private func locationClusterKey(for moment: Moment, coordinate: CLLocationCoordinate2D) -> String {
@@ -1046,6 +1094,9 @@ extension LocationMapView {
         let normalizedLocation = normalizedLocationName(from: moment)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased() ?? ""
+        if isEchoHistoryMode, let echoId = echoId(for: moment), !echoId.isEmpty {
+            return "\(lat)|\(lon)|\(normalizedLocation)|echo:\(echoId)"
+        }
         return "\(lat)|\(lon)|\(normalizedLocation)"
     }
     
@@ -1055,9 +1106,13 @@ extension LocationMapView {
             if let single = annotation.moment { return [single] }
             return []
         }()
+        .filter { moment in
+            momentAvailability[moment.mapAvailabilityKey] ?? true
+        }
         guard !clusterMoments.isEmpty else { return }
 
         locationMoments = clusterMoments
+        refreshMomentAvailability(for: clusterMoments)
         if let title = annotation.locationTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
            !title.isEmpty {
             mapHeaderLocationName = title
@@ -1087,6 +1142,12 @@ extension LocationMapView {
     private func searchInCurrentArea() {
         let queryKey = nearbyQueryKey(for: region)
         showSearchInAreaButton = true
+        
+        if isEchoHistoryMode {
+            loadNearbyEchoMoments(in: region, queryKey: queryKey)
+            return
+        }
+        
         loadNearbyMoments(in: region, queryKey: queryKey)
     }
     
@@ -1117,11 +1178,42 @@ extension LocationMapView {
 
                 if !moments.isEmpty {
                     self.locationMoments = moments
+                    self.refreshMomentAvailability(for: moments)
                     if let firstLocation = moments.compactMap({ self.normalizedLocationName(from: $0) }).first {
                         self.mapHeaderLocationName = firstLocation
                     }
                     self.showingBottomSheet = true
                 }
+            }
+        }
+    }
+    
+    private func loadNearbyEchoMoments(in region: MKCoordinateRegion, queryKey: String) {
+        DispatchQueue.main.async {
+            self.isLoadingNearbyMoments = true
+            self.lastNearbyQueryKey = queryKey
+        }
+        
+        DispatchQueue.main.async {
+            guard self.lastNearbyQueryKey == queryKey else { return }
+            
+            let filtered = self.echoHistoryMoments.filter { moment in
+                guard let coord = moment.locationCoordinate?.toCLLocationCoordinate2D,
+                      CLLocationCoordinate2DIsValid(coord) else { return false }
+                return self.regionContainsCoordinate(region, coord)
+            }
+            
+            self.nearbyMoments = filtered
+            self.locationMoments = filtered
+            self.refreshMomentAvailability(for: filtered)
+            self.isLoadingNearbyMoments = false
+            self.showSearchInAreaButton = false
+            
+            if !filtered.isEmpty {
+                if let firstLocation = filtered.compactMap({ self.normalizedLocationName(from: $0) }).first {
+                    self.mapHeaderLocationName = firstLocation
+                }
+                self.showingBottomSheet = true
             }
         }
     }
@@ -1140,6 +1232,271 @@ extension LocationMapView {
             rootViewController.present(activityVC, animated: true)
         }
     }
+    
+    private func loadEchoHistoryMoments() {
+        let resolvedUserId = echoHistoryUserId ?? Auth.auth().currentUser?.uid
+        guard let userId = resolvedUserId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !userId.isEmpty else {
+            DispatchQueue.main.async {
+                self.locationMoments = []
+                self.echoHistoryMoments = []
+                self.nearbyMoments = []
+                self.echoIdByMomentIdentity = [:]
+                self.momentAvailability = [:]
+                self.isLoadingMoments = false
+            }
+            return
+        }
+        
+        Firestore.firestore()
+            .collection("echoes")
+            .whereField("participantIds", arrayContains: userId)
+            .getDocuments { snapshot, error in
+                DispatchQueue.main.async {
+                    if error != nil {
+                        self.locationMoments = []
+                        self.echoHistoryMoments = []
+                        self.echoIdByMomentIdentity = [:]
+                        self.momentAvailability = [:]
+                        self.isLoadingMoments = false
+                        return
+                    }
+                    
+                    let echoes = snapshot?.documents.compactMap { doc -> Echo? in
+                        var echo = try? doc.data(as: Echo.self)
+                        echo?.id = doc.documentID
+                        return echo
+                    } ?? []
+                    
+                    let locationFiltered = echoes.filter { self.echoMatchesCurrentLocation($0) }
+                    var allEchoMoments: [Moment] = []
+                    var mapping: [String: String] = [:]
+                    
+                    for echo in locationFiltered {
+                        let builtMoments = self.buildMomentsFromEcho(echo)
+                        allEchoMoments.append(contentsOf: builtMoments)
+                        
+                        if let echoId = echo.id, !echoId.isEmpty {
+                            for moment in builtMoments {
+                                mapping[self.momentIdentityKey(moment)] = echoId
+                            }
+                        }
+                    }
+                    let deduped = self.dedupMomentsByIdentity(allEchoMoments).sorted { $0.timestamp > $1.timestamp }
+                    
+                    self.echoIdByMomentIdentity = mapping
+                    self.echoHistoryMoments = deduped
+                    self.locationMoments = deduped
+                    self.refreshMomentAvailability(for: deduped)
+                    self.isLoadingMoments = false
+                    self.showSearchInAreaButton = true
+                    
+                    if !deduped.isEmpty {
+                        if let firstLocation = deduped.compactMap({ self.normalizedLocationName(from: $0) }).first {
+                            self.mapHeaderLocationName = firstLocation
+                        }
+                        self.showingBottomSheet = true
+                    }
+                }
+            }
+    }
+    
+    private func echoMatchesCurrentLocation(_ echo: Echo) -> Bool {
+        let targetName = locationName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let echoName = (echo.locationName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        if !targetName.isEmpty, !echoName.isEmpty, targetName == echoName {
+            return true
+        }
+        
+        guard let targetCoordinate = coordinate else { return !targetName.isEmpty && targetName == echoName }
+        let echoCoordinate = CLLocationCoordinate2D(latitude: echo.location.latitude, longitude: echo.location.longitude)
+        guard CLLocationCoordinate2DIsValid(targetCoordinate), CLLocationCoordinate2DIsValid(echoCoordinate) else {
+            return false
+        }
+        return CLLocation(latitude: targetCoordinate.latitude, longitude: targetCoordinate.longitude)
+            .distance(from: CLLocation(latitude: echoCoordinate.latitude, longitude: echoCoordinate.longitude)) <= 1200
+    }
+
+    private func refreshMomentAvailability(for moments: [Moment]) {
+        let baseAvailability = moments.reduce(into: [String: Bool]()) { result, moment in
+            result[moment.mapAvailabilityKey] = true
+        }
+        momentAvailability = baseAvailability
+
+        guard isEchoHistoryMode, let viewerId = Auth.auth().currentUser?.uid else {
+            return
+        }
+
+        let token = UUID()
+        availabilityValidationToken = token
+
+        for moment in moments {
+            validateLiveAvailability(for: moment, viewerId: viewerId, token: token)
+        }
+    }
+
+    private func validateLiveAvailability(for moment: Moment, viewerId: String, token: UUID) {
+        let key = moment.mapAvailabilityKey
+
+        if moment.authorId == viewerId {
+            setMomentAvailability(true, key: key, token: token)
+            return
+        }
+
+        guard let momentId = moment.id, !momentId.isEmpty else {
+            setMomentAvailability(true, key: key, token: token)
+            return
+        }
+
+        Firestore.firestore()
+            .collection("users").document(moment.authorId)
+            .collection("moments").document(momentId)
+            .getDocument { snapshot, _ in
+                guard snapshot?.exists == true else {
+                    self.setMomentAvailability(false, key: key, token: token)
+                    return
+                }
+
+                guard let liveMoment = try? snapshot?.data(as: Moment.self) else {
+                    self.setMomentAvailability(false, key: key, token: token)
+                    return
+                }
+
+                if liveMoment.isArchived == true {
+                    self.setMomentAvailability(false, key: key, token: token)
+                    return
+                }
+
+                let audience = (liveMoment.audience ?? moment.audience ?? "everyone").lowercased()
+                switch audience {
+                case "everyone", "connections":
+                    self.setMomentAvailability(true, key: key, token: token)
+
+                case "bestfriends":
+                    self.privacyService.checkIfBestFriend(userId: moment.authorId, friendId: viewerId) { isBestFriend in
+                        self.setMomentAvailability(isBestFriend, key: key, token: token)
+                    }
+
+                case "custom", "customlist":
+                    self.privacyService.canUserViewMomentEnhanced(liveMoment, viewerId: viewerId) { canView in
+                        self.setMomentAvailability(canView, key: key, token: token)
+                    }
+
+                case "onlyme":
+                    self.setMomentAvailability(false, key: key, token: token)
+
+                default:
+                    self.setMomentAvailability(true, key: key, token: token)
+                }
+            }
+    }
+
+    private func setMomentAvailability(_ value: Bool, key: String, token: UUID) {
+        DispatchQueue.main.async {
+            guard self.availabilityValidationToken == token else { return }
+            self.momentAvailability[key] = value
+        }
+    }
+    
+    private func buildMomentsFromEcho(_ echo: Echo) -> [Moment] {
+        let coordinate = Moment.LocationCoordinate(latitude: echo.location.latitude, longitude: echo.location.longitude)
+        let resolvedLocation = echo.locationName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let locationValue = (resolvedLocation?.isEmpty == false) ? resolvedLocation : locationName
+        
+        return echo.moments.compactMap { ref in
+            let mediaType = ref.mediaType.lowercased()
+            let imagePath = mediaType == "video" ? nil : ref.mediaUrl
+            let videoUrl = mediaType == "video" ? ref.mediaUrl : nil
+            
+            return Moment(
+                id: ref.momentId,
+                authorId: ref.authorId,
+                username: ref.username,
+                content: "",
+                imagePath: imagePath,
+                videoUrl: videoUrl,
+                timestamp: ref.timestamp,
+                reactions: [:],
+                commentCount: 0,
+                profileImagePath: nil,
+                taggedUsers: nil,
+                location: locationValue,
+                locationCoordinate: coordinate,
+                audience: ref.audience,
+                mediaItems: nil,
+                aspectRatio: ref.aspectRatio,
+                customListId: ref.customListId,
+                thumbnailUrl: ref.thumbnailUrl,
+                videoDuration: nil,
+                videoFileSize: nil,
+                videoResolution: nil,
+                disableComments: false,
+                hideLikeCounts: false,
+                allowSharing: false,
+                scheduledDate: nil,
+                trendingScore: nil,
+                engagementRate: nil,
+                isArchived: false,
+                archivedAt: nil
+            )
+        }
+    }
+    
+    private func dedupMomentsByIdentity(_ moments: [Moment]) -> [Moment] {
+        var seen = Set<String>()
+        var result: [Moment] = []
+        
+        for moment in moments {
+            let mediaKey = moment.videoUrl ?? moment.imagePath ?? ""
+            let key = "\(moment.id ?? "noid")|\(moment.authorId)|\(mediaKey)"
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            result.append(moment)
+        }
+        
+        return result
+    }
+    
+    private func momentIdentityKey(_ moment: Moment) -> String {
+        let mediaKey = moment.videoUrl ?? moment.imagePath ?? ""
+        return "\(moment.id ?? "noid")|\(moment.authorId)|\(mediaKey)|\(Int(moment.timestamp.timeIntervalSince1970))"
+    }
+    
+    private func echoId(for moment: Moment) -> String? {
+        echoIdByMomentIdentity[momentIdentityKey(moment)]
+    }
+    
+    private func jitteredCoordinate(for coordinate: CLLocationCoordinate2D, seed: String) -> CLLocationCoordinate2D {
+        let hash = abs(seed.hashValue)
+        let angle = (Double(hash % 360) * .pi) / 180
+        let distanceMeters = 14.0 + Double(hash % 4) * 5.0 // 14-29m
+        
+        let latMetersPerDegree = 111_000.0
+        let cosLat = max(cos(coordinate.latitude * .pi / 180), 0.2)
+        let lonMetersPerDegree = latMetersPerDegree * cosLat
+        
+        let latOffset = (distanceMeters * cos(angle)) / latMetersPerDegree
+        let lonOffset = (distanceMeters * sin(angle)) / lonMetersPerDegree
+        
+        return CLLocationCoordinate2D(
+            latitude: coordinate.latitude + latOffset,
+            longitude: coordinate.longitude + lonOffset
+        )
+    }
+    
+    private func regionContainsCoordinate(_ region: MKCoordinateRegion, _ coordinate: CLLocationCoordinate2D) -> Bool {
+        let latMin = region.center.latitude - (region.span.latitudeDelta / 2)
+        let latMax = region.center.latitude + (region.span.latitudeDelta / 2)
+        let lonMin = region.center.longitude - (region.span.longitudeDelta / 2)
+        let lonMax = region.center.longitude + (region.span.longitudeDelta / 2)
+        
+        return coordinate.latitude >= latMin &&
+            coordinate.latitude <= latMax &&
+            coordinate.longitude >= lonMin &&
+            coordinate.longitude <= lonMax
+    }
+    
     struct WeatherIndicatorView: View {
         let weather: WeatherData
         let colorScheme: ColorScheme
@@ -1505,6 +1862,13 @@ struct MapsLocationAnnotation: Identifiable {
 }
 
 private extension Moment {
+    var mapAvailabilityKey: String {
+        if let id = id?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
+            return id
+        }
+        return "\(authorId)|\(Int(timestamp.timeIntervalSince1970))|\(content)"
+    }
+
     var mapHasVideoMedia: Bool {
         if let mediaItems, mediaItems.contains(where: { $0.type == .video }) {
             return true
@@ -2535,6 +2899,7 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
 struct LocationBottomSheet: View {
     @Binding var isPresented: Bool
     let moments: [Moment]
+    let momentAvailability: [String: Bool]
     let isLoadingMoments: Bool
     let locationName: String
     let colorScheme: ColorScheme
@@ -2764,6 +3129,7 @@ struct LocationBottomSheet: View {
     private var galleryView: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
             ForEach(moments) { moment in
+                let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
                 Button(action: { onMomentTap(moment) }) {
                     GeometryReader { geometry in
                         ZStack {
@@ -2792,6 +3158,12 @@ struct LocationBottomSheet: View {
                                     .clipped()
                             }
                         }
+                        .blur(radius: isAvailable ? 0 : 14)
+                        .overlay {
+                            if !isAvailable {
+                                MomentUnavailableOverlay(compact: true, cornerRadius: 4)
+                            }
+                        }
                     }
                     .aspectRatio(1, contentMode: .fit)
                 }
@@ -2813,6 +3185,7 @@ struct LocationBottomSheet: View {
                 ModernLocationMomentRow(
                     moment: moment,
                     colorScheme: colorScheme,
+                    isAvailable: momentAvailability[moment.mapAvailabilityKey] ?? true,
                     onTap: onMomentTap
                 )
             }
@@ -3058,6 +3431,7 @@ struct MapsVideoThumbnailView: View {
 struct ModernLocationMomentRow: View {
     let moment: Moment
     let colorScheme: ColorScheme
+    let isAvailable: Bool
     let onTap: (Moment) -> Void
     
     private var adaptiveColors: AdaptiveColors {
@@ -3118,6 +3492,12 @@ struct ModernLocationMomentRow: View {
                         .padding(.vertical, 10)
                 }
             }
+            .blur(radius: isAvailable ? 0 : 16)
+            .overlay {
+                if !isAvailable {
+                    MomentUnavailableOverlay(compact: false, cornerRadius: 18)
+                }
+            }
             .background(
                 RoundedRectangle(cornerRadius: 18)
                     .fill(.ultraThinMaterial.opacity(0.5))
@@ -3167,6 +3547,30 @@ struct ModernLocationMomentRow: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: timestamp, relativeTo: Date())
+    }
+}
+
+struct MomentUnavailableOverlay: View {
+    let compact: Bool
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.45)
+            VStack(spacing: compact ? 6 : 10) {
+                Image(systemName: "eye.slash.fill")
+                    .font(.system(size: compact ? 18 : 24, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.9))
+
+                Text(NSLocalizedString("echo.viewer.unavailable", comment: ""))
+                    .font(.system(size: compact ? 10 : 13, weight: .semibold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(compact ? 2 : nil)
+                    .padding(.horizontal, compact ? 8 : 18)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
 

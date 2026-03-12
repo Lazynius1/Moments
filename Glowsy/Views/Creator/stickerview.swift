@@ -20,11 +20,10 @@ struct StickerPickerView: View {
     @State private var showingCategories = true
     @State private var dragOffset: CGFloat = 0
     @State private var isDarkMode = true
-    @State private var showingSelfieCamera = false
     
     private let functionsRegion = "europe-southwest1"
     private let giphyFunctionName = "proxyGiphyStickers"
-    
+
     // 🎯 CATEGORÍAS MEJORADAS CON GLASSMORPHISM
     enum StickerCategory: String, CaseIterable {
         case trending = "🔥"
@@ -122,11 +121,6 @@ struct StickerPickerView: View {
         .onAppear {
             if selectedCategory == .trending {
                 loadTrendingStickers()
-            }
-        }
-        .sheet(isPresented: $showingSelfieCamera) {
-            SelfieCameraView { image in
-                createSelfieStickerFromImage(image)
             }
         }
     }
@@ -1596,8 +1590,43 @@ struct StickerPickerView: View {
     
     // MARK: - ✅ SELFIE STICKER
     private func createSelfieSticker() {
-        // ✅ USAR SHEET PARA EVITAR CONFLICTOS DE PRESENTACIÓN
-        showingSelfieCamera = true
+        let liveSelfieSticker = StickerItem(
+            image: makeLiveSelfiePlaceholderImage(size: 120),
+            position: constrainPositionToBounds(CGPoint(
+                x: UIScreen.main.bounds.width / 2,
+                y: UIScreen.main.bounds.height / 2
+            )),
+            type: .selfie,
+            interactionData: StickerItem.StickerInteractionData(
+                caption: "selfie_live"
+            )
+        )
+
+        selectedStickers.append(liveSelfieSticker)
+        dismiss()
+    }
+
+    private func makeLiveSelfiePlaceholderImage(size: CGFloat) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        return renderer.image { context in
+            let rect = CGRect(x: 0, y: 0, width: size, height: size)
+            let circlePath = UIBezierPath(ovalIn: rect)
+            UIColor.black.withAlphaComponent(0.28).setFill()
+            circlePath.fill()
+            UIColor.white.setStroke()
+            circlePath.lineWidth = 2
+            circlePath.stroke()
+
+            let symbolConfig = UIImage.SymbolConfiguration(pointSize: size * 0.38, weight: .bold)
+            let icon = UIImage(systemName: "camera.fill", withConfiguration: symbolConfig)?
+                .withTintColor(.white, renderingMode: .alwaysOriginal)
+            icon?.draw(in: CGRect(
+                x: size * 0.31,
+                y: size * 0.31,
+                width: size * 0.38,
+                height: size * 0.38
+            ))
+        }
     }
     
     // ✅ FUNCIÓN PARA CREAR STICKER DESDE IMAGEN
@@ -3905,11 +3934,18 @@ struct ImagePicker: UIViewControllerRepresentable {
     let sourceType: UIImagePickerController.SourceType
     let cameraDevice: UIImagePickerController.CameraDevice?
     let onImagePicked: (UIImage) -> Void
+    let onCancel: (() -> Void)?
     
-    init(sourceType: UIImagePickerController.SourceType, cameraDevice: UIImagePickerController.CameraDevice? = nil, onImagePicked: @escaping (UIImage) -> Void) {
+    init(
+        sourceType: UIImagePickerController.SourceType,
+        cameraDevice: UIImagePickerController.CameraDevice? = nil,
+        onImagePicked: @escaping (UIImage) -> Void,
+        onCancel: (() -> Void)? = nil
+    ) {
         self.sourceType = sourceType
         self.cameraDevice = cameraDevice
         self.onImagePicked = onImagePicked
+        self.onCancel = onCancel
     }
     
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -3943,6 +3979,7 @@ struct ImagePicker: UIViewControllerRepresentable {
         }
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.onCancel?()
             picker.dismiss(animated: true)
         }
     }
