@@ -859,12 +859,9 @@ function textContainsMutedWord(text, mutedWords) {
 
 function shouldSilenceNotificationForUser(receiverData, options = {}) {
   const muteSettings = getMuteSettings(receiverData);
-  if (muteSettings.muteNotifications) {
-    return true;
-  }
-
   const senderId = typeof options.senderId === 'string' ? options.senderId : '';
-  if (senderId && muteSettings.mutedUsers.has(senderId)) {
+  // `muteNotifications` means "mute notifications from muted accounts", not "mute all notifications".
+  if (muteSettings.muteNotifications && senderId && muteSettings.mutedUsers.has(senderId)) {
     return true;
   }
 
@@ -911,7 +908,8 @@ async function getUnreadMessagesInConversation(conversationId, userId) {
       .where('status', 'in', ['sent', 'delivered'])
       .get();
     const unreadCount = messagesSnap.docs.filter(doc => doc.data().senderId !== userId).length;
-    return unreadCount + 1; // +1 por el mensaje actual
+    // El mensaje actual ya está en la query, no debemos sumar +1.
+    return unreadCount;
   } catch (error) {
     return 1;
   }
@@ -1279,79 +1277,328 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
 });
 
 // ✅ ACTUALIZAR BADGE SILENCIOSAMENTE
-exports.updateBadge = onDocumentCreated('users/{userId}/notifications/{notificationId}', async (event) => {
-  const { userId } = event.params;
+// ✅ #1 OPTIMIZADO: Una sola Cloud Function para todas las notificaciones creadas
+// Antes habían 3 funciones disparándose en paralelo (updateBadge, onMentionNotification, onPhotoTagNotification)
+// Ahora un solo onDocumentCreated que hace switch por tipo.
+exports.onNotificationCreated = onDocumentCreated('users/{userId}/notifications/{notificationId}', async (event) => {
+  const snap = event.data;
+  const { userId, notificationId } = event.params;
+  const notification = snap.data();
 
   try {
     const userDoc = await admin.firestore().doc(`users/${userId}`).get();
     if (!userDoc.exists) return null;
-
     const userData = userDoc.data();
-    if (!validateUserData(userData) || !userData.fcmToken || isDoNotDisturbActive(userData) || getMuteSettings(userData).muteNotifications) return null;
+    if (!validateUserData(userData)) return null;
 
-    const notifications = await admin.firestore()
-      .collection(`users/${userId}/notifications`)
-      .where('isPending', '==', true)
-      .get();
+    // Dispatch según tipo
+    switch (notification.type) {
+      case 'mention':
+        await handleMentionPush(userId, notificationId, notification, userData);
+        break;
+      case 'photoTag':
+        await handlePhotoTagPush(userId, notificationId, notification, userData);
+        break;
+      default:
+        // Badge update silencioso para todos los demás tipos
+        await handleBadgeUpdate(userId, userData);
+        break;
+    }
+  } catch (error) {
+    console.error('❌ Error en onNotificationCreated:', error);
+  }
+});
 
-    const badgeCount = notifications.size;
+// Helper: Actualizar badge (antes era exports.updateBadge entero)
+async function handleBadgeUpdate(userId, userData) {
+  if (!userData.fcmToken || isDoNotDisturbActive(userData)) return;
+
+  const notifications = await admin.firestore()
+    .collection(`users/${userId}/notifications`)
+    .where('isPending', '==', true)
+    .get();
+
+  const badgeCount = notifications.size;
+  const message = {
+    token: userData.fcmToken,
+    data: { silent: 'true' },
+    apns: {
+      payload: {
+        aps: {
+          'mutable-content': 1,
+          badge: badgeCount
+        }
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    console.log(`✅ Badge actualizado para ${userId}: ${badgeCount}`);
+  } catch (error) {
+    if (error.code === 'messaging/registration-token-not-registered') {
+      await removeInvalidToken(userId, userData.fcmToken);
+    }
+    throw error;
+  }
+}
+
+async function claimProcessingLock(docRef, options = {}) {
+  const processedField = options.processedField || 'processed';
+  const processingField = options.processingField || 'processingUntil';
+  const lockMs = typeof options.lockMs === 'number' ? options.lockMs : 120000;
+
+  const nowMs = Date.now();
+  const lockUntil = admin.firestore.Timestamp.fromMillis(nowMs + lockMs);
+
+  return admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    if (!snap.exists) return false;
+    if (snap.get(processedField) === true) return false;
+
+    const processingUntil = snap.get(processingField);
+    if (processingUntil && typeof processingUntil.toMillis === 'function' && processingUntil.toMillis() > nowMs) {
+      return false;
+    }
+
+    tx.update(docRef, { [processingField]: lockUntil });
+    return true;
+  });
+}
+
+async function markProcessingDone(docRef, options = {}) {
+  const processedField = options.processedField || 'processed';
+  const processingField = options.processingField || 'processingUntil';
+  await docRef.set({
+    [processedField]: true,
+    processedAt: admin.firestore.FieldValue.serverTimestamp(),
+    [processingField]: admin.firestore.FieldValue.delete()
+  }, { merge: true });
+}
+
+async function releaseProcessingLock(docRef, options = {}) {
+  const processingField = options.processingField || 'processingUntil';
+  await docRef.set({
+    [processingField]: admin.firestore.FieldValue.delete()
+  }, { merge: true });
+}
+
+// Helper: Push de mención (antes era exports.onMentionNotification entero)
+async function handleMentionPush(userId, notificationId, notification, userData) {
+  const senderDoc = await admin.firestore().doc(`users/${notification.senderId}`).get();
+  if (!senderDoc.exists) return;
+  const senderData = senderDoc.data();
+  if (!validateUserData(senderData) || !senderData.isActive || !userData.isActive) return;
+
+  const mentionRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
+  const isSilenced = shouldSilenceNotificationForUser(userData, {
+    senderId: notification.senderId,
+    candidateTexts: [notification.text, notification.commentText, notification.content, notification.caption]
+  });
+  if (isSilenced) {
+    await mentionRef.delete().catch(() => null);
+    return;
+  }
+
+  const fcmToken = userData.fcmToken;
+  const lockAcquired = await claimProcessingLock(mentionRef, {
+    processedField: 'processed',
+    processingField: 'processingUntil'
+  });
+  if (!lockAcquired) return;
+
+  try {
+    if (!fcmToken || isDoNotDisturbActive(userData)) {
+      await markProcessingDone(mentionRef, {
+        processedField: 'processed',
+        processingField: 'processingUntil'
+      });
+      return;
+    }
+
+    let contentType = 'contenido';
+    let targetType = 'moment';
+    let targetId = notification.momentId;
+    if (notification.storyId) {
+      contentType = 'historia';
+      targetType = 'story';
+      targetId = notification.storyId;
+    } else if (notification.momentId) {
+      contentType = 'momento';
+      targetType = 'moment';
+      targetId = notification.momentId;
+    }
+
+    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'mention' });
 
     const message = {
-      token: userData.fcmToken,
+      token: fcmToken,
       data: {
-        silent: 'true'
+        type: 'mention',
+        senderId: notification.senderId,
+        userId: userId,
+        targetType: targetType,
+        targetId: targetId,
+        senderUsername: senderData.username,
+        senderProfileImage: senderData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
       },
       apns: {
+        headers: { 'apns-collapse-id': `mention_${userId}` },
         payload: {
           aps: {
+            alert: {
+              'title-loc-key': 'notification.mention.title',
+              'title-loc-args': [senderData.username, contentType],
+              'loc-key': 'notification.mention.body',
+              'loc-args': []
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            sound: 'default',
             'mutable-content': 1,
-            badge: badgeCount
+            'thread-id': `mentions_${userId}`
           }
         }
       }
     };
 
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Badge actualizado para ${userId}: ${badgeCount}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, userData.fcmToken);
-      }
-      throw error;
-    }
+    await admin.messaging().send(message);
+    await markProcessingDone(mentionRef, {
+      processedField: 'processed',
+      processingField: 'processingUntil'
+    });
+    console.log(`✅ Mención push: ${senderData.username} -> ${userData.username} en ${contentType}`);
   } catch (error) {
-    console.error('❌ Error actualizando badge:', error);
+    await releaseProcessingLock(mentionRef, { processingField: 'processingUntil' }).catch(() => null);
+    if (error.code === 'messaging/registration-token-not-registered') {
+      await removeInvalidToken(userId, fcmToken);
+    }
+    throw error;
   }
-});
+}
 
-// ✅ LIMPIEZA PROGRAMADA
+// Helper: Push de photo tag (antes era exports.onPhotoTagNotification entero)
+async function handlePhotoTagPush(userId, notificationId, notification, userData) {
+  const senderDoc = await admin.firestore().doc(`users/${notification.senderId}`).get();
+  if (!senderDoc.exists) return;
+  const senderData = senderDoc.data();
+  if (!validateUserData(senderData) || !senderData.isActive || !userData.isActive) return;
+
+  const tagRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
+  const isSilenced = shouldSilenceNotificationForUser(userData, {
+    senderId: notification.senderId,
+    candidateTexts: [notification.text, notification.commentText, notification.content, notification.caption]
+  });
+  if (isSilenced) {
+    await tagRef.delete().catch(() => null);
+    return;
+  }
+
+  const fcmToken = userData.fcmToken;
+  const lockAcquired = await claimProcessingLock(tagRef, {
+    processedField: 'processed',
+    processingField: 'processingUntil'
+  });
+  if (!lockAcquired) return;
+
+  try {
+    if (!fcmToken || isDoNotDisturbActive(userData)) {
+      await markProcessingDone(tagRef, {
+        processedField: 'processed',
+        processingField: 'processingUntil'
+      });
+      return;
+    }
+
+    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'photoTag' });
+
+    const message = {
+      token: fcmToken,
+      data: {
+        type: 'photo_tag',
+        senderId: notification.senderId,
+        userId: userId,
+        targetType: 'moment',
+        targetId: notification.momentId || '',
+        senderUsername: senderData.username,
+        senderProfileImage: senderData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
+      },
+      apns: {
+        headers: { 'apns-collapse-id': `tag_${userId}` },
+        payload: {
+          aps: {
+            alert: {
+              'title-loc-key': 'notification.photoTag.title',
+              'title-loc-args': [senderData.username],
+              'loc-key': 'notification.photoTag.body',
+              'loc-args': []
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            sound: 'default',
+            'mutable-content': 1,
+            'thread-id': `photo_tags_${userId}`
+          }
+        }
+      }
+    };
+
+    await admin.messaging().send(message);
+    await markProcessingDone(tagRef, {
+      processedField: 'processed',
+      processingField: 'processingUntil'
+    });
+    console.log(`✅ Photo tag push: ${senderData.username} -> ${userData.username}`);
+  } catch (error) {
+    await releaseProcessingLock(tagRef, { processingField: 'processingUntil' }).catch(() => null);
+    if (error.code === 'messaging/registration-token-not-registered') {
+      await removeInvalidToken(userId, fcmToken);
+    }
+    throw error;
+  }
+}
+
+// ✅ #6 OPTIMIZADO: Limpieza con collectionGroup (escala sin depender del nº de usuarios)
 exports.cleanOldNotifications = onSchedule(
   { schedule: '0 0 * * *', timeZone: 'Europe/Madrid', region: 'us-central1' },
   async () => {
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-      const usersSnapshot = await admin.firestore().collection('users').get();
-
-      const deletePromises = usersSnapshot.docs.map(async (userDoc) => {
-        const notificationsRef = userDoc.ref.collection('notifications');
-        const oldNotifications = await notificationsRef
+      // Usar collectionGroup en vez de iterar user-by-user
+      async function deleteBatch() {
+        const snapshot = await admin.firestore()
+          .collectionGroup('notifications')
           .where('timestamp', '<', thirtyDaysAgo)
           .where('isPending', '==', false)
+          .limit(500)
           .get();
 
+        if (snapshot.empty) return 0;
+
         const batch = admin.firestore().batch();
-        oldNotifications.forEach(doc => batch.delete(doc.ref));
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
 
-        if (oldNotifications.size > 0) {
-          await batch.commit();
-          console.log(`✅ Eliminadas ${oldNotifications.size} notificaciones antiguas para usuario ${userDoc.id}`);
-        }
-      });
+        console.log(`✅ Eliminadas ${snapshot.size} notificaciones antiguas`);
+        return snapshot.size;
+      }
 
-      await Promise.all(deletePromises);
-      console.log('✅ Limpieza de notificaciones completada');
+      // Recursive batching hasta que no queden más
+      let totalDeleted = 0;
+      let batchSize;
+      do {
+        batchSize = await deleteBatch();
+        totalDeleted += batchSize;
+      } while (batchSize === 500);
+
+      console.log(`✅ Limpieza total: ${totalDeleted} notificaciones antiguas eliminadas`);
     } catch (error) {
       console.error('❌ Error en limpieza de notificaciones:', error);
     }
@@ -2188,244 +2435,11 @@ exports.onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFoll
 });
 
 // 🔔 MENCIONES EN CUALQUIER CONTENIDO (HISTORIAS, MOMENTOS, COMENTARIOS)
-exports.onMentionNotification = onDocumentCreated('users/{userId}/notifications/{notificationId}', async (event) => {
-  const snap = event.data;
-  const { userId, notificationId } = event.params;
-  const notification = snap.data();
-
-  // Solo procesar notificaciones de menciones
-  if (notification.type !== 'mention') return null;
-
-  try {
-    const [senderDoc, userDoc] = await Promise.all([
-      admin.firestore().doc(`users/${notification.senderId}`).get(),
-      admin.firestore().doc(`users/${userId}`).get()
-    ]);
-
-    if (!senderDoc.exists || !userDoc.exists) return null;
-
-    const senderData = senderDoc.data();
-    const userData = userDoc.data();
-
-    if (!validateUserData(senderData) || !validateUserData(userData)) {
-      console.warn('⚠️ Datos de usuario incompletos para mención');
-      return null;
-    }
-
-    if (!senderData.isActive || !userData.isActive) return null;
-
-    const mentionRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
-    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(userData, {
-      senderId: notification.senderId,
-      candidateTexts: [notification.text, notification.commentText, notification.content, notification.caption]
-    });
-    if (isSilencedByMuteSettings) {
-      await mentionRef.delete().catch(() => null);
-      return null;
-    }
-
-    const fcmToken = userData.fcmToken;
-    if (!fcmToken || isDoNotDisturbActive(userData)) return null;
-
-    // ✅ Idempotencia por notificación de mención
-    const done = await admin.firestore().runTransaction(async (tx) => {
-      const mSnap = await tx.get(mentionRef);
-      if (!mSnap.exists) return true;
-      if (mSnap.get('processed') === true) return true;
-      tx.update(mentionRef, { processed: true });
-      return false;
-    });
-    if (done) return null;
-
-    // ✅ DETERMINAR TIPO DE CONTENIDO Y NAVEGACIÓN
-    let contentType = 'contenido';
-    let targetType = 'moment';
-    let targetId = notification.momentId;
-
-    if (notification.storyId) {
-      contentType = 'historia';
-      targetType = 'story';
-      targetId = notification.storyId;
-    } else if (notification.momentId) {
-      contentType = 'momento';
-      targetType = 'moment';
-      targetId = notification.momentId;
-    }
-
-    // ✅ Obtener conteos actualizados para el Widget (CON CONTEXTO PARA EVITAR RACE CONDITION)
-    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'mention' });
-
-    // Determinar claves de localización
-    let titleLocKey = 'notification.mention.title';
-    let titleLocArgs = [senderData.username, contentType]; // contentType ya es 'momento', 'historia', etc.
-    // Mapear contentType a claves de localización si es necesario, pero ya los definimos en strings base
-    // "notification.mention.contentType.moment" = "momento";
-    // Podríamos hacer lookup inverso pero por simplicidad usaremos el string directo que coincide con la localizacion
-    // Mejor estrategia: enviar la clave del tipo de contenido como argumento
-    let contentTypeKey = 'notification.mention.contentType.default';
-    if (targetType === 'moment') contentTypeKey = 'notification.mention.contentType.moment';
-    if (targetType === 'story') contentTypeKey = 'notification.mention.contentType.story';
-
-    // FCM no soporta anidar loc keys en argumentos fácilmente, así que usaremos el valor traducido en el cliente si fuera posible,
-    // pero aquí APNs pide strings.
-    // Simplificación: Usar "momento"/"historia" hardcoded en español como fallback o intentar pasar la key.
-    // APNs soporta loc-args que son strings. 
-    // Vamos a usar una clave genérica y el nombre del usuario.
-
-    const message = {
-      token: fcmToken,
-      data: {
-        type: 'mention',
-        senderId: notification.senderId,
-        userId: userId,
-        targetType: targetType,
-        targetId: targetId,
-        senderUsername: senderData.username,
-        senderProfileImage: senderData.profileImagePath || '',
-        unreadMessages: String(counts.unreadMessages),
-        unreadNotifications: String(counts.unreadNotifications),
-        unreadEchoes: String(counts.unreadEchoes),
-        unreadTags: String(counts.unreadTags),
-      },
-      apns: {
-        headers: {
-          'apns-collapse-id': `mention_${userId}`
-        },
-        payload: {
-          aps: {
-            alert: {
-              'title-loc-key': 'notification.mention.title',
-              'title-loc-args': [senderData.username, contentType], // contentType debe ser localizado en el cliente o enviado como string
-              'loc-key': 'notification.mention.body',
-              'loc-args': []
-            },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
-            sound: 'default',
-            'mutable-content': 1,
-            'thread-id': `mentions_${userId}`
-          }
-        }
-      }
-    };
-
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación de mención enviada: ${senderData.username} -> ${userData.username} en ${contentType}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
-      }
-      throw error;
-    }
-
-  } catch (error) {
-    console.error('❌ Error sending mention notification:', error);
-  }
-});
-
-// 🏷️ ETIQUETAS EN FOTOS
-exports.onPhotoTagNotification = onDocumentCreated('users/{userId}/notifications/{notificationId}', async (event) => {
-  const snap = event.data;
-  const { userId, notificationId } = event.params;
-  const notification = snap.data();
-
-  // Solo procesar notificaciones de etiquetas en fotos
-  if (notification.type !== 'photoTag') return null;
-
-  try {
-    const [senderDoc, userDoc] = await Promise.all([
-      admin.firestore().doc(`users/${notification.senderId}`).get(),
-      admin.firestore().doc(`users/${userId}`).get()
-    ]);
-
-    if (!senderDoc.exists || !userDoc.exists) return null;
-
-    const senderData = senderDoc.data();
-    const userData = userDoc.data();
-
-    if (!validateUserData(senderData) || !validateUserData(userData)) {
-      console.warn('⚠️ Datos de usuario incompletos para etiqueta en foto');
-      return null;
-    }
-
-    if (!senderData.isActive || !userData.isActive) return null;
-
-    const tagRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
-    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(userData, {
-      senderId: notification.senderId,
-      candidateTexts: [notification.text, notification.commentText, notification.content, notification.caption]
-    });
-    if (isSilencedByMuteSettings) {
-      await tagRef.delete().catch(() => null);
-      return null;
-    }
-
-    const fcmToken = userData.fcmToken;
-    if (!fcmToken || isDoNotDisturbActive(userData)) return null;
-
-    // ✅ Idempotencia por notificación de etiqueta
-    const done = await admin.firestore().runTransaction(async (tx) => {
-      const tSnap = await tx.get(tagRef);
-      if (!tSnap.exists) return true;
-      if (tSnap.get('processed') === true) return true;
-      tx.update(tagRef, { processed: true });
-      return false;
-    });
-    if (done) return null;
-
-    // ✅ Obtener conteos actualizados para el Widget (CON CONTEXTO PARA EVITAR RACE CONDITION)
-    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'photoTag' });
-
-    const message = {
-      token: fcmToken,
-      data: {
-        type: 'photo_tag',
-        senderId: notification.senderId,
-        userId: userId,
-        targetType: 'moment',
-        targetId: notification.momentId || '',
-        senderUsername: senderData.username,
-        senderProfileImage: senderData.profileImagePath || '',
-        unreadMessages: String(counts.unreadMessages),
-        unreadNotifications: String(counts.unreadNotifications),
-        unreadEchoes: String(counts.unreadEchoes),
-        unreadTags: String(counts.unreadTags),
-      },
-      apns: {
-        headers: {
-          'apns-collapse-id': `tag_${userId}`
-        },
-        payload: {
-          aps: {
-            alert: {
-              'title-loc-key': 'notification.photoTag.title',
-              'title-loc-args': [senderData.username],
-              'loc-key': 'notification.photoTag.body',
-              'loc-args': []
-            },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
-            sound: 'default',
-            'mutable-content': 1,
-            'thread-id': `photo_tags_${userId}`
-          }
-        }
-      }
-    };
-
-    try {
-      await admin.messaging().send(message);
-      console.log(`✅ Notificación de etiqueta enviada: ${senderData.username} -> ${userData.username}`);
-    } catch (error) {
-      if (error.code === 'messaging/registration-token-not-registered') {
-        await removeInvalidToken(userId, fcmToken);
-      }
-      throw error;
-    }
-
-  } catch (error) {
-    console.error('❌ Error sending photo tag notification:', error);
-  }
-});
+// 🏷️ MENTIONS + PHOTO TAGS
+// ✅ ELIMINADAS: exports.onMentionNotification y exports.onPhotoTagNotification
+// Ahora están integradas en exports.onNotificationCreated (arriba) como
+// handleMentionPush() y handlePhotoTagPush() respectivamente.
+// Esto reduce invocaciones de Cloud Functions de 3x a 1x por notificación.
 
 // 🔔 ELIMINAR REACCIONES DE MOMENTOS
 exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{momentId}/reactions/{reactionId}', async (event) => {
@@ -2616,22 +2630,22 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       ? continuerData.profileImagePath.replace(':443', '')
       : null;
 
-    // ✅ Idempotencia por story chain
     const storyRef = admin.firestore().doc(`users/${userId}/stories/${storyId}`);
-    const alreadyProcessed = await admin.firestore().runTransaction(async (tx) => {
-      const storySnap = await tx.get(storyRef);
-      if (!storySnap.exists) return true;
-      if (storySnap.get('chainNotificationProcessed') === true) return true;
-      tx.update(storyRef, { chainNotificationProcessed: true });
-      return false;
+    const lockAcquired = await claimProcessingLock(storyRef, {
+      processedField: 'chainNotificationProcessed',
+      processingField: 'chainNotificationProcessingUntil'
     });
-    if (alreadyProcessed) return null;
+    if (!lockAcquired) return null;
 
     const isSilencedByMuteSettings = shouldSilenceNotificationForUser(chainCreatorData, {
       senderId: story.authorId,
       candidateTexts: [story.chainTitle]
     });
     if (isSilencedByMuteSettings) {
+      await markProcessingDone(storyRef, {
+        processedField: 'chainNotificationProcessed',
+        processingField: 'chainNotificationProcessingUntil'
+      });
       return null;
     }
 
@@ -2758,7 +2772,14 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       // No fallar la notificación por esto
     }
 
+    await markProcessingDone(storyRef, {
+      processedField: 'chainNotificationProcessed',
+      processingField: 'chainNotificationProcessingUntil'
+    });
+
   } catch (error) {
+    const storyRef = admin.firestore().doc(`users/${userId}/stories/${storyId}`);
+    await releaseProcessingLock(storyRef, { processingField: 'chainNotificationProcessingUntil' }).catch(() => null);
     console.error('❌ Error sending story chain notification:', error);
   }
 });

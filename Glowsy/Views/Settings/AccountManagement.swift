@@ -611,43 +611,25 @@ class AccountManagementService {
                 group.leave()
             }
             
-            // 8. Limpiar events
-            group.enter()
-            self.cleanupEvents(userId: userId) {
-                group.leave()
-            }
-            
-            // 9. Limpiar featureusage
-            group.enter()
-            self.cleanupFeatureUsage(userId: userId) {
-                group.leave()
-            }
-            
-            // 10. Limpiar loginactivity
+            // 8. Limpiar loginactivity
             group.enter()
             self.cleanupLoginActivity(userId: userId) {
                 group.leave()
             }
             
-            // 11. Limpiar novamemory
+            // 9. Limpiar novamemory
             group.enter()
             self.cleanupNovaMemory(userId: userId) {
                 group.leave()
             }
             
-            // 12. Limpiar sessions
-            group.enter()
-            self.cleanupSessions(userId: userId) {
-                group.leave()
-            }
-            
-            // 13. Limpiar visitorsummaries
+            // 10. Limpiar visitorsummaries
             group.enter()
             self.cleanupVisitorSummaries(userId: userId) {
                 group.leave()
             }
             
-            // 14. Limpiar visits
+            // 11. Limpiar visits
             group.enter()
             self.cleanupVisits(userId: userId) {
                 group.leave()
@@ -835,42 +817,10 @@ class AccountManagementService {
             }
     }
     
-    private func cleanupEvents(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("events")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    private func cleanupFeatureUsage(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("featureusage")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
     private func cleanupLoginActivity(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("loginactivity")
-            .whereField("userId", isEqualTo: userId)
+        db.collection("users")
+            .document(userId)
+            .collection("loginActivity")
             .getDocuments { snapshot, error in
                 if let documents = snapshot?.documents {
                     let batch = self.db.batch()
@@ -886,22 +836,6 @@ class AccountManagementService {
     private func cleanupNovaMemory(userId: String, completion: @escaping () -> Void) {
         
         db.collection("novamemory")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    private func cleanupSessions(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("sessions")
             .whereField("userId", isEqualTo: userId)
             .getDocuments { snapshot, error in
                 if let documents = snapshot?.documents {

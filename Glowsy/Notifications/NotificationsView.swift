@@ -69,6 +69,7 @@ struct NotificationsView: View {
             clearNotificationsAutomatically()
         }
         .onDisappear {
+            NotificationBadgeService.shared.clearNotificationBadge()
             onNotificationsCleared?()
         }
         .alert(isPresented: $viewModel.showError) {
@@ -371,6 +372,12 @@ struct NotificationsView: View {
             // 🌊 Navigate to Echo Viewer
             if let echoId = firstNotification.echoId {
                 NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
+            }
+        case .storyChainContinued:
+            // 🔗 Navigate to Story Chain
+            if let chainId = firstNotification.chainId {
+                let chainTitle = firstNotification.chainTitle ?? ""
+                NotificationNavigationService.shared.pendingNavigation = .storyChain(chainId, chainTitle)
             }
         case .dataExportReady:
             guard
@@ -930,6 +937,9 @@ struct EnhancedNotificationRow: View {
                     return AttributedString(NSLocalizedString("notifications.message.dataExportReady", comment: "Data export ready notification"))
                 }
                 return AttributedString(exportMessage)
+            case .storyChainContinued:
+                let chainTitle = firstNotification.chainTitle ?? ""
+                return AttributedString(String(format: NSLocalizedString("notifications.message.storyChain.multiple", comment: "Multiple story chain continuations"), effectiveSenderUsername, chainTitle, group.notifications.count - 1))
             }
         } else {
             switch firstNotification.type {
@@ -976,6 +986,9 @@ struct EnhancedNotificationRow: View {
                     return AttributedString(NSLocalizedString("notifications.message.dataExportReady", comment: "Data export ready notification"))
                 }
                 return AttributedString(exportMessage)
+            case .storyChainContinued:
+                let chainTitle = firstNotification.chainTitle ?? ""
+                return AttributedString(String(format: NSLocalizedString("notifications.message.storyChain.single", comment: "Single story chain continuation"), effectiveSenderUsername, chainTitle))
             }
         }
     }
@@ -1347,7 +1360,7 @@ class NotificationsViewModel: ObservableObject {
             case .comments:
                 return notification.type == .comment || notification.type == .like || notification.type == .mention
             case .storyReactions:
-                return notification.type == .storyReaction
+                return notification.type == .storyReaction || notification.type == .storyChainContinued
             case .requests:
                 return notification.type == .followRequest
             }
@@ -1393,6 +1406,37 @@ class NotificationsViewModel: ObservableObject {
         self.groupedByDate = tempSections
         self.dateKeys = ["New", "This Week", "This Month", "Earlier"].filter { tempSections[$0] != nil }
         self.groupedNotifications = groups.sorted { $0.notifications.first!.timestamp > $1.notifications.first!.timestamp }
+        
+        // ✅ #5: Batch preload sender profiles to avoid N+1 queries
+        preloadSenderProfiles(for: filtered)
+    }
+    
+    // ✅ #5: Pre-cargar perfiles de senders en batch (evita N+1 queries por fila)
+    private func preloadSenderProfiles(for notifications: [Notification]) {
+        let senderIds = Set(notifications.map { $0.senderId }.filter { !$0.isEmpty })
+        let uncachedIds = senderIds.filter { userProfileImageCache[$0] == nil }
+        
+        guard !uncachedIds.isEmpty else { return }
+        
+        // Firestore 'in' queries support max 30 items
+        let chunks = Array(uncachedIds).chunked(into: 30)
+        
+        for chunk in chunks {
+            Firestore.firestore().collection("users")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self, let docs = snapshot?.documents else { return }
+                    
+                    DispatchQueue.main.async {
+                        for doc in docs {
+                            let data = doc.data()
+                            if let imagePath = data["profileImagePath"] as? String, !imagePath.isEmpty {
+                                self.userProfileImageCache[doc.documentID] = imagePath
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     private func getSectionKey(for date: Date) -> String {

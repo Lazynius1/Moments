@@ -135,10 +135,6 @@ struct ExpandableFeedSelector: View {
                                 }
                                 
                                 // ✅ MANTENIDO: Analytics exactamente como en tu código original
-                                AnalyticsService.shared.trackInteraction("feed_type_changed", details: [
-                                    "new_feed_type": feedType.rawValue,
-                                    "previous_feed_type": selectedFeedType.rawValue
-                                ])
                             }
                         )
                     }
@@ -307,9 +303,6 @@ struct CompactFeedToggle: View {
                             }
                             
                             // ✅ MANTENIDO: Analytics exactamente como en tu código original
-                            AnalyticsService.shared.trackInteraction("feed_type_changed", details: [
-                                "new_feed_type": feedType.rawValue
-                            ])
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: feedType.icon)
@@ -346,9 +339,6 @@ struct SegmentedFeedToggle: View {
                         selectedFeedType = feedType
                     }
                     
-                    AnalyticsService.shared.trackInteraction("feed_type_changed", details: [
-                        "new_feed_type": feedType.rawValue
-                    ])
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: feedType.icon)
@@ -448,9 +438,6 @@ struct HeaderFeedChip: View {
                                     showOptions = false
                                 }
                                 
-                                AnalyticsService.shared.trackInteraction("feed_type_changed", details: [
-                                    "new_feed_type": feedType.rawValue
-                                ])
                             }) {
                                 HStack(spacing: 6) {
                                     Circle()

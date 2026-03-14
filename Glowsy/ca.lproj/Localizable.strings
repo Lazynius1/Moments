@@ -1241,6 +1241,7 @@
 "loginActivity.title" = "Activitat d'Inici de Sessió";
 "loginActivity.description" = "Revisa quan i des d'on has iniciat sessió al teu compte";
 "loginActivity.currentSession" = "Sessió Actual";
+"loginActivity.noCurrentSession" = "Encara no hi ha cap sessió actual registrada en aquest dispositiu.";
 "loginActivity.otherSessions" = "Altres sessions actives";
 "loginActivity.recentActivity" = "Activitat Recent";
 "loginActivity.logoutAll" = "Tancar totes les sessions";
@@ -1258,6 +1259,8 @@
 "loginActivity.current" = "ACTUAL";
 "loginActivity.loading" = "Carregant informació de sessió...";
 "loginActivity.securityTips" = "Consells de Seguretat";
+"loginActivity.sessionAlert.newDevice" = "Nou dispositiu detectat";
+"loginActivity.sessionAlert.locationChange" = "Canvi d'ubicació detectat";
 
 /* Saved Moments */
 "savedMoments.loading" = "Carregant moments guardats...";
@@ -2509,6 +2512,8 @@
 "userActivity.simple.filters.author.all" = "Tots";
 "userActivity.simple.filters.author.sheet.title" = "Filtrar per usuari";
 "userActivity.simple.filters.author.search" = "Cercar username";
+"banner.verb.storyChain" = "ha continuat la teva cadena";
+"banner.storyChain.subtitle" = "Part %@ · %@";
 "userActivity.simple.reactions.selectedCount" = "%d seleccionats";
 "userActivity.simple.tags.selectedCount" = "%d seleccionats";
 "userActivity.simple.reactions.delete.single" = "Eliminar reacció";

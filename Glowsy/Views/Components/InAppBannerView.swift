@@ -93,6 +93,11 @@ struct InAppBannerView: View {
                                 .font(.custom("Poppins-Medium", size: 13))
                                 .foregroundColor(.secondary.opacity(0.92))
                                 .lineLimit(2)
+                        } else if notification.type == .storyChainContinued {
+                            Text(storyChainSubtitle(for: notification))
+                                .font(.custom("Poppins-Regular", size: 13))
+                                .foregroundColor(.secondary.opacity(0.8))
+                                .lineLimit(1)
                         } else if notification.type == .reaction || notification.type == .storyReaction {
                             if let content = notification.reaction {
                                 if let type = ReactionType(rawValue: content) {
@@ -184,6 +189,8 @@ struct InAppBannerView: View {
             }
         } else if notification.type == .storyReaction, let storyId = notification.storyId {
             fetchStoryPreview(storyId: storyId, authorId: notification.storyAuthorId)
+        } else if notification.type == .storyChainContinued, let storyId = notification.storyId {
+            fetchStoryPreview(storyId: storyId, authorId: notification.senderId)
         }
     }
     
@@ -254,6 +261,12 @@ struct InAppBannerView: View {
             if let storyId = notification.storyId {
                 navigationService.navigateToStory(storyId: storyId)
             }
+        case .storyChainContinued:
+            if let chainId = notification.chainId {
+                navigationService.pendingNavigation = .storyChain(chainId, notification.chainTitle ?? "")
+            } else if let storyId = notification.storyId {
+                navigationService.navigateToStory(storyId: storyId)
+            }
         case .message:
             if let conversationId = notification.momentId { // momentId guarda conversationId temporalmente
                 navigationService.navigateToConversation(conversationId: conversationId)
@@ -277,6 +290,7 @@ struct InAppBannerView: View {
         case .requestAccepted: return NSLocalizedString("banner.verb.accepted", value: "accepted your request", comment: "")
         case .mention: return NSLocalizedString("banner.verb.mention", value: "mentioned you", comment: "")
         case .storyReaction: return NSLocalizedString("banner.verb.story", value: "reacted to your story", comment: "")
+        case .storyChainContinued: return NSLocalizedString("banner.verb.storyChain", value: "continued your story chain", comment: "")
         case .message: return NSLocalizedString("banner.verb.message", value: "sent you a message", comment: "")
         case .echoSuggestion: return NSLocalizedString("banner.verb.echoSuggestion", value: "is near you! Create an Echo", comment: "")
         default: return "interacted"
@@ -289,8 +303,17 @@ struct InAppBannerView: View {
         case .reaction: return .purple
         case .comment: return .blue
         case .newFollower: return .green
+        case .storyChainContinued: return .indigo
         case .echoSuggestion: return .orange // Nova Spark vibe
         default: return .gray
         }
+    }
+
+    private func storyChainSubtitle(for notification: Notification) -> String {
+        let chainTitle = (notification.chainTitle?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+            ? (notification.chainTitle ?? "")
+            : NSLocalizedString("storyChains.chain", comment: "Chain")
+        let partText = notification.chainPosition.map { String($0) } ?? "?"
+        return String(format: NSLocalizedString("banner.storyChain.subtitle", value: "Part %@ · %@", comment: "Story chain banner subtitle"), partText, chainTitle)
     }
 }

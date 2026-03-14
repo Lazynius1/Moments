@@ -213,10 +213,6 @@ struct ViewOnceImmersiveViewer: View {
         hasMarkedAsViewed = true
         onViewed()
         
-        AnalyticsService.shared.trackInteraction("view_once_immersive_opened", details: [
-            "messageType": message.type.rawValue,
-            "messageId": message.id
-        ])
     }
     
     private func closeViewer() {
@@ -225,10 +221,6 @@ struct ViewOnceImmersiveViewer: View {
     }
     
     private func handleDeletionOnClose() {
-        AnalyticsService.shared.trackInteraction("view_once_immersive_closed_deleted", details: [
-            "messageType": message.type.rawValue,
-            "messageId": message.id
-        ])
         
         // Trigger deletion via ChatService
         ChatService().deleteViewOnceAfterViewing(

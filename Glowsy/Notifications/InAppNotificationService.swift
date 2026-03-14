@@ -26,6 +26,7 @@ class InAppNotificationService: ObservableObject {
         
         // Evitar duplicar listeners
         listener?.remove()
+        messageListener?.remove()
         
         // Escuchar solo cambios NUEVOS (usando timestamp)
         // Nota: Firestore no soporta "solo nuevos" nativamente sin un campo de fecha.

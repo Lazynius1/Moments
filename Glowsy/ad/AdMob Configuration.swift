@@ -195,10 +195,6 @@ class AdMobConfiguration: NSObject {
         }
         
         // Track in analytics
-        AnalyticsService.shared.trackInteraction("att_decision", details: [
-            "status": statusString,
-            "timestamp": Date().timeIntervalSince1970
-        ])
         
         // Also save to UserDefaults for quick access
         UserDefaults.standard.set(statusString, forKey: "attAuthorizationStatus")

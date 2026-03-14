@@ -3308,12 +3308,6 @@ struct CaptionAndDetailsView: View {
                 self.resetForm()
                 
                 // 📊 Analytics
-                AnalyticsService.shared.trackInteraction("moment_published_background", details: [
-                    "mediaCount": selectedMediaItems.count,
-                    "hasCaption": !captionText.isEmpty,
-                    "hasLocation": !locationName.isEmpty,
-                    "audienceType": audienceSetting.title
-                ])
                 
             } else {
                 // ❌ Feedback háptico de error

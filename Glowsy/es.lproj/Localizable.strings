@@ -1248,6 +1248,7 @@
 "loginActivity.title" = "Actividad de Inicio de Sesión";
 "loginActivity.description" = "Revisa cuándo y desde dónde has iniciado sesión en tu cuenta";
 "loginActivity.currentSession" = "Sesión Actual";
+"loginActivity.noCurrentSession" = "No hay una sesión actual registrada en este dispositivo todavía.";
 "loginActivity.otherSessions" = "Otras sesiones activas";
 "loginActivity.recentActivity" = "Actividad Reciente";
 "loginActivity.logoutAll" = "Cerrar todas las sesiones";
@@ -1265,6 +1266,8 @@
 "loginActivity.current" = "ACTUAL";
 "loginActivity.loading" = "Cargando información de sesión...";
 "loginActivity.securityTips" = "Consejos de Seguridad";
+"loginActivity.sessionAlert.newDevice" = "Nuevo dispositivo detectado";
+"loginActivity.sessionAlert.locationChange" = "Cambio de ubicación detectado";
 
 /* Saved Moments */
 "savedMoments.loading" = "Cargando momentos guardados...";
@@ -2530,6 +2533,8 @@
 "userActivity.simple.filters.author.all" = "Todos";
 "userActivity.simple.filters.author.sheet.title" = "Filtrar por usuario";
 "userActivity.simple.filters.author.search" = "Buscar username";
+"banner.verb.storyChain" = "continuó tu cadena";
+"banner.storyChain.subtitle" = "Parte %@ · %@";
 "userActivity.simple.reactions.selectedCount" = "%d seleccionados";
 "userActivity.simple.tags.selectedCount" = "%d seleccionados";
 "userActivity.simple.reactions.delete.single" = "Eliminar reacción";

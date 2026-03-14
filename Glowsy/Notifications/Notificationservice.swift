@@ -124,159 +124,15 @@ class NotificationService: ObservableObject {
         }
     }
     
-    // MARK: - Notification Creation Engine (Internal)
-    
-    private func triggerNotification(_ notification: Notification, to targetUserId: String) {
-        // 1. Evitar auto-notificaciones
-        guard targetUserId != Auth.auth().currentUser?.uid else { return }
-        
-        // 2. Verificar preferencias del destinatario
-        db.collection("users").document(targetUserId).getDocument { [weak self] snapshot, error in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                if let data = snapshot?.data(),
-                   let preferences = data["notificationPreferences"] as? [String: Bool] {
-
-                
-                // ✅ 0. Verificar Horario "No Molestar" (DND)
-                if let start = data["activeHoursStart"] as? String,
-                   let end = data["activeHoursEnd"] as? String,
-                   self.isInQuietHours(start: start, end: end) == true {
-                    print("🔇 Notification silenced: User is in Do Not Disturb mode (\(start)-\(end))")
-                    return
-                }
-
-                let isAllowed = preferences[notification.type.rawValue] ?? true
-                if !isAllowed { return }
-                
-                // ✅ LÓGICA DE FILTRADO AVANZADO
-                
-                // 1. Filtro "Solo comentarios de Mutuals"
-                if notification.type == .comment,
-                   let commentsMutualsOnly = preferences["commentsMutualsOnly"],
-                   commentsMutualsOnly == true {
-                    
-                    // Verificar si son mutuals
-                    self.checkIfMutuals(user1: notification.senderId, user2: targetUserId) { isMutual in
-                        if isMutual {
-                            // ✅ Es mutual, verificar siguiente filtro o enviar
-                             self.checkOldPostReactionFilter(notification: notification, preferences: preferences, targetUserId: targetUserId)
-                        } else {
-                            // ❌ No es mutual, silenciar notificación
-                            print("🔇 Notification silenced: Comment not from mutual")
-                            return
-                        }
-                    }
-                    return // Salir para esperar el callback asíncrono
-                }
-                
-                // 2. Filtro "Silenciar reacciones en posts antiguos"
-                self.checkOldPostReactionFilter(notification: notification, preferences: preferences, targetUserId: targetUserId)
-                return
-                }
-                
-                // Si no hay preferencias, comportamiento por defecto (enviar)
-                self.saveNotification(notification, for: targetUserId)
-            }
-        }
-
-    }
-    
-    // ✅ Helper para verificar horario "No Molestar"
-    private func isInQuietHours(start: String, end: String) -> Bool {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "HH:mm"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX") // Asegurar formato 24h constante
-        
-        let now = Date()
-        let calendar = Calendar.current
-        let currentComponents = calendar.dateComponents([.hour, .minute], from: now)
-        
-        guard let startTime = dateFormatter.date(from: start),
-              let endTime = dateFormatter.date(from: end) else { return false }
-        
-        let startComponents = calendar.dateComponents([.hour, .minute], from: startTime)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: endTime)
-        
-        guard let currentHour = currentComponents.hour, let currentMinute = currentComponents.minute,
-              let startHour = startComponents.hour, let startMinute = startComponents.minute,
-              let endHour = endComponents.hour, let endMinute = endComponents.minute else { return false }
-        
-        let currentMinutes = currentHour * 60 + currentMinute
-        let startMinutes = startHour * 60 + startMinute
-        let endMinutes = endHour * 60 + endMinute
-        
-        if startMinutes > endMinutes {
-            // Caso: Cruza la medianoche (ej: 23:00 a 07:00)
-            // Es DND si es mayor que inicio (noche) O menor que fin (mañana)
-            return currentMinutes >= startMinutes || currentMinutes <= endMinutes
-        } else {
-            // Caso: Mismo día (ej: 09:00 a 17:00)
-            return currentMinutes >= startMinutes && currentMinutes <= endMinutes
-        }
-    }
-    
-    // ✅ Helper para verificar filtro de posts antiguos
-    private func checkOldPostReactionFilter(notification: Notification, preferences: [String: Bool], targetUserId: String) {
-        if (notification.type == .like || notification.type == .storyReaction),
-           let muteOldReactions = preferences["muteOldPostReactions"],
-           muteOldReactions == true,
-           let momentId = notification.momentId {
-            
-            // Verificar antigüedad del post
-            db.collection("moments").document(momentId).getDocument { [weak self] snapshot, error in
-                guard let self = self else { return }
-                
-                Task { @MainActor in
-                    if let data = snapshot?.data(),
-                       let timestamp = data["timestamp"] as? Timestamp {
-
-                    
-                    let postDate = timestamp.dateValue()
-                    let daysOld = Calendar.current.dateComponents([.day], from: postDate, to: Date()).day ?? 0
-                    
-                    if daysOld > 180 { // 180 días (aprox 6 meses) como umbral para "antiguo"
-                         // ❌ Post antiguo, silenciar
-                        print("🔇 Notification silenced: Reaction on old post (\(daysOld) days)")
-                        return
-                    }
-                    }
-                    // ✅ Post reciente o error al leer fecha, enviar notificación
-                    self.saveNotification(notification, for: targetUserId)
-                }
-            }
-
-        } else {
-            // No aplica filtro, enviar
-            saveNotification(notification, for: targetUserId)
-        }
-    }
-    
-    // ✅ Helper para verificar mutuals
-    private func checkIfMutuals(user1: String, user2: String, completion: @escaping (Bool) -> Void) {
-        let user1FollowingRef = db.collection("users").document(user1).collection("following").document(user2)
-        let user2FollowingRef = db.collection("users").document(user2).collection("following").document(user1)
-        
-        user1FollowingRef.getDocument { [weak self] doc1, _ in
-            guard let self = self else { return }
-            
-            if doc1?.exists == true {
-                user2FollowingRef.getDocument { doc2, _ in
-                    Task { @MainActor in
-                        completion(doc2?.exists == true)
-                    }
-                }
-            } else {
-                Task { @MainActor in
-                    completion(false)
-                }
-            }
-        }
-
-    }
+    // MARK: - Notification Creation (Simplified — Server handles DND/Mute/Filtering)
+    // ⚠️ NOTE: Client-side notification writes should eventually migrate to Cloud Functions.
+    // The server pipeline (index.js) already handles DND, mute settings, and all filtering.
+    // Client writes are kept for mentions, photo tags, and profile visits only.
     
     private func saveNotification(_ notification: Notification, for userId: String) {
+        // Evitar auto-notificaciones
+        guard userId != Auth.auth().currentUser?.uid else { return }
+        
         do {
             var notificationToSave = notification
             let notificationsRef = db.collection("users").document(userId).collection("notifications")
@@ -290,7 +146,6 @@ class NotificationService: ObservableObject {
             }
 
             try documentRef.setData(from: notificationToSave)
-            // ✅ Actualizar caché local si somos nosotros viendo este cambio (aunque normalmente lo hará el listener)
             LocalPersistenceService.shared.saveNotifications([notificationToSave])
         } catch {
             print("❌ Error saving notification: \(error)")
@@ -302,9 +157,6 @@ class NotificationService: ObservableObject {
     func sendInteractionNotification(type: NotificationType, to targetUserId: String, momentId: String? = nil, storyId: String? = nil, commentId: String? = nil, reaction: String? = nil, senderUsername: String? = nil, echoId: String? = nil) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        // 1. Prioridad: Username pasado por parámetro
-        // 2. Segunda opción: UserDefaults (rápido)
-        // 3. Fallback: "Alguien" (mejor que "Usuario")
         let username = senderUsername ?? UserDefaults.standard.string(forKey: "current_username") ?? "Alguien"
         
         let notification = Notification(
@@ -320,15 +172,13 @@ class NotificationService: ObservableObject {
             echoId: echoId
         )
         
-        triggerNotification(notification, to: targetUserId)
+        saveNotification(notification, for: targetUserId)
     }
     
-    // Especial para menciones
     func sendMentionNotification(to userId: String, momentId: String? = nil, storyId: String? = nil) {
         sendInteractionNotification(type: .mention, to: userId, momentId: momentId, storyId: storyId)
     }
     
-    // Especial para visitas (con agrupamiento por fecha manejado por ID)
     func updateVisitNotification(to userId: String, visitorUsername: String, visitorId: String, count: Int) {
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
         let notificationId = "visit_\(dateString)"
@@ -343,7 +193,13 @@ class NotificationService: ObservableObject {
             visitCount: count
         )
         
-        saveNotification(notification, for: userId)
+        // Profile visits write to target user's subcollection directly
+        do {
+            let ref = db.collection("users").document(userId).collection("notifications").document(notificationId)
+            try ref.setData(from: notification, merge: true)
+        } catch {
+            print("❌ Error saving visit notification: \(error)")
+        }
     }
     
     // MARK: - Actions
@@ -351,12 +207,10 @@ class NotificationService: ObservableObject {
     func markAsRead(_ notification: Notification) {
         guard let userId = Auth.auth().currentUser?.uid, let notificationId = notification.id else { return }
         
-        // ✅ OFFLINE-FIRST: Delegar a LocalPersistence (Optimistic UI + Sync)
         Task {
             await LocalPersistenceService.shared.markNotificationAsRead(notificationId: notificationId, userId: userId)
         }
         
-        // Actualizar estado en memoria para reflejo inmediato en UI
         if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
             notifications[index].isPending = false
             updateUnreadCount()
@@ -367,36 +221,155 @@ class NotificationService: ObservableObject {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
         // ✅ Optimista: Limpiar estado local inmediatamente
-        DispatchQueue.main.async {
-            self.notifications.indices.forEach { self.notifications[$0].isPending = false }
-            self.unreadCount = 0
-            UIApplication.shared.applicationIconBadgeNumber = 0
+        let visiblePendingIds = notifications.compactMap { notification in
+            notification.isPending ? notification.id : nil
         }
+        notifications.indices.forEach { notifications[$0].isPending = false }
+        unreadCount = 0
+        UIApplication.shared.applicationIconBadgeNumber = 0
         
-        // ✅ Real: Buscar TODAS las notificaciones no leídas en Firestore (no solo las cargadas)
+        // ✅ Compatibilidad: marcar también docs visibles (incluye esquemas legacy sin isPending)
+        markSpecificNotificationsAsRead(userId: userId, ids: visiblePendingIds)
+        
+        // ✅ Recursive batch: procesa 500 docs por ciclo hasta que no queden más
+        markAllAsReadBatch(userId: userId)
+        
+        // ✅ Legacy-safe final pass: cubre documentos antiguos sin isPending/isRead
+        markAllAsReadByScan(userId: userId)
+    }
+    
+    private func markAllAsReadBatch(userId: String) {
         db.collection("users").document(userId).collection("notifications")
             .whereField("isPending", isEqualTo: true)
-            .limit(to: 500) // Límite de seguridad para batch
+            .limit(to: 500)
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
                 
                 Task { @MainActor in
-                    guard let documents = snapshot?.documents, !documents.isEmpty else { return }
-                    
-                    let batch = self.db.batch()
-                    
-                    for doc in documents {
-                        batch.updateData(["isPending": false], forDocument: doc.reference)
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        self.markAllAsReadLegacyBatch(userId: userId)
+                        return
                     }
                     
-                    batch.commit { error in
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData([
+                            "isPending": false,
+                            "isRead": true
+                        ], forDocument: doc.reference)
+                    }
+                    
+                    batch.commit { [weak self] error in
                         if let error = error {
-                            print("❌ Error marking all as read: \(error)")
+                            print("❌ Error marking batch as read: \(error)")
+                            return
+                        }
+                        // Si había exactamente 500, probablemente hay más
+                        if documents.count == 500 {
+                            Task { @MainActor in
+                                self?.markAllAsReadBatch(userId: userId)
+                            }
+                        } else {
+                            Task { @MainActor in
+                                self?.markAllAsReadLegacyBatch(userId: userId)
+                            }
                         }
                     }
                 }
             }
+    }
 
+    private func markAllAsReadLegacyBatch(userId: String) {
+        db.collection("users").document(userId).collection("notifications")
+            .whereField("isRead", isEqualTo: false)
+            .limit(to: 500)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                Task { @MainActor in
+                    guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData([
+                            "isPending": false,
+                            "isRead": true
+                        ], forDocument: doc.reference)
+                    }
+
+                    batch.commit { [weak self] error in
+                        if let error = error {
+                            print("❌ Error marking legacy batch as read: \(error)")
+                            return
+                        }
+                        if documents.count == 500 {
+                            Task { @MainActor in
+                                self?.markAllAsReadLegacyBatch(userId: userId)
+                            }
+                        }
+                    }
+                }
+            }
+    }
+
+    private func markSpecificNotificationsAsRead(userId: String, ids: [String]) {
+        guard !ids.isEmpty else { return }
+        let uniqueIds = Array(Set(ids))
+        let chunks = stride(from: 0, to: uniqueIds.count, by: 400).map {
+            Array(uniqueIds[$0..<min($0 + 400, uniqueIds.count)])
+        }
+
+        for chunk in chunks {
+            let batch = db.batch()
+            for id in chunk {
+                let ref = db.collection("users").document(userId).collection("notifications").document(id)
+                batch.setData([
+                    "isPending": false,
+                    "isRead": true
+                ], forDocument: ref, merge: true)
+            }
+            batch.commit { error in
+                if let error = error {
+                    print("❌ Error marking specific notifications as read: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func markAllAsReadByScan(userId: String, startAfter: DocumentSnapshot? = nil) {
+        var query: Query = db.collection("users").document(userId).collection("notifications")
+            .order(by: "timestamp", descending: true)
+            .limit(to: 500)
+        
+        if let startAfter {
+            query = query.start(afterDocument: startAfter)
+        }
+        
+        query.getDocuments { [weak self] snapshot, error in
+            guard let self = self else { return }
+            guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+            
+            let batch = self.db.batch()
+            for doc in documents {
+                let data = doc.data()
+                let isPending = data["isPending"] as? Bool
+                let isRead = data["isRead"] as? Bool
+                
+                // Evitar writes innecesarias: solo normalizar si aún no está leído.
+                if isPending != false || isRead != true {
+                    batch.setData([
+                        "isPending": false,
+                        "isRead": true
+                    ], forDocument: doc.reference, merge: true)
+                }
+            }
+            
+            batch.commit { [weak self] error in
+                guard error == nil else { return }
+                guard documents.count == 500, let last = documents.last else { return }
+                self?.markAllAsReadByScan(userId: userId, startAfter: last)
+            }
+        }
     }
     
     func deleteNotification(_ notification: Notification) {
@@ -404,13 +377,10 @@ class NotificationService: ObservableObject {
         
         db.collection("users").document(userId).collection("notifications").document(notificationId).delete()
         
-        DispatchQueue.main.async {
-            self.notifications.removeAll { $0.id == notification.id }
-            self.updateUnreadCount()
-        }
+        notifications.removeAll { $0.id == notification.id }
+        updateUnreadCount()
     }
     
-    // ✅ NUEVO: Eliminar notificación por criterios (para deshacer acciones)
     func removeNotification(type: NotificationType, senderId: String, recipientId: String, momentId: String? = nil, storyId: String? = nil, commentId: String? = nil, reaction: String? = nil) {
         
         var query = db.collection("users").document(recipientId).collection("notifications")
@@ -420,15 +390,12 @@ class NotificationService: ObservableObject {
         if let momentId = momentId {
             query = query.whereField("momentId", isEqualTo: momentId)
         }
-        
         if let storyId = storyId {
             query = query.whereField("storyId", isEqualTo: storyId)
         }
-        
         if let commentId = commentId {
             query = query.whereField("commentId", isEqualTo: commentId)
         }
-        
         if let reaction = reaction {
             query = query.whereField("reaction", isEqualTo: reaction)
         }
@@ -440,7 +407,6 @@ class NotificationService: ObservableObject {
                 guard let documents = snapshot?.documents else { return }
                 
                 let batch = self.db.batch()
-                
                 for doc in documents {
                     batch.deleteDocument(doc.reference)
                 }
@@ -452,7 +418,6 @@ class NotificationService: ObservableObject {
                 }
             }
         }
-
     }
     
     // MARK: - Utility (One-time fetch)

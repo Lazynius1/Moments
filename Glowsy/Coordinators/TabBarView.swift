@@ -302,14 +302,6 @@ struct ModernTabView: View {
         // ✅ Limpiar navegación pendiente
         navigationService.clearPendingNavigation()
         
-        // ✅ Analytics para tracking de navegación desde notificaciones
-        AnalyticsService.shared.trackInteraction(
-            "notification_navigation",
-            details: [
-                "type": navigation.category,
-                "source": "push_notification"
-            ]
-        )
     }
     
     // ✅ NUEVO: Manejador de Deep Links extraído para evitar errores de compilador
@@ -660,13 +652,6 @@ extension View {
                     
                     navigationService.clearPendingNavigation()
                     
-                    AnalyticsService.shared.trackInteraction(
-                        "notification_navigation",
-                        details: [
-                            "type": navigation.category,
-                            "source": "push_notification"
-                        ]
-                    )
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfile"))) { notification in

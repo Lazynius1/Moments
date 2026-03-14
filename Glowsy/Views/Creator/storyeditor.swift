@@ -1259,12 +1259,6 @@ struct StoryEditingView: View {
                 self.resetStoryForm()
                 
                 // 📊 Analytics
-                AnalyticsService.shared.trackInteraction("story_published_background", details: [
-                    "hasText": !storyText.isEmpty,
-                    "hasStickers": !selectedStickers.isEmpty,
-                    "hasDrawing": drawingImage != nil,
-                    "audienceType": contentAudience.rawValue
-                ])
                 
                 // ✅ ENVIAR NOTIFICACIONES DE MENCIONES DESPUÉS DE PUBLICAR
                 // Las notificaciones se enviarán cuando se complete la publicación

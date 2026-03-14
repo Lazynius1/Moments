@@ -19,6 +19,7 @@ struct ModernMomentDetailView: View {
     @State private var peekImageURL: String? = nil
     @State private var peekAspectRatio: CGFloat = 1.0
     @State private var isPeeking = false
+    @State private var peekIsProtected = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
     @State private var trackedMomentViewIds: Set<String> = []
@@ -141,20 +142,22 @@ struct ModernMomentDetailView: View {
         
         // 3. ✅ LONG PRESS PEEK: Overlay a pantalla completa
         if isPeeking, let imageURL = peekImageURL {
-            ZStack {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .ignoresSafeArea()
-                
-                KFImage(URL(string: imageURL))
-                    .resizable()
-                    .scaledToFill()
-                    .frame(
-                        width: UIScreen.main.bounds.width - 32,
-                        height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+            ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
+                ZStack {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea()
+                    
+                    KFImage(URL(string: imageURL))
+                        .resizable()
+                        .scaledToFill()
+                        .frame(
+                            width: UIScreen.main.bounds.width - 32,
+                            height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                }
             }
             .transition(.opacity)
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
@@ -345,9 +348,11 @@ struct ModernMomentDetailView: View {
                                         if isPressing {
                                             peekImageURL = imageURL
                                             peekAspectRatio = ratio
+                                            peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
                                             isPeeking = true
                                         } else {
                                             isPeeking = false
+                                            peekIsProtected = false
                                         }
                                     }
                                 }
