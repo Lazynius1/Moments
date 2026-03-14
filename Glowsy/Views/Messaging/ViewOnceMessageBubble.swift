@@ -72,10 +72,6 @@ struct ViewOnceMessageBubble: View {
         }
         
         showFullScreen = true
-        AnalyticsService.shared.trackInteraction("view_once_message_opened", details: [
-            "messageType": message.type.rawValue,
-            "messageId": message.id
-        ])
     }
 }
 

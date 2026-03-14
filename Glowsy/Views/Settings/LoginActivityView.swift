@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import UIKit
 
 struct LoginActivityView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -93,6 +94,13 @@ struct LoginActivityView: View {
                 viewModel.loadLoginActivity {
                     isLoading = false
                 }
+
+                // Safety net to avoid indefinite loading UI if any callback is delayed.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                    if isLoading {
+                        isLoading = false
+                    }
+                }
             }
             .refreshable {
                 await viewModel.refreshLoginActivity()
@@ -150,8 +158,8 @@ struct CurrentSessionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "checkmark.shield.fill")
-                    .foregroundColor(.green)
+                Image(systemName: session == nil ? "shield.slash.fill" : "checkmark.shield.fill")
+                    .foregroundColor(session == nil ? .gray : .green)
                     .font(.system(size: 20))
                 
                 Text("loginActivity.activeSession")
@@ -160,27 +168,25 @@ struct CurrentSessionCard: View {
                 
                 Spacer()
                 
-                Text("loginActivity.current")
-                    .font(.custom("Poppins-Bold", size: 10))
-                    .foregroundColor(.green)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.green.opacity(0.2))
-                    )
+                if session != nil {
+                    Text("loginActivity.current")
+                        .font(.custom("Poppins-Bold", size: 10))
+                        .foregroundColor(.green)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.green.opacity(0.2))
+                        )
+                }
             }
             
             if let session = session {
                 SessionDetails(session: session)
             } else {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("loginActivity.loading")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.gray)
-                }
+                Text("loginActivity.noCurrentSession")
+                    .font(.custom("Poppins-Regular", size: 14))
+                    .foregroundColor(.gray)
             }
         }
         .padding()
@@ -224,6 +230,18 @@ struct SessionCard: View {
             }
             
             SessionDetails(session: session)
+
+            if session.isSuspicious {
+                SessionSecurityHint(
+                    text: NSLocalizedString("loginActivity.sessionAlert.locationChange", comment: "Location changed warning"),
+                    color: .orange
+                )
+            } else if session.isNewDevice {
+                SessionSecurityHint(
+                    text: NSLocalizedString("loginActivity.sessionAlert.newDevice", comment: "New device warning"),
+                    color: Color(hex: "4F46E5")
+                )
+            }
         }
         .padding()
         .background(
@@ -233,6 +251,32 @@ struct SessionCard: View {
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(Color.gray.opacity(0.25), lineWidth: 1)
                 )
+        )
+    }
+}
+
+struct SessionSecurityHint: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.shield")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(color)
+
+            Text(text)
+                .font(.custom("Poppins-Medium", size: 11))
+                .foregroundColor(color)
+                .lineLimit(2)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(color.opacity(0.12))
         )
     }
 }
@@ -288,6 +332,9 @@ struct LoginSession: Identifiable {
     let timestamp: Date
     let isActive: Bool
     let deviceIdentifier: String?
+    let isSuspicious: Bool
+    let isNewDevice: Bool
+    let suspiciousReason: String?
 }
 
 // MARK: - ViewModel
@@ -305,39 +352,35 @@ class LoginActivityViewModel: ObservableObject {
     func loadLoginActivity(completion: @escaping () -> Void) {
         guard let userId = Auth.auth().currentUser?.uid else {
             showErrorAlert(NSLocalizedString("loginActivity.error.notAuthenticated", comment: "User not authenticated error"))
-            completion()
+            DispatchQueue.main.async {
+                self.isLoadingSession = false
+                completion()
+            }
             return
         }
         
         isLoadingSession = true
-        
-        let group = DispatchGroup()
-        var fetchedCurrent: LoginSession?
-        var fetchedActiveSessions: [LoginSession] = []
-        
-        group.enter()
-        loginService.getCurrentSession(userId: userId) { session in
-            fetchedCurrent = session
-            group.leave()
-        }
-        
-        group.enter()
+
         loginService.fetchActiveSessions(userId: userId) { [weak self] result in
-            switch result {
-            case .success(let sessions):
-                fetchedActiveSessions = sessions
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self?.showErrorAlert("Error al cargar sesiones: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                guard let self = self else {
+                    completion()
+                    return
+                }
+
+                defer {
+                    self.isLoadingSession = false
+                    completion()
+                }
+
+                switch result {
+                case .success(let sessions):
+                    self.applySessions(current: nil, activeSessions: sessions)
+                case .failure(let error):
+                    self.applySessions(current: nil, activeSessions: [])
+                    self.showErrorAlert("Error al cargar sesiones: \(error.localizedDescription)")
                 }
             }
-            group.leave()
-        }
-        
-        group.notify(queue: .main) { [weak self] in
-            self?.applySessions(current: fetchedCurrent, activeSessions: fetchedActiveSessions)
-            self?.isLoadingSession = false
-            completion()
         }
     }
     
@@ -349,32 +392,23 @@ class LoginActivityViewModel: ObservableObject {
         }
         
         return await withCheckedContinuation { continuation in
-            let group = DispatchGroup()
-            var fetchedCurrent: LoginSession?
-            var fetchedActiveSessions: [LoginSession] = []
-            
-            group.enter()
-            loginService.getCurrentSession(userId: userId) { session in
-                fetchedCurrent = session
-                group.leave()
-            }
-            
-            group.enter()
             loginService.fetchActiveSessions(userId: userId) { [weak self] result in
-                switch result {
-                case .success(let sessions):
-                    fetchedActiveSessions = sessions
-                case .failure(let error):
-                    DispatchQueue.main.async {
-                        self?.showErrorAlert("Error al actualizar sesiones: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    guard let self = self else {
+                        continuation.resume()
+                        return
                     }
+
+                    switch result {
+                    case .success(let sessions):
+                        self.applySessions(current: nil, activeSessions: sessions)
+                    case .failure(let error):
+                        self.applySessions(current: nil, activeSessions: [])
+                        self.showErrorAlert("Error al actualizar sesiones: \(error.localizedDescription)")
+                    }
+
+                    continuation.resume()
                 }
-                group.leave()
-            }
-            
-            group.notify(queue: .main) { [weak self] in
-                self?.applySessions(current: fetchedCurrent, activeSessions: fetchedActiveSessions)
-                continuation.resume()
             }
         }
     }
@@ -401,7 +435,13 @@ class LoginActivityViewModel: ObservableObject {
     private func applySessions(current: LoginSession?, activeSessions: [LoginSession]) {
         var resolvedCurrent = current
         var remaining = activeSessions
-        
+
+        if resolvedCurrent == nil,
+           let currentDeviceId = UIDevice.current.identifierForVendor?.uuidString,
+           let matchedSession = remaining.first(where: { $0.deviceIdentifier == currentDeviceId }) {
+            resolvedCurrent = matchedSession
+        }
+
         if let currentId = resolvedCurrent?.id,
            let index = remaining.firstIndex(where: { $0.id == currentId }) {
             remaining.remove(at: index)
@@ -409,9 +449,33 @@ class LoginActivityViewModel: ObservableObject {
             resolvedCurrent = first
             remaining.removeFirst()
         }
-        
+
+        if resolvedCurrent == nil {
+            resolvedCurrent = makeLocalCurrentSession()
+        }
+
         currentSession = resolvedCurrent
         otherSessions = Array(remaining.prefix(12))
+    }
+
+    private func makeLocalCurrentSession() -> LoginSession {
+        let deviceName = "\(UIDevice.current.model) - iOS \(UIDevice.current.systemVersion)"
+        let location = loginService.getCurrentLocationString()
+        let timestamp = Auth.auth().currentUser?.metadata.lastSignInDate ?? Date()
+        let deviceIdentifier = UIDevice.current.identifierForVendor?.uuidString
+
+        return LoginSession(
+            id: "local_current_session",
+            device: deviceName,
+            location: location,
+            ipAddress: "No disponible",
+            timestamp: timestamp,
+            isActive: true,
+            deviceIdentifier: deviceIdentifier,
+            isSuspicious: false,
+            isNewDevice: false,
+            suspiciousReason: nil
+        )
     }
     
     private func showErrorAlert(_ message: String) {

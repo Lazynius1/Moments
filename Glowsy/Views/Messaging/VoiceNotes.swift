@@ -449,7 +449,6 @@ struct GlassmorphicAudioMessage: View {
                     // Empezar en altavoz
                     self.switchAudioRoute(toEarpiece: false)
                     
-                    AnalyticsService.shared.trackInteraction("audio_message_played")
                     
                     self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                         if let player = self.audioPlayer {

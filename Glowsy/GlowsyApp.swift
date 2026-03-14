@@ -109,7 +109,6 @@ struct GlowsyApp: App {
                             }
                         }
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                            AnalyticsService.shared.applicationDidBecomeActive()
                             // ✅ NUEVO: Marcar mensajes pendientes como entregados (respaldo si notificación no llegó)
                             ChatService.shared.markAllPendingMessagesAsDelivered()
                             
@@ -117,7 +116,6 @@ struct GlowsyApp: App {
                             NotificationBadgeService.shared.refreshAllCounts()
                         }
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-                            AnalyticsService.shared.applicationWillResignActive()
                         }
                         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
                             if let momentId = notification.object as? String {
@@ -156,7 +154,7 @@ struct GlowsyApp: App {
     }
     
     private func checkVersion() {
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.2.0"
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.1"
         
         if lastVersionPrompted != currentVersion {
             // Esperar un poco para que la transición del splash termine

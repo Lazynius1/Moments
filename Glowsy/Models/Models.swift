@@ -1279,6 +1279,9 @@ struct Notification: Identifiable, Codable {
     let reactionCount: Int?
     let commentId: String? // ✅ NUEVO: Para identificar comentarios específicos
     let echoId: String? // ✅ NUEVO: Para identificar el Echo sugerido
+    let chainId: String? // 🔗 Story Chains
+    let chainTitle: String? // 🔗 Story Chains
+    let chainPosition: Int? // 🔗 Story Chains
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -1301,6 +1304,9 @@ struct Notification: Identifiable, Codable {
         case commentText  // ✅ COMPATIBILIDAD: El servidor usa este campo para comentarios
         case commentId
         case echoId
+        case chainId
+        case chainTitle
+        case chainPosition
     }
 
     init(id: String? = nil,
@@ -1319,7 +1325,10 @@ struct Notification: Identifiable, Codable {
          reaction: String? = nil,
          reactionCount: Int? = nil,
          commentId: String? = nil,
-         echoId: String? = nil) {
+         echoId: String? = nil,
+         chainId: String? = nil,
+         chainTitle: String? = nil,
+         chainPosition: Int? = nil) {
         
         self.id = id
         self.type = type
@@ -1338,6 +1347,9 @@ struct Notification: Identifiable, Codable {
         self.reactionCount = reactionCount
         self.commentId = commentId
         self.echoId = echoId
+        self.chainId = chainId
+        self.chainTitle = chainTitle
+        self.chainPosition = chainPosition
     }
 
     init(from decoder: Decoder) throws {
@@ -1386,6 +1398,9 @@ struct Notification: Identifiable, Codable {
         
         self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
         self.echoId = try container.decodeIfPresent(String.self, forKey: .echoId)
+        self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId)
+        self.chainTitle = try container.decodeIfPresent(String.self, forKey: .chainTitle)
+        self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1407,6 +1422,9 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(reactionCount, forKey: .reactionCount)
         try container.encodeIfPresent(commentId, forKey: .commentId)
         try container.encodeIfPresent(echoId, forKey: .echoId)
+        try container.encodeIfPresent(chainId, forKey: .chainId)
+        try container.encodeIfPresent(chainTitle, forKey: .chainTitle)
+        try container.encodeIfPresent(chainPosition, forKey: .chainPosition)
     }
 }
 
@@ -1425,6 +1443,7 @@ enum NotificationType: String, Codable, CaseIterable {
     case photoTag = "photoTag" // ✅ NUEVO: Para etiquetas en fotos
     case echoSuggestion = "echoSuggestion" // 🌊 NUEVO: Sugerencia de Echo (Nova Spark)
     case dataExportReady = "data_export_ready"
+    case storyChainContinued = "storyChainContinued" // 🔗 Story Chain continuada
 
     var displayName: String {
         switch self {
@@ -1442,6 +1461,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .photoTag: return "Etiquetas en fotos"
         case .echoSuggestion: return "Sugerencia de Echo"
         case .dataExportReady: return "Exportación de datos"
+        case .storyChainContinued: return "Cadena de historias" // 🔗
         }
     }
     
@@ -1461,6 +1481,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .photoTag: return "person.crop.rectangle"
         case .echoSuggestion: return "sparkles.rectangle.stack"
         case .dataExportReady: return "tray.and.arrow.down.fill"
+        case .storyChainContinued: return "link.circle.fill" // 🔗
         }
     }
 }

@@ -895,11 +895,6 @@ struct ModernCommentsView: View {
             self.comments.append(pendingComment)
         }
         
-        AnalyticsService.shared.trackInteraction("comment_created", details: [
-            "momentId": momentId,
-            "isReply": parentCommentId != nil,
-            "contentLength": content.count
-        ])
         
         firestoreService.addComment(
             to: momentId,
@@ -1084,10 +1079,6 @@ struct ModernCommentsView: View {
               let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
-        AnalyticsService.shared.trackInteraction("comment_liked", details: [
-            "commentId": commentId,
-            "momentId": momentId
-        ])
         
         firestoreService.addCommentReaction(
             to: momentId,

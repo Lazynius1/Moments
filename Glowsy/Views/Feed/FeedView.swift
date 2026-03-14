@@ -88,6 +88,7 @@ struct FeedView: View {
     @State private var peekImageURL: String? = nil
     @State private var peekAspectRatio: CGFloat = 1.0
     @State private var isPeeking = false
+    @State private var peekIsProtected = false
     
     @State private var targetConversationId: String? = nil
     @State private var targetMomentId: String? = nil
@@ -131,20 +132,22 @@ struct FeedView: View {
             
             // ✅ LONG PRESS PEEK: Overlay a pantalla completa
             if isPeeking, let imageURL = peekImageURL {
-                ZStack {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .ignoresSafeArea()
-                    
-                    KFImage(URL(string: imageURL))
-                        .resizable()
-                        .scaledToFill()
-                        .frame(
-                            width: UIScreen.main.bounds.width - 32,
-                            height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
+                    ZStack {
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .ignoresSafeArea()
+                        
+                        KFImage(URL(string: imageURL))
+                            .resizable()
+                            .scaledToFill()
+                            .frame(
+                                width: UIScreen.main.bounds.width - 32,
+                                height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                    }
                 }
                 .transition(.opacity)
                 .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
@@ -201,8 +204,6 @@ struct FeedView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
-                AnalyticsService.shared.trackScreenView("FeedView")
-                AnalyticsService.shared.trackFeatureUsage("feed")
                 loadInitialData()
                 
                 // ✅ PREFETCHING POR COMPORTAMIENTO (ESTRATEGIA 2 - LOCAL)
@@ -615,7 +616,6 @@ struct FeedView: View {
             }
             
             // ✅ NUEVO: Track analytics para preferencias
-            AnalyticsService.shared.trackFeatureUsage("feed_type_changed_to_\(newFeedType.rawValue)")
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pendingEchoes.count)
         .zIndex(998)
@@ -657,7 +657,6 @@ struct FeedView: View {
                                    storyUsers.first?.hasStory == true && storyUsers.first?.userId == currentUserId {
                                     
                                     // 📖 Si tienes historia, mostrar tus historias
-                                    AnalyticsService.shared.trackInteraction("own_story_tapped")
                                     selectedStoryUserId = currentUserId
                                     showSpecificUserStories = true
 
@@ -665,7 +664,6 @@ struct FeedView: View {
                                 } else {
                                     
                                     // ➕ Si no tienes historia, crear nueva
-                                    AnalyticsService.shared.trackInteraction("create_story_tapped")
                                     showCreatorView = true
 
                                     
@@ -684,8 +682,6 @@ struct FeedView: View {
                                     isOwnStory: false,
                                     colorScheme: colorScheme
                                 ) {
-                                    AnalyticsService.shared.trackInteraction("stories_button_tapped")
-                                    AnalyticsService.shared.trackFeatureUsage("stories")
                                     
                     
                                     guard !storyUser.userId.isEmpty else {
@@ -736,8 +732,6 @@ struct FeedView: View {
                         hasNotification: badgeService.unreadNotificationsCount > 0,
                         colorScheme: colorScheme,
                         action: {
-                            AnalyticsService.shared.trackInteraction("notifications_button_tapped")
-                            AnalyticsService.shared.trackFeatureUsage("notifications")
                             
                             // ✅ Marcar como leídas y limpiar badge al abrir desde el icono
                             NotificationService.shared.markAllAsRead()
@@ -752,8 +746,6 @@ struct FeedView: View {
                         messageCount: badgeService.unreadMessagesCount,      // ✅ Número real
                         colorScheme: colorScheme,
                         action: {
-                            AnalyticsService.shared.trackInteraction("messages_button_tapped")
-                            AnalyticsService.shared.trackFeatureUsage("messages")
                             showMessages = true
                         }
                     )
@@ -875,9 +867,11 @@ struct FeedView: View {
                                                 if isPressing {
                                                     peekImageURL = imageURL
                                                     peekAspectRatio = ratio
+                                                    peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
                                                     isPeeking = true
                                                 } else {
                                                     isPeeking = false
+                                                    peekIsProtected = false
                                                 }
                                             }
                                         }
@@ -903,7 +897,6 @@ struct FeedView: View {
                                 if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
                                     SmartNativeAdView()
                                         .onAppear {
-                                            AnalyticsService.shared.trackFeatureUsage("native_ad_shown")
                                         }
                                 }
                             }
@@ -2580,7 +2573,6 @@ struct ModernPostCardView: View {
         HStack(spacing: 12) {
             Button(action: {
                 if hasStory {
-                    AnalyticsService.shared.trackInteraction("post_header_story_tapped")
                     showSpecificUserStories = true
                 } else {
                     // Si no tiene historia, ir al perfil
@@ -4927,7 +4919,6 @@ extension FeedViewModel {
     
     func trackFeedUsage() {
         let currentPreference = UserDefaults.standard.selectedFeedType
-        // AnalyticsService.shared.trackFeatureUsage("feed_preference_\(currentPreference.rawValue)")
     }
 }
 

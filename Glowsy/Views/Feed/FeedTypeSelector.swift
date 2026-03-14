@@ -23,9 +23,6 @@ struct FloatingGlassFeedToggle: View {
                                 let impactMed = UIImpactFeedbackGenerator(style: .light)
                                 impactMed.impactOccurred()
                                 
-                                AnalyticsService.shared.trackInteraction("feed_type_changed", details: [
-                                    "new_feed_type": feedType.rawValue
-                                ])
                             }
                         }
                     }
@@ -46,9 +43,6 @@ struct FloatingGlassFeedToggle: View {
                             let impactMed = UIImpactFeedbackGenerator(style: .light)
                             impactMed.impactOccurred()
                             
-                            AnalyticsService.shared.trackInteraction("feed_type_changed", details: [
-                                "new_feed_type": feedType.rawValue
-                            ])
                         }
                     }
                 }

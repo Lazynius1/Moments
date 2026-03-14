@@ -4527,40 +4527,9 @@ private final class ActivityInteractionDetailViewModel: ObservableObject {
             }
     }
 
-    private struct InteractionEventRecord {
-        let id: String
-        let interactionType: String
-        let timestamp: Date
-    }
-
-    private func fetchInteractionEvents(userId: String, completion: @escaping ([InteractionEventRecord]) -> Void) {
-        db.collection("users")
-            .document(userId)
-            .collection("events")
-            .whereField("eventType", isEqualTo: "interaction")
-            .order(by: "timestamp", descending: true)
-            .limit(to: 400)
-            .getDocuments { snapshot, _ in
-                let records = snapshot?.documents.compactMap { doc -> InteractionEventRecord? in
-                    let data = doc.data()
-                    guard let interactionType = data["interactionType"] as? String,
-                          let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
-                        return nil
-                    }
-
-                    return InteractionEventRecord(
-                        id: doc.documentID,
-                        interactionType: interactionType,
-                        timestamp: timestamp
-                    )
-                } ?? []
-
-                completion(records)
-            }
-    }
 }
 
-// MARK: - Compatibility Type (used by AnalyticsService)
+// MARK: - Compatibility Type
 enum ActivityTimeRange: String, CaseIterable {
     case week = "week"
     case month = "month"

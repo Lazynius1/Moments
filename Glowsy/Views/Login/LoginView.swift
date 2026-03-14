@@ -71,7 +71,6 @@ struct LoginView: View {
                 }
                 
                 // Track screen view
-                AnalyticsService.shared.trackScreenView("LoginView")
                 
                 // Solicitud de ubicación pospuesta hasta que el usuario use funciones que la requieran
             }
@@ -98,7 +97,9 @@ struct LoginView: View {
                 isLoading = false
                 switch result {
                     case .success:
-                        AnalyticsService.shared.trackSuccessfulLogin()
+                        if let userId = Auth.auth().currentUser?.uid {
+                            RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "email")
+                        }
                         errorMessage = nil
                         
                         // ✅ SIMPLIFICADO: Usar el servicio centralizado
@@ -107,10 +108,6 @@ struct LoginView: View {
                         }
                     
                 case .failure(let error):
-                    // ❌ Track failed login
-                    let failureReason = getFailureReason(from: error)
-                    AnalyticsService.shared.trackFailedLogin(reason: failureReason, email: identifier)
-                    
                     errorMessage = error.localizedDescription
                     showAlert = true
                 }
@@ -205,7 +202,6 @@ struct EnhancedFormView: View {
                 EnhancedLoginButton(isLoading: $isLoading, action: loginAction)
                 
                 Button(action: {
-                    AnalyticsService.shared.trackInteraction("forgot_password_tapped")
                     showResetPassword = true
                 }) {
                     Text("login.forgotPassword")
@@ -289,9 +285,10 @@ struct EnhancedFormView: View {
                                         if !isComplete {
                                             // El usuario necesita completar su perfil.
                                             // El AuthService ya habrá activado isRegistering = true
-                                            AnalyticsService.shared.trackInteraction("apple_sign_in_needs_profile")
                                         } else {
-                                            AnalyticsService.shared.trackSuccessfulLogin(method: "apple")
+                                            if let userId = Auth.auth().currentUser?.uid {
+                                                RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "apple")
+                                            }
                                         }
                                     case .failure(let error):
                                         errorMessage = error.localizedDescription
@@ -340,7 +337,6 @@ struct EnhancedLoginButton: View {
     var body: some View {
         Button(action: {
             // Track login attempt
-            AnalyticsService.shared.trackInteraction("login_button_tapped")
             action()
         }) {
             HStack(spacing: 12) {
@@ -721,7 +717,6 @@ struct EnhancedResetPasswordView: View {
             }
             .navigationBarItems(
                 leading: Button("Cancelar") {
-                    AnalyticsService.shared.trackInteraction("password_reset_cancelled")
                     isPresented = false
                 }
                 .foregroundColor(.white)
@@ -732,7 +727,6 @@ struct EnhancedResetPasswordView: View {
             withAnimation {
                 isVisible = true
             }
-            AnalyticsService.shared.trackScreenView("ResetPasswordView")
         }
         .alert(isPresented: $showAlert) {
             Alert(
@@ -740,7 +734,6 @@ struct EnhancedResetPasswordView: View {
                 message: Text(alertMessage),
                 dismissButton: .default(Text("OK")) {
                     if alertMessage.contains("enviado") {
-                        AnalyticsService.shared.trackInteraction("password_reset_email_sent", details: ["email": email])
                         isPresented = false
                     }
                 }
@@ -749,7 +742,6 @@ struct EnhancedResetPasswordView: View {
     }
     
     private func resetPassword() {
-        AnalyticsService.shared.trackInteraction("password_reset_attempted", details: ["email": email])
         isLoading = true
         authService.resetPassword(email: email) { result in
             isLoading = false
@@ -757,7 +749,6 @@ struct EnhancedResetPasswordView: View {
             case .success:
                 alertMessage = "Se ha enviado un enlace de recuperación a tu correo."
             case .failure(let error):
-                AnalyticsService.shared.trackInteraction("password_reset_failed", details: ["error": error.localizedDescription])
                 alertMessage = error.localizedDescription
             }
             showAlert = true

@@ -736,12 +736,6 @@ struct GlassmorphicChatView: View {
                 await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
             }
         }
-        AnalyticsService.shared.trackScreenView("ChatView")
-        AnalyticsService.shared.trackFeatureUsage("chat")
-        AnalyticsService.shared.trackInteraction("chat_opened", details: [
-            "conversationId": viewModel.conversation.id,
-            "otherUserId": viewModel.conversation.otherParticipantId ?? "unknown"
-        ])
         viewModel.isChatVisible = true  // ✅ Marcar chat como visible
         viewModel.startListening()
         setupOnlineStatusObserver()
@@ -752,10 +746,6 @@ struct GlassmorphicChatView: View {
     private func onDisappearActions() {
         viewModel.isChatVisible = false  // ✅ Marcar chat como no visible
         
-        AnalyticsService.shared.trackInteraction("chat_closed", details: [
-            "conversationId": viewModel.conversation.id,
-            "messagesSent": viewModel.messagesSentThisSession
-        ])
         viewModel.stopListening()
         statusListener?.remove()
     }
@@ -801,10 +791,6 @@ struct GlassmorphicChatView: View {
         if isEphemeral {
             viewModel.sendViewOnceMessage(data: data, mediaType: mediaType)
             
-            AnalyticsService.shared.trackInteraction("view_once_message_sent", details: [
-                "mediaType": mediaType == .image ? "view_once_image" : "view_once_video", // ✅ CAMBIAR ESTO
-                "conversationId": conversationId
-            ])
         } else {
             if mediaType == .image {
                 viewModel.sendImageMessage(data)
@@ -812,10 +798,6 @@ struct GlassmorphicChatView: View {
                 viewModel.sendVideoMessage(data: data)
             }
             
-            AnalyticsService.shared.trackInteraction("normal_camera_message_sent", details: [
-                "mediaType": mediaType == .image ? "image" : "video",
-                "conversationId": conversationId
-            ])
         }
         
         showEnhancedCamera = false
@@ -850,9 +832,6 @@ struct GlassmorphicChatView: View {
         recordingTime = 0
         
         // ✅ Track voice recording start
-        AnalyticsService.shared.trackInteraction("voice_recording_started", details: [
-            "conversationId": viewModel.conversation.id
-        ])
         
         // Iniciar timer para mostrar duración
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
@@ -874,11 +853,6 @@ struct GlassmorphicChatView: View {
         recordingTimer = nil
         
         // ✅ Track voice recording completion
-        AnalyticsService.shared.trackInteraction("voice_recording_completed", details: [
-            "conversationId": viewModel.conversation.id,
-            "duration": recordingTime,
-            "didSend": shouldSend
-        ])
         
         // Aquí obtendrías los datos del audio grabado
         AudioRecordingManager.shared.stopRecording { audioData in
@@ -1384,10 +1358,6 @@ struct GlassmorphicMessageBubble: View {
                         }
                     )
                     .onAppear {
-                        AnalyticsService.shared.trackInteraction("view_once_message_displayed", details: [
-                            "messageType": message.type.rawValue,
-                            "isCurrentUser": isCurrentUser
-                        ])
                     }
                 } else {
                 // ✅ TERCERO: Mostrar contenido normal según el tipo
@@ -1448,7 +1418,6 @@ struct GlassmorphicMessageBubble: View {
                     )
                     .frame(width: 208, height: 272)
                         .onAppear {
-                            AnalyticsService.shared.trackInteraction("image_message_viewed")
                         }
                     
                 case .audio:
@@ -1461,7 +1430,6 @@ struct GlassmorphicMessageBubble: View {
                         adaptiveColors: adaptiveColors
                     )
                     .onAppear {
-                        AnalyticsService.shared.trackInteraction("audio_message_viewed")
                     }
                     
                 case .video:
@@ -1473,7 +1441,6 @@ struct GlassmorphicMessageBubble: View {
                     )
                     .frame(width: 208, height: 272)
                         .onAppear {
-                            AnalyticsService.shared.trackInteraction("video_message_viewed")
                         }
                     
                 case .ephemeral:
@@ -1515,9 +1482,6 @@ struct GlassmorphicMessageBubble: View {
                                 }
                             }
                             .onTapGesture {
-                                AnalyticsService.shared.trackInteraction("ephemeral_message_opened", details: [
-                                    "messageId": message.id
-                                ])
                                 showEphemeralImage = true
                                 markAsViewed()
                             }
@@ -1585,7 +1549,6 @@ struct GlassmorphicMessageBubble: View {
                         }
                     }
                     .onAppear {
-                        AnalyticsService.shared.trackInteraction("shared_moment_viewed")
                     }
                     
                 default:
@@ -1602,10 +1565,6 @@ struct GlassmorphicMessageBubble: View {
         .onAppear {
             // ✅ Track message view
             if !isCurrentUser && !message.isDeleted {
-                AnalyticsService.shared.trackInteraction("message_received_viewed", details: [
-                    "messageType": message.type.rawValue,
-                    "senderId": message.senderId
-                ])
             }
         }
     }
@@ -1906,7 +1865,6 @@ struct GlassmorphicInputBar: View {
             // Camera button
             Button(action: {
                 // ✅ Track camera usage in chat
-                AnalyticsService.shared.trackInteraction("chat_camera_tapped")
                 onCamera()
             }) {
                 Image(systemName: "camera.fill")
@@ -1932,7 +1890,6 @@ struct GlassmorphicInputBar: View {
                             
                             // ✅ Track typing start
                             if newValue.count == 1 {
-                                AnalyticsService.shared.trackInteraction("chat_typing_started")
                             }
                         }
                     
@@ -1940,7 +1897,6 @@ struct GlassmorphicInputBar: View {
                         HStack(spacing: 12) {
                             Button(action: {
                                 // ✅ Track media picker
-                                AnalyticsService.shared.trackInteraction("chat_media_picker_tapped")
                                 onMedia()
                             }) {
                                 Image(systemName: "photo")
@@ -1950,7 +1906,6 @@ struct GlassmorphicInputBar: View {
                             
                             Button(action: {
                                 // ✅ Track voice message attempt
-                                AnalyticsService.shared.trackInteraction("chat_voice_message_tapped")
                                 onStartVoiceRecording()
                             }) {
                                 Image(systemName: "mic")
@@ -1981,11 +1936,6 @@ struct GlassmorphicInputBar: View {
             if !text.isEmpty && !isRecordingVoice {
                 Button(action: {
                     // ✅ Track message send
-                    AnalyticsService.shared.trackInteraction("message_sent", details: [
-                        "messageType": "text",
-                        "messageLength": text.count,
-                        "hasReply": false // Ajustar según el contexto
-                    ])
                     onSend()
                 }) {
                     Image(systemName: "paperplane.fill")
@@ -2542,11 +2492,6 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         }
         
         // Track antes de enviar
-        AnalyticsService.shared.trackInteraction("text_message_sent", details: [
-            "messageLength": content.count,
-            "hasReply": replyTo != nil,
-            "conversationId": conversation.id
-        ])
         
         messagesSentThisSession += 1
         
@@ -2555,31 +2500,17 @@ class MomentsChatViewModel: EnhancedChatViewModel {
     }
     
     func trackMediaMessageSent(type: String) {
-        AnalyticsService.shared.trackInteraction("media_message_sent", details: [
-            "mediaType": type,
-            "conversationId": conversation.id
-        ])
         messagesSentThisSession += 1
     }
     
     // MARK: - Enhanced Delete Message Actions
     override func deleteMessageForEveryone(_ message: EnhancedMessage) {
-        AnalyticsService.shared.trackInteraction("message_deleted_everyone", details: [
-            "messageType": message.type.rawValue,
-            "messageId": message.id,
-            "conversationId": conversation.id
-        ])
         
         chatService.deleteMessageWithCleanup(conversationId: message.conversationId, messageId: message.id) { _ in }
         objectWillChange.send()
     }
     
     override func deleteMessageForMe(_ message: EnhancedMessage) {
-        AnalyticsService.shared.trackInteraction("message_deleted_me", details: [
-            "messageType": message.type.rawValue,
-            "messageId": message.id,
-            "conversationId": conversation.id
-        ])
         
         chatService.deleteMessageForMe(conversationId: message.conversationId, messageId: message.id, userId: currentUserId) { [weak self] _ in
             DispatchQueue.main.async {
@@ -2711,10 +2642,6 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         }
         
         let trackingType = mediaType == .image ? "view_once_image" : "view_once_video"
-        AnalyticsService.shared.trackInteraction("view_once_message_sent", details: [
-            "mediaType": trackingType,
-            "conversationId": conversationId
-        ])
         
         chatService.sendViewOnceMessage(
             conversationId: conversationId,
