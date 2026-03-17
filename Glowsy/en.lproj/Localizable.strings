@@ -406,6 +406,7 @@
 "notifications.message.mutual.multiple" = "You now have a mutual connection with %@ and %d others.";
 "notifications.message.comment.multiple" = "%@ and %d others commented on your moment.";
 "notifications.message.story.multiple" = "%@ and %d others reacted to your story.";
+"notifications.message.storyChain.multiple" = "%@ continued the chain \"%@\" and %d others continued it too.";
 "notifications.message.visit.multiple" = "%d people visited your profile today.";
 "notifications.message.like.single" = "%@ reacted to your moment.";
 "notifications.message.reaction.single" = "%@ reacted to your moment.";
@@ -416,6 +417,7 @@
 "notifications.message.mutual.single" = "You now have a mutual connection with %@.";
 "notifications.message.comment.single" = "%@ commented on your moment.";
 "notifications.message.story.single" = "%@ reacted to your story.";
+"notifications.message.storyChain.single" = "%@ continued the chain \"%@\".";
 "notifications.message.visit.single" = "%d people visited your profile today.";
 "notifications.message.requestAccepted.multiple" = "%@ and %d others accepted your follow request.";
 "notifications.message.requestAccepted.single" = "%@ accepted your follow request.";
@@ -1501,14 +1503,28 @@
 "storyContextMenu.share.subtitle" = "Send to others";
 "storyContextMenu.report" = "Report";
 "storyContextMenu.report.subtitle" = "Inappropriate content";
+"storyContextMenu.unfollow" = "Unfollow";
+"storyContextMenu.unfollow.success" = "You no longer follow this user";
+"storyContextMenu.unfollow.confirm.title" = "Unfollow %@?";
+"storyContextMenu.unfollow.confirm.message" = "You will stop seeing their private posts in your feed if their account is private.";
+"storyContextMenu.unfollow.confirm.action" = "Unfollow";
+"storyContextMenu.unfollow.confirm.cancel" = "Cancel";
+"storyContextMenu.mute" = "Mute";
+"storyContextMenu.mute.success" = "Account muted";
+"storyContextMenu.mute.successWithHint" = "Account muted. You can reactivate it in Settings > Mute.";
+"storyContextMenu.mute.confirm.title" = "Mute %@?";
+"storyContextMenu.mute.confirm.message" = "You will stop seeing their posts and stories. You can reactivate this in Settings > Mute.";
+"storyContextMenu.mute.confirm.action" = "Mute";
+"storyContextMenu.mute.confirm.cancel" = "Cancel";
 "storyContextMenu.block" = "Block";
 "storyContextMenu.block.subtitle" = "Don't see more content from this user";
 "storyContextMenu.leaveBestFriends" = "Leave Best Friends";
 "storyContextMenu.leaveBestFriends.subtitle" = "Stop seeing BF stories from this user";
 "storyContextMenu.scrollReactions" = "Scroll for more reactions";
+"storyContextMenu.actionFailed" = "Couldn't complete the action";
 
-"bestFriends.optOut.confirm.title" = "Leave best friends";
-"bestFriends.optOut.confirm.message" = "Do you want to leave this user's best friends list?";
+"bestFriends.optOut.confirm.title" = "Leave %@'s best friends?";
+"bestFriends.optOut.confirm.message" = "You will stop seeing stories they share only with that audience.";
 "bestFriends.optOut.confirm.action" = "Leave";
 "bestFriends.optOut.confirm.cancel" = "Cancel";
 "bestFriends.optOut.success" = "You left their best friends list";
@@ -2357,9 +2373,9 @@
 "notification.photoTag.body" = "Tap to see the moment";
 
 /* Push Notifications - Story Chains */
-"notification.storyChain.single.title" = "%@ added part %@ to \"%@\"";
+"notification.storyChain.single.title" = "%@ added part %@ of the chain \"%@\"";
 "notification.storyChain.single.body" = "Tap to see the chain";
-"notification.storyChain.multiple.title" = "%@ added part %@ to \"%@\"";
+"notification.storyChain.multiple.title" = "%@ added part %@ of the chain \"%@\"";
 "notification.storyChain.multiple.body" = "%@ parts total";
 
 /* Push Notifications - Echoes */

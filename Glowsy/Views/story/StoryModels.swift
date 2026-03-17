@@ -1137,6 +1137,10 @@ struct GlassmorphicStoryViewer: View {
     @State private var showQuickActions: Bool = false
     @State private var showViewers: Bool = false
     @State private var showBestFriendsOptOutConfirmation: Bool = false
+    @State private var showUnfollowConfirmation: Bool = false
+    @State private var showMuteConfirmation: Bool = false
+    @State private var isMenuInteractionActive: Bool = false
+    @State private var menuAutoResumeWorkItem: DispatchWorkItem? = nil
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging: Bool = false
     @State private var showSuccessMessage: Bool = false
@@ -1144,6 +1148,7 @@ struct GlassmorphicStoryViewer: View {
     @State private var successMessageText: String = ""
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @State private var isKeyboardVisible: Bool = false // Track keyboard state
     @State private var authorAllowsMessages: Bool = true
@@ -1162,6 +1167,8 @@ struct GlassmorphicStoryViewer: View {
     @State private var showChainView: Bool = false
     @State private var selectedChainId: String = ""
     @State private var selectedChainTitle: String = ""
+    @State private var selectedChainStoryId: String = ""
+    @State private var selectedChainStoryPosition: Int = 1
     @State private var chainStories: [Story] = [] // Todas las historias de la cadena
     @State private var currentChainIndex: Int = 0 // Índice actual en la cadena
     @State private var isLoadingChainStories: Bool = false
@@ -1330,314 +1337,442 @@ struct GlassmorphicStoryViewer: View {
         return displaySticker
     }
 
+    private enum StoryConfirmationKind {
+        case unfollow
+        case mute
+        case leaveBestFriends
+    }
+
+    private var activeStoryConfirmation: StoryConfirmationKind? {
+        if showUnfollowConfirmation { return .unfollow }
+        if showMuteConfirmation { return .mute }
+        if showBestFriendsOptOutConfirmation { return .leaveBestFriends }
+        return nil
+    }
+
+    private func confirmationTitle(for kind: StoryConfirmationKind) -> String {
+        switch kind {
+        case .unfollow:
+            let format = NSLocalizedString("storyContextMenu.unfollow.confirm.title", comment: "Unfollow confirmation title")
+            return String(format: format, story.username)
+        case .mute:
+            let format = NSLocalizedString("storyContextMenu.mute.confirm.title", comment: "Mute confirmation title")
+            return String(format: format, story.username)
+        case .leaveBestFriends:
+            let format = NSLocalizedString("bestFriends.optOut.confirm.title", comment: "Leave best friends title")
+            return String(format: format, story.username)
+        }
+    }
+
+    private func confirmationMessage(for kind: StoryConfirmationKind) -> String {
+        switch kind {
+        case .unfollow:
+            return NSLocalizedString("storyContextMenu.unfollow.confirm.message", comment: "Unfollow confirmation message")
+        case .mute:
+            return NSLocalizedString("storyContextMenu.mute.confirm.message", comment: "Mute confirmation message")
+        case .leaveBestFriends:
+            return NSLocalizedString("bestFriends.optOut.confirm.message", comment: "Leave best friends message")
+        }
+    }
+
+    private func confirmationConfirmTitle(for kind: StoryConfirmationKind) -> String {
+        switch kind {
+        case .unfollow:
+            return NSLocalizedString("storyContextMenu.unfollow.confirm.action", comment: "Unfollow action")
+        case .mute:
+            return NSLocalizedString("storyContextMenu.mute.confirm.action", comment: "Mute action")
+        case .leaveBestFriends:
+            return NSLocalizedString("bestFriends.optOut.confirm.action", comment: "Leave best friends action")
+        }
+    }
+
+    private func confirmationCancelTitle(for kind: StoryConfirmationKind) -> String {
+        switch kind {
+        case .unfollow:
+            return NSLocalizedString("storyContextMenu.unfollow.confirm.cancel", comment: "Unfollow cancel")
+        case .mute:
+            return NSLocalizedString("storyContextMenu.mute.confirm.cancel", comment: "Mute cancel")
+        case .leaveBestFriends:
+            return NSLocalizedString("bestFriends.optOut.confirm.cancel", comment: "Leave best friends cancel")
+        }
+    }
+
+    private var quickActionTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var quickActionDividerColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.10)
+    }
+
+    private var quickActionBorderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08)
+    }
+
+    private func clearAllStoryConfirmations() {
+        showUnfollowConfirmation = false
+        showMuteConfirmation = false
+        showBestFriendsOptOutConfirmation = false
+    }
+
+    private func handleStoryConfirmation(_ kind: StoryConfirmationKind) {
+        clearAllStoryConfirmations()
+        switch kind {
+        case .unfollow:
+            unfollowStoryAuthor()
+        case .mute:
+            muteStoryAuthor()
+        case .leaveBestFriends:
+            optOutFromBestFriends()
+        }
+    }
+
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
-                contentView
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                
-                // MARK: - 2. STICKERS (Fijos en sus posiciones)
-                if !storyStickers.isEmpty {
-                    ForEach(storyStickers, id: \.id) { sticker in
-                    StoryStickerView(
-                        sticker: stickerForDisplay(sticker, containerSize: screenSize),
-                        screenSize: geometry.size,
-                        storyId: story.id ?? "",
-                        userId: story.authorId,
-                        onPauseStory: pauseStory,
-                        onResumeStory: resumeStory
-                    )
-                    .position(stickerDisplayPosition(sticker, containerSize: screenSize))
-                    }
-                }
-                
-                // MARK: - 3. FLOATING HEARTS (Under UI, Over Content)
-                FloatingHeartsView(hearts: floatingHearts)
-                    .allowsHitTesting(false)
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                
-                // MARK: - 4. UI SUPERIOR (Header + Progress) - FIJA ARRIBA, NUNCA SE MUEVE
-                VStack(spacing: 0) {
-                    if !isUIHidden {
-                        // ✅ Respetar safe area superior (notch + status bar) + padding extra
-                        Color.clear.frame(height: max(geometry.safeAreaInsets.top, 47) + 8)
-                        
-                        glassmorphicProgressBar
-                            .padding(.horizontal, 12)
-                            .padding(.top, 8)
-                        
-                        glassmorphicHeader
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                            .zIndex(1)
-                    }
-                    
-                    Spacer()
-                    
-                    // Quick actions menu
-                    if showQuickActions && !isUIHidden {
-                        modernActionMenu
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .trailing).combined(with: .opacity)
-                            ))
-                            .animation(.spring(response: 0.3), value: showQuickActions)
-                    }
-                    
-                    Color.clear.frame(height: 80)
-                }
+        profileAndChainBoundView
+    }
+
+    @ViewBuilder
+    private func geometryStackView(for geometry: GeometryProxy) -> some View {
+        ZStack {
+            // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
+            contentView
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                
-                // MARK: - 5. ÁREAS DE NAVEGACIÓN (Fijas)
-                if !isKeyboardVisible {
-                    navigationTouchAreas
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            
+            // MARK: - 2. STICKERS (Fijos en sus posiciones)
+            if !storyStickers.isEmpty {
+                ForEach(storyStickers, id: \.id) { sticker in
+                StoryStickerView(
+                    sticker: stickerForDisplay(sticker, containerSize: screenSize),
+                    screenSize: geometry.size,
+                    storyId: story.id ?? "",
+                    userId: story.authorId,
+                    onPauseStory: pauseStory,
+                    onResumeStory: resumeStory
+                )
+                .position(stickerDisplayPosition(sticker, containerSize: screenSize))
                 }
-                
-                // MARK: - 6. INPUT AREA - Se mueve manualmente con keyboardHeight
-                VStack {
-                    Spacer()
-                    
-                    if !isUIHidden {
-                        glassmorphicBottomArea
-                            .padding(.horizontal, 16)
-                            // ✅ +10pts extra para no quedar tan pegado al teclado
-                            .padding(.bottom, isKeyboardVisible ? keyboardHeight + 10 : max(geometry.safeAreaInsets.bottom, 25))
-                            .animation(.easeInOut(duration: 0.25), value: keyboardHeight)
-                    }
-                }
+            }
+            
+            // MARK: - 3. FLOATING HEARTS (Under UI, Over Content)
+            FloatingHeartsView(hearts: floatingHearts)
+                .allowsHitTesting(false)
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            
+            // MARK: - 4. UI SUPERIOR (Header + Progress) - FIJA ARRIBA, NUNCA SE MUEVE
+            VStack(spacing: 0) {
+                if !isUIHidden {
+                    Color.clear.frame(height: max(geometry.safeAreaInsets.top, 47) + 8)
+                    
+                    glassmorphicProgressBar
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                    
+                    glassmorphicHeader
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .zIndex(1)
+                }
                 
-                // MARK: - 7. Success message overlay
-                if showSuccessMessage {
-                    GlassmorphicSuccessMessage(text: successMessageText)
-                        .transition(.scale.combined(with: .opacity))
-                        .zIndex(10)
-                }
+                Spacer()
+                
+                Color.clear.frame(height: 80)
             }
-            .sheet(isPresented: $showMomentDetail) {
-                if let momentId = targetMomentId, let userId = targetMomentUserId {
-                    MomentDetailFromNotificationView(
-                        momentId: momentId,
-                        userId: userId,
-                        isPresented: $showMomentDetail
-                    )
-                }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+
+            if showQuickActions {
+                storyQuickActionsOverlay(topInset: max(geometry.safeAreaInsets.top, 47))
+                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .topTrailing)))
+                    .zIndex(20)
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMomentFromStory"))) { notification in
-                if let userInfo = notification.userInfo,
-                   let momentId = userInfo["momentId"] as? String,
-                   let userId = userInfo["userId"] as? String {
-                    self.targetMomentId = momentId
-                    self.targetMomentUserId = userId
-                    self.showMomentDetail = true
-                    self.pauseStory()
-                }
+            
+            // MARK: - 5. ÁREAS DE NAVEGACIÓN (Fijas)
+            if !isKeyboardVisible {
+                navigationTouchAreas
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    .allowsHitTesting(!isMenuInteractionActive)
             }
-            .onChange(of: showMomentDetail) { oldValue, newValue in
-                if !newValue {
-                    // Reanudar cuando se cierra el detalle
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        self.resumeStory()
-                    }
+            
+            // MARK: - 6. INPUT AREA - Se mueve manualmente con keyboardHeight
+            VStack {
+                Spacer()
+                
+                if !isUIHidden {
+                    glassmorphicBottomArea
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, isKeyboardVisible ? keyboardHeight + 10 : max(geometry.safeAreaInsets.bottom, 25))
+                        .animation(.easeInOut(duration: 0.25), value: keyboardHeight)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
-            .ignoresSafeArea(.all)
+            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            
+            // MARK: - 7. Success message overlay
+            if showSuccessMessage {
+                GlassmorphicSuccessMessage(text: successMessageText)
+                    .transition(.scale.combined(with: .opacity))
+                    .zIndex(10)
+            }
+
+            if let confirmationKind = activeStoryConfirmation {
+                GlassmorphicStoryConfirmationDialog(
+                    title: confirmationTitle(for: confirmationKind),
+                    message: confirmationMessage(for: confirmationKind),
+                    confirmTitle: confirmationConfirmTitle(for: confirmationKind),
+                    cancelTitle: confirmationCancelTitle(for: confirmationKind),
+                    isDestructive: true,
+                    onConfirm: {
+                        handleStoryConfirmation(confirmationKind)
+                    },
+                    onCancel: {
+                        clearAllStoryConfirmations()
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                .zIndex(30)
+            }
+        }
+        .sheet(isPresented: $showMomentDetail) {
+            if let momentId = targetMomentId, let userId = targetMomentUserId {
+                MomentDetailFromNotificationView(
+                    momentId: momentId,
+                    userId: userId,
+                    isPresented: $showMomentDetail
+                )
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMomentFromStory"))) { notification in
+            if let userInfo = notification.userInfo,
+               let momentId = userInfo["momentId"] as? String,
+               let userId = userInfo["userId"] as? String {
+                self.targetMomentId = momentId
+                self.targetMomentUserId = userId
+                self.showMomentDetail = true
+                self.pauseStory()
+            }
+        }
+        .onChange(of: showMomentDetail) { oldValue, newValue in
+            if !newValue {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.resumeStory()
+                }
+            }
+        }
+        .frame(width: geometry.size.width, height: geometry.size.height)
+        .ignoresSafeArea(.all)
+    }
+
+    private var interactiveRootView: AnyView {
+        let base = GeometryReader { geometry in
+            geometryStackView(for: geometry)
         }
         .ignoresSafeArea(.all)
         .background(Color.black)
         .offset(y: dragOffset)
         .scaleEffect(zoomScale)
-        .gesture(unifiedDragGesture)
-        .gesture(pinchGesture)
-        .simultaneousGesture(
-            TapGesture()
-                .onEnded { _ in
-                    if isTextFieldFocused {
-                        isTextFieldFocused = false
+
+        if isMenuInteractionActive {
+            return AnyView(base)
+        }
+
+        return AnyView(
+            base
+                .simultaneousGesture(unifiedDragGesture)
+                .simultaneousGesture(pinchGesture)
+                .simultaneousGesture(
+                    TapGesture()
+                        .onEnded { _ in
+                            if isTextFieldFocused {
+                                isTextFieldFocused = false
+                            }
+                        }
+                )
+        )
+    }
+
+    private var lifecycleBoundView: AnyView {
+        AnyView(
+            interactiveRootView
+                .onAppear {
+                    prepareAndStartStory()
+                    setupKeyboardNotifications()
+                    if storyStickers.isEmpty {
+                        storyStickers = story.convertStickersToStickerItems()
+                    }
+                    preloadNextStory()
+                    if let chainId = story.chainId {
+                        checkCanContinueChain(chainId: chainId)
+                    }
+                    if story.chainId != nil {
+                        loadChainStories()
+                    }
+                }
+                .onChange(of: story.id) { newId in
+                    if let chainId = story.chainId {
+                        checkCanContinueChain(chainId: chainId)
+                    }
+                }
+                .onDisappear {
+                    stopAndCleanupStory()
+                    removeKeyboardNotifications()
+                    cleanupAudioSession()
+                }
+                .onChange(of: story.id) { oldStoryId, newStoryId in
+                    if oldStoryId != newStoryId {
+                        progress = 0.0
+                        handleStoryChange()
+                        storyStickers = story.convertStickersToStickerItems()
+                    }
+                }
+                .onChange(of: storyIndex) { oldIndex, newIndex in
+                    let newStickers = story.convertStickersToStickerItems()
+                    storyStickers = newStickers
+                }
+        )
+    }
+
+    private var overlayBoundView: AnyView {
+        AnyView(
+            lifecycleBoundView
+                .sheet(isPresented: $showViewers, onDismiss: {
+                    resumeStory()
+                }) {
+                    GlassmorphicViewersSheet(
+                        story: story,
+                        viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
+                        reactions: storyViewModel.storyReactions[story.id ?? ""] ?? []
+                    )
+                    .onAppear {
+                        pauseStory()
+                    }
+                }
+                .onChange(of: selectedPhoto) { newPhoto in
+                    handleEphemeralPhoto(newPhoto)
+                }
+                .onChange(of: showReactions) { isOpen in
+                    if isOpen {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }
+                }
+                .onChange(of: showEphemeralPicker) { isOpen in
+                    if isOpen {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }
+                }
+                .onChange(of: showingReportSheet) { oldValue, newValue in
+                    if newValue {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }
+                }
+                .onChange(of: showViewers) { oldValue, newValue in
+                    if newValue {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }
+                }
+                .onChange(of: showingBlockConfirmation) { oldValue, newValue in
+                    if newValue {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }
+                }
+                .onChange(of: showUnfollowConfirmation) { oldValue, newValue in
+                    if newValue {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }
+                }
+                .onChange(of: showMuteConfirmation) { oldValue, newValue in
+                    if newValue {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }
+                }
+                .onChange(of: showBestFriendsOptOutConfirmation) { oldValue, newValue in
+                    if newValue {
+                        pauseStory()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
                     }
                 }
         )
-        .onAppear {
-            prepareAndStartStory()
-            setupKeyboardNotifications() // Setup keyboard observers
-            // ✅ CARGAR STICKERS UNA SOLA VEZ
-            if storyStickers.isEmpty {
-                storyStickers = story.convertStickersToStickerItems()
-            }
-            
-            // ✅ PRELOAD: Precargar siguiente historia
-            preloadNextStory()
-            
-            // 🔗 VERIFICAR SI SE PUEDE CONTINUAR LA CADENA
-            if let chainId = story.chainId {
-                checkCanContinueChain(chainId: chainId)
-            }
-            
-            // 🔗 STORY CHAINS: Cargar historias de la cadena si es parte de una
-            if story.chainId != nil {
-                loadChainStories()
-            }
-        }
-        .onChange(of: story.id) { newId in
-            // 🔗 RE-VERIFICAR PERMISOS SI CAMBIA LA HISTORIA (para swiping)
-            if let chainId = story.chainId {
-                checkCanContinueChain(chainId: chainId)
-            }
-        }
+    }
 
-        .onDisappear {
-            stopAndCleanupStory()
-            removeKeyboardNotifications() // Cleanup observers
-            // ✅ CLEANUP DE AUDIO AL CERRAR
-            cleanupAudioSession()
-        }
-        .onChange(of: story.id) { oldStoryId, newStoryId in
-            if oldStoryId != newStoryId {
-                // ✅ RESET PROGRESO INMEDIATAMENTE
-                progress = 0.0
-                handleStoryChange()
-                // ✅ CARGAR STICKERS DE LA NUEVA HISTORIA
-                storyStickers = story.convertStickersToStickerItems()
-            }
-        }
-        .onChange(of: storyIndex) { oldIndex, newIndex in
-            // ✅ CARGAR STICKERS CUANDO CAMBIE EL ÍNDICE DE LA HISTORIA
-            let newStickers = story.convertStickersToStickerItems()
-            storyStickers = newStickers
-        }
-        .sheet(isPresented: $showViewers, onDismiss: {
-            resumeStory()
-        }) {
-            GlassmorphicViewersSheet(
-                story: story,
-                viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
-                reactions: storyViewModel.storyReactions[story.id ?? ""] ?? []
-            )
-            .onAppear {
-                pauseStory()
-            }
-        }
-        .alert(
-            NSLocalizedString("bestFriends.optOut.confirm.title", comment: "Leave best friends title"),
-            isPresented: $showBestFriendsOptOutConfirmation
-        ) {
-            Button(NSLocalizedString("bestFriends.optOut.confirm.cancel", comment: "Cancel"), role: .cancel) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    resumeStory()
+    private var profileAndChainBoundView: AnyView {
+        AnyView(
+            overlayBoundView
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfileFromStory"))) { notification in
+                    if let userId = notification.object as? String, !userId.isEmpty {
+                        selectedUserId = userId
+                        showUserProfile = true
+                        pauseStory()
+                    }
                 }
-            }
-            
-            Button(NSLocalizedString("bestFriends.optOut.confirm.action", comment: "Leave"), role: .destructive) {
-                optOutFromBestFriends()
-            }
-        } message: {
-            Text(NSLocalizedString("bestFriends.optOut.confirm.message", comment: "Leave best friends message"))
-        }
-        .onChange(of: selectedPhoto) { newPhoto in
-            handleEphemeralPhoto(newPhoto)
-        }
-        // ✅ NUEVO: onChange para showReactions en nivel principal
-        .onChange(of: showReactions) { isOpen in
-            if isOpen {
-                pauseStory() // ✅ Pausar historia cuando se abren reacciones
-            } else {
-                // ✅ Reanudar historia cuando se cierran reacciones
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    resumeStory()
+                .sheet(isPresented: $showUserProfile, onDismiss: {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        resumeStory()
+                    }
+                }) {
+                    if !selectedUserId.isEmpty {
+                        UserProfileView(userId: selectedUserId)
+                    }
                 }
-            }
-        }
-        // ✅ NUEVO: onChange para showEphemeralPicker en nivel principal
-        .onChange(of: showEphemeralPicker) { isOpen in
-            if isOpen {
-                pauseStory() // ✅ Pausar historia cuando se abre selector de fotos
-            } else {
-                // ✅ Reanudar historia cuando se cierra selector de fotos
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    resumeStory()
+                .sheet(isPresented: $showChainView, onDismiss: {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        resumeStory()
+                    }
+                }) {
+                    StoryChainView(
+                        chainId: selectedChainId,
+                        chainTitle: selectedChainTitle,
+                        canContinueChain: canContinueChain,
+                        initialStoryId: selectedChainStoryId.isEmpty ? nil : selectedChainStoryId,
+                        initialChainPosition: selectedChainStoryPosition
+                    )
+                    .background(Color.clear)
                 }
-            }
-        }
-        // ✅ AGREGAR AQUÍ: Nuevos onChange handlers para pausar historias
-        .onChange(of: showingReportSheet) { oldValue, newValue in
-            if newValue {
-                pauseStory()
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    resumeStory()
+                .onChange(of: showChainView) { isOpen in
+                    if isOpen {
+                        pauseStory()
+                    }
                 }
-            }
-        }
-        .onChange(of: showViewers) { oldValue, newValue in
-            if newValue {
-                pauseStory()
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    resumeStory()
+                .onChange(of: showUserProfile) { oldValue, newValue in
+                    if !newValue && oldValue {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            resumeStory()
+                        }
+                    }
                 }
-            }
-        }
-        .onChange(of: showingBlockConfirmation) { oldValue, newValue in
-            if newValue {
-                pauseStory()
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    resumeStory()
-                }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfileFromStory"))) { notification in
-            if let userId = notification.object as? String, !userId.isEmpty {
-                selectedUserId = userId
-                showUserProfile = true
-                pauseStory() // ✅ Pausar la historia cuando se abre el perfil
-            }
-        }
-        .sheet(isPresented: $showUserProfile, onDismiss: {
-            // ✅ Reanudar la historia cuando se cierra el sheet
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                resumeStory()
-            }
-        }) {
-            if !selectedUserId.isEmpty {
-                UserProfileView(userId: selectedUserId)
-            }
-        }
-        .sheet(isPresented: $showChainView, onDismiss: {
-            // ✅ Reanudar la historia cuando se cierra el sheet de cadena
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                resumeStory()
-            }
-        }) {
-            StoryChainView(
-                chainId: selectedChainId,
-                chainTitle: selectedChainTitle,
-                canContinueChain: canContinueChain
-            )
-            .background(Color.clear)
-        }
-        .onChange(of: showChainView) { isOpen in
-            if isOpen {
-                // ✅ Pausar la historia al abrir el sheet de cadena
-                pauseStory()
-            }
-        }
-        .onChange(of: showUserProfile) { oldValue, newValue in
-            if !newValue && oldValue {
-                // ✅ Reanudar la historia cuando se cierra el perfil
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    resumeStory()
-                }
-            }
-        }
+        )
     }
     
     // MARK: - Glassmorphic Components
@@ -1717,21 +1852,8 @@ struct GlassmorphicStoryViewer: View {
             Spacer()
             
             
-            HStack(spacing: 8) {
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        showQuickActions.toggle()
-                        
-                        // ✅ PAUSAR/REANUDAR según el estado del menú
-                        if showQuickActions {
-                            pauseStory()
-                    
-                        } else {
-                            resumeStory()
-                    
-                        }
-                    }
-                }) {
+            HStack(alignment: .top, spacing: 8) {
+                Button(action: toggleQuickActions) {
                     Image(systemName: "ellipsis")
                         .foregroundColor(.white)
                         .font(.system(size: 16, weight: .medium))
@@ -1739,7 +1861,8 @@ struct GlassmorphicStoryViewer: View {
                         .storyGlassmorphic()
                         .clipShape(Circle())
                 }
-                
+                .buttonStyle(PlainButtonStyle())
+
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .foregroundColor(.white)
@@ -1751,148 +1874,140 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
-    // REEMPLAZO DIRECTO para tu glassmorphicQuickActions
-    private var modernActionMenu: some View {
+
+    private func storyQuickActionsOverlay(topInset: CGFloat) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.opacity(0.001)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismissQuickActions()
+                }
+
+            storyQuickActionsDropdown
+                .padding(.top, topInset + 74)
+                .padding(.trailing, 16)
+        }
+    }
+
+    private var storyQuickActionsDropdown: some View {
         VStack(spacing: 0) {
-            // Handle indicator
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color.white.opacity(0.5))
-                .frame(width: 36, height: 4)
-                .padding(.top, 12)
-                .padding(.bottom, 16)
-
-            // Título
-            Text(story.authorId == Auth.auth().currentUser?.uid
-                 ? NSLocalizedString("storyContextMenu.myStory", comment: "My story title")
-                 : NSLocalizedString("storyContextMenu.options", comment: "Options title"))
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.white)
-                .padding(.bottom, 16)
-
-            // Divider superior
-            Divider().background(Color.white.opacity(0.12))
-
             if story.authorId == Auth.auth().currentUser?.uid {
-                // ACCIONES DEL PROPIETARIO
-                MenuActionRow(icon: "eye.fill", color: .blue,
-                              title: NSLocalizedString("storyContextMenu.viewActivity", comment: "View activity button"),
-                              subtitle: NSLocalizedString("storyContextMenu.viewActivity.subtitle", comment: "View activity subtitle")) {
+                quickActionRow(
+                    title: NSLocalizedString("storyContextMenu.viewActivity", comment: "View activity button")
+                ) {
+                    dismissQuickActions(resume: false)
                     fetchViewersAndShow()
                 }
-                Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
 
-                MenuActionRow(icon: "square.and.arrow.down", color: .green,
-                              title: NSLocalizedString("storyContextMenu.save", comment: "Save story button"),
-                              subtitle: NSLocalizedString("storyContextMenu.save.subtitle", comment: "Save story subtitle")) {
+                quickActionDivider
+
+                quickActionRow(
+                    title: NSLocalizedString("storyContextMenu.save", comment: "Save story button")
+                ) {
+                    dismissQuickActions(resume: false)
                     saveStoryToDevice()
-                    showQuickActions = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { resumeStory() }
                 }
-                Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
 
-                MenuActionRow(icon: "trash.fill", color: .red,
-                              title: NSLocalizedString("storyContextMenu.delete", comment: "Delete story button"),
-                              subtitle: NSLocalizedString("storyContextMenu.delete.subtitle", comment: "Delete story subtitle"),
-                              isDestructive: true) {
+                quickActionDivider
+
+                quickActionRow(
+                    title: NSLocalizedString("storyContextMenu.delete", comment: "Delete story button"),
+                    isDestructive: true
+                ) {
+                    dismissQuickActions(resume: false)
                     deleteStory()
-                    showQuickActions = false
                 }
-
             } else {
-                // ACCIONES PARA HISTORIAS DE OTROS
-                MenuActionRow(icon: "flag.fill", color: .orange,
-                              title: NSLocalizedString("storyContextMenu.report", comment: "Report story button"),
-                              subtitle: NSLocalizedString("storyContextMenu.report.subtitle", comment: "Report story subtitle")) {
-                    onReportStory()
-                    showQuickActions = false
+                quickActionRow(
+                    title: NSLocalizedString("storyContextMenu.unfollow", comment: "Unfollow user button")
+                ) {
+                    dismissQuickActions(resume: false)
+                    showUnfollowConfirmation = true
                 }
-                Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
 
-                MenuActionRow(icon: "person.slash", color: .red,
-                              title: NSLocalizedString("storyContextMenu.block", comment: "Block user button"),
-                              subtitle: NSLocalizedString("storyContextMenu.block.subtitle", comment: "Block user subtitle"),
-                              isDestructive: true) {
-                    onBlockUser()
-                    showQuickActions = false
+                quickActionDivider
+
+                quickActionRow(
+                    title: NSLocalizedString("storyContextMenu.mute", comment: "Mute user button")
+                ) {
+                    dismissQuickActions(resume: false)
+                    showMuteConfirmation = true
+                }
+
+                quickActionDivider
+
+                quickActionRow(
+                    title: NSLocalizedString("storyContextMenu.report", comment: "Report story button"),
+                    isDestructive: true
+                ) {
+                    dismissQuickActions(resume: false)
+                    onReportStory()
                 }
 
                 if canOptOutFromAuthorBestFriends {
-                    Divider().background(Color.white.opacity(0.12)).padding(.leading, 62)
-                    MenuActionRow(icon: "person.badge.minus", color: .green,
-                                  title: NSLocalizedString("storyContextMenu.leaveBestFriends", comment: "Leave best friends"),
-                                  subtitle: NSLocalizedString("storyContextMenu.leaveBestFriends.subtitle", comment: "Leave best friends subtitle"),
-                                  isDestructive: true) {
-                        showQuickActions = false
+                    quickActionDivider
+
+                    quickActionRow(
+                        title: NSLocalizedString("storyContextMenu.leaveBestFriends", comment: "Leave best friends")
+                    ) {
+                        dismissQuickActions(resume: false)
                         showBestFriendsOptOutConfirmation = true
                     }
                 }
             }
-
-            Divider().background(Color.white.opacity(0.12))
-            Spacer().frame(height: 28)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(Color.black.opacity(0.4))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
+        .frame(minWidth: 200)
+        .fixedSize(horizontal: true, vertical: false)
+        .background(Color.white.opacity(0.001))
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(quickActionBorderColor, lineWidth: 1)
         )
-        .padding(.horizontal, 20)
-        .onDisappear {
-            let isAnyOtherOverlayVisible = showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation
-            if !isAnyOtherOverlayVisible {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { resumeStory() }
-            }
+        .shadow(color: Color.black.opacity(0.28), radius: 24, x: 0, y: 14)
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .onTapGesture {
         }
+    }
+
+    private var quickActionDivider: some View {
+        Divider()
+            .background(quickActionDividerColor)
+    }
+
+    private func quickActionRow(
+        title: String,
+        isDestructive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        MenuActionRow(
+            title: title,
+            textColor: quickActionTextColor,
+            isDestructive: isDestructive,
+            action: action
+        )
     }
 
     // MARK: - Menu Action Row (vertical list style)
     struct MenuActionRow: View {
-        let icon: String
-        let color: Color
         let title: String
-        let subtitle: String
+        let textColor: Color
         var isDestructive: Bool = false
         let action: () -> Void
 
         var body: some View {
             Button(action: action) {
-                HStack(spacing: 14) {
-                    // Icon badge
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(color.opacity(0.20))
-                            .frame(width: 38, height: 38)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(color.opacity(0.35), lineWidth: 1)
-                            )
-                        Image(systemName: icon)
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(color)
-                    }
-
-                    // Text
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(isDestructive ? .red : .white)
-                        Text(subtitle)
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(.white.opacity(0.55))
-                    }
-
+                HStack {
+                    Spacer(minLength: 0)
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(isDestructive ? .red : textColor)
+                        .multilineTextAlignment(.center)
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 13)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 15)
                 .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
@@ -1902,7 +2017,8 @@ struct GlassmorphicStoryViewer: View {
     
     // MARK: - Bottom Area
     private var glassmorphicBottomArea: some View {
-        VStack(spacing: 12) {
+        let hasChainOverlay = story.chainId != nil && story.chainTitle != nil && story.chainPosition != nil
+        return VStack(spacing: 12) {
             // ✅ REACCIONES: Solo mostrar si el autor las permite
             if showReactions && authorAllowsReactions {
                 VStack(spacing: 8) {
@@ -2145,7 +2261,12 @@ struct GlassmorphicStoryViewer: View {
                     HStack(spacing: 12) {
                         // Botón para ver cadena completa
                         Button(action: {
-                            showChainView(chainId: chainId, chainTitle: chainTitle)
+                            showChainView(
+                                chainId: chainId,
+                                chainTitle: chainTitle,
+                                initialStoryId: story.id,
+                                initialChainPosition: chainPosition
+                            )
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "list.bullet")
@@ -2211,31 +2332,32 @@ struct GlassmorphicStoryViewer: View {
                     .padding(.horizontal, 16)
                 }
                 .padding(.bottom, 8)
-                .padding(.vertical, 16)
-            .background(
-                ZStack {
-                    // Fondo glassmorphism con esquinas uniformes
-                    RoundedRectangle(cornerRadius: 30)
-                        .fill(Color.white.opacity(0.1))
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30))
-                    
-                    // Borde glassmorphism con esquinas uniformes
-                    RoundedRectangle(cornerRadius: 30)
-                        .stroke(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                }
-            )
+                .padding(.vertical, 12)
+                .background(
+                    ZStack {
+                        // Fondo glassmorphism con esquinas uniformes
+                        RoundedRectangle(cornerRadius: 30)
+                            .fill(Color.white.opacity(0.1))
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30))
+                        
+                        // Borde glassmorphism con esquinas uniformes
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    }
+                )
+                .offset(y: 10)
             }
         }
         .padding(.horizontal, 16)
         // ✅ Eliminar padding interno si el teclado está visible
-        .padding(.bottom, isKeyboardVisible ? 0 : 25)
+        .padding(.bottom, isKeyboardVisible ? 0 : (hasChainOverlay ? 12 : 25))
     }
     
     private var contentView: some View {
@@ -2426,8 +2548,17 @@ struct GlassmorphicStoryViewer: View {
     
     // ✅ UNIFIED GESTURE: Combina Hold, Drag, Swipe Up/Down/Horizontal
     private var unifiedDragGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: 8)
             .onChanged { value in
+                guard !isMenuInteractionActive else { return }
+                let topProtectedHeight: CGFloat = 180
+                let topRightProtectedX = screenSize.width - 120
+                if value.startLocation.y < topProtectedHeight {
+                    return
+                }
+                if value.startLocation.y < 220 && value.startLocation.x > topRightProtectedX {
+                    return
+                }
                 // 1. TOUCH DOWN & HOLD (Pause & Hide UI)
                 if !isPaused {
                     pauseStory()
@@ -2474,6 +2605,15 @@ struct GlassmorphicStoryViewer: View {
                 }
             }
             .onEnded { value in
+                guard !isMenuInteractionActive else { return }
+                let topProtectedHeight: CGFloat = 180
+                let topRightProtectedX = screenSize.width - 120
+                if value.startLocation.y < topProtectedHeight {
+                    return
+                }
+                if value.startLocation.y < 220 && value.startLocation.x > topRightProtectedX {
+                    return
+                }
                 // RESET STATE
                 gestureActionTriggered = false
                 
@@ -2754,6 +2894,65 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
+
+    private func pauseForMenuInteraction() {
+        pauseStory()
+        isMenuInteractionActive = true
+        menuAutoResumeWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem {
+            let isAnyOverlayVisible = self.showQuickActions
+                || self.showViewers
+                || self.showingReportSheet
+                || self.showingBlockConfirmation
+                || self.showUserProfile
+                || self.showChainView
+                || self.showReactions
+                || self.showEphemeralPicker
+                || self.showBestFriendsOptOutConfirmation
+                || self.showUnfollowConfirmation
+                || self.showMuteConfirmation
+
+            self.isMenuInteractionActive = false
+            if !isAnyOverlayVisible {
+                self.resumeStory()
+            }
+            self.menuAutoResumeWorkItem = nil
+        }
+
+        menuAutoResumeWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: workItem)
+    }
+
+    private func cancelMenuAutoResume() {
+        menuAutoResumeWorkItem?.cancel()
+        menuAutoResumeWorkItem = nil
+        isMenuInteractionActive = false
+    }
+
+    private func toggleQuickActions() {
+        if showQuickActions {
+            dismissQuickActions()
+        } else {
+            pauseForMenuInteraction()
+            withAnimation(.spring(response: 0.26, dampingFraction: 0.92)) {
+                showQuickActions = true
+            }
+        }
+    }
+
+    private func dismissQuickActions(resume: Bool = true) {
+        let shouldResume = resume
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.92)) {
+            showQuickActions = false
+        }
+        cancelMenuAutoResume()
+
+        guard shouldResume else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            self.resumeStory()
+        }
+    }
     
     private func optOutFromBestFriends() {
         pauseStory()
@@ -2783,6 +2982,57 @@ struct GlassmorphicStoryViewer: View {
                 }
             }
         }
+    }
+
+    private func unfollowStoryAuthor() {
+        guard let currentUserId = Auth.auth().currentUser?.uid, currentUserId != story.authorId else {
+            return
+        }
+
+        pauseStory()
+        firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: story.authorId) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    let fallback = NSLocalizedString("storyContextMenu.actionFailed", comment: "Generic story action failed")
+                    let message = error.localizedDescription.isEmpty ? fallback : error.localizedDescription
+                    self.showSuccessAnimation(message)
+                } else {
+                    self.showSuccessAnimation(NSLocalizedString("storyContextMenu.unfollow.success", comment: "Unfollow success message"))
+                }
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.resumeStory()
+                }
+            }
+        }
+    }
+
+    private func muteStoryAuthor() {
+        guard let currentUserId = Auth.auth().currentUser?.uid, currentUserId != story.authorId else {
+            return
+        }
+
+        pauseStory()
+        firestoreService.db
+            .collection("users")
+            .document(currentUserId)
+            .updateData([
+                "muteSettings.mutedUsers": FieldValue.arrayUnion([story.authorId])
+            ]) { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        let fallback = NSLocalizedString("storyContextMenu.actionFailed", comment: "Generic story action failed")
+                        let message = error.localizedDescription.isEmpty ? fallback : error.localizedDescription
+                        self.showSuccessAnimation(message)
+                    } else {
+                        self.showSuccessAnimation(NSLocalizedString("storyContextMenu.mute.successWithHint", comment: "Mute success message with settings hint"))
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        self.resumeStory()
+                    }
+                }
+            }
     }
     
     // MARK: - Story Playback
@@ -2816,6 +3066,7 @@ struct GlassmorphicStoryViewer: View {
         
         // ✅ SIMPLIFICADO: Solo pausar y limpiar timer
         isPaused = true
+        cancelMenuAutoResume()
         progress = 0.0
         imageTimer?.invalidate()
         imageTimer = nil
@@ -2867,9 +3118,9 @@ struct GlassmorphicStoryViewer: View {
 
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
-        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation
+        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showUnfollowConfirmation || showMuteConfirmation
         
-        guard !isKeyboardVisible && !isDragging && !isAnyOverlayVisible else {
+        guard !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible else {
             return
         }
         
@@ -3123,9 +3374,11 @@ struct GlassmorphicStoryViewer: View {
     }
     
     // 🔗 FUNCIÓN: Mostrar vista de cadena completa
-    private func showChainView(chainId: String, chainTitle: String) {
+    private func showChainView(chainId: String, chainTitle: String, initialStoryId: String? = nil, initialChainPosition: Int? = nil) {
         selectedChainId = chainId
         selectedChainTitle = chainTitle
+        selectedChainStoryId = initialStoryId ?? ""
+        selectedChainStoryPosition = initialChainPosition ?? 1
         showChainView = true
     }
 }
@@ -3259,6 +3512,90 @@ struct GlassmorphicSuccessMessage: View {
         .padding(.vertical, 12)
         .storyGlassmorphic()
         .clipShape(Capsule())
+    }
+}
+
+struct GlassmorphicStoryConfirmationDialog: View {
+    let title: String
+    let message: String
+    let confirmTitle: String
+    let cancelTitle: String
+    var isDestructive: Bool = false
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.62)
+    }
+
+    private var scrimColor: Color {
+        colorScheme == .dark ? Color.black.opacity(0.45) : Color.black.opacity(0.20)
+    }
+
+    var body: some View {
+        ZStack {
+            scrimColor
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onCancel()
+                }
+
+            VStack(spacing: 16) {
+                VStack(spacing: 8) {
+                    Text(title)
+                        .foregroundColor(primaryTextColor)
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .multilineTextAlignment(.center)
+
+                    Text(message)
+                        .foregroundColor(secondaryTextColor)
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .multilineTextAlignment(.center)
+                }
+
+                HStack(spacing: 10) {
+                    Button(action: onCancel) {
+                        Text(cancelTitle)
+                            .font(.custom("Poppins-Medium", size: 14))
+                            .foregroundColor(primaryTextColor)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
+                    Button(action: onConfirm) {
+                        Text(confirmTitle)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(isDestructive ? .red : primaryTextColor)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: 360)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            )
+            .padding(.horizontal, 24)
+        }
     }
 }
 

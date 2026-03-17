@@ -2591,15 +2591,49 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       return null;
     }
 
-    // No notificar si el usuario se continúa a sí mismo
-    if (story.authorId === userId) {
+    // El doc recién creado vive en users/{userId}/stories/{storyId}.
+    // userId aquí es quien publicó esta parte (continuador), no necesariamente el creador original.
+    const continuerId = story.authorId || userId;
+    const storyOwnerId = userId;
+    if (continuerId !== storyOwnerId) {
+      console.warn(`⚠️ Story chain inconsistente: authorId (${continuerId}) != ownerId (${storyOwnerId}) en story ${storyId}`);
+    }
+
+    // Resolver creador real de la cadena
+    let chainCreatorId = null;
+    const chainMetaDoc = await admin.firestore().doc(`storyChains/${story.chainId}`).get();
+    if (chainMetaDoc.exists) {
+      chainCreatorId = chainMetaDoc.data()?.createdBy || null;
+    }
+
+    // Fallback: buscar la primera parte de la cadena
+    if (!chainCreatorId) {
+      const firstPartSnapshot = await admin.firestore()
+        .collectionGroup('stories')
+        .where('chainId', '==', story.chainId)
+        .where('chainPosition', '==', 1)
+        .limit(1)
+        .get();
+      const firstPart = firstPartSnapshot.docs[0];
+      if (firstPart) {
+        chainCreatorId = firstPart.data()?.authorId || firstPart.ref.parent.parent?.id || null;
+      }
+    }
+
+    if (!chainCreatorId) {
+      console.warn(`⚠️ No se pudo resolver chainCreatorId para chainId=${story.chainId}`);
+      return null;
+    }
+
+    // No notificar si el creador original se continúa a sí mismo
+    if (continuerId === chainCreatorId) {
       return null;
     }
 
     // Obtener datos del usuario que continuó la cadena y del creador original
     const [continuerDoc, chainCreatorDoc] = await Promise.all([
-      admin.firestore().doc(`users/${story.authorId}`).get(),
-      admin.firestore().doc(`users/${userId}`).get()
+      admin.firestore().doc(`users/${continuerId}`).get(),
+      admin.firestore().doc(`users/${chainCreatorId}`).get()
     ]);
 
     if (!continuerDoc.exists || !chainCreatorDoc.exists) {
@@ -2630,7 +2664,7 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       ? continuerData.profileImagePath.replace(':443', '')
       : null;
 
-    const storyRef = admin.firestore().doc(`users/${userId}/stories/${storyId}`);
+    const storyRef = admin.firestore().doc(`users/${storyOwnerId}/stories/${storyId}`);
     const lockAcquired = await claimProcessingLock(storyRef, {
       processedField: 'chainNotificationProcessed',
       processingField: 'chainNotificationProcessingUntil'
@@ -2638,7 +2672,7 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
     if (!lockAcquired) return null;
 
     const isSilencedByMuteSettings = shouldSilenceNotificationForUser(chainCreatorData, {
-      senderId: story.authorId,
+      senderId: continuerId,
       candidateTexts: [story.chainTitle]
     });
     if (isSilencedByMuteSettings) {
@@ -2680,7 +2714,7 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
     }
 
     // ✅ Obtener conteos actualizados para el Widget
-    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'storyChainContinued' });
+    const counts = await getUnreadCounts(chainCreatorId, { type: 'notification', notificationType: 'storyChainContinued' });
 
     const message = {
       token: fcmToken,
@@ -2691,8 +2725,8 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
         chainTitle: story.chainTitle || '',
         chainPosition: story.chainPosition.toString(),
         totalParts: totalParts.toString(),
-        continuerId: story.authorId,
-        chainCreatorId: userId,
+        continuerId: continuerId,
+        chainCreatorId: chainCreatorId,
         targetType: 'story_chain',
         targetId: story.chainId,
         senderUsername: continuerData.username,
@@ -2731,16 +2765,16 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
         console.log(`✅ Notificación de Story Chain enviada: ${username} -> ${chainCreatorData.username} (${story.chainTitle}) - Parte ${story.chainPosition}/${totalParts}`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {
-          await removeInvalidToken(userId, fcmToken);
+          await removeInvalidToken(chainCreatorId, fcmToken);
         }
         throw error;
       }
     }
 
     // Crear notificación en Firestore
-    await admin.firestore().collection(`users/${userId}/notifications`).add({
+    await admin.firestore().collection(`users/${chainCreatorId}/notifications`).add({
       type: 'storyChainContinued',
-      senderId: story.authorId,
+      senderId: continuerId,
       senderUsername: continuerData.username,
       senderProfileImage: continuerData.profileImagePath || '',
       chainId: story.chainId,
@@ -2758,11 +2792,11 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       await chainRef.set({
         id: story.chainId,
         title: story.chainTitle || '',
-        createdBy: userId,
+        createdBy: chainCreatorId,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         partCount: totalParts,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-        lastPartBy: story.authorId,
+        lastPartBy: continuerId,
         lastPartUsername: continuerData.username
       }, { merge: true });
 

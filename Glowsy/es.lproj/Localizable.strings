@@ -414,6 +414,7 @@
 "notifications.message.mutual.multiple" = "Ahora tienes una conexión mutua con %@ y %d más.";
 "notifications.message.comment.multiple" = "%@ y %d más comentaron en tu momento.";
 "notifications.message.story.multiple" = "%@ y %d más reaccionaron a tu historia.";
+"notifications.message.storyChain.multiple" = "%@ continuó la cadena \"%@\" y %d más también la continuaron.";
 "notifications.message.visit.multiple" = "%d personas visitaron tu perfil hoy.";
 "notifications.message.like.single" = "%@ reaccionó a tu momento.";
 "notifications.message.reaction.single" = "%@ reaccionó a tu momento.";
@@ -424,6 +425,7 @@
 "notifications.message.mutual.single" = "Ahora tienes una conexión mutua con %@.";
 "notifications.message.comment.single" = "%@ comentó en tu momento.";
 "notifications.message.story.single" = "%@ reaccionó a tu historia.";
+"notifications.message.storyChain.single" = "%@ continuó la cadena \"%@\".";
 "notifications.message.visit.single" = "%d personas visitaron tu perfil hoy.";
 "notifications.message.requestAccepted.multiple" = "%@ y %d más aceptaron tu solicitud de seguimiento.";
 "notifications.message.requestAccepted.single" = "%@ aceptó tu solicitud de seguimiento.";
@@ -1499,14 +1501,28 @@
 "storyContextMenu.share.subtitle" = "Enviar a otros";
 "storyContextMenu.report" = "Reportar";
 "storyContextMenu.report.subtitle" = "Contenido inapropiado";
+"storyContextMenu.unfollow" = "Dejar de seguir";
+"storyContextMenu.unfollow.success" = "Has dejado de seguir a este usuario";
+"storyContextMenu.unfollow.confirm.title" = "¿Dejar de seguir a %@?";
+"storyContextMenu.unfollow.confirm.message" = "Dejarás de ver sus publicaciones privadas en tu feed si su cuenta es privada.";
+"storyContextMenu.unfollow.confirm.action" = "Dejar de seguir";
+"storyContextMenu.unfollow.confirm.cancel" = "Cancelar";
+"storyContextMenu.mute" = "Silenciar";
+"storyContextMenu.mute.success" = "Cuenta silenciada";
+"storyContextMenu.mute.successWithHint" = "Cuenta silenciada. Puedes reactivarla en Ajustes > Silenciar.";
+"storyContextMenu.mute.confirm.title" = "¿Silenciar a %@?";
+"storyContextMenu.mute.confirm.message" = "Dejarás de ver sus publicaciones e historias. Puedes reactivarla en Ajustes > Silenciar.";
+"storyContextMenu.mute.confirm.action" = "Silenciar";
+"storyContextMenu.mute.confirm.cancel" = "Cancelar";
 "storyContextMenu.block" = "Bloquear";
 "storyContextMenu.block.subtitle" = "No ver más contenido de este usuario";
 "storyContextMenu.leaveBestFriends" = "Salir de Mejores";
 "storyContextMenu.leaveBestFriends.subtitle" = "No ver más sus historias BFF";
 "storyContextMenu.scrollReactions" = "Desliza para más reacciones";
+"storyContextMenu.actionFailed" = "No se pudo completar la acción";
 
-"bestFriends.optOut.confirm.title" = "Salir de mejores amigos";
-"bestFriends.optOut.confirm.message" = "¿Quieres salir de la lista de mejores amigos de este usuario?";
+"bestFriends.optOut.confirm.title" = "¿Salir de mejores amigos de %@?";
+"bestFriends.optOut.confirm.message" = "Dejarás de ver las historias que comparta solo con esa audiencia.";
 "bestFriends.optOut.confirm.action" = "Salir";
 "bestFriends.optOut.confirm.cancel" = "Cancelar";
 "bestFriends.optOut.success" = "Has salido de su lista de mejores amigos";
@@ -2381,9 +2397,9 @@
 "notification.photoTag.body" = "Toca para ver el momento";
 
 /* Push Notifications - Story Chains */
-"notification.storyChain.single.title" = "%@ añadió la parte %@ a \"%@\"";
+"notification.storyChain.single.title" = "%@ añadió la parte %@ de la cadena \"%@\"";
 "notification.storyChain.single.body" = "Toca para ver la cadena";
-"notification.storyChain.multiple.title" = "%@ añadió la parte %@ a \"%@\"";
+"notification.storyChain.multiple.title" = "%@ añadió la parte %@ de la cadena \"%@\"";
 "notification.storyChain.multiple.body" = "%@ partes en total";
 
 /* Push Notifications - Echoes */

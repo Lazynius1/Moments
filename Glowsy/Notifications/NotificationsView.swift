@@ -570,7 +570,7 @@ struct EnhancedNotificationRow: View {
             if let momentId = first.momentId {
                 fetchMomentPreview(momentId: momentId)
             }
-        } else if first.type == .storyReaction {
+        } else if first.type == .storyReaction || first.type == .storyChainContinued {
             if let storyId = first.storyId {
                 fetchStoryPreview(storyId: storyId)
             }
@@ -691,6 +691,71 @@ struct EnhancedNotificationRow: View {
                             .font(.system(size: 20))
                             .frame(width: 24, height: 24)
                     }
+                }
+
+            case .storyChainContinued:
+                if let path = storyImagePath, let url = URL(string: path), !storyImageLoadFailed {
+                    ZStack(alignment: .bottomTrailing) {
+                        KFImage(url)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.ultraThinMaterial)
+                                    .frame(width: 44, height: 44)
+                                    .overlay(
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                            .tint(Color(hex: "007AFF"))
+                                    )
+                            }
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color.blue.opacity(0.85), Color.purple.opacity(0.85)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 2
+                                    )
+                            )
+
+                        Image(systemName: "link.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white)
+                            .padding(2)
+                            .background(Color.black.opacity(0.45))
+                            .clipShape(Circle())
+                            .offset(x: 4, y: 4)
+                    }
+                    .frame(width: 44, height: 44)
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Image(systemName: "link.circle.fill")
+                                .foregroundColor(
+                                    colorScheme == .dark ?
+                                    .white.opacity(0.72) :
+                                    .black.opacity(0.62)
+                                )
+                                .font(.system(size: 17, weight: .semibold))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Color.blue.opacity(0.35), Color.purple.opacity(0.35)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                        )
                 }
 
             case .followRequest:
@@ -838,7 +903,9 @@ struct EnhancedNotificationRow: View {
     // MARK: - Métodos auxiliares (mantenidos del original)
     
     private func fetchStoryPreview(storyId: String) {
-        guard let userId = group.notifications.first?.storyAuthorId else { return }
+        guard let firstNotification = group.notifications.first else { return }
+        let userId = firstNotification.storyAuthorId ?? firstNotification.senderId
+        guard !userId.isEmpty else { return }
         isLoadingStoryImage = true
         
         Firestore.firestore()

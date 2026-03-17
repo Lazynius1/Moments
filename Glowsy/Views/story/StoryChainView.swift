@@ -8,47 +8,53 @@ struct StoryChainView: View {
     let chainId: String
     let chainTitle: String
     let canContinueChain: Bool // 🔗 NUEVO: Indica si el usuario actual puede continuar esta cadena
+    let initialStoryId: String?
+    let initialChainPosition: Int?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = StoryChainViewModel()
     @State private var selectedStoryIndex = 0
+    @State private var didApplyInitialSelection = false
     @State private var chainStats: (partCount: Int, remainingTime: TimeInterval, isExpired: Bool) = (0, 0, false)
     @State private var showLimitAlert = false
     @State private var limitAlertMessage = ""
     @State private var showStoriesViewer = false
     private let gridColumns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+
+    init(
+        chainId: String,
+        chainTitle: String,
+        canContinueChain: Bool,
+        initialStoryId: String? = nil,
+        initialChainPosition: Int? = nil
+    ) {
+        self.chainId = chainId
+        self.chainTitle = chainTitle
+        self.canContinueChain = canContinueChain
+        self.initialStoryId = initialStoryId
+        self.initialChainPosition = initialChainPosition
+    }
     
     var body: some View {
         NavigationView {
             ZStack {
-                // Fondo glassmorphism simple como UserListView
-                Color.clear.ignoresSafeArea()
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.3),
-                                                Color.blue.opacity(0.4)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                    )
+                LinearGradient(
+                    colors: colorScheme == .dark
+                    ? [Color.black, Color(hex: "0B1020"), Color.black]
+                    : [Color(hex: "F6F8FC"), Color.white, Color(hex: "EEF3FB")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
                 if viewModel.isLoading {
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.5)
-                            .tint(.white)
+                            .tint(colorScheme == .dark ? .white : .black)
                         
                         Text(NSLocalizedString("storyChains.loading", comment: "Loading chain"))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                             .font(.custom("Poppins-Regular", size: 16))
                     }
                 } else if viewModel.stories.isEmpty {
@@ -60,19 +66,7 @@ struct StoryChainView: View {
                     )
                 } else {
                     VStack(spacing: 0) {
-                        // Header con información de la cadena y botón de cierre
-                        ZStack(alignment: .topTrailing) {
-                            chainHeader
-                            
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(.white.opacity(0.6))
-                                    .padding(16)
-                            }
-                        }
+                        chainHeader
                         
                         // Grid 2x2 de historias
                         ScrollView {
@@ -91,7 +85,8 @@ struct StoryChainView: View {
                                 }
                             }
                             .padding(.horizontal, 16)
-                            .padding(.vertical, 20)
+                            .padding(.top, 14)
+                            .padding(.bottom, 20)
                             
                             // Espacio extra al final para que el botón flotante no tape contenido
                             if canContinueChain {
@@ -117,43 +112,41 @@ struct StoryChainView: View {
                                 }
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 28)
-                                .padding(.vertical, 14)
+                                .padding(.vertical, 13)
                                 .background(
-                                    ZStack {
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                        .clipShape(Capsule())
-                                        
-                                        Capsule()
-                                            .fill(.ultraThinMaterial)
-                                            .opacity(0.3)
-                                    }
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
                                 )
                                 .overlay(
                                     Capsule()
                                         .stroke(
-                                            LinearGradient(
-                                                colors: [Color.white.opacity(0.4), Color.white.opacity(0.1)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1
+                                            Color.white.opacity(0.28),
+                                            lineWidth: 0.8
                                         )
                                 )
-                                .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                                .clipShape(Capsule())
+                                .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
                             }
                             .padding(.bottom, 24)
                         }
                     }
                 }
             }
+            .alert(NSLocalizedString("storyChains.chainLimit", comment: "Chain Limit"), isPresented: $showLimitAlert) {
+                Button(NSLocalizedString("storyChains.ok", comment: "OK")) { }
+            } message: {
+                Text(limitAlertMessage)
+            }
             .navigationBarHidden(true)
         }
         .onAppear {
             viewModel.loadChainStories(chainId: chainId)
+        }
+        .onReceive(viewModel.$stories) { _ in
+            applyInitialSelectionIfNeeded()
         }
         .fullScreenCover(isPresented: $showStoriesViewer) {
             StoriesView(chainStories: viewModel.stories, startAtIndex: selectedStoryIndex)
@@ -163,85 +156,108 @@ struct StoryChainView: View {
     // MARK: - Chain Header
     private var chainHeader: some View {
         VStack(spacing: 12) {
-            VStack(spacing: 6) {
-                Text(chainTitle)
-                    .font(.custom("Poppins-Bold", size: 20))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40) // Espacio para la X
-                
-                HStack(spacing: 8) {
-                    Label(
-                        String(format: NSLocalizedString("storyChains.parts", comment: "Parts"), chainStats.partCount, StoryChainLimits.maxParts),
-                        systemImage: "link"
+            HStack(alignment: .center) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.82))
+                        .frame(width: 30, height: 30)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                VStack(spacing: 2) {
+                    Text(NSLocalizedString("storyChains.chain", comment: "Chain"))
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.58))
+                    Text(chainTitle)
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .frame(maxWidth: .infinity)
+
+                Color.clear.frame(width: 30, height: 30)
+            }
+
+            HStack(spacing: 8) {
+                infoChip(
+                    icon: "link",
+                    text: String(format: NSLocalizedString("storyChains.parts", comment: "Parts"), chainStats.partCount, StoryChainLimits.maxParts),
+                    tint: colorScheme == .dark ? .white.opacity(0.86) : .black.opacity(0.76)
+                )
+
+                if !chainStats.isExpired {
+                    infoChip(
+                        icon: "clock",
+                        text: chainStats.remainingTime.formattedRemainingTime(),
+                        tint: chainStats.remainingTime < 3600 ? .red : (colorScheme == .dark ? .white.opacity(0.86) : .black.opacity(0.76))
                     )
-                    .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(.secondary)
-                    
-                    Text("•")
-                        .foregroundColor(.secondary)
-                    
-                    if !chainStats.isExpired {
-                        Label(
-                            chainStats.remainingTime.formattedRemainingTime(),
-                            systemImage: "clock"
-                        )
-                        .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(chainStats.remainingTime < 3600 ? .red : .secondary)
-                    } else {
-                        Text(NSLocalizedString("storyChains.expired", comment: "Expired"))
-                            .font(.custom("Poppins-Bold", size: 14))
-                            .foregroundColor(.red)
-                    }
+                } else {
+                    infoChip(
+                        icon: "xmark.circle",
+                        text: NSLocalizedString("storyChains.expired", comment: "Expired"),
+                        tint: .red
+                    )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 24)
-            
-            // Indicador de progreso de la cadena mejorado
+
             if !viewModel.stories.isEmpty {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     ForEach(0..<viewModel.stories.count, id: \.self) { index in
-                        Rectangle()
+                        Capsule()
                             .fill(
-                                LinearGradient(
-                                    colors: index <= selectedStoryIndex
-                                    ? [Color.blue, Color.purple, Color.pink]
-                                    : [Color.white.opacity(0.2), Color.white.opacity(0.2)],
+                                index <= selectedStoryIndex
+                                ? LinearGradient(
+                                    colors: [Color.blue, Color.purple, Color.pink],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                : LinearGradient(
+                                    colors: [
+                                        colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.16),
+                                        colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)
+                                    ],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                             .frame(height: 4)
-                            .clipShape(Capsule())
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
             }
         }
-        .background(
-            ZStack {
-                Color.clear
-                    .background(.ultraThinMaterial)
-                
-                LinearGradient(
-                    colors: [Color.white.opacity(0.05), Color.clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
+        .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                .frame(height: 0.6),
+            alignment: .bottom
         )
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
         .onAppear {
             loadChainStats()
         }
-        .alert(NSLocalizedString("storyChains.chainLimit", comment: "Chain Limit"), isPresented: $showLimitAlert) {
-            Button(NSLocalizedString("storyChains.ok", comment: "OK")) { }
-        } message: {
-            Text(limitAlertMessage)
+    }
+
+    @ViewBuilder
+    private func infoChip(icon: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+            Text(text)
+                .font(.custom("Poppins-Medium", size: 12))
+                .lineLimit(1)
         }
+        .foregroundColor(tint)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
     }
     
     // MARK: - Helper Functions
@@ -297,6 +313,24 @@ struct StoryChainView: View {
                 }
             }
         }
+    }
+
+    private func applyInitialSelectionIfNeeded() {
+        guard !didApplyInitialSelection, !viewModel.stories.isEmpty else { return }
+
+        let resolvedIndex: Int
+        if let initialStoryId,
+           let idx = viewModel.stories.firstIndex(where: { $0.id == initialStoryId }) {
+            resolvedIndex = idx
+        } else if let initialChainPosition,
+                  let idx = viewModel.stories.firstIndex(where: { $0.chainPosition == initialChainPosition }) {
+            resolvedIndex = idx
+        } else {
+            resolvedIndex = 0
+        }
+
+        selectedStoryIndex = max(0, min(resolvedIndex, viewModel.stories.count - 1))
+        didApplyInitialSelection = true
     }
 }
 
@@ -449,6 +483,7 @@ struct StoryChainGridItemView: View {
     let story: Story
     let position: Int
     let isSelected: Bool
+    @Environment(\.colorScheme) private var colorScheme
     
     private var thumbnailURL: URL? {
         if story.mediaItem.type == .video {
@@ -457,6 +492,11 @@ struct StoryChainGridItemView: View {
         } else {
             return URL(string: story.mediaItem.url)
         }
+    }
+
+    private var profileImageURL: URL? {
+        guard let path = story.profileImagePath, !path.isEmpty else { return nil }
+        return URL(string: path)
     }
     
     var body: some View {
@@ -474,13 +514,12 @@ struct StoryChainGridItemView: View {
                     case .success(let image):
                         image
                             .resizable()
-                            .scaledToFit()
+                            .scaledToFill()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
                             .clipped()
                     case .failure(_):
                         ZStack {
-                            Color.white.opacity(0.06)
+                            (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
                             Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
                                 .foregroundColor(.secondary)
                         }
@@ -491,62 +530,82 @@ struct StoryChainGridItemView: View {
                 }
             } else {
                 ZStack {
-                    Color.white.opacity(0.06)
+                    (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
                     Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
                         .foregroundColor(.secondary)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             
             // Degradado sutil para legibilidad
             LinearGradient(
-                colors: [Color.black.opacity(0.0), Color.black.opacity(0.35)],
+                colors: [Color.black.opacity(0.0), Color.black.opacity(0.45)],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .allowsHitTesting(false)
             
-            // Número de parte (esquina superior izquierda)
+            // Header superior: username + número de parte con avatar oscurecido
             VStack {
-                HStack {
+                HStack(spacing: 6) {
+                    Spacer()
+
+                    Text(story.username)
+                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .foregroundColor(.white.opacity(0.96))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.black.opacity(0.34))
+                        .clipShape(Capsule())
+
                     ZStack {
+                        if let url = profileImageURL {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    Circle().fill(Color.black.opacity(0.35))
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                case .failure:
+                                    Circle().fill(Color.black.opacity(0.35))
+                                @unknown default:
+                                    Circle().fill(Color.black.opacity(0.35))
+                                }
+                            }
+                            .frame(width: 30, height: 30)
+                            .clipShape(Circle())
+                        } else {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.gray.opacity(0.7), Color.black.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 30, height: 30)
+                        }
+
                         Circle()
-                            .fill(Color.white.opacity(0.1))
-                            .background(.ultraThinMaterial)
+                            .fill(Color.black.opacity(0.35))
+                            .frame(width: 30, height: 30)
+
                         Circle()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+                            .stroke(Color.white.opacity(0.32), lineWidth: 0.7)
+                            .frame(width: 30, height: 30)
+
                         Text("\(position)")
                             .font(.custom("Poppins-Bold", size: 13))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
-                    .frame(width: 28, height: 28)
-                    Spacer()
                 }
                 Spacer()
             }
             .padding(8)
-            
-            // Pie con usuario y tipo de media
-            VStack {
-                Spacer()
-                HStack(spacing: 6) {
-                    Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.9))
-                    Text(story.username)
-                        .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(.white.opacity(0.95))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer()
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color.black.opacity(0.15))
-                .clipShape(Capsule())
-                .padding(8)
-            }
-            .allowsHitTesting(false)
+
         }
         .frame(maxWidth: .infinity)
         .aspectRatio(9/16, contentMode: .fit)
@@ -557,14 +616,16 @@ struct StoryChainGridItemView: View {
                 .stroke(
                     isSelected
                     ? LinearGradient(colors: [Color.blue, Color.purple, Color.pink], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    : LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: isSelected ? 1.5 : 0.5
+                    : LinearGradient(
+                        colors: [
+                            colorScheme == .dark ? Color.white.opacity(0.24) : Color.black.opacity(0.2),
+                            colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: isSelected ? 1.6 : 0.8
                 )
-        )
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.white.opacity(0.08))
-                .background(.ultraThinMaterial)
         )
     }
 }
