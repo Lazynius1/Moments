@@ -27,6 +27,7 @@ struct StoriesView: View {
     @State private var chainStories: [Story] = []
     @State private var currentChainIndex: Int = 0
     @State private var isInChainMode: Bool = false
+    private let chainModeUserId = "__chain__"
 
 
     @Binding var startWithUserId: String?
@@ -151,7 +152,7 @@ struct StoriesView: View {
                     },
                     onNext: {
                         handleStoryNext(currentUserId: Auth.auth().currentUser?.uid,
-                                      viewedUserId: userId)
+                                      viewedUserId: isInChainMode ? story.authorId : userId)
                     },
                     onPrevious: {
                         if currentStoryIndex > 0 {
@@ -251,26 +252,16 @@ struct StoriesView: View {
             }
         }
         
-        // 🔗 STORY CHAINS: Si estamos en modo cadena, navegar entre partes
+        // 🔗 STORY CHAINS: En modo cadena, navegar por índice global de la cadena
         if isInChainMode && !chainStories.isEmpty {
             if currentChainIndex < chainStories.count - 1 {
-                // Hay más partes en la cadena
                 currentChainIndex += 1
-                let nextStory = chainStories[currentChainIndex]
-                
-                // Buscar la historia en las historias cargadas
-                for (userId, stories) in storyViewModel.stories {
-                    if let storyIndex = stories.firstIndex(where: { $0.id == nextStory.id }) {
-                        currentUserIndex = userIds.firstIndex(of: userId) ?? currentUserIndex
-                        currentStoryIndex = storyIndex
-                        return
-                    }
-                }
+                currentUserIndex = 0
+                currentStoryIndex = currentChainIndex
+                return
             } else {
-                // Fin de la cadena, salir del modo cadena
-                isInChainMode = false
-                chainStories = []
-                currentChainIndex = 0
+                dismiss()
+                return
             }
         }
         
@@ -320,19 +311,20 @@ struct StoriesView: View {
     private func loadStories() {
         // 🔗 STORY CHAINS: Si estamos en modo cadena, usar las historias de la cadena
         if isInChainMode && !chainStories.isEmpty {
-            // Crear un diccionario de historias agrupadas por usuario para compatibilidad
-            var storiesByUser: [String: [Story]] = [:]
-            for story in chainStories {
-                if storiesByUser[story.authorId] == nil {
-                    storiesByUser[story.authorId] = []
-                }
-                storiesByUser[story.authorId]?.append(story)
+            // Modo cadena: un único carrusel ordenado por chainPosition (no por autor).
+            // Evita desalineaciones de índice al tocar "parte 1/2/3..." en el sheet.
+            let orderedChainStories = chainStories.sorted { lhs, rhs in
+                let lp = lhs.chainPosition ?? Int.max
+                let rp = rhs.chainPosition ?? Int.max
+                if lp != rp { return lp < rp }
+                return lhs.timestamp < rhs.timestamp
             }
-            
-            // Actualizar el viewModel con las historias de la cadena
-            storyViewModel.stories = storiesByUser
-            userIds = Array(storiesByUser.keys)
+
+            chainStories = orderedChainStories
+            storyViewModel.stories = [chainModeUserId: orderedChainStories]
+            userIds = [chainModeUserId]
             currentUserIndex = 0
+            currentChainIndex = max(0, min(currentChainIndex, max(orderedChainStories.count - 1, 0)))
             currentStoryIndex = currentChainIndex
             isLoading = false
             return

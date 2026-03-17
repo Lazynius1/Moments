@@ -403,6 +403,7 @@
 "notifications.message.mutual.multiple" = "Ara tens una connexió mútua amb %@ i %d més.";
 "notifications.message.comment.multiple" = "%@ i %d més han comentat al teu moment.";
 "notifications.message.story.multiple" = "%@ i %d més van reaccionar a la teva història.";
+"notifications.message.storyChain.multiple" = "%@ ha continuat la cadena \"%@\" i %d més també l'han continuada.";
 "notifications.message.visit.multiple" = "%d persones han visitat el teu perfil avui.";
 "notifications.message.like.single" = "%@ ha reaccionat al teu moment.";
 "notifications.message.reaction.single" = "%@ ha reaccionat al teu moment.";
@@ -413,6 +414,7 @@
 "notifications.message.mutual.single" = "Ara tens una connexió mútua amb %@.";
 "notifications.message.comment.single" = "%@ ha comentat al teu moment.";
 "notifications.message.story.single" = "%@ ha reaccionat a la teva història.";
+"notifications.message.storyChain.single" = "%@ ha continuat la cadena \"%@\".";
 "notifications.message.visit.single" = "%d persones han visitat el teu perfil avui.";
 "notifications.message.requestAccepted.multiple" = "%@ i %d més han acceptat la teva sol·licitud de seguiment.";
 "notifications.message.requestAccepted.single" = "%@ ha acceptat la teva sol·licitud de seguiment.";
@@ -1492,14 +1494,28 @@
 "storyContextMenu.share.subtitle" = "Enviar a altres";
 "storyContextMenu.report" = "Reportar";
 "storyContextMenu.report.subtitle" = "Contingut inapropiat";
+"storyContextMenu.unfollow" = "Deixar de seguir";
+"storyContextMenu.unfollow.success" = "Has deixat de seguir aquest usuari";
+"storyContextMenu.unfollow.confirm.title" = "Deixar de seguir %@?";
+"storyContextMenu.unfollow.confirm.message" = "Deixaràs de veure les seves publicacions privades al teu feed si el seu compte és privat.";
+"storyContextMenu.unfollow.confirm.action" = "Deixar de seguir";
+"storyContextMenu.unfollow.confirm.cancel" = "Cancel·lar";
+"storyContextMenu.mute" = "Silenciar";
+"storyContextMenu.mute.success" = "Compte silenciat";
+"storyContextMenu.mute.successWithHint" = "Compte silenciat. La pots reactivar a Configuració > Silenciar.";
+"storyContextMenu.mute.confirm.title" = "Silenciar %@?";
+"storyContextMenu.mute.confirm.message" = "Deixaràs de veure les seves publicacions i històries. La pots reactivar a Configuració > Silenciar.";
+"storyContextMenu.mute.confirm.action" = "Silenciar";
+"storyContextMenu.mute.confirm.cancel" = "Cancel·lar";
 "storyContextMenu.block" = "Bloquejar";
 "storyContextMenu.block.subtitle" = "No veure més contingut d'aquest usuari";
 "storyContextMenu.leaveBestFriends" = "Sortir de Millors";
 "storyContextMenu.leaveBestFriends.subtitle" = "No veure més les seves històries BF";
 "storyContextMenu.scrollReactions" = "Desplaça't per a més reaccions";
+"storyContextMenu.actionFailed" = "No s'ha pogut completar l'acció";
 
-"bestFriends.optOut.confirm.title" = "Sortir de millors amics";
-"bestFriends.optOut.confirm.message" = "Vols sortir de la llista de millors amics d'aquest usuari?";
+"bestFriends.optOut.confirm.title" = "Sortir de millors amics de %@?";
+"bestFriends.optOut.confirm.message" = "Deixaràs de veure les històries que comparteixi només amb aquesta audiència.";
 "bestFriends.optOut.confirm.action" = "Sortir";
 "bestFriends.optOut.confirm.cancel" = "Cancel·lar";
 "bestFriends.optOut.success" = "Has sortit de la seva llista de millors amics";
@@ -2363,9 +2379,9 @@
 "notification.photoTag.body" = "Toca per veure el moment";
 
 /* Push Notifications - Story Chains */
-"notification.storyChain.single.title" = "%@ ha afegit la part %@ a \"%@\"";
+"notification.storyChain.single.title" = "%@ ha afegit la part %@ de la cadena \"%@\"";
 "notification.storyChain.single.body" = "Toca per veure la cadena";
-"notification.storyChain.multiple.title" = "%@ ha afegit la part %@ a \"%@\"";
+"notification.storyChain.multiple.title" = "%@ ha afegit la part %@ de la cadena \"%@\"";
 "notification.storyChain.multiple.body" = "%@ parts en total";
 
 /* Push Notifications - Echoes */
