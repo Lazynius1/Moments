@@ -177,12 +177,12 @@ struct DeleteAccountVerificationView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
                 if isProcessing {
                     // Processing overlay
                     ZStack {
-                        Color.black.opacity(0.5).ignoresSafeArea()
+                        Color(hex: "0B1215").opacity(0.5).ignoresSafeArea()
                         
                         VStack(spacing: 20) {
                             ProgressView()

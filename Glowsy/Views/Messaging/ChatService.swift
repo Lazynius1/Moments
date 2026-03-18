@@ -588,40 +588,9 @@ class ChatService: ObservableObject {
                 
                 // ✅ Update conversation with last message (decrypt for preview)
                 Task {
-                    // Track local affinity for sending a message
-                    // We increase affinity toward the recipient (we need to know who the recipient is)
-                    // In ChatService, the senderId is known. The recipient is the other participant.
-                    // To do this simply, we extract the other participant from the conversationId if possible, 
-                    // or we track it later when the UI calls this method.
-                    // Wait, `sendMessage` receives a `EnhancedMessage`. The `conversationId` has both IDs but it's better to fetch it or send it.
-                    // Actually, if we just track it when the sender sends, we need the `targetUserId`.
-                    // A quick way is to parse `conversationId` which is usually `userA_userB` or similar or fetch participants.
-                    // For now, let's track it in `MessagingView` where we definitely know the target user, 
-                    // or track it here by extracting from the conversation document if necessary.
-                    // Wait, let's check how the conversationId is formed. Usually it's an arbitrary ID or combined string. 
-                    // I will look closer at the file. Let me just add the Tracking in the Views instead to be 100% accurate on the target user.
-                    
-                    let lastMessagePreview: String = await {
-                        if let content = message.content, message.type == .text {
-                            // For UI preview, decrypt the content
-                            return await self?.decryptMessageContent(content, for: message.conversationId) ?? "🔐 Mensaje encriptado"
-                        } else if message.type == .image {
-                            return "📷 Foto"
-                        } else if message.type == .video {
-                            return "🎥 Video"
-                        } else if message.type == .audio {
-                            return "🎵 Audio"
-                        } else if message.type == .location {
-                            return "📍 Ubicación"
-                        } else if message.type == .ephemeral {
-                            return "📸 Momento efímero"
-                        }
-                        return "📎 Archivo adjunto"
-                    }()
-                    
                     self?.updateConversation(
                         conversationId: message.conversationId,
-                        lastMessage: lastMessagePreview, // ✅ Usar preview descifrado
+                        lastMessage: self?.neutralConversationPreview(for: message.type) ?? MessageType.text.conversationPreview,
                         senderId: message.senderId
                     ) { updateError in
                         if let updateError = updateError {
@@ -1080,7 +1049,11 @@ class ChatService: ObservableObject {
                     }
                     
                     let otherParticipantId = participants.first { $0 != userId } ?? ""
-                    let lastMessage = data["lastMessage"] as? String ?? ""
+                    let encryptionVersion = data["encryptionVersion"] as? String
+                    let lastMessage = sanitizedConversationPreview(
+                        data["lastMessage"] as? String,
+                        encryptionVersion: encryptionVersion
+                    )
                     
                     // ✅ Intentar obtener datos del participantData (bidireccional)
                     let otherParticipantUsername: String
@@ -1117,14 +1090,25 @@ class ChatService: ObservableObject {
                         otherParticipantUsername: otherParticipantUsername,
                         otherParticipantProfileImagePath: otherParticipantProfileImagePath,
                         isPinned: isPinned,
-                        isMuted: isMuted
+                        isMuted: isMuted,
+                        encryptionVersion: encryptionVersion,
+                        conversationKeyVersion: data["conversationKeyVersion"] as? Int
                     )
                     
                     conversations.append(conversation)
                 }
                 
                 conversations.sort { $0.timestamp > $1.timestamp }
-                completion(.success(conversations))
+
+                Task { [weak self] in
+                    guard let self else {
+                        completion(.success(conversations))
+                        return
+                    }
+
+                    let hydratedConversations = await self.hydrateConversationPreviews(conversations)
+                    completion(.success(hydratedConversations))
+                }
             }
         
         activeListeners[listenerKey] = listener
@@ -1436,12 +1420,6 @@ class ChatService: ObservableObject {
         let conversationRef = db.collection("conversations").document()
         let conversationId = conversationRef.documentID
         
-        // ✅ CREAR CLAVE COMPARTIDA DE ENCRIPTACIÓN
-        let sharedEncryptionKey = SymmetricKey(size: .bits256)
-        let keyData = sharedEncryptionKey.withUnsafeBytes { Data($0) }
-        let keyDataString = keyData.base64EncodedString()
-        
-        
         // ✅ Usar referencia fuerte para evitar liberación
         let userCache = UserCacheService.shared
         let group = DispatchGroup()
@@ -1501,70 +1479,79 @@ class ChatService: ObservableObject {
                 return
             }
             
-            // ✅ Crear datos bidireccionales CON CLAVE COMPARTIDA
-            let participantData: [String: [String: Any]] = [
-                user1Id: [
-                    "userId": user1.id,
-                    "username": user1.username,
-                    "profileImagePath": user1.profileImagePath ?? "",
-                    "lastUpdated": FieldValue.serverTimestamp()
-                ],
-                user2Id: [
-                    "userId": user2.id,
-                    "username": user2.username,
-                    "profileImagePath": user2.profileImagePath ?? "",
-                    "lastUpdated": FieldValue.serverTimestamp()
-                ]
-            ]
-            
-            let readStatus: [String: Bool] = [user1Id: true, user2Id: false]
-            
-            let conversationData: [String: Any] = [
-                "participants": participants,
-                "lastMessage": "",
-                "timestamp": FieldValue.serverTimestamp(),
-                "readStatus": readStatus,
-                "participantData": participantData,
-                // 🔐 CLAVE COMPARTIDA PARA ENCRIPTACIÓN
-                "encryptionKey": keyDataString,
-                "encryptionKeyCreatedAt": FieldValue.serverTimestamp(),
-                "encryptionVersion": "1.0"
-            ]
-            
-            conversationRef.setData(conversationData) { error in
-                if let error = error {
-                    completion(.failure(error))
-                } else {
-                    
-                    // ✅ PRECARGAR LA CLAVE LOCALMENTE (ya la tenemos)
-                    Task {
-                        await self.preloadConversationKey(for: conversationId)
-                    }
-                    
-                    // ✅ ENVIAR MENSAJE INICIAL (personalizado o automático)
-                    if let customMessage = initialMessage, !customMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        // Enviar mensaje personalizado del usuario
-                        self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id, message: customMessage) { result in
-                            switch result {
-                            case .success(_):
-                                break
-                            case .failure(_):
-                                break
-                            }
-                            completion(.success(conversationId))
-                        }
+            Task {
+                do {
+                    let sharedEncryptionKey = SymmetricKey(size: .bits256)
+                    let keyData = sharedEncryptionKey.withUnsafeBytes { Data($0) }
+                    let keyDataString = keyData.base64EncodedString()
+                    let encryptionService = self.encryptionService
+                    _ = try await encryptionService.ensureChatIdentity()
+
+                    let participantData: [String: [String: Any]] = [
+                        user1Id: [
+                            "userId": user1.id,
+                            "username": user1.username,
+                            "profileImagePath": user1.profileImagePath ?? "",
+                            "lastUpdated": FieldValue.serverTimestamp()
+                        ],
+                        user2Id: [
+                            "userId": user2.id,
+                            "username": user2.username,
+                            "profileImagePath": user2.profileImagePath ?? "",
+                            "lastUpdated": FieldValue.serverTimestamp()
+                        ]
+                    ]
+
+                    let readStatus: [String: Bool] = [user1Id: true, user2Id: false]
+                    var conversationData: [String: Any] = [
+                        "participants": participants,
+                        "lastMessage": "",
+                        "timestamp": FieldValue.serverTimestamp(),
+                        "readStatus": readStatus,
+                        "participantData": participantData
+                    ]
+
+                    let wrappedKeys = try await encryptionService.buildWrappedConversationKeys(
+                        for: participants,
+                        conversationKey: sharedEncryptionKey,
+                        wrappedBy: user1Id
+                    )
+
+                    if wrappedKeys.count == participants.count {
+                        conversationData["wrappedKeys"] = wrappedKeys
+                        conversationData["conversationKeyVersion"] = 1
+                        conversationData["encryptionVersion"] = "3.0"
                     } else {
-                        // Enviar mensaje automático por defecto
-                        self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id) { result in
-                            switch result {
-                            case .success(_):
-                                break
-                            case .failure(_):
-                                break
+                        // Fallback temporal para usuarios que aun no han publicado chatKey.
+                        conversationData["encryptionKey"] = keyDataString
+                        conversationData["encryptionKeyCreatedAt"] = FieldValue.serverTimestamp()
+                        conversationData["encryptionVersion"] = "1.0"
+                    }
+
+                    conversationRef.setData(conversationData) { error in
+                        if let error = error {
+                            completion(.failure(error))
+                        } else {
+                            Task {
+                                await encryptionService.cacheConversationKeyLocally(
+                                    conversationId: conversationId,
+                                    key: sharedEncryptionKey
+                                )
                             }
-                            completion(.success(conversationId))
+
+                            if let customMessage = initialMessage, !customMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id, message: customMessage) { _ in
+                                    completion(.success(conversationId))
+                                }
+                            } else {
+                                self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id) { _ in
+                                    completion(.success(conversationId))
+                                }
+                            }
                         }
                     }
+                } catch {
+                    completion(.failure(error))
                 }
             }
         }
@@ -1607,7 +1594,7 @@ class ChatService: ObservableObject {
                         self.db.collection("conversations")
                             .document(conversationId)
                             .updateData([
-                                "lastMessage": initialMessage,
+                                "lastMessage": self.neutralConversationPreview(for: .text),
                                 "timestamp": timestamp
                             ]) { updateError in
                                 if let updateError = updateError {
@@ -1737,7 +1724,7 @@ class ChatService: ObservableObject {
             let participantsToRestore = deletedFor
             
             var updateData: [String: Any] = [
-                "lastMessage": lastMessage, // ✅ Preview descifrado para mostrar en la lista
+                "lastMessage": lastMessage,
                 "timestamp": FieldValue.serverTimestamp(),
                 "readStatus": readStatus
             ]
@@ -1757,6 +1744,91 @@ class ChatService: ObservableObject {
                 completion(error)
             }
         }
+    }
+
+    private func neutralConversationPreview(for type: MessageType) -> String {
+        type.conversationPreview
+    }
+
+    private func hydrateConversationPreviews(_ conversations: [Conversation]) async -> [Conversation] {
+        guard !conversations.isEmpty else { return [] }
+        var hydratedConversations: [Conversation] = []
+        hydratedConversations.reserveCapacity(conversations.count)
+
+        for conversation in conversations {
+            let hydratedPreview = await resolveLatestConversationPreview(for: conversation)
+            hydratedConversations.append(
+                Conversation(
+                    id: conversation.id,
+                    participants: conversation.participants,
+                    lastMessage: hydratedPreview,
+                    timestamp: conversation.timestamp,
+                    readStatus: conversation.readStatus,
+                    otherParticipantId: conversation.otherParticipantId,
+                    otherParticipantUsername: conversation.otherParticipantUsername,
+                    otherParticipantProfileImagePath: conversation.otherParticipantProfileImagePath,
+                    isPinned: conversation.isPinned,
+                    isMuted: conversation.isMuted,
+                    encryptionVersion: conversation.encryptionVersion,
+                    conversationKeyVersion: conversation.conversationKeyVersion,
+                    wrappedKeys: conversation.wrappedKeys
+                )
+            )
+        }
+
+        return hydratedConversations
+    }
+
+    private func resolveLatestConversationPreview(for conversation: Conversation) async -> String {
+        guard
+            conversation.encryptionVersion?.hasPrefix("3") == true,
+            let conversationId = conversation.id
+        else {
+            return conversation.lastMessage ?? ""
+        }
+
+        do {
+            let snapshot = try await db.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .order(by: "timestamp", descending: true)
+                .limit(to: 5)
+                .getDocuments()
+
+            for document in snapshot.documents {
+                let data = document.data()
+
+                if data["isDeleted"] as? Bool == true {
+                    continue
+                }
+
+                guard
+                    let rawType = data["type"] as? String,
+                    let messageType = MessageType(rawValue: rawType)
+                else {
+                    continue
+                }
+
+                if messageType == .text {
+                    guard let encryptedContent = data["content"] as? String, !encryptedContent.isEmpty else {
+                        continue
+                    }
+
+                    let decryptedContent = await decryptMessageContent(encryptedContent, for: conversationId)
+                    let trimmedContent = decryptedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmedContent.isEmpty {
+                        return trimmedContent
+                    }
+                    continue
+                }
+
+                return neutralConversationPreview(for: messageType)
+            }
+        } catch {
+            return conversation.lastMessage ?? ""
+        }
+
+        return conversation.lastMessage ?? ""
     }
     
     func ensureEncryptionService() -> EncryptionService {
@@ -2166,7 +2238,7 @@ extension ChatService {
                     // ✅ Usar la función existente updateConversation
                     self.updateConversation(
                         conversationId: conversationId,
-                        lastMessage: "📷 Momento compartido", // Preview descifrado
+                        lastMessage: self.neutralConversationPreview(for: .sharedMoment),
                         senderId: senderId
                     ) { updateError in
                         if let updateError = updateError {
@@ -2379,7 +2451,8 @@ extension ChatService {
             
             // Actualizar conversación con preview
             let lastMessagePreview = message.type == .viewOnceImage ?
-                "📷 Foto (ver una vez)" : "🎥 Video (ver una vez)"
+                (self?.neutralConversationPreview(for: .viewOnceImage) ?? MessageType.viewOnceImage.conversationPreview) :
+                (self?.neutralConversationPreview(for: .viewOnceVideo) ?? MessageType.viewOnceVideo.conversationPreview)
             
             self?.updateConversation(
                 conversationId: message.conversationId,

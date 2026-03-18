@@ -83,6 +83,7 @@ struct FeedView: View {
     @State private var showReportSheet = false
     @State private var editedContent = ""
     @State private var isDeleting = false
+    @State private var isFeedHeaderHidden = false
     
     // ✅ LONG PRESS PEEK: Estado para overlay a nivel del feed
     @State private var peekImageURL: String? = nil
@@ -106,6 +107,11 @@ struct FeedView: View {
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
+
+    private var feedHeaderHeight: CGFloat { 76 }
+    private var feedSelectorHeight: CGFloat { 35 }
+    private var floatingSelectorTopInset: CGFloat { isFeedHeaderHidden ? 18 : feedHeaderHeight }
+    private var feedContentTopInset: CGFloat { floatingSelectorTopInset + feedSelectorHeight + 25 }
     
     var body: some View {
         ZStack {
@@ -547,32 +553,11 @@ struct FeedView: View {
     private var modernBackgroundView: some View {
         ZStack {
             if colorScheme == .dark {
-                // ✅ Fondos profundos y uniformes
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: Color(hex: "080808"), location: 0),
-                        .init(color: Color(hex: "080808"), location: 0.3),
-                        .init(color: Color(hex: "0C0C0C"), location: 0.7),
-                        .init(color: Color(hex: "080808"), location: 1.0)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                Color(hex: "0B1215")
+                    .ignoresSafeArea()
             } else {
-                // ✅ NUEVO: Fondo claro elegante
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: .white, location: 0),
-                        .init(color: .white, location: 0.2), // Blanco sólido tras el header
-                        .init(color: Color(hex: "f8f9fa"), location: 0.5),
-                        .init(color: Color(hex: "e9ecef"), location: 0.8),
-                        .init(color: .white, location: 1.0)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                Color(hex: "FAF9F6")
+                    .ignoresSafeArea()
             }
         }
     }
@@ -588,7 +573,11 @@ struct FeedView: View {
                 // 🔥 NUEVO: Barra de progreso de uploads
                 uploadProgressBar
             }
+            .offset(y: isFeedHeaderHidden ? -(feedHeaderHeight + 20) : 0)
+            .opacity(isFeedHeaderHidden ? 0 : 1)
+            .allowsHitTesting(!isFeedHeaderHidden)
             .padding(.top, -8)
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isFeedHeaderHidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -597,7 +586,7 @@ struct FeedView: View {
     private var floatingFeedSelector: some View {
         VStack {
             Spacer()
-                .frame(height: 76) // Posición compacta original
+                .frame(height: floatingSelectorTopInset)
             
             // Centro: Feed Toggle
             FloatingGlassFeedToggle(selectedFeedType: $selectedFeedType)
@@ -606,6 +595,7 @@ struct FeedView: View {
         }
         .padding(.horizontal, 12)
         .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isFeedHeaderHidden)
         .onChange(of: selectedFeedType) { newFeedType in
             // ✅ NUEVO: Guardar la preferencia del usuario
             UserDefaults.standard.selectedFeedType = newFeedType
@@ -756,12 +746,7 @@ struct FeedView: View {
             .padding(.bottom, 4)
             .background(
                 Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        colorScheme == .light ?
-                        Color.white.opacity(0.15) :
-                        Color.black.opacity(0.4)
-                    )
+                    .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea(edges: .top)
             )
     }
@@ -798,16 +783,16 @@ struct FeedView: View {
             ZStack {
                 ScrollView(.vertical, showsIndicators: false) {
                     let screenHeight = UIScreen.main.bounds.height
-                    let headerHeight = 76.0
+                    let headerHeight = feedHeaderHeight
                     let progressBarHeight = uploadService.uploadingMoments.isEmpty ? 0.0 : 50.0
-                    let segmentedToggleHeight = 35.0
+                    let segmentedToggleHeight = feedSelectorHeight
                     let tabbarHeight = 50.0
                     let availableHeight = screenHeight - headerHeight - progressBarHeight - segmentedToggleHeight - tabbarHeight - 60
                     
                     LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                         // ✅ Espacio para que el primer post empiece debajo del header
                         Spacer()
-                            .frame(height: headerHeight + segmentedToggleHeight + 25)
+                            .frame(height: feedContentTopInset)
                         
                         ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                             VStack(spacing: max(15, screenHeight * 0.02)) {
@@ -909,6 +894,20 @@ struct FeedView: View {
                     }
                     .padding(.vertical, 15)
                 }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            if value.translation.height < -40 && !isFeedHeaderHidden {
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                                    isFeedHeaderHidden = true
+                                }
+                            } else if value.translation.height > 28 && isFeedHeaderHidden {
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                                    isFeedHeaderHidden = false
+                                }
+                            }
+                        }
+                )
                 
                 // ✅ ESTADO VACÍO: Fuera del ScrollView para control total de la atmósfera
                 if viewModel.moments.isEmpty && !viewModel.isLoading {
@@ -1059,7 +1058,7 @@ struct FeedView: View {
                         
                         // Overlay de estado
                         Circle()
-                            .fill(Color.black.opacity(0.4))
+                            .fill((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).opacity(0.4))
                             .frame(width: 50, height: 50)
                         
                         // Icono de estado
@@ -1303,7 +1302,7 @@ struct FeedView: View {
                     ZStack(alignment: .leading) {
                         // Fondo de la barra
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.1))
+                            .fill((colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215")).opacity(0.1))
                             .frame(height: 3)
                         
                         // Progreso con Glow
@@ -2001,8 +2000,8 @@ struct ModernStoryButton: View {
                 // Fondo más sutil - casi transparente como estilo nativo
                 RoundedRectangle(cornerRadius: 12)
                     .fill(colorScheme == .dark ?
-                          Color.white.opacity(0.05) :
-                          Color.black.opacity(0.03))
+                          Color(hex: "FAF9F6").opacity(0.05) :
+                          Color(hex: "0B1215").opacity(0.03))
                     .frame(width: 36, height: 36)
                 
                 Image(systemName: uploadProgressManager.isUploading ? "arrow.up" : "play.fill")
@@ -3196,8 +3195,8 @@ struct CroppedVideoPlayer: View {
                     // ✅ OVERLAY con gradiente sutil nativo
                     LinearGradient(
                         gradient: Gradient(colors: [
-                            Color.black.opacity(0.0),
-                            Color.black.opacity(0.3)
+                            Color(hex: "0B1215").opacity(0.0),
+                            Color(hex: "0B1215").opacity(0.3)
                         ]),
                         startPoint: .top,
                         endPoint: .bottom
@@ -3276,7 +3275,7 @@ struct CroppedVideoPlayer: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 3)
-                                    .background(Color.black.opacity(0.6))
+                                    .background(Color(hex: "0B1215").opacity(0.6))
                                     .cornerRadius(6)
                                     .padding(.trailing, 12)
                                     .padding(.top, 12)
@@ -3301,7 +3300,7 @@ struct CroppedVideoPlayer: View {
                             .padding(.vertical, 6)
                             .background(
                                 Capsule()
-                                    .fill(Color.black.opacity(0.5))
+                                    .fill(Color(hex: "0B1215").opacity(0.5))
                             )
                             
                             Spacer()
@@ -3334,7 +3333,7 @@ struct CroppedVideoPlayer: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 3)
-                                    .background(Color.black.opacity(0.6))
+                                    .background(Color(hex: "0B1215").opacity(0.6))
                                     .cornerRadius(6)
                                     .padding(.trailing, 8)
                                     .padding(.top, 8)
@@ -3350,7 +3349,7 @@ struct CroppedVideoPlayer: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                                 .padding(6)
-                                .background(Color.black.opacity(0.4))
+                                .background(Color(hex: "0B1215").opacity(0.4))
                                 .cornerRadius(6)
                                 .padding(.trailing, 8)
                                 .padding(.bottom, 8)

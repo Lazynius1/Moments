@@ -29,7 +29,7 @@ struct EchoViewerUI: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(hex: "0B1215").ignoresSafeArea()
                 
                 if viewModel.isLoading {
                     ProgressView().tint(.white)
@@ -140,7 +140,7 @@ struct EchoViewerUI: View {
     
     private var waitingStateView: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color(hex: "0B1215").ignoresSafeArea()
             
             VStack(spacing: 24) {
                 ZStack {

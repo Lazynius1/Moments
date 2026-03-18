@@ -1287,7 +1287,7 @@ struct MediaSelectionView: View {
             // Grid de fotos y videos
             mediaGridSection
         }
-        .background(colorScheme == .dark ? Color.black : Color.white)
+        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
         .matchedGeometryEffect(id: "momentSource", in: animation) // ✅ Unfold Target
         .onAppear {
             requestPhotoLibraryAccess()
@@ -1338,7 +1338,7 @@ struct MediaSelectionView: View {
         .padding(.top, 10)
         .padding(.bottom, 12)
         .background(
-            (colorScheme == .dark ? Color.black : Color.white)
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea(edges: .top)
         )
         .zIndex(10)

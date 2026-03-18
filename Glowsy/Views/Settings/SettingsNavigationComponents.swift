@@ -40,9 +40,9 @@ struct SettingsSubsectionBackground: View {
     var body: some View {
         ZStack {
             if colorScheme == .dark {
-                Color.black
+                Color(hex: "0B1215")
             } else {
-                Color(hex: "f8f9fa")
+                Color(hex: "FAF9F6")
             }
             
             Rectangle()

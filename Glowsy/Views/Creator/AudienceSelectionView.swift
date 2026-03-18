@@ -37,7 +37,7 @@ enum ContentAudience: String, Codable, CaseIterable {
         switch self {
         case .everyone: return "globe"
         case .connections: return "person.2.fill"
-        case .bestFriends: return "heart.circle.fill"
+        case .bestFriends: return "star.fill"
         case .custom: return "person.crop.circle.badge.plus"
         case .customList: return "list.bullet.rectangle"
         case .onlyMe: return "lock.fill"
@@ -67,8 +67,7 @@ struct AudienceSelectionView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
@@ -373,18 +372,10 @@ struct AudienceSelectionView: View {
                 showSaveFeedback()
             }) {
                 HStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(selectedAudience == .custom && selectedListId == nil ?
-                                  Color(hex: "007AFF").opacity(0.15) :
-                                  (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
-                            .frame(width: 48, height: 48)
-                        
-                        Image(systemName: "person.crop.circle.badge.plus")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(selectedAudience == .custom && selectedListId == nil ?
-                                             Color(hex: "007AFF") : (colorScheme == .dark ? .white : .black))
-                    }
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 36, height: 36)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("audience.custom")
@@ -643,22 +634,20 @@ struct AudienceGridCard: View {
     
     @State private var isPressed = false
     
+    private var iconColor: Color {
+        if audience == .bestFriends {
+            return Color(hex: "34C759")
+        }
+        return colorScheme == .dark ? .white : .black
+    }
+    
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 12) {
-                // ✅ Icono con estilo moderno y burbuja
-                ZStack {
-                    Circle()
-                        .fill(isSelected ?
-                              Color(hex: "007AFF").opacity(0.15) :
-                              (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
-                        .frame(width: 56, height: 56)
-                    
-                    Image(systemName: audience.icon)
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(isSelected ?
-                                       Color(hex: "007AFF") : (colorScheme == .dark ? .white : .black))
-                }
+                Image(systemName: audience.icon)
+                    .font(.system(size: 27, weight: .medium))
+                    .foregroundColor(iconColor)
+                    .frame(width: 60, height: 60)
                 
                 // ✅ Texto
                 VStack(spacing: 4) {
@@ -933,7 +922,7 @@ struct CustomAudienceSelector: View {
     
     var body: some View {
         ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
             
             VStack {
                 // Barra de búsqueda
@@ -951,7 +940,7 @@ struct CustomAudienceSelector: View {
                         }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
+                .background(colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.06) : Color(hex: "0B1215").opacity(0.05))
                 .cornerRadius(12)
                 .padding()
                 
@@ -1073,7 +1062,7 @@ struct CustomAudienceListsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
                 if viewModel.isLoading {
                     ProgressView(NSLocalizedString("common.loading", comment: ""))
@@ -1352,7 +1341,6 @@ struct CreateCustomListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // ✅ Fondo Dinámico con Gradiente (Glassmorphic)
                 Group {
                     Rectangle()
                         .fill(.ultraThinMaterial)
@@ -1640,6 +1628,7 @@ struct CreateCustomListView: View {
 
 // MARK: - Carousel de Miembros Sugeridos
 struct SuggestedMembersCarousel: View {
+    @Environment(\.colorScheme) var colorScheme
     @Binding var selectedMembers: Set<String>
     @State private var suggestedUsers: [AppUser] = []
     @State private var isLoading = true
@@ -1650,7 +1639,7 @@ struct SuggestedMembersCarousel: View {
                 if isLoading {
                     ForEach(0..<5) { _ in
                         Circle()
-                            .fill(Color.gray.opacity(0.1))
+                            .fill(colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.06) : Color(hex: "0B1215").opacity(0.05))
                             .frame(width: 60, height: 60)
                     }
                 } else {
@@ -1783,7 +1772,6 @@ struct EditCustomListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // ✅ Fondo Dinámico con Gradiente (Glassmorphic)
                 Group {
                     Rectangle()
                         .fill(.ultraThinMaterial)
@@ -2254,11 +2242,11 @@ struct MemberRowWithRemove: View {
                         image.resizable()
                             .aspectRatio(contentMode: .fill)
                     } placeholder: {
-                        Color.gray.opacity(0.1)
+                        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.06) : Color(hex: "0B1215").opacity(0.05)
                     }
                 } else {
                     ZStack {
-                        Color.gray.opacity(0.1)
+                        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.06) : Color(hex: "0B1215").opacity(0.05)
                         Text(user.username.prefix(1).uppercased())
                             .font(.custom("Poppins-Bold", size: 16))
                             .foregroundColor(.gray)
@@ -2337,26 +2325,8 @@ struct MemberPickerView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // ✅ Fondo Glassmorphic
-                Rectangle()
-                    .fill(.ultraThinMaterial)
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
-                
-                if colorScheme == .dark {
-                    LinearGradient(
-                        colors: [Color(hex: "00A896").opacity(0.1), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .ignoresSafeArea()
-                } else {
-                     LinearGradient(
-                        colors: [Color(hex: "00A896").opacity(0.05), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .ignoresSafeArea()
-                }
                 
                 VStack(spacing: 0) {
                     // Carrusel de Seleccionados

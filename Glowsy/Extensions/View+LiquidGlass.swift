@@ -4,9 +4,13 @@ import SwiftUI
 // Aplica .glassEffect() nativo en iOS 26+ y .ultraThinMaterial como fallback en iOS 17.6+
 extension View {
     @ViewBuilder
-    func liquidGlass<S: Shape>(in shape: S) -> some View {
+    func liquidGlass<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(in: shape)
+            if interactive {
+                self.glassEffect(.regular.interactive(), in: shape)
+            } else {
+                self.glassEffect(in: shape)
+            }
         } else {
             self
                 .background(.ultraThinMaterial)

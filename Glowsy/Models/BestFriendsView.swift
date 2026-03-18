@@ -8,16 +8,18 @@ struct BestFriendsView: View {
     
     // ✅ NUEVO: Estado para búsqueda
     @State private var searchText = ""
+    @State private var visibleUserLimit = 30
+    @FocusState private var isSearchFieldFocused: Bool
 
     var body: some View {
         NavigationView {
             ZStack {
-                Color(.systemBackground)
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
 
                 if viewModel.isLoading {
                     ProgressView()
-                } else if viewModel.bestFriends.isEmpty && viewModel.connections.isEmpty && viewModel.mutualConnections.isEmpty {
+                } else if hasAnyUsers == false {
                     emptyStateView
                 } else {
                     contentView
@@ -40,6 +42,10 @@ struct BestFriendsView: View {
             .onAppear {
                 viewModel.fetchBestFriends()
                 viewModel.fetchConnections()
+            }
+            .onChange(of: searchText) { _ in
+                visibleUserLimit = 30
+                viewModel.searchUsersGlobally(query: searchText)
             }
             .alert(isPresented: $viewModel.showError) {
                 Alert(
@@ -74,99 +80,211 @@ struct BestFriendsView: View {
         .padding()
     }
 
+    private var filteredResults: (bestFriends: [AppUser], connections: [AppUser], mutualConnections: [AppUser], admirers: [AppUser]) {
+        viewModel.filteredUsers(searchText: searchText)
+    }
+
+    private var trimmedSearchText: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isSearchingMode: Bool {
+        isSearchFieldFocused || !trimmedSearchText.isEmpty
+    }
+
+    private var selectedIds: Set<String> {
+        Set(viewModel.bestFriends.map(\.id))
+    }
+
+    private var hasAnyUsers: Bool {
+        !viewModel.bestFriends.isEmpty ||
+        !viewModel.connections.isEmpty ||
+        !viewModel.mutualConnections.isEmpty ||
+        !viewModel.admirers.isEmpty
+    }
+
+    private var visibleMutuals: [AppUser] {
+        filteredResults.mutualConnections.filter { connection in
+            !viewModel.bestFriends.contains(where: { $0.id == connection.id })
+        }
+    }
+
+    private var visibleConnections: [AppUser] {
+        filteredResults.connections.filter { connection in
+            !viewModel.bestFriends.contains(where: { $0.id == connection.id })
+        }
+    }
+
+    private var selectedUsers: [AppUser] {
+        deduplicatedUsers(filteredResults.bestFriends)
+            .sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
+    }
+
+    private var suggestedUsers: [AppUser] {
+        deduplicatedUsers(
+            visibleMutuals +
+            visibleConnections +
+            filteredResults.admirers +
+            viewModel.remoteSearchResults
+        )
+        .filter { !selectedIds.contains($0.id) }
+        .sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
+    }
+
+    private var displayedSuggestedUsers: [AppUser] {
+        Array(suggestedUsers.prefix(visibleUserLimit))
+    }
+
     private var contentView: some View {
         VStack(spacing: 0) {
             // ✅ NUEVO: Campo de búsqueda debajo del título
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.6))
+                    .font(.system(size: 16, weight: .medium))
                 
                 TextField(NSLocalizedString("bestFriends.search.placeholder", comment: "Search lists..."), text: $searchText)
                     .textFieldStyle(PlainTextFieldStyle())
                     .font(.system(size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .focused($isSearchFieldFocused)
                 
                 if !searchText.isEmpty {
                     Button(action: {
                         searchText = ""
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.45))
                             .font(.system(size: 16))
                     }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-            )
+            .liquidGlass(in: Capsule(), interactive: true)
             .padding(.horizontal, 16)
             .padding(.top, 16)
             .padding(.bottom, 8)
-            
-                        // Lista con contenido filtrado
-            List {
-                let filtered = viewModel.filteredUsers(searchText: searchText)
-                
-                // ✅ NUEVO: Sección de mejores amigos filtrados
-                if !filtered.bestFriends.isEmpty {
-                    Section(header: Text(NSLocalizedString("bestFriends.title", comment: "Best Friends")).font(.custom("Poppins-SemiBold", size: 16))) {
-                        ForEach(filtered.bestFriends) { user in
-                            BestFriendRow(user: user, viewModel: viewModel)
+            ScrollView(showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    if isSearchingMode == false && selectedUsers.isEmpty == false {
+                        userSectionHeader(NSLocalizedString("bestFriends.title", comment: "Best Friends"))
+
+                        LazyVStack(spacing: 0) {
+                            ForEach(selectedUsers) { user in
+                                SelectableBestFriendRow(
+                                    user: user,
+                                    isSelected: true,
+                                    colorScheme: colorScheme
+                                ) {
+                                    toggleSelection(for: user)
+                                }
+                            }
                         }
                     }
-                }
-                
-                // ✅ NUEVO: Sección de conexiones mutuas filtradas
-                if !filtered.mutualConnections.isEmpty {
-                    Section(header: Text(NSLocalizedString("bestFriends.section.mutuals", comment: "Mutual Friends")).font(.custom("Poppins-SemiBold", size: 16))) {
-                        ForEach(filtered.mutualConnections.filter { connection in
-                            !viewModel.bestFriends.contains(where: { $0.id == connection.id })
-                        }) { user in
-                            ConnectionRow(user: user, viewModel: viewModel)
+
+                    if isSearchingMode == false || displayedSuggestedUsers.isEmpty == false {
+                        userSectionHeader(NSLocalizedString("explore.suggestedUsers.title", comment: "People you might be interested in"))
+
+                        LazyVStack(spacing: 0) {
+                            ForEach(displayedSuggestedUsers) { user in
+                                SelectableBestFriendRow(
+                                    user: user,
+                                    isSelected: viewModel.bestFriends.contains(where: { $0.id == user.id }),
+                                    colorScheme: colorScheme
+                                ) {
+                                    toggleSelection(for: user)
+                                }
+                                .onAppear {
+                                    loadMoreIfNeeded(currentUser: user)
+                                }
+                            }
                         }
                     }
-                }
-                
-                // ✅ NUEVO: Sección de conexiones filtradas
-                if !filtered.connections.isEmpty {
-                    Section(header: Text(NSLocalizedString("bestFriends.section.following", comment: "Following")).font(.custom("Poppins-SemiBold", size: 16))) {
-                        ForEach(filtered.connections.filter { connection in
-                            !viewModel.bestFriends.contains(where: { $0.id == connection.id })
-                        }) { user in
-                            ConnectionRow(user: user, viewModel: viewModel)
-                        }
-                    }
-                }
-                
-                // ✅ NUEVO: Sección de admiradores filtrados
-                if !filtered.admirers.isEmpty {
-                    Section(header: Text(NSLocalizedString("bestFriends.section.followers", comment: "Followers")).font(.custom("Poppins-SemiBold", size: 16))) {
-                        ForEach(filtered.admirers) { user in
-                            AdmirerRow(user: user, viewModel: viewModel)
-                        }
-                    }
-                }
-                
-                // ✅ NUEVO: Mensaje si no hay resultados de búsqueda
-                if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
-                   filtered.bestFriends.isEmpty && filtered.connections.isEmpty && filtered.mutualConnections.isEmpty && filtered.admirers.isEmpty {
-                    Section {
-                        HStack {
+
+                    if displayedSuggestedUsers.isEmpty &&
+                        isSearchingMode {
+                        HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
                             Text(String(format: NSLocalizedString("bestFriends.search.noResults", comment: "No results found for '%@'"), searchText))
                                 .foregroundColor(.secondary)
+                                .font(.custom("Poppins-Regular", size: 14))
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 20)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
             }
-            .listStyle(InsetGroupedListStyle())
         }
+    }
+
+    private func userSectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.custom("Poppins-SemiBold", size: 12))
+            .foregroundColor(.gray.opacity(0.8))
+            .padding(.leading, 4)
+    }
+
+    private func deduplicatedUsers(_ users: [AppUser]) -> [AppUser] {
+        var seen = Set<String>()
+        return users.filter { user in
+            seen.insert(user.id).inserted
+        }
+    }
+
+    private func toggleSelection(for user: AppUser) {
+        if viewModel.bestFriends.contains(where: { $0.id == user.id }) {
+            viewModel.removeBestFriend(userId: user.id)
+        } else {
+            viewModel.addBestFriend(userId: user.id)
+        }
+    }
+
+    private func loadMoreIfNeeded(currentUser: AppUser) {
+        guard let currentIndex = displayedSuggestedUsers.firstIndex(where: { $0.id == currentUser.id }) else { return }
+        let thresholdIndex = max(displayedSuggestedUsers.count - 5, 0)
+
+        if currentIndex >= thresholdIndex && visibleUserLimit < suggestedUsers.count {
+            visibleUserLimit += 30
+        }
+    }
+}
+
+struct SelectableBestFriendRow: View {
+    let user: AppUser
+    let isSelected: Bool
+    let colorScheme: ColorScheme
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 14) {
+                ProfileImageView(imagePath: user.profileImagePath)
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+
+                Text(user.username)
+                    .font(.custom("Poppins-Regular", size: 15))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(
+                        isSelected
+                        ? (colorScheme == .dark ? .white : .black)
+                        : (colorScheme == .dark ? .white.opacity(0.32) : .black.opacity(0.28))
+                    )
+            }
+            .contentShape(Rectangle())
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -270,12 +388,16 @@ class BestFriendsViewModel: ObservableObject {
     @Published var connections: [AppUser] = []
     @Published var mutualConnections: [AppUser] = []  // ✅ NUEVO: Usuarios mutuos
     @Published var admirers: [AppUser] = []  // ✅ NUEVO: Admiradores (gente que te sigue)
+    @Published var remoteSearchResults: [AppUser] = []
     @Published var isLoading: Bool = false
     @Published var showError: Bool = false
     @Published var errorMessage: String?
     
     private let bestFriendsService: BestFriendsService
     private let firestoreService: FirestoreService
+    private var currentUserId: String?
+    private var blockedUserIds: Set<String> = []
+    private var searchWorkItem: DispatchWorkItem?
     
     // ✅ NUEVO: Función para filtrar usuarios por texto de búsqueda
     func filteredUsers(searchText: String) -> (bestFriends: [AppUser], connections: [AppUser], mutualConnections: [AppUser], admirers: [AppUser]) {
@@ -311,6 +433,7 @@ class BestFriendsViewModel: ObservableObject {
     init(firestoreService: FirestoreService = FirestoreService(), bestFriendsService: BestFriendsService? = nil) {
         self.firestoreService = firestoreService
         self.bestFriendsService = bestFriendsService ?? BestFriendsService(firestoreService: firestoreService)
+        self.currentUserId = Auth.auth().currentUser?.uid
     }
 
     func fetchBestFriends() {
@@ -346,6 +469,13 @@ class BestFriendsViewModel: ObservableObject {
         
         // ✅ NUEVO: Usar la misma lógica que ProfileView
         let dispatchGroup = DispatchGroup()
+
+        firestoreService.db.collection("users").document(userId).getDocument { [weak self] document, _ in
+            let blocked = document?.data()?["blockedUsers"] as? [String] ?? []
+            DispatchQueue.main.async {
+                self?.blockedUserIds = Set(blocked)
+            }
+        }
         
         // 1. Obtener usuarios que sigues
         dispatchGroup.enter()
@@ -440,6 +570,42 @@ class BestFriendsViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    func searchUsersGlobally(query: String) {
+        let cleanQuery = query.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        searchWorkItem?.cancel()
+
+        guard !cleanQuery.isEmpty else {
+            remoteSearchResults = []
+            return
+        }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+
+            self.firestoreService.searchUsers(query: cleanQuery) { [weak self] result in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+
+                    switch result {
+                    case .success(let users):
+                        let filtered = users.filter { user in
+                            guard user.id != self.currentUserId else { return false }
+                            if self.blockedUserIds.contains(user.id) { return false }
+                            if user.blockedUsers.contains(self.currentUserId ?? "") { return false }
+                            return true
+                        }
+                        self.remoteSearchResults = filtered
+                    case .failure(let error):
+                        self.remoteSearchResults = []
+                    }
+                }
+            }
+        }
+
+        searchWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
     }
     
     // ✅ NUEVO: Función helper para cargar usuarios en lotes

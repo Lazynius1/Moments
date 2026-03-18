@@ -21,7 +21,7 @@ struct EchoHistoryView: View {
         NavigationView {
             ZStack {
                 // Background
-                Color(colorScheme == .dark ? .black : .systemBackground)
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
                 
                 if isLoading {

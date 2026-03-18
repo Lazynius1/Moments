@@ -37,7 +37,7 @@ struct NotificationsView: View {
                 tabBarView
                 contentView
             }
-            .background(colorScheme == .dark ? Color.black : Color.white)
+            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
             .background(
                 NavigationLink(destination: chatDestination, isActive: $showChat) {
                     EmptyView()
@@ -60,7 +60,12 @@ struct NotificationsView: View {
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(colorScheme == .dark ? Color.black.opacity(0.72) : Color.white.opacity(0.78), for: .navigationBar)
+            .toolbarBackground(
+                colorScheme == .dark ?
+                Color(hex: "0B1215").opacity(0.72) :
+                Color(hex: "FAF9F6").opacity(0.9),
+                for: .navigationBar
+            )
         }
         .onAppear {
             Task {
@@ -172,7 +177,7 @@ struct NotificationsView: View {
             .padding(.top, 8)
             .padding(.bottom, 10)
         }
-        .background(colorScheme == .dark ? Color.black : Color.white)
+        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
@@ -458,7 +463,11 @@ struct NotificationsView: View {
     @ViewBuilder
     private var chatDestination: some View {
         if let conversation = selectedConversation {
-            GlassmorphicChatView(conversation: conversation)
+            ChatRecoveryGateView(onCancel: {
+                showChat = false
+            }) {
+                GlassmorphicChatView(conversation: conversation)
+            }
         } else {
             EmptyView()
         }

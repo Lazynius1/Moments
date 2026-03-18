@@ -198,22 +198,11 @@ struct ExploreView: View {
     private var backgroundGradient: some View {
         ZStack {
             if colorScheme == .dark {
-                // Mismo fondo que el Feed - negro suave y elegante
-                Color(hex: "0A0A0A")
+                Color(hex: "0B1215")
                     .ignoresSafeArea()
             } else {
-                // Fondo claro elegante
-                LinearGradient(
-                    colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                Color(hex: "FAF9F6")
+                    .ignoresSafeArea()
             }
         }
     }

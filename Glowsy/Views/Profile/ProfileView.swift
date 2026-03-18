@@ -1042,9 +1042,6 @@ struct ModernProfileHeader: View {
                             }
                             .foregroundColor(Color(hex: "007AFF")) // Color acento
                             .padding(.vertical, 4)
-                            .padding(.horizontal, 12)
-                            .background(Color(hex: "007AFF").opacity(0.1))
-                            .clipShape(Capsule())
                         }
                         .padding(.top, 2)
                     }
@@ -1066,7 +1063,7 @@ struct ModernProfileHeader: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(ProfileColors.materialBackground)
+                    .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .clipShape(Capsule())
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
@@ -1079,7 +1076,7 @@ struct ModernProfileHeader: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(ProfileColors.textPrimary)
                         .frame(width: 44, height: 44)
-                        .background(ProfileColors.materialBackground)
+                        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                         .clipShape(Circle())
                         .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
@@ -1108,7 +1105,7 @@ struct ModernProfileHeader: View {
                         .font(.system(size: 18))
                         .foregroundColor(ProfileColors.textPrimary)
                         .frame(width: 44, height: 44)
-                        .background(ProfileColors.materialBackground)
+                        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                         .clipShape(Circle())
                         .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
                 }
@@ -2528,10 +2525,7 @@ struct ExpandableBioView: View {
                     Text(isExpanded ? NSLocalizedString("profile.content.seeLess", comment: "See less text") : NSLocalizedString("profile.content.seeMore", comment: "See more text"))
                         .font(.custom("Poppins-Medium", size: 13))
                         .foregroundColor(ProfileColors.accent)
-                        .padding(.horizontal, 12)
                         .padding(.vertical, 4)
-                        .background(ProfileColors.accent.opacity(0.1))
-                        .clipShape(Capsule())
                 }
             }
         }

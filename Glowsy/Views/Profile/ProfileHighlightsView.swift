@@ -76,7 +76,7 @@ struct ProfileHighlightsView: View {
                                     VStack(spacing: 6) {
                                         ZStack {
                                             Circle()
-                                                .fill(ProfileColors.materialBackground)
+                                                .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                                                 .frame(width: circleSize, height: circleSize)
                                                 .overlay(
                                                     Circle()

@@ -13,7 +13,7 @@ struct UserActivityView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white)
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
@@ -87,7 +87,7 @@ struct UserActivityView: View {
     }
 
     private func activitySection(title: String, categories: [ActivityInteractionCategory]) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
             Text(title.uppercased())
                 .font(.custom("Poppins-SemiBold", size: 12))
                 .foregroundColor(.gray.opacity(0.8))
@@ -111,10 +111,6 @@ struct UserActivityView: View {
                     }
                 }
             }
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
-            )
         }
     }
 
@@ -708,7 +704,7 @@ private struct ActivityInteractionDetailView: View {
 
     var body: some View {
         ZStack {
-            Color(colorScheme == .dark ? .black : .white)
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea()
 
             mainContent
@@ -1568,7 +1564,7 @@ private struct ActivityInteractionDetailView: View {
             .padding(.vertical, 12)
             .background(
                 Rectangle()
-                .fill(colorScheme == .dark ? Color.black : Color.white)
+                .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, y: -5)
             )
         }
@@ -1637,7 +1633,7 @@ private struct ActivityInteractionDetailView: View {
             .padding(.vertical, 12)
             .background(
                 Rectangle()
-                    .fill(colorScheme == .dark ? Color.black : Color.white)
+                    .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .shadow(color: Color.black.opacity(0.05), radius: 10, y: -5)
             )
         }
