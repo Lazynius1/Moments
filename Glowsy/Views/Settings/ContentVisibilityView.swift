@@ -14,7 +14,7 @@ struct ContentVisibilityView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
                 if isLoading {
                     ProgressView(NSLocalizedString("contentVisibility.loading", comment: "Loading configuration..."))
@@ -372,7 +372,7 @@ struct StoryInteractionSettingsView: View {
                     .padding(.bottom, 20)
                 }
             }
-            .background(Color(colorScheme == .dark ? .black : .white).ignoresSafeArea())
+            .background((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea())
             .navigationTitle(NSLocalizedString("contentVisibility.interactions.navigation", comment: "Interactions"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
@@ -700,7 +700,7 @@ struct HiddenFromView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.1))
+                    .fill(colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.06) : Color(hex: "0B1215").opacity(0.05))
             )
             .padding(.horizontal)
             
@@ -762,6 +762,7 @@ struct HiddenFromView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
+                .background((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea())
             }
         }
         .navigationTitle(NSLocalizedString("contentVisibility.hideContent.navigation", comment: "Hide Content"))

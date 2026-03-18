@@ -14,6 +14,9 @@ struct Conversation: Identifiable, Codable, Hashable {
     let otherParticipantProfileImagePath: String?
     let isPinned: Bool?
     let isMuted: Bool?
+    let encryptionVersion: String?
+    let conversationKeyVersion: Int?
+    let wrappedKeys: [String: WrappedConversationKey]?
     
     // ✅ Privacy: Preferencias explícitas de lectura por usuario en este chat
     var readReceiptPreferences: [String: Bool]?
@@ -37,10 +40,27 @@ struct Conversation: Identifiable, Codable, Hashable {
         case otherParticipantProfileImagePath
         case isPinned
         case isMuted
+        case encryptionVersion
+        case conversationKeyVersion
+        case wrappedKeys
         case readReceiptPreferences
     }
 
-    init(id: String?, participants: [String], lastMessage: String?, timestamp: Date, readStatus: [String: Bool], otherParticipantId: String, otherParticipantUsername: String?, otherParticipantProfileImagePath: String?, isPinned: Bool? = false, isMuted: Bool? = false) {
+    init(
+        id: String?,
+        participants: [String],
+        lastMessage: String?,
+        timestamp: Date,
+        readStatus: [String: Bool],
+        otherParticipantId: String,
+        otherParticipantUsername: String?,
+        otherParticipantProfileImagePath: String?,
+        isPinned: Bool? = false,
+        isMuted: Bool? = false,
+        encryptionVersion: String? = nil,
+        conversationKeyVersion: Int? = nil,
+        wrappedKeys: [String: WrappedConversationKey]? = nil
+    ) {
         self.id = id
         self.participants = participants
         self.lastMessage = lastMessage
@@ -51,6 +71,9 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.otherParticipantProfileImagePath = otherParticipantProfileImagePath
         self.isPinned = isPinned
         self.isMuted = isMuted
+        self.encryptionVersion = encryptionVersion
+        self.conversationKeyVersion = conversationKeyVersion
+        self.wrappedKeys = wrappedKeys
         self.readReceiptPreferences = [:]
     }
 
@@ -62,11 +85,14 @@ struct Conversation: Identifiable, Codable, Hashable {
         let timestamp = try container.decode(Timestamp.self, forKey: .timestamp)
         self.timestamp = timestamp.dateValue()
         self.readStatus = try container.decodeIfPresent([String: Bool].self, forKey: .readStatus) ?? [:]
-        self.otherParticipantId = try container.decode(String.self, forKey: .otherParticipantId)
+        self.otherParticipantId = try container.decodeIfPresent(String.self, forKey: .otherParticipantId) ?? ""
         self.otherParticipantUsername = try container.decodeIfPresent(String.self, forKey: .otherParticipantUsername)
         self.otherParticipantProfileImagePath = try container.decodeIfPresent(String.self, forKey: .otherParticipantProfileImagePath)
         self.isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
         self.isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
+        self.encryptionVersion = try container.decodeIfPresent(String.self, forKey: .encryptionVersion)
+        self.conversationKeyVersion = try container.decodeIfPresent(Int.self, forKey: .conversationKeyVersion)
+        self.wrappedKeys = try container.decodeIfPresent([String: WrappedConversationKey].self, forKey: .wrappedKeys)
         self.readReceiptPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .readReceiptPreferences) ?? [:]
     }
 
@@ -82,6 +108,9 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(otherParticipantProfileImagePath, forKey: .otherParticipantProfileImagePath)
         try container.encodeIfPresent(isPinned, forKey: .isPinned)
         try container.encodeIfPresent(isMuted, forKey: .isMuted)
+        try container.encodeIfPresent(encryptionVersion, forKey: .encryptionVersion)
+        try container.encodeIfPresent(conversationKeyVersion, forKey: .conversationKeyVersion)
+        try container.encodeIfPresent(wrappedKeys, forKey: .wrappedKeys)
         try container.encodeIfPresent(readReceiptPreferences, forKey: .readReceiptPreferences)
     }
     
@@ -100,9 +129,9 @@ struct Conversation: Identifiable, Codable, Hashable {
     
     // Obtener preview del último mensaje para notificaciones
     var messagePreview: String {
-        if let lastMessage = lastMessage {
+        if let lastMessage {
             if lastMessage.starts(with: "📎") {
-                return lastMessage // Ya tiene formato de archivo adjunto
+                return lastMessage
             } else if lastMessage.count > 50 {
                 return String(lastMessage.prefix(47)) + "..."
             }
@@ -242,7 +271,7 @@ enum MessageType: String, CaseIterable, Codable {
     // ✅ NUEVA: Preview para lista de conversaciones
     var conversationPreview: String {
         switch self {
-        case .text: return ""
+        case .text: return NSLocalizedString("chat.preview.text", comment: "")
         case .image: return NSLocalizedString("chat.preview.photo", comment: "")
         case .video: return NSLocalizedString("chat.preview.video", comment: "")
         case .audio: return NSLocalizedString("chat.preview.audio", comment: "")
@@ -256,6 +285,26 @@ enum MessageType: String, CaseIterable, Codable {
         case .viewOnceVideo: return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         }
     }
+}
+
+private let neutralConversationPreviewPrefixes = ["💬", "📷", "🎥", "🎵", "🎞", "😊", "📍", "📎", "📸", "⏱"]
+
+func sanitizedConversationPreview(_ rawPreview: String?, encryptionVersion: String?) -> String {
+    let trimmedPreview = rawPreview?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+    guard encryptionVersion?.hasPrefix("3") == true else {
+        return trimmedPreview
+    }
+
+    guard !trimmedPreview.isEmpty else {
+        return MessageType.text.conversationPreview
+    }
+
+    if neutralConversationPreviewPrefixes.contains(where: { trimmedPreview.hasPrefix($0) }) {
+        return trimmedPreview
+    }
+
+    return MessageType.text.conversationPreview
 }
 
 // MARK: - Message Status

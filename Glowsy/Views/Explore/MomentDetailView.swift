@@ -49,8 +49,8 @@ struct MomentDetailView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
+            let headerTopInset: CGFloat = 8
             
             ZStack(alignment: .top) {
                 // ✅ Fondo moderno como el feed
@@ -59,7 +59,7 @@ struct MomentDetailView: View {
                     .opacity(backgroundOpacity)
                 
                 // ✅ Header fijo superior pegado al notch
-                modernHeaderSection(safeAreaTop: safeAreaTop)
+                modernHeaderSection(topInset: headerTopInset)
                     .zIndex(10)
                     .opacity(backgroundOpacity)
                 
@@ -75,7 +75,7 @@ struct MomentDetailView: View {
                         contentScrollView(safeAreaBottom: safeAreaBottom)
                     }
                 }
-                .padding(.top, safeAreaTop + 65) // Ajustado para que el contenido empiece debajo del header fijo
+                .padding(.top, headerTopInset + 57)
                 .offset(x: dragOffset)
                 .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                 
@@ -209,24 +209,15 @@ struct MomentDetailView: View {
     
     private var modernBackgroundView: some View {
         ZStack {
-            if colorScheme == .dark {
-                Color.black.opacity(0.4)
-            } else {
-                Color.white.opacity(0.1)
-            }
-            
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.3 : 0.2)
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea()
         }
     }
     
-    private func modernHeaderSection(safeAreaTop: CGFloat) -> some View {
+    private func modernHeaderSection(topInset: CGFloat) -> some View {
         VStack(spacing: 0) {
-            // Relleno notch
             Color.clear
-                .frame(height: max(20, safeAreaTop - 10))
+                .frame(height: topInset)
             
             HStack {
                 Spacer()
@@ -289,12 +280,12 @@ struct MomentDetailView: View {
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             
             Divider()
                 .background(Color.white.opacity(0.04))
         }
-        .background(.ultraThinMaterial)
+        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
     }
 
     private func contentScrollView(safeAreaBottom: CGFloat) -> some View {

@@ -264,7 +264,11 @@ struct UserProfileView: View {
         }
         .fullScreenCover(isPresented: $navigateToChat) {
             if let conversation = targetConversation {
-                GlassmorphicChatView(conversation: conversation)
+                ChatRecoveryGateView(onCancel: {
+                    navigateToChat = false
+                }) {
+                    GlassmorphicChatView(conversation: conversation)
+                }
             }
         }
         .sheet(isPresented: $showingMessageRequestAlert) {

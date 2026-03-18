@@ -9,8 +9,7 @@ struct NovaMemoryManagementView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Fondo moderno consistente con Gemini
-                ModernGeminiBackground()
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
                 
                 if viewModel.isLoading {
@@ -38,29 +37,35 @@ struct NovaMemoryManagementView: View {
                             .padding(.horizontal, 40)
                     }
                 } else {
-                    List {
-                        ForEach(NovaFactType.allCases, id: \.self) { type in
-                            let facts = viewModel.memory?.facts(ofType: type) ?? []
-                            if !facts.isEmpty {
-                                Section(header: 
-                                    HStack {
-                                        Text(type.emoji)
-                                        Text(localizedCategoryName(type))
-                                            .font(.custom("Poppins-Bold", size: 14))
-                                    }
-                                    .foregroundColor(ModernGeminiColors.primary)
-                                ) {
-                                    ForEach(facts) { fact in
-                                        MemoryFactRow(fact: fact) {
-                                            viewModel.deleteFact(fact)
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(alignment: .leading, spacing: 24) {
+                            ForEach(NovaFactType.allCases, id: \.self) { type in
+                                let facts = viewModel.memory?.facts(ofType: type) ?? []
+                                if !facts.isEmpty {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        HStack {
+                                            Text(type.emoji)
+                                            Text(localizedCategoryName(type))
+                                                .font(.custom("Poppins-Bold", size: 14))
+                                        }
+                                        .foregroundColor(ModernGeminiColors.primary)
+
+                                        VStack(spacing: 0) {
+                                            ForEach(Array(facts.enumerated()), id: \.element.id) { index, fact in
+                                                MemoryFactRow(fact: fact) {
+                                                    viewModel.deleteFact(fact)
+                                                }
+
+                                                if index < facts.count - 1 {
+                                                    Divider()
+                                                        .padding(.leading, 4)
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                                .listRowBackground(ModernGeminiColors.cardBackground)
                             }
-                        }
-                        
-                        Section {
+
                             Button(role: .destructive) {
                                 viewModel.showClearAllAlert = true
                             } label: {
@@ -71,10 +76,11 @@ struct NovaMemoryManagementView: View {
                                 }
                                 .frame(maxWidth: .infinity)
                             }
+                            .padding(.top, 8)
                         }
-                        .listRowBackground(Color.red.opacity(0.1))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
                     }
-                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle(localizedTitle())

@@ -89,7 +89,11 @@ class InAppNotificationService: ObservableObject {
                             
                             // 5. Crear notificación
                             let conversationId = change.document.documentID
-                            let lastMessagePreview = data["lastMessage"] as? String ?? "New message"
+                            let sanitizedPreview = sanitizedConversationPreview(
+                                data["lastMessage"] as? String,
+                                encryptionVersion: data["encryptionVersion"] as? String
+                            )
+                            let lastMessagePreview = sanitizedPreview.isEmpty ? MessageType.text.conversationPreview : sanitizedPreview
                             
                             let notification = Notification(
                                 id: UUID().uuidString,

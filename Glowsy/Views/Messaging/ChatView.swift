@@ -92,18 +92,11 @@ struct GlassmorphicChatView: View {
     }
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             // Glassmorphic background
             ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
             
             VStack(spacing: 0) {
-                // Custom Navigation Bar con navegación al perfil
-                glassmorphicNavigationBar
-                
-                if isSearchVisible {
-                    chatSearchBarSection
-                }
-                
                 // Messages List
                 messagesListSection
                 
@@ -112,6 +105,14 @@ struct GlassmorphicChatView: View {
                 
                 // Input Bar
                 inputBarSection
+            }
+
+            VStack(spacing: 0) {
+                glassmorphicNavigationBar
+
+                if isSearchVisible {
+                    chatSearchBarSection
+                }
             }
         }
         .navigationBarHidden(true)
@@ -245,8 +246,7 @@ struct GlassmorphicChatView: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(adaptiveColors.primary)
                     .frame(width: 40, height: 40)
-                    .glassmorphicChat()
-                    .clipShape(Circle())
+                    .liquidGlass(in: Circle(), interactive: true)
             }
             
             // ✅ ACTUALIZADO: User info con navegación al perfil
@@ -321,6 +321,9 @@ struct GlassmorphicChatView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .liquidGlass(in: Capsule(), interactive: true)
             
             Spacer()
             
@@ -339,8 +342,7 @@ struct GlassmorphicChatView: View {
                     .font(.system(size: 18))
                     .foregroundColor(adaptiveColors.primary)
                     .frame(width: 40, height: 40)
-                    .glassmorphicChat()
-                    .clipShape(Circle())
+                    .liquidGlass(in: Circle(), interactive: true)
             }
             
             // Settings button
@@ -351,17 +353,11 @@ struct GlassmorphicChatView: View {
                     .font(.system(size: 18))
                     .foregroundColor(adaptiveColors.primary)
                     .frame(width: 40, height: 40)
-                    .glassmorphicChat()
-                    .clipShape(Circle())
+                    .liquidGlass(in: Circle(), interactive: true)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(
-            adaptiveColors.chatNavigationBackground
-                .blur(radius: 10)
-                .ignoresSafeArea()
-        )
         .onAppear {
             checkUserStories()
         }
@@ -395,18 +391,16 @@ struct GlassmorphicChatView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(adaptiveColors.chatInputBackground)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(adaptiveColors.searchBarStroke, lineWidth: 0.8)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .liquidGlass(in: Capsule(), interactive: true)
             
             HStack(spacing: 6) {
                 Text(searchCounterText)
                     .font(.custom("Poppins-Medium", size: 11))
                     .foregroundColor(adaptiveColors.secondary)
                     .frame(minWidth: 38)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .liquidGlass(in: Capsule(), interactive: true)
                 
                 Button {
                     moveSearchSelection(by: -1)
@@ -415,8 +409,7 @@ struct GlassmorphicChatView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(searchMatchIds.isEmpty ? adaptiveColors.secondary.opacity(0.35) : adaptiveColors.primary)
                         .frame(width: 30, height: 30)
-                        .background(adaptiveColors.chatInputBackground)
-                        .clipShape(Circle())
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(searchMatchIds.isEmpty)
@@ -428,8 +421,7 @@ struct GlassmorphicChatView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(searchMatchIds.isEmpty ? adaptiveColors.secondary.opacity(0.35) : adaptiveColors.primary)
                         .frame(width: 30, height: 30)
-                        .background(adaptiveColors.chatInputBackground)
-                        .clipShape(Circle())
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(searchMatchIds.isEmpty)
@@ -494,6 +486,7 @@ struct GlassmorphicChatView: View {
                         }
                 }
                 .padding(.vertical, 10)
+                .padding(.top, headerOverlayHeight)
             }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 8)
@@ -604,6 +597,10 @@ struct GlassmorphicChatView: View {
                 .background(.ultraThinMaterial.opacity(0.5))
             }
         }
+    }
+
+    private var headerOverlayHeight: CGFloat {
+        isSearchVisible ? 132 : 76
     }
     
     // ✅ REFACTORIZADO: Sección de barra de entrada
@@ -1033,56 +1030,13 @@ struct ChatGlassmorphicBackground: View {
     
     var body: some View {
         ZStack {
-            // Gradiente base adaptativo
-            LinearGradient(
-                gradient: Gradient(colors: adaptiveColors.chatBackground),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Blobs animados adaptativos
-            GeometryReader { geometry in
-                // Blob 1
-                Circle()
-                    .fill(
-                        colorScheme == .dark ?
-                        adaptiveColors.accent.opacity(0.2) :
-                        adaptiveColors.accent.opacity(0.08)
-                    )
-                    .frame(width: 250, height: 250)
-                    .blur(radius: colorScheme == .dark ? 80 : 60)
-                    .offset(x: geometry.size.width * 0.7, y: geometry.size.height * 0.2)
-                
-                // Blob 2
-                Circle()
-                    .fill(
-                        colorScheme == .dark ?
-                        Color(hex: "02C39A").opacity(0.2) :
-                        Color(hex: "02C39A").opacity(0.06)
-                    )
-                    .frame(width: 300, height: 300)
-                    .blur(radius: colorScheme == .dark ? 100 : 80)
-                    .offset(x: -50, y: geometry.size.height * 0.6)
-                
-                // Blob 3 adicional para modo claro
-                if colorScheme == .light {
-                    Circle()
-                        .fill(Color(hex: "F0F3BD").opacity(0.04))
-                        .frame(width: 200, height: 200)
-                        .blur(radius: 60)
-                        .offset(x: geometry.size.width * 0.3, y: geometry.size.height * 0.8)
-                }
+            if colorScheme == .dark {
+                adaptiveColors.chatBackground[0]
+                    .ignoresSafeArea()
+            } else {
+                adaptiveColors.chatBackground[0]
+                    .ignoresSafeArea()
             }
-            
-            // Overlay de material adaptativo
-            Rectangle()
-                .fill(
-                    colorScheme == .dark ?
-                    Color.black.opacity(0.1) :
-                    Color.white.opacity(0.2)
-                )
-                .ignoresSafeArea()
         }
     }
 }
@@ -1090,6 +1044,10 @@ struct ChatGlassmorphicBackground: View {
 extension View {
     func glassmorphicChat() -> some View {
         modifier(GlassmorphicModifier())
+    }
+
+    func glassmorphicChatCircle() -> some View {
+        modifier(GlassmorphicCircleModifier())
     }
 }
 
@@ -1120,6 +1078,37 @@ struct GlassmorphicModifier: ViewModifier {
                         colorScheme == .dark ?
                         Color.white.opacity(0.2) :
                         Color.black.opacity(0.1),
+                        lineWidth: 0.5
+                    )
+            )
+    }
+}
+
+struct GlassmorphicCircleModifier: ViewModifier {
+    @Environment(\.colorScheme) var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .opacity(colorScheme == .dark ? 0.3 : 0.6)
+
+                    Circle()
+                        .fill(
+                            colorScheme == .dark
+                            ? Color.white.opacity(0.1)
+                            : Color.white.opacity(0.7)
+                        )
+                }
+            )
+            .overlay(
+                Circle()
+                    .stroke(
+                        colorScheme == .dark
+                        ? Color.white.opacity(0.2)
+                        : Color.black.opacity(0.1),
                         lineWidth: 0.5
                     )
             )
@@ -1862,28 +1851,32 @@ struct GlassmorphicInputBar: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Camera button
-            Button(action: {
-                // ✅ Track camera usage in chat
-                onCamera()
-            }) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 40, height: 40)
-                    .glassmorphicChat()
-                    .clipShape(Circle())
-            }
-            
-            // Text field with glass effect
             if !isRecordingVoice {
                 HStack(spacing: 8) {
+                    Button(action: {
+                        onCamera()
+                    }) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(adaptiveColors.primary)
+                            .frame(width: 34, height: 34)
+                            .background(
+                                Circle()
+                                    .fill(
+                                        colorScheme == .dark ?
+                                        Color.white.opacity(0.12) :
+                                        Color.black.opacity(0.06)
+                                    )
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
                     TextField(LocalizedStringKey("chat.input.placeholder"), text: $text, axis: .vertical)
                         .font(.custom("Poppins-Regular", size: 15))
                         .foregroundColor(adaptiveColors.primary)
-                        .accentColor(.white)
+                        .accentColor(adaptiveColors.primary)
                         .textFieldStyle(PlainTextFieldStyle())
-                        .padding(.horizontal, 16)
+                        .padding(.leading, 2)
                         .padding(.vertical, 10)
                         .onChange(of: text) { newValue in
                             isTyping = !newValue.isEmpty
@@ -1900,7 +1893,7 @@ struct GlassmorphicInputBar: View {
                                 onMedia()
                             }) {
                                 Image(systemName: "photo")
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 17, weight: .medium))
                                     .foregroundColor(adaptiveColors.mediaIconColor)
                             }
                             
@@ -1909,15 +1902,26 @@ struct GlassmorphicInputBar: View {
                                 onStartVoiceRecording()
                             }) {
                                 Image(systemName: "mic")
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 17, weight: .medium))
                                     .foregroundColor(adaptiveColors.mediaIconColor)
                             }
                         }
                         .padding(.trailing, 12)
                     }
                 }
-                .glassmorphicChat()
-                .clipShape(Capsule())
+                .padding(.leading, 10)
+                .padding(.trailing, 6)
+                .padding(.vertical, 6)
+                .liquidGlass(in: Capsule(), interactive: true)
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            colorScheme == .dark ?
+                            Color.white.opacity(0.08) :
+                            Color.black.opacity(0.05),
+                            lineWidth: 0.8
+                        )
+                )
             } else {
                 // Voice recording UI
                 VoiceRecordingBar(
@@ -1950,10 +1954,6 @@ struct GlassmorphicInputBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(
-            adaptiveColors.chatInputBackground
-                .blur(radius: 10)
-        )
     }
 }
 
@@ -2742,11 +2742,11 @@ struct VoiceRecordingBar: View {
 extension AdaptiveColors {
     // MARK: - Colores específicos para chat mejorados
     var chatInputBackground: Color {
-        colorScheme == .dark ? Color.black.opacity(0.2) : Color.white.opacity(0.9)
+        colorScheme == .dark ? Color(hex: "0B1215").opacity(0.78) : Color(hex: "FAF9F6").opacity(0.94)
     }
     
     var chatNavigationBackground: Color {
-        colorScheme == .dark ? Color.black.opacity(0.2) : Color.white.opacity(0.9)
+        colorScheme == .dark ? Color(hex: "0B1215").opacity(0.78) : Color(hex: "FAF9F6").opacity(0.94)
     }
     
     var searchBarStroke: Color {
@@ -2763,7 +2763,7 @@ extension AdaptiveColors {
     
     // MARK: - Colores para mensajes mejorados
     var messageBubbleBackground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.08)
+        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.14) : Color(hex: "0B1215").opacity(0.07)
     }
     
     var messageBubbleStroke: Color {
@@ -2787,7 +2787,7 @@ extension AdaptiveColors {
     }
     
     var replyBarBackground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)
+        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.1) : Color(hex: "0B1215").opacity(0.05)
     }
     
     var replyBarText: Color {
@@ -2816,13 +2816,13 @@ extension AdaptiveColors {
     // MARK: - Gradientes específicos para chat actualizados
     var chatBackground: [Color] {
         colorScheme == .dark ? [
-            Color(hex: "0F172A"), // Slate 900
-            Color(hex: "1E293B"), // Slate 800
-            Color(hex: "334155")  // Slate 700
+            Color(hex: "0B1215"),
+            Color(hex: "0B1215"),
+            Color(hex: "0B1215")
         ] : [
-            Color(hex: "F1F5F9"), // Slate 100
-            Color(hex: "E2E8F0"), // Slate 200
-            Color(hex: "CBD5E1")  // Slate 300
+            Color(hex: "FAF9F6"),
+            Color(hex: "FAF9F6"),
+            Color(hex: "FAF9F6")
         ]
     }
     
@@ -2830,11 +2830,11 @@ extension AdaptiveColors {
         colorScheme == .dark ? [
             userAccentColor.opacity(0.3),
             Color.blue.opacity(0.2),
-            Color.black
+            Color(hex: "0B1215")
         ] : [
             userAccentColor.opacity(0.1),
-            Color.white,
-            Color.white
+            Color(hex: "FAF9F6"),
+            Color(hex: "FAF9F6")
         ]
     }
 
@@ -3007,6 +3007,7 @@ struct MediaGridBubble: View {
 struct MediaGridTileView: View {
     let message: EnhancedMessage
     let progress: Double?
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ZStack {
@@ -3028,7 +3029,7 @@ struct MediaGridTileView: View {
                 }
                 
                 Circle()
-                    .fill(Color.black.opacity(0.4))
+                    .fill(Color(hex: "0B1215").opacity(0.42))
                     .frame(width: 30, height: 30)
                     .overlay(
                         Image(systemName: "play.fill")
@@ -3043,20 +3044,20 @@ struct MediaGridTileView: View {
             if message.status == .sending {
                 let uploadProgress = max(progress ?? 0.03, 0.03)
                 ZStack {
-                    Color.black.opacity(0.35)
+                    Color(hex: "0B1215").opacity(0.38)
                     BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
                     MediaProgressRing(progress: uploadProgress, size: 42, lineWidth: 3)
                 }
             }
         }
-        .background(Color.white.opacity(0.05))
+        .background(Color(hex: "FAF9F6").opacity(colorScheme == .dark ? 0.06 : 0.22))
         .clipped()
     }
     
     @ViewBuilder
     private func placeholder(icon: String) -> some View {
         RoundedRectangle(cornerRadius: 12)
-            .fill(Color.white.opacity(0.1))
+            .fill(colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.1) : Color(hex: "0B1215").opacity(0.06))
             .overlay(
                 Image(systemName: icon)
                     .font(.system(size: 22))

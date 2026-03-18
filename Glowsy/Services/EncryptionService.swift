@@ -164,6 +164,8 @@ enum EncryptionError: LocalizedError, Equatable {
     case invalidInput
     case encryptionFailed
     case decryptionFailed
+    case invalidPIN
+    case recoveryLocked(TimeInterval)
     case keychainError(String)
     case keyNotFound
     case timeout
@@ -181,6 +183,16 @@ enum EncryptionError: LocalizedError, Equatable {
             return "Error en el proceso de encriptación"
         case .decryptionFailed:
             return "Error en el proceso de desencriptación"
+        case .invalidPIN:
+            return NSLocalizedString("chatRecovery.error.invalidPin", comment: "Incorrect recovery PIN")
+        case .recoveryLocked(let remainingSeconds):
+            let totalSeconds = max(1, Int(ceil(remainingSeconds)))
+            let minutes = totalSeconds / 60
+            let seconds = totalSeconds % 60
+            return String(
+                format: NSLocalizedString("chatRecovery.error.locked", comment: "Recovery locked"),
+                String(format: "%d:%02d", minutes, seconds)
+            )
         case .keychainError(let message):
             return "Error en Keychain: \(message)"
         case .keyNotFound:
@@ -204,6 +216,10 @@ enum EncryptionError: LocalizedError, Equatable {
         switch self {
         case .keyCorrupted, .versionMismatch:
             return "Intenta rotar la clave de la conversación"
+        case .invalidPIN:
+            return NSLocalizedString("chatRecovery.error.invalidPinSuggestion", comment: "Verify the recovery PIN and try again")
+        case .recoveryLocked:
+            return NSLocalizedString("chatRecovery.error.lockedSuggestion", comment: "Wait before retrying the recovery PIN")
         case .timeout, .networkError:
             return "Verifica tu conexión a internet"
         case .keychainError:
@@ -537,6 +553,14 @@ class EncryptionService: ObservableObject {
     private let userKeysPrefix = "user_key_v2_"
     private let conversationKeysPrefix = "conversation_key_v2_"
     private let keyMetadataPrefix = "key_metadata_"
+    private let chatIdentityKeyPrefix = "chat_identity_private_v1_"
+    private let chatIdentityKeyIdPrefix = "chat_identity_key_id_v1_"
+    private let chatRecoveryMarkerPrefix = "chat_recovery_marker_v1_"
+    private let chatRecoveryAttemptsPrefix = "chat_recovery_attempts_v1_"
+    private let chatRecoveryLockoutPrefix = "chat_recovery_lockout_v1_"
+    private let chatRecoveryMaxAttempts = 5
+    private let chatRecoveryLockoutDuration: TimeInterval = 5 * 60
+    private let chatWrapInfo = Data("moments.chat.wrap.v1".utf8)
     private let db = Firestore.firestore()
     
     // MARK: - Published Properties
@@ -657,6 +681,11 @@ class EncryptionService: ObservableObject {
             self.deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
             self.lastRotation = nil
         }
+    }
+
+    private struct LocalChatIdentity {
+        let record: ChatIdentityRecord
+        let privateKey: Curve25519.KeyAgreement.PrivateKey
     }
     
     // MARK: - Initialization
@@ -1094,7 +1123,504 @@ class EncryptionService: ObservableObject {
             }
         }
     }
-    
+
+    // MARK: - Chat Identity & Recovery
+    func chatAccessState() async -> ChatAccessState {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            return .unavailable(NSLocalizedString("messaging.error.notAuthenticated", comment: "User not authenticated"))
+        }
+
+        do {
+            let hasLocalIdentity = hasLocalChatIdentity(for: currentUserId)
+            let hasRecoveryBundle = try await hasChatRecoveryBundle(for: currentUserId)
+            let markerKey = chatRecoveryMarkerPrefix + currentUserId
+            let hasRecoveryMarker = UserDefaults.standard.bool(forKey: markerKey)
+
+            if hasLocalIdentity && hasRecoveryBundle && !hasRecoveryMarker {
+                try deleteLocalChatIdentity(for: currentUserId)
+                UserDefaults.standard.set(true, forKey: markerKey)
+                return .needsRestore
+            }
+
+            if hasLocalIdentity {
+                if hasRecoveryBundle {
+                    UserDefaults.standard.set(true, forKey: markerKey)
+                    return .available
+                }
+                return .needsPinSetup
+            }
+
+            if hasRecoveryBundle {
+                UserDefaults.standard.set(true, forKey: markerKey)
+                return .needsRestore
+            }
+
+            _ = try await ensureChatIdentity()
+            return .needsPinSetup
+        } catch {
+            return .unavailable(error.localizedDescription)
+        }
+    }
+
+    func hasLocalChatIdentity(for userId: String? = Auth.auth().currentUser?.uid) -> Bool {
+        guard let userId else { return false }
+        let keyTag = chatIdentityKeyPrefix + userId
+        return (try? retrieveDataFromKeychain(tag: keyTag)) != nil
+    }
+
+    func hasChatRecoveryBundle(for userId: String) async throws -> Bool {
+        let snapshot = try await db.collection("users")
+            .document(userId)
+            .collection("chatRecovery")
+            .document("default")
+            .getDocument()
+        return snapshot.exists
+    }
+
+    func chatRecoveryAttemptState(for userId: String? = Auth.auth().currentUser?.uid) -> ChatRecoveryAttemptState {
+        guard let userId else {
+            return ChatRecoveryAttemptState(maxAttempts: chatRecoveryMaxAttempts)
+        }
+        return currentRecoveryAttemptState(for: userId)
+    }
+
+    func chatRecoveryLockoutMessage(for state: ChatRecoveryAttemptState) -> String? {
+        guard let remaining = state.remainingLockoutInterval else { return nil }
+        return String(
+            format: NSLocalizedString("chatRecovery.error.lockedTimer", comment: "Recovery locked timer"),
+            formatRecoveryLockoutDuration(remaining)
+        )
+    }
+
+    func ensureChatIdentity() async throws -> ChatIdentityRecord {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
+        let localIdentity = try await loadOrCreateLocalChatIdentity(for: currentUserId)
+        try await syncChatIdentityRecord(localIdentity.record, for: currentUserId)
+        return localIdentity.record
+    }
+
+    func createRecoveryBundle(pin: String) async throws {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
+        let trimmedPIN = pin.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedPIN.count == 6, trimmedPIN.allSatisfy(\.isNumber) else {
+            throw EncryptionError.invalidPIN
+        }
+
+        let localIdentity = try await loadOrCreateLocalChatIdentity(for: currentUserId)
+        let salt = ChatRecoveryCrypto.randomSalt()
+        let kdfParams = ChatRecoveryKDFParams()
+        let pinKey = try ChatRecoveryCrypto.derivePINKey(
+            pin: trimmedPIN,
+            salt: salt,
+            iterations: kdfParams.iterations,
+            keyLength: kdfParams.keyLength
+        )
+
+        let privateKeyData = localIdentity.privateKey.rawRepresentation
+        let sealedBox = try AES.GCM.seal(privateKeyData, using: pinKey)
+        guard let combined = sealedBox.combined else {
+            throw EncryptionError.encryptionFailed
+        }
+
+        let bundle = ChatRecoveryBundle(
+            keyId: localIdentity.record.keyId,
+            encryptedPrivateKey: combined.base64EncodedString(),
+            nonce: sealedBox.nonce.dataRepresentation.base64EncodedString(),
+            salt: salt.base64EncodedString(),
+            kdfParams: kdfParams
+        )
+
+        try await db.collection("users")
+            .document(currentUserId)
+            .collection("chatRecovery")
+            .document("default")
+            .setData(bundle.asFirestoreData(), merge: true)
+
+        try await syncChatIdentityRecord(localIdentity.record, for: currentUserId)
+        UserDefaults.standard.set(true, forKey: chatRecoveryMarkerPrefix + currentUserId)
+        clearRecoveryAttemptState(for: currentUserId)
+    }
+
+    func restoreChatIdentity(pin: String) async throws {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
+        let attemptState = currentRecoveryAttemptState(for: currentUserId)
+        if attemptState.isLocked {
+            throw EncryptionError.recoveryLocked(attemptState.remainingLockout)
+        }
+
+        let trimmedPIN = pin.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedPIN.count == 6, trimmedPIN.allSatisfy(\.isNumber) else {
+            throw EncryptionError.invalidPIN
+        }
+
+        let snapshot = try await db.collection("users")
+            .document(currentUserId)
+            .collection("chatRecovery")
+            .document("default")
+            .getDocument()
+
+        guard
+            let data = snapshot.data(),
+            let bundle = ChatRecoveryBundle(map: data),
+            let salt = Data(base64Encoded: bundle.salt),
+            let encryptedPrivateKey = Data(base64Encoded: bundle.encryptedPrivateKey)
+        else {
+            throw EncryptionError.keyNotFound
+        }
+
+        let pinKey = try ChatRecoveryCrypto.derivePINKey(
+            pin: trimmedPIN,
+            salt: salt,
+            iterations: bundle.kdfParams.iterations,
+            keyLength: bundle.kdfParams.keyLength
+        )
+
+        do {
+            let sealedBox = try AES.GCM.SealedBox(combined: encryptedPrivateKey)
+            let privateKeyData = try AES.GCM.open(sealedBox, using: pinKey)
+            let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData)
+            let keyTag = chatIdentityKeyPrefix + currentUserId
+
+            try storeDataInKeychain(data: privateKey.rawRepresentation, tag: keyTag)
+
+            let publicKeyBase64 = privateKey.publicKey.rawRepresentation.base64EncodedString()
+            let restoredKeyId = try await resolveStableChatKeyId(
+                for: currentUserId,
+                publicKeyBase64: publicKeyBase64,
+                preferredKeyId: bundle.keyId
+            )
+
+            let restoredRecord = ChatIdentityRecord(
+                keyId: restoredKeyId,
+                publicKeyBase64: publicKeyBase64
+            )
+
+            try await syncChatIdentityRecord(restoredRecord, for: currentUserId)
+            UserDefaults.standard.set(true, forKey: chatRecoveryMarkerPrefix + currentUserId)
+            clearRecoveryAttemptState(for: currentUserId)
+        } catch {
+            registerFailedRecoveryAttempt(for: currentUserId)
+            let updatedAttemptState = currentRecoveryAttemptState(for: currentUserId)
+            if updatedAttemptState.isLocked {
+                throw EncryptionError.recoveryLocked(updatedAttemptState.remainingLockout)
+            }
+            throw EncryptionError.invalidPIN
+        }
+    }
+
+    func removeLocalChatIdentity() async throws {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
+        try deleteLocalChatIdentity(for: currentUserId)
+    }
+
+    func fetchChatIdentity(for userId: String) async throws -> ChatIdentityRecord? {
+        if let currentUserId = Auth.auth().currentUser?.uid, currentUserId == userId {
+            return try await ensureChatIdentity()
+        }
+
+        let snapshot = try await db.collection("users").document(userId).getDocument()
+        guard
+            let data = snapshot.data(),
+            let chatKey = data["chatKey"] as? [String: Any]
+        else {
+            return nil
+        }
+
+        return ChatIdentityRecord(map: chatKey)
+    }
+
+    func cacheConversationKeyLocally(conversationId: String, key: SymmetricKey) async {
+        await cacheConversationKey(conversationId: conversationId, key: key)
+    }
+
+    func buildWrappedConversationKeys(
+        for participantIds: [String],
+        conversationKey: SymmetricKey,
+        wrappedBy: String
+    ) async throws -> [String: [String: Any]] {
+        var wrappedKeys: [String: [String: Any]] = [:]
+        let conversationKeyData = conversationKey.withUnsafeBytes { Data($0) }
+
+        for participantId in participantIds {
+            guard let identity = try await fetchChatIdentity(for: participantId) else {
+                continue
+            }
+
+            let wrappedKey = try wrapConversationKey(
+                conversationKeyData,
+                for: identity,
+                wrappedBy: wrappedBy
+            )
+            wrappedKeys[participantId] = wrappedKey.asFirestoreData()
+        }
+
+        return wrappedKeys
+    }
+
+    private func loadOrCreateLocalChatIdentity(for userId: String) async throws -> LocalChatIdentity {
+        let keyTag = chatIdentityKeyPrefix + userId
+
+        if let existingData = try? retrieveDataFromKeychain(tag: keyTag) {
+            let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: existingData)
+            let publicKeyBase64 = privateKey.publicKey.rawRepresentation.base64EncodedString()
+            let stableKeyId = try await resolveStableChatKeyId(for: userId, publicKeyBase64: publicKeyBase64)
+            return LocalChatIdentity(
+                record: ChatIdentityRecord(
+                    keyId: stableKeyId,
+                    publicKeyBase64: publicKeyBase64
+                ),
+                privateKey: privateKey
+            )
+        }
+
+        let privateKey = Curve25519.KeyAgreement.PrivateKey()
+        try storeDataInKeychain(data: privateKey.rawRepresentation, tag: keyTag)
+        let publicKeyBase64 = privateKey.publicKey.rawRepresentation.base64EncodedString()
+        let stableKeyId = try await resolveStableChatKeyId(for: userId, publicKeyBase64: publicKeyBase64)
+
+        return LocalChatIdentity(
+            record: ChatIdentityRecord(
+                keyId: stableKeyId,
+                publicKeyBase64: publicKeyBase64
+            ),
+            privateKey: privateKey
+        )
+    }
+
+    private func syncChatIdentityRecord(_ record: ChatIdentityRecord, for userId: String) async throws {
+        persistLocalChatKeyId(record.keyId, for: userId)
+        try await db.collection("users")
+            .document(userId)
+            .setData([
+                "chatKey": record.asFirestoreData()
+            ], merge: true)
+    }
+
+    private func resolveStableChatKeyId(
+        for userId: String,
+        publicKeyBase64: String,
+        preferredKeyId: String? = nil
+    ) async throws -> String {
+        if let preferredKeyId, !preferredKeyId.isEmpty {
+            persistLocalChatKeyId(preferredKeyId, for: userId)
+            return preferredKeyId
+        }
+
+        if let localKeyId = storedLocalChatKeyId(for: userId), !localKeyId.isEmpty {
+            return localKeyId
+        }
+
+        let userDoc = try await db.collection("users").document(userId).getDocument()
+        if
+            let data = userDoc.data(),
+            let chatKey = data["chatKey"] as? [String: Any],
+            let remoteIdentity = ChatIdentityRecord(map: chatKey),
+            remoteIdentity.publicKeyBase64 == publicKeyBase64
+        {
+            persistLocalChatKeyId(remoteIdentity.keyId, for: userId)
+            return remoteIdentity.keyId
+        }
+
+        if
+            let recoveryData = try? await db.collection("users")
+                .document(userId)
+                .collection("chatRecovery")
+                .document("default")
+                .getDocument()
+                .data(),
+            let recoveryBundle = ChatRecoveryBundle(map: recoveryData),
+            let recoveryKeyId = recoveryBundle.keyId,
+            !recoveryKeyId.isEmpty
+        {
+            persistLocalChatKeyId(recoveryKeyId, for: userId)
+            return recoveryKeyId
+        }
+
+        let generatedKeyId = UUID().uuidString
+        persistLocalChatKeyId(generatedKeyId, for: userId)
+        return generatedKeyId
+    }
+
+    private func persistLocalChatKeyId(_ keyId: String, for userId: String) {
+        UserDefaults.standard.set(keyId, forKey: chatIdentityKeyIdPrefix + userId)
+    }
+
+    private func recoveryAttemptsKey(for userId: String) -> String {
+        chatRecoveryAttemptsPrefix + userId
+    }
+
+    private func recoveryLockoutKey(for userId: String) -> String {
+        chatRecoveryLockoutPrefix + userId
+    }
+
+    private func currentRecoveryAttemptState(for userId: String) -> ChatRecoveryAttemptState {
+        let defaults = UserDefaults.standard
+        let attemptsKey = recoveryAttemptsKey(for: userId)
+        let lockoutKey = recoveryLockoutKey(for: userId)
+
+        let failedAttempts = defaults.integer(forKey: attemptsKey)
+        let lockedUntil = defaults.object(forKey: lockoutKey) as? Date
+
+        if let lockedUntil, lockedUntil.timeIntervalSinceNow <= 0 {
+            defaults.removeObject(forKey: attemptsKey)
+            defaults.removeObject(forKey: lockoutKey)
+            return ChatRecoveryAttemptState(maxAttempts: chatRecoveryMaxAttempts)
+        }
+
+        return ChatRecoveryAttemptState(
+            failedAttempts: failedAttempts,
+            maxAttempts: chatRecoveryMaxAttempts,
+            lockedUntil: lockedUntil
+        )
+    }
+
+    private func registerFailedRecoveryAttempt(for userId: String) {
+        let defaults = UserDefaults.standard
+        let attemptsKey = recoveryAttemptsKey(for: userId)
+        let lockoutKey = recoveryLockoutKey(for: userId)
+
+        let nextAttemptCount = defaults.integer(forKey: attemptsKey) + 1
+        defaults.set(nextAttemptCount, forKey: attemptsKey)
+
+        if nextAttemptCount >= chatRecoveryMaxAttempts {
+            defaults.set(Date().addingTimeInterval(chatRecoveryLockoutDuration), forKey: lockoutKey)
+            defaults.removeObject(forKey: attemptsKey)
+        }
+    }
+
+    private func clearRecoveryAttemptState(for userId: String) {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: recoveryAttemptsKey(for: userId))
+        defaults.removeObject(forKey: recoveryLockoutKey(for: userId))
+    }
+
+    private func formatRecoveryLockoutDuration(_ interval: TimeInterval) -> String {
+        let totalSeconds = max(1, Int(interval.rounded(.up)))
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func storedLocalChatKeyId(for userId: String) -> String? {
+        UserDefaults.standard.string(forKey: chatIdentityKeyIdPrefix + userId)
+    }
+
+    private func deleteLocalChatIdentity(for userId: String) throws {
+        let keyTag = chatIdentityKeyPrefix + userId
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keyChainService,
+            kSecAttrAccount as String: keyTag
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            throw EncryptionError.keychainError("Failed to delete key (\(keyTag)): \(status)")
+        }
+    }
+
+    private func wrapConversationKey(
+        _ conversationKeyData: Data,
+        for identity: ChatIdentityRecord,
+        wrappedBy: String
+    ) throws -> WrappedConversationKey {
+        guard let recipientPublicKeyData = Data(base64Encoded: identity.publicKeyBase64) else {
+            throw EncryptionError.invalidInput
+        }
+
+        let recipientPublicKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: recipientPublicKeyData)
+        let ephemeralPrivateKey = Curve25519.KeyAgreement.PrivateKey()
+        let sharedSecret = try ephemeralPrivateKey.sharedSecretFromKeyAgreement(with: recipientPublicKey)
+        let wrappingKey = sharedSecret.hkdfDerivedSymmetricKey(
+            using: SHA256.self,
+            salt: Data(),
+            sharedInfo: chatWrapInfo,
+            outputByteCount: 32
+        )
+
+        let sealedBox = try AES.GCM.seal(conversationKeyData, using: wrappingKey)
+        guard let combined = sealedBox.combined else {
+            throw EncryptionError.encryptionFailed
+        }
+
+        return WrappedConversationKey(
+            wrappedKey: combined.base64EncodedString(),
+            senderPublicKey: ephemeralPrivateKey.publicKey.rawRepresentation.base64EncodedString(),
+            recipientKeyId: identity.keyId,
+            wrappedBy: wrappedBy
+        )
+    }
+
+    private func unwrapConversationKey(_ wrappedKey: WrappedConversationKey, for userId: String) throws -> SymmetricKey {
+        let keyTag = chatIdentityKeyPrefix + userId
+        let privateKeyData = try retrieveDataFromKeychain(tag: keyTag)
+        let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData)
+
+        guard
+            let senderPublicKeyData = Data(base64Encoded: wrappedKey.senderPublicKey),
+            let wrappedKeyData = Data(base64Encoded: wrappedKey.wrappedKey)
+        else {
+            throw EncryptionError.invalidInput
+        }
+
+        let senderPublicKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: senderPublicKeyData)
+        let sharedSecret = try privateKey.sharedSecretFromKeyAgreement(with: senderPublicKey)
+        let wrappingKey = sharedSecret.hkdfDerivedSymmetricKey(
+            using: SHA256.self,
+            salt: Data(),
+            sharedInfo: chatWrapInfo,
+            outputByteCount: 32
+        )
+        let sealedBox = try AES.GCM.SealedBox(combined: wrappedKeyData)
+        let unwrappedKeyData = try AES.GCM.open(sealedBox, using: wrappingKey)
+        return SymmetricKey(data: unwrappedKeyData)
+    }
+
+    private func persistWrappedKeyIfNeeded(
+        conversationId: String,
+        conversationData: [String: Any],
+        conversationKey: SymmetricKey,
+        for userId: String
+    ) async {
+        guard let identity = try? await fetchChatIdentity(for: userId) else {
+            return
+        }
+
+        let existingWrappedKeys = conversationData["wrappedKeys"] as? [String: Any] ?? [:]
+        guard existingWrappedKeys[userId] == nil else {
+            return
+        }
+
+        let conversationKeyData = conversationKey.withUnsafeBytes { Data($0) }
+        guard let wrappedKey = try? wrapConversationKey(conversationKeyData, for: identity, wrappedBy: userId) else {
+            return
+        }
+
+        do {
+            try await db.collection("conversations")
+                .document(conversationId)
+                .setData([
+                    "wrappedKeys": [
+                        userId: wrappedKey.asFirestoreData()
+                    ],
+                    "conversationKeyVersion": 1,
+                    "encryptionVersion": "3.0"
+                ], merge: true)
+        } catch {
+        }
+    }
+
     // MARK: - 🚀 CONVERSATION KEYS ULTRA RÁPIDAS con Concurrent Loading
     private func getConversationKey(for conversationId: String) async throws -> SymmetricKey {
         // Input validation
@@ -1155,34 +1681,65 @@ class EncryptionService: ObservableObject {
         
         // Fetch from Firestore with timeout
         return try await withTimeout(seconds: 5) {
-            try await self.getSharedConversationKeyFromFirestore(conversationId: conversationId)
+            try await self.getConversationKeyFromFirestore(conversationId: conversationId)
         }
     }
     
     // MARK: - 🚀 FIRESTORE OPERATIONS Optimizadas
-    private func getSharedConversationKeyFromFirestore(conversationId: String) async throws -> SymmetricKey {
-        
+    private func getConversationKeyFromFirestore(conversationId: String) async throws -> SymmetricKey {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
         do {
             let snapshot = try await db.collection("conversations")
                 .document(conversationId)
                 .getDocument()
             
-            if let data = snapshot.data(),
-               let keyDataString = data["sharedEncryptionKey"] as? String,
+            guard let data = snapshot.data() else {
+                throw EncryptionError.keyNotFound
+            }
+
+            if
+                let wrappedKeys = data["wrappedKeys"] as? [String: Any],
+                let wrappedKeyMap = wrappedKeys[currentUserId] as? [String: Any],
+                let wrappedKey = WrappedConversationKey(map: wrappedKeyMap)
+            {
+                let conversationKey = try unwrapConversationKey(wrappedKey, for: currentUserId)
+                await cacheConversationKey(conversationId: conversationId, key: conversationKey)
+                await updateMetrics { $0.firestoreHits += 1 }
+                return conversationKey
+            }
+
+            if let keyDataString = data["sharedEncryptionKey"] as? String,
                let keyData = Data(base64Encoded: keyDataString) {
-                
-                // Use existing shared key
                 let sharedKey = SymmetricKey(data: keyData)
                 await cacheConversationKey(conversationId: conversationId, key: sharedKey)
+                await persistWrappedKeyIfNeeded(
+                    conversationId: conversationId,
+                    conversationData: data,
+                    conversationKey: sharedKey,
+                    for: currentUserId
+                )
                 await updateMetrics { $0.firestoreHits += 1 }
                 return sharedKey
-                
-            } else {
-                // Create new shared key with atomic write
-                let newKey = try await createNewSharedConversationKey(conversationId: conversationId)
-                await updateMetrics { $0.newKeysCreated += 1 }
-                return newKey
             }
+
+            if let keyDataString = data["encryptionKey"] as? String,
+               let keyData = Data(base64Encoded: keyDataString) {
+                let sharedKey = SymmetricKey(data: keyData)
+                await cacheConversationKey(conversationId: conversationId, key: sharedKey)
+                await persistWrappedKeyIfNeeded(
+                    conversationId: conversationId,
+                    conversationData: data,
+                    conversationKey: sharedKey,
+                    for: currentUserId
+                )
+                await updateMetrics { $0.firestoreHits += 1 }
+                return sharedKey
+            }
+
+            throw EncryptionError.keyNotFound
             
         } catch {
             await updateMetrics {
@@ -1853,6 +2410,47 @@ class EncryptionService: ObservableObject {
         }
         
         return SymmetricKey(data: keyData)
+    }
+
+    private func storeDataInKeychain(data: Data, tag: String) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keyChainService,
+            kSecAttrAccount as String: tag,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable as String: false
+        ]
+
+        SecItemDelete(query as CFDictionary)
+
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw EncryptionError.keychainError("Failed to store data (\(tag)): \(status)")
+        }
+    }
+
+    private func retrieveDataFromKeychain(tag: String) throws -> Data {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keyChainService,
+            kSecAttrAccount as String: tag,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        guard status == errSecSuccess else {
+            throw EncryptionError.keychainError("Failed to retrieve data (\(tag)): \(status)")
+        }
+
+        guard let data = result as? Data else {
+            throw EncryptionError.keychainError("Invalid keychain data for: \(tag)")
+        }
+
+        return data
     }
     
     // MARK: - 📊 METRICS & MONITORING

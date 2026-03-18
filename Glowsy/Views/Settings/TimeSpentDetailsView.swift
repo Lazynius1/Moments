@@ -6,7 +6,7 @@ struct TimeSpentDetailsView: View {
 
     var body: some View {
         ZStack {
-            Color(colorScheme == .dark ? .black : .white)
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {

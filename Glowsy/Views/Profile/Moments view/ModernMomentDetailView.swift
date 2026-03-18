@@ -85,9 +85,6 @@ struct ModernMomentDetailView: View {
                             selectedUserId = normalizedUserId
                             showUserProfile = true
                         }
-                    },
-                    onLocationTap: { tappedMoment in
-                        openLocationMap(for: tappedMoment)
                     }
                 )
                 .ignoresSafeArea(.container, edges: .top) // ✅ El header debe ignorar el safe area para pegarse al notch
@@ -97,10 +94,10 @@ struct ModernMomentDetailView: View {
                 VStack(spacing: 0) {
                     modernMomentsScrollView(
                         geometry: geometry,
-                        safeAreaBottom: safeAreaBottom
+                        safeAreaBottom: safeAreaBottom,
+                        topContentInset: safeAreaTop + 18
                     )
                 }
-                .padding(.top, safeAreaTop + 10) // Ajustado: el header ahora es más compacto
                 .offset(x: dragOffset)
                 .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0) // ✅ Escala durante drag
                 
@@ -313,10 +310,13 @@ struct ModernMomentDetailView: View {
     }
     
     // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual
-    private func modernMomentsScrollView(geometry: GeometryProxy, safeAreaBottom: CGFloat) -> some View {
+    private func modernMomentsScrollView(geometry: GeometryProxy, safeAreaBottom: CGFloat, topContentInset: CGFloat) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 40) {
+                    Color.clear
+                        .frame(height: topContentInset)
+
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
                         ScreenshotProtectedView(
                             isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
@@ -341,6 +341,9 @@ struct ModernMomentDetailView: View {
                                     // ✅ NAVEGACIÓN A PERFIL
                                     selectedUserId = userId
                                     showUserProfile = true
+                                },
+                                onLocationTap: {
+                                    openLocationMap(for: moment)
                                 },
                                 onPeek: { imageURL, ratio, isPressing in
                                     // ✅ LONG PRESS PEEK
@@ -418,7 +421,6 @@ struct ModernDetailHeader: View {
     let moment: Moment?
     let safeAreaTop: CGFloat
     let onAvatarTap: (String, Bool) -> Void
-    let onLocationTap: (Moment) -> Void
     @Environment(\.colorScheme) var colorScheme
     @State private var liveUsername: String = ""
 
@@ -426,8 +428,8 @@ struct ModernDetailHeader: View {
         VStack(spacing: 0) {
             // Relleno ajustado para el área segura (notch)
             Color.clear
-                .frame(height: max(20, safeAreaTop - 10)) 
-            
+                .frame(height: max(20, safeAreaTop - 10))
+
             HStack {
                 Spacer()
                 
@@ -461,24 +463,6 @@ struct ModernDetailHeader: View {
                                 .font(.custom("Poppins-Regular", size: 10))
                                 .foregroundColor(.secondary.opacity(0.7))
                             
-                            if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
-                               !location.isEmpty {
-                                Button(action: {
-                                    onLocationTap(moment)
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "location.fill")
-                                            .font(.system(size: 10, weight: .medium))
-                                            .foregroundColor(.blue.opacity(0.85))
-                                        
-                                        Text(location)
-                                            .font(.custom("Poppins-Regular", size: 11))
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
                         }
                     }
                 }
@@ -492,7 +476,7 @@ struct ModernDetailHeader: View {
                 .background(Color.white.opacity(0.04)) // Más sutil
         }
         .background(
-            colorScheme == .dark ? Color(hex: "0A0A0A") : Color.white
+            colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
         )
         .onAppear {
             resolveAuthorUsername()
@@ -540,6 +524,7 @@ struct ModernDetailMomentCard: View {
     let onContextMenu: () -> Void
     let onHashtagTap: (String) -> Void
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
+    var onLocationTap: (() -> Void)? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK callback
     
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -677,6 +662,36 @@ struct ModernDetailMomentCard: View {
                         .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 10)
                         .onAppear {
                             detectAspectRatio()
+                        }
+
+                        if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+                           !location.isEmpty {
+                            VStack {
+                                HStack {
+                                    Button(action: {
+                                        onLocationTap?()
+                                    }) {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "location.fill")
+                                                .font(.system(size: 11, weight: .semibold))
+
+                                            Text(location)
+                                                .font(.custom("Poppins-Medium", size: 12))
+                                                .lineLimit(1)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .liquidGlass(in: Capsule())
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+
+                                    Spacer()
+                                }
+
+                                Spacer()
+                            }
+                            .padding(.top, 14)
+                            .padding(.leading, 14)
                         }
                         
                         // Los indicadores de Reels y botón de mute ya los proporciona el CroppedVideoPlayer
@@ -1081,24 +1096,8 @@ struct ModernDetailBackground: View {
     
     var body: some View {
         ZStack {
-            if colorScheme == .dark {
-                // Mismo fondo que el Feed - negro suave y elegante
-                Color(hex: "0A0A0A")
-                    .ignoresSafeArea()
-            } else {
-                // Fondo claro elegante
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea()
-            }
         }
     }
 }

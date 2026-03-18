@@ -5,7 +5,7 @@ import AuthenticationServices
 
 struct SettingsProfileColors {
     static var background: Color {
-        Color(UIColor.systemBackground)
+        Color(hex: "FAF9F6")
     }
     
     static var secondaryBackground: Color {
@@ -13,11 +13,11 @@ struct SettingsProfileColors {
     }
     
     static var cardBackground: Color {
-        Color(UIColor.systemBackground).opacity(0.8)
+        Color(hex: "FAF9F6").opacity(0.8)
     }
     
     static var materialBackground: Color {
-        Color(UIColor.systemBackground).opacity(0.95)
+        Color(hex: "FAF9F6").opacity(0.95)
     }
     
     static var textPrimary: Color {
@@ -244,9 +244,9 @@ struct SettingsView: View {
     private var modernBackgroundView: some View {
         ZStack {
             if colorScheme == .dark {
-                Color.black
+                Color(hex: "0B1215")
             } else {
-                Color(hex: "f8f9fa")
+                Color(hex: "FAF9F6")
             }
             
             Rectangle()
@@ -458,7 +458,7 @@ struct SettingsRow: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 19, weight: .regular))
-                    .foregroundColor(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
+                    .foregroundColor(iconForegroundColor)
                     .frame(width: 28, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 1) {
@@ -493,6 +493,16 @@ struct SettingsRow: View {
                 .opacity(0.2)
                 .padding(.leading, 42)
         }
+    }
+
+    private var iconForegroundColor: Color {
+        if isDestructive {
+            return .red
+        }
+        if icon == "star.fill" {
+            return Color(hex: "34C759")
+        }
+        return colorScheme == .dark ? .white : .black
     }
 }
 
@@ -540,7 +550,7 @@ struct AdvancedAccountManagementView: View {
     
     var body: some View {
         ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
             
             Form {
                 // Warning section
@@ -857,7 +867,7 @@ struct PrivacySection: View {
                 subtitle: getConnectionPrivacyStatus(),
                 action: { isShowingConnections = true })
 
-            SettingsRow(icon: "person.2.fill",
+            SettingsRow(icon: "star.fill",
                 title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
                 subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
                 action: { isShowingBestFriends = true })
@@ -934,107 +944,72 @@ struct ConnectionVisibilityView: View {
 
     var body: some View {
         NavigationView {
-            List {
-            Section(header:
-                Text("settings.privacy.control.title")
-                    .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(.gray)
-            ) {
-                HStack {
-                    Image(systemName: "eye.slash")
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .font(.system(size: 18))
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("settings.privacy.hideMutual")
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                        Text("settings.privacy.hideMutual.description")
+            ZStack {
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
+
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 20) {
+                        Text("settings.privacy.control.title")
+                            .font(.custom("Poppins-Medium", size: 12))
                             .foregroundColor(.gray)
-                            .font(.custom("Poppins-Regular", size: 12))
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: Binding(
-                        get: { !showMutualConnections },
-                        set: { newValue in
-                            showMutualConnections = !newValue
-                            viewModel.updatePrivacySettings(showMutualConnections: !newValue)
-                            let impact = UIImpactFeedbackGenerator(style: .light)
-                            impact.impactOccurred()
+
+                        VStack(spacing: 0) {
+                            privacyToggleRow(
+                                title: "settings.privacy.hideMutual",
+                                description: "settings.privacy.hideMutual.description",
+                                isOn: Binding(
+                                    get: { !showMutualConnections },
+                                    set: { newValue in
+                                        showMutualConnections = !newValue
+                                        viewModel.updatePrivacySettings(showMutualConnections: !newValue)
+                                        let impact = UIImpactFeedbackGenerator(style: .light)
+                                        impact.impactOccurred()
+                                    }
+                                )
+                            )
+
+                            Divider().opacity(0.2).padding(.leading, 32)
+
+                            privacyToggleRow(
+                                title: "settings.privacy.hideFollowing",
+                                description: "settings.privacy.hideFollowing.description",
+                                isOn: Binding(
+                                    get: { !showFollowing },
+                                    set: { newValue in
+                                        showFollowing = !newValue
+                                        viewModel.updatePrivacySettings(showFollowing: !newValue)
+                                        let impact = UIImpactFeedbackGenerator(style: .light)
+                                        impact.impactOccurred()
+                                    }
+                                )
+                            )
+
+                            Divider().opacity(0.2).padding(.leading, 32)
+
+                            privacyToggleRow(
+                                title: "settings.privacy.hideAdmirers",
+                                description: "settings.privacy.hideAdmirers.description",
+                                isOn: Binding(
+                                    get: { !showAdmirers },
+                                    set: { newValue in
+                                        showAdmirers = !newValue
+                                        viewModel.updatePrivacySettings(showAdmirers: !newValue)
+                                        let impact = UIImpactFeedbackGenerator(style: .light)
+                                        impact.impactOccurred()
+                                    }
+                                )
+                            )
                         }
-                    ))
-                        .tint(Color(hex: "4F46E5"))
-                }
-                .padding(.vertical, 4)
-                
-                HStack {
-                    Image(systemName: "eye.slash")
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .font(.system(size: 18))
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("settings.privacy.hideFollowing")
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                        Text("settings.privacy.hideFollowing.description")
-                            .foregroundColor(.gray)
-                            .font(.custom("Poppins-Regular", size: 12))
+
+                        Text("settings.privacy.control.description")
+                            .font(.custom("Poppins-Regular", size: 11))
+                            .foregroundColor(.gray.opacity(0.8))
+                            .padding(.top, 2)
                     }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: Binding(
-                        get: { !showFollowing },
-                        set: { newValue in
-                            showFollowing = !newValue
-                            viewModel.updatePrivacySettings(showFollowing: !newValue)
-                            let impact = UIImpactFeedbackGenerator(style: .light)
-                            impact.impactOccurred()
-                        }
-                    ))
-                        .tint(Color(hex: "4F46E5"))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 22)
                 }
-                .padding(.vertical, 4)
-                
-                HStack {
-                    Image(systemName: "eye.slash")
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .font(.system(size: 18))
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("settings.privacy.hideAdmirers")
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                        Text("settings.privacy.hideAdmirers.description")
-                            .foregroundColor(.gray)
-                            .font(.custom("Poppins-Regular", size: 12))
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: Binding(
-                        get: { !showAdmirers },
-                        set: { newValue in
-                            showAdmirers = !newValue
-                            viewModel.updatePrivacySettings(showAdmirers: !newValue)
-                            let impact = UIImpactFeedbackGenerator(style: .light)
-                            impact.impactOccurred()
-                        }
-                    ))
-                        .tint(Color(hex: "4F46E5"))
-                }
-                .padding(.vertical, 4)
             }
-            
-            Section(footer:
-                Text("settings.privacy.control.description")
-                    .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundColor(.gray.opacity(0.8))
-                    .padding(.top, 8)
-            ) {}
-        }
         .navigationTitle(NSLocalizedString("settings.connectionPrivacy", comment: "Connection Privacy"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true) // Ocultar botón de atrás
@@ -1048,8 +1023,31 @@ struct ConnectionVisibilityView: View {
                 }
             }
         }
-        .listRowBackground(SettingsListRowBackground())
         }
+    }
+
+    private func privacyToggleRow(title: LocalizedStringKey, description: LocalizedStringKey, isOn: Binding<Bool>) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: "eye.slash")
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .font(.system(size: 18))
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                Text(description)
+                    .foregroundColor(.gray)
+                    .font(.custom("Poppins-Regular", size: 12))
+            }
+
+            Spacer()
+
+            Toggle("", isOn: isOn)
+                .tint(Color(hex: "4F46E5"))
+        }
+        .padding(.vertical, 11)
     }
 }
 
@@ -1061,6 +1059,7 @@ struct SecuritySection: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showAlert = false
+    @State private var showChatRecoverySettings = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -1069,6 +1068,13 @@ struct SecuritySection: View {
                 title: NSLocalizedString("settings.sections.password", comment: "Password"),
                 subtitle: NSLocalizedString("settings.sections.password.subtitle", comment: "Change password"),
                 action: { isShowingPasswordChange = true }
+            )
+
+            SettingsRow(
+                icon: "lock.rotation",
+                title: NSLocalizedString("chatRecovery.settings.rowTitle", comment: "Chat recovery PIN"),
+                subtitle: NSLocalizedString("chatRecovery.settings.rowSubtitle", comment: "Restore encrypted chats after reinstalling the app"),
+                action: { showChatRecoverySettings = true }
             )
 
             // ✅ NUEVO: Vincular con Apple
@@ -1153,6 +1159,9 @@ struct SecuritySection: View {
                 .background(.ultraThinMaterial.opacity(0.3))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+        }
+        .sheet(isPresented: $showChatRecoverySettings) {
+            ChatRecoverySettingsView()
         }
     }
     
@@ -1482,7 +1491,7 @@ struct UsernameChangeSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -1665,130 +1674,154 @@ struct NotificationSettingsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
-                Form {
-                    Section(NSLocalizedString("settings.notifications.schedule.title", comment: "Notification Schedule")) {
-                        Toggle(NSLocalizedString("settings.notifications.schedule.enable", comment: "Set schedule"), isOn: $isScheduleEnabled)
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .tint(Color(hex: "4F46E5"))
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(alignment: .leading, spacing: 34) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(NSLocalizedString("settings.notifications.schedule.title", comment: "Notification Schedule"))
+                                .font(.custom("Poppins-Medium", size: 12))
+                                .foregroundColor(.gray)
+
+                            notificationToggleRow(
+                                title: NSLocalizedString("settings.notifications.schedule.enable", comment: "Set schedule"),
+                                isOn: $isScheduleEnabled
+                            )
                             .onChange(of: isScheduleEnabled) { enabled in
                                 if !enabled {
                                     viewModel.clearActiveHours()
                                 }
                             }
-                        
-                        if isScheduleEnabled {
-                            DatePicker(NSLocalizedString("settings.notifications.schedule.start", comment: "Start time"),
-                                       selection: $startTime,
-                                       displayedComponents: .hourAndMinute)
-                                .datePickerStyle(.compact)
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                            
-                            DatePicker(NSLocalizedString("settings.notifications.schedule.end", comment: "End time"),
-                                       selection: $endTime,
-                                       displayedComponents: .hourAndMinute)
-                                .datePickerStyle(.compact)
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                            
-                            Button(action: {
-                                guard !isSavingSchedule else { return }
-                                isSavingSchedule = true
-                                HapticManager.shared.lightImpact()
-                                viewModel.updateActiveHours(startTime: startTime, endTime: endTime) { error in
-                                    DispatchQueue.main.async {
-                                        isSavingSchedule = false
-                                        if let error = error {
-                                            HapticManager.shared.notification(.error)
-                                            scheduleErrorMessage = error.localizedDescription
-                                            showScheduleError = true
-                                            return
-                                        }
-                                        
-                                        HapticManager.shared.notification(.success)
-                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                                            showSavedSchedule = true
-                                        }
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
-                                            withAnimation(.easeOut(duration: 0.2)) {
-                                                showSavedSchedule = false
+
+                            if isScheduleEnabled {
+                                DatePicker(NSLocalizedString("settings.notifications.schedule.start", comment: "Start time"),
+                                           selection: $startTime,
+                                           displayedComponents: .hourAndMinute)
+                                    .datePickerStyle(.compact)
+                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .padding(.top, 2)
+
+                                DatePicker(NSLocalizedString("settings.notifications.schedule.end", comment: "End time"),
+                                           selection: $endTime,
+                                           displayedComponents: .hourAndMinute)
+                                    .datePickerStyle(.compact)
+                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .padding(.top, 2)
+
+                                Button(action: {
+                                    guard !isSavingSchedule else { return }
+                                    isSavingSchedule = true
+                                    HapticManager.shared.lightImpact()
+                                    viewModel.updateActiveHours(startTime: startTime, endTime: endTime) { error in
+                                        DispatchQueue.main.async {
+                                            isSavingSchedule = false
+                                            if let error = error {
+                                                HapticManager.shared.notification(.error)
+                                                scheduleErrorMessage = error.localizedDescription
+                                                showScheduleError = true
+                                                return
+                                            }
+
+                                            HapticManager.shared.notification(.success)
+                                            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                                                showSavedSchedule = true
+                                            }
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                    showSavedSchedule = false
+                                                }
                                             }
                                         }
                                     }
+                                }) {
+                                    HStack(spacing: 8) {
+                                        if isSavingSchedule {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
+                                                .scaleEffect(0.85)
+                                            Text(NSLocalizedString("settings.schedule.saving", comment: "Saving schedule"))
+                                        } else {
+                                            Image(systemName: "checkmark.circle")
+                                            Text(NSLocalizedString("settings.schedule.save", comment: "Save schedule"))
+                                        }
+                                    }
+                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(hex: "4F46E5").opacity(0.5), lineWidth: 1.5)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .scaleEffect(isSavingSchedule ? 0.98 : 1.0)
+                                    .animation(.easeInOut(duration: 0.15), value: isSavingSchedule)
                                 }
-                            }) {
-                                HStack(spacing: 8) {
-                                    if isSavingSchedule {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
-                                            .scaleEffect(0.85)
-                                        Text(NSLocalizedString("settings.schedule.saving", comment: "Saving schedule"))
-                                    } else {
-                                        Image(systemName: "checkmark.circle")
-                                        Text(NSLocalizedString("settings.schedule.save", comment: "Save schedule"))
+                                .buttonStyle(SaveSchedulePressStyle())
+                                .disabled(isSavingSchedule)
+                                .padding(.top, 4)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(NSLocalizedString("settings.notifications.types.title", comment: "Notification Types"))
+                                .font(.custom("Poppins-Medium", size: 12))
+                                .foregroundColor(.gray)
+
+                            VStack(spacing: 0) {
+                                ForEach(Array(NotificationType.allCases.enumerated()), id: \.element.rawValue) { index, type in
+                                    notificationToggleRow(
+                                        title: type.displayName,
+                                        isOn: Binding(
+                                            get: { viewModel.notificationPreferences[type.rawValue] ?? true },
+                                            set: { viewModel.updateNotificationPreference(type: type.rawValue, isEnabled: $0) }
+                                        )
+                                    )
+
+                                    if index < NotificationType.allCases.count - 1 {
+                                        Divider().padding(.leading, 4)
                                     }
                                 }
-                                .font(.custom("Poppins-SemiBold", size: 14))
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(hex: "4F46E5").opacity(0.5), lineWidth: 1.5)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .scaleEffect(isSavingSchedule ? 0.98 : 1.0)
-                                .animation(.easeInOut(duration: 0.15), value: isSavingSchedule)
                             }
-                            .buttonStyle(SaveSchedulePressStyle())
-                            .disabled(isSavingSchedule)
+                        }
+
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(NSLocalizedString("settings.notifications.advanced.title", comment: "Advanced Settings"))
+                                .font(.custom("Poppins-Medium", size: 12))
+                                .foregroundColor(.gray)
+
+                            VStack(spacing: 0) {
+                                notificationToggleRow(
+                                    title: NSLocalizedString("settings.notifications.mutualsOnly", comment: "Mutuals comments only"),
+                                    isOn: Binding(
+                                        get: { viewModel.notificationPreferences["commentsMutualsOnly"] ?? false },
+                                        set: { viewModel.updateNotificationPreference(type: "commentsMutualsOnly", isEnabled: $0) }
+                                    )
+                                )
+
+                                Divider().padding(.leading, 4)
+
+                                notificationToggleRow(
+                                    title: NSLocalizedString("settings.notifications.muteOldReactions", comment: "Mute reactions on old posts"),
+                                    isOn: Binding(
+                                        get: { viewModel.notificationPreferences["muteOldPostReactions"] ?? false },
+                                        set: { viewModel.updateNotificationPreference(type: "muteOldPostReactions", isEnabled: $0) }
+                                    )
+                                )
+                            }
+
+                            Text(NSLocalizedString("settings.notifications.oldPostsExplain", comment: "Old posts explanation"))
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .padding(.top, 4)
                         }
                     }
-                    .listRowBackground(SettingsListRowBackground())
-                    
-                    Section(NSLocalizedString("settings.notifications.types.title", comment: "Notification Types")) {
-                        ForEach(NotificationType.allCases, id: \.rawValue) { type in
-                            Toggle(type.displayName, isOn: Binding(
-                                get: { viewModel.notificationPreferences[type.rawValue] ?? true },
-                                set: { viewModel.updateNotificationPreference(type: type.rawValue, isEnabled: $0) }
-                            ))
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .tint(Color(hex: "4F46E5"))
-                        }
-                    }
-                    .listRowBackground(SettingsListRowBackground())
-                    
-                    Section(content: {
-                        Toggle(NSLocalizedString("settings.notifications.mutualsOnly", comment: "Mutuals comments only"), isOn: Binding(
-                            get: { viewModel.notificationPreferences["commentsMutualsOnly"] ?? false },
-                            set: { viewModel.updateNotificationPreference(type: "commentsMutualsOnly", isEnabled: $0) }
-                        ))
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .tint(Color(hex: "4F46E5"))
-                        
-                        Toggle(NSLocalizedString("settings.notifications.muteOldReactions", comment: "Mute reactions on old posts"), isOn: Binding(
-                            get: { viewModel.notificationPreferences["muteOldPostReactions"] ?? false },
-                            set: { viewModel.updateNotificationPreference(type: "muteOldPostReactions", isEnabled: $0) }
-                        ))
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .tint(Color(hex: "4F46E5"))
-                    }, header: {
-                        Text(NSLocalizedString("settings.notifications.advanced.title", comment: "Advanced Settings"))
-                    }, footer: {
-                        Text(NSLocalizedString("settings.notifications.oldPostsExplain", comment: "Old posts explanation"))
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    })
-                    .listRowBackground(SettingsListRowBackground())
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 22)
                 }
-                .scrollContentBackground(.hidden)
 
                 if showSavedSchedule {
                     VStack {
@@ -1846,6 +1879,14 @@ struct NotificationSettingsView: View {
             }
         }
     }
+
+    private func notificationToggleRow(title: String, isOn: Binding<Bool>) -> some View {
+        Toggle(title, isOn: isOn)
+            .font(.custom("Poppins-Regular", size: 14))
+            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .tint(Color(hex: "4F46E5"))
+            .padding(.vertical, 10)
+    }
 }
 
 private struct SaveSchedulePressStyle: ButtonStyle {
@@ -1862,7 +1903,11 @@ struct SettingsListRowBackground: View {
     
     var body: some View {
         RoundedRectangle(cornerRadius: 12)
-            .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
+            .fill(
+                colorScheme == .dark ?
+                Color(hex: "FAF9F6").opacity(0.05) :
+                Color(hex: "0B1215").opacity(0.04)
+            )
     }
 }
 

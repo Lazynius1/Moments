@@ -32,7 +32,7 @@ struct AccountHistoryActivityView: View {
     
     var body: some View {
         ZStack {
-            Color(colorScheme == .dark ? .black : .white)
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -352,7 +352,7 @@ struct AccountHistoryRowView: View {
                 // Timeline dot
                 ZStack {
                     Circle()
-                        .fill(Color(colorScheme == .dark ? .black : .white))
+                        .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                         .frame(width: 28, height: 28)
                         .overlay(
                             Circle()

@@ -14,10 +14,10 @@ struct GlassmorphicBackground: View {
         // iOS 26: fondo limpio y neutro — el Liquid Glass de los componentes
         // proporciona el efecto de profundidad sin necesidad de blobs
         if adaptiveColors.colorScheme == .dark {
-            Color(hex: "0A0A0A")
+            Color(hex: "0B1215")
                 .ignoresSafeArea()
         } else {
-            Color(.systemGroupedBackground)
+            Color(hex: "FAF9F6")
                 .ignoresSafeArea()
         }
     }
@@ -83,99 +83,109 @@ struct MessagingView: View {
     private let privacyService = PrivacyService()
     
     var body: some View {
-        NavigationStack { // ✅ CAMBIO 1: NavigationStack en lugar de NavigationView
-            ZStack {
-                GlassmorphicBackground(adaptiveColors: adaptiveColors)
-                
-                VStack(spacing: 0) {
-                    glassmorphicTopBar
+        ChatRecoveryGateView(onCancel: onDismiss) {
+            NavigationStack { // ✅ CAMBIO 1: NavigationStack en lugar de NavigationView
+                ZStack {
+                    GlassmorphicBackground(adaptiveColors: adaptiveColors)
                     
-                    if !viewModel.conversations.isEmpty {
-                        searchBar
-                    }
-                    
-                    conversationList
-                }
-            }
-            .navigationBarHidden(true)
-            .sheet(isPresented: $isShowingNewConversation) {
-                GlassmorphicNewConversationView(viewModel: viewModel) { conversation in
-                    if let conversation = conversation {
-                        selectedConversation = conversation // ✅ Navegar automáticamente
+                    VStack(spacing: 0) {
+                        glassmorphicTopBar
+                        
+                        if !viewModel.conversations.isEmpty {
+                            searchBar
+                        }
+                        
+                        conversationList
                     }
                 }
-            }
-            .sheet(isPresented: $showingMessageRequests) {
-                MessageRequestsView()
-            }
-            // ✅ CAMBIO 2: navigationDestination en lugar de NavigationLink con isActive
-            .navigationDestination(item: $selectedConversation) { conversation in
-                GlassmorphicChatView(conversation: conversation)
-            }
-            .navigationDestination(
-                isPresented: Binding(
-                    get: { targetConversationId != nil },
-                    set: { isPresented in
-                        if !isPresented {
-                            targetConversationId = nil
+                .navigationBarHidden(true)
+                .sheet(isPresented: $isShowingNewConversation) {
+                    GlassmorphicNewConversationView(viewModel: viewModel) { conversation in
+                        if let conversation = conversation {
+                            selectedConversation = conversation // ✅ Navegar automáticamente
                         }
                     }
-                )
-            ) {
-                if let conversationId = targetConversationId {
-                    // Buscar conversación por ID
-                    if let conversation = viewModel.conversations.first(where: { $0.id == conversationId }) {
+                }
+                .sheet(isPresented: $showingMessageRequests) {
+                    MessageRequestsView()
+                }
+                // ✅ CAMBIO 2: navigationDestination en lugar de NavigationLink con isActive
+                .navigationDestination(item: $selectedConversation) { conversation in
+                    ChatRecoveryGateView(onCancel: {
+                        selectedConversation = nil
+                    }) {
                         GlassmorphicChatView(conversation: conversation)
-                    } else {
-                        // Fallback si no se encuentra la conversación
-                        Text("messaging.conversation.notFound")
-                            .onAppear {
-                                targetConversationId = nil
-                            }
                     }
                 }
-            }
-            
-            .onAppear {
-                if let userId = Auth.auth().currentUser?.uid {
-                    viewModel.fetchConversations(for: userId)
-                    // ✅ SOLICITUDES: Escuchar solicitudes pendientes
-                    messageRequestService.listenToPendingRequests(for: userId)
-                    updatePendingRequestCount(for: userId)
-                } else {
-                    viewModel.errorMessage = NSLocalizedString("messaging.error.notAuthenticated", comment: "User not authenticated")
+                .navigationDestination(
+                    isPresented: Binding(
+                        get: { targetConversationId != nil },
+                        set: { isPresented in
+                            if !isPresented {
+                                targetConversationId = nil
+                            }
+                        }
+                    )
+                ) {
+                    if let conversationId = targetConversationId {
+                        // Buscar conversación por ID
+                        if let conversation = viewModel.conversations.first(where: { $0.id == conversationId }) {
+                            ChatRecoveryGateView(onCancel: {
+                                targetConversationId = nil
+                            }) {
+                                GlassmorphicChatView(conversation: conversation)
+                            }
+                        } else {
+                            // Fallback si no se encuentra la conversación
+                            Text("messaging.conversation.notFound")
+                                .onAppear {
+                                    targetConversationId = nil
+                                }
+                        }
+                    }
                 }
                 
-                // ✅ AGREGAR: Verificar si hay conversación objetivo
-                if let targetId = targetConversationId {
-                    navigateToConversation(id: targetId)
+                .onAppear {
+                    if let userId = Auth.auth().currentUser?.uid {
+                        viewModel.fetchConversations(for: userId)
+                        // ✅ SOLICITUDES: Escuchar solicitudes pendientes
+                        messageRequestService.listenToPendingRequests(for: userId)
+                        updatePendingRequestCount(for: userId)
+                    } else {
+                        viewModel.errorMessage = NSLocalizedString("messaging.error.notAuthenticated", comment: "User not authenticated")
+                    }
+                    
+                    // ✅ AGREGAR: Verificar si hay conversación objetivo
+                    if let targetId = targetConversationId {
+                        navigateToConversation(id: targetId)
+                    }
                 }
-            }
-            .onChange(of: authService.currentUser) { _ in
-                if let userId = Auth.auth().currentUser?.uid {
-                    viewModel.fetchConversations(for: userId)
+                .onChange(of: authService.currentUser) { _ in
+                    if let userId = Auth.auth().currentUser?.uid {
+                        viewModel.fetchConversations(for: userId)
+                    }
                 }
-            }
-            // ✅ AGREGAR: Listener para cuando cambie targetConversationId
-            .onChange(of: targetConversationId) { newTargetId in
-                if let targetId = newTargetId {
-                    navigateToConversation(id: targetId)
+                // ✅ AGREGAR: Listener para cuando cambie targetConversationId
+                .onChange(of: targetConversationId) { newTargetId in
+                    if let targetId = newTargetId {
+                        navigateToConversation(id: targetId)
+                    }
                 }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                viewModel.refreshVisibleUsers()
-            }
-            .onReceive(Timer.publish(every: 300, on: .main, in: .common).autoconnect()) { _ in
-                if !viewModel.conversations.isEmpty {
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     viewModel.refreshVisibleUsers()
                 }
-            }
-            .onReceive(navigationService.$pendingNavigation) { navigation in
-                guard let navigation = navigation else { return }
-                
-                if case .conversation(let conversationId) = navigation {
-                    targetConversationId = conversationId
-                    navigationService.clearPendingNavigation()
+                .onReceive(Timer.publish(every: 300, on: .main, in: .common).autoconnect()) { _ in
+                    if !viewModel.conversations.isEmpty {
+                        viewModel.refreshVisibleUsers()
+                    }
+                }
+                .onReceive(navigationService.$pendingNavigation) { navigation in
+                    guard let navigation = navigation else { return }
+                    
+                    if case .conversation(let conversationId) = navigation {
+                        targetConversationId = conversationId
+                        navigationService.clearPendingNavigation()
+                    }
                 }
             }
         }
@@ -818,7 +828,7 @@ struct SearchConversationRow: View {
                     .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(.white)
                 
-                Text(conversation.lastMessage ?? NSLocalizedString("messaging.chat.emptyPreview", comment: "Start a chat preview"))
+                Text(conversation.messagePreview)
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(.white.opacity(0.7))
                     .lineLimit(1)
@@ -1015,7 +1025,7 @@ struct GlassmorphicConversationRow: View {
                 Button(action: {
                     onTap() // ✅ Abrir el chat
                 }) {
-                    Text(conversation.lastMessage ?? NSLocalizedString("messaging.chat.emptyPreview", comment: "Start a chat preview"))
+                    Text(conversation.messagePreview)
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
                         .lineLimit(1)
@@ -1970,7 +1980,7 @@ class MessagingViewModel: ObservableObject {
                         let updatedConversation = Conversation(
                             id: existingConversation.id,
                             participants: existingConversation.participants,
-                            lastMessage: trimmedInitial,
+                            lastMessage: MessageType.text.conversationPreview,
                             timestamp: Date(),
                             readStatus: existingConversation.readStatus,
                             otherParticipantId: existingConversation.otherParticipantId,
@@ -2023,7 +2033,7 @@ class MessagingViewModel: ObservableObject {
                             let immediateConversation = Conversation(
                                 id: conversationId,
                                 participants: [userId, user.id].sorted(),
-                                lastMessage: initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+                                lastMessage: MessageType.text.conversationPreview,
                                 timestamp: Date(),
                                 readStatus: [userId: true, user.id: false],
                                 otherParticipantId: user.id,
@@ -2138,7 +2148,7 @@ class MessagingViewModel: ObservableObject {
                 }
             }
     }
-    
+
     func stopListening() {
         if let userId = Auth.auth().currentUser?.uid {
             chatService.removeConversationsListener(for: userId)

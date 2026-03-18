@@ -557,17 +557,7 @@ struct SavedMomentsView: View {
     
     private var background: some View {
         ZStack {
-            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-            LinearGradient(
-                colors: [
-                    Color(hex: "2563EB").opacity(colorScheme == .dark ? 0.24 : 0.12),
-                    Color(hex: "007AFF").opacity(colorScheme == .dark ? 0.20 : 0.09),
-                    Color.clear
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
         }
     }
     
@@ -1267,7 +1257,7 @@ struct ModernSavedMomentsDetailView: View {
                 
                 if (isPeeking || peekOverlayProgress > 0.01), let imageURL = peekImageURL {
                     ZStack {
-                        Color.black
+                        Color(hex: "0B1215")
                             .opacity(Double(0.22 * peekOverlayProgress))
                             .ignoresSafeArea()
                         
