@@ -333,7 +333,7 @@ struct NotificationsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(colorScheme == .dark ? Color(hex: "0A0A0A") : Color.white)
+            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
         }
         
         private func localizedDateString(_ dateString: String) -> String {

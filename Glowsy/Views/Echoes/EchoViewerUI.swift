@@ -214,6 +214,8 @@ struct EchoViewerUI: View {
                         url: url,
                         isPlaying: $viewModel.isVideoPlaying,
                         isHorizontalVideo: isHorizontal,
+                        videoGravity: isHorizontal ? .resizeAspect : .resizeAspectFill,
+                        shouldLoop: true,
                         onProgressUpdate: { _ in },
                         onVideoComplete: { }
                     )

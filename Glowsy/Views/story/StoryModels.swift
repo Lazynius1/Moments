@@ -939,6 +939,8 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     let url: URL
     @Binding var isPlaying: Bool
     let isHorizontalVideo: Bool
+    let videoGravity: AVLayerVideoGravity
+    let shouldLoop: Bool
     let onProgressUpdate: (Double) -> Void
     let onVideoComplete: () -> Void
 
@@ -952,13 +954,19 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         // ✅ USAR VIDEOPRELOADER PARA INICIO INSTANTÁNEO
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
         
-        // ✅ LOOP FIX: Usar AVQueuePlayer + AVPlayerLooper
-        let player = AVQueuePlayer(items: [playerItem])
-        context.coordinator.playerLooper = AVPlayerLooper(player: player, templateItem: playerItem)
+        let player: AVPlayer
+        if shouldLoop {
+            let queuePlayer = AVQueuePlayer(items: [playerItem])
+            context.coordinator.playerLooper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
+            player = queuePlayer
+        } else {
+            context.coordinator.playerLooper = nil
+            player = AVPlayer(playerItem: playerItem)
+        }
         
         controller.player = player
         controller.showsPlaybackControls = false
-        controller.videoGravity = .resizeAspect // Inicial por defecto
+        controller.videoGravity = videoGravity
         controller.view.backgroundColor = .clear
         context.coordinator.player = player
         context.coordinator.onProgressUpdate = onProgressUpdate
@@ -987,8 +995,15 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             
             // 2. CREATE NEW PLAYER
             let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
-            let newPlayer = AVQueuePlayer(items: [playerItem])
-            context.coordinator.playerLooper = AVPlayerLooper(player: newPlayer, templateItem: playerItem)
+            let newPlayer: AVPlayer
+            if shouldLoop {
+                let queuePlayer = AVQueuePlayer(items: [playerItem])
+                context.coordinator.playerLooper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
+                newPlayer = queuePlayer
+            } else {
+                context.coordinator.playerLooper = nil
+                newPlayer = AVPlayer(playerItem: playerItem)
+            }
             
             uiViewController.player = newPlayer
             context.coordinator.player = newPlayer
@@ -999,6 +1014,10 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             
             // 4. CONFIGURE GRAVITY
             context.coordinator.configureVideoGravity(for: uiViewController)
+        }
+
+        if uiViewController.videoGravity != videoGravity {
+            uiViewController.videoGravity = videoGravity
         }
         
         // ✅ EVITAR LOOP: Verificar estado actual del player
@@ -1024,7 +1043,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     class Coordinator: NSObject {
         var parent: GlassmorphicStoryVideoPlayer
         var player: AVPlayer?
-        var playerLooper: AVPlayerLooper? // ✅ LOOP REF
+        var playerLooper: AVPlayerLooper?
         var timeObserver: Any?
         var onProgressUpdate: ((Double) -> Void)?
         var onVideoComplete: (() -> Void)?
@@ -1039,10 +1058,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         
         // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN DEL VIDEO
         func configureVideoGravity(for controller: AVPlayerViewController) {
-            // ✅ CORREGIDO: Usar siempre .resizeAspect para evitar zoom/recorte
-            // El fondo borroso (blur) llenará el espacio vacío, manteniendo el estilo inmersivo
-            // pero mostrando el contenido completo (sin recortar bordes en pantallas altas)
-            controller.videoGravity = .resizeAspect
+            controller.videoGravity = parent.videoGravity
         }
         
         func cleanupObservers() {
@@ -1081,15 +1097,17 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
                 }
             }
             
-            // ✅ OBSERVER DE COMPLETACIÓN (Para progress bar reset, el loop lo hace AVPlayerLooper)
+            // ✅ OBSERVER DE COMPLETACIÓN: avanzar a la siguiente historia al terminar
             completionObserver = NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
                 object: player?.currentItem,
                 queue: .main
             ) { [weak self] _ in
-                // El loop es automático, pero notificamos para resetear UI si hace falta
                 self?.onProgressUpdate?(0.0)
-                // self?.onVideoComplete?() // Opcional, si queremos acción al terminar loop
+                if self?.parent.shouldLoop == true {
+                    return
+                }
+                self?.onVideoComplete?()
             }
         }
         
@@ -1099,6 +1117,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             player?.pause()
             player?.isMuted = true
             player?.replaceCurrentItem(with: nil)
+            playerLooper = nil
             player = nil
             
             // ✅ CLEANUP DE AUDIO SESSION
@@ -1252,7 +1271,10 @@ struct GlassmorphicStoryViewer: View {
         )
         let mediaAspectRatio = Self.parseAspectRatio(story.aspectRatio)
             ?? (resolvedContainerSize.width / resolvedContainerSize.height)
-        let contentMode: SwiftUI.ContentMode = Self.isHorizontalAspectRatio(story.aspectRatio) ? .fit : .fill
+        let contentMode = StoryMediaLayoutRules.presentationMode(
+            for: mediaAspectRatio,
+            canvasAspectRatio: resolvedContainerSize.width / max(resolvedContainerSize.height, 1)
+        ).swiftUIContentMode
         
         return Self.contentRect(
             containerSize: resolvedContainerSize,
@@ -2361,7 +2383,18 @@ struct GlassmorphicStoryViewer: View {
     }
     
     private var contentView: some View {
-        ScreenshotProtectedView(isProtected: (story.audience?.lowercased() ?? "") != "everyone", fillsContainer: true) {
+        let resolvedScreenSize = CGSize(
+            width: max(screenSize.width, 1),
+            height: max(screenSize.height, 1)
+        )
+        let mediaAspectRatio = GlassmorphicStoryViewer.parseAspectRatio(story.aspectRatio)
+            ?? (resolvedScreenSize.width / resolvedScreenSize.height)
+        let presentationMode = StoryMediaLayoutRules.presentationMode(
+            for: mediaAspectRatio,
+            canvasAspectRatio: resolvedScreenSize.width / resolvedScreenSize.height
+        )
+
+        return ScreenshotProtectedView(isProtected: (story.audience?.lowercased() ?? "") != "everyone", fillsContainer: true) {
             ZStack {
                 // ✅ CONTENIDO PRINCIPAL (imagen/video)
                 Group {
@@ -2373,6 +2406,8 @@ struct GlassmorphicStoryViewer: View {
                             set: { isPaused = !$0 }
                         ),
                         isHorizontalVideo: GlassmorphicStoryViewer.isHorizontalAspectRatio(story.aspectRatio),
+                        videoGravity: presentationMode.videoGravity,
+                        shouldLoop: false,
                         onProgressUpdate: { newProgress in
                             // ✅ ACTUALIZAR PROGRESO DE LA HISTORIA (con verificación)
                             guard currentStoryId == story.id else { return }
@@ -2385,15 +2420,11 @@ struct GlassmorphicStoryViewer: View {
                             }
                         }
                     )
-                    .aspectRatio(contentMode: {
-                        let isHorizontal = GlassmorphicStoryViewer.isHorizontalAspectRatio(story.aspectRatio)
-                        return isHorizontal ? .fit : .fill
-                    }())
                     .frame(width: screenSize.width, height: screenSize.height)
                     .background(
-                        // ✅ FONDO CON IMAGEN PRECARGADA para videos horizontales
                         Group {
-                            if let backgroundFrameURL = story.backgroundFrameURL,
+                            if presentationMode == .fitWithBlur,
+                               let backgroundFrameURL = story.backgroundFrameURL,
                                let url = URL(string: backgroundFrameURL) {
                                 KFImage(url)
                                     .resizable()
@@ -2428,11 +2459,7 @@ struct GlassmorphicStoryViewer: View {
                             }
                         }
                         .resizable()
-                        .aspectRatio(contentMode: {
-                            // ✅ MISMA LÓGICA QUE VIDEOS: Usar aspectRatio del story
-                            let isHorizontal = GlassmorphicStoryViewer.isHorizontalAspectRatio(story.aspectRatio)
-                            return isHorizontal ? .fit : .fill
-                        }())
+                        .aspectRatio(contentMode: presentationMode.swiftUIContentMode)
                         .frame(width: screenSize.width, height: screenSize.height)
                         .background(
                             // ✅ FONDO BLUR para imágenes (usando la misma imagen con blur)

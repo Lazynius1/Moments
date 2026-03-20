@@ -1,6 +1,58 @@
 import SwiftUI
 import AVFoundation
 
+enum StoryMediaPresentationMode: Equatable {
+    case fill
+    case fitWithBlur
+
+    var swiftUIContentMode: ContentMode {
+        switch self {
+        case .fill:
+            return .fill
+        case .fitWithBlur:
+            return .fit
+        }
+    }
+
+    var videoGravity: AVLayerVideoGravity {
+        switch self {
+        case .fill:
+            return .resizeAspectFill
+        case .fitWithBlur:
+            return .resizeAspect
+        }
+    }
+}
+
+enum StoryMediaLayoutRules {
+    private static let fillTolerance: CGFloat = 0.035
+
+    static func presentationMode(
+        for mediaAspectRatio: CGFloat,
+        canvasAspectRatio: CGFloat
+    ) -> StoryMediaPresentationMode {
+        guard
+            mediaAspectRatio.isFinite,
+            mediaAspectRatio > 0,
+            canvasAspectRatio.isFinite,
+            canvasAspectRatio > 0
+        else {
+            return .fill
+        }
+
+        return abs(mediaAspectRatio - canvasAspectRatio) <= fillTolerance ? .fill : .fitWithBlur
+    }
+
+    static func presentationMode(
+        for mediaSize: CGSize,
+        canvasSize: CGSize
+    ) -> StoryMediaPresentationMode {
+        let mediaAspectRatio = mediaSize.width / max(mediaSize.height, 1)
+        let canvasAspectRatio = canvasSize.width / max(canvasSize.height, 1)
+        return presentationMode(for: mediaAspectRatio, canvasAspectRatio: canvasAspectRatio)
+    }
+}
+
 // MARK: - Processed Media Model
 typealias ProcessedMedia = CreatorMedia
 

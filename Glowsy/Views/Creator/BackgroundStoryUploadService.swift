@@ -433,36 +433,35 @@ class BackgroundStoryUploadService: ObservableObject {
         }
     }
 
-            // ✅ EXTRACCION DE FRAME DE FONDO
-        private func extractBackgroundFrame(from videoURL: URL) async -> String? {
-            let asset = AVAsset(url: videoURL)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: 400, height: 400) // ✅ TAMAÑO OPTIMIZADO
-            
-            do {
-                let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
-                let uiImage = UIImage(cgImage: cgImage)
-                
-                // ✅ COMPRIMIR IMAGEN PARA REDUCIR TAMAÑO
-                guard let imageData = uiImage.jpegData(compressionQuality: 0.7) else { return nil }
-                
-                // ✅ SUBIR A STORAGE
-                let frameFileName = "background_frames/\(UUID().uuidString).jpg"
-                let storageRef = Storage.storage().reference().child(frameFileName)
-                
-                let metadata = StorageMetadata()
-                metadata.contentType = "image/jpeg"
-                
-                _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
-                let downloadURL = try await storageRef.downloadURL()
-                
-                return downloadURL.absoluteString
-                
-            } catch {
-                return nil
-            }
+    // ✅ EXTRACCION DE FRAME DE FONDO
+    private func extractBackgroundFrame(from videoURL: URL) async -> String? {
+        let asset = AVAsset(url: videoURL)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+        imageGenerator.maximumSize = CGSize(width: 400, height: 400) // ✅ TAMAÑO OPTIMIZADO
+        
+        do {
+            let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
+            let uiImage = UIImage(cgImage: cgImage)
+            return try await uploadBackgroundFrameImage(uiImage)
+        } catch {
+            return nil
         }
+    }
+
+    private func uploadBackgroundFrameImage(_ image: UIImage) async throws -> String? {
+        guard let imageData = image.jpegData(compressionQuality: 0.7) else { return nil }
+
+        let frameFileName = "background_frames/\(UUID().uuidString).jpg"
+        let storageRef = Storage.storage().reference().child(frameFileName)
+
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+
+        _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
+        let downloadURL = try await storageRef.downloadURL()
+        return downloadURL.absoluteString
+    }
         
         // ✅ DETECTAR SI NECESITA COMPRESIÓN (SOLO POR TAMAÑO/BITRATE)
         private func needsCompressionBySize(_ videoURL: URL) async -> Bool {
@@ -564,10 +563,17 @@ class BackgroundStoryUploadService: ObservableObject {
            let videoURL = uploadingStory.mediaItem.videoURL {
             aspectRatio = await GlassmorphicStoryViewer.detectVideoAspectRatio(from: videoURL)
             
-            // ✅ EXTRAER FRAME DE FONDO PARA VIDEOS HORIZONTALES
+            // Extraer frame cuando el media no debe ir a fill y necesita blur de relleno.
             if let aspectRatio = aspectRatio,
-               GlassmorphicStoryViewer.isHorizontalAspectRatio(aspectRatio) {
-                backgroundFrameURL = await extractBackgroundFrame(from: videoURL)
+               StoryMediaLayoutRules.presentationMode(
+                   for: parseAspectRatio(aspectRatio) ?? 0.0,
+                   canvasAspectRatio: UIScreen.main.bounds.width / max(UIScreen.main.bounds.height, 1)
+               ) == .fitWithBlur {
+                if let finalRenderedImage = uploadingStory.finalRenderedImage {
+                    backgroundFrameURL = try await uploadBackgroundFrameImage(finalRenderedImage)
+                } else {
+                    backgroundFrameURL = await extractBackgroundFrame(from: videoURL)
+                }
             }
         } else if uploadingStory.mediaItem.type == .image {
             // ✅ DETECTAR ASPECT RATIO PARA IMÁGENES
@@ -693,7 +699,10 @@ class BackgroundStoryUploadService: ObservableObject {
             return imageSize.width / imageSize.height
         }()
         
-        let contentMode: SwiftUI.ContentMode = resolvedAspectRatio > 1 ? .fit : .fill
+        let contentMode = StoryMediaLayoutRules.presentationMode(
+            for: resolvedAspectRatio,
+            canvasAspectRatio: containerSize.width / max(containerSize.height, 1)
+        ).swiftUIContentMode
         return contentRect(
             containerSize: containerSize,
             mediaAspectRatio: resolvedAspectRatio,
@@ -1032,7 +1041,6 @@ class BackgroundStoryUploadService: ObservableObject {
             )
             
             await LocalPersistenceService.shared.saveAction(action)
-            print("💾 BackgroundStoryUpload: Acción persistida correctamente (\(uploadingStory.tempId))")
             
         } catch {
             print("❌ BackgroundStoryUpload: Error al persistir acción: \(error)")
@@ -1139,7 +1147,6 @@ class BackgroundStoryUploadService: ObservableObject {
             
             // ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
             if let currentStory = uploadingStory, currentStory.tempId == action.id {
-                 print("⏳ BackgroundStoryUpload: La historia \(action.id) ya se está subiendo. Saltando duplicado.")
                  return
             }
 
