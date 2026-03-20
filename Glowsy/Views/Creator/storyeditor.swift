@@ -12,19 +12,25 @@ struct EditableImageView: View {
     @Binding var offset: CGSize
     @Binding var rotation: Angle
     let filteredImage: UIImage?
+    let canvasSize: CGSize
     @State private var lastScale: CGFloat = 1.0
     @State private var lastOffset: CGSize = .zero
     @State private var lastRotation: Angle = .zero
-    
-    // ✅ Fix: Use physical screen size to match Viewer and avoid Safe Area interpolation issues
-    private let screenSize = UIScreen.main.bounds.size
-    
-    init(image: UIImage, scale: Binding<CGFloat>, offset: Binding<CGSize>, rotation: Binding<Angle>, filteredImage: UIImage? = nil) {
+
+    init(
+        image: UIImage,
+        scale: Binding<CGFloat>,
+        offset: Binding<CGSize>,
+        rotation: Binding<Angle>,
+        filteredImage: UIImage? = nil,
+        canvasSize: CGSize
+    ) {
         self.image = image
         self._scale = scale
         self._offset = offset
         self._rotation = rotation
         self.filteredImage = filteredImage
+        self.canvasSize = canvasSize
     }
     
     var displayImage: UIImage {
@@ -37,23 +43,19 @@ struct EditableImageView: View {
             Image(uiImage: displayImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: screenSize.width, height: screenSize.height)
+                .frame(width: canvasSize.width, height: canvasSize.height)
                 .blur(radius: 20)
                 .scaleEffect(1.1) // Ligeramente más grande para evitar bordes
             
             // ✅ Imagen editable en primer plano
             Image(uiImage: displayImage)
                 .resizable()
-                .aspectRatio(contentMode: {
-                    let imageRatio = displayImage.size.width / displayImage.size.height
-                    let isHorizontal = imageRatio > 1.0
-                    return isHorizontal ? .fit : .fill
-                }())
+                .aspectRatio(contentMode: StoryMediaLayoutRules.presentationMode(for: displayImage.size, canvasSize: canvasSize).swiftUIContentMode)
                 // .scaleEffect(scale)           // COMENTADO: Zoom manual
                 // .offset(offset)              // COMENTADO: Movimiento manual
                 // .rotationEffect(rotation)    // COMENTADO: Rotación manual
         }
-        .frame(width: screenSize.width, height: screenSize.height) // Ensure ZStack fills screen
+        .frame(width: canvasSize.width, height: canvasSize.height) // Ensure ZStack fills screen
     }
 }
 
@@ -75,16 +77,17 @@ struct StoryEditingView: View {
     @State private var storyTextColor: Color = .white
     @State private var storyTextAlignment: TextAlignment = .center
     @State private var storyTextBackground: TextBackgroundFill = .none
+    @State private var storyTextFontSize: CGFloat = 30
     @State private var selectedStickers: [StickerItem] = []
-    @State private var showingTextEditor = false
+    @State private var activeEditorMode: ActiveEditorMode = .idle
     @State private var showingStickerPicker = false
-    @State private var showingDrawing = false
     @State private var isPublishing = false
     @State private var storyAudience: CaptionAndDetailsView.AudienceSetting = .everyone
     @State private var isLoadingUserSettings = true // NUEVO
     @Environment(\.colorScheme) var colorScheme
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
+    @State private var selectedTextEffect: TextEffect = .none
     @State private var drawingImage: UIImage?
     @State private var editableImageViewRef: EditableImageView?
     
@@ -92,7 +95,6 @@ struct StoryEditingView: View {
     @State private var filterIntensity: Double = 1.0
     @State private var isApplyingFilter = false
     @State private var showingIntensitySlider = false
-    @State private var showingFilterToolbar = false
     
     
     // ✅ Variables para transformaciones de imagen
@@ -129,22 +131,92 @@ struct StoryEditingView: View {
     @State private var isContinuingChain = false
     @State private var originalChainTitle = ""
     @FocusState private var isChainTitleFocused: Bool
+    @State private var keyboardHeight: CGFloat = 0
     
     // 🔗 NUEVAS VARIABLES para configuración de cadenas
     @State private var allowOthersToContinue = true
     @State private var continuationAudience: ChainContinuationSetting = .everyone
     @State private var showingChainConfiguration = false
+    @State private var primaryVideoAspectRatio: CGFloat? = nil
 
-    enum TextStyle {
-        case modern, classic, neon, typewriter, bold
-        
-        var font: Font {
+    enum TextStyle: String, CaseIterable {
+        case modern
+        case classic
+        case poster
+        case editorial
+        case rounded
+        case signature
+        case marker
+        case typewriter
+        case handwritten
+        case bold
+        case neon
+        case chalk
+
+        var displayName: String {
             switch self {
-            case .modern: return .system(size: 28, weight: .medium)
-            case .classic: return .custom("Georgia", size: 26)
-            case .neon: return .system(size: 30, weight: .black)
-            case .typewriter: return .custom("Courier New", size: 24)
-            case .bold: return .system(size: 32, weight: .heavy)
+            case .modern: return "Modern"
+            case .classic: return "Classic"
+            case .poster: return "Poster"
+            case .editorial: return "Editorial"
+            case .rounded: return "Rounded"
+            case .signature: return "Signature"
+            case .marker: return "Marker"
+            case .typewriter: return "Typewriter"
+            case .handwritten: return "Handwritten"
+            case .bold: return "Bold"
+            case .neon: return "Neon"
+            case .chalk: return "Chalk"
+            }
+        }
+
+        static var fontPickerStyles: [TextStyle] {
+            [.modern, .classic, .editorial, .rounded, .signature, .typewriter, .handwritten, .bold, .poster]
+        }
+        
+        func font(size: CGFloat) -> Font {
+            switch self {
+            case .modern: return .system(size: size, weight: .medium)
+            case .classic: return .custom("Georgia", size: max(12, size - 1))
+            case .poster: return .custom("Futura-CondensedExtraBold", size: size + 5)
+            case .editorial: return .custom("Didot", size: size + 1)
+            case .rounded: return .custom("ArialRoundedMTBold", size: size)
+            case .signature: return .custom("SnellRoundhand", size: size + 6)
+            case .marker: return .custom("MarkerFelt-Wide", size: size + 2)
+            case .typewriter: return .custom("Courier New", size: max(12, size - 3))
+            case .handwritten: return .custom("Noteworthy-Bold", size: size + 2)
+            case .bold: return .custom("AvenirNextCondensed-DemiBold", size: size + 4)
+            case .neon: return .system(size: size + 2, weight: .black)
+            case .chalk: return .custom("ChalkboardSE-Bold", size: size + 1)
+            }
+        }
+
+        func uiFont(size: CGFloat) -> UIFont {
+            switch self {
+            case .modern:
+                return .systemFont(ofSize: size, weight: .medium)
+            case .classic:
+                return UIFont(name: "Georgia", size: max(12, size - 1)) ?? .systemFont(ofSize: size)
+            case .poster:
+                return UIFont(name: "Futura-CondensedExtraBold", size: size + 5) ?? .boldSystemFont(ofSize: size + 5)
+            case .editorial:
+                return UIFont(name: "Didot", size: size + 1) ?? .systemFont(ofSize: size + 1)
+            case .rounded:
+                return UIFont(name: "ArialRoundedMTBold", size: size) ?? .systemFont(ofSize: size, weight: .semibold)
+            case .signature:
+                return UIFont(name: "SnellRoundhand", size: size + 6) ?? .italicSystemFont(ofSize: size + 4)
+            case .marker:
+                return UIFont(name: "MarkerFelt-Wide", size: size + 2) ?? .systemFont(ofSize: size + 2, weight: .bold)
+            case .typewriter:
+                return UIFont(name: "Courier New", size: max(12, size - 3)) ?? .monospacedSystemFont(ofSize: size - 2, weight: .regular)
+            case .handwritten:
+                return UIFont(name: "Noteworthy-Bold", size: size + 2) ?? .systemFont(ofSize: size + 2, weight: .semibold)
+            case .bold:
+                return UIFont(name: "AvenirNextCondensed-DemiBold", size: size + 4) ?? .systemFont(ofSize: size + 4, weight: .heavy)
+            case .neon:
+                return .systemFont(ofSize: size + 2, weight: .black)
+            case .chalk:
+                return UIFont(name: "ChalkboardSE-Bold", size: size + 1) ?? .systemFont(ofSize: size + 1, weight: .bold)
             }
         }
         
@@ -152,9 +224,16 @@ struct StoryEditingView: View {
             switch self {
             case .modern: return Color.black.opacity(0.6)
             case .classic: return Color.clear
+            case .poster: return Color.clear
+            case .editorial: return Color.clear
+            case .rounded: return Color.black.opacity(0.22)
+            case .signature: return Color.clear
+            case .marker: return Color.yellow.opacity(0.18)
             case .neon: return Color.purple.opacity(0.8)
-            case .typewriter: return Color.gray.opacity(0.7)
+            case .typewriter: return Color.gray.opacity(0.55)
+            case .handwritten: return Color.clear
             case .bold: return Color.clear
+            case .chalk: return Color.black.opacity(0.18)
             }
         }
     }
@@ -164,93 +243,204 @@ struct StoryEditingView: View {
         case black
         case white
     }
+
+    enum TextEffect: String, CaseIterable {
+        case none
+        case glow
+        case marker
+        case chalk
+
+        var displayName: String {
+            switch self {
+            case .none: return "None"
+            case .glow: return "Glow"
+            case .marker: return "Marker"
+            case .chalk: return "Chalk"
+            }
+        }
+
+        var backgroundColor: Color? {
+            switch self {
+            case .marker:
+                return Color.yellow.opacity(0.28)
+            case .none, .glow, .chalk:
+                return nil
+            }
+        }
+
+        var uiBackgroundColor: UIColor? {
+            switch self {
+            case .marker:
+                return UIColor.systemYellow.withAlphaComponent(0.28)
+            case .none, .glow, .chalk:
+                return nil
+            }
+        }
+
+        func shadow(for textColor: Color) -> (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat)? {
+            switch self {
+            case .glow:
+                return (textColor.opacity(0.92), 12, 0, 0)
+            case .chalk:
+                return (Color.black.opacity(0.62), 1.0, 1.0, 1.0)
+            case .none, .marker:
+                return nil
+            }
+        }
+
+        func nsShadow(for textColor: UIColor) -> NSShadow? {
+            let shadow = NSShadow()
+            switch self {
+            case .glow:
+                shadow.shadowColor = textColor.withAlphaComponent(0.92)
+                shadow.shadowBlurRadius = 12
+                shadow.shadowOffset = .zero
+                return shadow
+            case .chalk:
+                shadow.shadowColor = UIColor.black.withAlphaComponent(0.62)
+                shadow.shadowBlurRadius = 1
+                shadow.shadowOffset = CGSize(width: 1, height: 1)
+                return shadow
+            case .none, .marker:
+                return nil
+            }
+        }
+    }
+
+    enum ActiveEditorMode {
+        case idle
+        case text
+        case drawing
+        case filters
+    }
+
+    private var isTextMode: Bool { activeEditorMode == .text }
+    private var isDrawingMode: Bool { activeEditorMode == .drawing }
+    private var isFilterMode: Bool { activeEditorMode == .filters }
+    private var isCanvasModeActive: Bool { activeEditorMode != .idle }
     
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            ZStack {
-                backgroundMediaView()
-                
-                // Drawing overlay preview when text editor is open
-                if let drawing = drawingImage, showingTextEditor {
-                    Image(uiImage: drawing)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                        .allowsHitTesting(false)
-                }
-                
-                // Overlays
-                if !showingTextEditor && !showingDrawing {
-                    StoryOverlaysView(
-                        text: $storyText,
-                        textPosition: $textPosition,
-                        textStyle: $selectedTextStyle,
-                        textColor: $storyTextColor,
-                        textAlignment: $storyTextAlignment,
-                        textBackgroundFill: $storyTextBackground,
-                        isTextEditorPresented: $showingTextEditor,
-                        stickers: $selectedStickers,
-                        drawingImage: $drawingImage,
-                        onNavigateToProfile: { userId in
-                            handleProfileNavigation(userId: userId)
-                        },
-                        onNavigateToLocation: { locationName, coordinate in
-                            handleLocationNavigation(locationName: locationName, coordinate: coordinate)
-                        }
-                    )
-                    .id(forceUpdate)
-                    .ignoresSafeArea()
-                }
+            GeometryReader { proxy in
+                let viewportSize = proxy.size
+                let mediaCanvasSize = CGSize(
+                    width: viewportSize.width,
+                    height: viewportSize.height + proxy.safeAreaInsets.top + proxy.safeAreaInsets.bottom
+                )
+                let mediaCanvasOffsetY = -proxy.safeAreaInsets.top
 
-                // Controls
-                if !showingTextEditor && !showingDrawing {
-                    VStack {
-                        topBarView()
-                        
-                        HStack {
+                ZStack(alignment: .topLeading) {
+                    backgroundMediaView(canvasSize: mediaCanvasSize)
+                        .offset(y: mediaCanvasOffsetY)
+                    
+                    // Drawing overlay preview when text editor is open
+                    if let drawing = drawingImage, isTextMode {
+                        Image(uiImage: drawing)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: mediaCanvasSize.width, height: mediaCanvasSize.height)
+                            .offset(y: mediaCanvasOffsetY)
+                            .allowsHitTesting(false)
+                    }
+                    
+                    // Overlays
+                    if !isTextMode && !isDrawingMode {
+                        StoryOverlaysView(
+                            text: $storyText,
+                            textPosition: $textPosition,
+                            textStyle: $selectedTextStyle,
+                            textEffect: $selectedTextEffect,
+                            textColor: $storyTextColor,
+                            textAlignment: $storyTextAlignment,
+                            textBackgroundFill: $storyTextBackground,
+                            textFontSize: $storyTextFontSize,
+                            isTextEditorPresented: Binding(
+                                get: { isTextMode },
+                                set: { isPresented in
+                                    activeEditorMode = isPresented ? .text : .idle
+                                }
+                            ),
+                            stickers: $selectedStickers,
+                            drawingImage: $drawingImage,
+                            onNavigateToProfile: { userId in
+                                handleProfileNavigation(userId: userId)
+                            },
+                            onNavigateToLocation: { locationName, coordinate in
+                                handleLocationNavigation(locationName: locationName, coordinate: coordinate)
+                            }
+                        )
+                        .id(forceUpdate)
+                        .ignoresSafeArea()
+                    }
+
+                    // Controls
+                    if !isTextMode && !isDrawingMode {
+                        VStack {
+                            topBarView(topInset: proxy.safeAreaInsets.top)
+
+                            if activeEditorMode == .idle {
+                                HStack {
+                                    Spacer()
+                                    sideToolbarView()
+                                }
+                            }
+                            
                             Spacer()
-                            sideToolbarView()
+                            
+                            // Video playback controls
+                            if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
+                                VideoControlsOverlay()
+                            }
+                            
+                            bottomControlsView(bottomInset: proxy.safeAreaInsets.bottom)
                         }
-                        
-                        Spacer()
-                        
-                        // Video playback controls
-                        if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
-                            VideoControlsOverlay()
-                        }
-                        
-                        bottomControlsView()
+                    }
+
+                    if isDrawingMode {
+                        StoryDrawingEditorOverlay(
+                            isPresented: Binding(
+                                get: { isDrawingMode },
+                                set: { isPresented in
+                                    activeEditorMode = isPresented ? .drawing : .idle
+                                }
+                            ),
+                            drawingImage: $drawingImage
+                        )
+                        .zIndex(45)
+                    }
+
+                    if isTextMode {
+                        StoryTextEditor(
+                            isPresented: Binding(
+                                get: { isTextMode },
+                                set: { isPresented in
+                                    activeEditorMode = isPresented ? .text : .idle
+                                }
+                            ),
+                            text: $storyText,
+                            selectedStyle: $selectedTextStyle,
+                            selectedEffect: $selectedTextEffect,
+                            textColor: $storyTextColor,
+                            textAlignment: $storyTextAlignment,
+                            textBackgroundFill: $storyTextBackground,
+                            textFontSize: $storyTextFontSize
+                        )
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .zIndex(40)
                     }
                 }
-
-                if showingDrawing {
-                    StoryDrawingEditorOverlay(
-                        isPresented: $showingDrawing,
-                        drawingImage: $drawingImage
-                    )
-                    .zIndex(45)
-                }
-
-                if showingTextEditor {
-                    StoryTextEditor(
-                        isPresented: $showingTextEditor,
-                        text: $storyText,
-                        selectedStyle: $selectedTextStyle,
-                        textColor: $storyTextColor,
-                        textAlignment: $storyTextAlignment,
-                        textBackgroundFill: $storyTextBackground
-                    )
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .zIndex(40)
-                }
+                .frame(width: viewportSize.width, height: viewportSize.height, alignment: .topLeading)
+                .ignoresSafeArea(.keyboard)
             }
             .navigationDestination(for: String.self) { userId in
                 UserProfileView(userId: userId)
             }
+            .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             loadUserDefaultAudienceSettings()
             setupStickerListener()
             setupChainContextListener()
+            refreshPrimaryVideoAspectRatio()
             
             // ✅ AGREGAR STICKER INICIAL SI EXISTE
             if let initialSticker = initialSticker {
@@ -269,42 +459,58 @@ struct StoryEditingView: View {
                 applySelectedFilter()
             }
         }
+            .onChange(of: selectedMediaItems.first?.id) { _, _ in
+                refreshPrimaryVideoAspectRatio()
+            }
             .onDisappear {
                 removeStickerListener()
                 removeChainContextListener()
             }
         }
+        .ignoresSafeArea(.keyboard)
         // ✅ Input inferior para título de cadena
         .safeAreaInset(edge: .bottom) {
-            if isCreatingChain {
-                HStack(spacing: 12) {
-                    Image(systemName: "link")
-                        .foregroundColor(.blue)
-                        .padding(10)
-                        .background(Color.white.opacity(0.12))
-                        .clipShape(Circle())
-                    
-                    TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
-                        .textFieldStyle(PlainTextFieldStyle())
-                        .foregroundColor(.white)
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 12)
-                        .background(Color.black.opacity(0.28))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .focused($isChainTitleFocused)
-                    
-                    Button(action: { isChainTitleFocused = false }) {
-                        Image(systemName: "keyboard.chevron.compact.down")
-                            .foregroundColor(.white)
+            if isCreatingChain && !isCanvasModeActive {
+                VStack(spacing: 6) {
+                    if activeEditorMode == .idle {
+                        HStack {
+                            Spacer()
+                            principalActionButton()
+                        }
+                        .padding(.horizontal, 16)
+                    }
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "link")
+                            .foregroundColor(.blue)
                             .padding(10)
                             .background(Color.white.opacity(0.12))
                             .clipShape(Circle())
+
+                        TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .foregroundColor(.white)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 12)
+                            .background(Color.black.opacity(0.28))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .focused($isChainTitleFocused)
+
+                        Button(action: { isChainTitleFocused = false }) {
+                            Image(systemName: "keyboard.chevron.compact.down")
+                                .foregroundColor(.white)
+                                .padding(10)
+                                .background(Color.white.opacity(0.12))
+                                .clipShape(Circle())
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                    .liquidGlass(in: Rectangle())
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
-                .liquidGlass(in: Rectangle())
+                .padding(.bottom, chainInputBottomPadding())
+                .animation(.easeOut(duration: 0.24), value: keyboardHeight)
             }
         }
         // ✅ SHEET ACTUALIZADO para selector de audiencia mejorado
@@ -344,6 +550,9 @@ struct StoryEditingView: View {
         }
         .sheet(isPresented: $showingStickerPicker) {
             StickerPickerView(selectedStickers: $selectedStickers)
+                .onDisappear {
+                    activeEditorMode = .idle
+                }
         }
         .overlay(
             Group {
@@ -368,6 +577,16 @@ struct StoryEditingView: View {
         .onDisappear {
             // ✅ Limpiar video y audio cuando se cierra la vista
             cleanupVideoAndAudio()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            let screenHeight = UIScreen.main.bounds.height
+            let overlap = max(0, screenHeight - endFrame.minY)
+            let safeBottom = keyWindowSafeAreaInsets().bottom
+            keyboardHeight = max(0, overlap - safeBottom)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardHeight = 0
         }
     }
     
@@ -478,15 +697,46 @@ struct StoryEditingView: View {
         case .customList: return .customList
         }
     }
+
+    private func refreshPrimaryVideoAspectRatio() {
+        guard let media = selectedMediaItems.first, media.type == .video, let videoURL = media.videoURL else {
+            primaryVideoAspectRatio = nil
+            return
+        }
+
+        Task {
+            let asset = AVURLAsset(url: videoURL)
+            guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first,
+                  let naturalSize = try? await videoTrack.load(.naturalSize),
+                  let preferredTransform = try? await videoTrack.load(.preferredTransform) else {
+                return
+            }
+
+            let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
+            let resolvedSize = CGSize(width: abs(transformedRect.width), height: abs(transformedRect.height))
+            let aspectRatio = resolvedSize.width / max(resolvedSize.height, 1)
+
+            await MainActor.run {
+                if selectedMediaItems.first?.id == media.id {
+                    primaryVideoAspectRatio = aspectRatio.isFinite ? aspectRatio : nil
+                }
+            }
+        }
+    }
     
     @ViewBuilder
-    private func backgroundMediaView() -> some View {
+    private func backgroundMediaView(canvasSize: CGSize) -> some View {
         if let firstMedia = selectedMediaItems.first {
             if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
-                let isHorizontalVideo = firstMedia.image.size.width > firstMedia.image.size.height
+                let fallbackAspectRatio = firstMedia.image.size.width / max(firstMedia.image.size.height, 1)
+                let mediaAspectRatio = primaryVideoAspectRatio ?? fallbackAspectRatio
+                let presentationMode = StoryMediaLayoutRules.presentationMode(
+                    for: mediaAspectRatio,
+                    canvasAspectRatio: canvasSize.width / max(canvasSize.height, 1)
+                )
                 ZStack {
                     StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
-                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                        .frame(width: canvasSize.width, height: canvasSize.height)
                         .blur(radius: 20)
                         .scaleEffect(1.1)
                         .clipped()
@@ -494,9 +744,9 @@ struct StoryEditingView: View {
                     
                     StoryVideoPlayerView(
                         videoURL: videoURL,
-                        videoGravity: isHorizontalVideo ? .resizeAspect : .resizeAspectFill
+                        videoGravity: presentationMode.videoGravity
                     )
-                        .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: UIScreen.main.bounds.height)
+                        .frame(width: canvasSize.width, height: canvasSize.height)
                         .clipped()
                         .ignoresSafeArea()
                 }
@@ -506,9 +756,10 @@ struct StoryEditingView: View {
                     scale: $imageScale,
                     offset: $imageOffset,
                     rotation: $imageRotation,
-                    filteredImage: filteredImage
+                    filteredImage: filteredImage,
+                    canvasSize: canvasSize
                 )
-                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                .frame(width: canvasSize.width, height: canvasSize.height)
                 .clipped()
                 .ignoresSafeArea()
                 .onChange(of: selectedFilter) { _ in
@@ -531,46 +782,81 @@ struct StoryEditingView: View {
     }
     
     @ViewBuilder
-    private func topBarView() -> some View {
+    private func topBarView(topInset: CGFloat) -> some View {
         HStack {
             Button(action: {
-                currentFlow = .storyCamera
+                if isFilterMode {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        activeEditorMode = .idle
+                    }
+                } else {
+                    currentFlow = .storyCamera
+                }
             }) {
-                Image(systemName: "xmark")
+                Image(systemName: isFilterMode ? "chevron.left" : "xmark")
                     .font(.title2)
                     .foregroundColor(.white)
                     .padding(12)
                     .liquidGlass(in: Circle())
             }
             Spacer()
-            Button(action: { saveToGallery() }) {
-                Image(systemName: "arrow.down.circle")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .liquidGlass(in: Circle())
+            if isFilterMode {
+                Button(action: {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        activeEditorMode = .idle
+                    }
+                }) {
+                    Text("creator.done")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .liquidGlass(in: Capsule())
+                }
+            } else {
+                Button(action: { saveToGallery() }) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .liquidGlass(in: Circle())
+                }
             }
         }
         .padding(.horizontal)
-        .padding(.top, 40)
+        .padding(.top, topBarTopPadding(topInset: topInset))
     }
     
     @ViewBuilder
     private func sideToolbarView() -> some View {
         VStack(spacing: 12) {
-            EditingToolIcon(icon: "textformat.alt") { showingTextEditor = true }
-            EditingToolIcon(icon: "face.smiling") { showingStickerPicker = true }
-            EditingToolIcon(icon: "scribble") { showingDrawing = true }
+            EditingToolIcon(icon: "textformat.alt") {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    activeEditorMode = .text
+                }
+            }
+            EditingToolIcon(icon: "face.smiling") {
+                activeEditorMode = .idle
+                showingStickerPicker = true
+            }
+            EditingToolIcon(icon: "scribble") {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    activeEditorMode = .drawing
+                }
+            }
             
             Button(action: {
-                withAnimation(.spring()) { showingFilterToolbar.toggle() }
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    activeEditorMode = isFilterMode ? .idle : .filters
+                    showingIntensitySlider = selectedFilter != .normal
+                }
             }) {
                 Image(systemName: "paintbrush")
                     .font(.system(size: 20))
-                    .foregroundColor(showingFilterToolbar ? .pink : .white)
+                    .foregroundColor(isFilterMode ? .pink : .white)
                     .frame(width: 44, height: 44)
                     .liquidGlass(in: Circle())
-                    .overlay(Circle().stroke(showingFilterToolbar ? Color.pink : Color.clear, lineWidth: 1))
+                    .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
             }
             
             if !isContinuingChain {
@@ -590,9 +876,9 @@ struct StoryEditingView: View {
     }
     
     @ViewBuilder
-    private func bottomControlsView() -> some View {
+    private func bottomControlsView(bottomInset: CGFloat) -> some View {
         VStack(spacing: 12) {
-            if showingFilterToolbar {
+            if isFilterMode {
                 // Intensity Slider
                 if selectedFilter != .normal && showingIntensitySlider {
                     VStack(spacing: 4) {
@@ -651,42 +937,90 @@ struct StoryEditingView: View {
                 .padding(.horizontal, 16)
             }
             
-            HStack {
-                // Story settings
-                if !isCreatingChain && !isContinuingChain {
-                    Button(action: {
-                        if !isLoadingUserSettings {
-                            showingAudienceSelector = true
-                        }
-                    }) {
-                        HStack(spacing: 8) {
-                            if isLoadingUserSettings {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: getAudienceIcon())
+            if activeEditorMode == .idle && !isCreatingChain {
+                HStack {
+                    // Story settings
+                    if !isCreatingChain && !isContinuingChain {
+                        Button(action: {
+                            if !isLoadingUserSettings {
+                                showingAudienceSelector = true
                             }
-                            
-                            Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
-                                .font(.system(size: 14, weight: .medium))
+                        }) {
+                            HStack(spacing: 8) {
+                                if isLoadingUserSettings {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: getAudienceIcon())
+                                }
+                                
+                                Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
+                                    .font(.system(size: 14, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .liquidGlass(in: Capsule())
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .liquidGlass(in: Capsule())
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     }
-                }
-            
-                Spacer()
                 
-                // Botón de acción principal
-                principalActionButton()
+                    Spacer()
+                    
+                    // Botón de acción principal
+                    principalActionButton()
+                }
             }
         }
         .padding(.horizontal)
-        .padding(.bottom, isCreatingChain ? 115 : 35)
+        .padding(.bottom, bottomControlsBottomPadding(bottomInset: bottomInset))
+    }
+
+    private func bottomControlsBottomPadding(bottomInset: CGFloat) -> CGFloat {
+        let resolvedBottomInset = effectiveBottomInset(bottomInset)
+        if isFilterMode {
+            return max(52, resolvedBottomInset + 30)
+        }
+        if isCreatingChain {
+            // The safeAreaInset already lifts content with the chain input
+            // (and with keyboard). Keep only a tiny local gap here.
+            return 6
+        }
+        return max(90, resolvedBottomInset + 54)
+    }
+
+    private func topBarTopPadding(topInset: CGFloat) -> CGFloat {
+        let resolvedTopInset = effectiveTopInset(topInset)
+        // Ensure the top controls sit safely below the notch/dynamic island.
+        // Previously this subtracted resolvedTopInset excessively, pushing it too high.
+        return max(16, 76 - resolvedTopInset)
+    }
+
+    private func effectiveTopInset(_ topInset: CGFloat) -> CGFloat {
+        if topInset > 0 { return topInset }
+        return keyWindowSafeAreaInsets().top
+    }
+
+    private func effectiveBottomInset(_ bottomInset: CGFloat) -> CGFloat {
+        if bottomInset > 0 { return bottomInset }
+        return keyWindowSafeAreaInsets().bottom
+    }
+
+    private func keyWindowSafeAreaInsets() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        let activeScene = scenes.first { $0.activationState == .foregroundActive }
+        let scene = activeScene ?? scenes.first
+        let keyWindow = scene?.windows.first(where: { $0.isKeyWindow })
+        return keyWindow?.safeAreaInsets ?? .zero
+    }
+
+    private func chainInputBottomPadding() -> CGFloat {
+        if keyboardHeight > 0 {
+            return keyboardHeight + 2
+        }
+        return 8
     }
     
     @ViewBuilder
@@ -898,18 +1232,8 @@ struct StoryEditingView: View {
             // Video saved
         }
     }
-    
-    private func renderStoryWithOverlays() -> UIImage {
-        guard let firstMedia = selectedMediaItems.first else {
-            return UIImage()
-        }
-        
-        let baseImage: UIImage = firstMedia.image
-        
-        let screenSize = UIScreen.main.bounds.size
-        
-        // ✅ Canvas de salida con el mismo ratio que el editor (WYSIWYG)
-        // Así dibujo/texto/stickers mantienen proporciones al pasar a viewer.
+
+    private func storyRenderTargetSize(for screenSize: CGSize = UIScreen.main.bounds.size) -> CGSize {
         let safeScreenWidth = max(screenSize.width, 1)
         let safeScreenHeight = max(screenSize.height, 1)
         let screenAspectRatio = safeScreenWidth / safeScreenHeight
@@ -918,154 +1242,220 @@ struct StoryEditingView: View {
         let targetHeight = targetWidth / max(screenAspectRatio, 0.0001)
         var targetSize = CGSize(width: targetWidth, height: targetHeight)
         
-        // Sanity check para evitar tamaños extremos.
         if targetSize.height > 3000 { targetSize.height = 3000 }
         if targetSize.height < 1200 { targetSize.height = 1200 }
         
-        // scaling factors
-        let scaleFactorX = targetSize.width / screenSize.width
-        let scaleFactorY = targetSize.height / screenSize.height
+        return targetSize
+    }
+
+    private func storyBackgroundBlurImage(baseImage: UIImage, targetSize: CGSize) -> UIImage {
+        let blurRadius: CGFloat = 20
+        let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+        let smallSize = CGSize(width: 200, height: 200 * (targetSize.height / max(targetSize.width, 1)))
+        let smallRect = CGRect(origin: .zero, size: smallSize)
         
+        let smallRenderer = UIGraphicsImageRenderer(size: smallSize)
+        let smallImage = smallRenderer.image { _ in
+            baseImage.draw(in: smallRect)
+        }
+        
+        guard let ciImage = CIImage(image: smallImage),
+              let clampFilter = CIFilter(name: "CIAffineClamp"),
+              let blurFilter = CIFilter(name: "CIGaussianBlur") else {
+            return baseImage
+        }
+        
+        clampFilter.setValue(ciImage, forKey: kCIInputImageKey)
+        blurFilter.setValue(clampFilter.outputImage, forKey: kCIInputImageKey)
+        blurFilter.setValue(blurRadius, forKey: kCIInputRadiusKey)
+        
+        guard let outputImage = blurFilter.outputImage?.cropped(to: ciImage.extent),
+              let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) else {
+            return baseImage
+        }
+        
+        return UIImage(cgImage: cgImage)
+    }
+
+    private func makePixelBuffer(from image: UIImage, size: CGSize) -> CVPixelBuffer? {
+        let width = Int(size.width)
+        let height = Int(size.height)
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true
+        ]
+
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32ARGB,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+
+        guard status == kCVReturnSuccess, let pixelBuffer else {
+            return nil
+        }
+
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+
+        guard let context = CGContext(
+            data: CVPixelBufferGetBaseAddress(pixelBuffer),
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+        ) else {
+            return nil
+        }
+
+        context.clear(CGRect(origin: .zero, size: size))
+        UIGraphicsPushContext(context)
+        image.draw(in: CGRect(origin: .zero, size: size))
+        UIGraphicsPopContext()
+
+        return pixelBuffer
+    }
+
+    private func createStillImageVideo(
+        from image: UIImage,
+        targetSize: CGSize,
+        duration: CMTime,
+        frameRate: Int32
+    ) async throws -> URL {
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("story_blur_bg_\(UUID().uuidString).mp4")
+        try? FileManager.default.removeItem(at: outputURL)
+
+        guard let writer = try? AVAssetWriter(outputURL: outputURL, fileType: .mp4) else {
+            throw NSError(domain: "StoryEditor", code: 8, userInfo: [NSLocalizedDescriptionKey: "Unable to create background video writer"])
+        }
+
+        let settings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: Int(targetSize.width),
+            AVVideoHeightKey: Int(targetSize.height)
+        ]
+
+        let writerInput = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+        writerInput.expectsMediaDataInRealTime = false
+
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+            assetWriterInput: writerInput,
+            sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
+                kCVPixelBufferWidthKey as String: Int(targetSize.width),
+                kCVPixelBufferHeightKey as String: Int(targetSize.height)
+            ]
+        )
+
+        guard writer.canAdd(writerInput) else {
+            throw NSError(domain: "StoryEditor", code: 9, userInfo: [NSLocalizedDescriptionKey: "Unable to add background writer input"])
+        }
+        writer.add(writerInput)
+
+        guard let pixelBuffer = makePixelBuffer(from: image, size: targetSize) else {
+            throw NSError(domain: "StoryEditor", code: 10, userInfo: [NSLocalizedDescriptionKey: "Unable to create background pixel buffer"])
+        }
+
+        let totalFrames = max(1, Int(ceil(CMTimeGetSeconds(duration) * Double(frameRate))))
+        let frameDuration = CMTime(value: 1, timescale: frameRate)
+
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+
+        for frame in 0..<totalFrames {
+            while !writerInput.isReadyForMoreMediaData {
+                try await Task.sleep(nanoseconds: 5_000_000)
+            }
+
+            let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frame))
+            adaptor.append(pixelBuffer, withPresentationTime: presentationTime)
+        }
+
+        writerInput.markAsFinished()
+
+        return try await withCheckedThrowingContinuation { continuation in
+            writer.finishWriting {
+                if writer.status == .completed {
+                    continuation.resume(returning: outputURL)
+                } else {
+                    continuation.resume(throwing: writer.error ?? NSError(domain: "StoryEditor", code: 11, userInfo: [NSLocalizedDescriptionKey: "Unable to finish background video writer"]))
+                }
+            }
+        }
+    }
+
+    private func mediaRectForStoryCanvas(mediaSize: CGSize, targetSize: CGSize) -> CGRect {
+        let imageRatio = mediaSize.width / max(mediaSize.height, 1)
+        let targetRatio = targetSize.width / max(targetSize.height, 1)
+        let useFit = StoryMediaLayoutRules.presentationMode(for: imageRatio, canvasAspectRatio: targetRatio) == .fitWithBlur
+        let mediaIsWider = imageRatio > targetRatio
+        
+        let finalWidth: CGFloat
+        let finalHeight: CGFloat
+        
+        if useFit {
+            if mediaIsWider {
+                finalWidth = targetSize.width
+                finalHeight = targetSize.width / max(imageRatio, 0.0001)
+            } else {
+                finalHeight = targetSize.height
+                finalWidth = targetSize.height * imageRatio
+            }
+        } else {
+            if mediaIsWider {
+                finalHeight = targetSize.height
+                finalWidth = targetSize.height * imageRatio
+            } else {
+                finalWidth = targetSize.width
+                finalHeight = targetSize.width / max(imageRatio, 0.0001)
+            }
+        }
+        
+        return CGRect(
+            x: (targetSize.width - finalWidth) / 2,
+            y: (targetSize.height - finalHeight) / 2,
+            width: finalWidth,
+            height: finalHeight
+        )
+    }
+
+    private func renderStoryOverlayImage(targetSize: CGSize, screenSize: CGSize) -> UIImage? {
+        guard drawingImage != nil || !storyText.isEmpty else { return nil }
+        
+        let scaleFactorX = targetSize.width / max(screenSize.width, 1)
+        let scaleFactorY = targetSize.height / max(screenSize.height, 1)
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         
-        return renderer.image { context in
+        return renderer.image { _ in
             let rect = CGRect(origin: .zero, size: targetSize)
             
-            // 1. Optimized background blur
-            // We downscale the image significantly before blurring to save memory and CPU
-            let blurRadius: CGFloat = 20
-            let ciContext = CIContext(options: [.useSoftwareRenderer: false])
-            
-            // scale down for blur (much faster and less memory)
-            let smallSize = CGSize(width: 200, height: 200 * (targetSize.height / targetSize.width))
-            let smallRect = CGRect(origin: .zero, size: smallSize)
-            
-            let smallRenderer = UIGraphicsImageRenderer(size: smallSize)
-            let smallImage = smallRenderer.image { _ in
-                baseImage.draw(in: smallRect)
-            }
-            
-            let ciImage = CIImage(image: smallImage)
-            if let ciImage = ciImage,
-               let clampFilter = CIFilter(name: "CIAffineClamp"),
-               let blurFilter = CIFilter(name: "CIGaussianBlur") {
-                
-                // 1. Extend edges to infinity to avoid sampling transparency at borders
-                clampFilter.setValue(ciImage, forKey: kCIInputImageKey)
-                let clampedImage = clampFilter.outputImage
-                
-                // 2. Apply blur
-                blurFilter.setValue(clampedImage, forKey: kCIInputImageKey)
-                blurFilter.setValue(blurRadius, forKey: kCIInputRadiusKey)
-                
-                // 3. Crop back to original small size and render
-                if let outputImage = blurFilter.outputImage?.cropped(to: ciImage.extent),
-                   let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) {
-                    let blurImage = UIImage(cgImage: cgImage)
-                    
-                    // 4. Draw slightly larger than canvas (overscale) to guarantee no gaps
-                    let overscale: CGFloat = 1.05
-                    let overscaleRect = CGRect(
-                        x: -(targetSize.width * (overscale - 1) / 2),
-                        y: -(targetSize.height * (overscale - 1) / 2),
-                        width: targetSize.width * overscale,
-                        height: targetSize.height * overscale
-                    )
-                    blurImage.draw(in: overscaleRect)
-                }
-            } else {
-                // Fallback: solid color or just the image
-                UIColor.black.setFill()
-                UIRectFill(rect)
-            }
-            
-            // Apply selected filter if any
-            let renderImage: UIImage
-            if selectedFilter != .normal {
-                renderImage = FilterService.shared.applyFilter(selectedFilter, to: baseImage, intensity: filterIntensity)
-            } else {
-                renderImage = baseImage
-            }
-            
-            // 2. Main content rendering
-            context.cgContext.saveGState()
-            context.cgContext.translateBy(x: targetSize.width / 2, y: targetSize.height / 2)
-            
-            if firstMedia.type != .video {
-                // images use full transformations
-                context.cgContext.rotate(by: imageRotation.radians)
-                context.cgContext.scaleBy(x: imageScale, y: imageScale)
-                
-                let offsetX = imageOffset.width * scaleFactorX
-                let offsetY = imageOffset.height * scaleFactorY
-                context.cgContext.translateBy(x: offsetX, y: offsetY)
-            }
-            
-            // Draw image with the same rule as editor:
-            // horizontal -> fit, vertical -> fill
-            let imageRatio = renderImage.size.width / renderImage.size.height
-            let targetRatio = targetSize.width / targetSize.height
-            let useFit = imageRatio > 1.0
-            let mediaIsWider = imageRatio > targetRatio
-            
-            let finalWidth: CGFloat
-            let finalHeight: CGFloat
-            
-            if useFit {
-                if mediaIsWider {
-                    finalWidth = targetSize.width
-                    finalHeight = targetSize.width / imageRatio
-                } else {
-                    finalHeight = targetSize.height
-                    finalWidth = targetSize.height * imageRatio
-                }
-            } else {
-                if mediaIsWider {
-                    finalHeight = targetSize.height
-                    finalWidth = targetSize.height * imageRatio
-                } else {
-                    finalWidth = targetSize.width
-                    finalHeight = targetSize.width / imageRatio
-                }
-            }
-            
-            let imageRect = CGRect(
-                x: -finalWidth / 2,
-                y: -finalHeight / 2,
-                width: finalWidth,
-                height: finalHeight
-            )
-            renderImage.draw(in: imageRect)
-            
-            context.cgContext.restoreGState()
-            
-            // 3. Drawing overlay
             if let drawing = drawingImage {
                 drawing.draw(in: rect, blendMode: .normal, alpha: 1.0)
             }
             
-            // 4. Text overlay
             if !storyText.isEmpty {
                 let paragraphStyle = NSMutableParagraphStyle()
                 paragraphStyle.alignment = nsTextAlignment(from: storyTextAlignment)
                 
-                let baseFontSize: CGFloat = 28
-                let scaledFontSize = baseFontSize * max(scaleFactorX, scaleFactorY)
+                let scaledFontSize = storyTextFontSize * max(scaleFactorX, scaleFactorY)
+                let font = selectedTextStyle.uiFont(size: scaledFontSize)
                 
-                let font: UIFont
-                switch selectedTextStyle {
-                case .modern: font = UIFont.systemFont(ofSize: scaledFontSize, weight: .medium)
-                case .classic: font = UIFont(name: "Georgia", size: scaledFontSize - 2) ?? .systemFont(ofSize: scaledFontSize)
-                case .neon: font = UIFont.systemFont(ofSize: scaledFontSize + 2, weight: .black)
-                case .typewriter: font = UIFont(name: "Courier New", size: scaledFontSize - 4) ?? .systemFont(ofSize: scaledFontSize)
-                case .bold: font = UIFont.systemFont(ofSize: scaledFontSize + 4, weight: .heavy)
-                }
-                
-                let attributes: [NSAttributedString.Key: Any] = [
+                var attributes: [NSAttributedString.Key: Any] = [
                     .font: font,
                     .foregroundColor: UIColor(storyTextColor),
                     .paragraphStyle: paragraphStyle
                 ]
+                
+                if let shadow = selectedTextEffect.nsShadow(for: UIColor(storyTextColor)) {
+                    attributes[.shadow] = shadow
+                }
                 
                 let attributedText = NSAttributedString(string: storyText, attributes: attributes)
                 let maxTextWidth = rect.width * 0.82
@@ -1083,13 +1473,67 @@ struct StoryEditingView: View {
                 )
                 
                 let scaleFactor = max(scaleFactorX, scaleFactorY)
-                if let backgroundUIColor = textBackgroundUIColor() {
+                if let backgroundUIColor = resolvedTextBackgroundUIColor() {
                     backgroundUIColor.setFill()
                     let backgroundRect = textRect.insetBy(dx: -16 * scaleFactor, dy: -8 * scaleFactor)
                     UIBezierPath(roundedRect: backgroundRect, cornerRadius: 8 * scaleFactor).fill()
                 }
                 
                 attributedText.draw(in: textRect)
+            }
+        }
+    }
+
+    private func renderStoryWithOverlays() -> UIImage {
+        guard let firstMedia = selectedMediaItems.first else {
+            return UIImage()
+        }
+        
+        let baseImage = firstMedia.image
+        let screenSize = UIScreen.main.bounds.size
+        let targetSize = storyRenderTargetSize(for: screenSize)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: targetSize)
+            let blurImage = storyBackgroundBlurImage(baseImage: baseImage, targetSize: targetSize)
+            let overscale: CGFloat = 1.05
+            let overscaleRect = CGRect(
+                x: -(targetSize.width * (overscale - 1) / 2),
+                y: -(targetSize.height * (overscale - 1) / 2),
+                width: targetSize.width * overscale,
+                height: targetSize.height * overscale
+            )
+            blurImage.draw(in: overscaleRect)
+            
+            let renderImage: UIImage
+            if selectedFilter != .normal {
+                renderImage = FilterService.shared.applyFilter(selectedFilter, to: baseImage, intensity: filterIntensity)
+            } else {
+                renderImage = baseImage
+            }
+            
+            context.cgContext.saveGState()
+            context.cgContext.translateBy(x: targetSize.width / 2, y: targetSize.height / 2)
+            
+            if firstMedia.type != .video {
+                let scaleFactorX = targetSize.width / max(screenSize.width, 1)
+                let scaleFactorY = targetSize.height / max(screenSize.height, 1)
+                context.cgContext.rotate(by: imageRotation.radians)
+                context.cgContext.scaleBy(x: imageScale, y: imageScale)
+                context.cgContext.translateBy(
+                    x: imageOffset.width * scaleFactorX,
+                    y: imageOffset.height * scaleFactorY
+                )
+            }
+            
+            let imageRect = mediaRectForStoryCanvas(mediaSize: renderImage.size, targetSize: targetSize)
+                .offsetBy(dx: -targetSize.width / 2, dy: -targetSize.height / 2)
+            renderImage.draw(in: imageRect)
+            context.cgContext.restoreGState()
+            
+            if let overlayImage = renderStoryOverlayImage(targetSize: targetSize, screenSize: screenSize) {
+                overlayImage.draw(in: rect)
             }
             
             // 5. Stickers overlay
@@ -1144,6 +1588,159 @@ struct StoryEditingView: View {
             
         }
     }
+
+    private func shouldBakeCurrentOverlaysIntoVideo(_ media: ProcessedMedia) -> Bool {
+        guard media.type == .video else { return false }
+        return drawingImage != nil || !storyText.isEmpty
+    }
+
+    private func exportVideoWithCurrentOverlays(_ media: ProcessedMedia) async throws -> URL {
+        guard let sourceURL = media.videoURL else {
+            throw NSError(domain: "StoryEditor", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing source video URL"])
+        }
+        
+        let asset = AVURLAsset(url: sourceURL)
+        guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+            throw NSError(domain: "StoryEditor", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing video track"])
+        }
+        
+        let duration = try await asset.load(.duration)
+        let targetSize = storyRenderTargetSize()
+        let overlayImage = renderStoryOverlayImage(targetSize: targetSize, screenSize: UIScreen.main.bounds.size)
+        let blurImage = storyBackgroundBlurImage(baseImage: media.image, targetSize: targetSize)
+        
+        let composition = AVMutableComposition()
+        let frameRate = try await videoTrack.load(.nominalFrameRate)
+        let timescale = Int32(max(30, min(60, Int(frameRate.rounded()))))
+
+        let blurVideoURL = try await createStillImageVideo(
+            from: blurImage,
+            targetSize: targetSize,
+            duration: duration,
+            frameRate: timescale
+        )
+        let blurAsset = AVURLAsset(url: blurVideoURL)
+        guard let blurTrack = try await blurAsset.loadTracks(withMediaType: .video).first,
+              let compositionBackgroundTrack = composition.addMutableTrack(
+                withMediaType: .video,
+                preferredTrackID: kCMPersistentTrackID_Invalid
+              ) else {
+            throw NSError(domain: "StoryEditor", code: 12, userInfo: [NSLocalizedDescriptionKey: "Unable to create background composition track"])
+        }
+
+        guard let compositionVideoTrack = composition.addMutableTrack(
+            withMediaType: .video,
+            preferredTrackID: kCMPersistentTrackID_Invalid
+        ) else {
+            throw NSError(domain: "StoryEditor", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unable to create composition track"])
+        }
+        
+        let timeRange = CMTimeRange(start: .zero, duration: duration)
+        try compositionBackgroundTrack.insertTimeRange(timeRange, of: blurTrack, at: .zero)
+        try compositionVideoTrack.insertTimeRange(timeRange, of: videoTrack, at: .zero)
+        
+        if let audioTrack = try await asset.loadTracks(withMediaType: .audio).first,
+           let compositionAudioTrack = composition.addMutableTrack(
+                withMediaType: .audio,
+                preferredTrackID: kCMPersistentTrackID_Invalid
+           ) {
+            try compositionAudioTrack.insertTimeRange(timeRange, of: audioTrack, at: .zero)
+        }
+        
+        let naturalSize = try await videoTrack.load(.naturalSize)
+        let preferredTransform = try await videoTrack.load(.preferredTransform)
+        let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
+        let actualSize = CGSize(width: abs(transformedRect.width), height: abs(transformedRect.height))
+        let useFit = StoryMediaLayoutRules.presentationMode(for: actualSize, canvasSize: targetSize) == .fitWithBlur
+        let scale = useFit
+            ? min(targetSize.width / max(actualSize.width, 1), targetSize.height / max(actualSize.height, 1))
+            : max(targetSize.width / max(actualSize.width, 1), targetSize.height / max(actualSize.height, 1))
+        
+        let scaledTransform = preferredTransform.concatenating(CGAffineTransform(scaleX: scale, y: scale))
+        let scaledRect = CGRect(origin: .zero, size: naturalSize).applying(scaledTransform)
+        let translation = CGAffineTransform(
+            translationX: (targetSize.width - scaledRect.width) / 2 - scaledRect.minX,
+            y: (targetSize.height - scaledRect.height) / 2 - scaledRect.minY
+        )
+        let finalTransform = scaledTransform.concatenating(translation)
+        
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = timeRange
+        
+        let backgroundInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionBackgroundTrack)
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+        layerInstruction.setTransform(finalTransform, at: .zero)
+        instruction.layerInstructions = [layerInstruction, backgroundInstruction]
+        
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = targetSize
+        videoComposition.frameDuration = CMTime(value: 1, timescale: timescale)
+        videoComposition.instructions = [instruction]
+        
+        let renderFrame = CGRect(origin: .zero, size: targetSize)
+        let parentLayer = CALayer()
+        parentLayer.frame = renderFrame
+        let videoLayer = CALayer()
+        videoLayer.frame = renderFrame
+        
+        parentLayer.addSublayer(videoLayer)
+        
+        if let overlayImage {
+            let overlayLayer = CALayer()
+            overlayLayer.frame = renderFrame
+            overlayLayer.contents = overlayImage.cgImage
+            overlayLayer.contentsGravity = .resize
+            parentLayer.addSublayer(overlayLayer)
+        }
+        
+        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(
+            postProcessingAsVideoLayer: videoLayer,
+            in: parentLayer
+        )
+        
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("story_overlay_\(UUID().uuidString).mp4")
+        try? FileManager.default.removeItem(at: outputURL)
+        
+        guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+            throw NSError(domain: "StoryEditor", code: 4, userInfo: [NSLocalizedDescriptionKey: "Unable to create export session"])
+        }
+        
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        exportSession.videoComposition = videoComposition
+        
+        await exportSession.export()
+        
+        switch exportSession.status {
+        case .completed:
+            return outputURL
+        case .failed:
+            throw exportSession.error ?? NSError(domain: "StoryEditor", code: 5, userInfo: [NSLocalizedDescriptionKey: "Video export failed"])
+        case .cancelled:
+            throw NSError(domain: "StoryEditor", code: 6, userInfo: [NSLocalizedDescriptionKey: "Video export cancelled"])
+        default:
+            throw NSError(domain: "StoryEditor", code: 7, userInfo: [NSLocalizedDescriptionKey: "Video export did not finish"])
+        }
+    }
+
+    private func prepareMediaForStoryUpload(from media: ProcessedMedia) async throws -> (mediaItem: ProcessedMedia, finalRenderedImage: UIImage) {
+        let finalRenderedImage = renderStoryWithOverlays()
+        
+        guard shouldBakeCurrentOverlaysIntoVideo(media) else {
+            return (media, finalRenderedImage)
+        }
+        
+        let exportedVideoURL = try await exportVideoWithCurrentOverlays(media)
+        let finalMedia = media.with(
+            videoURL: exportedVideoURL,
+            hasEdits: true,
+            image: finalRenderedImage
+        )
+        
+        return (finalMedia, finalRenderedImage)
+    }
     
     // ✅ FUNCIÓN ACTUALIZADA: Publicar historia con soporte para listas
     private func publishStory() {
@@ -1174,43 +1771,50 @@ struct StoryEditingView: View {
     }
     
     private func publishStoryAfterValidation() {
-        guard let userId = Auth.auth().currentUser?.uid,
-              let media = selectedMediaItems.first else { return }
+        guard let media = selectedMediaItems.first else { return }
         
-        // 🔥 RENDERIZAR IMAGEN FINAL CON OVERLAYS
-        let finalRenderedImage = renderStoryWithOverlays()
-        
-        // 🔥 PREPARAR DATOS DE STICKERS - PASAR StickerItem DIRECTAMENTE
+        Task {
+            do {
+                let preparedUpload = try await prepareMediaForStoryUpload(from: media)
+                await MainActor.run {
+                    publishPreparedStory(
+                        media: preparedUpload.mediaItem,
+                        finalRenderedImage: preparedUpload.finalRenderedImage
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    let notificationFeedback = UINotificationFeedbackGenerator()
+                    notificationFeedback.notificationOccurred(.error)
+                    alertMessage = error.localizedDescription
+                    showAlert = true
+                }
+            }
+        }
+    }
+
+    private func publishPreparedStory(media: ProcessedMedia, finalRenderedImage: UIImage) {
         let stickerData = selectedStickers
-        
-        // 🔥 PREPARAR DRAWING DATA
         let drawingData = drawingImage?.pngData()
         
-        // 🔗 MANEJAR STORY CHAINS
         var finalChainId: String? = nil
         var finalChainPosition: Int? = nil
         var finalChainTitle: String? = nil
         
         if isCreatingChain && !chainTitle.isEmpty {
-            // Crear nueva cadena
             finalChainId = UUID().uuidString
             finalChainPosition = 1
             finalChainTitle = chainTitle
         } else if isContinuingChain, let existingChainId = chainId {
-            // Continuar cadena existente
             finalChainId = existingChainId
             finalChainPosition = (chainPosition ?? 0) + 1
             finalChainTitle = originalChainTitle
         }
         
-        // 🔥 CONVERTIR storyAudience (CaptionAndDetailsView.AudienceSetting) a ContentAudience
-        // 🔗 STORY CHAINS: Las cadenas siempre son visibles para todos, pero la audiencia determina quién puede continuar
         let contentAudience: ContentAudience = {
             if isCreatingChain || isContinuingChain {
-                // Para cadenas, siempre "everyone" para visibilidad
                 return .everyone
             } else {
-                // Para historias normales, usar la audiencia seleccionada
                 switch storyAudience {
                 case .everyone: return .everyone
                 case .mutuals: return .connections
@@ -1222,7 +1826,6 @@ struct StoryEditingView: View {
             }
         }()
         
-        // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
         let success = BackgroundStoryUploadService.shared.publishStoryInBackground(
             mediaItem: media,
             storyText: storyText,
@@ -1284,9 +1887,11 @@ struct StoryEditingView: View {
         selectedStickers = []
         drawingImage = nil
         selectedTextStyle = .modern
+        selectedTextEffect = .none
         storyTextColor = .white
         storyTextAlignment = .center
         storyTextBackground = .none
+        storyTextFontSize = 30
         
     }
 
@@ -1310,6 +1915,13 @@ struct StoryEditingView: View {
         case .white:
             return UIColor.white.withAlphaComponent(0.90)
         }
+    }
+
+    private func resolvedTextBackgroundUIColor() -> UIColor? {
+        if let explicitBackground = textBackgroundUIColor() {
+            return explicitBackground
+        }
+        return selectedTextEffect.uiBackgroundColor
     }
     
     // 🔗 MANEJAR ERRORES DE LÍMITES DE STORY CHAINS
@@ -1491,18 +2103,20 @@ struct StoryVideoPlayerView: UIViewRepresentable {
     
     func makeUIView(context: Context) -> PlayerUIView {
         let playerView = PlayerUIView()
-        playerView.configure(with: videoURL, gravity: videoGravity) // ✅ Pass gravity
+        playerView.update(with: videoURL, gravity: videoGravity)
         return playerView
     }
     
     func updateUIView(_ uiView: PlayerUIView, context: Context) {
-        // Update if needed
+        uiView.update(with: videoURL, gravity: videoGravity)
     }
 }
 
 class PlayerUIView: UIView {
     private var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
+    private var currentURL: URL?
+    private var currentGravity: AVLayerVideoGravity?
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -1527,21 +2141,34 @@ class PlayerUIView: UIView {
         }
     }
     
-    func configure(with url: URL, gravity: AVLayerVideoGravity = .resizeAspect) {
-        player = AVPlayer(url: url)
-        
-        playerLayer = AVPlayerLayer(player: player)
-        playerLayer?.videoGravity = gravity // ✅ Use passed gravity
-        playerLayer?.frame = bounds
-        
-        if let playerLayer = playerLayer {
-            layer.addSublayer(playerLayer)
+    func update(with url: URL, gravity: AVLayerVideoGravity = .resizeAspect) {
+        if currentURL != url || player == nil || playerLayer == nil {
+            configurePlayer(with: url, gravity: gravity)
+            return
         }
-        
-        // Auto play and loop
+
+        if currentGravity != gravity {
+            currentGravity = gravity
+            playerLayer?.videoGravity = gravity
+        }
+    }
+
+    private func configurePlayer(with url: URL, gravity: AVLayerVideoGravity) {
+        player?.pause()
+        playerLayer?.removeFromSuperlayer()
+
+        currentURL = url
+        currentGravity = gravity
+        player = AVPlayer(url: url)
+
+        let layer = AVPlayerLayer(player: player)
+        layer.videoGravity = gravity
+        layer.frame = bounds
+        self.playerLayer = layer
+        self.layer.addSublayer(layer)
+
         player?.play()
-        
-        // Loop video
+
         NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: player?.currentItem,
@@ -1918,8 +2545,10 @@ class Coordinator: NSObject {
 
 private enum StoryDrawingBrush {
     case pen
-    case neon
+    case arrow
+    case glow
     case marker
+    case eraser
 }
 
 private struct StoryDrawingEditorOverlay: View {
@@ -1927,6 +2556,7 @@ private struct StoryDrawingEditorOverlay: View {
     @Binding var drawingImage: UIImage?
 
     @State private var baseDrawing: UIImage?
+    @State private var liveGlowImage: UIImage?
     @State private var brush: StoryDrawingBrush = .pen
     @State private var brushWidth: CGFloat = 7
     @State private var color: UIColor = .white
@@ -1959,31 +2589,55 @@ private struct StoryDrawingEditorOverlay: View {
                 clearToken: $clearToken,
                 undoToken: $undoToken,
                 redoToken: $redoToken,
-                exportToken: $exportToken
-            ) { strokesImage, hasStrokes in
-                if hasStrokes {
-                    if let base = baseDrawing {
-                        drawingImage = merge(base: base, overlay: strokesImage)
+                exportToken: $exportToken,
+                onExport: { strokesImage, hasStrokes in
+                    if hasStrokes {
+                        if let base = baseDrawing {
+                            drawingImage = merge(base: base, overlay: strokesImage)
+                        } else {
+                            drawingImage = strokesImage
+                        }
                     } else {
-                        drawingImage = strokesImage
+                        drawingImage = baseDrawing
                     }
-                } else {
-                    drawingImage = baseDrawing
+                    isPresented = false
+                },
+                onLiveGlowPreview: { image in
+                    liveGlowImage = image
                 }
-                isPresented = false
-            }
+            )
             .ignoresSafeArea()
 
+            if let liveGlowImage {
+                Image(uiImage: liveGlowImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                    .allowsHitTesting(false)
+            }
+
             VStack {
-                HStack {
+                HStack(spacing: 10) {
                     Button(action: { isPresented = false }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.title2)
                             .foregroundColor(.white)
-                            .frame(width: 34, height: 34)
+                            .padding(12)
                             .liquidGlass(in: Circle())
                     }
-                    Spacer()
+
+                    Spacer(minLength: 6)
+
+                    HStack(spacing: 12) {
+                        brushButton(icon: "pencil", brushType: .pen)
+                        brushButton(icon: "arrow.up.right", brushType: .arrow)
+                        brushButton(icon: "highlighter", brushType: .marker)
+                        brushButton(icon: "sparkles", brushType: .glow)
+                        brushButton(icon: "eraser", brushType: .eraser)
+                    }
+
+                    Spacer(minLength: 6)
+
                     Button(action: {
                         exportToken += 1
                     }) {
@@ -1995,79 +2649,101 @@ private struct StoryDrawingEditorOverlay: View {
                             .liquidGlass(in: Capsule())
                     }
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 56)
+                .padding(.horizontal, 20)
+                .padding(.top, 76)
 
                 Spacer()
 
-                VStack(spacing: 10) {
-                    HStack(spacing: 10) {
-                        brushButton(icon: "pencil", brushType: .pen)
-                        brushButton(icon: "sparkles", brushType: .neon)
-                        brushButton(icon: "highlighter", brushType: .marker)
-
-                        Button(action: { undoToken += 1 }) {
-                            Image(systemName: "arrow.uturn.backward")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 36, height: 36)
-                                .liquidGlass(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-
-                        Button(action: { redoToken += 1 }) {
-                            Image(systemName: "arrow.uturn.forward")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 36, height: 36)
-                                .liquidGlass(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-
-                        Button(action: {
-                            baseDrawing = nil
-                            clearToken += 1
-                        }) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 36, height: 36)
-                                .liquidGlass(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-                    }
-
-                    Slider(value: $brushWidth, in: 2...26)
-                        .accentColor(.white)
-                        .padding(.horizontal, 4)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(drawingPalette, id: \.self) { paletteColor in
-                                Button(action: { color = paletteColor }) {
-                                    Circle()
-                                        .fill(Color(paletteColor))
-                                        .frame(width: 28, height: 28)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.white.opacity(color == paletteColor ? 0.95 : 0.25), lineWidth: color == paletteColor ? 2 : 1)
-                                        )
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        // Eyedropper / Custom Color Picker
+                        ZStack {
+                            Circle()
+                                .fill(Color(color))
+                                .frame(width: 30, height: 30)
+                                .overlay(
+                                    Circle().stroke(Color.white.opacity(0.6), lineWidth: 1.5)
+                                )
+                            
+                            Image(systemName: "eyedropper")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(color == .white ? .black : .white)
+                            
+                            ColorPicker("", selection: Binding(
+                                get: { Color(color) },
+                                set: { newColor in
+                                    let uiColor = UIColor(newColor)
+                                    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                                    // Force color into standard RGBA space so CoreGraphics (.cgColor) shadowing works.
+                                    if uiColor.getRed(&r, green: &g, blue: &b, alpha: &a) {
+                                        color = UIColor(red: r, green: g, blue: b, alpha: a)
+                                    } else {
+                                        color = UIColor(cgColor: uiColor.cgColor)
+                                    }
                                 }
-                                .buttonStyle(.plain)
-                            }
+                            ), supportsOpacity: false)
+                            .labelsHidden()
+                            .opacity(0.011)
                         }
-                        .padding(.horizontal, 4)
+                        
+                        Divider()
+                            .frame(height: 20)
+                            .background(Color.white.opacity(0.3))
+                            .padding(.horizontal, 2)
+
+                        ForEach(drawingPalette, id: \.self) { paletteColor in
+                            Button(action: { color = paletteColor }) {
+                                Circle()
+                                    .fill(Color(paletteColor))
+                                    .frame(width: 30, height: 30)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white.opacity(color == paletteColor ? 0.95 : 0.26), lineWidth: color == paletteColor ? 2.5 : 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .frame(height: 34)
+                    .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .frame(height: 38)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .liquidGlass(in: Capsule())
                 .padding(.horizontal, 16)
-                .padding(.bottom, 14)
+                .padding(.bottom, 76)
             }
+
+            HStack {
+                Spacer()
+                VStack(spacing: 10) {
+                    sideToolButton(icon: "arrow.uturn.backward") {
+                        undoToken += 1
+                    }
+
+                    sideToolButton(icon: "arrow.uturn.forward") {
+                        redoToken += 1
+                    }
+
+                    StoryVerticalBrushSlider(
+                        value: $brushWidth,
+                        range: 2...26
+                    )
+                }
+                .padding(.trailing, 16)
+                .padding(.bottom, 116)
+            }
+            .padding(.top, 148)
         }
+        .ignoresSafeArea()
     }
 
     private var drawingPalette: [UIColor] {
-        [.white, .black, .systemRed, .systemOrange, .systemYellow, .systemGreen, .systemBlue, .systemPurple]
+        [
+            .white, .black, .darkGray, .lightGray,
+            .systemRed, .systemOrange, .systemYellow, .systemGreen,
+            .systemCyan, .systemBlue, .systemIndigo, .systemPurple, .systemPink, .brown
+        ]
     }
 
     private func merge(base: UIImage, overlay: UIImage) -> UIImage {
@@ -2084,17 +2760,81 @@ private struct StoryDrawingEditorOverlay: View {
         let isSelected = brush == brushType
         Button(action: { brush = brushType }) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 36, height: 36)
-                .background(isSelected ? Color.white.opacity(0.24) : Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(isSelected ? Color.white.opacity(0.52) : Color.white.opacity(0.14), lineWidth: 1)
-                )
+                .font(.system(size: isSelected ? 20 : 18, weight: .semibold))
+                .foregroundColor(.white.opacity(isSelected ? 1 : 0.58))
+                .frame(width: 30, height: 30)
+                .scaleEffect(isSelected ? 1.08 : 1)
+                .shadow(color: .black.opacity(isSelected ? 0.18 : 0), radius: 8, y: 2)
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func sideToolButton(icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 38, height: 38)
+                .liquidGlass(in: Circle())
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+
+}
+
+private struct StoryVerticalBrushSlider: View {
+    @Binding var value: CGFloat
+    let range: ClosedRange<CGFloat>
+
+    var body: some View {
+        GeometryReader { proxy in
+            let trackHeight = proxy.size.height
+            let thumbSize: CGFloat = 34
+            let normalized = normalizedValue
+            let thumbTravel = max(0, trackHeight - thumbSize)
+            let thumbY = (1 - normalized) * thumbTravel
+
+            ZStack(alignment: .top) {
+                Capsule()
+                    .fill(Color.white.opacity(0.18))
+                    .frame(width: 6)
+                    .frame(maxHeight: .infinity)
+
+                Capsule()
+                    .fill(Color.white.opacity(0.92))
+                    .frame(width: 6, height: max(thumbSize * 0.7, trackHeight * normalized))
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: thumbSize, height: thumbSize)
+                    .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+                    .offset(y: thumbY)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let clampedY = min(max(gesture.location.y, 0), trackHeight)
+                        let normalized = 1 - (clampedY / max(trackHeight, 1))
+                        value = range.lowerBound + ((range.upperBound - range.lowerBound) * normalized)
+                    }
+            )
+        }
+        .frame(width: 34, height: 208)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 12)
+        .liquidGlass(in: Capsule())
+    }
+
+    private var normalizedValue: CGFloat {
+        let distance = range.upperBound - range.lowerBound
+        guard distance > 0 else { return 0 }
+        return min(max((value - range.lowerBound) / distance, 0), 1)
     }
 }
 
@@ -2109,6 +2849,33 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
     @Binding var exportToken: Int
 
     let onExport: (UIImage, Bool) -> Void
+    let onLiveGlowPreview: (UIImage?) -> Void
+
+    fileprivate struct StrokeMetadata {
+        let brush: StoryDrawingBrush
+        let color: UIColor
+        let width: CGFloat
+    }
+
+    private enum GlowConfig {
+        // Instagram-like neon: nearly-invisible PK stroke + intense colored glow via CGContext shadow.
+        static let coreWidthMultiplier: CGFloat = 0.3
+
+        // Shadow pass 1: tight, intense inner glow
+        static let innerShadowBlur: CGFloat = 3
+        static let innerShadowAlpha: CGFloat = 1.0
+        static let innerStrokeWidthMultiplier: CGFloat = 0.9
+
+        // Shadow pass 2: medium spread
+        static let midShadowBlur: CGFloat = 8
+        static let midShadowAlpha: CGFloat = 0.9
+        static let midStrokeWidthMultiplier: CGFloat = 0.8
+
+        // Shadow pass 3: wide ambient glow
+        static let outerShadowBlur: CGFloat = 18
+        static let outerShadowAlpha: CGFloat = 0.4
+        static let outerStrokeWidthMultiplier: CGFloat = 0.6
+    }
 
     func makeUIView(context: Context) -> PKCanvasView {
         let canvas = PKCanvasView()
@@ -2121,14 +2888,19 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         canvas.showsHorizontalScrollIndicator = false
         canvas.contentInset = .zero
         canvas.contentSize = UIScreen.main.bounds.size
+        canvas.delegate = context.coordinator
         return canvas
     }
 
     func updateUIView(_ uiView: PKCanvasView, context: Context) {
+        context.coordinator.currentBrush = brush
+        context.coordinator.currentColor = color
+        context.coordinator.currentWidth = brushWidth
         uiView.tool = currentTool()
 
         if clearToken != context.coordinator.lastClearToken {
             context.coordinator.lastClearToken = clearToken
+            context.coordinator.strokeMetadata = []
             uiView.drawing = PKDrawing()
         }
 
@@ -2145,31 +2917,347 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         if exportToken != context.coordinator.lastExportToken {
             context.coordinator.lastExportToken = exportToken
             let hasStrokes = !uiView.drawing.strokes.isEmpty
-            let exported = uiView.drawing.image(from: uiView.bounds, scale: UIScreen.main.scale)
+            let exported = renderExportedImage(
+                from: uiView.drawing,
+                bounds: uiView.bounds,
+                scale: UIScreen.main.scale,
+                strokeMetadata: context.coordinator.strokeMetadata
+            )
             onExport(exported, hasStrokes)
         }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(onLiveGlowPreview: onLiveGlowPreview)
     }
 
-    final class Coordinator {
+    final class Coordinator: NSObject, PKCanvasViewDelegate {
+        private let onLiveGlowPreview: (UIImage?) -> Void
+
         var lastClearToken = 0
         var lastUndoToken = 0
         var lastRedoToken = 0
         var lastExportToken = 0
+        var currentBrush: StoryDrawingBrush = .pen
+        var currentColor: UIColor = .white
+        var currentWidth: CGFloat = 7
+        fileprivate var strokeMetadata: [StrokeMetadata] = []
+
+        private var glowPreviewWorkItem: DispatchWorkItem?
+
+        init(onLiveGlowPreview: @escaping (UIImage?) -> Void) {
+            self.onLiveGlowPreview = onLiveGlowPreview
+            super.init()
+        }
+
+        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+            let strokeCount = canvasView.drawing.strokes.count
+
+            if strokeCount > strokeMetadata.count {
+                let newMetadata = StrokeMetadata(
+                    brush: currentBrush,
+                    color: currentColor,
+                    width: currentWidth
+                )
+                strokeMetadata.append(contentsOf: Array(repeating: newMetadata, count: strokeCount - strokeMetadata.count))
+            } else if strokeCount < strokeMetadata.count {
+                strokeMetadata = Array(strokeMetadata.prefix(strokeCount))
+            }
+
+            // WYSIWYG glow preview (debounced).
+            glowPreviewWorkItem?.cancel()
+            let shouldRenderGlow = strokeMetadata.contains(where: { $0.brush == .glow })
+            let drawingSnapshot = canvasView.drawing
+            let boundsSnapshot = canvasView.bounds
+            let metadataSnapshot = strokeMetadata
+
+            let workItem = DispatchWorkItem { [onLiveGlowPreview] in
+                guard shouldRenderGlow else {
+                    onLiveGlowPreview(nil)
+                    return
+                }
+
+                let preview = StoryDrawingCanvasView.renderBlurredGlowImage(
+                    from: drawingSnapshot,
+                    bounds: boundsSnapshot,
+                    strokeMetadata: metadataSnapshot,
+                    scale: UIScreen.main.scale
+                )
+                onLiveGlowPreview(preview)
+            }
+
+            glowPreviewWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06, execute: workItem)
+        }
     }
 
-    private func currentTool() -> PKInkingTool {
+    private func currentTool() -> PKTool {
         switch brush {
         case .pen:
             return PKInkingTool(.pen, color: color, width: brushWidth)
-        case .neon:
-            return PKInkingTool(.marker, color: color.withAlphaComponent(0.90), width: max(4, brushWidth * 1.35))
+        case .arrow:
+            return PKInkingTool(.pen, color: color, width: max(3, brushWidth))
+        case .glow:
+            // Nearly invisible on PK canvas – the glow overlay provides all visual feedback.
+            return PKInkingTool(
+                .pen,
+                color: color.withAlphaComponent(0.08),
+                width: max(2, brushWidth * GlowConfig.coreWidthMultiplier)
+            )
         case .marker:
             return PKInkingTool(.marker, color: color.withAlphaComponent(0.40), width: max(10, brushWidth * 2.4))
+        case .eraser:
+            return PKEraserTool(.bitmap)
         }
+    }
+
+    private func renderExportedImage(
+        from drawing: PKDrawing,
+        bounds: CGRect,
+        scale: CGFloat,
+        strokeMetadata: [StrokeMetadata]
+    ) -> UIImage {
+        let hasGlowStrokes = strokeMetadata.contains(where: { $0.brush == .glow })
+        let hasArrowStrokes = strokeMetadata.contains(where: { $0.brush == .arrow })
+
+        // Build a "clean" drawing without glow strokes so they don't appear as ghost lines.
+        let cleanDrawing: PKDrawing
+        if hasGlowStrokes {
+            let nonGlowStrokes = drawing.strokes.enumerated().compactMap { (index, stroke) -> PKStroke? in
+                guard index < strokeMetadata.count else { return stroke }
+                return strokeMetadata[index].brush == .glow ? nil : stroke
+            }
+            var rebuilt = PKDrawing()
+            rebuilt.strokes = nonGlowStrokes
+            cleanDrawing = rebuilt
+        } else {
+            cleanDrawing = drawing
+        }
+
+        let baseImage = cleanDrawing.image(from: bounds, scale: scale)
+
+        guard hasGlowStrokes || hasArrowStrokes else {
+            return baseImage
+        }
+
+        let glowImage: UIImage? = hasGlowStrokes
+            ? Self.renderBlurredGlowImage(from: drawing, bounds: bounds, strokeMetadata: strokeMetadata, scale: scale)
+            : nil
+
+        let renderer = UIGraphicsImageRenderer(size: bounds.size)
+        return renderer.image { ctx in
+            // Glow image first (it includes its own white core)
+            if let glowImage {
+                glowImage.draw(in: CGRect(origin: .zero, size: bounds.size))
+            }
+
+            // Non-glow strokes on top
+            baseImage.draw(in: CGRect(origin: .zero, size: bounds.size))
+
+            for (index, stroke) in drawing.strokes.enumerated() {
+                guard index < strokeMetadata.count else { continue }
+                let metadata = strokeMetadata[index]
+                guard metadata.brush == .arrow else { continue }
+                drawArrowHead(for: stroke, metadata: metadata)
+            }
+        }
+    }
+
+    private static func renderBlurredGlowImage(
+        from drawing: PKDrawing,
+        bounds: CGRect,
+        strokeMetadata: [StrokeMetadata],
+        scale: CGFloat
+    ) -> UIImage? {
+        let glowStrokes = drawing.strokes.enumerated().compactMap { (index, stroke) -> (index: Int, stroke: PKStroke)? in
+            guard index < strokeMetadata.count else { return nil }
+            return strokeMetadata[index].brush == .glow ? (index: index, stroke: stroke) : nil
+        }
+
+        guard !glowStrokes.isEmpty else { return nil }
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.opaque = false
+        format.scale = scale
+
+        let renderer = UIGraphicsImageRenderer(size: bounds.size, format: format)
+        return renderer.image { rendererCtx in
+            let ctx = rendererCtx.cgContext
+
+            // -- Pass 0: Wide ambient diffusion (neon light spill) --
+            ctx.saveGState()
+            ctx.setBlendMode(.plusLighter)
+            for glow in glowStrokes {
+                let metadata = strokeMetadata[glow.index]
+                let bezier = strokeToBezierPath(stroke: glow.stroke)
+                guard !bezier.cgPath.isEmpty else { continue }
+
+                let diffuseColor = metadata.color.withAlphaComponent(0.18)
+                ctx.setShadow(offset: .zero, blur: 36, color: diffuseColor.cgColor)
+                ctx.setStrokeColor(UIColor.clear.cgColor)
+                ctx.setLineWidth(max(1, metadata.width * 0.5))
+                ctx.setLineCap(.round)
+                ctx.setLineJoin(.round)
+                ctx.addPath(bezier.cgPath)
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+
+            // -- Pass 1: Outer ambient glow (wide, soft) --
+            ctx.saveGState()
+            ctx.setBlendMode(.plusLighter)
+            for glow in glowStrokes {
+                let metadata = strokeMetadata[glow.index]
+                let bezier = strokeToBezierPath(stroke: glow.stroke)
+                guard !bezier.cgPath.isEmpty else { continue }
+
+                let glowColor = metadata.color.withAlphaComponent(GlowConfig.outerShadowAlpha)
+                ctx.setShadow(offset: .zero, blur: GlowConfig.outerShadowBlur, color: glowColor.cgColor)
+                ctx.setStrokeColor(UIColor.clear.cgColor)
+                ctx.setLineWidth(max(1, metadata.width * GlowConfig.outerStrokeWidthMultiplier))
+                ctx.setLineCap(.round)
+                ctx.setLineJoin(.round)
+                ctx.addPath(bezier.cgPath)
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+
+            // -- Pass 2: Mid glow (medium spread) --
+            ctx.saveGState()
+            ctx.setBlendMode(.plusLighter)
+            for glow in glowStrokes {
+                let metadata = strokeMetadata[glow.index]
+                let bezier = strokeToBezierPath(stroke: glow.stroke)
+                guard !bezier.cgPath.isEmpty else { continue }
+
+                let glowColor = metadata.color.withAlphaComponent(GlowConfig.midShadowAlpha)
+                ctx.setShadow(offset: .zero, blur: GlowConfig.midShadowBlur, color: glowColor.cgColor)
+                ctx.setStrokeColor(UIColor.clear.cgColor)
+                ctx.setLineWidth(max(1, metadata.width * GlowConfig.midStrokeWidthMultiplier))
+                ctx.setLineCap(.round)
+                ctx.setLineJoin(.round)
+                ctx.addPath(bezier.cgPath)
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+
+            // -- Pass 3: Inner tight glow (concentrated, bright) --
+            ctx.saveGState()
+            ctx.setBlendMode(.plusLighter)
+            for glow in glowStrokes {
+                let metadata = strokeMetadata[glow.index]
+                let bezier = strokeToBezierPath(stroke: glow.stroke)
+                guard !bezier.cgPath.isEmpty else { continue }
+
+                let glowColor = metadata.color.withAlphaComponent(GlowConfig.innerShadowAlpha)
+                ctx.setShadow(offset: .zero, blur: GlowConfig.innerShadowBlur, color: glowColor.cgColor)
+                // Draw the stroke itself in the glow color for a saturated rim
+                ctx.setStrokeColor(metadata.color.withAlphaComponent(0.9).cgColor)
+                ctx.setLineWidth(max(1, metadata.width * GlowConfig.innerStrokeWidthMultiplier))
+                ctx.setLineCap(.round)
+                ctx.setLineJoin(.round)
+                ctx.addPath(bezier.cgPath)
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+
+            // -- Pass 4: Saturated color rim (tight tube look) --
+            ctx.saveGState()
+            ctx.setBlendMode(.plusLighter)
+            for glow in glowStrokes {
+                let metadata = strokeMetadata[glow.index]
+                let bezier = strokeToBezierPath(stroke: glow.stroke)
+                guard !bezier.cgPath.isEmpty else { continue }
+
+                ctx.setShadow(offset: .zero, blur: 1.5, color: metadata.color.cgColor)
+                ctx.setStrokeColor(metadata.color.withAlphaComponent(0.95).cgColor)
+                ctx.setLineWidth(max(1.5, metadata.width * GlowConfig.coreWidthMultiplier * 1.8))
+                ctx.setLineCap(.round)
+                ctx.setLineJoin(.round)
+                ctx.addPath(bezier.cgPath)
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+
+            // -- Pass 5: Bright white core --
+            ctx.saveGState()
+            for glow in glowStrokes {
+                let metadata = strokeMetadata[glow.index]
+                let bezier = strokeToBezierPath(stroke: glow.stroke)
+                guard !bezier.cgPath.isEmpty else { continue }
+
+                ctx.setShadow(offset: .zero, blur: 1, color: UIColor.white.cgColor)
+                ctx.setStrokeColor(UIColor.white.cgColor)
+                ctx.setLineWidth(max(1, metadata.width * GlowConfig.coreWidthMultiplier))
+                ctx.setLineCap(.round)
+                ctx.setLineJoin(.round)
+                ctx.addPath(bezier.cgPath)
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+        }
+    }
+
+    private static func strokeToBezierPath(stroke: PKStroke) -> UIBezierPath {
+        let pts = stroke.path
+        guard !pts.isEmpty else { return UIBezierPath() }
+
+        let bezier = UIBezierPath()
+        bezier.move(to: pts[0].location)
+
+        if pts.count > 1 {
+            for i in 1..<pts.count {
+                let mid = CGPoint(
+                    x: (pts[i - 1].location.x + pts[i].location.x) / 2,
+                    y: (pts[i - 1].location.y + pts[i].location.y) / 2
+                )
+                bezier.addQuadCurve(to: mid, controlPoint: pts[i - 1].location)
+            }
+            bezier.addLine(to: pts[pts.count - 1].location)
+        }
+
+        bezier.lineCapStyle = .round
+        bezier.lineJoinStyle = .round
+        return bezier
+    }
+
+    private func drawArrowHead(for stroke: PKStroke, metadata: StrokeMetadata) {
+        let path = stroke.path
+        guard path.count >= 2 else { return }
+
+        let endIndex = path.index(before: path.endIndex)
+        let previousIndex = path.index(before: endIndex)
+        let endPoint = path[endIndex].location
+        let previousPoint = path[previousIndex].location
+
+        let dx = endPoint.x - previousPoint.x
+        let dy = endPoint.y - previousPoint.y
+        let length = hypot(dx, dy)
+        guard length > 0.001 else { return }
+
+        let angle = atan2(dy, dx)
+        let headLength = max(12, metadata.width * 3.2)
+        let spread: CGFloat = .pi / 7
+
+        let left = CGPoint(
+            x: endPoint.x - headLength * cos(angle - spread),
+            y: endPoint.y - headLength * sin(angle - spread)
+        )
+        let right = CGPoint(
+            x: endPoint.x - headLength * cos(angle + spread),
+            y: endPoint.y - headLength * sin(angle + spread)
+        )
+
+        let arrowPath = UIBezierPath()
+        arrowPath.move(to: left)
+        arrowPath.addLine(to: endPoint)
+        arrowPath.addLine(to: right)
+        arrowPath.lineWidth = max(3, metadata.width * 0.9)
+        arrowPath.lineCapStyle = .round
+        arrowPath.lineJoinStyle = .round
+
+        metadata.color.setStroke()
+        arrowPath.stroke()
     }
 }
 

@@ -587,6 +587,7 @@ struct CreatorView: View {
                 )
             }
         }
+        .ignoresSafeArea(.keyboard)
         .onChange(of: contentType) { _, newType in
             // ✅ SEGURIDAD CRÍTICA: No cambiar el flujo si ya estamos editando (especialmente con Stickers)
             if initialSticker != nil || responseSticker != nil {
@@ -5368,108 +5369,98 @@ struct StoryTextEditor: View {
     @Binding var isPresented: Bool
     @Binding var text: String
     @Binding var selectedStyle: StoryEditingView.TextStyle
+    @Binding var selectedEffect: StoryEditingView.TextEffect
     @Binding var textColor: Color
     @Binding var textAlignment: TextAlignment
     @Binding var textBackgroundFill: StoryEditingView.TextBackgroundFill
-    @FocusState private var isTextFieldFocused: Bool
+    @Binding var textFontSize: CGFloat
+    @State private var isTextFieldFocused = false
     @State private var keyboardHeight: CGFloat = 0
     @State private var activeTool: EditorTool = .font
 
-    enum EditorTool: CaseIterable {
-        case font, color, background, effect, align
+    enum EditorTool {
+        case font
+        case color
+        case effect
     }
 
     var body: some View {
         GeometryReader { proxy in
+            let canvasSize = proxy.size
             let keyboardInset = max(0, keyboardHeight - proxy.safeAreaInsets.bottom)
+            let textCanvasLift = keyboardInset > 0 ? min(108, keyboardInset * 0.34) : 0
 
             ZStack {
                 LinearGradient(
                     colors: [
-                        Color.black.opacity(0.08),
-                        Color.black.opacity(0.22),
-                        Color.black.opacity(0.32)
+                        Color.black.opacity(0.10),
+                        Color.black.opacity(0.18),
+                        Color.black.opacity(0.28)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
                 .ignoresSafeArea()
+                .frame(width: canvasSize.width, height: canvasSize.height)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     hideKeyboard()
                 }
-                
-                VStack(spacing: 0) {
-                    HStack {
-                        Button(action: { isPresented = false }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 34, height: 34)
-                                .liquidGlass(in: Circle())
-                        }
-                        Spacer()
-                        Button(action: { isPresented = false }) {
-                            Text("creator.done")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .liquidGlass(in: Capsule())
-                        }
-                    }
-                    .padding(.horizontal, 2)
-                    .padding(.top, 8)
-                    
-                    Spacer(minLength: keyboardInset > 0 ? 10 : 22)
-                    
-                    ZStack(alignment: .topLeading) {
-                        if text.isEmpty {
-                            Text("creator.addText")
-                                .font(.system(size: 30, weight: .semibold, design: .rounded))
-                                .foregroundColor(.white.opacity(0.58))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 10)
-                        }
-                        
-                        TextEditor(text: $text)
-                            .font(selectedStyle.font)
-                            .foregroundColor(textColor)
-                            .multilineTextAlignment(textAlignment)
-                            .focused($isTextFieldFocused)
-                            .scrollContentBackground(.hidden)
-                            .background(Color.clear)
-                            .frame(minHeight: 130, maxHeight: 240)
-                            .padding(.horizontal, 0)
-                            .padding(.vertical, 0)
-                    }
-                    .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
-                    .padding(.horizontal, 24)
-                    
-                    Spacer(minLength: keyboardInset > 0 ? 8 : 12)
 
-                    VStack(spacing: 10) {
-                        toolContentRow
+                HStack(alignment: .center, spacing: 8) {
+                    FontSizeSlider(value: $textFontSize, range: 20...56)
 
-                        HStack(spacing: 12) {
-                            toolButton(icon: "textformat", tool: .font)
-                            toolButton(icon: "paintpalette", tool: .color)
-                            toolButton(icon: "character.textbox", tool: .background)
-                            toolButton(icon: "sparkles", tool: .effect)
-                            toolButton(icon: alignmentIcon, tool: .align)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    StoryStyledTextView(
+                        text: $text,
+                        isFocused: $isTextFieldFocused,
+                        style: selectedStyle,
+                        effect: selectedEffect,
+                        fontSize: textFontSize,
+                        textColor: textColor,
+                        textAlignment: textAlignment,
+                        backgroundColor: editorTextBackgroundUIColor
+                    )
+                    .frame(minHeight: 130, maxHeight: 240)
+                }
+                .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
+                .padding(.leading, 2)
+                .padding(.trailing, 24)
+                .offset(y: -textCanvasLift)
+            }
+            .frame(width: canvasSize.width, height: canvasSize.height)
+            .overlay(alignment: .top) {
+                HStack {
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .liquidGlass(in: Circle())
+                    }
+                    Spacer()
+                    Button(action: { isPresented = false }) {
+                        Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .liquidGlass(in: Capsule())
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, keyboardInset + 12)
-                .animation(.easeOut(duration: 0.24), value: keyboardInset)
+                .padding(.horizontal, 20)
+                .padding(.top, 76)
             }
+            .overlay(alignment: .bottom) {
+                textEditorBottomToolbar
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+                    .offset(y: -textEditorToolbarBottomPadding())
+                    .animation(.easeOut(duration: 0.24), value: textEditorToolbarBottomPadding())
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .ignoresSafeArea()
+        .ignoresSafeArea(.keyboard, edges: .all)
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isTextFieldFocused = true
@@ -5484,18 +5475,18 @@ struct StoryTextEditor: View {
     }
 
     @ViewBuilder
-    private var toolContentRow: some View {
+    private var toolTray: some View {
         switch activeTool {
         case .font:
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach([StoryEditingView.TextStyle.modern, .classic, .neon, .typewriter, .bold], id: \.self) { style in
+                HStack(spacing: 10) {
+                    ForEach(StoryEditingView.TextStyle.fontPickerStyles, id: \.self) { style in
                         fontPill(for: style)
                     }
                 }
                 .padding(.horizontal, 2)
             }
-            .frame(height: 40)
+            .frame(height: 48)
 
         case .color:
             ScrollView(.horizontal, showsIndicators: false) {
@@ -5503,7 +5494,7 @@ struct StoryTextEditor: View {
                     ForEach([Color.white, .black, .red, .orange, .yellow, .green, .blue, .purple, .pink], id: \.self) { color in
                         ColorOption(
                             color: color,
-                            isSelected: textColor == color
+                            isSelected: textColor == resolvedColorSelection(for: color)
                         ) {
                             if textBackgroundFill == .white && isLightColor(color) {
                                 textColor = .black
@@ -5517,54 +5508,79 @@ struct StoryTextEditor: View {
                 }
                 .padding(.horizontal, 2)
             }
-            .frame(height: 44)
+            .frame(height: 48)
 
         case .effect:
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    effectPill(title: "Classic", style: .classic)
-                    effectPill(title: "Fill", style: .modern)
-                    effectPill(title: "Glow", style: .neon)
-                    effectPill(title: "Bold", style: .bold)
-                    effectPill(title: "Mono", style: .typewriter)
+                    ForEach(StoryEditingView.TextEffect.allCases, id: \.self) { effect in
+                        effectPill(for: effect)
+                    }
                 }
                 .padding(.horizontal, 2)
             }
-            .frame(height: 40)
+            .frame(height: 48)
+        }
+    }
 
-        case .background:
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    backgroundFillPill(title: "None", fill: .none)
-                    backgroundFillPill(title: "Black", fill: .black)
-                    backgroundFillPill(title: "White", fill: .white)
+    private var textEditorBottomToolbar: some View {
+        VStack(spacing: 10) {
+            toolTray
+
+            HStack(spacing: 10) {
+                toolButton(
+                    isSelected: activeTool == .font,
+                    action: { activeTool = .font }
+                ) {
+                    Text("Aa")
+                        .font(.system(size: 24, weight: .regular))
                 }
-                .padding(.horizontal, 2)
-            }
-            .frame(height: 40)
 
-        case .align:
-            HStack(spacing: 12) {
-                AlignmentButton(
-                    alignment: .leading,
-                    currentAlignment: $textAlignment,
-                    icon: "text.alignleft"
-                )
-                
-                AlignmentButton(
-                    alignment: .center,
-                    currentAlignment: $textAlignment,
-                    icon: "text.aligncenter"
-                )
-                
-                AlignmentButton(
-                    alignment: .trailing,
-                    currentAlignment: $textAlignment,
-                    icon: "text.alignright"
-                )
+                toolButton(
+                    isSelected: activeTool == .color,
+                    action: { activeTool = .color }
+                ) {
+                    Circle()
+                        .fill(
+                            AngularGradient(
+                                colors: [.red, .yellow, .green, .cyan, .blue, .purple, .pink, .red],
+                                center: .center
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.9), lineWidth: 1.4)
+                        )
+                }
+
+                toolButton(
+                    isSelected: activeTool == .effect,
+                    action: { activeTool = .effect }
+                ) {
+                    Text("≋A")
+                        .font(.system(size: 22, weight: .medium))
+                }
+
+                toolButton(
+                    isSelected: false,
+                    action: cycleTextAlignment
+                ) {
+                    Image(systemName: alignmentIcon)
+                        .font(.system(size: 24, weight: .medium))
+                }
+
+                toolButton(
+                    isSelected: textBackgroundFill != .none,
+                    action: cycleTextBackgroundFill
+                ) {
+                    backgroundFillButtonIcon
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .frame(height: 40)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(Color.white.opacity(0.14))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }
 
@@ -5574,31 +5590,10 @@ struct StoryTextEditor: View {
                 selectedStyle = style
             }
         } label: {
-            Text(fontLabel(for: style))
-                .font(.system(size: 13, weight: .semibold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(selectedStyle == style ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(selectedStyle == style ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func effectPill(title: String, style: StoryEditingView.TextStyle) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.18)) {
-                selectedStyle = style
-            }
-        } label: {
-            Text(title)
+            Text(style.displayName)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 11)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(selectedStyle == style ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
                 .clipShape(Capsule())
@@ -5610,48 +5605,39 @@ struct StoryTextEditor: View {
         .buttonStyle(.plain)
     }
 
-    private func backgroundFillPill(title: String, fill: StoryEditingView.TextBackgroundFill) -> some View {
+    private func effectPill(for effect: StoryEditingView.TextEffect) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.18)) {
-                textBackgroundFill = fill
-                if fill == .white && isLightColor(textColor) {
-                    textColor = .black
-                } else if fill == .black && isDarkColor(textColor) {
-                    textColor = .white
-                }
+                selectedEffect = effect
             }
         } label: {
-            Text(title)
+            Text(effect.displayName)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 7)
-                .background(textBackgroundFill == fill ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(selectedEffect == effect ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
-                        .stroke(textBackgroundFill == fill ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
+                        .stroke(selectedEffect == effect ? Color.white.opacity(0.55) : Color.white.opacity(0.18), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
     }
 
-    private func toolButton(icon: String, tool: EditorTool) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.16)) {
-                activeTool = tool
-            }
-        } label: {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(activeTool == tool ? .white : .white.opacity(0.82))
-                .frame(width: 36, height: 36)
-                .background(activeTool == tool ? Color.white.opacity(0.24) : Color.white.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(activeTool == tool ? Color.white.opacity(0.52) : Color.white.opacity(0.14), lineWidth: 1)
-                )
+    private func toolButton<Content: View>(
+        isSelected: Bool,
+        foregroundColor: Color = .white,
+        action: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Button(action: action) {
+            content()
+                .foregroundColor(foregroundColor)
+                .frame(width: 44, height: 44)
+                .background(isSelected ? Color.white.opacity(0.22) : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -5667,19 +5653,83 @@ struct StoryTextEditor: View {
         }
     }
 
-    private func fontLabel(for style: StoryEditingView.TextStyle) -> String {
-        switch style {
-        case .modern:
-            return "Modern"
-        case .classic:
-            return "Classic"
-        case .neon:
-            return "Neon"
-        case .typewriter:
-            return "Mono"
-        case .bold:
-            return "Bold"
+    private var backgroundFillButtonIcon: some View {
+        let fillColor: Color = {
+            switch textBackgroundFill {
+            case .none:
+                return .clear
+            case .black:
+                return Color.black.opacity(0.92)
+            case .white:
+                return Color.white.opacity(0.96)
+            }
+        }()
+
+        let strokeColor: Color = textBackgroundFill == .white ? Color.black.opacity(0.22) : Color.white.opacity(0.55)
+        let textColor: Color = {
+            switch textBackgroundFill {
+            case .white:
+                return .black.opacity(0.88)
+            case .none, .black:
+                return .white
+            }
+        }()
+
+        return ZStack {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(fillColor)
+                .frame(width: 24, height: 20)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .stroke(strokeColor, lineWidth: 1.2)
+                )
+
+            Text("A")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(textColor)
         }
+    }
+
+    private func cycleTextAlignment() {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            switch textAlignment {
+            case .leading:
+                textAlignment = .center
+            case .center:
+                textAlignment = .trailing
+            case .trailing:
+                textAlignment = .leading
+            }
+        }
+    }
+
+    private func cycleTextBackgroundFill() {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            switch textBackgroundFill {
+            case .none:
+                textBackgroundFill = .black
+                if isDarkColor(textColor) {
+                    textColor = .white
+                }
+            case .black:
+                textBackgroundFill = .white
+                if isLightColor(textColor) {
+                    textColor = .black
+                }
+            case .white:
+                textBackgroundFill = .none
+            }
+        }
+    }
+
+    private func resolvedColorSelection(for color: Color) -> Color {
+        if textBackgroundFill == .white && isLightColor(color) {
+            return .black
+        }
+        if textBackgroundFill == .black && isDarkColor(color) {
+            return .white
+        }
+        return color
     }
 
     private func isLightColor(_ color: Color) -> Bool {
@@ -5742,6 +5792,173 @@ struct StoryTextEditor: View {
         let screenHeight = UIScreen.main.bounds.height
         keyboardHeight = max(0, screenHeight - keyboardFrame.minY)
     }
+
+    private func textEditorToolbarBottomPadding() -> CGFloat {
+        if keyboardHeight > 0 {
+            return keyboardHeight + 52
+        }
+        return 60
+    }
+
+    private var editorTextBackgroundUIColor: UIColor? {
+        switch textBackgroundFill {
+        case .none:
+            return selectedEffect.uiBackgroundColor
+        case .black:
+            return UIColor.black.withAlphaComponent(0.58)
+        case .white:
+            return UIColor.white.withAlphaComponent(0.90)
+        }
+    }
+}
+
+struct TextEffectModifier: ViewModifier {
+    let effect: StoryEditingView.TextEffect
+    let textColor: Color
+
+    func body(content: Content) -> some View {
+        if let shadow = effect.shadow(for: textColor) {
+            content.shadow(color: shadow.color, radius: shadow.radius, x: shadow.x, y: shadow.y)
+        } else {
+            content
+        }
+    }
+}
+
+struct StoryStyledTextView: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+
+    let style: StoryEditingView.TextStyle
+    let effect: StoryEditingView.TextEffect
+    let fontSize: CGFloat
+    let textColor: Color
+    let textAlignment: TextAlignment
+    let backgroundColor: UIColor?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.delegate = context.coordinator
+        textView.backgroundColor = .clear
+        textView.textContainerInset = UIEdgeInsets(top: 10, left: 14, bottom: 10, right: 14)
+        textView.textContainer.lineFragmentPadding = 0
+        textView.isScrollEnabled = true
+        textView.showsVerticalScrollIndicator = false
+        textView.showsHorizontalScrollIndicator = false
+        textView.keyboardAppearance = .dark
+        textView.autocorrectionType = .default
+        textView.autocapitalizationType = .sentences
+        textView.tintColor = UIColor(textColor)
+        textView.typingAttributes = typingAttributes()
+        textView.attributedText = NSAttributedString(string: text, attributes: typingAttributes())
+        return textView
+    }
+
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        context.coordinator.parent = self
+
+        let selectedRange = uiView.selectedRange
+        let attributes = typingAttributes()
+
+        uiView.tintColor = UIColor(textColor)
+        uiView.textAlignment = nsTextAlignment
+        uiView.typingAttributes = attributes
+
+        if uiView.attributedText.string != text || context.coordinator.lastAppliedSignature != attributesSignature {
+            uiView.attributedText = NSAttributedString(string: text, attributes: attributes)
+            context.coordinator.lastAppliedSignature = attributesSignature
+
+            let safeLocation = min(selectedRange.location, uiView.attributedText.length)
+            let remaining = uiView.attributedText.length - safeLocation
+            uiView.selectedRange = NSRange(location: safeLocation, length: min(selectedRange.length, remaining))
+        }
+
+        if isFocused, !uiView.isFirstResponder {
+            uiView.becomeFirstResponder()
+        } else if !isFocused, uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
+    }
+
+    private var attributesSignature: String {
+        let background = backgroundColor?.description ?? "nil"
+        return [
+            style.rawValue,
+            effect.rawValue,
+            "\(textColor.description)",
+            "\(textAlignment)",
+            background,
+            "\(fontSize)",
+            style.uiFont(size: fontSize).fontName
+        ].joined(separator: "|")
+    }
+
+    private var nsTextAlignment: NSTextAlignment {
+        switch textAlignment {
+        case .leading:
+            return .left
+        case .trailing:
+            return .right
+        default:
+            return .center
+        }
+    }
+
+    private func typingAttributes() -> [NSAttributedString.Key: Any] {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = nsTextAlignment
+        paragraphStyle.lineBreakMode = .byWordWrapping
+
+        var attributes: [NSAttributedString.Key: Any] = [
+            .font: style.uiFont(size: fontSize),
+            .foregroundColor: UIColor(textColor),
+            .paragraphStyle: paragraphStyle
+        ]
+
+        if let backgroundColor {
+            attributes[.backgroundColor] = backgroundColor
+        }
+
+        if let shadow = effect.nsShadow(for: UIColor(textColor)) {
+            attributes[.shadow] = shadow
+        }
+
+        return attributes
+    }
+
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: StoryStyledTextView
+        var lastAppliedSignature: String
+
+        init(parent: StoryStyledTextView) {
+            self.parent = parent
+            self.lastAppliedSignature = parent.attributesSignature
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            parent.text = textView.text
+        }
+
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            if !parent.isFocused {
+                parent.isFocused = true
+            }
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            if parent.isFocused {
+                parent.isFocused = false
+            }
+        }
+
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            textView.typingAttributes = parent.typingAttributes()
+        }
+    }
 }
 
 struct TextStyleOption: View {
@@ -5753,9 +5970,16 @@ struct TextStyleOption: View {
         switch style {
         case .modern: return "Aa"
         case .classic: return "Aa"
+        case .poster: return "AA"
+        case .editorial: return "Aa"
+        case .rounded: return "Aa"
+        case .signature: return "Aa"
+        case .marker: return "Aa"
         case .neon: return "AA"
         case .typewriter: return "Aa"
+        case .handwritten: return "Aa"
         case .bold: return "Aa"
+        case .chalk: return "Aa"
         }
     }
     
@@ -5781,6 +6005,42 @@ struct TextStyleOption: View {
                         .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
                 )
         }
+    }
+}
+
+struct FontSizeSlider: View {
+    @Binding var value: CGFloat
+    let range: ClosedRange<CGFloat>
+
+    var body: some View {
+        GeometryReader { proxy in
+            let height = max(proxy.size.height, 1)
+            let progress = (value - range.lowerBound) / max(range.upperBound - range.lowerBound, 0.001)
+            let knobY = (1 - progress) * (height - 18)
+
+            ZStack(alignment: .top) {
+                Capsule()
+                    .fill(Color.white.opacity(0.34))
+                    .frame(width: 3)
+                    .frame(maxHeight: .infinity)
+
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 18, height: 18)
+                    .offset(y: knobY)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let clampedY = min(max(gesture.location.y, 9), height - 9)
+                        let inverseProgress = 1 - ((clampedY - 9) / max(height - 18, 1))
+                        value = range.lowerBound + (inverseProgress * (range.upperBound - range.lowerBound))
+                    }
+            )
+        }
+        .frame(width: 18, height: 176)
     }
 }
 
@@ -5921,9 +6181,11 @@ struct StoryOverlaysView: View {
     @Binding var text: String
     @Binding var textPosition: CGPoint
     @Binding var textStyle: StoryEditingView.TextStyle
+    @Binding var textEffect: StoryEditingView.TextEffect
     @Binding var textColor: Color
     @Binding var textAlignment: TextAlignment
     @Binding var textBackgroundFill: StoryEditingView.TextBackgroundFill
+    @Binding var textFontSize: CGFloat
     @Binding var isTextEditorPresented: Bool
     @Binding var stickers: [StickerItem]
     @Binding var drawingImage: UIImage?
@@ -5936,6 +6198,7 @@ struct StoryOverlaysView: View {
     @State private var isDraggingItem = false
     @State private var showTrashZone = false
     @State private var isOverTrash = false
+    @State private var pinchStartTextFontSize: CGFloat?
     
     var body: some View {
         ZStack {
@@ -5987,7 +6250,7 @@ struct StoryOverlaysView: View {
             // Text overlay
             if !text.isEmpty && !isTextEditorPresented {
                 Text(text)
-                    .font(textStyle.font)
+                    .font(textStyle.font(size: textFontSize))
                     .foregroundColor(textColor)
                     .multilineTextAlignment(textAlignment)
                     .lineLimit(nil)
@@ -5995,18 +6258,20 @@ struct StoryOverlaysView: View {
                     .padding(.horizontal, 14)
                     .background(
                         Group {
-                            if let backgroundColor = textBackgroundColor {
+                            if let backgroundColor = effectiveTextBackgroundColor {
                                 backgroundColor
                             }
                         }
                     )
                     .clipShape(
-                        RoundedRectangle(cornerRadius: textBackgroundColor == nil ? 0 : 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: effectiveTextBackgroundColor == nil ? 0 : 10, style: .continuous)
                     )
                     .padding(.horizontal, 24)
                     .position(textPosition)
                     .scaleEffect(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
                     .opacity(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
+                    .modifier(TextEffectModifier(effect: textEffect, textColor: textColor))
+                    .contentShape(Rectangle())
                     .gesture(
                         DragGesture()
                             .onChanged { value in
@@ -6034,9 +6299,23 @@ struct StoryOverlaysView: View {
                                 }
                             }
                     )
+                    .simultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let baseFontSize = pinchStartTextFontSize ?? textFontSize
+                                if pinchStartTextFontSize == nil {
+                                    pinchStartTextFontSize = textFontSize
+                                }
+                                textFontSize = min(max(baseFontSize * value, 20), 56)
+                            }
+                            .onEnded { _ in
+                                pinchStartTextFontSize = nil
+                            }
+                    )
                     .onTapGesture {
                         selectedStickerId = nil
                         isEditingText = true
+                        isTextEditorPresented = true
                     }
                     .animation(.easeInOut(duration: 0.2), value: isDraggingItem)
             }
@@ -6139,10 +6418,10 @@ struct StoryOverlaysView: View {
 
     }
 
-    private var textBackgroundColor: Color? {
+    private var effectiveTextBackgroundColor: Color? {
         switch textBackgroundFill {
         case .none:
-            return nil
+            return textEffect.backgroundColor
         case .black:
             return Color.black.opacity(0.58)
         case .white:

@@ -205,6 +205,7 @@
 "creator.multiple" = "Múltiple";
 "creator.files.selected" = "arxiu(s) seleccionat(s)";
 "creator.done" = "Fet";
+"storyTextEditor.done" = "Fet";
 "creator.intensity" = "Intensitat";
 "creator.searching" = "Buscant...";
 "creator.useCurrentLocation" = "Utilitzar ubicació actual";

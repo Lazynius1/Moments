@@ -48,8 +48,6 @@ class OfflineSyncService: ObservableObject {
             return
         }
         
-        print("🚀 OfflineSync: Procesando \(pendingActions.count) acciones pendientes")
-        
         for action in pendingActions {
             // Si la conexión se cae durante el proceso, paramos
             guard NetworkMonitor.shared.isConnected else { break }
