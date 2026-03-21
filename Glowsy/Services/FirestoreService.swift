@@ -1243,6 +1243,9 @@ class FirestoreService: ObservableObject {
                                 "scale": sticker.scale,
                                 "rotation": sticker.rotation
                             ]
+                            if let stickerId = sticker.stickerId {
+                                stickerData["stickerId"] = stickerId
+                            }
                             
                             // ✅ INCLUIR CAMPOS DE INTERACCIÓN
                             if let username = sticker.username {
@@ -1282,6 +1285,12 @@ class FirestoreService: ObservableObject {
                             }
                             if let countdownTargetAtMs = sticker.countdownTargetAtMs {
                                 stickerData["countdownTargetAtMs"] = countdownTargetAtMs
+                            }
+                            if let sliderEmoji = sticker.sliderEmoji {
+                                stickerData["sliderEmoji"] = sliderEmoji
+                            }
+                            if let sliderPrompt = sticker.sliderPrompt {
+                                stickerData["sliderPrompt"] = sliderPrompt
                             }
                             if let caption = sticker.caption {
                                 stickerData["caption"] = caption
@@ -3948,6 +3957,9 @@ extension FirestoreService {
                                 "scale": sticker.scale,
                                 "rotation": sticker.rotation
                             ]
+                            if let stickerId = sticker.stickerId {
+                                stickerData["stickerId"] = stickerId
+                            }
                             
                             // ✅ INCLUIR CAMPOS DE INTERACCIÓN
                             if let username = sticker.username {
@@ -3987,6 +3999,12 @@ extension FirestoreService {
                             }
                             if let countdownTargetAtMs = sticker.countdownTargetAtMs {
                                 stickerData["countdownTargetAtMs"] = countdownTargetAtMs
+                            }
+                            if let sliderEmoji = sticker.sliderEmoji {
+                                stickerData["sliderEmoji"] = sliderEmoji
+                            }
+                            if let sliderPrompt = sticker.sliderPrompt {
+                                stickerData["sliderPrompt"] = sliderPrompt
                             }
                             if let caption = sticker.caption {
                                 stickerData["caption"] = caption
@@ -4401,6 +4419,9 @@ extension FirestoreService {
                                 "scale": sticker.scale,
                                 "rotation": sticker.rotation
                             ]
+                            if let stickerId = sticker.stickerId {
+                                stickerData["stickerId"] = stickerId
+                            }
                             
                             // ✅ INCLUIR CAMPOS DE INTERACCIÓN
                             if let username = sticker.username {
@@ -4440,6 +4461,12 @@ extension FirestoreService {
                             }
                             if let countdownTargetAtMs = sticker.countdownTargetAtMs {
                                 stickerData["countdownTargetAtMs"] = countdownTargetAtMs
+                            }
+                            if let sliderEmoji = sticker.sliderEmoji {
+                                stickerData["sliderEmoji"] = sliderEmoji
+                            }
+                            if let sliderPrompt = sticker.sliderPrompt {
+                                stickerData["sliderPrompt"] = sliderPrompt
                             }
                             if let caption = sticker.caption {
                                 stickerData["caption"] = caption

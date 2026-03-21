@@ -148,6 +148,8 @@ struct CachedStickerInteractionData: Codable {
     let linkTitle: String?
     let countdownTitle: String?
     let countdownTargetAtMs: Double?
+    let sliderEmoji: String?
+    let sliderPrompt: String?
     let caption: String? // ✅ NUEVA
     let profileImagePath: String? // ✅ NUEVA: Persistencia de imagen de perfil
     let momentId: String? // ✅ NUEVA: Para navegación
@@ -364,6 +366,11 @@ class BackgroundStoryUploadService: ObservableObject {
                 let questionStickers = stickerData.filter { $0.type == .question }
                 if !questionStickers.isEmpty {
                     await setupQuestionStickers(storyId: storyId, stickers: questionStickers)
+                }
+
+                let emojiSliderStickers = stickerData.filter { $0.type == .emojiSlider }
+                if !emojiSliderStickers.isEmpty {
+                    await setupEmojiSliderStickers(storyId: storyId, stickers: emojiSliderStickers)
                 }
                 
                 // ✅ NUEVO: Procesar question responses
@@ -890,6 +897,39 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
+
+    private func setupEmojiSliderStickers(storyId: String, stickers: [StickerItem]) async {
+        guard let uploadingStory = uploadingStory else {
+            return
+        }
+
+        for sticker in stickers {
+            guard let prompt = sticker.interactionData?.sliderPrompt,
+                  let emoji = sticker.interactionData?.sliderEmoji else {
+                continue
+            }
+
+            let emojiSliderRef = Firestore.firestore()
+                .collection("users")
+                .document(uploadingStory.userId)
+                .collection("stories")
+                .document(storyId)
+                .collection("emojiSliders")
+                .document(sticker.id)
+
+            let metadata: [String: Any] = [
+                "stickerId": sticker.id,
+                "prompt": prompt,
+                "emoji": emoji,
+                "createdAt": FieldValue.serverTimestamp()
+            ]
+
+            do {
+                try await emojiSliderRef.setData(metadata)
+            } catch {
+            }
+        }
+    }
     
     // MARK: - 💬 CONFIGURAR QUESTION RESPONSES
     private func setupQuestionResponseStickers(storyId: String, stickers: [StickerItem]) async {
@@ -1113,6 +1153,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 linkTitle: data.linkTitle,
                 countdownTitle: data.countdownTitle,
                 countdownTargetAtMs: data.countdownTargetAtMs,
+                sliderEmoji: data.sliderEmoji,
+                sliderPrompt: data.sliderPrompt,
                 caption: data.caption,
                 profileImagePath: data.profileImagePath,
                 momentId: data.momentId,
@@ -1226,6 +1268,8 @@ class BackgroundStoryUploadService: ObservableObject {
                             linkTitle: data.linkTitle,
                             countdownTitle: data.countdownTitle,
                             countdownTargetAtMs: data.countdownTargetAtMs,
+                            sliderEmoji: data.sliderEmoji,
+                            sliderPrompt: data.sliderPrompt,
                             caption: data.caption,
                             profileImagePath: data.profileImagePath,
                             momentId: data.momentId,
@@ -1237,19 +1281,61 @@ class BackgroundStoryUploadService: ObservableObject {
                     if cached.isAnimated {
                         if let videoURL = cached.videoURL {
                             // ✅ RECONSTRUIR VIDEO STICKER
-                            sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction, videoURL: videoURL)
+                            sticker = StickerItem(
+                                id: cached.id,
+                                image: image,
+                                position: cached.position,
+                                scale: cached.scale,
+                                rotation: .radians(cached.rotationRadians),
+                                gifURL: nil,
+                                videoURL: videoURL,
+                                isAnimated: true,
+                                type: type,
+                                interactionData: interaction
+                            )
                         } else if let gifURL = cached.gifURL {
                             // ✅ RECONSTRUIR GIF ANIMADO
-                            sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction, gifURL: gifURL)
+                            sticker = StickerItem(
+                                id: cached.id,
+                                image: image,
+                                position: cached.position,
+                                scale: cached.scale,
+                                rotation: .radians(cached.rotationRadians),
+                                gifURL: gifURL,
+                                videoURL: nil,
+                                isAnimated: true,
+                                type: type,
+                                interactionData: interaction
+                            )
                         } else {
                             // Fallback (raro si es animado)
-                            sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction)
+                            sticker = StickerItem(
+                                id: cached.id,
+                                image: image,
+                                position: cached.position,
+                                scale: cached.scale,
+                                rotation: .radians(cached.rotationRadians),
+                                gifURL: nil,
+                                videoURL: nil,
+                                isAnimated: false,
+                                type: type,
+                                interactionData: interaction
+                            )
                         }
                     } else {
-                         sticker = StickerItem(image: image, position: cached.position, type: type, interactionData: interaction)
+                         sticker = StickerItem(
+                            id: cached.id,
+                            image: image,
+                            position: cached.position,
+                            scale: cached.scale,
+                            rotation: .radians(cached.rotationRadians),
+                            gifURL: nil,
+                            videoURL: nil,
+                            isAnimated: false,
+                            type: type,
+                            interactionData: interaction
+                        )
                     }
-                    sticker.scale = cached.scale
-                    sticker.rotation = .radians(cached.rotationRadians)
                     stickers.append(sticker)
                 }
             }
