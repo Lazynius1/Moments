@@ -5711,42 +5711,32 @@ struct StoryStickerView: View {
             .rotationEffect(sticker.rotation)
             
         } else if sticker.isAnimated {
-            // ✅ SOLUCIÓN: Usar la imagen de base siempre para que el diseño del widget sea visible
-            // Si hay un video/gif, se dibuja EL MISMO DISEÑO pero con el media animado encima
             Button(action: {
                 handleStickerTap()
             }) {
-                ZStack {
-                    // 1. Capa base: Imagen estática (diseño del sticker capturado)
-                    // Esto asegura que el sticker sea visible instantáneamente
-                    Image(uiImage: sticker.image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
-                    
-                    // 2. Capa animada: Video o GIF encima
-                    if let videoURL = sticker.videoURL {
+                if let videoURL = sticker.videoURL {
+                    ZStack {
+                        Image(uiImage: sticker.image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+
                         ZStack(alignment: .top) {
-                            // ✅ NUEVO PLAYER ROBUSTO PARA STICKERS
                             StickerVideoPlayer(url: videoURL)
                                 .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
                                 .allowsHitTesting(false)
-                            
-                            // Header Overlay (Username)
-                            // Header Overlay (Username)
-                            // Header Overlay (Username)
+
                             if let interactionData = sticker.interactionData, let username = interactionData.username {
-                                // GENERIC HEADER (Fallback)
                                 HStack(spacing: 8 * sticker.scale) {
                                     Circle()
                                         .fill(.white.opacity(0.1))
                                         .frame(width: 24 * sticker.scale, height: 24 * sticker.scale)
                                         .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.5 * sticker.scale))
-                                    
+
                                     Text(username)
                                         .font(.custom("Poppins-Bold", size: 10 * sticker.scale))
                                         .foregroundColor(.white)
-                                    
+
                                     Spacer()
                                 }
                                 .padding(.horizontal, 10 * sticker.scale)
@@ -5763,8 +5753,7 @@ struct StoryStickerView: View {
                                         )
                                 )
                             }
-                            
-                            // Caption Overlay (Bottom)
+
                             if let caption = sticker.interactionData?.caption, !caption.isEmpty {
                                 VStack {
                                     Spacer()
@@ -5779,13 +5768,22 @@ struct StoryStickerView: View {
                                 }
                             }
                         }
-                    } else if let gifURL = sticker.gifURL {
-                        AnimatedStickerView(sticker: sticker, size: CGSize(width: 100 * sticker.scale, height: 100 * sticker.scale))
-                            .frame(width: 100 * sticker.scale, height: 100 * sticker.scale)
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
+                    .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
+                } else if sticker.gifURL != nil {
+                    AnimatedStickerView(
+                        sticker: sticker,
+                        size: CGSize(
+                            width: sticker.image.size.width * sticker.scale,
+                            height: sticker.image.size.height * sticker.scale
+                        )
+                    )
+                    .frame(
+                        width: sticker.image.size.width * sticker.scale,
+                        height: sticker.image.size.height * sticker.scale
+                    )
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale)) // ✅ Recorte global de 28pt
-                .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
             }
             .buttonStyle(PlainButtonStyle())
             .rotationEffect(sticker.rotation)

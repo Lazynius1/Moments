@@ -6611,10 +6611,11 @@ struct StickerOverlayView: View {
                     .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                 }
                 else if let gifURL = sticker.gifURL {
-                    // GIF Animado
-                    AnimatedStickerView(sticker: sticker, size: CGSize(width: 100, height: 100))
-                        .frame(width: 100, height: 100)
-                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                    AnimatedStickerView(
+                        sticker: sticker,
+                        size: CGSize(width: sticker.image.size.width, height: sticker.image.size.height)
+                    )
+                        .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                         .allowsHitTesting(false)
                 }
             } else if isLiveSelfieSticker {

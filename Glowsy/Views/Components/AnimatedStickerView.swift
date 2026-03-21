@@ -36,6 +36,7 @@ struct AnimatedStickerView: UIViewRepresentable {
         imageView.contentMode = .scaleAspectFit
         imageView.clipsToBounds = true
         imageView.isUserInteractionEnabled = false // ✅ DESHABILITAR INTERACCIÓN PARA QUE LOS GESTOS PASEN AL PADRE
+        imageView.frame = CGRect(origin: .zero, size: size)
         
         // ✅ USAR EL CACHE para evitar cargar múltiples veces
         if sticker.isAnimated, let gifURL = sticker.gifURL {
@@ -65,6 +66,7 @@ struct AnimatedStickerView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIImageView, context: Context) {
-        // No necesitamos actualizar nada aquí
+        uiView.frame = CGRect(origin: .zero, size: size)
+        uiView.contentMode = .scaleAspectFit
     }
-} 
+}

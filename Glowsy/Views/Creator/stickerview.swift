@@ -7,916 +7,761 @@ import CoreLocation
 import MapKit
 import WeatherKit
 
-// MARK: -  Sticker Picker with Glassmorphism
+// MARK: - Sticker Picker
 
 struct StickerPickerView: View {
     @Binding var selectedStickers: [StickerItem]
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var searchText = ""
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var catalogSearchText = ""
+    @State private var gifSearchText = ""
     @State private var selectedCategory: StickerCategory = .trending
     @State private var giphyResults: [GiphyGif] = []
     @State private var isLoadingGiphy = false
-    @State private var showingCategories = true
-    @State private var dragOffset: CGFloat = 0
-    @State private var isDarkMode = true
-    
+    @State private var mode: PickerMode = .catalog
     private let functionsRegion = "europe-southwest1"
     private let giphyFunctionName = "proxyGiphyStickers"
 
-    // 🎯 CATEGORÍAS MEJORADAS CON GLASSMORPHISM
-    enum StickerCategory: String, CaseIterable {
-        case trending = "🔥"
-        case emoji = "😊"
-        case location = "📍"
-        case mention = "@"
-        case hashtag = "#"
-        case poll = "📊"
-        case question = "❓"
-        case weather = "🌤️"
-        case time = "⏰"
-        case selfie = "🤳"
-        
+    private enum PickerMode: Equatable {
+        case catalog
+        case detail(StickerCategory)
+    }
+
+    enum StickerCategory: String, CaseIterable, Identifiable {
+        case trending
+        case emoji
+        case location
+        case mention
+        case hashtag
+        case poll
+        case question
+        case weather
+        case time
+        case selfie
+
+        var id: String { rawValue }
+
         var displayName: String {
             switch self {
-            case .trending: return "GIF"
-            case .emoji: return "Emoji"
-            case .location: return "Lugar"
-            case .mention: return "Mención"
-            case .hashtag: return "Hashtag"
-            case .poll: return "Votación"
-            case .question: return "Preguntas"
-            case .weather: return "Clima"
-            case .time: return "Tiempo"
-            case .selfie: return "Selfie"
+            case .trending: return NSLocalizedString("stickerview.category.gif", comment: "GIF category")
+            case .emoji: return NSLocalizedString("stickerview.category.emoji", comment: "Emoji category")
+            case .location: return NSLocalizedString("stickerview.category.location", comment: "Location category")
+            case .mention: return NSLocalizedString("stickerview.category.mention", comment: "Mention category")
+            case .hashtag: return NSLocalizedString("stickerview.category.hashtag", comment: "Hashtag category")
+            case .poll: return NSLocalizedString("stickerview.category.poll", comment: "Poll category")
+            case .question: return NSLocalizedString("stickerview.category.question", comment: "Question category")
+            case .weather: return NSLocalizedString("stickerview.category.weather", comment: "Weather category")
+            case .time: return NSLocalizedString("stickerview.category.time", comment: "Time category")
+            case .selfie: return NSLocalizedString("stickerview.category.selfie", comment: "Selfie category")
             }
         }
-        
+
+        var symbolName: String {
+            switch self {
+            case .trending: return "sparkles.rectangle.stack.fill"
+            case .emoji: return "face.smiling.fill"
+            case .location: return "mappin.and.ellipse"
+            case .mention: return "at"
+            case .hashtag: return "number"
+            case .poll: return "chart.bar.xaxis"
+            case .question: return "questionmark.bubble.fill"
+            case .weather: return "cloud.sun.fill"
+            case .time: return "clock.fill"
+            case .selfie: return "person.crop.circle.badge.plus"
+            }
+        }
+
         var accentColor: Color {
             switch self {
-            case .trending: return .purple
-            case .emoji: return .yellow
-            case .location: return .red
-            case .mention: return .orange
-            case .hashtag: return .pink
-            case .poll: return .green
-            case .question: return .purple
-            case .weather: return .cyan
-            case .time: return .indigo
-            case .selfie: return .orange
+            case .trending: return Color(red: 0.33, green: 0.84, blue: 0.44)
+            case .emoji: return Color(red: 1.00, green: 0.72, blue: 0.18)
+            case .location: return Color(red: 0.53, green: 0.32, blue: 0.98)
+            case .mention: return Color(red: 0.98, green: 0.50, blue: 0.14)
+            case .hashtag: return Color(red: 0.92, green: 0.23, blue: 0.88)
+            case .poll: return Color(red: 0.91, green: 0.25, blue: 0.74)
+            case .question: return Color(red: 0.85, green: 0.26, blue: 0.84)
+            case .weather: return Color(red: 0.20, green: 0.77, blue: 0.95)
+            case .time: return Color(red: 1.00, green: 0.62, blue: 0.20)
+            case .selfie: return Color(red: 1.00, green: 0.25, blue: 0.55)
             }
         }
-        
-        var gradientColors: [Color] {
-            switch self {
-            case .trending: return [Color.purple, Color.pink]
-            case .emoji: return [Color.yellow, Color.orange]
-            case .location: return [Color.red, Color.pink]
-            case .mention: return [Color.orange, Color.yellow]
-            case .hashtag: return [Color.pink, Color.purple]
-            case .poll: return [Color.green, Color.mint]
-            case .question: return [Color.purple, Color.indigo]
-            case .weather: return [Color.cyan, Color.blue]
-            case .time: return [Color.indigo, Color.purple]
-            case .selfie: return [Color.orange, Color.red]
-            }
+
+    }
+
+    private var catalogCategories: [StickerCategory] {
+        [.location, .mention, .trending, .emoji, .question, .poll, .hashtag, .weather, .time, .selfie]
+    }
+
+    private var filteredCatalogCategories: [StickerCategory] {
+        let query = catalogSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return catalogCategories }
+        return catalogCategories.filter {
+            $0.displayName.localizedCaseInsensitiveContains(query)
         }
     }
-    
+
+    private var shouldShowCatalogSearch: Bool {
+        mode == .catalog
+    }
+
+    private var shouldShowGifSearch: Bool {
+        if case .detail(.trending) = mode {
+            return true
+        }
+        return false
+    }
+
+    private var detailTitle: String {
+        if case .detail(let category) = mode {
+            return category.displayName
+        }
+        return ""
+    }
+
+    private var isDarkMode: Bool {
+        colorScheme == .dark
+    }
+
+    private var pickerBackgroundColor: Color {
+        isDarkMode
+            ? Color(red: 11 / 255, green: 18 / 255, blue: 21 / 255)
+            : Color(red: 250 / 255, green: 249 / 255, blue: 246 / 255)
+    }
+
+    private var primaryTextColor: Color {
+        isDarkMode ? .white : Color.black.opacity(0.92)
+    }
+
+    private var secondaryTextColor: Color {
+        isDarkMode ? .white.opacity(0.58) : Color.black.opacity(0.48)
+    }
+
+    private var searchIconColor: Color {
+        isDarkMode ? .white.opacity(0.54) : Color.black.opacity(0.36)
+    }
+
+    private var searchClearColor: Color {
+        isDarkMode ? .white.opacity(0.56) : Color.black.opacity(0.34)
+    }
+
+    private var handleColor: Color {
+        isDarkMode ? Color.white.opacity(0.16) : Color.black.opacity(0.16)
+    }
+
+    private var chromeFillColor: Color {
+        isDarkMode ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
+    }
+
+    private var chromeStrokeColor: Color {
+        isDarkMode ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
+    }
+
+    private var pillFillTopColor: Color {
+        isDarkMode
+            ? .white
+            : Color(red: 11 / 255, green: 18 / 255, blue: 21 / 255)
+    }
+
+    private var pillFillBottomColor: Color {
+        isDarkMode
+            ? Color(red: 0.97, green: 0.95, blue: 0.91)
+            : Color(red: 20 / 255, green: 29 / 255, blue: 34 / 255)
+    }
+
+    private var pillTextColor: Color {
+        isDarkMode ? Color.black.opacity(0.92) : .white
+    }
+
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // 🌌 FONDO GLASSMÓRFICO AVANZADO
-                MomentsGlassmorphicBackground()
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // 📱 HEADER ESTILO INSTAGRAM
-                    MomentsStyleHeader()
-                        .padding(.top, 10)
-                    
-                    // 📜 CONTENIDO PRINCIPAL
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            // 🎯 CATEGORÍAS EN GRID ESTILO INSTAGRAM
-                            MomentsCategoryGrid()
-                                .padding(.top, 20)
-                            
-                            // 📋 CONTENIDO DINÁMICO
+        ZStack {
+            StickerPickerBackground()
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Capsule()
+                    .fill(handleColor)
+                    .frame(width: 42, height: 5)
+                    .padding(.top, 10)
+                    .padding(.bottom, 10)
+
+                if case .detail = mode {
+                    StickerPickerHeader()
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 10)
+                }
+
+                if shouldShowCatalogSearch {
+                    CatalogSearchBar()
+                } else if shouldShowGifSearch {
+                    GifSearchBar()
+                }
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 22) {
+                        if mode == .catalog {
+                            StickerCatalogMosaic()
+                        } else {
                             stickerContent
-                                .padding(.top, selectedCategory == .trending ? 16 : 32)
                         }
                     }
-                    .background(Color.clear)
-                    .refreshable {
-                        if selectedCategory == .trending {
-                            loadTrendingStickers()
-                        }
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 28)
+                }
+                .refreshable {
+                    if selectedCategory == .trending {
+                        loadTrendingStickers()
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .navigationBarHidden(true)
-        .preferredColorScheme(isDarkMode ? .dark : .light)
         .onAppear {
-            if selectedCategory == .trending {
+            if giphyResults.isEmpty {
                 loadTrendingStickers()
             }
         }
     }
-    
-    // MARK: - 🎨 COMPONENTES GLASSMÓRFICOS ESTILO MOMENTS
-    
+
     @ViewBuilder
-    private func MomentsGlassmorphicBackground() -> some View {
-        ZStack {
-            // Gradiente base dinámico
-            LinearGradient(
-                colors: isDarkMode ? [
-                    Color(red: 0.05, green: 0.05, blue: 0.15),
-                    Color(red: 0.1, green: 0.05, blue: 0.2),
-                    Color(red: 0.15, green: 0.1, blue: 0.25),
-                    Color.black
-                ] : [
-                    Color(red: 0.95, green: 0.97, blue: 1.0),
-                    Color(red: 0.9, green: 0.95, blue: 0.98),
-                    Color(red: 0.85, green: 0.9, blue: 0.95)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+    private func StickerPickerBackground() -> some View {
+        Rectangle()
+            .fill(pickerBackgroundColor)
+            .overlay(
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isDarkMode ? 0.02 : 0.14),
+                            Color.white.opacity(isDarkMode ? 0.0 : 0.04),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+
+                    Circle()
+                        .fill(Color(red: 0.79, green: 0.45, blue: 0.21).opacity(0.12))
+                        .frame(width: 300, height: 300)
+                        .blur(radius: 92)
+                        .offset(x: 120, y: 220)
+
+                    Circle()
+                        .fill(Color(red: 0.46, green: 0.29, blue: 0.74).opacity(0.14))
+                        .frame(width: 260, height: 260)
+                        .blur(radius: 92)
+                        .offset(x: -90, y: 160)
+
+                    Rectangle()
+                        .fill(isDarkMode ? Color.black.opacity(0.16) : Color.clear)
+                }
             )
-            
-            // Orbes flotantes glassmórficos (Reducidos para minimalismo)
-            ForEach(0..<4, id: \.self) { index in
-                GlassmorphicFloatingOrb(
-                    colors: selectedCategory.gradientColors,
-                    size: CGFloat.random(in: 150...300),
-                    x: CGFloat.random(in: -100...300),
-                    y: CGFloat.random(in: -100...600),
-                    duration: Double.random(in: 6...10),
-                    delay: Double(index) * 1.0
-                )
-            }
-        }
+            .overlay(
+                Rectangle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
+                                isDarkMode ? Color.white.opacity(0.02) : Color.black.opacity(0.01)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
+            )
     }
-    
+
     @ViewBuilder
-    private func MomentsStyleHeader() -> some View {
-        HStack(spacing: 16) {
-            // Botón cerrar glassmórfico
+    private func StickerPickerHeader() -> some View {
+        HStack(spacing: 12) {
+            Button(action: {
+                hapticFeedback(.light)
+                withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
+                    mode = .catalog
+                }
+            }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(primaryTextColor)
+                    .frame(width: 42, height: 42)
+                    .background(
+                        Circle()
+                            .fill(chromeFillColor)
+                            .overlay(Circle().stroke(chromeStrokeColor, lineWidth: 1))
+                    )
+            }
+            .pressAnimation()
+
+            Spacer()
+
+            Text(detailTitle)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(primaryTextColor)
+
+            Spacer()
+
             Button(action: {
                 hapticFeedback(.light)
                 dismiss()
             }) {
-                ZStack {
-                    // Fondo glassmórfico
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-                    
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.white, .white.opacity(0.8)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                }
-            }
-            .pressAnimation()
-            
-            Spacer()
-            
-            // Título con efecto glassmórfico
-            VStack(spacing: 4) {
-                Text("stickerview.stickers")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: isDarkMode ? [.white, .white.opacity(0.8)] : [.black, .gray],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                
-                // Indicador de categoría con glassmorphism
-                Text(selectedCategory.displayName)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(primaryTextColor)
+                    .frame(width: 42, height: 42)
                     .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: selectedCategory.gradientColors,
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                            )
-                            .shadow(color: selectedCategory.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                        Circle()
+                            .fill(chromeFillColor)
+                            .overlay(Circle().stroke(chromeStrokeColor, lineWidth: 1))
                     )
-            }
-            
-            Spacer()
-            
-            // Botón modo oscuro/claro
-            Button(action: {
-                hapticFeedback(.medium)
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                    isDarkMode.toggle()
-                }
-            }) {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-                    
-                    Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: isDarkMode ? [.yellow, .orange] : [.indigo, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
             }
             .pressAnimation()
         }
-        .padding(.horizontal, 20)
     }
-    
+
     @ViewBuilder
-    private func MomentsCategoryGrid() -> some View {
-        VStack(spacing: 20) {
-            // Barra de búsqueda glassmórfica
-            MomentsSearchBar()
-            
-            // Selector de categorías horizontal (Cleaner & Minimalist)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 20) {
-                    ForEach(StickerCategory.allCases, id: \.self) { category in
-                        MomentsCategoryPill(
-                            icon: category.rawValue,
-                            title: category.displayName,
-                            category: category,
-                            isSelected: selectedCategory == category
-                        )
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-            }
-            
-            // Header de sección si es trending
-            if selectedCategory == .trending {
-                HStack {
-                    Text("stickerview.yourStickers")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: isDarkMode ? [.white, .white.opacity(0.8)] : [.black, .gray],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private func MomentsSearchBar() -> some View {
-        HStack(spacing: 12) {
-            // Icono de búsqueda con gradiente
+    private func CatalogSearchBar() -> some View {
+        HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.white.opacity(0.8), .white.opacity(0.6)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            
-            TextField("Buscar stickers...", text: $searchText)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(isDarkMode ? .white : .black)
+                .font(.system(size: 16))
+                .foregroundColor(searchIconColor)
+
+            TextField(NSLocalizedString("stickerview.search.placeholder", comment: "Sticker catalog search placeholder"), text: $catalogSearchText)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(primaryTextColor)
                 .autocorrectionDisabled()
                 .autocapitalization(.none)
-                .onSubmit {
-                    hapticFeedback(.light)
-                    if selectedCategory == .trending {
-                        searchTrendingStickers()
-                    }
-                }
-            
-            if !searchText.isEmpty {
+
+            if !catalogSearchText.isEmpty {
                 Button(action: {
                     hapticFeedback(.light)
                     withAnimation(.easeOut(duration: 0.2)) {
-                        searchText = ""
-                        if selectedCategory == .trending {
-                            loadTrendingStickers()
-                        }
+                        catalogSearchText = ""
                     }
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.white.opacity(0.8), .white.opacity(0.6)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
+                        .foregroundColor(searchClearColor)
                 }
                 .pressAnimation()
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .liquidGlass(in: Capsule())
         .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 25)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 8)
-        )
-        .padding(.horizontal, 20)
+        .padding(.bottom, 16)
     }
-    
+
     @ViewBuilder
-    private func MomentsCategoryPill(
-        icon: String,
-        title: String,
-        category: StickerCategory,
-        isSelected: Bool
-    ) -> some View {
-        Button(action: {
-            hapticFeedback(.medium)
-            selectCategory(category)
-        }) {
-            VStack(spacing: 12) {
-                // Contenedor del icono con glassmorphism avanzado
-                ZStack {
-                    // Fondo glassmórfico con gradiente
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(
-                            isSelected ?
-                            LinearGradient(
-                                colors: category.gradientColors,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ) :
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.15), Color.white.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 64, height: 64)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: isSelected ?
-                                        [Color.white.opacity(0.4), Color.white.opacity(0.2)] :
-                                        [Color.white.opacity(0.2), Color.white.opacity(0.1)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .shadow(
-                            color: isSelected ? category.accentColor.opacity(0.4) : .black.opacity(0.1),
-                            radius: isSelected ? 12 : 8,
-                            x: 0,
-                            y: isSelected ? 6 : 4
-                        )
-                    
-                    // Icono o emoji
-                    if icon.count == 1 {
-                        Text(icon)
-                            .font(.system(size: 26))
+    private func GifSearchBar() -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16))
+                .foregroundColor(searchIconColor)
+
+            TextField(NSLocalizedString("stickerview.searchGifs.placeholder", comment: "GIF search placeholder"), text: $gifSearchText)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(primaryTextColor)
+                .autocorrectionDisabled()
+                .autocapitalization(.none)
+                .onSubmit {
+                    hapticFeedback(.light)
+                    if gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        loadTrendingStickers()
                     } else {
-                        Image(systemName: icon)
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: isSelected ? [.white] : category.gradientColors,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
-                    
-                    // Efecto de brillo para seleccionado
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.3), Color.clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .center
-                                )
-                            )
-                            .frame(width: 64, height: 64)
+                        searchTrendingStickers()
                     }
                 }
-                
-                // Título con estilo
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: isSelected ?
-                            category.gradientColors :
-                            (isDarkMode ? [.white.opacity(0.8), .white.opacity(0.6)] : [.black.opacity(0.8), .gray]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .lineLimit(1)
+
+            if !gifSearchText.isEmpty {
+                Button(action: {
+                    hapticFeedback(.light)
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        gifSearchText = ""
+                        loadTrendingStickers()
+                    }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(searchClearColor)
+                }
+                .pressAnimation()
             }
         }
-        .scaleEffect(isSelected ? 1.05 : 1.0)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isSelected)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .liquidGlass(in: Capsule())
+        .padding(.horizontal, 18)
+        .padding(.bottom, 12)
+    }
+
+    @ViewBuilder
+    private func StickerCatalogMosaic() -> some View {
+        if filteredCatalogCategories.isEmpty {
+            StickerEmptyState(
+                icon: "magnifyingglass",
+                title: NSLocalizedString("stickerview.catalog.emptyTitle", comment: "No stickers found title"),
+                subtitle: NSLocalizedString("stickerview.catalog.emptySubtitle", comment: "No stickers found subtitle")
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 22) {
+                StickerPillFlowLayout(spacing: 10, rowSpacing: 10) {
+                    ForEach(Array(filteredCatalogCategories.enumerated()), id: \.element.id) { index, category in
+                        StickerCatalogPill(category: category) {
+                            handleCatalogSelection(category)
+                        }
+                        .rotationEffect(catalogPillTilt(for: index))
+                        .offset(y: catalogPillVerticalOffset(for: index))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.top, 2)
+
+                CatalogGifPreviewSection()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func StickerCatalogPill(
+        category: StickerCategory,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: category.symbolName)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(category.accentColor)
+                    .shadow(color: category.accentColor.opacity(0.22), radius: 1.5, x: 0, y: 0)
+
+                Text(category.displayName)
+                    .font(.system(size: 15.5, weight: .semibold))
+                    .foregroundColor(pillTextColor)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 46)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                pillFillTopColor,
+                                pillFillBottomColor
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(isDarkMode ? Color.white.opacity(0.80) : Color.white.opacity(0.08), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(isDarkMode ? 0.10 : 0.06), radius: 8, y: 5)
+            )
+        }
+        .buttonStyle(.plain)
         .pressAnimation()
     }
-    
-    // MARK: - 📋 CONTENIDO MEJORADO
-    
+
+    @ViewBuilder
+    private func CatalogGifPreviewSection() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("stickerview.catalog.gifs")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(primaryTextColor)
+
+                Spacer()
+
+                Button(action: {
+                    handleCatalogSelection(.trending)
+                }) {
+                    Text("stickerview.catalog.viewAll")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundColor(primaryTextColor.opacity(0.82))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(chromeFillColor)
+                                .overlay(
+                                    Capsule(style: .continuous)
+                                        .stroke(chromeStrokeColor, lineWidth: 1)
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+                .pressAnimation()
+            }
+
+            if isLoadingGiphy && giphyResults.isEmpty {
+                MomentsLoadingView()
+            } else if !giphyResults.isEmpty {
+                CatalogTrendingPreviewGrid(stickers: Array(giphyResults.prefix(12)))
+            }
+        }
+    }
+
+    private func catalogPillTilt(for index: Int) -> Angle {
+        switch index % 6 {
+        case 0: return .degrees(-2)
+        case 1: return .degrees(1.4)
+        case 2: return .degrees(-1)
+        case 3: return .degrees(2)
+        case 4: return .degrees(-1.6)
+        default: return .degrees(0.8)
+        }
+    }
+
+    private func catalogPillVerticalOffset(for index: Int) -> CGFloat {
+        switch index % 5 {
+        case 0: return 0
+        case 1: return 2
+        case 2: return -1
+        case 3: return 1
+        default: return -2
+        }
+    }
+
+    @ViewBuilder
+    private func QuickEmojiRow() -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(trendingEmojis.prefix(12)), id: \.self) { emoji in
+                    Button(action: {
+                        hapticFeedback(.light)
+                        createEmojiSticker(emoji)
+                    }) {
+                        Text(emoji)
+                            .font(.system(size: 23))
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(Color.white.opacity(0.06))
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .pressAnimation()
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private var stickerContent: some View {
         switch selectedCategory {
         case .trending:
             if isLoadingGiphy {
                 MomentsLoadingView()
+            } else if giphyResults.isEmpty {
+                StickerEmptyState(
+                    icon: "sparkles.rectangle.stack",
+                    title: NSLocalizedString("stickerview.trending.emptyTitle", comment: "No trending stickers title"),
+                    subtitle: NSLocalizedString("stickerview.trending.emptySubtitle", comment: "No trending stickers subtitle")
+                )
             } else {
-                VStack(spacing: 24) {
-                    MomentsTrendingGrid()
-                }
+                MomentsTrendingGrid(stickers: giphyResults)
             }
-            
+
         case .emoji:
-            MomentsEmojiGrid()
-            
+            VStack(alignment: .leading, spacing: 16) {
+                QuickEmojiRow()
+                MomentsEmojiGrid()
+            }
+
         case .location:
             SmartLocationInputView { location, coordinate in
                 createLocationSticker(location, coordinate: coordinate)
             }
-            
+
         case .mention:
             ModernMentionInputView { username in
                 createMentionSticker(username)
             }
-            
+
         case .hashtag:
             ModernHashtagInputView { hashtag in
                 createHashtagSticker(hashtag)
             }
-            
+
         case .poll:
             ModernPollInputView { poll in
                 createPollSticker(poll)
             }
-            
+
         case .question:
             ModernQuestionInputView { question in
                 createQuestionSticker(question)
             }
-            
-        case .weather:
-            MomentsStickerCard(
-                title: "🌤️ Clima actual",
-                subtitle: "Muestra el tiempo de hoy",
-                category: .weather
-            ) {
-                createWeatherSticker()
-            }
-            
-        case .time:
-            MomentsStickerCard(
-                title: "⏰ Hora y fecha",
-                subtitle: "Timestamp de este momento",
-                category: .time
-            ) {
-                createTimeSticker()
-            }
-            
-            case .selfie:
-                MomentsStickerCard(
-                    title: "🤳 Mini selfie",
-                    subtitle: "Aparece en tu historia",
-                    category: .selfie
-                ) {
-                    createSelfieSticker()
-                }
+
+        case .weather, .time, .selfie:
+            EmptyView()
         }
     }
-    
+
     @ViewBuilder
-    private func MomentsTrendingGrid() -> some View {
-        let screenWidth = UIScreen.main.bounds.width
-        let padding: CGFloat = 20
-        let spacing: CGFloat = 8
-        let totalSpacing = spacing * 3
-        let availableWidth = screenWidth - (padding * 2) - totalSpacing
-        let itemWidth = availableWidth / 4
-        
-        let columns = Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: 4)
-        
-        LazyVGrid(columns: columns, spacing: spacing) {
-            ForEach(giphyResults) { sticker in
+    private func MomentsTrendingGrid(stickers: [GiphyGif]) -> some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(stickers) { sticker in
                 Button(action: {
                     hapticFeedback(.medium)
                     createGiphySticker(from: sticker)
                 }) {
-                    ZStack {
-                        // Fondo glassmórfico
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial.opacity(0.3))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                        
+                    GeometryReader { proxy in
                         AnimatedGIFView(url: URL(string: sticker.images.fixed_height.url))
-                            .frame(width: itemWidth - 4, height: itemWidth - 4)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .frame(width: proxy.size.width, height: proxy.size.width)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.white.opacity(0.06))
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
                     }
-                    .frame(width: itemWidth, height: itemWidth)
+                    .aspectRatio(1, contentMode: .fit)
                 }
+                .buttonStyle(.plain)
                 .pressAnimation()
             }
         }
-        .padding(.horizontal, padding)
     }
-    
+
+    @ViewBuilder
+    private func CatalogTrendingPreviewGrid(stickers: [GiphyGif]) -> some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+
+        LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(stickers) { sticker in
+                Button(action: {
+                    hapticFeedback(.medium)
+                    createGiphySticker(from: sticker)
+                }) {
+                    GeometryReader { proxy in
+                        AnimatedGIFView(url: URL(string: sticker.images.fixed_height.url))
+                            .frame(width: proxy.size.width, height: proxy.size.width * 1.14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(Color.white.opacity(0.06))
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                            )
+                    }
+                    .aspectRatio(0.88, contentMode: .fit)
+                }
+                .buttonStyle(.plain)
+                .pressAnimation()
+            }
+        }
+    }
+
     @ViewBuilder
     private func MomentsEmojiGrid() -> some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 6)
-        
-        LazyVGrid(columns: columns, spacing: 12) {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
+
+        LazyVGrid(columns: columns, spacing: 10) {
             ForEach(trendingEmojis, id: \.self) { emoji in
                 Button(action: {
                     hapticFeedback(.light)
                     createEmojiSticker(emoji)
                 }) {
-                    ZStack {
-                        // Fondo glassmórfico
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial.opacity(0.4))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                        
-                        Text(emoji)
-                            .font(.system(size: 32))
-                    }
-                    .frame(width: 54, height: 54)
+                    Text(emoji)
+                        .font(.system(size: 30))
+                        .frame(height: 48)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(0.06))
+                                .overlay(
+                                    Capsule(style: .continuous)
+                                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                )
+                        )
                 }
+                .buttonStyle(.plain)
                 .pressAnimation()
             }
         }
-        .padding(.horizontal, 25)
     }
-    
+
     @ViewBuilder
     private func MomentsLoadingView() -> some View {
-        VStack(spacing: 24) {
-            // Spinner glassmórfico
-            ZStack {
-                Circle()
-                    .stroke(Color.white.opacity(0.2), lineWidth: 4)
-                    .frame(width: 64, height: 64)
-                
-                Circle()
-                    .trim(from: 0, to: 0.3)
-                    .stroke(
-                        AngularGradient(
-                            colors: selectedCategory.gradientColors + [selectedCategory.gradientColors.first!],
-                            center: .center
-                        ),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 64, height: 64)
-                    .rotationEffect(.degrees(isLoadingGiphy ? 360 : 0))
-                    .animation(
-                        .linear(duration: 1.0).repeatForever(autoreverses: false),
-                        value: isLoadingGiphy
-                    )
-            }
-            .background(
-                Circle()
-                    .fill(.ultraThinMaterial.opacity(0.3))
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            .frame(width: 80, height: 80)
-                    )
-            )
-            
-            VStack(spacing: 8) {
-                                    Text("stickerview.loadingStickers")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: isDarkMode ? [.white, .white.opacity(0.8)] : [.black, .gray],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                
-                                    Text("stickerview.loadingTime")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .gray)
+        VStack(spacing: 18) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: selectedCategory.accentColor))
+                .scaleEffect(1.2)
+
+            VStack(spacing: 6) {
+                Text("stickerview.loadingStickers")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(primaryTextColor)
+
+                Text("stickerview.loadingTime")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(secondaryTextColor)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(40)
+        .padding(.vertical, 48)
     }
-    
+
     @ViewBuilder
-    private func MomentsStickerCard(
-        title: String,
-        subtitle: String,
-        category: StickerCategory,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: {
-            hapticFeedback(.medium)
-            action()
-        }) {
-            HStack(spacing: 16) {
-                // Icono glassmórfico
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: category.gradientColors,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
-                        )
-                        .shadow(color: category.accentColor.opacity(0.4), radius: 12, x: 0, y: 6)
-                    
-                    Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
-                    
-                    // Efecto de brillo
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .center
-                            )
-                        )
-                        .frame(width: 56, height: 56)
-                }
-                
-                // Contenido de texto
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: isDarkMode ? [.white, .white.opacity(0.9)] : [.black, .gray],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .multilineTextAlignment(.leading)
-                    
-                    Text(subtitle)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .gray)
-                        .multilineTextAlignment(.leading)
-                }
-                
-                Spacer()
-                
-                // Flecha glassmórfica
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial.opacity(0.5))
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                    
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: category.gradientColors,
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                }
-            }
-            .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        category.accentColor.opacity(0.3),
-                                        Color.white.opacity(0.1)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
-            )
+    private func StickerEmptyState(icon: String, title: String, subtitle: String) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 32, weight: .semibold))
+                .foregroundColor(secondaryTextColor.opacity(0.9))
+
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(primaryTextColor)
+
+            Text(subtitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(secondaryTextColor)
+                .multilineTextAlignment(.center)
         }
-        .pressAnimation()
-        .padding(.horizontal, 25)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 44)
     }
-    
-    // MARK: - 🎨 COMPONENTES AUXILIARES GLASSMÓRFICOS
-    
-    struct GlassmorphicFloatingOrb: View {
-        let colors: [Color]
-        let size: CGFloat
-        let x: CGFloat
-        let y: CGFloat
-        let duration: Double
-        let delay: Double
-        
-        @State private var isAnimating = false
-        @State private var rotationAngle: Double = 0
-        
-        var body: some View {
-            ZStack {
-                // Orbe principal
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: colors.map { $0.opacity(0.3) } + [Color.clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: size/2
-                        )
-                    )
-                    .frame(width: size, height: size)
-                    .blur(radius: 25)
-                
-                // Orbe interno más brillante
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: colors.map { $0.opacity(0.5) } + [Color.clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: size/4
-                        )
-                    )
-                    .frame(width: size/2, height: size/2)
-                    .blur(radius: 15)
-            }
-            .offset(
-                x: isAnimating ? x + 60 : x - 60,
-                y: isAnimating ? y + 40 : y - 40
-            )
-            .rotationEffect(.degrees(rotationAngle))
-            .animation(
-                .easeInOut(duration: duration)
-                .repeatForever(autoreverses: true)
-                .delay(delay),
-                value: isAnimating
-            )
-            .onAppear {
-                isAnimating = true
-                withAnimation(
-                    .linear(duration: duration * 2)
-                    .repeatForever(autoreverses: false)
-                    .delay(delay)
-                ) {
-                    rotationAngle = 360
-                }
-            }
-        }
-    }
-    
-    struct SparkleParticle: View {
-        let x: CGFloat
-        let y: CGFloat
-        let delay: Double
-        
-        @State private var isVisible = false
-        @State private var scale: CGFloat = 0
-        @State private var opacity: Double = 0
-        
-        var body: some View {
-            Image(systemName: "sparkle")
-                .font(.system(size: CGFloat.random(in: 8...16), weight: .medium))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.white, .yellow, .white],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .scaleEffect(scale)
-                .opacity(opacity)
-                .position(x: x, y: y)
-                .onAppear {
-                    withAnimation(
-                        .easeInOut(duration: 2.0)
-                        .repeatForever(autoreverses: true)
-                        .delay(delay)
-                    ) {
-                        scale = 1.0
-                        opacity = 0.8
-                    }
-                }
-        }
-    }
-    
-    // MARK: - 🔧 FUNCIONES AUXILIARES
-    
-    private func selectCategory(_ category: StickerCategory) {
-        hapticFeedback(.medium)
-        
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            selectedCategory = category
-        }
-        
+
+    private func handleCatalogSelection(_ category: StickerCategory) {
         switch category {
-        case .trending:
-            loadTrendingStickers()
+        case .weather, .time, .selfie:
+            insertInstantCategory(category)
+        default:
+            hapticFeedback(.medium)
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
+                selectedCategory = category
+                mode = .detail(category)
+            }
+
+            if category == .trending {
+                if gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    loadTrendingStickers()
+                } else {
+                    searchTrendingStickers()
+                }
+            }
+        }
+    }
+
+    private func insertInstantCategory(_ category: StickerCategory) {
+        hapticFeedback(.medium)
+
+        switch category {
         case .weather:
             createWeatherSticker()
         case .time:
@@ -927,12 +772,12 @@ struct StickerPickerView: View {
             break
         }
     }
-    
+
     private func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
         let impact = UIImpactFeedbackGenerator(style: style)
         impact.impactOccurred()
     }
-    
+
     private var trendingEmojis: [String] {
         ["😍", "🔥", "💯", "✨", "😂", "🥺", "💕", "🎉", "😎", "🤩", "💀", "🙄",
          "😭", "❤️", "🥳", "😘", "🤝", "👑", "💪", "🌟", "🦋", "🌈", "⚡", "💎"]
@@ -1016,10 +861,11 @@ struct StickerPickerView: View {
     }
     
     private func searchTrendingStickers() {
-        guard !searchText.isEmpty else { return }
+        let query = gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
         
         isLoadingGiphy = true
-        fetchGiphyStickers(mode: "search", query: searchText)
+        fetchGiphyStickers(mode: "search", query: query)
     }
     
     // MARK: - Sticker Creation Methods (exactamente iguales)
@@ -1052,7 +898,7 @@ struct StickerPickerView: View {
     }
     
     private func createGiphySticker(from sticker: GiphyGif) {
-        guard let url = URL(string: sticker.images.fixed_height.url) else { return }
+        guard let url = sticker.preferredStickerURL else { return }
         
         URLSession.shared.dataTask(with: url) { data, _, error in
             guard let data = data, error == nil else { return }
@@ -1066,6 +912,8 @@ struct StickerPickerView: View {
             } else {
                 return
             }
+
+            let initialStickerImage = self.downscaleImageIfNeeded(staticImage, maxDimension: 180)
             
             DispatchQueue.main.async {
                 let screenCenter = CGPoint(
@@ -1087,7 +935,7 @@ struct StickerPickerView: View {
                 
                 // ✅ CREAR STICKER CON GIF ANIMADO usando el inicializador correcto
                 let stickerItem = StickerItem(
-                    image: staticImage,     // Imagen estática para fallback
+                    image: initialStickerImage, // Tamaño inicial controlado, sin perder aspect ratio
                     gifURL: url,           // URL para animación
                     position: constrainedPosition,
                     type: .sticker,
@@ -1167,7 +1015,8 @@ struct StickerPickerView: View {
                 .font: UIFont.systemFont(ofSize: 12, weight: .medium),
                 .foregroundColor: UIColor.white.withAlphaComponent(0.8)
             ]
-            "Ver ubicación".draw(in: CGRect(x: 16, y: 95, width: 248, height: 20), withAttributes: subtitleAttributes)
+            NSLocalizedString("stickerview.location.viewLocation", comment: "View location subtitle")
+                .draw(in: CGRect(x: 16, y: 95, width: 248, height: 20), withAttributes: subtitleAttributes)
         }
         
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN (TAMAÑO FIJO)
@@ -1585,7 +1434,8 @@ struct StickerPickerView: View {
         // ✅ Limpiar recursos pesados
         giphyResults.removeAll()
         isLoadingGiphy = false
-        searchText = ""
+        catalogSearchText = ""
+        gifSearchText = ""
     }
     
     // MARK: - ✅ SELFIE STICKER
@@ -1912,7 +1762,8 @@ struct StickerPickerView: View {
                 .font: UIFont.systemFont(ofSize: 12, weight: .medium),
                 .foregroundColor: UIColor.white.withAlphaComponent(0.8)
             ]
-            "Ver hashtag".draw(in: CGRect(x: 16, y: 95, width: 248, height: 20), withAttributes: subtitleAttributes)
+            NSLocalizedString("stickerview.hashtag.viewHashtag", comment: "View hashtag subtitle")
+                .draw(in: CGRect(x: 16, y: 95, width: 248, height: 20), withAttributes: subtitleAttributes)
         }
         
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
@@ -2113,7 +1964,8 @@ struct StickerPickerView: View {
                 .foregroundColor: UIColor.white.withAlphaComponent(0.8),
                 .kern: 1.0
             ]
-            "PREGÚNTAME".draw(in: CGRect(x: 60, y: 25, width: 220, height: 15), withAttributes: headerAttributes)
+            NSLocalizedString("stickerview.question.askMe", comment: "Ask me header")
+                .draw(in: CGRect(x: 60, y: 25, width: 220, height: 15), withAttributes: headerAttributes)
             
             // Pregunta personalizada
             let questionAttributes: [NSAttributedString.Key: Any] = [
@@ -2148,10 +2000,115 @@ struct StickerPickerView: View {
     }
 }
 
+struct StickerPillFlowLayout: Layout {
+    var spacing: CGFloat = 12
+    var rowSpacing: CGFloat = 14
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let maxWidth = proposal.width ?? 320
+        let rows = makeRows(maxWidth: maxWidth, subviews: subviews)
+        let totalHeight = rows.reduce(CGFloat.zero) { partialResult, row in
+            partialResult + row.height
+        } + max(0, CGFloat(rows.count - 1) * rowSpacing)
+
+        return CGSize(width: maxWidth, height: totalHeight)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        let rows = makeRows(maxWidth: bounds.width, subviews: subviews)
+        var currentY = bounds.minY
+
+        for (index, row) in rows.enumerated() {
+            let rowWidth = row.items.reduce(CGFloat.zero) { result, item in
+                result + item.size.width
+            } + max(0, CGFloat(row.items.count - 1) * spacing)
+
+            let centeredX = bounds.minX + max(0, (bounds.width - rowWidth) / 2)
+            let rowShift: CGFloat
+            switch index % 4 {
+            case 0:
+                rowShift = 0
+            case 1:
+                rowShift = 8
+            case 2:
+                rowShift = -6
+            default:
+                rowShift = 4
+            }
+            let currentRowY = currentY + (index.isMultiple(of: 2) ? 0 : 2)
+            var currentX = min(
+                max(bounds.minX, centeredX + rowShift),
+                bounds.maxX - rowWidth
+            )
+
+            for item in row.items {
+                item.subview.place(
+                    at: CGPoint(x: currentX, y: currentRowY + (row.height - item.size.height) / 2),
+                    proposal: ProposedViewSize(item.size)
+                )
+                currentX += item.size.width + spacing
+            }
+
+            currentY += row.height + rowSpacing
+        }
+    }
+
+    private func makeRows(maxWidth: CGFloat, subviews: Subviews) -> [FlowRow] {
+        guard maxWidth > 0 else { return [] }
+
+        var rows: [FlowRow] = []
+        var currentItems: [FlowItem] = []
+        var currentWidth: CGFloat = 0
+        var currentHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let proposedWidth = currentItems.isEmpty ? size.width : currentWidth + spacing + size.width
+
+            if proposedWidth > maxWidth, !currentItems.isEmpty {
+                rows.append(FlowRow(items: currentItems, height: currentHeight))
+                currentItems = [FlowItem(subview: subview, size: size)]
+                currentWidth = size.width
+                currentHeight = size.height
+            } else {
+                currentItems.append(FlowItem(subview: subview, size: size))
+                currentWidth = proposedWidth
+                currentHeight = max(currentHeight, size.height)
+            }
+        }
+
+        if !currentItems.isEmpty {
+            rows.append(FlowRow(items: currentItems, height: currentHeight))
+        }
+
+        return rows
+    }
+
+    private struct FlowItem {
+        let subview: LayoutSubview
+        let size: CGSize
+    }
+
+    private struct FlowRow {
+        let items: [FlowItem]
+        let height: CGFloat
+    }
+}
+
 
 
 struct SmartLocationInputView: View {
     let onSelect: (String, CLLocationCoordinate2D?) -> Void
+    @Environment(\.colorScheme) private var colorScheme
     
     @State private var searchText = ""
     @State private var nearbyPlaces: [LocationResult] = []
@@ -2162,6 +2119,10 @@ struct SmartLocationInputView: View {
     @FocusState private var isTextFieldFocused: Bool
     
     @StateObject private var locationManager = LocationManager()
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     // Modelo para resultados de ubicación
     struct LocationResult: Identifiable, Hashable, Equatable {
@@ -2224,62 +2185,52 @@ struct SmartLocationInputView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header moderno
-            VStack(spacing: 16) {
-                HStack {
-                    Image(systemName: "location.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.red, .orange],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    
-                    Text("stickerview.addLocation")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("stickerview.location.searchTitle")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(palette.primaryText)
+
+                        Text("stickerview.location.searchSubtitle")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(palette.secondaryText)
+                    }
+
                     Spacer()
-                    
-                    // Botón de actualizar ubicación
-                    if locationManager.authorizationStatus == .authorizedWhenInUse || 
-                       locationManager.authorizationStatus == .authorizedAlways {
+
+                    if locationManager.authorizationStatus == .authorizedWhenInUse ||
+                        locationManager.authorizationStatus == .authorizedAlways {
                         Button(action: {
                             refreshLocationAndPlaces()
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "arrow.clockwise")
-                                Text("Actualizar")
+                                Text("stickerview.location.refresh")
                             }
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(palette.primaryText)
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .padding(.vertical, 8)
                             .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.white.opacity(0.2))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
+                                Capsule()
+                                    .fill(palette.buttonFill)
+                                    .overlay(Capsule().stroke(palette.fieldStroke, lineWidth: 1))
                             )
                         }
                         .disabled(isLoadingNearby)
                     }
                 }
-                
-                // Barra de búsqueda inteligente
+
                 HStack(spacing: 12) {
                     Image(systemName: isSearching ? "magnifyingglass" : (searchText.isEmpty ? "magnifyingglass" : "location.magnifyingglass"))
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(searchText.isEmpty ? .gray : .red)
+                        .font(.system(size: 16))
+                        .foregroundColor(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
                         .animation(.easeInOut(duration: 0.2), value: searchText)
                     
-                    TextField("Buscar lugares cercanos...", text: $searchText)
+                    TextField(NSLocalizedString("stickerview.location.searchPlaceholder", comment: "Location search placeholder"), text: $searchText)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(palette.primaryText)
                         .focused($isTextFieldFocused)
                         .autocapitalization(.words)
                         .disableAutocorrection(true)
@@ -2302,25 +2253,16 @@ struct SmartLocationInputView: View {
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(.gray)
+                                .foregroundColor(palette.clearIcon)
                         }
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(isTextFieldFocused ? Color.red.opacity(0.6) : Color.white.opacity(0.2), lineWidth: 1.5)
-                        )
-                )
+                .liquidGlass(in: Capsule())
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
             
             // Lista de ubicaciones
             ScrollView {
@@ -2328,7 +2270,7 @@ struct SmartLocationInputView: View {
                     if searchText.isEmpty {
                         // Ubicaciones cercanas
                         if isLoadingNearby {
-                            SectionHeader(title: "Buscando lugares cercanos...", icon: "location", color: .blue)
+                            SectionHeader(title: NSLocalizedString("stickerview.location.searchingNearby", comment: "Searching nearby places"), icon: "location", color: .blue)
                             
                             ForEach(0..<5, id: \.self) { _ in
                                 SkeletonLocationRow()
@@ -2336,7 +2278,7 @@ struct SmartLocationInputView: View {
                         } else if nearbyPlaces.isEmpty {
                             EmptyNearbyView()
                         } else {
-                            SectionHeader(title: "Lugares cercanos", icon: "location.fill", color: .red)
+                            SectionHeader(title: NSLocalizedString("stickerview.location.nearby", comment: "Nearby places"), icon: "location.fill", color: .red)
                             
                             ForEach(nearbyPlaces, id: \.id) { place in
                                 LocationRowView(location: place) {
@@ -2351,7 +2293,7 @@ struct SmartLocationInputView: View {
                     } else {
                         // Resultados de búsqueda
                         if isSearching {
-                            SectionHeader(title: "Buscando...", icon: "magnifyingglass", color: .blue)
+                            SectionHeader(title: NSLocalizedString("stickerview.location.searching", comment: "Searching"), icon: "magnifyingglass", color: .blue)
                             
                             ForEach(0..<3, id: \.self) { _ in
                                 SkeletonLocationRow()
@@ -2359,7 +2301,13 @@ struct SmartLocationInputView: View {
                         } else if searchResults.isEmpty {
                             EmptySearchView(searchQuery: searchText)
                         } else {
-                            SectionHeader(title: "\(searchResults.count) lugar\(searchResults.count == 1 ? "" : "es") encontrado\(searchResults.count == 1 ? "" : "s")", icon: "mappin.and.ellipse", color: .green)
+                            SectionHeader(
+                                title: searchResults.count == 1
+                                    ? String(format: NSLocalizedString("stickerview.location.results.one", comment: "One location result"), searchResults.count)
+                                    : String(format: NSLocalizedString("stickerview.location.results.other", comment: "Multiple location results"), searchResults.count),
+                                icon: "mappin.and.ellipse",
+                                color: .green
+                            )
                             
                             ForEach(searchResults, id: \.id) { place in
                                 LocationRowView(location: place) {
@@ -2376,7 +2324,7 @@ struct SmartLocationInputView: View {
                 .animation(.easeInOut(duration: 0.3), value: searchText)
                 .animation(.easeInOut(duration: 0.3), value: searchResults)
                 .animation(.easeInOut(duration: 0.3), value: nearbyPlaces)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 4)
             }
         }
         .onAppear {
@@ -2405,48 +2353,45 @@ struct SmartLocationInputView: View {
     private struct LocationRowView: View {
         let location: SmartLocationInputView.LocationResult
         let onTap: () -> Void
+        @Environment(\.colorScheme) private var colorScheme
+
+        private var palette: StickerDetailPalette {
+            StickerDetailPalette(colorScheme: colorScheme)
+        }
         
         var body: some View {
             Button(action: onTap) {
-                HStack(spacing: 14) {
-                    // Icono de categoría
-                    ZStack {
-                        Circle()
-                            .fill(Color.red.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        
-                        Image(systemName: location.categoryIcon)
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.red)
-                    }
+                HStack(spacing: 12) {
+                    Image(systemName: location.categoryIcon)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(.red)
+                        .frame(width: 20, alignment: .leading)
                     
-                    // Info del lugar
                     VStack(alignment: .leading, spacing: 4) {
                         Text(location.displayName)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(palette.primaryText)
                             .lineLimit(1)
                         
                         HStack(spacing: 8) {
                             Text(location.address)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(palette.secondaryText)
                                 .lineLimit(1)
                             
                             if !location.distanceString.isEmpty {
                                 Text("• \(location.distanceString)")
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundColor(palette.tertiaryText)
                             }
                         }
                     }
                     
                     Spacer()
                     
-                    // Flecha
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(palette.tertiaryText)
                 }
                 .padding(.vertical, 12)
             }
@@ -2456,22 +2401,27 @@ struct SmartLocationInputView: View {
     
     private struct SkeletonLocationRow: View {
         @State private var isAnimating = false
+        @Environment(\.colorScheme) private var colorScheme
+
+        private var palette: StickerDetailPalette {
+            StickerDetailPalette(colorScheme: colorScheme)
+        }
         
         var body: some View {
             HStack(spacing: 14) {
                 Circle()
-                    .fill(Color.white.opacity(0.1))
+                    .fill(palette.skeletonFill)
                     .frame(width: 44, height: 44)
                     .shimmer(isAnimating)
                 
                 VStack(alignment: .leading, spacing: 6) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.1))
+                        .fill(palette.skeletonFill)
                         .frame(width: 140, height: 14)
                         .shimmer(isAnimating)
                     
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.1))
+                        .fill(palette.skeletonFill)
                         .frame(width: 100, height: 12)
                         .shimmer(isAnimating)
                 }
@@ -2486,50 +2436,63 @@ struct SmartLocationInputView: View {
     }
     
     private struct EmptyNearbyView: View {
+        @Environment(\.colorScheme) private var colorScheme
+
+        private var palette: StickerDetailPalette {
+            StickerDetailPalette(colorScheme: colorScheme)
+        }
+
         var body: some View {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 Image(systemName: "location.slash")
                     .font(.system(size: 40))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(palette.secondaryText)
                 
-                VStack(spacing: 6) {
-                                            Text("stickerview.nearbyPlacesError")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("stickerview.nearbyPlacesError")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(palette.primaryText)
                     
-                                            Text("stickerview.locationPermissionError")
+                    Text("stickerview.locationPermissionError")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
+                        .foregroundColor(palette.secondaryText)
+                        .multilineTextAlignment(.leading)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 40)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 4)
         }
     }
     
     private struct EmptySearchView: View {
         let searchQuery: String
+        @Environment(\.colorScheme) private var colorScheme
+
+        private var palette: StickerDetailPalette {
+            StickerDetailPalette(colorScheme: colorScheme)
+        }
         
         var body: some View {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 Image(systemName: "mappin.slash")
                     .font(.system(size: 40))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(palette.secondaryText)
                 
-                VStack(spacing: 6) {
-                                            Text("stickerview.noPlacesFound")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("stickerview.noPlacesFound")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(palette.primaryText)
                     
-                                            Text(String(format: NSLocalizedString("stickerview.tryDifferentSearch", comment: "Try different search"), searchQuery))
+                    Text(String(format: NSLocalizedString("stickerview.tryDifferentSearch", comment: "Try different search"), searchQuery))
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
+                        .foregroundColor(palette.secondaryText)
+                        .multilineTextAlignment(.leading)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 40)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 4)
         }
     }
     
@@ -2558,16 +2521,16 @@ struct SmartLocationInputView: View {
         
         // Búsqueda más específica para lugares útiles (como en LocationPickerView)
         let searchQueries = [
-            "restaurantes",
-            "cafés",
-            "tiendas",
-            "parques",
-            "museos",
-            "hoteles",
-            "farmacias",
-            "bancos",
-            "estaciones de metro",
-            "bibliotecas"
+            NSLocalizedString("stickerview.location.query.restaurants", comment: "Nearby restaurants query"),
+            NSLocalizedString("stickerview.location.query.cafes", comment: "Nearby cafes query"),
+            NSLocalizedString("stickerview.location.query.shops", comment: "Nearby shops query"),
+            NSLocalizedString("stickerview.location.query.parks", comment: "Nearby parks query"),
+            NSLocalizedString("stickerview.location.query.museums", comment: "Nearby museums query"),
+            NSLocalizedString("stickerview.location.query.hotels", comment: "Nearby hotels query"),
+            NSLocalizedString("stickerview.location.query.pharmacies", comment: "Nearby pharmacies query"),
+            NSLocalizedString("stickerview.location.query.banks", comment: "Nearby banks query"),
+            NSLocalizedString("stickerview.location.query.metroStations", comment: "Nearby metro stations query"),
+            NSLocalizedString("stickerview.location.query.libraries", comment: "Nearby libraries query")
         ]
         
         var allPlaces: [LocationResult] = []
@@ -2802,9 +2765,58 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
+private struct StickerDetailPalette {
+    let colorScheme: ColorScheme
+
+    var primaryText: Color {
+        colorScheme == .dark ? .white : Color.black.opacity(0.92)
+    }
+
+    var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.58) : Color.black.opacity(0.50)
+    }
+
+    var tertiaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.40) : Color.black.opacity(0.34)
+    }
+
+    var searchIcon: Color {
+        colorScheme == .dark ? .white.opacity(0.54) : Color.black.opacity(0.36)
+    }
+
+    var searchIconActive: Color {
+        colorScheme == .dark ? .white.opacity(0.72) : Color.black.opacity(0.66)
+    }
+
+    var clearIcon: Color {
+        colorScheme == .dark ? .white.opacity(0.56) : Color.black.opacity(0.34)
+    }
+
+    var fieldFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)
+    }
+
+    var fieldStroke: Color {
+        colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.08)
+    }
+
+    var buttonFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)
+    }
+
+    var divider: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.08)
+    }
+
+    var skeletonFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.08)
+    }
+}
+
 // MARK: - Modern Mention Input with Real User Search
 struct ModernMentionInputView: View {
     let onSelect: (String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
     @State private var searchResults: [AppUser] = []
     @State private var isSearching = false
@@ -2813,33 +2825,33 @@ struct ModernMentionInputView: View {
     @FocusState private var isTextFieldFocused: Bool
     
     private let firestoreService = FirestoreService()
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header moderno
-            VStack(spacing: 16) {
-                HStack {
-                    Image(systemName: "at.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.green)
-                    
-                    Text("stickerview.tagPeople")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("stickerview.mention.searchTitle")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(palette.primaryText)
+
+                    Text("stickerview.mention.searchSubtitle")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(palette.secondaryText)
                 }
-                
-                // Barra de búsqueda estilo Moments
+
                 HStack(spacing: 12) {
                     Image(systemName: isSearching ? "magnifyingglass" : (searchText.isEmpty ? "magnifyingglass" : "person.circle.fill"))
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(searchText.isEmpty ? .gray : .green)
+                        .font(.system(size: 16))
+                        .foregroundColor(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
                         .animation(.easeInOut(duration: 0.2), value: searchText)
                     
-                    TextField("Buscar usuarios...", text: $searchText)
+                    TextField(NSLocalizedString("stickerview.mention.searchPlaceholder", comment: "Mention search placeholder"), text: $searchText)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(palette.primaryText)
                         .focused($isTextFieldFocused)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
@@ -2862,25 +2874,16 @@ struct ModernMentionInputView: View {
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(.gray)
+                                .foregroundColor(palette.clearIcon)
                         }
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(isTextFieldFocused ? Color.green.opacity(0.6) : Color.white.opacity(0.2), lineWidth: 1.5)
-                        )
-                )
+                .liquidGlass(in: Capsule())
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
             
             // Lista de usuarios
             ScrollView {
@@ -2888,7 +2891,7 @@ struct ModernMentionInputView: View {
                     if searchText.isEmpty {
                         // Sección de recientes
                         if !recentUsers.isEmpty {
-                            SectionHeader(title: "Recientes", icon: "clock.fill", color: .orange)
+                            SectionHeader(title: NSLocalizedString("stickerview.mention.recent", comment: "Recent users"), icon: "clock.fill", color: .orange)
                             
                             ForEach(recentUsers, id: \.id) { user in
                                 StickerUserRowView(user: user) {
@@ -2901,14 +2904,14 @@ struct ModernMentionInputView: View {
                             }
                             
                             Divider()
-                                .background(Color.white.opacity(0.1))
-                                .padding(.horizontal, 20)
+                                .background(palette.divider)
+                                .padding(.horizontal, 4)
                                 .padding(.vertical, 16)
                         }
                         
                         // Sección de sugerencias
                         if !suggestedUsers.isEmpty {
-                            SectionHeader(title: "Sugerencias", icon: "sparkles", color: .purple)
+                            SectionHeader(title: NSLocalizedString("stickerview.mention.suggestions", comment: "Suggested users"), icon: "sparkles", color: .purple)
                             
                             ForEach(suggestedUsers, id: \.id) { user in
                                 StickerUserRowView(user: user) {
@@ -2921,7 +2924,7 @@ struct ModernMentionInputView: View {
                             }
                         } else {
                             // Loading de sugerencias
-                            SectionHeader(title: "Sugerencias", icon: "sparkles", color: .purple)
+                            SectionHeader(title: NSLocalizedString("stickerview.mention.suggestions", comment: "Suggested users"), icon: "sparkles", color: .purple)
                             
                             ForEach(0..<4, id: \.self) { _ in
                                 SkeletonUserRow()
@@ -2930,7 +2933,7 @@ struct ModernMentionInputView: View {
                     } else {
                         // Resultados de búsqueda
                         if isSearching {
-                            SectionHeader(title: "Buscando...", icon: "magnifyingglass", color: .blue)
+                            SectionHeader(title: NSLocalizedString("stickerview.mention.searching", comment: "Searching users"), icon: "magnifyingglass", color: .blue)
                             
                             ForEach(0..<3, id: \.self) { _ in
                                 SkeletonUserRow()
@@ -2938,7 +2941,13 @@ struct ModernMentionInputView: View {
                         } else if searchResults.isEmpty {
                             StickerEmptySearchView(searchQuery: searchText)
                         } else {
-                            SectionHeader(title: "\(searchResults.count) resultado\(searchResults.count == 1 ? "" : "s")", icon: "person.2.fill", color: .green)
+                            SectionHeader(
+                                title: searchResults.count == 1
+                                    ? String(format: NSLocalizedString("stickerview.mention.results.one", comment: "One mention result"), searchResults.count)
+                                    : String(format: NSLocalizedString("stickerview.mention.results.other", comment: "Multiple mention results"), searchResults.count),
+                                icon: "person.2.fill",
+                                color: .green
+                            )
                             
                             ForEach(searchResults, id: \.id) { user in
                                 StickerUserRowView(user: user) {
@@ -2955,7 +2964,7 @@ struct ModernMentionInputView: View {
                 }
                 .animation(.easeInOut(duration: 0.3), value: searchText)
                 .animation(.easeInOut(duration: 0.3), value: searchResults)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 4)
             }
         }
                         .onAppear {
@@ -3070,7 +3079,12 @@ struct ModernMentionInputView: View {
 struct StickerUserRowView: View {
     let user: AppUser
     let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     @State private var imageLoadFailed = false
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
         Button(action: onTap) {
@@ -3104,7 +3118,7 @@ struct StickerUserRowView: View {
                 .clipShape(Circle())
                 .overlay(
                     Circle()
-                        .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                        .stroke(palette.divider, lineWidth: 0.5)
                 )
                 
                 // Info del usuario
@@ -3112,7 +3126,7 @@ struct StickerUserRowView: View {
                     HStack(spacing: 6) {
                         Text("\(user.username)")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(palette.primaryText)
                         
                         // Badge de Plus subscriber si aplica
                         if user.isPlusSubscriber {
@@ -3125,7 +3139,7 @@ struct StickerUserRowView: View {
                     if let bio = user.bio, !bio.isEmpty {
                         Text(bio)
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(palette.secondaryText)
                             .lineLimit(1)
                     }
                     
@@ -3134,11 +3148,11 @@ struct StickerUserRowView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 10))
-                                .foregroundColor(.gray)
+                                .foregroundColor(palette.tertiaryText)
                             
                             Text("stickerview.privateAccount")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.gray)
+                                .foregroundColor(palette.tertiaryText)
                         }
                     }
                 }
@@ -3148,7 +3162,7 @@ struct StickerUserRowView: View {
                 // Flecha de selección
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundColor(palette.tertiaryText)
             }
             .padding(.vertical, 12)
         }
@@ -3158,24 +3172,29 @@ struct StickerUserRowView: View {
 
 struct SkeletonUserRow: View {
     @State private var isAnimating = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
         HStack(spacing: 12) {
             // Avatar skeleton
             Circle()
-                .fill(Color.white.opacity(0.1))
+                .fill(palette.skeletonFill)
                 .frame(width: 50, height: 50)
                 .shimmer(isAnimating)
             
             // Text skeleton
             VStack(alignment: .leading, spacing: 6) {
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(palette.skeletonFill)
                     .frame(width: 120, height: 14)
                     .shimmer(isAnimating)
                 
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(palette.skeletonFill)
                     .frame(width: 80, height: 12)
                     .shimmer(isAnimating)
             }
@@ -3190,9 +3209,14 @@ struct SkeletonUserRow: View {
 }
 
 struct SectionHeader: View {
+    @Environment(\.colorScheme) private var colorScheme
     let title: String
     let icon: String
     let color: Color
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
         HStack(spacing: 8) {
@@ -3202,7 +3226,7 @@ struct SectionHeader: View {
             
             Text(title)
                 .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(palette.primaryText)
             
             Spacer()
         }
@@ -3213,26 +3237,32 @@ struct SectionHeader: View {
 
 struct StickerEmptySearchView: View {
     let searchQuery: String
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "person.2.slash")
                 .font(.system(size: 40))
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(palette.secondaryText)
             
-            VStack(spacing: 6) {
-                                        Text("stickerview.noUsersFound")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("stickerview.noUsersFound")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(palette.primaryText)
                 
-                                        Text(String(format: NSLocalizedString("stickerview.tryDifferentUsername", comment: "Try different username"), searchQuery.lowercased()))
+                Text(String(format: NSLocalizedString("stickerview.tryDifferentUsername", comment: "Try different username"), searchQuery.lowercased()))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
+                    .foregroundColor(palette.secondaryText)
+                    .multilineTextAlignment(.leading)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 40)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 4)
     }
 }
 
@@ -3268,39 +3298,36 @@ extension View {
 
 struct ModernHashtagInputView: View {
     let onSelect: (String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
     @State private var hashtag = ""
     @FocusState private var isTextFieldFocused: Bool
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
-        VStack(spacing: 25) {
-            // Header con icono
-            VStack(spacing: 12) {
-                Image(systemName: "number.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.pink)
-                
-                                    Text("stickerview.addHashtag")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                
-                Text("stickerview.hashtagDescription")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("stickerview.addHashtag")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(palette.primaryText)
+
+                Text("stickerview.hashtag.subtitle")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.secondaryText)
             }
-            .padding(.top, 30)
-            
-            // Campo de texto moderno
+
             VStack(spacing: 15) {
                 HStack {
                     Text("#")
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.pink)
-                        .frame(width: 24)
+                        .frame(width: 18, alignment: .leading)
                     
-                    TextField("hashtag", text: $hashtag)
+                    TextField(NSLocalizedString("stickerview.hashtag.placeholder", comment: "Hashtag placeholder"), text: $hashtag)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(palette.primaryText)
                         .focused($isTextFieldFocused)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
@@ -3309,10 +3336,10 @@ struct ModernHashtagInputView: View {
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(0.1))
-                        .background(
+                        .fill(palette.fieldFill)
+                        .overlay(
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(isTextFieldFocused ? Color.pink : Color.white.opacity(0.2), lineWidth: 1.5)
+                                .stroke(isTextFieldFocused ? Color.pink : palette.fieldStroke, lineWidth: 1.5)
                         )
                 )
                 
@@ -3324,7 +3351,7 @@ struct ModernHashtagInputView: View {
                         Image(systemName: "tag.fill")
                             .font(.system(size: 18, weight: .medium))
                         
-                        Text("Añadir hashtag")
+                        Text("stickerview.addHashtag")
                             .font(.system(size: 18, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -3338,10 +3365,11 @@ struct ModernHashtagInputView: View {
                 .disabled(hashtag.isEmpty)
                 .animation(.easeInOut(duration: 0.2), value: hashtag.isEmpty)
             }
-            
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Spacer()
         }
-        .padding(.horizontal, 25)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             isTextFieldFocused = true
         }
@@ -3350,6 +3378,7 @@ struct ModernHashtagInputView: View {
 
 struct ModernPollInputView: View {
     let onSelect: ([String]) -> Void
+    @Environment(\.colorScheme) private var colorScheme
     @State private var question = ""
     @State private var option1 = ""
     @State private var option2 = ""
@@ -3358,110 +3387,104 @@ struct ModernPollInputView: View {
     enum Field {
         case question, option1, option2
     }
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
-        VStack(spacing: 25) {
-            // Header con icono
-            VStack(spacing: 12) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.indigo)
-                
-                                    Text("stickerview.createPoll")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                
-                Text("stickerview.pollDescription")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("stickerview.createPoll")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(palette.primaryText)
+
+                Text("stickerview.poll.subtitleCompact")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.secondaryText)
             }
-            .padding(.top, 30)
-            
-            // Campos de texto modernos
-            VStack(spacing: 20) {
-                // Pregunta
+
+            VStack(spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.question")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(palette.secondaryText)
                         .kerning(1)
                     
-                    TextField("¿Cuál prefieres?", text: $question)
+                    TextField(NSLocalizedString("stickerview.poll.placeholder", comment: "Poll question placeholder"), text: $question)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(palette.primaryText)
                         .focused($focusedField, equals: .question)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.1))
-                                .background(
+                                .fill(palette.fieldFill)
+                                .overlay(
                                     RoundedRectangle(cornerRadius: 16)
-                                        .stroke(focusedField == .question ? Color.indigo : Color.white.opacity(0.2), lineWidth: 1.5)
+                                        .stroke(focusedField == .question ? Color.indigo : palette.fieldStroke, lineWidth: 1.5)
                                 )
                         )
                 }
                 
-                // Opción 1
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.option1")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(palette.secondaryText)
                         .kerning(1)
                     
                     HStack {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 12, height: 12)
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.blue)
+                            .frame(width: 14, alignment: .leading)
                         
-                        TextField("Primera opción", text: $option1)
+                        TextField(NSLocalizedString("stickerview.poll.option1Placeholder", comment: "First option placeholder"), text: $option1)
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(palette.primaryText)
                             .focused($focusedField, equals: .option1)
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.1))
-                            .background(
+                            .fill(palette.fieldFill)
+                            .overlay(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .stroke(focusedField == .option1 ? Color.blue : Color.white.opacity(0.2), lineWidth: 1.5)
+                                    .stroke(focusedField == .option1 ? Color.blue : palette.fieldStroke, lineWidth: 1.5)
                             )
                     )
                 }
                 
-                // Opción 2
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.option2")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(palette.secondaryText)
                         .kerning(1)
                     
                     HStack {
-                        Circle()
-                            .fill(Color.pink)
-                            .frame(width: 12, height: 12)
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.pink)
+                            .frame(width: 14, alignment: .leading)
                         
-                        TextField("Segunda opción", text: $option2)
+                        TextField(NSLocalizedString("stickerview.poll.option2Placeholder", comment: "Second option placeholder"), text: $option2)
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(palette.primaryText)
                             .focused($focusedField, equals: .option2)
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.1))
-                            .background(
+                            .fill(palette.fieldFill)
+                            .overlay(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .stroke(focusedField == .option2 ? Color.pink : Color.white.opacity(0.2), lineWidth: 1.5)
+                                    .stroke(focusedField == .option2 ? Color.pink : palette.fieldStroke, lineWidth: 1.5)
                             )
                     )
                 }
                 
-                // Botón de acción
                 Button(action: {
                     onSelect([question, option1, option2])
                 }) {
@@ -3469,7 +3492,7 @@ struct ModernPollInputView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 18, weight: .medium))
                         
-                        Text("Crear encuesta")
+                        Text("stickerview.createPoll")
                             .font(.system(size: 18, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -3483,10 +3506,11 @@ struct ModernPollInputView: View {
                 .disabled(!isFormValid)
                 .animation(.easeInOut(duration: 0.2), value: isFormValid)
             }
-            
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Spacer()
         }
-        .padding(.horizontal, 25)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             focusedField = .question
         }
@@ -3499,61 +3523,58 @@ struct ModernPollInputView: View {
 
 struct ModernQuestionInputView: View {
     let onSelect: (String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
     @State private var question = ""
     @FocusState private var isTextFieldFocused: Bool
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
     
     var body: some View {
-        VStack(spacing: 25) {
-            // Header con icono
-            VStack(spacing: 12) {
-                Image(systemName: "questionmark.bubble.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.teal)
-                
-                                    Text("stickerview.addQuestion")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                
-                Text("stickerview.questionDescription")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("stickerview.addQuestion")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(palette.primaryText)
+
+                Text("stickerview.question.subtitleCompact")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.secondaryText)
             }
-            .padding(.top, 30)
-            
-            // Campo de texto moderno
+
             VStack(spacing: 15) {
                 HStack {
                     Image(systemName: "bubble.left.fill")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.teal)
-                        .frame(width: 24)
+                        .frame(width: 18, alignment: .leading)
                     
-                    TextField("Hazme una pregunta sobre...", text: $question)
+                    TextField(NSLocalizedString("stickerview.question.placeholder", comment: "Question sticker placeholder"), text: $question)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(palette.primaryText)
                         .focused($isTextFieldFocused)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(0.1))
-                        .background(
+                        .fill(palette.fieldFill)
+                        .overlay(
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(isTextFieldFocused ? Color.purple : Color.white.opacity(0.2), lineWidth: 1.5)
+                                .stroke(isTextFieldFocused ? Color.purple : palette.fieldStroke, lineWidth: 1.5)
                         )
                 )
                 
                 // Botón de acción
                 Button(action: {
-                    onSelect(question.isEmpty ? "Hazme una pregunta" : question)
+                    onSelect(question.isEmpty ? NSLocalizedString("stickerview.question.defaultPrompt", comment: "Default question prompt") : question)
                 }) {
                     HStack(spacing: 10) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 18, weight: .medium))
                         
-                        Text("Añadir pregunta")
+                        Text("stickerview.addQuestion")
                             .font(.system(size: 18, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -3565,10 +3586,11 @@ struct ModernQuestionInputView: View {
                     )
                 }
             }
-            
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Spacer()
         }
-        .padding(.horizontal, 25)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             isTextFieldFocused = true
         }
@@ -3765,10 +3787,15 @@ struct GiphyResponse: Codable {
 struct GiphyGif: Codable, Identifiable {
     let id: String
     let images: GiphyImages
+
+    var preferredStickerURL: URL? {
+        URL(string: images.original?.url ?? images.fixed_height.url)
+    }
 }
 
 struct GiphyImages: Codable {
     let fixed_height: GiphyImage
+    let original: GiphyImage?
 }
 
 struct GiphyImage: Codable {
