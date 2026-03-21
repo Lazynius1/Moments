@@ -550,9 +550,12 @@ struct StoryEditingView: View {
         }
         .sheet(isPresented: $showingStickerPicker) {
             StickerPickerView(selectedStickers: $selectedStickers)
+                .ignoresSafeArea()
                 .onDisappear {
                     activeEditorMode = .idle
                 }
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(.clear)
         }
         .overlay(
             Group {
@@ -2660,7 +2663,7 @@ private struct StoryDrawingEditorOverlay: View {
                         ZStack {
                             Circle()
                                 .fill(Color(color))
-                                .frame(width: 30, height: 30)
+                                .frame(width: 32, height: 32)
                                 .overlay(
                                     Circle().stroke(Color.white.opacity(0.6), lineWidth: 1.5)
                                 )
@@ -2683,11 +2686,16 @@ private struct StoryDrawingEditorOverlay: View {
                                 }
                             ), supportsOpacity: false)
                             .labelsHidden()
+                            .frame(width: 40, height: 40)
+                            .scaleEffect(2.2)
+                            .contentShape(Rectangle())
                             .opacity(0.011)
                         }
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                         
                         Divider()
-                            .frame(height: 20)
+                            .frame(height: 24)
                             .background(Color.white.opacity(0.3))
                             .padding(.horizontal, 2)
 
@@ -2695,21 +2703,27 @@ private struct StoryDrawingEditorOverlay: View {
                             Button(action: { color = paletteColor }) {
                                 Circle()
                                     .fill(Color(paletteColor))
-                                    .frame(width: 30, height: 30)
+                                    .frame(width: 32, height: 32)
                                     .overlay(
                                         Circle()
                                             .stroke(Color.white.opacity(color == paletteColor ? 0.95 : 0.26), lineWidth: color == paletteColor ? 2.5 : 1)
                                     )
                             }
                             .buttonStyle(.plain)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
                         }
                     }
-                    .padding(.horizontal, 2)
+                    .padding(.horizontal, 4)
                 }
-                .frame(height: 38)
+                .frame(height: 44)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.vertical, 8)
                 .liquidGlass(in: Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                )
                 .padding(.horizontal, 16)
                 .padding(.bottom, 76)
             }
@@ -3084,117 +3098,56 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         return renderer.image { rendererCtx in
             let ctx = rendererCtx.cgContext
 
-            // -- Pass 0: Wide ambient diffusion (neon light spill) --
-            ctx.saveGState()
-            ctx.setBlendMode(.plusLighter)
             for glow in glowStrokes {
                 let metadata = strokeMetadata[glow.index]
                 let bezier = strokeToBezierPath(stroke: glow.stroke)
                 guard !bezier.cgPath.isEmpty else { continue }
 
-                let diffuseColor = metadata.color.withAlphaComponent(0.18)
-                ctx.setShadow(offset: .zero, blur: 36, color: diffuseColor.cgColor)
+                let glowColor = metadata.color
+                let w = metadata.width
+
+                // Scale the glow extent with the brush size so fat strokes
+                // get a proportionally bigger, more dramatic outer halo.
+                let outerBlur = max(14, w * 3.0)   // wide ambient spill
+                let midBlur   = max(6,  w * 1.2)   // medium intensity halo
+                let coreBlur  = max(3,  w * 0.6)   // tight colored edge around white
+
+                // -- Pass 1: Wide ambient glow (soft light spill) --
+                ctx.saveGState()
+                ctx.setBlendMode(.plusLighter)
+                ctx.setShadow(offset: .zero, blur: outerBlur, color: glowColor.withAlphaComponent(0.45).cgColor)
                 ctx.setStrokeColor(UIColor.clear.cgColor)
-                ctx.setLineWidth(max(1, metadata.width * 0.5))
+                ctx.setLineWidth(w)
                 ctx.setLineCap(.round)
                 ctx.setLineJoin(.round)
                 ctx.addPath(bezier.cgPath)
                 ctx.strokePath()
-            }
-            ctx.restoreGState()
+                ctx.restoreGState()
 
-            // -- Pass 1: Outer ambient glow (wide, soft) --
-            ctx.saveGState()
-            ctx.setBlendMode(.plusLighter)
-            for glow in glowStrokes {
-                let metadata = strokeMetadata[glow.index]
-                let bezier = strokeToBezierPath(stroke: glow.stroke)
-                guard !bezier.cgPath.isEmpty else { continue }
-
-                let glowColor = metadata.color.withAlphaComponent(GlowConfig.outerShadowAlpha)
-                ctx.setShadow(offset: .zero, blur: GlowConfig.outerShadowBlur, color: glowColor.cgColor)
+                // -- Pass 2: Medium glow (tighter, more intense) --
+                ctx.saveGState()
+                ctx.setBlendMode(.plusLighter)
+                ctx.setShadow(offset: .zero, blur: midBlur, color: glowColor.withAlphaComponent(0.65).cgColor)
                 ctx.setStrokeColor(UIColor.clear.cgColor)
-                ctx.setLineWidth(max(1, metadata.width * GlowConfig.outerStrokeWidthMultiplier))
+                ctx.setLineWidth(w)
                 ctx.setLineCap(.round)
                 ctx.setLineJoin(.round)
                 ctx.addPath(bezier.cgPath)
                 ctx.strokePath()
-            }
-            ctx.restoreGState()
+                ctx.restoreGState()
 
-            // -- Pass 2: Mid glow (medium spread) --
-            ctx.saveGState()
-            ctx.setBlendMode(.plusLighter)
-            for glow in glowStrokes {
-                let metadata = strokeMetadata[glow.index]
-                let bezier = strokeToBezierPath(stroke: glow.stroke)
-                guard !bezier.cgPath.isEmpty else { continue }
-
-                let glowColor = metadata.color.withAlphaComponent(GlowConfig.midShadowAlpha)
-                ctx.setShadow(offset: .zero, blur: GlowConfig.midShadowBlur, color: glowColor.cgColor)
-                ctx.setStrokeColor(UIColor.clear.cgColor)
-                ctx.setLineWidth(max(1, metadata.width * GlowConfig.midStrokeWidthMultiplier))
-                ctx.setLineCap(.round)
-                ctx.setLineJoin(.round)
-                ctx.addPath(bezier.cgPath)
-                ctx.strokePath()
-            }
-            ctx.restoreGState()
-
-            // -- Pass 3: Inner tight glow (concentrated, bright) --
-            ctx.saveGState()
-            ctx.setBlendMode(.plusLighter)
-            for glow in glowStrokes {
-                let metadata = strokeMetadata[glow.index]
-                let bezier = strokeToBezierPath(stroke: glow.stroke)
-                guard !bezier.cgPath.isEmpty else { continue }
-
-                let glowColor = metadata.color.withAlphaComponent(GlowConfig.innerShadowAlpha)
-                ctx.setShadow(offset: .zero, blur: GlowConfig.innerShadowBlur, color: glowColor.cgColor)
-                // Draw the stroke itself in the glow color for a saturated rim
-                ctx.setStrokeColor(metadata.color.withAlphaComponent(0.9).cgColor)
-                ctx.setLineWidth(max(1, metadata.width * GlowConfig.innerStrokeWidthMultiplier))
-                ctx.setLineCap(.round)
-                ctx.setLineJoin(.round)
-                ctx.addPath(bezier.cgPath)
-                ctx.strokePath()
-            }
-            ctx.restoreGState()
-
-            // -- Pass 4: Saturated color rim (tight tube look) --
-            ctx.saveGState()
-            ctx.setBlendMode(.plusLighter)
-            for glow in glowStrokes {
-                let metadata = strokeMetadata[glow.index]
-                let bezier = strokeToBezierPath(stroke: glow.stroke)
-                guard !bezier.cgPath.isEmpty else { continue }
-
-                ctx.setShadow(offset: .zero, blur: 1.5, color: metadata.color.cgColor)
-                ctx.setStrokeColor(metadata.color.withAlphaComponent(0.95).cgColor)
-                ctx.setLineWidth(max(1.5, metadata.width * GlowConfig.coreWidthMultiplier * 1.8))
-                ctx.setLineCap(.round)
-                ctx.setLineJoin(.round)
-                ctx.addPath(bezier.cgPath)
-                ctx.strokePath()
-            }
-            ctx.restoreGState()
-
-            // -- Pass 5: Bright white core --
-            ctx.saveGState()
-            for glow in glowStrokes {
-                let metadata = strokeMetadata[glow.index]
-                let bezier = strokeToBezierPath(stroke: glow.stroke)
-                guard !bezier.cgPath.isEmpty else { continue }
-
-                ctx.setShadow(offset: .zero, blur: 1, color: UIColor.white.cgColor)
+                // -- Pass 3: White core with colored shadow --
+                ctx.saveGState()
+                ctx.setBlendMode(.normal)
+                ctx.setShadow(offset: .zero, blur: coreBlur, color: glowColor.cgColor)
                 ctx.setStrokeColor(UIColor.white.cgColor)
-                ctx.setLineWidth(max(1, metadata.width * GlowConfig.coreWidthMultiplier))
+                ctx.setLineWidth(w)
                 ctx.setLineCap(.round)
                 ctx.setLineJoin(.round)
                 ctx.addPath(bezier.cgPath)
                 ctx.strokePath()
+                ctx.restoreGState()
             }
-            ctx.restoreGState()
         }
     }
 
