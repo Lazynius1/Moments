@@ -1546,8 +1546,9 @@ struct StoryEditingView: View {
             /*
             for sticker in selectedStickers {
                 // interactive stickers (mentions, etc.) are handled by metadata, not drawn on the static image
-                if sticker.type == .mention || sticker.type == .poll || sticker.type == .question || 
-                   sticker.type == .location || sticker.type == .hashtag || sticker.type == .weather {
+                if sticker.type == .mention || sticker.type == .poll || sticker.type == .question ||
+                   sticker.type == .location || sticker.type == .hashtag || sticker.type == .weather ||
+                   sticker.type == .link || sticker.type == .countdown {
                     continue
                 }
                 
@@ -1978,6 +1979,10 @@ struct StoryEditingView: View {
             return interactionData.questionText ?? ""
         case .poll:
             return interactionData.pollData?.joined(separator: "|") ?? ""
+        case .link:
+            return interactionData.linkURL ?? ""
+        case .countdown:
+            return interactionData.countdownTitle ?? ""
         case .shareMoment: // ✅ CORREGIDO: Usar shareMoment en lugar de moment
             if let momentId = interactionData.momentId, let mediaCount = interactionData.mediaCount {
                 return "Moment ID: \(momentId), Media Count: \(mediaCount)"
@@ -2407,6 +2412,8 @@ struct StickerItem: Identifiable {
         case location
         case poll
         case question
+        case link
+        case countdown
         case questionResponse
         case generic
         case weather
@@ -2424,6 +2431,10 @@ struct StickerItem: Identifiable {
         let pollData: [String]?
         let questionText: String?
         let weatherSymbol: String?
+        let linkURL: String?
+        let linkTitle: String?
+        let countdownTitle: String?
+        let countdownTargetAtMs: Double?
         let caption: String? // ✅ NUEVO: Para mostrar el pie de foto en compartidos
         let profileImagePath: String? // ✅ NUEVO: Para reconstruir el header en el visor
         let momentId: String? // ✅ NUEVO: Para navegación al detalle
@@ -2439,6 +2450,10 @@ struct StickerItem: Identifiable {
             pollData: [String]? = nil,
             questionText: String? = nil,
             weatherSymbol: String? = nil,
+            linkURL: String? = nil,
+            linkTitle: String? = nil,
+            countdownTitle: String? = nil,
+            countdownTargetAtMs: Double? = nil,
             caption: String? = nil,
             profileImagePath: String? = nil,
             momentId: String? = nil,
@@ -2452,6 +2467,10 @@ struct StickerItem: Identifiable {
             self.pollData = pollData
             self.questionText = questionText
             self.weatherSymbol = weatherSymbol
+            self.linkURL = linkURL
+            self.linkTitle = linkTitle
+            self.countdownTitle = countdownTitle
+            self.countdownTargetAtMs = countdownTargetAtMs
             self.caption = caption
             self.profileImagePath = profileImagePath
             self.momentId = momentId

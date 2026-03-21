@@ -33,9 +33,11 @@ struct StickerPickerView: View {
         case emoji
         case location
         case mention
+        case link
         case hashtag
         case poll
         case question
+        case countdown
         case weather
         case time
         case selfie
@@ -48,9 +50,11 @@ struct StickerPickerView: View {
             case .emoji: return NSLocalizedString("stickerview.category.emoji", comment: "Emoji category")
             case .location: return NSLocalizedString("stickerview.category.location", comment: "Location category")
             case .mention: return NSLocalizedString("stickerview.category.mention", comment: "Mention category")
+            case .link: return NSLocalizedString("stickerview.category.link", comment: "Link category")
             case .hashtag: return NSLocalizedString("stickerview.category.hashtag", comment: "Hashtag category")
             case .poll: return NSLocalizedString("stickerview.category.poll", comment: "Poll category")
             case .question: return NSLocalizedString("stickerview.category.question", comment: "Question category")
+            case .countdown: return NSLocalizedString("stickerview.category.countdown", comment: "Countdown category")
             case .weather: return NSLocalizedString("stickerview.category.weather", comment: "Weather category")
             case .time: return NSLocalizedString("stickerview.category.time", comment: "Time category")
             case .selfie: return NSLocalizedString("stickerview.category.selfie", comment: "Selfie category")
@@ -63,9 +67,11 @@ struct StickerPickerView: View {
             case .emoji: return "face.smiling.fill"
             case .location: return "mappin.and.ellipse"
             case .mention: return "at"
+            case .link: return "link"
             case .hashtag: return "number"
             case .poll: return "chart.bar.xaxis"
             case .question: return "questionmark.bubble.fill"
+            case .countdown: return "timer"
             case .weather: return "cloud.sun.fill"
             case .time: return "clock.fill"
             case .selfie: return "person.crop.circle.badge.plus"
@@ -78,9 +84,11 @@ struct StickerPickerView: View {
             case .emoji: return Color(red: 1.00, green: 0.72, blue: 0.18)
             case .location: return Color(red: 0.53, green: 0.32, blue: 0.98)
             case .mention: return Color(red: 0.98, green: 0.50, blue: 0.14)
+            case .link: return Color(red: 0.29, green: 0.72, blue: 0.98)
             case .hashtag: return Color(red: 0.92, green: 0.23, blue: 0.88)
             case .poll: return Color(red: 0.91, green: 0.25, blue: 0.74)
             case .question: return Color(red: 0.85, green: 0.26, blue: 0.84)
+            case .countdown: return Color(red: 0.61, green: 0.34, blue: 0.97)
             case .weather: return Color(red: 0.20, green: 0.77, blue: 0.95)
             case .time: return Color(red: 1.00, green: 0.62, blue: 0.20)
             case .selfie: return Color(red: 1.00, green: 0.25, blue: 0.55)
@@ -90,7 +98,7 @@ struct StickerPickerView: View {
     }
 
     private var catalogCategories: [StickerCategory] {
-        [.location, .mention, .trending, .emoji, .question, .poll, .hashtag, .weather, .time, .selfie]
+        [.location, .mention, .trending, .emoji, .link, .question, .poll, .hashtag, .countdown, .weather, .time, .selfie]
     }
 
     private var filteredCatalogCategories: [StickerCategory] {
@@ -585,6 +593,11 @@ struct StickerPickerView: View {
                 createMentionSticker(username)
             }
 
+        case .link:
+            ModernLinkInputView { urlString, customTitle in
+                createLinkSticker(urlString: urlString, customTitle: customTitle)
+            }
+
         case .hashtag:
             ModernHashtagInputView { hashtag in
                 createHashtagSticker(hashtag)
@@ -598,6 +611,11 @@ struct StickerPickerView: View {
         case .question:
             ModernQuestionInputView { question in
                 createQuestionSticker(question)
+            }
+
+        case .countdown:
+            ModernCountdownInputView { title, targetAtMs in
+                createCountdownSticker(title: title, targetAtMs: targetAtMs)
             }
 
         case .weather, .time, .selfie:
@@ -1787,6 +1805,72 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
+
+    private func createLinkSticker(urlString: String, customTitle: String) {
+        guard let normalizedURL = normalizedStickerURL(from: urlString) else { return }
+
+        let displayTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTitle = displayTitle.isEmpty ? stickerHostLabel(from: normalizedURL.absoluteString) : displayTitle
+        let resolvedSize = linkStickerRenderingSize(for: resolvedTitle)
+        let renderer = UIGraphicsImageRenderer(size: resolvedSize)
+        let image = renderer.image { context in
+            let rect = CGRect(origin: .zero, size: resolvedSize)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: resolvedSize.height / 2)
+
+            UIColor.white.withAlphaComponent(0.16).setFill()
+            path.fill()
+
+            UIColor.white.withAlphaComponent(0.18).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+
+            if let linkIcon = UIImage(systemName: "link")?.withTintColor(UIColor(red: 0.29, green: 0.72, blue: 0.98, alpha: 1), renderingMode: .alwaysOriginal) {
+                linkIcon.draw(in: CGRect(x: 14, y: 15, width: 15, height: 15))
+            }
+
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineBreakMode = .byTruncatingTail
+
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: paragraphStyle
+            ]
+            if let linkIcon = UIImage(systemName: "link")?.withTintColor(UIColor(red: 0.29, green: 0.72, blue: 0.98, alpha: 1), renderingMode: .alwaysOriginal) {
+                linkIcon.draw(in: CGRect(x: 18, y: 16, width: 18, height: 18))
+            }
+            (resolvedTitle as NSString).draw(
+                in: CGRect(x: 48, y: 14, width: resolvedSize.width - 66, height: 20),
+                withAttributes: titleAttributes
+            )
+        }
+
+        let sticker = StickerItem(
+            image: image,
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            type: .link,
+            interactionData: StickerItem.StickerInteractionData(
+                username: nil,
+                userId: nil,
+                hashtag: nil,
+                location: nil,
+                locationCoordinate: nil,
+                pollData: nil,
+                questionText: nil,
+                weatherSymbol: nil,
+                linkURL: normalizedURL.absoluteString,
+                linkTitle: resolvedTitle,
+                countdownTitle: nil,
+                countdownTargetAtMs: nil,
+                caption: nil,
+                profileImagePath: nil,
+                momentId: nil
+            )
+        )
+
+        selectedStickers.append(sticker)
+        dismiss()
+    }
     
     private func createPollSticker(_ poll: [String]) {
         guard poll.count >= 3 else { return }
@@ -1995,6 +2079,123 @@ struct StickerPickerView: View {
                 profileImagePath: nil, momentId: nil
             )
         )
+        selectedStickers.append(sticker)
+        dismiss()
+    }
+
+    private func createCountdownSticker(title: String, targetAtMs: Double) {
+        let targetDate = Date(timeIntervalSince1970: targetAtMs / 1000)
+        let remainingSeconds = max(Int(targetDate.timeIntervalSinceNow), 0)
+        let hours = remainingSeconds / 3_600
+        let minutes = (remainingSeconds % 3_600) / 60
+        let seconds = remainingSeconds % 60
+        let remainingText = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 240, height: 96))
+        let image = renderer.image { context in
+            let rect = CGRect(x: 0, y: 0, width: 240, height: 96)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: 20)
+            let colors = [
+                UIColor(red: 0.32, green: 0.24, blue: 0.92, alpha: 0.86).cgColor,
+                UIColor(red: 0.86, green: 0.28, blue: 0.73, alpha: 0.92).cgColor
+            ] as CFArray
+
+            context.cgContext.saveGState()
+            path.addClip()
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
+            }
+            context.cgContext.restoreGState()
+
+            UIColor.white.withAlphaComponent(0.18).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineBreakMode = .byTruncatingTail
+
+            paragraphStyle.alignment = .center
+
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 15, weight: .semibold),
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: paragraphStyle
+            ]
+            let digitAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor.white
+            ]
+            let colonAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.92),
+                .paragraphStyle: paragraphStyle
+            ]
+
+            let titleText = (title as NSString).substring(to: min(title.count, 26))
+            (titleText as NSString).draw(in: CGRect(x: 20, y: 14, width: 200, height: 18), withAttributes: titleAttributes)
+
+            let boxSize = CGSize(width: 26, height: 32)
+            let digitSpacing: CGFloat = 4
+            let colonWidth: CGFloat = 10
+            let sequence = remainingText.map(String.init)
+
+            var totalWidth: CGFloat = 0
+            for character in sequence {
+                totalWidth += character == ":" ? colonWidth : boxSize.width
+            }
+            totalWidth += CGFloat(max(0, sequence.count - 1)) * digitSpacing
+
+            var currentX = (rect.width - totalWidth) / 2
+            let rowY: CGFloat = 44
+
+            for character in sequence {
+                if character == ":" {
+                    (character as NSString).draw(
+                        in: CGRect(x: currentX, y: rowY + 3, width: colonWidth, height: boxSize.height),
+                        withAttributes: colonAttributes
+                    )
+                    currentX += colonWidth + digitSpacing
+                } else {
+                    let boxRect = CGRect(x: currentX, y: rowY, width: boxSize.width, height: boxSize.height)
+                    let boxPath = UIBezierPath(roundedRect: boxRect, cornerRadius: 8)
+                    UIColor.white.withAlphaComponent(0.18).setFill()
+                    boxPath.fill()
+                    UIColor.white.withAlphaComponent(0.2).setStroke()
+                    boxPath.lineWidth = 1
+                    boxPath.stroke()
+
+                    (character as NSString).draw(
+                        in: CGRect(x: boxRect.minX, y: boxRect.minY + 3, width: boxRect.width, height: 24),
+                        withAttributes: digitAttributes.merging([.paragraphStyle: paragraphStyle]) { _, new in new }
+                    )
+                    currentX += boxSize.width + digitSpacing
+                }
+            }
+        }
+
+        let sticker = StickerItem(
+            image: image,
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            type: .countdown,
+            interactionData: StickerItem.StickerInteractionData(
+                username: nil,
+                userId: nil,
+                hashtag: nil,
+                location: nil,
+                locationCoordinate: nil,
+                pollData: nil,
+                questionText: nil,
+                weatherSymbol: nil,
+                linkURL: nil,
+                linkTitle: nil,
+                countdownTitle: title,
+                countdownTargetAtMs: targetAtMs,
+                caption: nil,
+                profileImagePath: nil,
+                momentId: nil
+            )
+        )
+
         selectedStickers.append(sticker)
         dismiss()
     }
@@ -3364,6 +3565,228 @@ struct ModernHashtagInputView: View {
                 }
                 .disabled(hashtag.isEmpty)
                 .animation(.easeInOut(duration: 0.2), value: hashtag.isEmpty)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            isTextFieldFocused = true
+        }
+    }
+}
+
+struct ModernLinkInputView: View {
+    let onSelect: (String, String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var urlString = ""
+    @State private var customTitle = ""
+    @FocusState private var focusedField: Field?
+
+    enum Field {
+        case url
+        case title
+    }
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
+
+    private var isFormValid: Bool {
+        normalizedStickerURL(from: urlString) != nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("stickerview.addLink")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(palette.primaryText)
+
+                Text("stickerview.link.subtitle")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.secondaryText)
+            }
+
+            VStack(spacing: 15) {
+                HStack {
+                    Image(systemName: "link")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(red: 0.29, green: 0.72, blue: 0.98))
+                        .frame(width: 18, alignment: .leading)
+
+                    TextField(NSLocalizedString("stickerview.link.urlPlaceholder", comment: "Link URL placeholder"), text: $urlString)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(palette.primaryText)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                        .focused($focusedField, equals: .url)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(palette.fieldFill)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(focusedField == .url ? Color(red: 0.29, green: 0.72, blue: 0.98) : palette.fieldStroke, lineWidth: 1.5)
+                        )
+                )
+
+                HStack {
+                    Image(systemName: "text.cursor")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Color(red: 0.29, green: 0.72, blue: 0.98))
+                        .frame(width: 18, alignment: .leading)
+
+                    TextField(NSLocalizedString("stickerview.link.titlePlaceholder", comment: "Link title placeholder"), text: $customTitle)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(palette.primaryText)
+                        .focused($focusedField, equals: .title)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(palette.fieldFill)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(focusedField == .title ? Color(red: 0.29, green: 0.72, blue: 0.98) : palette.fieldStroke, lineWidth: 1.5)
+                        )
+                )
+
+                Button(action: {
+                    onSelect(urlString, customTitle)
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "link.badge.plus")
+                            .font(.system(size: 18, weight: .medium))
+
+                        Text("stickerview.addLink")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(isFormValid ? Color(red: 0.29, green: 0.72, blue: 0.98) : Color.gray.opacity(0.3))
+                    )
+                }
+                .disabled(!isFormValid)
+                .animation(.easeInOut(duration: 0.2), value: isFormValid)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            focusedField = .url
+        }
+    }
+}
+
+struct ModernCountdownInputView: View {
+    let onSelect: (String, Double) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var title = ""
+    @State private var targetDate = Date().addingTimeInterval(3600)
+    @FocusState private var isTextFieldFocused: Bool
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
+
+    private var isFormValid: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && targetDate.timeIntervalSinceNow > 0
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("stickerview.createCountdown")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(palette.primaryText)
+
+                Text("stickerview.countdown.subtitle")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.secondaryText)
+            }
+
+            VStack(spacing: 15) {
+                HStack {
+                    Image(systemName: "timer")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(red: 0.61, green: 0.34, blue: 0.97))
+                        .frame(width: 18, alignment: .leading)
+
+                    TextField(NSLocalizedString("stickerview.countdown.titlePlaceholder", comment: "Countdown title placeholder"), text: $title)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(palette.primaryText)
+                        .focused($isTextFieldFocused)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(palette.fieldFill)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(isTextFieldFocused ? Color(red: 0.61, green: 0.34, blue: 0.97) : palette.fieldStroke, lineWidth: 1.5)
+                        )
+                )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("stickerview.countdown.endsLabel")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(palette.secondaryText)
+                        .kerning(1)
+
+                    DatePicker(
+                        "",
+                        selection: $targetDate,
+                        in: Date().addingTimeInterval(60)...,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .tint(Color(red: 0.61, green: 0.34, blue: 0.97))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(palette.fieldFill)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(palette.fieldStroke, lineWidth: 1.5)
+                            )
+                    )
+                }
+
+                Button(action: {
+                    onSelect(title, targetDate.timeIntervalSince1970 * 1000)
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 18, weight: .medium))
+
+                        Text("stickerview.createCountdown")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(isFormValid ? Color(red: 0.61, green: 0.34, blue: 0.97) : Color.gray.opacity(0.3))
+                    )
+                }
+                .disabled(!isFormValid)
+                .animation(.easeInOut(duration: 0.2), value: isFormValid)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

@@ -6706,6 +6706,18 @@ struct StickerOverlayView: View {
                 )
                 .frame(height: 40)
                 .allowsHitTesting(false)
+            } else if sticker.type == .link, let linkURL = sticker.interactionData?.linkURL {
+                StickerLinkCardView(
+                    title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL)
+                )
+                .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                .allowsHitTesting(false)
+            } else if sticker.type == .countdown,
+                      let countdownTitle = sticker.interactionData?.countdownTitle,
+                      let targetAtMs = sticker.interactionData?.countdownTargetAtMs {
+                StickerCountdownCardView(title: countdownTitle, targetAtMs: targetAtMs)
+                    .frame(width: 240, height: 96)
+                    .allowsHitTesting(false)
             } else if sticker.type == .shareMoment {
                 // ✅ SHARE MOMENT: Renderizado dinámico de overlays (Header + Caption)
                 ZStack(alignment: .top) {

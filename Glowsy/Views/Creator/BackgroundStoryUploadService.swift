@@ -144,6 +144,10 @@ struct CachedStickerInteractionData: Codable {
     let pollData: [String]?
     let questionText: String?
     let weatherSymbol: String?
+    let linkURL: String?
+    let linkTitle: String?
+    let countdownTitle: String?
+    let countdownTargetAtMs: Double?
     let caption: String? // ✅ NUEVA
     let profileImagePath: String? // ✅ NUEVA: Persistencia de imagen de perfil
     let momentId: String? // ✅ NUEVA: Para navegación
@@ -1105,6 +1109,10 @@ class BackgroundStoryUploadService: ObservableObject {
                 pollData: data.pollData,
                 questionText: data.questionText,
                 weatherSymbol: data.weatherSymbol,
+                linkURL: data.linkURL,
+                linkTitle: data.linkTitle,
+                countdownTitle: data.countdownTitle,
+                countdownTargetAtMs: data.countdownTargetAtMs,
                 caption: data.caption,
                 profileImagePath: data.profileImagePath,
                 momentId: data.momentId,
@@ -1214,6 +1222,10 @@ class BackgroundStoryUploadService: ObservableObject {
                             pollData: data.pollData,
                             questionText: data.questionText,
                             weatherSymbol: data.weatherSymbol,
+                            linkURL: data.linkURL,
+                            linkTitle: data.linkTitle,
+                            countdownTitle: data.countdownTitle,
+                            countdownTargetAtMs: data.countdownTargetAtMs,
                             caption: data.caption,
                             profileImagePath: data.profileImagePath,
                             momentId: data.momentId,

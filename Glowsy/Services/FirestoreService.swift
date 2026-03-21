@@ -1271,6 +1271,18 @@ class FirestoreService: ObservableObject {
                             if let weatherSymbol = sticker.weatherSymbol {
                                 stickerData["weatherSymbol"] = weatherSymbol
                             }
+                            if let linkURL = sticker.linkURL {
+                                stickerData["linkURL"] = linkURL
+                            }
+                            if let linkTitle = sticker.linkTitle {
+                                stickerData["linkTitle"] = linkTitle
+                            }
+                            if let countdownTitle = sticker.countdownTitle {
+                                stickerData["countdownTitle"] = countdownTitle
+                            }
+                            if let countdownTargetAtMs = sticker.countdownTargetAtMs {
+                                stickerData["countdownTargetAtMs"] = countdownTargetAtMs
+                            }
                             if let caption = sticker.caption {
                                 stickerData["caption"] = caption
                             }
@@ -3964,6 +3976,18 @@ extension FirestoreService {
                             if let weatherSymbol = sticker.weatherSymbol {
                                 stickerData["weatherSymbol"] = weatherSymbol
                             }
+                            if let linkURL = sticker.linkURL {
+                                stickerData["linkURL"] = linkURL
+                            }
+                            if let linkTitle = sticker.linkTitle {
+                                stickerData["linkTitle"] = linkTitle
+                            }
+                            if let countdownTitle = sticker.countdownTitle {
+                                stickerData["countdownTitle"] = countdownTitle
+                            }
+                            if let countdownTargetAtMs = sticker.countdownTargetAtMs {
+                                stickerData["countdownTargetAtMs"] = countdownTargetAtMs
+                            }
                             if let caption = sticker.caption {
                                 stickerData["caption"] = caption
                             }
@@ -4404,6 +4428,18 @@ extension FirestoreService {
                             
                             if let weatherSymbol = sticker.weatherSymbol {
                                 stickerData["weatherSymbol"] = weatherSymbol
+                            }
+                            if let linkURL = sticker.linkURL {
+                                stickerData["linkURL"] = linkURL
+                            }
+                            if let linkTitle = sticker.linkTitle {
+                                stickerData["linkTitle"] = linkTitle
+                            }
+                            if let countdownTitle = sticker.countdownTitle {
+                                stickerData["countdownTitle"] = countdownTitle
+                            }
+                            if let countdownTargetAtMs = sticker.countdownTargetAtMs {
+                                stickerData["countdownTargetAtMs"] = countdownTargetAtMs
                             }
                             if let caption = sticker.caption {
                                 stickerData["caption"] = caption
