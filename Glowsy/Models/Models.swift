@@ -819,6 +819,21 @@ struct Story: Identifiable, Codable {
                 } else {
                     stickerImage = UIImage(systemName: "questionmark.circle") ?? UIImage()
                 }
+            case .link:
+                if let linkURL = stickerData.linkURL {
+                    stickerImage = createLinkStickerImage(
+                        title: stickerData.linkTitle ?? stickerHostLabel(from: linkURL)
+                    )
+                } else {
+                    stickerImage = UIImage(systemName: "link") ?? UIImage()
+                }
+            case .countdown:
+                if let title = stickerData.countdownTitle,
+                   let targetAtMs = stickerData.countdownTargetAtMs {
+                    stickerImage = createCountdownStickerImage(title: title, targetAtMs: targetAtMs)
+                } else {
+                    stickerImage = UIImage(systemName: "timer") ?? UIImage()
+                }
             case .poll:
                 // ✅ RECREAR STICKER DE ENCUESTA
                 if let pollOptions = stickerData.pollOptions {
@@ -860,6 +875,10 @@ struct Story: Identifiable, Codable {
                 pollData: stickerData.pollOptions,
                 questionText: stickerData.questionText,
                 weatherSymbol: weatherSymbol,
+                linkURL: stickerData.linkURL,
+                linkTitle: stickerData.linkTitle,
+                countdownTitle: stickerData.countdownTitle,
+                countdownTargetAtMs: stickerData.countdownTargetAtMs,
                 caption: stickerData.caption,
                 profileImagePath: stickerData.profileImagePath,
                 momentId: stickerData.momentId,
@@ -976,6 +995,133 @@ struct Story: Identifiable, Codable {
         // Placeholder para encuesta
         return UIImage(systemName: "chart.bar") ?? UIImage()
     }
+
+    private func createLinkStickerImage(title: String) -> UIImage {
+        let resolvedSize = linkStickerRenderingSize(for: title)
+        let size = CGSize(width: resolvedSize.width, height: resolvedSize.height)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: size)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: size.height / 2)
+
+            UIColor.white.withAlphaComponent(0.18).setFill()
+            path.fill()
+
+            UIColor.white.withAlphaComponent(0.18).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+
+            let textAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
+                .foregroundColor: UIColor.white
+            ]
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineBreakMode = .byTruncatingTail
+
+            let titleText = title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let linkIcon = UIImage(systemName: "link")?.withTintColor(UIColor(red: 0.29, green: 0.72, blue: 0.98, alpha: 1), renderingMode: .alwaysOriginal) {
+                linkIcon.draw(in: CGRect(x: 18, y: 16, width: 18, height: 18))
+            }
+            (titleText as NSString).draw(
+                in: CGRect(x: 48, y: 14, width: size.width - 66, height: 20),
+                withAttributes: textAttributes.merging([.paragraphStyle: paragraphStyle]) { _, new in new }
+            )
+        }
+    }
+
+    private func createCountdownStickerImage(title: String, targetAtMs: Double) -> UIImage {
+        let size = CGSize(width: 240, height: 96)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: size)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: 20)
+
+            let colors = [
+                UIColor(red: 0.32, green: 0.24, blue: 0.92, alpha: 0.86).cgColor,
+                UIColor(red: 0.86, green: 0.28, blue: 0.73, alpha: 0.92).cgColor
+            ] as CFArray
+
+            context.cgContext.saveGState()
+            path.addClip()
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
+                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: size.width, y: size.height), options: [])
+            }
+            context.cgContext.restoreGState()
+
+            UIColor.white.withAlphaComponent(0.18).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+
+            let targetDate = Date(timeIntervalSince1970: targetAtMs / 1000)
+            let now = Date()
+            let totalSeconds = max(Int(targetDate.timeIntervalSince(now)), 0)
+            let hours = totalSeconds / 3_600
+            let minutes = (totalSeconds % 3_600) / 60
+            let seconds = totalSeconds % 60
+            let remainingText = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 15, weight: .semibold),
+                .foregroundColor: UIColor.white
+            ]
+            let digitAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor.white
+            ]
+            let colonAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.92)
+            ]
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineBreakMode = .byTruncatingTail
+            paragraphStyle.alignment = .center
+            let titleText = (title as NSString).substring(to: min(title.count, 26))
+
+            (titleText as NSString).draw(
+                in: CGRect(x: 20, y: 14, width: 200, height: 18),
+                withAttributes: titleAttributes.merging([.paragraphStyle: paragraphStyle]) { _, new in new }
+            )
+
+            let boxSize = CGSize(width: 26, height: 32)
+            let digitSpacing: CGFloat = 4
+            let colonWidth: CGFloat = 10
+            let sequence = remainingText.map(String.init)
+
+            var totalWidth: CGFloat = 0
+            for character in sequence {
+                totalWidth += character == ":" ? colonWidth : boxSize.width
+            }
+            totalWidth += CGFloat(max(0, sequence.count - 1)) * digitSpacing
+
+            var currentX = (size.width - totalWidth) / 2
+            let rowY: CGFloat = 44
+
+            for character in sequence {
+                if character == ":" {
+                    (character as NSString).draw(
+                        in: CGRect(x: currentX, y: rowY + 3, width: colonWidth, height: boxSize.height),
+                        withAttributes: colonAttributes.merging([.paragraphStyle: paragraphStyle]) { _, new in new }
+                    )
+                    currentX += colonWidth + digitSpacing
+                } else {
+                    let boxRect = CGRect(x: currentX, y: rowY, width: boxSize.width, height: boxSize.height)
+                    let boxPath = UIBezierPath(roundedRect: boxRect, cornerRadius: 8)
+                    UIColor.white.withAlphaComponent(0.18).setFill()
+                    boxPath.fill()
+                    UIColor.white.withAlphaComponent(0.2).setStroke()
+                    boxPath.lineWidth = 1
+                    boxPath.stroke()
+
+                    (character as NSString).draw(
+                        in: CGRect(x: boxRect.minX, y: boxRect.minY + 3, width: boxRect.width, height: 24),
+                        withAttributes: digitAttributes.merging([.paragraphStyle: paragraphStyle]) { _, new in new }
+                    )
+                    currentX += boxSize.width + digitSpacing
+                }
+            }
+        }
+    }
     
 }
 
@@ -997,6 +1143,10 @@ struct StickerData: Codable {
     let questionText: String?
     let pollOptions: [String]?
     let weatherSymbol: String? // ✅ NUEVA: Para stickers de clima
+    let linkURL: String?
+    let linkTitle: String?
+    let countdownTitle: String?
+    let countdownTargetAtMs: Double?
     let caption: String? // ✅ NUEVA: Para pie de foto en momentos compartidos
     let profileImagePath: String? // ✅ NUEVA: Ruta de imagen de perfil para reconstrucción
     let momentId: String? // ✅ NUEVA: Para navegación
@@ -1010,7 +1160,7 @@ struct StickerData: Codable {
     
     init(type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
-         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
+         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
         self.type = type
         self.content = content
@@ -1026,6 +1176,10 @@ struct StickerData: Codable {
         self.questionText = questionText
         self.pollOptions = pollOptions
         self.weatherSymbol = weatherSymbol
+        self.linkURL = linkURL
+        self.linkTitle = linkTitle
+        self.countdownTitle = countdownTitle
+        self.countdownTargetAtMs = countdownTargetAtMs
         self.caption = caption
         self.profileImagePath = profileImagePath
         self.momentId = momentId
@@ -1068,6 +1222,10 @@ struct StickerData: Codable {
         self.questionText = try container.decodeIfPresent(String.self, forKey: .questionText)
         self.pollOptions = try container.decodeIfPresent([String].self, forKey: .pollOptions)
         self.weatherSymbol = try container.decodeIfPresent(String.self, forKey: .weatherSymbol)
+        self.linkURL = try container.decodeIfPresent(String.self, forKey: .linkURL)
+        self.linkTitle = try container.decodeIfPresent(String.self, forKey: .linkTitle)
+        self.countdownTitle = try container.decodeIfPresent(String.self, forKey: .countdownTitle)
+        self.countdownTargetAtMs = try container.decodeIfPresent(Double.self, forKey: .countdownTargetAtMs)
         self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
         self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
         self.momentId = try container.decodeIfPresent(String.self, forKey: .momentId)
@@ -1114,6 +1272,10 @@ struct StickerData: Codable {
             questionText: interactionData?.questionText,
             pollOptions: interactionData?.pollData,
             weatherSymbol: interactionData?.weatherSymbol,
+            linkURL: interactionData?.linkURL,
+            linkTitle: interactionData?.linkTitle,
+            countdownTitle: interactionData?.countdownTitle,
+            countdownTargetAtMs: interactionData?.countdownTargetAtMs,
             caption: stickerItem.interactionData?.caption,
             profileImagePath: stickerItem.interactionData?.profileImagePath,
             momentId: stickerItem.interactionData?.momentId,
@@ -1135,7 +1297,7 @@ struct StickerData: Codable {
 
         // 1. PRIORIDAD: Shared Moments y otros que requieren Base64 para el template visual
         // Esto garantiza que el sticker se vea perfecto en el visor aunque no cargue el media aún
-        if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment].contains(sticker.type) {
+        if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment, .link, .countdown].contains(sticker.type) {
             if let jpegData = sticker.image.jpegData(compressionQuality: 0.6) {
                 return jpegData.base64EncodedString()
             }
@@ -1150,6 +1312,8 @@ struct StickerData: Codable {
             case .question: return interactionData.questionText ?? ""
             case .poll: return interactionData.pollData?.joined(separator: "|") ?? ""
             case .weather: return interactionData.weatherSymbol ?? "🌤️"
+            case .link: return interactionData.linkURL ?? ""
+            case .countdown: return interactionData.countdownTitle ?? ""
             default: break
             }
         }
@@ -1183,6 +1347,10 @@ extension StickerData {
         case questionText
         case pollOptions
         case weatherSymbol
+        case linkURL
+        case linkTitle
+        case countdownTitle
+        case countdownTargetAtMs
         case isAnimated
         case gifURL
         case videoURL
@@ -1209,6 +1377,10 @@ extension StickerData {
         try container.encodeIfPresent(questionText, forKey: .questionText)
         try container.encodeIfPresent(pollOptions, forKey: .pollOptions)
         try container.encodeIfPresent(weatherSymbol, forKey: .weatherSymbol)
+        try container.encodeIfPresent(linkURL, forKey: .linkURL)
+        try container.encodeIfPresent(linkTitle, forKey: .linkTitle)
+        try container.encodeIfPresent(countdownTitle, forKey: .countdownTitle)
+        try container.encodeIfPresent(countdownTargetAtMs, forKey: .countdownTargetAtMs)
         try container.encode(isAnimated, forKey: .isAnimated)
         try container.encodeIfPresent(gifURL, forKey: .gifURL)
         try container.encodeIfPresent(videoURL, forKey: .videoURL)
@@ -1230,6 +1402,8 @@ extension StickerItem.StickerType {
         case .location: return "location"
         case .poll: return "poll"
         case .question: return "question"
+        case .link: return "link"
+        case .countdown: return "countdown"
         case .questionResponse: return "questionResponse"
         case .generic: return "generic"
         case .weather: return "weather"
@@ -1248,6 +1422,8 @@ extension StickerItem.StickerType {
         case "location": self = .location
         case "poll": self = .poll
         case "question": self = .question
+        case "link": self = .link
+        case "countdown": self = .countdown
         case "questionResponse": self = .questionResponse
         case "generic": self = .generic
         case "weather": self = .weather

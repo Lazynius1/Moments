@@ -5837,6 +5837,25 @@ struct StoryStickerView: View {
             .frame(height: 40)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
+        } else if sticker.type == .link, let linkURL = sticker.interactionData?.linkURL {
+            Button(action: {
+                handleStickerTap()
+            }) {
+                StickerLinkCardView(
+                    title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL)
+                )
+                .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .scaleEffect(sticker.scale)
+            .rotationEffect(sticker.rotation)
+        } else if sticker.type == .countdown,
+                  let countdownTitle = sticker.interactionData?.countdownTitle,
+                  let targetAtMs = sticker.interactionData?.countdownTargetAtMs {
+            StickerCountdownCardView(title: countdownTitle, targetAtMs: targetAtMs)
+                .frame(width: 240, height: 96)
+                .scaleEffect(sticker.scale)
+                .rotationEffect(sticker.rotation)
         } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
             // ✅ WEATHER ANIMADO: Diseño animado según clima
             AnimatedWeatherSticker(
@@ -5924,6 +5943,17 @@ struct StoryStickerView: View {
             
         case .location:
             // ✅ ESTILO NATIVO: El location es interactivo directamente, no necesita tap aquí
+            break
+
+        case .link:
+            if let rawURL = sticker.interactionData?.linkURL,
+               let url = normalizedStickerURL(from: rawURL) {
+                DispatchQueue.main.async {
+                    UIApplication.shared.open(url)
+                }
+            }
+
+        case .countdown:
             break
             
         case .shareMoment:
