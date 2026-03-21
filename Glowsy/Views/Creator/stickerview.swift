@@ -37,6 +37,7 @@ struct StickerPickerView: View {
         case hashtag
         case poll
         case question
+        case emojiSlider
         case countdown
         case weather
         case time
@@ -54,6 +55,7 @@ struct StickerPickerView: View {
             case .hashtag: return NSLocalizedString("stickerview.category.hashtag", comment: "Hashtag category")
             case .poll: return NSLocalizedString("stickerview.category.poll", comment: "Poll category")
             case .question: return NSLocalizedString("stickerview.category.question", comment: "Question category")
+            case .emojiSlider: return NSLocalizedString("stickerview.category.emojiSlider", comment: "Emoji slider category")
             case .countdown: return NSLocalizedString("stickerview.category.countdown", comment: "Countdown category")
             case .weather: return NSLocalizedString("stickerview.category.weather", comment: "Weather category")
             case .time: return NSLocalizedString("stickerview.category.time", comment: "Time category")
@@ -71,6 +73,7 @@ struct StickerPickerView: View {
             case .hashtag: return "number"
             case .poll: return "chart.bar.xaxis"
             case .question: return "questionmark.bubble.fill"
+            case .emojiSlider: return "face.smiling.inverse"
             case .countdown: return "timer"
             case .weather: return "cloud.sun.fill"
             case .time: return "clock.fill"
@@ -88,6 +91,7 @@ struct StickerPickerView: View {
             case .hashtag: return Color(red: 0.92, green: 0.23, blue: 0.88)
             case .poll: return Color(red: 0.91, green: 0.25, blue: 0.74)
             case .question: return Color(red: 0.85, green: 0.26, blue: 0.84)
+            case .emojiSlider: return Color(red: 0.99, green: 0.56, blue: 0.21)
             case .countdown: return Color(red: 0.61, green: 0.34, blue: 0.97)
             case .weather: return Color(red: 0.20, green: 0.77, blue: 0.95)
             case .time: return Color(red: 1.00, green: 0.62, blue: 0.20)
@@ -98,7 +102,7 @@ struct StickerPickerView: View {
     }
 
     private var catalogCategories: [StickerCategory] {
-        [.location, .mention, .trending, .emoji, .link, .question, .poll, .hashtag, .countdown, .weather, .time, .selfie]
+        [.location, .mention, .trending, .emoji, .link, .question, .poll, .emojiSlider, .hashtag, .countdown, .weather, .time, .selfie]
     }
 
     private var filteredCatalogCategories: [StickerCategory] {
@@ -437,19 +441,19 @@ struct StickerPickerView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: category.symbolName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(category.accentColor)
-                    .shadow(color: category.accentColor.opacity(0.22), radius: 1.5, x: 0, y: 0)
+            HStack(spacing: 12) {
+                CatalogPillIcon(category: category)
 
-                Text(category.displayName)
-                    .font(.system(size: 15.5, weight: .semibold))
-                    .foregroundColor(pillTextColor)
-                    .lineLimit(1)
+                if category != .emojiSlider {
+                    Text(category.displayName)
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .foregroundColor(pillTextColor)
+                        .lineLimit(1)
+                }
             }
-            .padding(.horizontal, 14)
-            .frame(height: 46)
+            .padding(.horizontal, category == .emojiSlider ? 10 : 14)
+            .frame(height: category == .emojiSlider ? 44 : 46)
+            .frame(minWidth: category == .emojiSlider ? 148 : nil)
             .background(
                 Capsule(style: .continuous)
                     .fill(
@@ -471,6 +475,20 @@ struct StickerPickerView: View {
         }
         .buttonStyle(.plain)
         .pressAnimation()
+    }
+
+    @ViewBuilder
+    private func CatalogPillIcon(category: StickerCategory) -> some View {
+        if category == .emojiSlider {
+            StickerEmojiSliderPillGlyph()
+                .frame(width: 122, height: 28)
+        } else {
+            Image(systemName: category.symbolName)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(category.accentColor)
+                .shadow(color: category.accentColor.opacity(0.22), radius: 1.5, x: 0, y: 0)
+                .frame(width: 18, height: 18)
+        }
     }
 
     @ViewBuilder
@@ -611,6 +629,11 @@ struct StickerPickerView: View {
         case .question:
             ModernQuestionInputView { question in
                 createQuestionSticker(question)
+            }
+
+        case .emojiSlider:
+            ModernEmojiSliderInputView { prompt, emoji in
+                createEmojiSliderSticker(prompt: prompt, emoji: emoji)
             }
 
         case .countdown:
@@ -2199,6 +2222,47 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
+
+    private func createEmojiSliderSticker(prompt: String, emoji: String) {
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedPrompt = trimmedPrompt
+        let resolvedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "😍" : emoji
+        let image = createEmojiSliderFallbackImage(prompt: resolvedPrompt, emoji: resolvedEmoji, value: 0.5)
+
+        let sticker = StickerItem(
+            id: UUID().uuidString,
+            image: image,
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            scale: 1.0,
+            rotation: .zero,
+            gifURL: nil,
+            videoURL: nil,
+            isAnimated: false,
+            type: .emojiSlider,
+            interactionData: StickerItem.StickerInteractionData(
+                username: nil,
+                userId: nil,
+                hashtag: nil,
+                location: nil,
+                locationCoordinate: nil,
+                pollData: nil,
+                questionText: nil,
+                weatherSymbol: nil,
+                linkURL: nil,
+                linkTitle: nil,
+                countdownTitle: nil,
+                countdownTargetAtMs: nil,
+                sliderEmoji: resolvedEmoji,
+                sliderPrompt: resolvedPrompt,
+                caption: nil,
+                profileImagePath: nil,
+                momentId: nil
+            )
+        )
+
+        selectedStickers.append(sticker)
+        dismiss()
+    }
 }
 
 struct StickerPillFlowLayout: Layout {
@@ -2302,6 +2366,52 @@ struct StickerPillFlowLayout: Layout {
     private struct FlowRow {
         let items: [FlowItem]
         let height: CGFloat
+    }
+}
+
+private struct StickerEmojiSliderPillGlyph: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let normalized = (sin(t * 1.8) + 1) / 2
+            let progress = 0.10 + (normalized * 0.80)
+
+            GeometryReader { geometry in
+                let size = geometry.size
+                let trackHeight: CGFloat = 5
+                let emojiSize: CGFloat = 19 + CGFloat(progress * 8)
+                let horizontalInset: CGFloat = 3
+                let trackWidth = max(size.width - emojiSize - (horizontalInset * 2), 12)
+                let trackX = horizontalInset + (emojiSize / 2)
+                let trackY = (size.height - trackHeight) / 2
+                let emojiX = trackX + (trackWidth * progress) - (emojiSize / 2)
+                let emojiY = (size.height - emojiSize) / 2
+
+                ZStack(alignment: .topLeading) {
+                    Capsule(style: .continuous)
+                        .fill(Color.black.opacity(0.10))
+                        .frame(width: trackWidth, height: trackHeight)
+                        .offset(x: trackX, y: trackY)
+
+                    Capsule(style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: emojiSliderMomentsGradientColors(),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(trackWidth * progress, trackHeight), height: trackHeight)
+                        .offset(x: trackX, y: trackY)
+
+                    Text("😍")
+                        .font(.system(size: 15 + CGFloat(progress * 5)))
+                        .frame(width: emojiSize, height: emojiSize)
+                        .shadow(color: Color.black.opacity(0.14), radius: 3, y: 1)
+                        .offset(x: emojiX, y: emojiY)
+                }
+            }
+        }
     }
 }
 
@@ -3795,6 +3905,171 @@ struct ModernCountdownInputView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             isTextFieldFocused = true
+        }
+    }
+}
+
+struct ModernEmojiSliderInputView: View {
+    let onSelect: (String, String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var prompt = ""
+    @State private var selectedEmoji = "😍"
+    @State private var isEmojiPickerExpanded = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case prompt
+    }
+
+    private let presetEmojis = ["😍", "🔥", "😂", "🥹", "🤩", "😮", "😢", "👏", "💯", "🤯"]
+
+    private var palette: StickerDetailPalette {
+        StickerDetailPalette(colorScheme: colorScheme)
+    }
+
+    private var resolvedPrompt: String {
+        prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var resolvedEmoji: String {
+        selectedEmoji.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "😍" : selectedEmoji
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("stickerview.createEmojiSlider")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(palette.primaryText)
+
+                Text("stickerview.emojiSlider.subtitle")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.secondaryText)
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "face.smiling.inverse")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(red: 0.99, green: 0.56, blue: 0.21))
+                        .frame(width: 18, alignment: .leading)
+
+                    TextField(NSLocalizedString("stickerview.emojiSlider.promptPlaceholder", comment: "Emoji slider prompt placeholder"), text: $prompt)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(palette.primaryText)
+                        .focused($focusedField, equals: .prompt)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(palette.fieldFill)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(focusedField == .prompt ? Color(red: 0.99, green: 0.56, blue: 0.21) : palette.fieldStroke, lineWidth: 1.5)
+                        )
+                )
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(presetEmojis, id: \.self) { emoji in
+                        Button {
+                            selectedEmoji = emoji
+                            HapticManager.shared.lightImpact()
+                        } label: {
+                                Text(emoji)
+                                    .font(.system(size: 26))
+                                    .frame(width: 48, height: 48)
+                                    .background(
+                                        Circle()
+                                            .fill(palette.fieldFill)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(
+                                                        selectedEmoji == emoji ? Color(red: 0.99, green: 0.56, blue: 0.21) : palette.fieldStroke,
+                                                        lineWidth: selectedEmoji == emoji ? 2 : 1
+                                                    )
+                                            )
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        Button {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                                isEmojiPickerExpanded.toggle()
+                            }
+                            HapticManager.shared.lightImpact()
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(palette.primaryText)
+                                .frame(width: 48, height: 48)
+                                .background(
+                                    Circle()
+                                        .fill(palette.fieldFill)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(
+                                                    (isEmojiPickerExpanded || !presetEmojis.contains(selectedEmoji))
+                                                    ? Color(red: 0.99, green: 0.56, blue: 0.21)
+                                                    : palette.fieldStroke,
+                                                    lineWidth: (isEmojiPickerExpanded || !presetEmojis.contains(selectedEmoji)) ? 2 : 1
+                                                )
+                                        )
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 2)
+                }
+
+                if isEmojiPickerExpanded {
+                    StickerEmojiPalettePicker(selectedEmoji: $selectedEmoji) { emoji in
+                        selectedEmoji = emoji
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                            isEmojiPickerExpanded = false
+                        }
+                        HapticManager.shared.lightImpact()
+                    }
+                }
+
+                StickerEmojiSliderCardView(
+                    prompt: resolvedPrompt,
+                    emoji: resolvedEmoji,
+                    value: 0.5
+                )
+                .frame(width: emojiSliderRenderingSize(prompt: resolvedPrompt).width, height: emojiSliderRenderingSize(prompt: resolvedPrompt).height)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 4)
+
+                Button(action: {
+                    onSelect(resolvedPrompt, resolvedEmoji)
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "face.smiling.inverse")
+                            .font(.system(size: 18, weight: .medium))
+
+                        Text("stickerview.createEmojiSlider")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(red: 0.99, green: 0.56, blue: 0.21))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            focusedField = .prompt
         }
     }
 }

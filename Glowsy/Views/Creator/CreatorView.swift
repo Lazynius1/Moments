@@ -6718,6 +6718,16 @@ struct StickerOverlayView: View {
                 StickerCountdownCardView(title: countdownTitle, targetAtMs: targetAtMs)
                     .frame(width: 240, height: 96)
                     .allowsHitTesting(false)
+            } else if sticker.type == .emojiSlider,
+                      let sliderPrompt = sticker.interactionData?.sliderPrompt,
+                      let sliderEmoji = sticker.interactionData?.sliderEmoji {
+                StickerEmojiSliderCardView(
+                    prompt: sliderPrompt,
+                    emoji: sliderEmoji,
+                    value: 0.5
+                )
+                .frame(width: emojiSliderRenderingSize(prompt: sliderPrompt).width, height: emojiSliderRenderingSize(prompt: sliderPrompt).height)
+                .allowsHitTesting(false)
             } else if sticker.type == .shareMoment {
                 // ✅ SHARE MOMENT: Renderizado dinámico de overlays (Header + Caption)
                 ZStack(alignment: .top) {

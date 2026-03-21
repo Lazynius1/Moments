@@ -834,6 +834,11 @@ struct Story: Identifiable, Codable {
                 } else {
                     stickerImage = UIImage(systemName: "timer") ?? UIImage()
                 }
+            case .emojiSlider:
+                stickerImage = createEmojiSliderStickerImage(
+                    prompt: stickerData.sliderPrompt ?? "",
+                    emoji: stickerData.sliderEmoji ?? "😍"
+                )
             case .poll:
                 // ✅ RECREAR STICKER DE ENCUESTA
                 if let pollOptions = stickerData.pollOptions {
@@ -879,6 +884,8 @@ struct Story: Identifiable, Codable {
                 linkTitle: stickerData.linkTitle,
                 countdownTitle: stickerData.countdownTitle,
                 countdownTargetAtMs: stickerData.countdownTargetAtMs,
+                sliderEmoji: stickerData.sliderEmoji,
+                sliderPrompt: stickerData.sliderPrompt,
                 caption: stickerData.caption,
                 profileImagePath: stickerData.profileImagePath,
                 momentId: stickerData.momentId,
@@ -908,7 +915,7 @@ struct Story: Identifiable, Codable {
             if stickerData.isAnimated {
                 // Crear sticker animado con GIF o Video
                 // ✅ FIX ID: No usar content (Base64) como ID, usar combo estable
-                let stableId = "\(stickerData.type)_\(stickerData.position.x)_\(stickerData.position.y)"
+                let stableId = stickerData.stickerId ?? "\(stickerData.type)_\(stickerData.position.x)_\(stickerData.position.y)"
                 stickerItem = StickerItem(
                     id: stableId,
                     image: stickerImage,
@@ -923,14 +930,19 @@ struct Story: Identifiable, Codable {
                 )
             } else {
                 // Crear sticker estático
+                let stableId = stickerData.stickerId ?? "\(stickerData.type)_\(stickerData.position.x)_\(stickerData.position.y)"
                 stickerItem = StickerItem(
+                    id: stableId,
                     image: stickerImage,
                     position: stickerData.position,
+                    scale: stickerData.scale,
+                    rotation: Angle(radians: stickerData.rotation),
+                    gifURL: nil,
+                    videoURL: nil,
+                    isAnimated: false,
                     type: StickerItem.StickerType(rawValue: stickerData.type) ?? .generic,
                     interactionData: interactionData
                 )
-                stickerItem.scale = stickerData.scale
-                stickerItem.rotation = Angle(radians: stickerData.rotation)
             }
             
             return stickerItem
@@ -1122,11 +1134,16 @@ struct Story: Identifiable, Codable {
             }
         }
     }
+
+    private func createEmojiSliderStickerImage(prompt: String, emoji: String) -> UIImage {
+        createEmojiSliderFallbackImage(prompt: prompt, emoji: emoji, value: 0.5)
+    }
     
 }
 
 // Modelo para almacenar datos de stickers
 struct StickerData: Codable {
+    let stickerId: String?
     let type: String
     let content: String
     let position: CGPoint
@@ -1147,6 +1164,8 @@ struct StickerData: Codable {
     let linkTitle: String?
     let countdownTitle: String?
     let countdownTargetAtMs: Double?
+    let sliderEmoji: String?
+    let sliderPrompt: String?
     let caption: String? // ✅ NUEVA: Para pie de foto en momentos compartidos
     let profileImagePath: String? // ✅ NUEVA: Ruta de imagen de perfil para reconstrucción
     let momentId: String? // ✅ NUEVA: Para navegación
@@ -1158,10 +1177,11 @@ struct StickerData: Codable {
     let videoURL: String? // ✅ NUEVA: URL del vídeo del sticker
 
     
-    init(type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
+    init(stickerId: String? = nil, type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
-         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
+         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
+        self.stickerId = stickerId
         self.type = type
         self.content = content
         self.position = position
@@ -1180,6 +1200,8 @@ struct StickerData: Codable {
         self.linkTitle = linkTitle
         self.countdownTitle = countdownTitle
         self.countdownTargetAtMs = countdownTargetAtMs
+        self.sliderEmoji = sliderEmoji
+        self.sliderPrompt = sliderPrompt
         self.caption = caption
         self.profileImagePath = profileImagePath
         self.momentId = momentId
@@ -1193,6 +1215,7 @@ struct StickerData: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
+        self.stickerId = try container.decodeIfPresent(String.self, forKey: .stickerId)
         self.type = try container.decode(String.self, forKey: .type)
         self.content = try container.decode(String.self, forKey: .content)
         
@@ -1226,6 +1249,8 @@ struct StickerData: Codable {
         self.linkTitle = try container.decodeIfPresent(String.self, forKey: .linkTitle)
         self.countdownTitle = try container.decodeIfPresent(String.self, forKey: .countdownTitle)
         self.countdownTargetAtMs = try container.decodeIfPresent(Double.self, forKey: .countdownTargetAtMs)
+        self.sliderEmoji = try container.decodeIfPresent(String.self, forKey: .sliderEmoji)
+        self.sliderPrompt = try container.decodeIfPresent(String.self, forKey: .sliderPrompt)
         self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
         self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
         self.momentId = try container.decodeIfPresent(String.self, forKey: .momentId)
@@ -1258,6 +1283,7 @@ struct StickerData: Codable {
         let interactionData = stickerItem.interactionData
         
         let stickerData = StickerData(
+            stickerId: stickerItem.id,
             type: stickerItem.type.rawValue,
             content: extractContent(from: stickerItem),
             position: stickerItem.position,
@@ -1276,6 +1302,8 @@ struct StickerData: Codable {
             linkTitle: interactionData?.linkTitle,
             countdownTitle: interactionData?.countdownTitle,
             countdownTargetAtMs: interactionData?.countdownTargetAtMs,
+            sliderEmoji: interactionData?.sliderEmoji,
+            sliderPrompt: interactionData?.sliderPrompt,
             caption: stickerItem.interactionData?.caption,
             profileImagePath: stickerItem.interactionData?.profileImagePath,
             momentId: stickerItem.interactionData?.momentId,
@@ -1297,7 +1325,7 @@ struct StickerData: Codable {
 
         // 1. PRIORIDAD: Shared Moments y otros que requieren Base64 para el template visual
         // Esto garantiza que el sticker se vea perfecto en el visor aunque no cargue el media aún
-        if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment, .link, .countdown].contains(sticker.type) {
+        if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment, .link, .countdown, .emojiSlider].contains(sticker.type) {
             if let jpegData = sticker.image.jpegData(compressionQuality: 0.6) {
                 return jpegData.base64EncodedString()
             }
@@ -1314,6 +1342,7 @@ struct StickerData: Codable {
             case .weather: return interactionData.weatherSymbol ?? "🌤️"
             case .link: return interactionData.linkURL ?? ""
             case .countdown: return interactionData.countdownTitle ?? ""
+            case .emojiSlider: return interactionData.sliderPrompt ?? ""
             default: break
             }
         }
@@ -1331,6 +1360,7 @@ struct StickerData: Codable {
 // MARK: - CodingKeys para StickerData
 extension StickerData {
     enum CodingKeys: String, CodingKey {
+        case stickerId
         case type
         case content
         case position
@@ -1351,6 +1381,8 @@ extension StickerData {
         case linkTitle
         case countdownTitle
         case countdownTargetAtMs
+        case sliderEmoji
+        case sliderPrompt
         case isAnimated
         case gifURL
         case videoURL
@@ -1363,6 +1395,7 @@ extension StickerData {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
+        try container.encodeIfPresent(stickerId, forKey: .stickerId)
         try container.encode(type, forKey: .type)
         try container.encode(content, forKey: .content)
         try container.encode(position, forKey: .position)
@@ -1381,6 +1414,8 @@ extension StickerData {
         try container.encodeIfPresent(linkTitle, forKey: .linkTitle)
         try container.encodeIfPresent(countdownTitle, forKey: .countdownTitle)
         try container.encodeIfPresent(countdownTargetAtMs, forKey: .countdownTargetAtMs)
+        try container.encodeIfPresent(sliderEmoji, forKey: .sliderEmoji)
+        try container.encodeIfPresent(sliderPrompt, forKey: .sliderPrompt)
         try container.encode(isAnimated, forKey: .isAnimated)
         try container.encodeIfPresent(gifURL, forKey: .gifURL)
         try container.encodeIfPresent(videoURL, forKey: .videoURL)
@@ -1404,6 +1439,7 @@ extension StickerItem.StickerType {
         case .question: return "question"
         case .link: return "link"
         case .countdown: return "countdown"
+        case .emojiSlider: return "emojiSlider"
         case .questionResponse: return "questionResponse"
         case .generic: return "generic"
         case .weather: return "weather"
@@ -1424,6 +1460,7 @@ extension StickerItem.StickerType {
         case "question": self = .question
         case "link": self = .link
         case "countdown": self = .countdown
+        case "emojiSlider": self = .emojiSlider
         case "questionResponse": self = .questionResponse
         case "generic": self = .generic
         case "weather": self = .weather

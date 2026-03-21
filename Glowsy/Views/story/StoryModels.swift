@@ -5581,6 +5581,181 @@ struct PollVoteView: View {
     }
 }
 
+private struct InteractiveEmojiSliderSticker: View {
+    let prompt: String
+    let emoji: String
+    let storyId: String
+    let userId: String
+    let stickerId: String
+
+    @State private var dragValue: Double?
+    @State private var submittedValue: Double?
+    @State private var averageValue: Double = 0.5
+    @State private var totalVotes: Int = 0
+
+    private var currentUserId: String? {
+        Auth.auth().currentUser?.uid
+    }
+
+    private var isAuthor: Bool {
+        currentUserId == userId
+    }
+
+    private var displayValue: Double {
+        if let dragValue {
+            return dragValue
+        }
+        if let submittedValue {
+            return submittedValue
+        }
+        if isAuthor, totalVotes > 0 {
+            return averageValue
+        }
+        return 0.5
+    }
+
+    private var canVote: Bool {
+        !isAuthor && submittedValue == nil && currentUserId != nil && !storyId.isEmpty
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            StickerEmojiSliderCardView(
+                prompt: prompt,
+                emoji: emoji,
+                value: displayValue
+            )
+
+            if totalVotes > 0 {
+                Text(String(format: NSLocalizedString("stickerview.emojiSlider.voteCount", comment: "Emoji slider votes count"), totalVotes))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.88))
+                    .padding(.bottom, 10)
+            }
+        }
+        .contentShape(Rectangle())
+        .overlay {
+            GeometryReader { geometry in
+                let metrics = emojiSliderTrackMetrics(totalWidth: geometry.size.width)
+                let trackFrame = emojiSliderTrackFrame(totalSize: geometry.size, showsPrompt: emojiSliderHasPrompt(prompt))
+                let interactiveFrame = CGRect(
+                    x: trackFrame.minX - (metrics.thumbBaseSize / 2),
+                    y: trackFrame.minY - 18,
+                    width: trackFrame.width + metrics.thumbBaseSize,
+                    height: max(trackFrame.height + 36, metrics.thumbBaseSize + 12)
+                )
+
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { gesture in
+                                guard canVote, interactiveFrame.contains(gesture.location) else { return }
+                                dragValue = normalizedValue(
+                                    for: gesture.location.x,
+                                    metrics: metrics
+                                )
+                            }
+                            .onEnded { gesture in
+                                guard canVote else {
+                                    dragValue = nil
+                                    return
+                                }
+
+                                let value = normalizedValue(
+                                    for: gesture.location.x,
+                                    metrics: metrics
+                                )
+                                dragValue = nil
+                                submitVote(value)
+                            }
+                    )
+            }
+        }
+        .onAppear {
+            loadVoteState()
+            loadVoteAggregate()
+        }
+    }
+
+    private func normalizedValue(for locationX: CGFloat, metrics: (leading: CGFloat, width: CGFloat, thumbBaseSize: CGFloat, trackHeight: CGFloat)) -> Double {
+        let minX = metrics.leading
+        let maxX = metrics.leading + metrics.width
+        let clampedX = min(max(locationX, minX), maxX)
+        return Double((clampedX - minX) / max(metrics.width, 1))
+    }
+
+    private func sliderVotesCollection() -> CollectionReference {
+        Firestore.firestore()
+            .collection("users")
+            .document(userId)
+            .collection("stories")
+            .document(storyId)
+            .collection("emojiSliders")
+            .document(stickerId)
+            .collection("votes")
+    }
+
+    private func loadVoteState() {
+        guard let currentUserId else { return }
+
+        sliderVotesCollection()
+            .document(currentUserId)
+            .getDocument { snapshot, _ in
+                guard let data = snapshot?.data(),
+                      let value = data["value"] as? Double else { return }
+
+                DispatchQueue.main.async {
+                    submittedValue = value
+                }
+            }
+    }
+
+    private func loadVoteAggregate() {
+        sliderVotesCollection()
+            .getDocuments { snapshot, _ in
+                let values = snapshot?.documents.compactMap { $0.data()["value"] as? Double } ?? []
+                let total = values.count
+                let average = total > 0 ? values.reduce(0, +) / Double(total) : 0.5
+
+                DispatchQueue.main.async {
+                    totalVotes = total
+                    averageValue = average
+                }
+            }
+    }
+
+    private func submitVote(_ value: Double) {
+        guard let currentUserId else { return }
+
+        let voteRef = sliderVotesCollection().document(currentUserId)
+        voteRef.getDocument { snapshot, _ in
+            if let data = snapshot?.data(),
+               let existingValue = data["value"] as? Double {
+                DispatchQueue.main.async {
+                    submittedValue = existingValue
+                    loadVoteAggregate()
+                }
+                return
+            }
+
+            voteRef.setData([
+                "userId": currentUserId,
+                "value": value,
+                "timestamp": FieldValue.serverTimestamp()
+            ]) { error in
+                guard error == nil else { return }
+
+                DispatchQueue.main.async {
+                    submittedValue = value
+                    loadVoteAggregate()
+                }
+            }
+        }
+    }
+}
+
 // MARK: - StoryStickerView para mostrar stickers en historias
 struct StoryStickerView: View {
     let sticker: StickerItem
@@ -5856,6 +6031,19 @@ struct StoryStickerView: View {
                 .frame(width: 240, height: 96)
                 .scaleEffect(sticker.scale)
                 .rotationEffect(sticker.rotation)
+        } else if sticker.type == .emojiSlider,
+                  let sliderPrompt = sticker.interactionData?.sliderPrompt,
+                  let sliderEmoji = sticker.interactionData?.sliderEmoji {
+            InteractiveEmojiSliderSticker(
+                prompt: sliderPrompt,
+                emoji: sliderEmoji,
+                storyId: storyId,
+                userId: userId,
+                stickerId: sticker.id
+            )
+            .frame(width: emojiSliderRenderingSize(prompt: sliderPrompt).width, height: emojiSliderRenderingSize(prompt: sliderPrompt).height)
+            .scaleEffect(sticker.scale)
+            .rotationEffect(sticker.rotation)
         } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
             // ✅ WEATHER ANIMADO: Diseño animado según clima
             AnimatedWeatherSticker(
@@ -5954,6 +6142,9 @@ struct StoryStickerView: View {
             }
 
         case .countdown:
+            break
+
+        case .emojiSlider:
             break
             
         case .shareMoment:

@@ -1983,6 +1983,8 @@ struct StoryEditingView: View {
             return interactionData.linkURL ?? ""
         case .countdown:
             return interactionData.countdownTitle ?? ""
+        case .emojiSlider:
+            return interactionData.sliderPrompt ?? ""
         case .shareMoment: // ✅ CORREGIDO: Usar shareMoment en lugar de moment
             if let momentId = interactionData.momentId, let mediaCount = interactionData.mediaCount {
                 return "Moment ID: \(momentId), Media Count: \(mediaCount)"
@@ -2414,6 +2416,7 @@ struct StickerItem: Identifiable {
         case question
         case link
         case countdown
+        case emojiSlider
         case questionResponse
         case generic
         case weather
@@ -2435,6 +2438,8 @@ struct StickerItem: Identifiable {
         let linkTitle: String?
         let countdownTitle: String?
         let countdownTargetAtMs: Double?
+        let sliderEmoji: String?
+        let sliderPrompt: String?
         let caption: String? // ✅ NUEVO: Para mostrar el pie de foto en compartidos
         let profileImagePath: String? // ✅ NUEVO: Para reconstruir el header en el visor
         let momentId: String? // ✅ NUEVO: Para navegación al detalle
@@ -2454,6 +2459,8 @@ struct StickerItem: Identifiable {
             linkTitle: String? = nil,
             countdownTitle: String? = nil,
             countdownTargetAtMs: Double? = nil,
+            sliderEmoji: String? = nil,
+            sliderPrompt: String? = nil,
             caption: String? = nil,
             profileImagePath: String? = nil,
             momentId: String? = nil,
@@ -2471,6 +2478,8 @@ struct StickerItem: Identifiable {
             self.linkTitle = linkTitle
             self.countdownTitle = countdownTitle
             self.countdownTargetAtMs = countdownTargetAtMs
+            self.sliderEmoji = sliderEmoji
+            self.sliderPrompt = sliderPrompt
             self.caption = caption
             self.profileImagePath = profileImagePath
             self.momentId = momentId
