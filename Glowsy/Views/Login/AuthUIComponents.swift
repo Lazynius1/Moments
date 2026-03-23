@@ -9,7 +9,7 @@ struct EnhancedProfilePhotoPicker: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 12) {
             Button(action: { showingPhotoPicker = true }) {
                 EnhancedProfilePhotoContent(profileImage: profileImage)
             }
@@ -30,7 +30,7 @@ struct EnhancedProfilePhotoPicker: View {
             
             Text("register.profilePhoto.optional")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(.white.opacity(0.62))
         }
     }
 }
@@ -46,86 +46,85 @@ struct EnhancedProfilePhotoContent: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 120, height: 120)
+                    .frame(width: 108, height: 108)
                     .clipShape(Circle())
                     .overlay(
                         Circle()
                             .stroke(
                                 LinearGradient(
-                                    colors: [.white.opacity(0.6), .blue.opacity(0.4)],
+                                    colors: [.white.opacity(0.42), .blue.opacity(0.24)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 3
+                                lineWidth: 2
                             )
                     )
-                    .shadow(color: .white.opacity(glowIntensity), radius: 10, x: 0, y: 0)
-                    .shadow(color: .blue.opacity(0.3), radius: 20, x: 0, y: 0)
+                    .shadow(color: .white.opacity(glowIntensity * 0.55), radius: 7, x: 0, y: 0)
+                    .shadow(color: .blue.opacity(0.15), radius: 14, x: 0, y: 0)
             } else {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [.white.opacity(0.15), .white.opacity(0.05)],
+                            colors: [.white.opacity(0.12), .white.opacity(0.04)],
                             center: .center,
                             startRadius: 10,
-                            endRadius: 60
+                            endRadius: 54
                         )
                     )
-                    .frame(width: 120, height: 120)
+                    .frame(width: 108, height: 108)
                     .overlay(
                         VStack(spacing: 8) {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 30, weight: .medium))
+                                .font(.system(size: 26, weight: .medium))
                                 .foregroundStyle(
                                     LinearGradient(
-                                        colors: [.white.opacity(0.8), .blue.opacity(0.6)],
+                                        colors: [.white.opacity(0.78), .blue.opacity(0.46)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
                             Text("register.profilePhoto.add")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.7))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white.opacity(0.64))
                         }
                     )
                     .overlay(
                         Circle()
                             .stroke(
                                 LinearGradient(
-                                    colors: [.white.opacity(0.4), .blue.opacity(0.2)],
+                                    colors: [.white.opacity(0.24), .blue.opacity(0.12)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                style: StrokeStyle(lineWidth: 2, dash: [8, 4])
+                                style: StrokeStyle(lineWidth: 1.5, dash: [8, 4])
                             )
                     )
-                    .shadow(color: .white.opacity(0.1), radius: 15, x: 0, y: 0)
+                    .shadow(color: .white.opacity(0.08), radius: 10, x: 0, y: 0)
             }
             
             if profileImage != nil {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [.white, .blue.opacity(0.8)],
+                            colors: [.white, .blue.opacity(0.7)],
                             center: .center,
                             startRadius: 2,
-                            endRadius: 18
+                            endRadius: 16
                         )
                     )
-                    .frame(width: 36, height: 36)
+                    .frame(width: 32, height: 32)
                     .overlay(
                         Image(systemName: "pencil")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.black)
                     )
-                    .offset(x: 40, y: 40)
-                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                    .shadow(color: .white.opacity(0.5), radius: 4, x: 0, y: 0)
+                    .offset(x: 34, y: 34)
+                    .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
             }
         }
         .onAppear {
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                glowIntensity = 0.6
+                glowIntensity = 0.42
             }
         }
     }
@@ -137,14 +136,14 @@ struct EnhancedInterestsSelector: View {
     @Binding var selectedInterests: [String]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [.white, .blue.opacity(0.8)],
+                                colors: [.white.opacity(0.92), .blue.opacity(0.72)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -152,28 +151,28 @@ struct EnhancedInterestsSelector: View {
                     
                     Text("register.interests.title")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.white.opacity(0.94))
                 }
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("register.interests.count", comment: "Interests count"), selectedInterests.count))
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
                     .background(
                         Capsule()
                             .fill(
                                 LinearGradient(
-                                    colors: [.blue.opacity(0.3), .purple.opacity(0.2)],
+                                    colors: [.white.opacity(0.1), .white.opacity(0.05)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                             .overlay(
                                 Capsule()
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
                                 )
                     )
             }
@@ -208,20 +207,20 @@ struct EnhancedInterestChip: View {
         Button(action: onTap) {
             Text(InterestOption.localize(interest))
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(isSelected ? .white : .white.opacity(0.8))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .foregroundColor(isSelected ? .white : .white.opacity(0.72))
+                .padding(.horizontal, 15)
+                .padding(.vertical, 9)
                 .background(
                     Capsule()
                         .fill(
                             isSelected ?
                             LinearGradient(
-                                colors: [.blue.opacity(0.4), .purple.opacity(0.3)],
+                                colors: [.blue.opacity(0.3), .purple.opacity(0.22)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             ) :
                             LinearGradient(
-                                colors: [.white.opacity(0.1), .white.opacity(0.05)],
+                                colors: [.white.opacity(0.08), .white.opacity(0.04)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -231,26 +230,26 @@ struct EnhancedInterestChip: View {
                                 .stroke(
                                     isSelected ?
                                     LinearGradient(
-                                        colors: [.blue.opacity(0.6), .purple.opacity(0.4)],
+                                        colors: [.blue.opacity(0.5), .purple.opacity(0.32)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     ) :
                                     LinearGradient(
-                                        colors: [.white.opacity(0.2), .white.opacity(0.1)],
+                                        colors: [.white.opacity(0.12), .white.opacity(0.06)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     ),
-                                    lineWidth: isSelected ? 2 : 1
+                                    lineWidth: isSelected ? 1.5 : 1
                                 )
                         )
                         .shadow(
-                            color: isSelected ? .blue.opacity(0.3) : .clear,
-                            radius: isSelected ? 8 : 0,
+                            color: isSelected ? .blue.opacity(0.12) : .clear,
+                            radius: isSelected ? 6 : 0,
                             x: 0,
-                            y: isSelected ? 4 : 0
+                            y: isSelected ? 3 : 0
                         )
                 )
-                .scaleEffect(isSelected ? 1.05 : (isPressed ? 0.95 : 1.0))
+                .scaleEffect(isSelected ? 1.03 : (isPressed ? 0.97 : 1.0))
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
                 .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isPressed)
         }

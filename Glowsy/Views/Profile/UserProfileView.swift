@@ -113,9 +113,10 @@ struct UserProfilePillTabs: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
+        .padding(4)
+        .background(UserProfileColors.cardBackground)
+        .clipShape(Capsule())
+        .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
     }
 }
 
@@ -572,72 +573,29 @@ struct UserModernPublicProfileView: View {
                     .padding(.top, 10)
                     .padding(.bottom, 20)
                     
-                    // ✅ NUEVO: Destacadas Compactas (Justo después del header)
+                    UserProfileOverviewSection(
+                        viewModel: viewModel,
+                        showingUserList: $showingUserList,
+                        showingInterests: $showingFullInfo,
+                        interests: viewModel.userProfile?.interests ?? []
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+
+                    // ✅ NUEVO: Destacadas Compactas (Después del bloque social)
                     if let userId = viewModel.userProfile?.id {
                         ProfileHighlightsView(
                             userId: userId,
                             isOwnProfile: false,
                             isCompact: true
                         )
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 18)
                     }
 
                     // Indicador de refresh
                     if viewModel.isRefreshing {
                         UserModernRefreshIndicator()
                             .padding(.bottom, 20)
-                    }
-                    
-                    // ✅ SECCIÓN DE INFO COLAPSABLE
-                    VStack(spacing: 0) {
-                        Button(action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                showingFullInfo.toggle()
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "info.circle.fill")
-                                    .font(.system(size: 14))
-                                Text(NSLocalizedString("profile.moreInfo", comment: "More info"))
-                                    .font(.custom("Poppins-Medium", size: 13))
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .rotationEffect(.degrees(showingFullInfo ? 180 : 0))
-                            }
-                            .foregroundColor(UserProfileColors.textSecondary)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(UserProfileColors.cardBackground.opacity(0.5))
-                            .cornerRadius(12)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, showingFullInfo ? 20 : 25)
-                        
-                        if showingFullInfo {
-                            // Estadísticas
-                            if viewModel.canViewConnections {
-                                UserModernStatsSection(
-                                    viewModel: viewModel,
-                                    showingUserList: $showingUserList
-                                )
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 32)
-                                .transition(.opacity)
-                            }
-                            
-                            // Intereses
-                            if let interests = viewModel.userProfile?.interests, !interests.isEmpty {
-                                UserModernInterestsView(
-                                    interests: interests
-                                )
-                                    .padding(.horizontal, 20)
-                                    .padding(.bottom, 25)
-                                    .transition(.opacity)
-                            }
-                        }
                     }
 
                     
@@ -650,30 +608,6 @@ struct UserModernPublicProfileView: View {
                         // Contenido según tab seleccionado
                         switch selectedTab {
                         case .moments:
-                            // Header de momentos
-                            HStack {
-                                Text("userProfile.moments")
-                                    .font(.custom("Poppins-SemiBold", size: 20))
-                                    .foregroundColor(UserProfileColors.textPrimary)
-                                
-                                Spacer()
-                                
-                                Text(String(format: NSLocalizedString("userProfile.moments.count", comment: "Moments count"), viewModel.moments.count))
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(UserProfileColors.textSecondary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(UserProfileColors.cardBackground)
-                                    .clipShape(Capsule())
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(UserProfileColors.borderColor, lineWidth: 0.5)
-                                    )
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 16)
-                            .frame(maxWidth: UIScreen.main.bounds.width)
-                            
                             if viewModel.moments.isEmpty {
                                 UserModernEmptyMomentsView()
                                     .padding(.horizontal, 20)
@@ -877,41 +811,31 @@ struct UserModernProfileHeader: View {
                 }
                 
                 // Bio expandible adaptativa
-                UserExpandableBioView(bio: viewModel.userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No bio"))
-            }
-            
-            // Conexiones mutuas adaptativas - Solo mostrar si se pueden ver las mutuas Y hay datos
-            if viewModel.canViewConnections && 
-               viewModel.visibleConnectionTypes.canViewMutualConnections && 
-               viewModel.visibleConnectionTypes.canViewConnections && 
-               viewModel.visibleConnectionTypes.canViewAdmirers && 
-               !viewModel.mutualConnections.isEmpty {
-                Button(action: { showingUserList = .mutualConnections }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 14))
-                        
-                        Text(String(format: NSLocalizedString("userProfile.mutualConnections", comment: "Mutual connections"), viewModel.mutualConnections.prefix(3).map { $0.username }.joined(separator: ", ")))
-                            .font(.custom("Poppins-Medium", size: 13))
-                            .lineLimit(1)
+                VStack(spacing: 8) {
+                    UserExpandableBioView(bio: viewModel.userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No bio"))
+
+                    if let websiteUrl = viewModel.userProfile?.websiteUrl,
+                       !websiteUrl.isEmpty,
+                       let url = URL(string: websiteUrl.hasPrefix("http") ? websiteUrl : "https://\(websiteUrl)") {
+                        Link(destination: url) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 12, weight: .semibold))
+
+                                Text(
+                                    websiteUrl
+                                        .replacingOccurrences(of: "https://", with: "")
+                                        .replacingOccurrences(of: "http://", with: "")
+                                )
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            }
+                            .foregroundColor(UserProfileColors.accent)
+                            .padding(.vertical, 4)
+                        }
+                        .padding(.top, 2)
                     }
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.85))
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(UserProfileColors.cardBackground)
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [UserProfileColors.accent.opacity(0.4), UserProfileColors.borderColor],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
             }
             
@@ -1601,9 +1525,81 @@ struct UserModernRefreshIndicator: View {
 }
 
 // MARK: - ✅ NUEVO: Estadísticas modernas como ProfileView
+struct UserProfileOverviewSection: View {
+    @ObservedObject var viewModel: UserProfileViewModel
+    @Binding var showingUserList: UserProfileView.UserListType?
+    @Binding var showingInterests: Bool
+    let interests: [String]
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if viewModel.canViewConnections {
+                UserModernStatsSection(
+                    viewModel: viewModel,
+                    showingUserList: $showingUserList,
+                    embeddedStyle: true
+                )
+            }
+
+            if !interests.isEmpty {
+                if viewModel.canViewConnections {
+                    Divider()
+                        .overlay(UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.22 : 0.4))
+                        .padding(.top, 14)
+                        .padding(.bottom, 10)
+                }
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                        showingInterests.toggle()
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Text("profile.interests.title")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(UserProfileColors.textPrimary)
+
+                        Text("\(interests.count)")
+                            .font(.custom("Poppins-Medium", size: 11))
+                            .foregroundColor(UserProfileColors.textSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(UserProfileColors.materialBackground.opacity(0.7))
+                            .clipShape(Capsule())
+
+                        Spacer()
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(UserProfileColors.textSecondary)
+                            .rotationEffect(.degrees(showingInterests ? 180 : 0))
+                    }
+                    .contentShape(Rectangle())
+                }
+
+                if showingInterests {
+                    UserModernInterestsView(
+                        interests: interests,
+                        showsTitle: false,
+                        embeddedStyle: true
+                    )
+                    .padding(.top, 12)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .top)),
+                        removal: .opacity.combined(with: .move(edge: .top))
+                    ))
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
 struct UserModernStatsSection: View {
     @ObservedObject var viewModel: UserProfileViewModel
     @Binding var showingUserList: UserProfileView.UserListType?
+    var embeddedStyle: Bool = false
     @Environment(\.colorScheme) var colorScheme
     
     private var computedStats: [(String, Int, UserProfileView.UserListType)] {
@@ -1615,18 +1611,13 @@ struct UserModernStatsSection: View {
     }
 
     var body: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 8),
-            GridItem(.flexible(), spacing: 8),
-            GridItem(.flexible(), spacing: 8)
-        ], spacing: 8) {
+        HStack(spacing: embeddedStyle ? 0 : 8) {
             ForEach(Array(computedStats.enumerated()), id: \.offset) { index, stat in
                 Button(action: {
                     showingUserList = stat.2
                 }) {
                     VStack(spacing: 6) {
-                        // ✅ NUEVO: Contador animado
-                        UserAnimatedCounterView(value: stat.1)
+                        Text("\(stat.1)")
                             .font(.custom("Poppins-Bold", size: 18))
                             .foregroundColor(UserProfileColors.textPrimary)
                         
@@ -1635,69 +1626,20 @@ struct UserModernStatsSection: View {
                             .foregroundColor(UserProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(UserProfileColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                    .padding(.vertical, embeddedStyle ? 10 : 14)
+                    .contentShape(Rectangle())
                 }
-                .scaleEffect(1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showingUserList)
-            }
-        }
-    }
-}
+                .buttonStyle(.plain)
 
-// MARK: - ✅ NUEVO: Contador animado para UserProfileView
-struct UserAnimatedCounterView: View {
-    let value: Int
-    @State private var displayedValue: Int = 0
-    @State private var hasAnimated = false
-    @State private var animationRunId: Int = 0
-    
-    var body: some View {
-        Text("\(displayedValue)")
-            .onAppear {
-                guard !hasAnimated else { return }
-                hasAnimated = true
-                animateCounter()
-            }
-            .onChange(of: value) { newValue in
-                animateCounter()
-            }
-    }
-    
-    private func animateCounter() {
-        let target = max(0, value)
-        let start = displayedValue
-        let delta = target - start
-
-        guard delta != 0 else { return }
-
-        animationRunId += 1
-        let runId = animationRunId
-
-        if abs(delta) <= 1 {
-            withAnimation(.easeOut(duration: 0.15)) {
-                displayedValue = target
-            }
-            return
-        }
-
-        let duration: Double = 0.8
-        let steps = min(abs(delta), 20)
-        let stepDuration = duration / Double(steps)
-
-        for step in 0...steps {
-            DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(step)) {
-                guard runId == animationRunId else { return }
-                withAnimation(.easeOut(duration: 0.1)) {
-                    let progress = Double(step) / Double(steps)
-                    let easedProgress = 1 - pow(1 - progress, 3)
-                    let interpolated = Double(start) + Double(delta) * easedProgress
-                    displayedValue = Int(interpolated.rounded())
+                if embeddedStyle && index < computedStats.count - 1 {
+                    Rectangle()
+                        .fill(UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.24 : 0.4))
+                        .frame(width: 1, height: 30)
                 }
             }
         }
+        .padding(.horizontal, embeddedStyle ? 2 : 0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showingUserList)
     }
 }
 
@@ -1722,7 +1664,7 @@ struct UserExpandableBioView: View {
                         .background(GeometryReader { geometry in
                             Color.clear.onAppear {
                                 DispatchQueue.main.async {
-                                    needsExpansion = bio.count > 100
+                                    needsExpansion = bio.count > 100 || bio.filter { $0 == "\n" }.count > 2
                                 }
                             }
                         })
@@ -1859,14 +1801,18 @@ struct UserModernAvatar: View {
 // MARK: - ✅ NUEVO: Intereses modernos como ProfileView
 struct UserModernInterestsView: View {
     let interests: [String]
+    var showsTitle: Bool = true
+    var embeddedStyle: Bool = false
     @State private var currentUserInterests: [String] = []
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if showsTitle {
                 Text("userProfile.interests")
-                .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(UserProfileColors.textPrimary)
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(UserProfileColors.textPrimary)
+            }
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -1882,7 +1828,7 @@ struct UserModernInterestsView: View {
                                 .foregroundColor(isShared ? .white : UserProfileColors.textPrimary)
                         }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, embeddedStyle ? 9 : 10)
                         .background(
                             isShared ?
                             LinearGradient(
@@ -1891,17 +1837,21 @@ struct UserModernInterestsView: View {
                                 endPoint: .bottomTrailing
                             ) :
                             LinearGradient(
-                                colors: [UserProfileColors.cardBackground, UserProfileColors.cardBackground],
+                                colors: [embeddedStyle ? UserProfileColors.materialBackground.opacity(0.62) : UserProfileColors.cardBackground, embeddedStyle ? UserProfileColors.materialBackground.opacity(0.62) : UserProfileColors.cardBackground],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(UserProfileColors.borderColor.opacity(embeddedStyle && !isShared ? 0.18 : 0), lineWidth: embeddedStyle && !isShared ? 1 : 0)
+                        )
                         .shadow(
                             color: isShared ? Color.blue.opacity(0.3) : UserProfileColors.shadowColor,
-                            radius: isShared ? 6 : 4,
+                            radius: isShared ? 6 : (embeddedStyle ? 0 : 4),
                             x: 0,
-                            y: isShared ? 3 : 2
+                            y: isShared ? 3 : (embeddedStyle ? 0 : 2)
                         )
                         .scaleEffect(isShared ? 1.05 : 1.0)
                         .animation(.easeInOut(duration: 0.2), value: isShared)
@@ -2874,8 +2824,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         let cachedConnections = LocalPersistenceService.shared.loadConnections(userId: userId)
         if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty {
             self.categorizeConnectionsWithPrivacy(
-                followingIds: cachedConnections.following.map { $0.id },
-                followerIds: cachedConnections.followers.map { $0.id }
+                targetFollowingIds: cachedConnections.following.map(\.id),
+                targetFollowerIds: cachedConnections.followers.map(\.id)
             )
         }
         
@@ -2935,15 +2885,14 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         
         // 2. Re-verificar permisos de privacidad
         refreshGroup.enter()
-        checkConnectionsVisibility(currentUserId: currentUserId)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        checkConnectionsVisibility(currentUserId: currentUserId) {
             refreshGroup.leave()
         }
         
         // 3. Refresh conexiones con verificación directa
         refreshGroup.enter()
-        self.fetchConnectionsDirect()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        self.checkConnectionsVisibility(currentUserId: currentUserId) {
+            self.fetchConnectionsDirect()
             refreshGroup.leave()
         }
         
@@ -2995,8 +2944,9 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 guard let self = self else { return }
                 self.canViewContent = canView
                 if canView {
-                    self.fetchConnectionsDirect()
-                    self.checkConnectionsVisibility(currentUserId: currentUserId)
+                    self.checkConnectionsVisibility(currentUserId: currentUserId) {
+                        self.fetchConnectionsDirect()
+                    }
                 } else {
                     self.isLoading = false
                 }
@@ -3005,12 +2955,13 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     }
     
     // ✅ FUNCIÓN CLAVE: Verificar visibilidad de conexiones con configuraciones de privacidad
-    private func checkConnectionsVisibility(currentUserId: String) {
+    private func checkConnectionsVisibility(currentUserId: String, completion: (() -> Void)? = nil) {
         privacyService.getVisibleConnectionTypes(viewerId: currentUserId, targetUserId: userId) { [weak self] visibleTypes in
             DispatchQueue.main.async {
                 self?.visibleConnectionTypes = visibleTypes
                 // Para compatibilidad con código existente
                 self?.canViewConnections = visibleTypes.canViewAdmirers || visibleTypes.canViewConnections || visibleTypes.canViewMutualConnections
+                completion?()
             }
         }
     }
@@ -3019,67 +2970,54 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     
     // ✅ FUNCIÓN MEJORADA: Fetch conexiones directo con filtrado de privacidad
     private func fetchConnectionsDirect() {
-        // ✅ SOLO consultar following si tengo permisos
-        if visibleConnectionTypes.canViewConnections {
+        let group = DispatchGroup()
+        var targetFollowingIds: [String] = []
+        var targetFollowerIds: [String] = []
+        
+        if visibleConnectionTypes.canViewConnections || visibleConnectionTypes.canViewMutualConnections {
+            group.enter()
             firestoreService.db.collection("users").document(userId).collection("following")
                 .getDocuments { [weak self] followingSnapshot, error in
+                    defer { group.leave() }
                     guard let self = self else { return }
-                    
-                    if let error = error {
-                        return
-                    }
+                    guard error == nil else { return }
                     
                     let followingIds = followingSnapshot?.documents.compactMap { doc in
                         doc.data()["userId"] as? String
                     } ?? []
                     
-                    // Filtrar unfollows recientes
-                    let filteredFollowingIds = followingIds.filter { userId in
-                        if let unfollowTime = self.lastUnfollowTime[userId] {
+                    targetFollowingIds = followingIds.filter { followedUserId in
+                        if let unfollowTime = self.lastUnfollowTime[followedUserId] {
                             let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
                             if timeSinceUnfollow < 5.0 {
                                 return false
                             } else {
-                                self.lastUnfollowTime.removeValue(forKey: userId)
-                                self.recentUnfollows.remove(userId)
+                                self.lastUnfollowTime.removeValue(forKey: followedUserId)
+                                self.recentUnfollows.remove(followedUserId)
                             }
                         }
                         return true
                     }
-                
-                // ✅ SOLO consultar followers si tengo permisos
-                if self.visibleConnectionTypes.canViewAdmirers {
-                    self.firestoreService.db.collection("users").document(self.userId).collection("followers")
-                        .getDocuments { [weak self] followersSnapshot, error in
-                            guard let self = self else { return }
-                            
-                            if let error = error {
-                                return
-                            }
-                            
-                            let followerIds = followersSnapshot?.documents.compactMap { doc in
-                                doc.data()["userId"] as? String
-                            } ?? []
-                            
-                            // Categorizar conexiones respetando privacidad
-                            self.categorizeConnectionsWithPrivacy(
-                                followingIds: filteredFollowingIds,
-                                followerIds: followerIds
-                            )
-                        }
-                } else {
-                    // Categorizar conexiones sin followers
-                    self.categorizeConnectionsWithPrivacy(
-                        followingIds: filteredFollowingIds,
-                        followerIds: []
-                    )
                 }
-            }
-        } else {
-            // Categorizar conexiones sin following
+        }
+        
+        if visibleConnectionTypes.canViewAdmirers || visibleConnectionTypes.canViewMutualConnections {
+            group.enter()
+            firestoreService.db.collection("users").document(userId).collection("followers")
+                .getDocuments { followersSnapshot, error in
+                    defer { group.leave() }
+                    guard error == nil else { return }
+                    
+                    targetFollowerIds = followersSnapshot?.documents.compactMap { doc in
+                        doc.data()["userId"] as? String
+                    } ?? []
+                }
+        }
+        
+        group.notify(queue: .main) {
             self.categorizeConnectionsWithPrivacy(
-                followingIds: [],
-                followerIds: []
+                targetFollowingIds: targetFollowingIds,
+                targetFollowerIds: targetFollowerIds
             )
         }
     }
@@ -3139,13 +3077,15 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     }
     
     // ✅ NUEVA FUNCIÓN: Categorizar conexiones respetando configuraciones de privacidad
-    private func categorizeConnectionsWithPrivacy(followingIds: [String], followerIds: [String]) {
-        let followingSet = Set(followingIds)
-        let followersSet = Set(followerIds)
+    private func categorizeConnectionsWithPrivacy(targetFollowingIds: [String], targetFollowerIds: [String]) {
+        let targetFollowingSet = Set(targetFollowingIds)
+        let targetFollowerSet = Set(targetFollowerIds)
         
-        let mutualIds = followingSet.intersection(followersSet)
-        let connectionIds = followingSet.subtracting(mutualIds)
-        let admirerIds = followersSet.subtracting(mutualIds)
+        let mutualIds: Set<String> = visibleConnectionTypes.canViewMutualConnections
+            ? targetFollowingSet.intersection(targetFollowerSet)
+            : []
+        let connectionIds = targetFollowingSet.subtracting(mutualIds)
+        let admirerIds = targetFollowerSet.subtracting(mutualIds)
         
         let fetchGroup = DispatchGroup()
         

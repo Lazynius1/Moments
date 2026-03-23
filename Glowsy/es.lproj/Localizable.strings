@@ -621,6 +621,10 @@
 "login.password" = "Contraseña";
 "login.signIn" = "Iniciar sesión";
 "login.or" = "o";
+"login.disclaimer.line1" = "Esta app la ha hecho una sola persona, así que puede haber errores o cosas por pulir.";
+"login.disclaimer.line2.prefix" = "Si ves algo raro o necesitas ayuda, puedes escribirme por el perfil de ";
+"login.disclaimer.line2.middle" = " o ";
+"login.disclaimer.line2.suffix" = ". Gracias por estar aquí; espero que la disfrutes.";
 "login.verifyingAccount" = "Verificando cuenta...";
 "login.checkingAccountStatus" = "Comprobando estado de la cuenta";
 "login.resetPassword.title" = "Recuperar contraseña";

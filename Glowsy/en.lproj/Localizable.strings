@@ -624,6 +624,10 @@
 "login.password" = "Password";
 "login.signIn" = "Sign in";
 "login.or" = "or";
+"login.disclaimer.line1" = "This app was built by a single person, so there may still be a few rough edges.";
+"login.disclaimer.line2.prefix" = "If something feels off or you need help, you can reach me through the profile of ";
+"login.disclaimer.line2.middle" = " or ";
+"login.disclaimer.line2.suffix" = ". Thanks for being here, and I hope you enjoy it.";
 "login.verifyingAccount" = "Verifying account...";
 "login.checkingAccountStatus" = "Checking account status";
 "login.resetPassword.title" = "Reset password";

@@ -613,6 +613,10 @@
 "login.password" = "Contrasenya";
 "login.signIn" = "Iniciar sessió";
 "login.or" = "o";
+"login.disclaimer.line1" = "Aquesta app l'ha feta una sola persona, així que encara hi pot haver errors o coses per polir.";
+"login.disclaimer.line2.prefix" = "Si hi veus res estrany o necessites ajuda, em pots escriure pel perfil de ";
+"login.disclaimer.line2.middle" = " o ";
+"login.disclaimer.line2.suffix" = ". Gràcies per ser aquí, i espero que t'agradi.";
 "login.verifyingAccount" = "Verificant compte...";
 "login.checkingAccountStatus" = "Comprovant estat del compte";
 "login.resetPassword.title" = "Recuperar contrasenya";
