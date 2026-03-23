@@ -1448,7 +1448,10 @@ struct MediaSelectionView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                 }
-                .background(colorScheme == .dark ? Color.black.opacity(0.4) : Color.gray.opacity(0.1))
+                .background(
+                    (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                        .opacity(colorScheme == .dark ? 0.92 : 0.98)
+                )
             }
         }
     }
@@ -1504,7 +1507,7 @@ struct MediaSelectionView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(colorScheme == .dark ? Color.black : Color.white)
+            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
             
             // Grid de fotos
             if isLoadingLibrary {
@@ -1598,7 +1601,7 @@ struct MediaSelectionView: View {
             if assetCount > 0 {
                 albums.append(AlbumInfo(
                     id: collection.localIdentifier,
-                    title: "Recientes",
+                    title: NSLocalizedString("creator.album.recents", comment: "Recents"),
                     assetCollection: collection,
                     assetCount: assetCount
                 ))
@@ -1617,7 +1620,7 @@ struct MediaSelectionView: View {
             if assetCount > 0 {
                 albums.append(AlbumInfo(
                     id: collection.localIdentifier,
-                    title: collection.localizedTitle ?? "Álbum sin título",
+                    title: collection.localizedTitle ?? NSLocalizedString("creator.album.untitled", comment: "Untitled album"),
                     assetCollection: collection,
                     assetCount: assetCount
                 ))
@@ -1656,8 +1659,8 @@ struct MediaSelectionView: View {
         
         // Ordenar álbumes
         albums.sort { first, second in
-            if first.title == "Recientes" { return true }
-            if second.title == "Recientes" { return false }
+            if first.title == NSLocalizedString("creator.album.recents", comment: "Recents") { return true }
+            if second.title == NSLocalizedString("creator.album.recents", comment: "Recents") { return false }
             return first.assetCount > second.assetCount
         }
         
@@ -1669,12 +1672,12 @@ struct MediaSelectionView: View {
     
     private func getSmartAlbumTitle(for subtype: PHAssetCollectionSubtype) -> String {
         switch subtype {
-        case .smartAlbumFavorites: return "Favoritos"
-        case .smartAlbumScreenshots: return "Capturas de pantalla"
-        case .smartAlbumSelfPortraits: return "Selfies"
-        case .smartAlbumVideos: return "Videos"
-        case .smartAlbumRecentlyAdded: return "Añadidos recientemente"
-        default: return "Álbum"
+        case .smartAlbumFavorites: return NSLocalizedString("creator.album.smart.favorites", comment: "Favorites")
+        case .smartAlbumScreenshots: return NSLocalizedString("creator.album.smart.screenshots", comment: "Screenshots")
+        case .smartAlbumSelfPortraits: return NSLocalizedString("creator.album.smart.selfies", comment: "Selfies")
+        case .smartAlbumVideos: return NSLocalizedString("creator.album.smart.videos", comment: "Videos")
+        case .smartAlbumRecentlyAdded: return NSLocalizedString("creator.album.smart.recentlyAdded", comment: "Recently added")
+        default: return NSLocalizedString("creator.album.default", comment: "Album")
         }
     }
     
@@ -2213,7 +2216,7 @@ struct AlbumPickerView: View {
     
     // ✅ Botón cancelar elegante
     private var cancelButton: some View {
-        Button("Cancelar") {
+        Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
             withAnimation(.easeOut(duration: 0.3)) {
                 dismiss()
             }
@@ -5281,6 +5284,17 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
     @Binding var selectedVideoURL: URL?
     let onSelect: (UIImage?, URL?) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var pickerBackgroundColor: UIColor {
+        colorScheme == .dark
+            ? UIColor(red: 11.0 / 255.0, green: 18.0 / 255.0, blue: 21.0 / 255.0, alpha: 1.0)
+            : UIColor(red: 250.0 / 255.0, green: 249.0 / 255.0, blue: 246.0 / 255.0, alpha: 1.0)
+    }
+
+    private var pickerForegroundColor: UIColor {
+        colorScheme == .dark ? .white : .black
+    }
     
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration()
@@ -5290,14 +5304,36 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
         
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = context.coordinator
+        picker.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
+        picker.view.backgroundColor = pickerBackgroundColor
+        applyAppearance(to: picker)
         
         return picker
     }
     
-    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {
+        uiViewController.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
+        uiViewController.view.backgroundColor = pickerBackgroundColor
+        applyAppearance(to: uiViewController)
+    }
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
+    }
+
+    private func applyAppearance(to picker: PHPickerViewController) {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = pickerBackgroundColor
+        appearance.shadowColor = .clear
+        appearance.titleTextAttributes = [.foregroundColor: pickerForegroundColor]
+        appearance.largeTitleTextAttributes = [.foregroundColor: pickerForegroundColor]
+
+        picker.navigationController?.navigationBar.standardAppearance = appearance
+        picker.navigationController?.navigationBar.scrollEdgeAppearance = appearance
+        picker.navigationController?.navigationBar.compactAppearance = appearance
+        picker.navigationController?.navigationBar.tintColor = pickerForegroundColor
+        picker.navigationController?.view.backgroundColor = pickerBackgroundColor
     }
     
     class Coordinator: NSObject, PHPickerViewControllerDelegate {

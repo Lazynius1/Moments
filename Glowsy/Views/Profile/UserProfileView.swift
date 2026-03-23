@@ -580,7 +580,7 @@ struct UserModernPublicProfileView: View {
                         interests: viewModel.userProfile?.interests ?? []
                     )
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 12)
 
                     // ✅ NUEVO: Destacadas Compactas (Después del bloque social)
                     if let userId = viewModel.userProfile?.id {
@@ -589,13 +589,13 @@ struct UserModernPublicProfileView: View {
                             isOwnProfile: false,
                             isCompact: true
                         )
-                        .padding(.bottom, 18)
+                        .padding(.bottom, 12)
                     }
 
                     // Indicador de refresh
                     if viewModel.isRefreshing {
                         UserModernRefreshIndicator()
-                            .padding(.bottom, 20)
+                            .padding(.bottom, 12)
                     }
 
                     
@@ -603,7 +603,7 @@ struct UserModernPublicProfileView: View {
                     VStack(spacing: 0) {
                         // Pills Tabs
                         UserProfilePillTabs(selectedTab: $selectedTab)
-                            .padding(.bottom, 20)
+                            .padding(.bottom, 12)
                         
                         // Contenido según tab seleccionado
                         switch selectedTab {
@@ -752,18 +752,18 @@ struct UserModernProfileHeader: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 20) {
             // ✅ NUEVO: Botón de atrás en la esquina superior izquierda
             HStack {
                 Button(action: onDismiss) {
                     ZStack {
                         Circle()
                             .fill(UserProfileColors.cardBackground.opacity(0.9))
-                            .frame(width: 44, height: 44)
+                            .frame(width: 40, height: 40)
                             .shadow(color: UserProfileColors.shadowColor, radius: 8, x: 0, y: 4)
                         
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(UserProfileColors.textPrimary)
                     }
                 }
@@ -773,7 +773,7 @@ struct UserModernProfileHeader: View {
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.top, 10)
+            .padding(.top, 6)
             
             // Avatar principal con badges (sin círculo de fondo)
             UserModernAvatarWithBadges(
@@ -785,16 +785,16 @@ struct UserModernProfileHeader: View {
                     get: { self.showProfileImageFullscreen },
                     set: { self.showProfileImageFullscreen = $0 }
                 ),
-                size: 120
+                size: 100
             )
             
             // Información del usuario con badges
-            VStack(spacing: 14) {
-                VStack(spacing: 8) {
+            VStack(spacing: 10) {
+                VStack(spacing: 6) {
                     VerifiedUsernameGradientView(
                         username: viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"),
                         isVerified: viewModel.userProfile?.isVerified ?? false,
-                        badgeSize: 22,
+                        badgeSize: 20,
                         spacing: 6,
                         gradient: LinearGradient(
                             colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")],
@@ -802,7 +802,7 @@ struct UserModernProfileHeader: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .font(.custom("Poppins-Bold", size: 28))
+                    .font(.custom("Poppins-Bold", size: 24))
                     
                     // ✅ NUEVO: Badges horizontales del usuario visitado
                     if let userProfile = viewModel.userProfile {
@@ -811,7 +811,7 @@ struct UserModernProfileHeader: View {
                 }
                 
                 // Bio expandible adaptativa
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     UserExpandableBioView(bio: viewModel.userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No bio"))
 
                     if let websiteUrl = viewModel.userProfile?.websiteUrl,
@@ -840,13 +840,13 @@ struct UserModernProfileHeader: View {
             }
             
             // Botones de acción adaptativos
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 Button(action: onFollowAction) {
                     Text(followButtonText)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.custom("Poppins-SemiBold", size: 14))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 14)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
                         .background(followButtonColor)
                         .clipShape(Capsule())
                         .overlay(
@@ -889,7 +889,7 @@ struct UserModernProfileHeader: View {
                     Image(systemName: "paperplane.fill")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 44, height: 44)
                         .background(UserProfileColors.cardBackground)
                         .clipShape(Circle())
                         .overlay(
@@ -909,7 +909,7 @@ struct UserModernProfileHeader: View {
                     Image(systemName: viewModel.isBlockedByCurrentUser ? "person.fill.checkmark" : "person.fill.xmark")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 44, height: 44)
                         .background(Color.red.opacity(0.8))
                         .clipShape(Circle())
                         .overlay(
@@ -920,7 +920,7 @@ struct UserModernProfileHeader: View {
                 }
             }
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, 24)
     }
 
     private var followButtonText: String {

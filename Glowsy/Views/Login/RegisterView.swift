@@ -261,7 +261,7 @@ struct RegisterView: View {
             Alert(
                 title: Text("register.attention.title"),
                 message: Text(errorMessage ?? NSLocalizedString("register.error.unknown", comment: "Unknown error message")),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text("login.ok"))
             )
         }
         .sheet(isPresented: $showPrivacyPolicy) {
@@ -311,9 +311,26 @@ struct RegisterView: View {
             case .success(let interests):
                 availableInterests = interests
             case .failure:
-                availableInterests = ["Fotografía", "Viajes", "Música", "Cine", "Arte", "Deportes", "Libros", "Cocina", "Tecnología", "Moda", "Gaming", "Fitness"]
+                availableInterests = fallbackInterests
             }
         }
+    }
+    
+    private var fallbackInterests: [String] {
+        [
+            NSLocalizedString("register.interest.photography", comment: "Photography"),
+            NSLocalizedString("register.interest.travel", comment: "Travel"),
+            NSLocalizedString("register.interest.music", comment: "Music"),
+            NSLocalizedString("register.interest.cinema", comment: "Cinema"),
+            NSLocalizedString("register.interest.art", comment: "Art"),
+            NSLocalizedString("register.interest.sports", comment: "Sports"),
+            NSLocalizedString("register.interest.books", comment: "Books"),
+            NSLocalizedString("register.interest.cooking", comment: "Cooking"),
+            NSLocalizedString("register.interest.technology", comment: "Technology"),
+            NSLocalizedString("register.interest.fashion", comment: "Fashion"),
+            NSLocalizedString("register.interest.gaming", comment: "Gaming"),
+            NSLocalizedString("register.interest.fitness", comment: "Fitness")
+        ]
     }
     
     // ✅ FUNCIÓN ACTUALIZADA con sistema de creación de perfil
@@ -521,7 +538,7 @@ struct EnhancedStep1View: View {
         }
         
         if !predicate.evaluate(with: username) {
-            usernameError = "3-20 caracteres, solo letras, números, _ o ."
+            usernameError = NSLocalizedString("register.error.usernameFormat", comment: "Username format error")
             usernameSuggestions = []
             return
         }
