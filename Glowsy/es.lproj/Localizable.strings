@@ -211,6 +211,14 @@
 "creator.uploading.success_fly" = "Momento compartido";
 "creator.advancedSettings" = "Configuración avanzada";
 "creator.album.select" = "Seleccionar álbum";
+"creator.album.recents" = "Recientes";
+"creator.album.untitled" = "Álbum sin título";
+"creator.album.smart.favorites" = "Favoritos";
+"creator.album.smart.screenshots" = "Capturas de pantalla";
+"creator.album.smart.selfies" = "Selfies";
+"creator.album.smart.videos" = "Vídeos";
+"creator.album.smart.recentlyAdded" = "Añadidos recientemente";
+"creator.album.default" = "Álbum";
 "creator.camera" = "Cámara";
 "creator.loadingGallery" = "Cargando galería...";
 "creator.multiple" = "Múltiple";
@@ -614,6 +622,18 @@
 /* Login */
 "login.error.title" = "Error";
 "login.ok" = "OK";
+"login.error.unknown" = "Ocurrió un error desconocido";
+"login.error.reason.userNotFound" = "Usuario no encontrado";
+"login.error.reason.wrongPassword" = "Contraseña incorrecta";
+"login.error.reason.userDisabled" = "Usuario deshabilitado";
+"login.error.reason.invalidEmail" = "Correo no válido";
+"login.error.reason.network" = "Error de red";
+"login.error.reason.weakPassword" = "Contraseña débil";
+"login.error.reason.emailInUse" = "El correo ya está en uso";
+"login.error.reason.other" = "Otro error";
+"login.apple.error.nonce" = "Error de seguridad (nonce)";
+"login.apple.error.noToken" = "No se pudo obtener el token de Apple";
+"login.apple.error.invalidToken" = "Token de Apple inválido";
 "login.forgotPassword" = "¿Olvidaste tu contraseña?";
 "login.noAccount" = "¿No tienes cuenta?";
 "login.register" = "Regístrate";
@@ -630,6 +650,7 @@
 "login.resetPassword.title" = "Recuperar contraseña";
 "login.resetPassword.description" = "Te enviaremos un enlace a tu correo";
 "login.resetPassword.sendLink" = "Enviar enlace";
+"login.resetPassword.success" = "Se ha enviado un enlace de recuperación a tu correo.";
 "login.info.title" = "Información";
 
 
@@ -657,10 +678,23 @@
 "register.email.placeholder" = "tu@email.com";
 "register.password" = "Contraseña";
 "register.password.requirement" = "Mínimo 8 caracteres";
+"register.error.usernameFormat" = "3-20 caracteres, solo letras, números, _ o .";
 "register.profilePhoto.optional" = "Opcional: Añade una foto de perfil";
 "register.profilePhoto.add" = "Añadir foto";
 "register.interests.title" = "Elige tus intereses";
 "register.interests.count" = "%d/5";
+"register.interest.photography" = "Fotografía";
+"register.interest.travel" = "Viajes";
+"register.interest.music" = "Música";
+"register.interest.cinema" = "Cine";
+"register.interest.art" = "Arte";
+"register.interest.sports" = "Deportes";
+"register.interest.books" = "Libros";
+"register.interest.cooking" = "Cocina";
+"register.interest.technology" = "Tecnología";
+"register.interest.fashion" = "Moda";
+"register.interest.gaming" = "Gaming";
+"register.interest.fitness" = "Fitness";
 "register.summary.title" = "Resumen de tu cuenta";
 "register.summary.interests" = "Intereses:";
 "register.terms.accept" = "Acepto las ";

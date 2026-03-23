@@ -504,8 +504,8 @@ struct ModernProfileContentView: View {
                             showProfileImageFullscreen: $showProfileImageFullscreen
 
                         )
-                        .padding(.top, safeAreaTop + 10)
-                        .padding(.bottom, 12)
+                        .padding(.top, safeAreaTop + 6)
+                        .padding(.bottom, 8)
                         
                         ProfileOverviewCard(
                             viewModel: viewModel,
@@ -514,7 +514,7 @@ struct ModernProfileContentView: View {
                             interests: viewModel.userProfile?.interests ?? []
                         )
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 14)
+                        .padding(.bottom, 10)
 
                         // ✅ NUEVO: Destacadas Compactas (Después del bloque social)
                         ProfileHighlightsView(
@@ -526,7 +526,7 @@ struct ModernProfileContentView: View {
                         
                         if viewModel.isRefreshing {
                             ModernRefreshIndicator()
-                                .padding(.bottom, 12)
+                                .padding(.bottom, 10)
                         }
 
                         
@@ -541,13 +541,13 @@ struct ModernProfileContentView: View {
                                 Text("\(selectedProfileTab == .moments ? viewModel.moments.count : savedMomentsViewModel.moments.count)")
                                     .font(.custom("Poppins-Medium", size: 12))
                                     .foregroundColor(ProfileColors.textSecondary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 5)
                                     .background(ProfileColors.cardBackground)
                                     .clipShape(Capsule())
                             }
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 12)
+                            .padding(.bottom, 8)
                             .frame(maxWidth: UIScreen.main.bounds.width)
                             
                             // ✅ NUEVO: Contenido basado en el tab seleccionado
@@ -836,7 +836,7 @@ struct ModernProfileHeader: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 18) {
             // Avatar hero con efectos adaptativos
             ZStack {
                 // Círculo de fondo con gradiente adaptativo
@@ -853,8 +853,8 @@ struct ModernProfileHeader: View {
                             endRadius: 70
                         )
                     )
-                    .frame(width: 140, height: 140)
-                    .blur(radius: 15)
+                    .frame(width: 124, height: 124)
+                    .blur(radius: 12)
                 
                 // Avatar principal
                 Group {
@@ -863,7 +863,7 @@ struct ModernProfileHeader: View {
                             .placeholder {
                                 Circle()
                                     .fill(ProfileColors.materialBackground)
-                                    .frame(width: 110, height: 110)
+                                    .frame(width: 96, height: 96)
                                     .overlay(
                                         ProgressView()
                                             .tint(ProfileColors.accent)
@@ -872,14 +872,14 @@ struct ModernProfileHeader: View {
                             }
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: 110, height: 110)
+                            .frame(width: 96, height: 96)
                             .clipShape(Circle())
                             .contentShape(Circle())
                     } else {
                         // Placeholder cuando no hay imagen
                         Circle()
                             .fill(ProfileColors.materialBackground)
-                            .frame(width: 110, height: 110)
+                            .frame(width: 96, height: 96)
                             .overlay(
                                 Image(systemName: "person.circle.fill")
                                     .font(.system(size: 60))
@@ -902,12 +902,12 @@ struct ModernProfileHeader: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .frame(width: 36, height: 36)
+                            .frame(width: 32, height: 32)
                         
                         Text(primaryBadge.emoji)
-                            .font(.system(size: 18))
+                            .font(.system(size: 16))
                     }
-                    .offset(x: 45, y: -45)
+                    .offset(x: 38, y: -38)
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 
@@ -919,13 +919,13 @@ struct ModernProfileHeader: View {
                     ZStack {
                         Circle()
                             .fill(ProfileColors.cardBackground)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 28, height: 28)
                         
                         Image(systemName: "crown.fill")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(Color(hex: "FFD700"))
                     }
-                    .offset(x: -45, y: -45)
+                    .offset(x: -38, y: -38)
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
                 }
                 
@@ -948,8 +948,8 @@ struct ModernProfileHeader: View {
             }
             
             // Información del usuario adaptativa
-            VStack(spacing: 10) {
-                VStack(spacing: 8) {
+            VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     VerifiedUsernameGradientView(
                         username: viewModel.userProfile?.username ?? "Usuario",
                         isVerified: viewModel.userProfile?.isVerified ?? false,
@@ -961,12 +961,12 @@ struct ModernProfileHeader: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .font(.custom("Poppins-Bold", size: 26))
+                    .font(.custom("Poppins-Bold", size: 24))
                     
                     // Badges horizontales adaptativos
                     if let currentUser = authService.currentUser,
                        (currentUser.isPlusSubscriber || currentUser.isSupporter) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             if currentUser.isPlusSubscriber,
                                currentUser.showPlusBadge,
                                currentUser.selectedProfileTheme == nil || currentUser.selectedProfileTheme == "default" {
@@ -983,7 +983,7 @@ struct ModernProfileHeader: View {
                 }
                 
                 // Bio expandible adaptativa
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     ExpandableBioView(bio: viewModel.userProfile?.bio ?? "Añade una biografía")
                     
                     // ✅ NUEVO: Link in Bio
@@ -1008,20 +1008,20 @@ struct ModernProfileHeader: View {
             }
             
             // Botones de acción adaptativos
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 Button(action: {
                     newBio = viewModel.userProfile?.bio ?? ""
                     isShowingEditProfile = true
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 7) {
                         Image(systemName: "pencil.circle")
-                            .font(.system(size: 16))
+                            .font(.system(size: 15))
                         Text("profile.editButton")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.custom("Poppins-SemiBold", size: 13))
                     }
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 11)
                     .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .clipShape(Capsule())
                     .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
@@ -1034,7 +1034,7 @@ struct ModernProfileHeader: View {
                     Image(systemName: "qrcode")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
                         .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                         .clipShape(Circle())
                         .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
@@ -1063,7 +1063,7 @@ struct ModernProfileHeader: View {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 18))
                         .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
                         .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                         .clipShape(Circle())
                         .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
@@ -1086,7 +1086,7 @@ struct ModernProfileHeader: View {
                 storyAudiences: storyAudiences,
                 isOwnStory: isOwnStory,
                 colorScheme: colorScheme,
-                ringSize: 110,
+                ringSize: 96,
                 lineWidth: 3
             )
         } else if currentUser?.isPlusSubscriber == true && currentUser?.showPlusBadge == true {

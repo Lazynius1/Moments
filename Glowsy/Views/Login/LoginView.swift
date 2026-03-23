@@ -78,7 +78,7 @@ struct LoginView: View {
             .alert(isPresented: $showAlert) {
                 Alert(
                     title: Text("login.error.title"),
-                    message: Text(errorMessage ?? "Ocurrió un error desconocido"),
+                    message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error")),
                     dismissButton: .default(Text("login.ok"))
                 )
             }
@@ -122,21 +122,21 @@ struct LoginView: View {
         
         switch errorCode {
         case 17011: // FIRAuthErrorCodeUserNotFound
-            return "User not found"
+            return NSLocalizedString("login.error.reason.userNotFound", comment: "User not found")
         case 17009: // FIRAuthErrorCodeWrongPassword
-            return "Wrong password"
+            return NSLocalizedString("login.error.reason.wrongPassword", comment: "Wrong password")
         case 17010: // FIRAuthErrorCodeUserDisabled
-            return "User disabled"
+            return NSLocalizedString("login.error.reason.userDisabled", comment: "User disabled")
         case 17007: // FIRAuthErrorCodeInvalidEmail
-            return "Invalid email"
+            return NSLocalizedString("login.error.reason.invalidEmail", comment: "Invalid email")
         case 17020: // FIRAuthErrorCodeNetworkError
-            return "Network error"
+            return NSLocalizedString("login.error.reason.network", comment: "Network error")
         case 17026: // FIRAuthErrorCodeWeakPassword
-            return "Weak password"
+            return NSLocalizedString("login.error.reason.weakPassword", comment: "Weak password")
         case 17012: // FIRAuthErrorCodeEmailAlreadyInUse
-            return "Email already in use"
+            return NSLocalizedString("login.error.reason.emailInUse", comment: "Email already in use")
         default:
-            return "Other"
+            return NSLocalizedString("login.error.reason.other", comment: "Other reason")
         }
     }
 }
@@ -217,19 +217,19 @@ struct EnhancedFormView: View {
                         case .success(let authorization):
                             if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
                                 guard let nonce = authService.currentNonce else {
-                                    errorMessage = "Error de seguridad (nonce)"
+                                    errorMessage = NSLocalizedString("login.apple.error.nonce", comment: "Apple sign in nonce error")
                                     showAlert = true
                                     return
                                 }
 
                                 guard let appleIDToken = appleIDCredential.identityToken else {
-                                    errorMessage = "No se pudo obtener el token de Apple"
+                                    errorMessage = NSLocalizedString("login.apple.error.noToken", comment: "Apple sign in token missing")
                                     showAlert = true
                                     return
                                 }
 
                                 guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
-                                    errorMessage = "Token de Apple inválido"
+                                    errorMessage = NSLocalizedString("login.apple.error.invalidToken", comment: "Apple sign in invalid token")
                                     showAlert = true
                                     return
                                 }
@@ -623,6 +623,7 @@ struct EnhancedResetPasswordView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isVisible = false
+    @State private var dismissAfterAlert = false
     
     var body: some View {
         NavigationView {
@@ -725,7 +726,7 @@ struct EnhancedResetPasswordView: View {
                 }
             }
             .navigationBarItems(
-                leading: Button("Cancelar") {
+                leading: Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
                     isPresented = false
                 }
                 .foregroundColor(.white)
@@ -741,8 +742,8 @@ struct EnhancedResetPasswordView: View {
             Alert(
                 title: Text("login.info.title"),
                 message: Text(alertMessage),
-                dismissButton: .default(Text("OK")) {
-                    if alertMessage.contains("enviado") {
+                dismissButton: .default(Text("login.ok")) {
+                    if dismissAfterAlert {
                         isPresented = false
                     }
                 }
@@ -756,9 +757,11 @@ struct EnhancedResetPasswordView: View {
             isLoading = false
             switch result {
             case .success:
-                alertMessage = "Se ha enviado un enlace de recuperación a tu correo."
+                alertMessage = NSLocalizedString("login.resetPassword.success", comment: "Reset password success message")
+                dismissAfterAlert = true
             case .failure(let error):
                 alertMessage = error.localizedDescription
+                dismissAfterAlert = false
             }
             showAlert = true
         }

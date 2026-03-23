@@ -200,6 +200,14 @@
 "creator.uploading.success_fly" = "Moment compartit";
 "creator.advancedSettings" = "Configuració avançada";
 "creator.album.select" = "Seleccionar àlbum";
+"creator.album.recents" = "Recents";
+"creator.album.untitled" = "Àlbum sense títol";
+"creator.album.smart.favorites" = "Favorits";
+"creator.album.smart.screenshots" = "Captures de pantalla";
+"creator.album.smart.selfies" = "Selfies";
+"creator.album.smart.videos" = "Vídeos";
+"creator.album.smart.recentlyAdded" = "Afegits recentment";
+"creator.album.default" = "Àlbum";
 "creator.camera" = "Càmera";
 "creator.loadingGallery" = "Carregant galeria...";
 "creator.multiple" = "Múltiple";
@@ -606,6 +614,18 @@
 /* Login */
 "login.error.title" = "Error";
 "login.ok" = "D'acord";
+"login.error.unknown" = "S'ha produït un error desconegut";
+"login.error.reason.userNotFound" = "Usuari no trobat";
+"login.error.reason.wrongPassword" = "Contrasenya incorrecta";
+"login.error.reason.userDisabled" = "Usuari deshabilitat";
+"login.error.reason.invalidEmail" = "Correu no vàlid";
+"login.error.reason.network" = "Error de xarxa";
+"login.error.reason.weakPassword" = "Contrasenya feble";
+"login.error.reason.emailInUse" = "El correu ja està en ús";
+"login.error.reason.other" = "Un altre error";
+"login.apple.error.nonce" = "Error de seguretat (nonce)";
+"login.apple.error.noToken" = "No s'ha pogut obtenir el token d'Apple";
+"login.apple.error.invalidToken" = "Token d'Apple no vàlid";
 "login.forgotPassword" = "Has oblidat la teva contrasenya?";
 "login.noAccount" = "No tens compte?";
 "login.register" = "Registra't";
@@ -622,6 +642,7 @@
 "login.resetPassword.title" = "Recuperar contrasenya";
 "login.resetPassword.description" = "T'enviarem un enllaç al teu correu";
 "login.resetPassword.sendLink" = "Enviar enllaç";
+"login.resetPassword.success" = "S'ha enviat un enllaç de recuperació al teu correu.";
 "login.info.title" = "Informació";
 
 "conversationSettings.title" = "Ajustos de conversa";
@@ -648,10 +669,23 @@
 "register.email.placeholder" = "el@teu.correu";
 "register.password" = "Contrasenya";
 "register.password.requirement" = "Mínim 8 caràcters";
+"register.error.usernameFormat" = "3-20 caràcters, només lletres, números, _ o .";
 "register.profilePhoto.optional" = "Opcional: Afegeix una foto de perfil";
 "register.profilePhoto.add" = "Afegir foto";
 "register.interests.title" = "Tria els teus interessos";
 "register.interests.count" = "%d/5";
+"register.interest.photography" = "Fotografia";
+"register.interest.travel" = "Viatges";
+"register.interest.music" = "Música";
+"register.interest.cinema" = "Cinema";
+"register.interest.art" = "Art";
+"register.interest.sports" = "Esports";
+"register.interest.books" = "Llibres";
+"register.interest.cooking" = "Cuina";
+"register.interest.technology" = "Tecnologia";
+"register.interest.fashion" = "Moda";
+"register.interest.gaming" = "Gaming";
+"register.interest.fitness" = "Fitness";
 "register.summary.title" = "Resum del teu compte";
 "register.summary.interests" = "Interessos:";
 "register.terms.accept" = "Accepto les ";
