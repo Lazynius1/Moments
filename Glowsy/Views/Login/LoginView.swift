@@ -35,32 +35,33 @@ struct LoginView: View {
                 } else {
                     // Formulario de login normal
                     VStack(spacing: 0) {
-                        Spacer()
-                            .frame(height: 40)
-                        
-                        EnhancedHeaderView()
-                            .scaleEffect(isVisible ? 1.0 : 0.8)
+                        Spacer(minLength: 44)
+
+                        VStack(spacing: 0) {
+                            EnhancedHeaderView()
+                                .scaleEffect(isVisible ? 1.0 : 0.8)
+                                .opacity(isVisible ? 1.0 : 0.0)
+                                .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                            
+                            Spacer()
+                                .frame(height: 24)
+                            
+                            EnhancedFormView(
+                                identifier: $identifier,
+                                password: $password,
+                                showPassword: $showPassword,
+                                isLoading: $isLoading,
+                                showResetPassword: $showResetPassword,
+                                errorMessage: $errorMessage,
+                                showAlert: $showAlert,
+                                loginAction: login
+                            )
+                            .offset(y: isVisible ? 0 : 30)
                             .opacity(isVisible ? 1.0 : 0.0)
-                            .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
-                        
-                        Spacer()
-                            .frame(height: 60) // Extra space between logo and inputs
-                        
-                        EnhancedFormView(
-                            identifier: $identifier,
-                            password: $password,
-                            showPassword: $showPassword,
-                            isLoading: $isLoading,
-                            showResetPassword: $showResetPassword,
-                            errorMessage: $errorMessage,
-                            showAlert: $showAlert,
-                            loginAction: login
-                        )
-                        .offset(y: isVisible ? 0 : 30)
-                        .opacity(isVisible ? 1.0 : 0.0)
-                        .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
-                        
-                        Spacer()
+                            .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                        }
+
+                        Spacer(minLength: 28)
                     }
                 }
             }
@@ -145,24 +146,20 @@ struct LoginView: View {
 // MARK: - Enhanced Header View
 struct EnhancedHeaderView: View {
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 16) {
             Image("LoginLogo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 100, height: 100)
-                .shadow(color: .white.opacity(0.2), radius: 10, x: 0, y: 0)
+                .frame(width: 84, height: 84)
+                .shadow(color: .white.opacity(0.12), radius: 8, x: 0, y: 0)
                 .overlay(
-                    // Glass highlight
                     Ellipse()
-                        .fill(.white.opacity(0.1))
-                        .frame(width: 60, height: 30)
-                        .blur(radius: 10)
-                        .offset(y: -20)
+                        .fill(.white.opacity(0.07))
+                        .frame(width: 48, height: 22)
+                        .blur(radius: 8)
+                        .offset(y: -16)
                 )
-            
-            // Title removed to match minimalistic Instagram/X style
         }
-        .padding(.top, 40)
     }
 }
 // MARK: - Enhanced Form View
@@ -179,9 +176,7 @@ struct EnhancedFormView: View {
     @EnvironmentObject var authService: AuthService
     
     var body: some View {
-        VStack(spacing: 20) {
-            // 1. Standalone Input Rows (Social Media Style)
-            // 1. Standalone Input Rows (Social Media Style)
+        VStack(spacing: 18) {
             LiquidGlassTextField(
                 icon: "person.fill",
                 placeholder: NSLocalizedString("login.usernameOrEmail", comment: ""),
@@ -194,55 +189,22 @@ struct EnhancedFormView: View {
                 text: $password,
                 isVisible: $showPassword
             )
-            
-            // Primary Action Section
-            
-            // 2. Primary Action Block
-            VStack(spacing: 16) {
-                EnhancedLoginButton(isLoading: $isLoading, action: loginAction)
-                
+
+            HStack {
+                Spacer()
+
                 Button(action: {
                     showResetPassword = true
                 }) {
                     Text("login.forgotPassword")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white.opacity(0.58))
                 }
             }
-            
-            Spacer()
-                .frame(height: 10)
-            
-            // 3. Subtle Footer Block
-            VStack(spacing: 20) {
-                HStack {
-                    Rectangle()
-                        .fill(LinearGradient(colors: [.clear, .white.opacity(0.1)], startPoint: .leading, endPoint: .trailing))
-                        .frame(height: 0.5)
-                    
-                    Text("O")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white.opacity(0.3))
-                        .padding(.horizontal, 10)
-                    
-                    Rectangle()
-                        .fill(LinearGradient(colors: [.white.opacity(0.1), .clear], startPoint: .leading, endPoint: .trailing))
-                        .frame(height: 0.5)
-                }
-                
-                NavigationLink(destination: RegisterView()) {
-                    HStack {
-                        Text("login.noAccount")
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundColor(.white.opacity(0.6))
-                        
-                        Text("login.register")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                }
-                
-                // Sign in with Apple Button
+
+            VStack(spacing: 12) {
+                EnhancedLoginButton(isLoading: $isLoading, action: loginAction)
+
                 SignInWithAppleButton(
                     .signIn,
                     onRequest: { request in
@@ -259,19 +221,19 @@ struct EnhancedFormView: View {
                                     showAlert = true
                                     return
                                 }
-                                
+
                                 guard let appleIDToken = appleIDCredential.identityToken else {
                                     errorMessage = "No se pudo obtener el token de Apple"
                                     showAlert = true
                                     return
                                 }
-                                
+
                                 guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
                                     errorMessage = "Token de Apple inválido"
                                     showAlert = true
                                     return
                                 }
-                                
+
                                 isLoading = true
                                 authService.signInWithApple(
                                     idToken: idTokenString,
@@ -283,8 +245,6 @@ struct EnhancedFormView: View {
                                     switch result {
                                     case .success(let isComplete):
                                         if !isComplete {
-                                            // El usuario necesita completar su perfil.
-                                            // El AuthService ya habrá activado isRegistering = true
                                         } else {
                                             if let userId = Auth.auth().currentUser?.uid {
                                                 RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "apple")
@@ -297,18 +257,36 @@ struct EnhancedFormView: View {
                                 }
                             }
                         case .failure(let error):
-                            if (error as NSError).code != 1001 { // 1001 is user cancelled
+                            if (error as NSError).code != 1001 {
                                 errorMessage = error.localizedDescription
                                 showAlert = true
                             }
                         }
                     }
                 )
-                .signInWithAppleButtonStyle(.white) // O .black dependiendo del tema, pero Moments es oscuro
+                .signInWithAppleButtonStyle(.white)
                 .frame(height: 50)
                 .cornerRadius(25)
-                .padding(.top, 10)
+                .padding(.top, 2)
             }
+
+            VStack(spacing: 10) {
+                NavigationLink(destination: RegisterView()) {
+                    HStack {
+                        Text("login.noAccount")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(.white.opacity(0.54))
+                        
+                        Text("login.register")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+            .padding(.top, 6)
+
+            LoginDisclaimerView()
+                .padding(.top, 14)
         }
             // ✅ CHANGE: Use NavigationLink instead of fullScreenCover to avoid sheet dismissal issues
             // This pushes the view onto the navigation stack, which feels more integrated and
@@ -322,6 +300,37 @@ struct EnhancedFormView: View {
             )
 
         .padding(.horizontal, 24)
+        .padding(.bottom, 18)
+    }
+}
+
+struct LoginDisclaimerView: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("login.disclaimer.line1")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.white.opacity(0.42))
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
+
+            (
+                Text(NSLocalizedString("login.disclaimer.line2.prefix", comment: "Login disclaimer prefix"))
+                    .foregroundColor(.white.opacity(0.42))
+                + Text("lazynius")
+                    .foregroundColor(.white.opacity(0.78))
+                + Text(NSLocalizedString("login.disclaimer.line2.middle", comment: "Login disclaimer middle"))
+                    .foregroundColor(.white.opacity(0.42))
+                + Text("Moments")
+                    .foregroundColor(.white.opacity(0.78))
+                + Text(NSLocalizedString("login.disclaimer.line2.suffix", comment: "Login disclaimer suffix"))
+                    .foregroundColor(.white.opacity(0.42))
+            )
+            .font(.system(size: 12, weight: .medium))
+            .multilineTextAlignment(.center)
+            .lineSpacing(2)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
     }
 }
 

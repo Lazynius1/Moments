@@ -199,15 +199,13 @@ class PrivacyService {
                         return
                     }
                     
-                    // ✅ CORRECCIÓN CLAVE: Interpretar los toggles correctamente
-                    // Si showMutualConnections = true, significa "permitir ver"
-                    // Si showMutualConnections = false, significa "ocultar"
-                    // Lo mismo para showFollowing
+                    // Las mutuas solo son visibles si también se pueden ver las dos listas base.
+                    let canViewMutuals = settings.showMutualConnections && settings.showFollowing && settings.showAdmirers
                     
                     // Si el perfil es público
                     if !settings.isPrivate {
                         completion(.success((
-                            canViewMutualConnections: settings.showMutualConnections,
+                            canViewMutualConnections: canViewMutuals,
                             canViewFollowing: settings.showFollowing,
                             canViewAdmirers: settings.showAdmirers
                         )))
@@ -218,7 +216,7 @@ class PrivacyService {
                     self?.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: targetUserId) { isFollowing in
                         if isFollowing {
                             completion(.success((
-                                canViewMutualConnections: settings.showMutualConnections,
+                                canViewMutualConnections: canViewMutuals,
                                 canViewFollowing: settings.showFollowing,
                                 canViewAdmirers: settings.showAdmirers
                             )))
@@ -239,14 +237,11 @@ class PrivacyService {
         canViewUserConnections(viewerId: viewerId, targetUserId: targetUserId) { result in
             switch result {
             case .success(let permissions):
-                // ✅ CORRECCIÓN: Mapear correctamente las configuraciones
                 let visibleTypes = VisibleConnectionTypes(
-                    canViewAdmirers: permissions.canViewAdmirers,  // Admirers = seguidores del target
-                    canViewConnections: permissions.canViewFollowing, // Connections = a quién sigue el target
+                    canViewAdmirers: permissions.canViewAdmirers,
+                    canViewConnections: permissions.canViewFollowing,
                     canViewMutualConnections: permissions.canViewMutualConnections
                 )
-                
-                
                 completion(visibleTypes)
             case .failure:
                 // En caso de error, denegar todo acceso

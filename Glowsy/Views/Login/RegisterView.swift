@@ -26,6 +26,15 @@ struct RegisterView: View {
     @State private var currentStep: Int = 1
     @State private var isVisible = false
     @Environment(\.dismiss) var dismiss
+
+    private let registerAccent = LinearGradient(
+        gradient: Gradient(colors: [
+            Color(red: 0.25, green: 0.35, blue: 0.82),
+            Color(red: 0.78, green: 0.31, blue: 0.75)
+        ]),
+        startPoint: .leading,
+        endPoint: .trailing
+    )
     
     var body: some View {
         ZStack {
@@ -38,9 +47,9 @@ struct RegisterView: View {
                     Button(action: { dismiss() }) {
                         ZStack {
                             Circle()
-                                .fill(Color.black.opacity(0.3))
+                                .fill(Color.black.opacity(0.18))
                                 .frame(width: 36, height: 36)
-                                .blur(radius: 10)
+                                .blur(radius: 8)
                             
                             Circle()
                                 .fill(.ultraThinMaterial)
@@ -55,30 +64,25 @@ struct RegisterView: View {
                     Spacer()
                     
                     // Enhanced progress indicator
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         ForEach(1...3, id: \.self) { step in
                             Capsule()
                                 .fill(
                                     currentStep >= step ?
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ) :
+                                    registerAccent :
                                         LinearGradient(
-                                            colors: [.white.opacity(0.3), .white.opacity(0.2)],
+                                            colors: [.white.opacity(0.24), .white.opacity(0.16)],
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         )
                                 )
-                                .frame(width: 32, height: 4)
+                                .frame(width: currentStep == step ? 26 : 22, height: 4)
                                 .shadow(
-                                    color: currentStep >= step ? .blue.opacity(0.5) : .clear,
-                                    radius: 4,
+                                    color: currentStep >= step ? .blue.opacity(0.2) : .clear,
+                                    radius: 3,
                                     x: 0,
                                     y: 0
                                 )
-                                .scaleEffect(currentStep == step ? 1.1 : 1.0)
                                 .animation(.spring(response: 0.5, dampingFraction: 0.7), value: currentStep)
                         }
                     }
@@ -96,31 +100,30 @@ struct RegisterView: View {
                 .animation(.easeInOut(duration: 0.8), value: isVisible)
                 
                 ScrollView {
-                    VStack(spacing: 25) {
+                    VStack(spacing: 20) {
                         // Enhanced logo and title
-                        VStack(spacing: 15) {
+                        VStack(spacing: 12) {
                             Image("RegisterLogo2")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(height: 200)
-                                .shadow(color: .white.opacity(0.8), radius: 15, x: 0, y: 0)
-                                .shadow(color: .blue.opacity(0.5), radius: 25, x: 0, y: 0)
+                                .frame(height: 146)
+                                .shadow(color: .white.opacity(0.22), radius: 8, x: 0, y: 0)
+                                .shadow(color: .blue.opacity(0.16), radius: 16, x: 0, y: 0)
                                 .padding(.horizontal, 20)
                             
                             Text(getStepDescription())
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
-                                .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white.opacity(0.84))
                                 .multilineTextAlignment(.center)
                                 .animation(.easeInOut, value: currentStep)
                         }
-                        .padding(.top, 20)
+                        .padding(.top, 12)
                         .scaleEffect(isVisible ? 1.0 : 0.8)
                         .opacity(isVisible ? 1.0 : 0.0)
                         .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
                         
                         // Contenido del paso actual
-                        VStack(spacing: 20) {
+                        VStack(spacing: 18) {
                             if currentStep == 1 {
                                 EnhancedStep1View(
                                     username: $username,
@@ -162,21 +165,12 @@ struct RegisterView: View {
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 56)
+                                .frame(height: 52)
                             }
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [
-                                                Color(red: 0.25, green: 0.35, blue: 0.82),
-                                                Color(red: 0.78, green: 0.31, blue: 0.75)
-                                            ]),
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .shadow(color: .blue.opacity(0.3), radius: 15, x: 0, y: 8)
+                                    .fill(registerAccent)
+                                    .shadow(color: .blue.opacity(0.18), radius: 12, x: 0, y: 6)
                             )
                             .disabled(isLoading || !canProceed())
                             .opacity(canProceed() ? 1 : 0.6)
@@ -187,34 +181,33 @@ struct RegisterView: View {
                                 Button(action: { currentStep -= 1 }) {
                                     Text("register.back")
                                         .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.8))
-                                        .padding(.vertical, 12)
-                                        .padding(.horizontal, 24)
+                                        .foregroundColor(.white.opacity(0.72))
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 20)
                                         .background(
                                             Capsule()
-                                                .fill(Color.white.opacity(0.1))
+                                                .fill(Color.white.opacity(0.07))
                                                 .overlay(
                                                     Capsule()
-                                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
                                                 )
                                         )
                                 }
                             }
                         }
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 40)
+                        .padding(.horizontal, 26)
+                        .padding(.vertical, 30)
                         .background(
                             ZStack {
-                                // Enhanced glass morphism effect
-                                RoundedRectangle(cornerRadius: 32)
+                                RoundedRectangle(cornerRadius: 28)
                                     .fill(.ultraThinMaterial)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 32)
+                                        RoundedRectangle(cornerRadius: 28)
                                             .fill(
                                                 LinearGradient(
                                                     colors: [
-                                                        .white.opacity(0.1),
-                                                        .white.opacity(0.05)
+                                                        .white.opacity(0.08),
+                                                        .white.opacity(0.03)
                                                     ],
                                                     startPoint: .topLeading,
                                                     endPoint: .bottomTrailing
@@ -222,13 +215,12 @@ struct RegisterView: View {
                                             )
                                     )
                                 
-                                // Enhanced border gradient
-                                RoundedRectangle(cornerRadius: 32)
+                                RoundedRectangle(cornerRadius: 28)
                                     .stroke(
                                         LinearGradient(
                                             colors: [
-                                                .white.opacity(0.3),
-                                                .white.opacity(0.1),
+                                                .white.opacity(0.18),
+                                                .white.opacity(0.06),
                                                 .clear
                                             ],
                                             startPoint: .topLeading,
@@ -238,8 +230,8 @@ struct RegisterView: View {
                                     )
                             }
                         )
-                        .shadow(color: .black.opacity(0.2), radius: 30, x: 0, y: 15)
-                        .shadow(color: .blue.opacity(0.1), radius: 50, x: 0, y: 25)
+                        .shadow(color: .black.opacity(0.16), radius: 22, x: 0, y: 12)
+                        .shadow(color: .blue.opacity(0.06), radius: 34, x: 0, y: 18)
                         .padding(.horizontal, 20)
                         .offset(y: isVisible ? 0 : 50)
                         .opacity(isVisible ? 1.0 : 0.0)

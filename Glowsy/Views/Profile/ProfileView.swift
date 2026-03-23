@@ -476,7 +476,7 @@ struct ModernProfileContentView: View {
     @Binding var showingQRCode: Bool // ✅ NUEVO: Binding para QR
     @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
     @StateObject private var savedMomentsViewModel = SavedMomentsViewModel()  // ✅ NUEVO: Guardados
-    @State private var showingFullInfo = false // ✅ NUEVO: Para colapsar Stats/Interests
+    @State private var showingFullInfo = false // ✅ NUEVO: Para expandir intereses dentro del bloque social
 
     var body: some View {
         if viewModel.isLoading {
@@ -505,69 +505,28 @@ struct ModernProfileContentView: View {
 
                         )
                         .padding(.top, safeAreaTop + 10)
-                        .padding(.bottom, 16)
+                        .padding(.bottom, 12)
                         
-                        // ✅ NUEVO: Destacadas Compactas (Justo después del header/bio)
+                        ProfileOverviewCard(
+                            viewModel: viewModel,
+                            showingUserList: $showingUserList,
+                            showingInterests: $showingFullInfo,
+                            interests: viewModel.userProfile?.interests ?? []
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 14)
+
+                        // ✅ NUEVO: Destacadas Compactas (Después del bloque social)
                         ProfileHighlightsView(
                             userId: viewModel.userProfile?.id ?? "",
                             isOwnProfile: viewModel.userProfile?.id == Auth.auth().currentUser?.uid,
                             isCompact: true
                         )
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 14)
                         
                         if viewModel.isRefreshing {
                             ModernRefreshIndicator()
-                                .padding(.bottom, 16)
-                        }
-                        
-                        // ✅ SECCIÓN DE INFO COLAPSABLE
-                        VStack(spacing: 0) {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    showingFullInfo.toggle()
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "info.circle.fill")
-                                        .font(.system(size: 14))
-                                    Text(NSLocalizedString("profile.moreInfo", comment: "More info"))
-                                        .font(.custom("Poppins-Medium", size: 13))
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.down")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .rotationEffect(.degrees(showingFullInfo ? 180 : 0))
-                                }
-                                .foregroundColor(ProfileColors.textSecondary)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 12)
-                                .background(ProfileColors.cardBackground.opacity(0.5))
-                                .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, showingFullInfo ? 20 : 25)
-                            
-                            if showingFullInfo {
-                                ModernStatsSection(
-                                    viewModel: viewModel,
-                                    showingUserList: $showingUserList
-                                )
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 25)
-                                .transition(.asymmetric(
-                                    insertion: .opacity.combined(with: .move(edge: .top)),
-                                    removal: .opacity.combined(with: .move(edge: .top))
-                                ))
-                                
-                                if let interests = viewModel.userProfile?.interests, !interests.isEmpty {
-                                    ModernInterestsView(interests: interests)
-                                        .padding(.horizontal, 20)
-                                        .padding(.bottom, 25)
-                                        .frame(maxWidth: UIScreen.main.bounds.width)
-                                        .transition(.opacity)
-                                }
-                            }
+                                .padding(.bottom, 12)
                         }
 
                         
@@ -588,7 +547,7 @@ struct ModernProfileContentView: View {
                                     .clipShape(Capsule())
                             }
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 16)
+                            .padding(.bottom, 12)
                             .frame(maxWidth: UIScreen.main.bounds.width)
                             
                             // ✅ NUEVO: Contenido basado en el tab seleccionado
@@ -1198,10 +1157,78 @@ struct SupportBadgeInline: View {
 }
 
 
+struct ProfileOverviewCard: View {
+    @ObservedObject var viewModel: ProfileViewModel
+    @Binding var showingUserList: ProfileView.UserListType?
+    @Binding var showingInterests: Bool
+    let interests: [String]
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ModernStatsSection(
+                viewModel: viewModel,
+                showingUserList: $showingUserList,
+                embeddedStyle: true
+            )
+
+            if !interests.isEmpty {
+                Divider()
+                    .overlay(ProfileColors.borderColor.opacity(colorScheme == .dark ? 0.22 : 0.4))
+                    .padding(.top, 14)
+                    .padding(.bottom, 10)
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                        showingInterests.toggle()
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Text("profile.interests.title")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(ProfileColors.textPrimary)
+
+                        Text("\(interests.count)")
+                            .font(.custom("Poppins-Medium", size: 11))
+                            .foregroundColor(ProfileColors.textSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(ProfileColors.materialBackground.opacity(0.7))
+                            .clipShape(Capsule())
+
+                        Spacer()
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(ProfileColors.textSecondary)
+                            .rotationEffect(.degrees(showingInterests ? 180 : 0))
+                    }
+                    .contentShape(Rectangle())
+                }
+
+                if showingInterests {
+                    ModernInterestsView(
+                        interests: interests,
+                        showsTitle: false,
+                        embeddedStyle: true
+                    )
+                    .padding(.top, 12)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .top)),
+                        removal: .opacity.combined(with: .move(edge: .top))
+                    ))
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
 // MARK: - Sección de estadísticas moderna (ARREGLADA)
 struct ModernStatsSection: View {
     @ObservedObject var viewModel: ProfileViewModel
     @Binding var showingUserList: ProfileView.UserListType?
+    var embeddedStyle: Bool = false
     @Environment(\.colorScheme) var colorScheme
     
     private var computedStats: [(String, Int, ProfileView.UserListType)] {
@@ -1214,14 +1241,13 @@ struct ModernStatsSection: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: embeddedStyle ? 0 : 6) {
             ForEach(Array(computedStats.enumerated()), id: \.offset) { index, stat in
                 Button(action: {
                     showingUserList = stat.2
                 }) {
                     VStack(spacing: 6) {
-                        // ✅ NUEVO: Contador animado
-                        AnimatedCounterView(value: stat.1)
+                        Text("\(stat.1)")
                             .font(.custom("Poppins-Bold", size: 18))
                             .foregroundColor(ProfileColors.textPrimary)
                         
@@ -1230,84 +1256,37 @@ struct ModernStatsSection: View {
                             .foregroundColor(ProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(ProfileColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                    .padding(.vertical, embeddedStyle ? 10 : 14)
+                    .contentShape(Rectangle())
                 }
-                .scaleEffect(1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showingUserList)
-            }
-        }
-    }
-}
+                .buttonStyle(.plain)
 
-// MARK: - ✅ NUEVO: Contador animado con efecto count-up
-struct AnimatedCounterView: View {
-    let value: Int
-    @State private var displayedValue: Int = 0
-    @State private var hasAnimated = false
-    @State private var animationRunId: Int = 0
-    
-    var body: some View {
-        Text("\(displayedValue)")
-            .onAppear {
-                guard !hasAnimated else { return }
-                hasAnimated = true
-                animateCounter()
-            }
-            .onChange(of: value) { newValue in
-                // Re-animar cuando el valor cambia
-                animateCounter()
-            }
-    }
-    
-    private func animateCounter() {
-        let target = max(0, value)
-        let start = displayedValue
-        let delta = target - start
-
-        guard delta != 0 else { return }
-
-        animationRunId += 1
-        let runId = animationRunId
-
-        // Si el salto es pequeño, actualizar directo con animación estándar.
-        if abs(delta) <= 1 {
-            withAnimation(.easeOut(duration: 0.15)) {
-                displayedValue = target
-            }
-            return
-        }
-
-        let duration: Double = 0.8
-        let steps = min(abs(delta), 20)
-        let stepDuration = duration / Double(steps)
-
-        for step in 0...steps {
-            DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(step)) {
-                guard runId == animationRunId else { return }
-                withAnimation(.easeOut(duration: 0.1)) {
-                    let progress = Double(step) / Double(steps)
-                    let easedProgress = 1 - pow(1 - progress, 3)
-                    let interpolated = Double(start) + Double(delta) * easedProgress
-                    displayedValue = Int(interpolated.rounded())
+                if embeddedStyle && index < computedStats.count - 1 {
+                    Rectangle()
+                        .fill(ProfileColors.borderColor.opacity(colorScheme == .dark ? 0.24 : 0.4))
+                        .frame(width: 1, height: 30)
                 }
             }
         }
+        .padding(.horizontal, embeddedStyle ? 2 : 0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showingUserList)
     }
 }
 
 // MARK: - Vista de intereses
 struct ModernInterestsView: View {
     let interests: [String]
+    var showsTitle: Bool = true
+    var embeddedStyle: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-                            Text("profile.interests.title")
-                .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(ProfileColors.textPrimary)
+            if showsTitle {
+                Text("profile.interests.title")
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(ProfileColors.textPrimary)
+            }
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -1321,11 +1300,15 @@ struct ModernInterestsView: View {
                                 .font(.custom("Poppins-Medium", size: 14))
                                 .foregroundColor(ProfileColors.textPrimary)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(ProfileColors.cardBackground)
+                        .padding(.horizontal, embeddedStyle ? 14 : 16)
+                        .padding(.vertical, embeddedStyle ? 9 : 10)
+                        .background(embeddedStyle ? ProfileColors.materialBackground.opacity(0.62) : ProfileColors.cardBackground)
                         .clipShape(Capsule())
-                        .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
+                        .overlay(
+                            Capsule()
+                                .stroke(ProfileColors.borderColor.opacity(embeddedStyle ? 0.18 : 0), lineWidth: embeddedStyle ? 1 : 0)
+                        )
+                        .shadow(color: ProfileColors.shadowColor, radius: embeddedStyle ? 0 : 4, x: 0, y: embeddedStyle ? 0 : 2)
                     }
                 }
             }
