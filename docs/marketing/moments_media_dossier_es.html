@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moments · Presentación</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    :root {
+      --paper: #f4eee4;
+      --paper-strong: #efe5d5;
+      --ink: #0d1216;
+      --muted: #5d625f;
+      --line: rgba(13, 18, 22, 0.12);
+      --blue: #1e3a5f;
+      --coral: #e36a5c;
+      --sand: #c8a96b;
+      --night: #081119;
+      --night-soft: #13273a;
+      --white: #fefcf8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--paper);
+      color: var(--ink);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    body {
+      font-family: "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .deck {
+      display: grid;
+      gap: 28px;
+      padding: 28px;
+    }
+
+    .page {
+      position: relative;
+      overflow: hidden;
+      min-height: 1040px;
+      background: var(--paper);
+      border: 1px solid rgba(13, 18, 22, 0.08);
+      border-radius: 34px;
+      box-shadow: 0 28px 80px rgba(13, 18, 22, 0.08);
+      page-break-after: always;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    .page-inner {
+      position: relative;
+      height: 100%;
+      padding: 42px;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .brand-logo {
+      display: block;
+      width: 100%;
+      max-width: 470px;
+      height: auto;
+    }
+
+    .headline {
+      margin: 0;
+      font-family: "Iowan Old Style", "Georgia", serif;
+      font-size: 54px;
+      line-height: 0.94;
+      letter-spacing: -0.045em;
+      font-weight: 700;
+    }
+
+    .subhead {
+      margin: 20px 0 0;
+      max-width: 520px;
+      font-size: 21px;
+      line-height: 1.4;
+      color: #20262a;
+    }
+
+    .body {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #22292d;
+    }
+
+    .small {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .hero-orb {
+      position: absolute;
+      inset: -10% -5% auto auto;
+      width: 520px;
+      height: 520px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 35%, rgba(227, 106, 92, 0.52), transparent 30%),
+        radial-gradient(circle at 65% 40%, rgba(30, 58, 95, 0.62), transparent 34%),
+        radial-gradient(circle at 50% 70%, rgba(200, 169, 107, 0.48), transparent 30%);
+      filter: blur(22px);
+      opacity: 0.95;
+      pointer-events: none;
+    }
+
+    .cover-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: 0.92fr 0.78fr;
+      gap: 28px;
+      min-height: 930px;
+      align-items: end;
+    }
+
+    .cover-copy {
+      position: relative;
+      z-index: 2;
+      padding-top: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 100%;
+    }
+
+    .poster-words {
+      margin-top: 42px;
+      display: grid;
+      gap: 6px;
+      font-family: "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+      font-size: 46px;
+      line-height: 0.98;
+      letter-spacing: -0.05em;
+      font-weight: 700;
+    }
+
+    .poster-words span:nth-child(2) {
+      color: var(--blue);
+    }
+
+    .poster-words span:nth-child(3) {
+      color: var(--coral);
+    }
+
+    .poster-note {
+      max-width: 430px;
+      padding-top: 28px;
+      border-top: 1px solid var(--line);
+    }
+
+    .phone-stage {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 930px;
+    }
+
+    .device {
+      position: relative;
+      width: 92%;
+      max-width: 400px;
+      padding: 14px;
+      border-radius: 40px;
+      background: linear-gradient(180deg, #1a2128 0%, #0b1218 100%);
+      box-shadow: 0 35px 60px rgba(8, 17, 25, 0.22);
+      transform: rotate(-4deg);
+    }
+
+    .device img,
+    .phone-tall img,
+    .phone-short img,
+    .visual-tall img,
+    .visual-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 28px;
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: 0.82fr 1.18fr;
+      gap: 34px;
+      align-items: start;
+    }
+
+    .copy-column {
+      display: grid;
+      gap: 26px;
+      align-content: start;
+    }
+
+    .bullet-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 12px;
+    }
+
+    .bullet-list li {
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .dual-phones {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .phone-tall,
+    .phone-short {
+      width: 100%;
+      max-width: 260px;
+      padding: 12px;
+      border-radius: 34px;
+      background: linear-gradient(180deg, #1a2128 0%, #0b1218 100%);
+      box-shadow: 0 26px 50px rgba(8, 17, 25, 0.18);
+    }
+
+    .phone-short {
+      transform: translateY(24px);
+    }
+
+    .caption {
+      margin-top: 12px;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(254, 252, 248, 0.72);
+    }
+
+    .archive-grid {
+      display: grid;
+      grid-template-columns: 1.12fr 0.88fr;
+      gap: 30px;
+      align-items: stretch;
+    }
+
+    .visual-card {
+      width: 100%;
+      max-width: 250px;
+      padding: 12px;
+      border-radius: 34px;
+      background: linear-gradient(180deg, #1a2128 0%, #0b1218 100%);
+      box-shadow: 0 26px 50px rgba(8, 17, 25, 0.18);
+    }
+
+    .visual-card .caption {
+      color: rgba(254, 252, 248, 0.64);
+    }
+
+    .rail {
+      align-self: stretch;
+      display: grid;
+      gap: 0;
+      border-left: 1px solid var(--line);
+      padding-left: 24px;
+    }
+
+    .rail-item {
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .rail-item:last-child {
+      border-bottom: none;
+    }
+
+    .rail-item h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .echo-page {
+      background:
+        radial-gradient(circle at 18% 20%, rgba(227, 106, 92, 0.22), transparent 22%),
+        radial-gradient(circle at 78% 28%, rgba(36, 87, 141, 0.34), transparent 28%),
+        linear-gradient(160deg, #081119 0%, #0d1c2a 55%, #11263a 100%);
+      color: var(--white);
+    }
+
+    .echo-page .eyebrow,
+    .echo-page .small,
+    .echo-page .body {
+      color: rgba(254, 252, 248, 0.8);
+    }
+
+    .echo-page .headline {
+      color: var(--white);
+    }
+
+    .echo-layout {
+      display: grid;
+      grid-template-columns: 0.78fr 1.22fr;
+      gap: 32px;
+      align-items: start;
+      min-height: 620px;
+    }
+
+    .echo-visual {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 760px;
+      padding-top: 0;
+    }
+
+    .echo-halo {
+      position: absolute;
+      width: 520px;
+      height: 520px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(227, 106, 92, 0.46), transparent 26%),
+        radial-gradient(circle at 62% 42%, rgba(84, 158, 255, 0.38), transparent 30%),
+        radial-gradient(circle at 55% 68%, rgba(200, 169, 107, 0.26), transparent 28%);
+      filter: blur(18px);
+      opacity: 0.95;
+    }
+
+    .echo-frame {
+      position: relative;
+      z-index: 1;
+      width: 92%;
+      max-width: 400px;
+      padding: 14px;
+      border-radius: 40px;
+      background: linear-gradient(180deg, #1a2128 0%, #0b1218 100%);
+      box-shadow: 0 35px 60px rgba(8, 17, 25, 0.22);
+      transform: rotate(4deg);
+    }
+
+    .echo-frame img {
+      width: 100%;
+      height: auto;
+      max-height: none;
+      object-fit: initial;
+      object-position: initial;
+      border-radius: 28px;
+    }
+
+    .echo-copy {
+      display: grid;
+      gap: 22px;
+      align-content: center;
+    }
+
+    .echo-keyline {
+      font-size: 28px;
+      line-height: 1.08;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .echo-logic {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .echo-logic span {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(254, 252, 248, 0.16);
+      color: rgba(254, 252, 248, 0.84);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .closing-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    .compare-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .compare-row {
+      display: grid;
+      grid-template-columns: 132px 1fr;
+      gap: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .compare-row strong {
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .depth-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .detail-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      margin-top: 24px;
+    }
+
+    .detail-group {
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .detail-group h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .detail-group p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.58;
+    }
+
+    .visual-tall {
+      width: 100%;
+      max-width: 330px;
+      padding: 14px;
+      border-radius: 34px;
+      background: linear-gradient(180deg, #152230 0%, #0b1218 100%);
+      box-shadow: 0 28px 56px rgba(8, 17, 25, 0.18);
+    }
+
+    .note-box {
+      padding: 20px 0 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .footer {
+      position: absolute;
+      left: 42px;
+      right: 42px;
+      bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(13, 18, 22, 0.5);
+    }
+
+    .echo-page .footer {
+      color: rgba(254, 252, 248, 0.52);
+    }
+
+    @media screen and (max-width: 1100px) {
+      .deck {
+        padding: 16px;
+      }
+
+      .page {
+        min-height: auto;
+      }
+
+      .cover-grid,
+      .section-grid,
+      .archive-grid,
+      .echo-layout,
+      .depth-grid,
+      .closing-grid,
+      .dual-phones,
+      .detail-columns {
+        grid-template-columns: 1fr;
+      }
+
+      .device,
+      .echo-frame,
+      .visual-tall {
+        transform: none;
+      }
+
+      .phone-short {
+        transform: none;
+      }
+
+      .footer {
+        position: static;
+        margin-top: 24px;
+      }
+    }
+
+    @media print {
+      .deck {
+        display: block;
+        padding: 0;
+      }
+
+      .page {
+        min-height: 297mm;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        margin: 0;
+        break-after: page;
+      }
+
+      .page:last-child {
+        break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="page">
+      <div class="page-inner">
+        <div class="hero-orb"></div>
+        <div class="cover-grid">
+          <div class="cover-copy">
+            <div>
+              <img class="brand-logo" src="screenshots/logotipo%20blanco%20con%20degradado.png" alt="Moments">
+              <p class="subhead">La red social que adapta cada publicación a su contexto, su audiencia y su tiempo.</p>
+              <div class="poster-words">
+                <span>Privacidad</span>
+                <span>Archivo</span>
+                <span>Echo</span>
+              </div>
+            </div>
+
+            <div class="poster-note">
+              <p class="body">Moments reorganiza la experiencia social con audiencias configurables, archivo útil y una función colaborativa propia. No parte de la idea de publicar más, sino de compartir mejor: con más control, más contexto y más continuidad.</p>
+            </div>
+          </div>
+
+          <div class="phone-stage">
+            <div class="device">
+              <img src="screenshots/1%20feed.PNG" alt="Feed principal de Moments">
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span>Moments</span>
+          <span>Marzo 2026</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="page-inner">
+        <div class="section-grid">
+          <div class="copy-column">
+            <div>
+              <p class="eyebrow">01 · Privacidad y audiencias</p>
+              <h2 class="headline">La diferencia no es publicar. Es decidir para quién existe cada contenido.</h2>
+            </div>
+
+            <p class="body">La diferencia de Moments empieza en la audiencia. Cada publicación puede compartirse con <strong>Todos</strong>, <strong>Mutuos</strong>, <strong>Mejores amigos</strong>, <strong>listas personalizadas</strong>, <strong>personas específicas</strong> o <strong>Solo yo</strong>. Esa flexibilidad cambia la lógica de uso: el contenido ya no se fuerza a una sola exposición, sino que encuentra la audiencia que realmente le corresponde.</p>
+
+            <ul class="bullet-list">
+              <li><strong>Todos</strong> para alcance abierto cuando tiene sentido.</li>
+              <li><strong>Mutuos</strong> y <strong>Mejores amigos</strong> para relaciones más cerradas.</li>
+              <li><strong>Listas</strong> y <strong>personas específicas</strong> para compartir con precisión.</li>
+              <li><strong>Solo yo</strong> para guardar sin exponer.</li>
+              <li><strong>Blackout</strong> protege visualmente momentos, historias privadas y contenido efímero en mensajes.</li>
+              <li><strong>Mensajería protegida</strong> con cifrado para reforzar la privacidad de la conversación.</li>
+            </ul>
+
+            <p class="body">La privacidad en Moments no se queda en un ajuste general de cuenta. También afecta a quién puede seguir, quién puede responder, qué conexiones son visibles y cómo circula cada pieza dentro del producto. La experiencia cambia según la relación, no solo según un perfil público o privado.</p>
+          </div>
+
+          <div class="dual-phones">
+            <div class="phone-tall">
+              <img src="screenshots/3%20audience.PNG" alt="Selector de audiencia en Moments">
+              <div class="caption">Audiencias configurables por pieza</div>
+            </div>
+            <div class="phone-short">
+              <img src="screenshots/6%20privacy.PNG" alt="Controles de privacidad en Moments">
+              <div class="caption">Privacidad configurable a nivel de relación y visibilidad</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span>Audiencia modular</span>
+          <span>Página 2</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="page-inner">
+        <div class="archive-grid">
+          <div>
+            <p class="eyebrow">02 · Archivo útil y continuidad</p>
+            <h2 class="headline">Lo efímero no tiene por qué acabar en el vacío.</h2>
+            <p class="subhead">Moments no entiende la fugacidad como sinónimo de olvido. El contenido puede mantenerse accesible con más contexto y más valor personal en el tiempo.</p>
+
+            <div class="visual-card" style="margin-top: 24px;">
+              <img src="screenshots/5%20maps.PNG" alt="Mapa y archivo social en Moments">
+              <div class="caption">Mapa y recuperación del contenido con contexto</div>
+            </div>
+          </div>
+
+          <div class="rail">
+            <div class="rail-item">
+              <h3>Mapa</h3>
+              <p class="body">Recupera lo compartido desde el lugar en el que ocurrió, no solo desde una cronología plana.</p>
+            </div>
+            <div class="rail-item">
+              <h3>Calendario</h3>
+              <p class="body">La experiencia social también puede revisitarse por fecha y momento, con una lectura más humana del tiempo.</p>
+            </div>
+            <div class="rail-item">
+              <h3>Guardados y actividad</h3>
+              <p class="body">El contenido sigue teniendo recorrido: guardados, historial y actividad dan continuidad a lo compartido.</p>
+            </div>
+            <div class="rail-item">
+              <h3>Archivo de historias y momentos</h3>
+              <p class="body">La app conecta archivo de historias y archivo de momentos para moverse con naturalidad entre contenido efímero y contenido más duradero.</p>
+            </div>
+            <div class="rail-item">
+              <h3>Uso diario</h3>
+              <p class="body">Widget, accesos rápidos y notificaciones hacen que la experiencia no sea solo expresiva, sino también útil.</p>
+            </div>
+            <div class="rail-item">
+              <h3>Más valor personal</h3>
+              <p class="body">El resultado es una red social donde recordar también forma parte de la experiencia. El contenido no se pierde sin más: se organiza y conserva contexto.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span>Archivo útil</span>
+          <span>Página 3</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page echo-page">
+      <div class="page-inner">
+        <div class="echo-layout">
+          <div class="echo-copy">
+            <div>
+              <p class="eyebrow">03 · Echo</p>
+              <h2 class="headline">Varias perspectivas del mismo instante.</h2>
+            </div>
+
+            <p class="echo-keyline">Echo es la función más propia de Moments: una experiencia compartida que conecta varias miradas cuando coinciden lugar, tiempo y relación.</p>
+
+            <p class="body">No es una reacción. No es un simple sticker. No es mensajería clásica. Es una forma de convertir un momento compartido en un hilo visual conjunto y reconocible.</p>
+
+            <div class="echo-logic">
+              <span>Lugar</span>
+              <span>Tiempo</span>
+              <span>Relación</span>
+            </div>
+
+            <p class="small">Echo introduce una idea simple pero poco habitual: un mismo instante puede pertenecer a varias personas a la vez, sin dejar de sentirse personal.</p>
+          </div>
+
+          <div class="echo-visual">
+            <div class="echo-halo"></div>
+            <div class="echo-frame">
+              <img src="screenshots/4%20echoes.PNG" alt="Función Echo en Moments">
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span>Echo</span>
+          <span>Página 4</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="page-inner">
+        <div class="depth-grid">
+          <div>
+            <p class="eyebrow">04 · Expresión y control</p>
+            <h2 class="headline">No es solo una idea de producto. También tiene profundidad real.</h2>
+            <p class="subhead">Moments desarrolla cómo se crea, cómo se continúa, cómo se responde y cómo se controla lo que ya circula dentro de la app.</p>
+          </div>
+
+          <div>
+            <div class="detail-columns">
+              <div class="detail-group">
+                <h3>Story Chains</h3>
+                <p>Las historias no se limitan a desaparecer: también pueden continuar. Moments incorpora cadenas de historias con reglas sobre quién puede seguirlas y cómo se mantiene la lógica del autor original.</p>
+              </div>
+              <div class="detail-group">
+                <h3>Stickers interactivos</h3>
+                <p>Encuestas, preguntas, hashtags, ubicaciones, enlaces, cuenta atrás, emoji slider y compartir un momento dentro de una historia añaden más capas de interacción y respuesta.</p>
+              </div>
+              <div class="detail-group">
+                <h3>Programación y ajustes</h3>
+                <p>La creación no es solo inmediata. El producto contempla programación, comentarios, reacciones, compartidos y otras reglas por pieza para adaptar mejor cada publicación.</p>
+              </div>
+              <div class="detail-group">
+                <h3>Solicitudes y mensajería</h3>
+                <p>Solicitudes de mensaje, contenido efímero, view-once, privacidad visual y cifrado refuerzan una conversación más controlada y menos expuesta.</p>
+              </div>
+              <div class="detail-group">
+                <h3>Actividad y señales</h3>
+                <p>Visitas de perfil, etiquetados, guardados, historial y notificaciones agrupadas dan a la app una lectura más rica del uso diario.</p>
+              </div>
+              <div class="detail-group">
+                <h3>Control del contenido</h3>
+                <p>Palabras silenciadas, cuentas bloqueadas, moderación, contenido oculto y appeals muestran un producto con más madurez y más capacidad de gestión.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span>Profundidad de producto</span>
+          <span>Página 5</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="page-inner">
+        <div class="closing-grid">
+          <div>
+            <p class="eyebrow">05 · Posicionamiento</p>
+            <h2 class="headline">Moments no compite copiando una plataforma concreta.</h2>
+            <p class="subhead">Se diferencia proponiendo una lógica social más modular, más precisa y más humana.</p>
+
+            <div class="compare-list" style="margin-top: 28px;">
+              <div class="compare-row">
+                <strong>Instagram</strong>
+                <p class="body">Donde Instagram prioriza visibilidad y presencia pública, Moments pone más foco en contexto, control de audiencia y continuidad del contenido.</p>
+              </div>
+              <div class="compare-row">
+                <strong>TikTok</strong>
+                <p class="body">Donde TikTok domina el descubrimiento y el consumo, Moments prioriza relación, privacidad configurable y valor personal de lo compartido.</p>
+              </div>
+              <div class="compare-row">
+                <strong>BeReal</strong>
+                <p class="body">Donde BeReal gira alrededor de una única regla social, Moments ofrece una experiencia más flexible, con distintos formatos, audiencias y niveles de intimidad.</p>
+              </div>
+              <div class="compare-row">
+                <strong>Snapchat</strong>
+                <p class="body">Donde Snapchat destaca en comunicación efímera, Moments busca unir esa espontaneidad con archivo útil, perfil social y una capa colaborativa más estructurada.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note-box">
+          <p class="body">Moments también incorpora una capa secundaria de asistencia y contexto con <strong>Nova</strong>, pero el corazón del producto sigue estando en relaciones, expresión y control.</p>
+          <p class="body" style="margin-top: 14px;">A eso se suma una experiencia diaria más completa: actividad, notificaciones, solicitudes, mensajería efímera, controles de privacidad y una estructura de producto que conecta feed, historias, perfil, archivo y conversación sin romper la lógica de uso.</p>
+          <p class="body" style="margin-top: 14px;">La propuesta final no es parecerse a una plataforma concreta, sino combinar visibilidad, intimidad, recuerdo y colaboración dentro de un mismo sistema social.</p>
+        </div>
+
+        <div class="footer">
+          <span>Propuesta de producto</span>
+          <span>Página 6</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

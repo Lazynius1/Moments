@@ -2817,3 +2817,5 @@
 "chatRecovery.error.locked" = "Massa intents incorrectes. Torna-ho a provar en %@.";
 "chatRecovery.error.lockedTimer" = "Massa intents incorrectes. Torna-ho a provar en %@.";
 "chatRecovery.error.lockedSuggestion" = "Espera uns minuts abans de tornar-ho a intentar.";
+"mediaModeration.hidden.title" = "Contingut ocult";
+"mediaModeration.hidden.subtitle" = "Ocultat per moderació";

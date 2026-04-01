@@ -1401,7 +1401,7 @@ struct ModernMomentThumbnail: View {
         }) {
             ZStack(alignment: .bottomTrailing) {
                 // ✅ NUEVO: Lógica actualizada para manejar videos y imágenes
-                if let mediaItem = moment.mediaItems?.first, !mediaItem.url.isEmpty {
+                if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
                     // Es un momento nuevo con mediaItems
                     if mediaItem.type == .video {
                         // ✅ NUEVO: Priorizar thumbnailUrl si existe
@@ -1457,7 +1457,7 @@ struct ModernMomentThumbnail: View {
                 }
                 
                 // ✅ NUEVO: Indicador de video
-                if let mediaItem = moment.mediaItems?.first, mediaItem.type == .video {
+                if let mediaItem = moment.primaryVisibleMediaItem, mediaItem.type == .video {
                     VStack {
                         HStack {
                             Spacer()
@@ -1868,7 +1868,7 @@ struct ProfileSavedContent: View {
             case .all:
                 return true
             case .videos:
-                if let firstMedia = moment.mediaItems?.first {
+                if let firstMedia = moment.primaryVisibleMediaItem {
                     return firstMedia.type == .video
                 }
                 return moment.videoUrl != nil
@@ -2167,7 +2167,7 @@ struct ProfileSavedMomentThumbnail: View {
             ZStack {
                 // --- CONTENIDO MEDIA ---
                 Group {
-                    if let mediaItem = moment.mediaItems?.first {
+                    if let mediaItem = moment.primaryVisibleMediaItem {
                         if mediaItem.type == .video {
                             videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
                         } else {
@@ -2227,7 +2227,7 @@ struct ProfileSavedMomentThumbnail: View {
     }
     
     private var isVideo: Bool {
-        if let firstMedia = moment.mediaItems?.first {
+        if let firstMedia = moment.primaryVisibleMediaItem {
             return firstMedia.type == .video
         }
         return moment.videoUrl != nil

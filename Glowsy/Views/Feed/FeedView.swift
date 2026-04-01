@@ -2389,7 +2389,7 @@ struct ModernPostCardView: View {
                                 // ✅ PEEK: Comunicar imagen al FeedView para overlay
                                 if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
                                     let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                                    if let item = currentItem, item.type == .image {
+                                    if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
                                         onPeek?(item.url, realAspectRatio, true)
                                     }
                                 }
@@ -2417,7 +2417,8 @@ struct ModernPostCardView: View {
                     }
                     
                     let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
-                    if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                    if let currentMediaItem, !currentMediaItem.isHiddenByModeration,
+                       let tags = currentMediaItem.tags, !tags.isEmpty {
                         // Esquina inferior izquierda (encima del caption) - Estilo Glass
                         VStack {
                             Spacer()
@@ -3026,7 +3027,7 @@ struct EnhancedCarouselView: View {
     var body: some View {
         GeometryReader { geometry in
             TabView(selection: $currentIndex) {
-                ForEach(Array(mediaItems.enumerated()), id: \.offset) { index, item in
+                ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
                     MediaItemView(
                         item: item,
                         aspectRatio: aspectRatio,
@@ -3070,7 +3071,9 @@ struct MediaItemView: View {
             RoundedRectangle(cornerRadius: 20)
                 .fill(.ultraThinMaterial)
 
-            if item.type == .image {
+            if item.isHiddenByModeration {
+                ModeratedMediaItemView(item: item)
+            } else if item.type == .image {
                 // Imágenes igual que antes
                 KFImage(URL(string: item.url))
                     .placeholder {
@@ -3113,7 +3116,7 @@ struct MediaItemView: View {
             }
             
             // ✅ Overlay de etiquetas
-            if let tags = item.tags, !tags.isEmpty {
+            if !item.isHiddenByModeration, let tags = item.tags, !tags.isEmpty {
                 PhotoTagOverlayView(tags: tags, isVisible: showTags, onTagTap: onTagTap)
                     .zIndex(20)
             }
@@ -3145,6 +3148,66 @@ struct MediaItemView: View {
     private func findVideoIndex() -> Int {
         let videoMoments = allMoments.videoMoments
         return videoMoments.firstIndex { $0.moment.id == currentMoment.id } ?? 0
+    }
+}
+
+private struct ModeratedMediaItemView: View {
+    let item: MediaItem
+
+    var body: some View {
+        ZStack {
+            moderatedBackground
+
+            LinearGradient(
+                colors: [.black.opacity(0.52), .black.opacity(0.36)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            VStack(spacing: 10) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.92))
+
+                Text(NSLocalizedString("mediaModeration.hidden.title", comment: "Hidden content title"))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(.white)
+
+                Text(NSLocalizedString("mediaModeration.hidden.subtitle", comment: "Hidden content subtitle"))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(.white.opacity(0.78))
+            }
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+        }
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var moderatedBackground: some View {
+        if item.type == .image {
+            KFImage(URL(string: item.url))
+                .placeholder { Color.black.opacity(0.28) }
+                .resizable()
+                .scaledToFill()
+                .blur(radius: 30)
+                .saturation(0)
+                .overlay(Color.black.opacity(0.18))
+                .clipped()
+        } else if let thumbnailUrl = item.thumbnailUrl, !thumbnailUrl.isEmpty {
+            KFImage(URL(string: thumbnailUrl))
+                .placeholder { Color.black.opacity(0.28) }
+                .resizable()
+                .scaledToFill()
+                .blur(radius: 30)
+                .saturation(0)
+                .overlay(Color.black.opacity(0.18))
+                .clipped()
+        } else {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(Color.black.opacity(0.4))
+        }
     }
 }
 

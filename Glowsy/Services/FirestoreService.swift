@@ -1063,6 +1063,51 @@ class FirestoreService: ObservableObject {
             completion(error)
         }
     }
+
+    private func serializedMediaItems(_ mediaItems: [MediaItem], encoder: Firestore.Encoder) -> [[String: Any]] {
+        mediaItems.map { item in
+            var mediaData: [String: Any] = [
+                "id": item.id,
+                "type": item.type.rawValue,
+                "url": item.url
+            ]
+
+            if let thumbnailUrl = item.thumbnailUrl {
+                mediaData["thumbnailUrl"] = thumbnailUrl
+            }
+            if let videoDuration = item.videoDuration {
+                mediaData["videoDuration"] = videoDuration
+            }
+            if let videoFileSize = item.videoFileSize {
+                mediaData["videoFileSize"] = videoFileSize
+            }
+            if let videoResolution = item.videoResolution {
+                mediaData["videoResolution"] = videoResolution
+            }
+            if let tags = item.tags, !tags.isEmpty {
+                mediaData["tags"] = tags.compactMap { tag in
+                    try? encoder.encode(tag)
+                }
+            }
+            if let moderationState = item.moderationState?.rawValue {
+                mediaData["moderationState"] = moderationState
+            }
+            if let moderationReason = item.moderationReason {
+                mediaData["moderationReason"] = moderationReason
+            }
+            if let moderationCategory = item.moderationCategory {
+                mediaData["moderationCategory"] = moderationCategory
+            }
+            if let moderationConfidence = item.moderationConfidence {
+                mediaData["moderationConfidence"] = moderationConfidence
+            }
+            if let moderatedAt = item.moderatedAt {
+                mediaData["moderatedAt"] = Timestamp(date: moderatedAt)
+            }
+
+            return mediaData
+        }
+    }
     
     func createMoment(
         userId: String,
@@ -1134,37 +1179,7 @@ class FirestoreService: ObservableObject {
                     let encoder = Firestore.Encoder()
                     var momentData = try encoder.encode(moment)
                     
-                    // 🔥 INCLUIR METADATA COMPLETA EN MEDIAITEMS
-                    momentData["mediaItems"] = mediaItems.map { item in
-                        var mediaData: [String: Any] = [
-                            "id": item.id,
-                            "type": item.type.rawValue,
-                            "url": item.url
-                        ]
-                        
-                        // Añadir campos de video si existen
-                        if let thumbnailUrl = item.thumbnailUrl {
-                            mediaData["thumbnailUrl"] = thumbnailUrl
-                        }
-                        if let videoDuration = item.videoDuration {
-                            mediaData["videoDuration"] = videoDuration
-                        }
-                        if let videoFileSize = item.videoFileSize {
-                            mediaData["videoFileSize"] = videoFileSize
-                        }
-                        if let videoResolution = item.videoResolution {
-                            mediaData["videoResolution"] = videoResolution
-                        }
-                        
-                        // ✅ NUEVO: Etiquetas espaciales (Corregido: Codificar cada una individualmente para evitar errores con Firestore.Encoder)
-                        if let tags = item.tags, !tags.isEmpty {
-                            mediaData["tags"] = tags.compactMap { tag in
-                                try? encoder.encode(tag)
-                            }
-                        }
-                        
-                        return mediaData
-                    }
+                    momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
                     
                     self.db.collection("users")
                         .document(userId)
@@ -3814,37 +3829,7 @@ extension FirestoreService {
                     let encoder = Firestore.Encoder()
                     var momentData = try encoder.encode(moment)
                     
-                    // 🔥 INCLUIR METADATA COMPLETA EN MEDIAITEMS
-                    momentData["mediaItems"] = mediaItems.map { item in
-                        var mediaData: [String: Any] = [
-                            "id": item.id,
-                            "type": item.type.rawValue,
-                            "url": item.url
-                        ]
-                        
-                        // Añadir campos de video si existen
-                        if let thumbnailUrl = item.thumbnailUrl {
-                            mediaData["thumbnailUrl"] = thumbnailUrl
-                        }
-                        if let videoDuration = item.videoDuration {
-                            mediaData["videoDuration"] = videoDuration
-                        }
-                        if let videoFileSize = item.videoFileSize {
-                            mediaData["videoFileSize"] = videoFileSize
-                        }
-                        if let videoResolution = item.videoResolution {
-                            mediaData["videoResolution"] = videoResolution
-                        }
-                        
-                        // ✅ NUEVO: Etiquetas espaciales (Corregido: Codificar cada una individualmente para evitar errores con Firestore.Encoder)
-                        if let tags = item.tags, !tags.isEmpty {
-                            mediaData["tags"] = tags.compactMap { tag in
-                                try? encoder.encode(tag)
-                            }
-                        }
-                        
-                        return mediaData
-                    }
+                    momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
                     
                     if audienceSetting == .custom, let customViewers = customViewers, !customViewers.isEmpty {
                         self.saveCustomAudienceForContent(
@@ -4288,37 +4273,7 @@ extension FirestoreService {
                     let encoder = Firestore.Encoder()
                     var momentData = try encoder.encode(moment)
                     
-                    // 🔥 INCLUIR METADATA COMPLETA EN MEDIAITEMS
-                    momentData["mediaItems"] = mediaItems.map { item in
-                        var mediaData: [String: Any] = [
-                            "id": item.id,
-                            "type": item.type.rawValue,
-                            "url": item.url
-                        ]
-                        
-                        // Añadir campos de video si existen
-                        if let thumbnailUrl = item.thumbnailUrl {
-                            mediaData["thumbnailUrl"] = thumbnailUrl
-                        }
-                        if let videoDuration = item.videoDuration {
-                            mediaData["videoDuration"] = videoDuration
-                        }
-                        if let videoFileSize = item.videoFileSize {
-                            mediaData["videoFileSize"] = videoFileSize
-                        }
-                        if let videoResolution = item.videoResolution {
-                            mediaData["videoResolution"] = videoResolution
-                        }
-                        
-                        // ✅ NUEVO: Etiquetas espaciales (Corregido: Codificar cada una individualmente para evitar errores con Firestore.Encoder)
-                        if let tags = item.tags, !tags.isEmpty {
-                            mediaData["tags"] = tags.compactMap { tag in
-                                try? encoder.encode(tag)
-                            }
-                        }
-                        
-                        return mediaData
-                    }
+                    momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
                     
                     var ref: DocumentReference? = nil
                     ref = self.db.collection("users")

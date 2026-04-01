@@ -487,7 +487,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     mediaType: mediaUrl.type == .image ? .image : .video,
                     userId: uploadingMoment.userId,
                     contentId: momentId, // Usar momentId correctamente
-                    contentType: .moment // Especificar que es un momento
+                    contentType: .moment, // Especificar que es un momento
+                    mediaItemId: mediaUrl.id
                 ) { result in
                     switch result {
                     case .approved:
@@ -896,4 +897,3 @@ class BackgroundMomentUploadService: ObservableObject {
         }
     }
 }
-

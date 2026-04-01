@@ -1,0 +1,130 @@
+Novedades de Moments (v2.7.0)
+
+Moments 2.7.0 da un salto claro en creacion, historias y expresion visual. Esta version tambien mejora mensajeria, perfiles, acceso y varios flujos clave para que la app se sienta mas pulida en todo el recorrido.
+
+Lo mas importante de esta version:
+
+HISTORIAS MUCHO MAS POTENTES
+- El editor de historias se ha rehecho para que crear sea mas rapido, mas claro y mas comodo.
+- Mejor organizacion de controles, herramientas de dibujo, texto y flujo general de edicion.
+- Mejor comportamiento del contenido multimedia en editor, exportacion y visor.
+
+NUEVOS STICKERS E INTERACCIONES
+- Nuevo sticker de enlace.
+- Nuevo sticker de cuenta atras.
+- Nuevo emoji slider interactivo.
+- El selector de stickers se ha rediseñado y ahora se siente mas limpio, mas ordenado y mucho mas rapido de usar.
+
+MEJORAS EN CADENAS Y NAVEGACION DE HISTORIAS
+- Se ha refinado la navegacion dentro de las story chains.
+- Mejor comportamiento al abrir contenido desde notificaciones y otros accesos.
+- Ajustes para que las historias se sientan mas consistentes durante la reproduccion.
+
+RECUPERACION DE CHATS
+- Nuevo flujo de recuperacion de chats.
+- Mejor base de seguridad y cifrado relacionada con mensajeria.
+- La experiencia de mensajes se siente mas robusta y preparada para recuperar conversaciones cuando hace falta.
+
+PERFILES, LOGIN Y ORGANIZACION GENERAL
+- Perfil y perfil ajeno ahora se sienten mas claros y mejor organizados.
+- Login y registro mas limpios, con mejor jerarquia visual.
+- Mejor coherencia de varias superficies clave de la app.
+
+LOCALIZACION Y PULIDO GENERAL
+- Muchas correcciones de textos y localizacion en ES, EN y CA.
+- Refinamos la base visual de Moments con una paleta menos extrema y superficies mas cuidadas, para que la app se sienta mas calida, limpia y consistente.
+- Mejoras visuales y de consistencia en creador, stickers, perfiles y autenticacion.
+- Correcciones menores de fiabilidad y comportamiento en distintos flujos.
+
+En resumen:
+Moments 2.7.0 se centra en hacer la parte creativa mucho mas fuerte, ampliar las herramientas de historias con nuevos stickers e interacciones, y pulir mensajeria, perfiles y acceso para que toda la app se sienta mas moderna y mas solida.
+
+----------------------------------------
+ENGLISH
+----------------------------------------
+
+What's New in Moments (v2.7.0)
+
+Moments 2.7.0 is a clear step forward for creation, stories, and visual expression. This update also improves messaging, profiles, access, and several key flows so the app feels more polished from end to end.
+
+The most important changes in this version:
+
+MUCH MORE POWERFUL STORIES
+- The stories editor has been reworked to make creation faster, clearer, and more comfortable.
+- Better organization of controls, drawing tools, text, and the overall editing flow.
+- Better media behavior across editor, export, and viewer.
+
+NEW STICKERS AND INTERACTIONS
+- New link sticker.
+- New countdown sticker.
+- New interactive emoji slider.
+- The sticker picker has been redesigned and now feels cleaner, more organized, and much faster to use.
+
+BETTER STORY CHAINS AND NAVIGATION
+- Story chain navigation has been refined.
+- Better behavior when opening content from notifications and other entry points.
+- Adjustments that make stories feel more consistent during playback.
+
+CHAT RECOVERY
+- New chat recovery flow.
+- Stronger security and encryption foundations related to messaging.
+- Messaging now feels more robust and better prepared to recover conversations when needed.
+
+PROFILES, LOGIN, AND GENERAL ORGANIZATION
+- Profile and user profile now feel clearer and better organized.
+- Cleaner login and sign-up screens with stronger visual hierarchy.
+- Better consistency across several key app surfaces.
+
+LOCALIZATION AND GENERAL POLISH
+- Many text and localization fixes in ES, EN, and CA.
+- We refined Moments' visual foundation with a less extreme palette and more polished surfaces, making the app feel warmer, cleaner, and more consistent.
+- Visual consistency improvements across creator, stickers, profiles, and authentication.
+- Smaller reliability and behavior fixes across different flows.
+
+In summary:
+Moments 2.7.0 focuses on making creation much stronger, expanding stories with new stickers and interactions, and polishing messaging, profiles, and access so the whole app feels more modern and more solid.
+
+----------------------------------------
+CATALA
+----------------------------------------
+
+Novetats de Moments (v2.7.0)
+
+Moments 2.7.0 fa un salt clar en creacio, histories i expressio visual. Aquesta versio tambe millora missatgeria, perfils, acces i diversos fluxos clau perquè l'app se senti mes polida de punta a punta.
+
+El mes important d'aquesta versio:
+
+HISTORIES MOLT MES POTENTS
+- L'editor d'histories s'ha refet perquè crear sigui mes rapid, mes clar i mes comode.
+- Millor organitzacio de controls, eines de dibuix, text i flux general d'edicio.
+- Millor comportament del contingut multimedia en editor, exportacio i visor.
+
+NOU STICKERS I INTERACCIONS
+- Nou sticker d'enllac.
+- Nou sticker de compte enrere.
+- Nou emoji slider interactiu.
+- El selector de stickers s'ha redissenyat i ara se sent mes net, mes ordenat i molt mes rapid d'utilitzar.
+
+MILLORA DE CADENES I NAVEGACIO D'HISTORIES
+- S'ha refinat la navegacio dins de les story chains.
+- Millor comportament en obrir contingut des de notificacions i altres accessos.
+- Ajustos perquè les histories se sentin mes consistents durant la reproduccio.
+
+RECUPERACIO DE XATS
+- Nou flux de recuperacio de xats.
+- Base de seguretat i xifrat mes forta relacionada amb la missatgeria.
+- L'experiencia de missatges se sent mes robusta i mes preparada per recuperar converses quan calgui.
+
+PERFILS, LOGIN I ORGANITZACIO GENERAL
+- El perfil propi i el perfil d'usuari ara se senten mes clars i millor organitzats.
+- Login i registre mes nets, amb millor jerarquia visual.
+- Millor coherencia en diverses superficies clau de l'app.
+
+LOCALITZACIO I POLIT GENERAL
+- Moltes correccions de textos i localitzacio en ES, EN i CA.
+- Hem refinat la base visual de Moments amb una paleta menys extrema i superficies mes cuidades, perquè l'app se senti mes calida, neta i consistent.
+- Millores visuals i de consistencia en creador, stickers, perfils i autenticacio.
+- Correccions menors de fiabilitat i comportament en diferents fluxos.
+
+En resum:
+Moments 2.7.0 posa el focus en fer la part creativa molt mes forta, ampliar les histories amb nous stickers i interaccions, i polir missatgeria, perfils i acces perquè tota l'app se senti mes moderna i mes solida.

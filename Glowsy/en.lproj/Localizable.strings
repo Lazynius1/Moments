@@ -2812,3 +2812,5 @@
 "chatRecovery.error.locked" = "Too many incorrect PIN attempts. Try again in %@.";
 "chatRecovery.error.lockedTimer" = "Too many incorrect PIN attempts. Try again in %@.";
 "chatRecovery.error.lockedSuggestion" = "Wait a few minutes before trying again.";
+"mediaModeration.hidden.title" = "Hidden content";
+"mediaModeration.hidden.subtitle" = "Hidden by moderation";

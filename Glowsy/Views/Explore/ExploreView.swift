@@ -589,8 +589,7 @@ struct SuggestedUserCard: View {
             // ✅ FONDO: Imagen del momento o Gradiente
             GeometryReader { geometry in
                 // ✅ NUEVO: Priorizar thumbnailUrl (video) o imagePath (imagen) para el fondo
-                let url = backgroundMoment?.thumbnailUrl != nil ? URL(string: backgroundMoment!.thumbnailUrl!) : 
-                         (backgroundMoment?.imagePath != nil ? getImageURL(from: backgroundMoment!.imagePath!) : nil)
+                let url = backgroundMoment?.previewImageURLString.flatMap { getImageURL(from: $0) }
                 
                 if let bgUrl = url {
                     KFImage(bgUrl)
@@ -1060,8 +1059,8 @@ struct MomentCard: View {
                     ZStack {
                         Color.gray.opacity(0.1)
                         
-                        if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
-                            ExploreVideoThumbnailView(videoUrl: videoUrl, thumbnailUrl: moment.thumbnailUrl)
+                        if let mediaItem = moment.primaryVisibleMediaItem, mediaItem.type == .video {
+                            ExploreVideoThumbnailView(videoUrl: mediaItem.url, thumbnailUrl: mediaItem.thumbnailUrl ?? moment.thumbnailUrl)
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: geometry.size.width, height: geometry.size.width)
                                 .clipped()
@@ -1078,7 +1077,7 @@ struct MomentCard: View {
                                     .padding(8),
                                     alignment: .bottomTrailing
                                 )
-                        } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
+                        } else if let imagePath = moment.previewImageURLString, let url = getImageURL(from: imagePath) {
                             KFImage(url)
                                 .placeholder {
                                     Color.gray.opacity(0.2)
