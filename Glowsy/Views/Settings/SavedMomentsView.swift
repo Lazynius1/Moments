@@ -856,14 +856,14 @@ struct SavedMomentsView: View {
     }
     
     private func hasVideo(_ moment: Moment) -> Bool {
-        if let first = moment.mediaItems?.first {
+        if let first = moment.primaryVisibleMediaItem {
             return first.type == .video
         }
         return moment.videoUrl != nil
     }
     
     private func hasImage(_ moment: Moment) -> Bool {
-        if let first = moment.mediaItems?.first {
+        if let first = moment.primaryVisibleMediaItem {
             return first.type == .image
         }
         return moment.imagePath != nil
@@ -1090,7 +1090,7 @@ private struct SavedMomentGridCard: View {
     
     @ViewBuilder
     private var preview: some View {
-        if let media = moment.mediaItems?.first {
+        if let media = moment.primaryVisibleMediaItem {
             if media.type == .video {
                 savedVideoPreview(url: media.url, thumbnail: media.thumbnailUrl)
             } else {
@@ -1214,6 +1214,7 @@ struct ModernSavedMomentsDetailView: View {
     @State private var peekAspectRatio: CGFloat = 1.0
     @State private var isPeeking = false
     @State private var peekOverlayProgress: CGFloat = 0
+    @State private var peekIsProtected = false
     
     init(moments: [Moment], initialIndex: Int, onDismiss: @escaping () -> Void, onRemoveMoment: ((Moment) -> Void)? = nil) {
         self.moments = moments
@@ -1256,31 +1257,33 @@ struct ModernSavedMomentsDetailView: View {
                 }
                 
                 if (isPeeking || peekOverlayProgress > 0.01), let imageURL = peekImageURL {
-                    ZStack {
-                        Color(hex: "0B1215")
-                            .opacity(Double(0.22 * peekOverlayProgress))
-                            .ignoresSafeArea()
-                        
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .opacity(Double(0.45 * peekOverlayProgress))
-                            .ignoresSafeArea()
-                        
-                        KFImage(URL(string: imageURL))
-                            .resizable()
-                            .scaledToFill()
-                            .frame(
-                                width: UIScreen.main.bounds.width - 32,
-                                height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .scaleEffect(0.96 + 0.04 * peekOverlayProgress)
-                            .shadow(color: .black.opacity(0.2 + 0.25 * Double(peekOverlayProgress)), radius: 20, y: 10)
+                    ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
+                        ZStack {
+                            Color(hex: "0B1215")
+                                .opacity(Double(0.22 * peekOverlayProgress))
+                                .ignoresSafeArea()
+                            
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .opacity(Double(0.45 * peekOverlayProgress))
+                                .ignoresSafeArea()
+                            
+                            KFImage(URL(string: imageURL))
+                                .resizable()
+                                .scaledToFill()
+                                .frame(
+                                    width: UIScreen.main.bounds.width - 32,
+                                    height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                .scaleEffect(0.96 + 0.04 * peekOverlayProgress)
+                                .shadow(color: .black.opacity(0.2 + 0.25 * Double(peekOverlayProgress)), radius: 20, y: 10)
+                        }
+                        .transition(.opacity)
+                        .animation(.easeOut(duration: 0.2), value: peekOverlayProgress)
+                        .allowsHitTesting(false)
+                        .zIndex(998)
                     }
-                    .transition(.opacity)
-                    .animation(.easeOut(duration: 0.2), value: peekOverlayProgress)
-                    .allowsHitTesting(false)
-                    .zIndex(998)
                 }
             }
         }
@@ -1352,6 +1355,7 @@ struct ModernSavedMomentsDetailView: View {
                                     if isPressing {
                                         peekImageURL = imageURL
                                         peekAspectRatio = max(ratio, 0.1)
+                                        peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
                                         isPeeking = true
                                         withAnimation(.easeOut(duration: 0.18)) {
                                             peekOverlayProgress = 1
@@ -1363,6 +1367,7 @@ struct ModernSavedMomentsDetailView: View {
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
                                             guard peekOverlayProgress <= 0.01 else { return }
                                             isPeeking = false
+                                            peekIsProtected = false
                                             peekImageURL = nil
                                             peekAspectRatio = 1.0
                                         }
@@ -1671,7 +1676,8 @@ struct ModernSavedDetailMomentCard: View {
                     }
 
                     let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
-                    if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                    if let currentMediaItem, !currentMediaItem.isHiddenByModeration,
+                       let tags = currentMediaItem.tags, !tags.isEmpty {
                         VStack {
                             HStack {
                                 Button(action: {
@@ -1906,7 +1912,7 @@ struct ModernSavedDetailMomentCard: View {
                 
                 if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
                     let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                    if let item = currentItem, item.type == .image {
+                    if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
                         onPeek?(item.url, realAspectRatio, true)
                     }
                 }

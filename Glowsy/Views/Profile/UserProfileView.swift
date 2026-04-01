@@ -1899,7 +1899,7 @@ struct UserModernMomentThumbnail: View {
         Button(action: onTap) {
             ZStack(alignment: .bottomTrailing) {
                 // ✅ NUEVO: Lógica actualizada para manejar videos y imágenes
-                if let mediaItem = moment.mediaItems?.first, !mediaItem.url.isEmpty {
+                if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
                     // Es un momento nuevo con mediaItems
                     if mediaItem.type == .video {
                         // ✅ NUEVO: Priorizar thumbnailUrl si existe
@@ -1940,7 +1940,7 @@ struct UserModernMomentThumbnail: View {
                 }
                 
                 // ✅ NUEVO: Indicador de video
-                if let mediaItem = moment.mediaItems?.first, mediaItem.type == .video {
+                if let mediaItem = moment.primaryVisibleMediaItem, mediaItem.type == .video {
                     VStack {
                         HStack {
                             Spacer()

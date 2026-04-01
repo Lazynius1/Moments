@@ -872,16 +872,10 @@ function shouldSilenceNotificationForUser(receiverData, options = {}) {
 function pickMomentPreviewUrl(momentData) {
   if (!momentData || typeof momentData !== 'object') return null;
 
-  if (typeof momentData.thumbnailUrl === 'string' && momentData.thumbnailUrl.trim()) {
-    return momentData.thumbnailUrl.trim();
-  }
-  if (typeof momentData.imageUrl === 'string' && momentData.imageUrl.trim()) {
-    return momentData.imageUrl.trim();
-  }
-
   if (Array.isArray(momentData.mediaItems)) {
     for (const item of momentData.mediaItems) {
       if (!item || typeof item !== 'object') continue;
+      if (item.moderationState === 'hidden') continue;
       if (typeof item.thumbnailUrl === 'string' && item.thumbnailUrl.trim()) {
         return item.thumbnailUrl.trim();
       }
@@ -889,6 +883,15 @@ function pickMomentPreviewUrl(momentData) {
         return item.url.trim();
       }
     }
+
+    return null;
+  }
+
+  if (typeof momentData.thumbnailUrl === 'string' && momentData.thumbnailUrl.trim()) {
+    return momentData.thumbnailUrl.trim();
+  }
+  if (typeof momentData.imageUrl === 'string' && momentData.imageUrl.trim()) {
+    return momentData.imageUrl.trim();
   }
 
   if (typeof momentData.videoUrl === 'string' && momentData.videoUrl.trim()) {
@@ -3159,6 +3162,26 @@ function isSameFeedCursor(a, b) {
 /**
  * Serialize a Firestore moment doc into the JSON format the client expects.
  */
+function serializeMediaItem(item) {
+  if (!item || typeof item !== 'object') return null;
+
+  return {
+    id: item.id || null,
+    type: item.type || null,
+    url: item.url || null,
+    thumbnailUrl: item.thumbnailUrl || null,
+    videoDuration: item.videoDuration || null,
+    videoFileSize: item.videoFileSize || null,
+    videoResolution: item.videoResolution || null,
+    tags: Array.isArray(item.tags) ? item.tags : null,
+    moderationState: item.moderationState || null,
+    moderationReason: item.moderationReason || null,
+    moderationCategory: item.moderationCategory || null,
+    moderationConfidence: item.moderationConfidence || null,
+    moderatedAt: tsToMillis(item.moderatedAt)
+  };
+}
+
 function serializeMoment(docId, data) {
   return {
     id: docId,
@@ -3175,7 +3198,9 @@ function serializeMoment(docId, data) {
     location: data.location || null,
     locationCoordinate: data.locationCoordinate || null,
     audience: data.audience || 'everyone',
-    mediaItems: data.mediaItems || null,
+    mediaItems: Array.isArray(data.mediaItems)
+      ? data.mediaItems.map((item) => serializeMediaItem(item)).filter(Boolean)
+      : null,
     aspectRatio: data.aspectRatio || null,
     customListId: data.customListId || null,
     thumbnailUrl: data.thumbnailUrl || null,

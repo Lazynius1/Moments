@@ -75,21 +75,16 @@ struct WhatsNewView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 22) {
 
-                        // 🔒 Blackout — toda la pantalla desaparece en una captura
-                        VStack(spacing: 16) {
-                            WhatsNewFeatureRow(
-                                icon: "lock.shield.fill",
-                                color: Color(hex: "4F46E5"),
-                                title: NSLocalizedString("whatsNew.blackout.title", comment: ""),
-                                description: NSLocalizedString("whatsNew.blackout.description", comment: ""),
-                                delay: 0.1
-                            )
-
-                            ScreenshotTutorialView(delay: 0.2)
-                        }
+                        WhatsNewFeatureRow(
+                            icon: "wand.and.stars.inverse",
+                            color: Color(hex: "4F46E5"),
+                            title: NSLocalizedString("whatsNew.blackout.title", comment: ""),
+                            description: NSLocalizedString("whatsNew.blackout.description", comment: ""),
+                            delay: 0.1
+                        )
 
                         WhatsNewFeatureRow(
-                            icon: "person.text.rectangle.fill",
+                            icon: "slider.horizontal.below.rectangle",
                             color: Color(hex: "0EA5E9"),
                             title: NSLocalizedString("whatsNew.activity.title", comment: ""),
                             description: NSLocalizedString("whatsNew.activity.description", comment: ""),
@@ -97,7 +92,7 @@ struct WhatsNewView: View {
                         )
 
                         WhatsNewFeatureRow(
-                            icon: "archivebox.fill",
+                            icon: "square.grid.2x2.fill",
                             color: Color(hex: "F59E0B"),
                             title: NSLocalizedString("whatsNew.archive.title", comment: ""),
                             description: NSLocalizedString("whatsNew.archive.description", comment: ""),
@@ -105,7 +100,7 @@ struct WhatsNewView: View {
                         )
 
                         WhatsNewFeatureRow(
-                            icon: "bell.badge.fill",
+                            icon: "person.crop.circle.badge.checkmark",
                             color: Color(hex: "EC4899"),
                             title: NSLocalizedString("whatsNew.notifications.title", comment: ""),
                             description: NSLocalizedString("whatsNew.notifications.description", comment: ""),
@@ -113,7 +108,7 @@ struct WhatsNewView: View {
                         )
 
                         WhatsNewFeatureRow(
-                            icon: "eye.slash.fill",
+                            icon: "paintpalette.fill",
                             color: Color(hex: "10B981"),
                             title: NSLocalizedString("whatsNew.privacy.title", comment: ""),
                             description: NSLocalizedString("whatsNew.privacy.description", comment: ""),
@@ -207,130 +202,6 @@ struct WhatsNewFeatureRow: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(delay)) {
                 appear = true
             }
-        }
-    }
-}
-
-// MARK: - Screenshot Tutorial UI
-struct ScreenshotTutorialView: View {
-    @Environment(\.colorScheme) var colorScheme
-    let delay: Double
-    @State private var appear = false
-
-    var body: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                // iPhone Frame Skeleton
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(colorScheme == .dark ? Color.primary.opacity(0.15) : Color.primary.opacity(0.25), lineWidth: 2)
-                    .frame(width: 140, height: 260)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.3))
-                    )
-
-                // Screen simulation
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 130, height: 250)
-
-                // Top Notch
-                Capsule()
-                    .fill(Color.primary.opacity(0.2))
-                    .frame(width: 40, height: 12)
-                    .offset(y: -115)
-
-                // Buttons Highlights
-                Group {
-                    // Side Button (Right)
-                    ButtonIndicator(title: "Side Button", isRight: true, offset: -40)
-                    
-                    // Volume Up (Left)
-                    ButtonIndicator(title: "Vol +", isRight: false, offset: -60)
-                    
-                    // Volume Down (Left)
-                    ButtonIndicator(title: "Vol -", isRight: false, offset: -30)
-                }
-                .opacity(appear ? 1 : 0)
-                .scaleEffect(appear ? 1 : 0.8)
-            }
-            .padding(.top, 10)
-
-            VStack(spacing: 4) {
-                Text(NSLocalizedString("whatsNew.blackout.demo.instructions", comment: ""))
-                    .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                Text(NSLocalizedString("whatsNew.blackout.demo.hint", comment: ""))
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(.secondary.opacity(0.8))
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 20)
-            .opacity(appear ? 1 : 0)
-        }
-        .onAppear {
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.8).delay(delay)) {
-                appear = true
-            }
-        }
-    }
-}
-
-struct ButtonIndicator: View {
-    let title: String
-    let isRight: Bool
-    let offset: CGFloat
-
-    var body: some View {
-        ZStack {
-            // Arrow/Line
-            Path { path in
-                let startX: CGFloat = isRight ? 100 : -100
-                let endX: CGFloat = isRight ? 70 : -70
-                path.move(to: CGPoint(x: startX, y: offset))
-                path.addLine(to: CGPoint(x: endX, y: offset))
-            }
-            .stroke(
-                LinearGradient(
-                    colors: [Color(hex: "4F46E5"), Color(hex: "9333EA")],
-                    startPoint: isRight ? .trailing : .leading,
-                    endPoint: isRight ? .leading : .trailing
-                ),
-                style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 4])
-            )
-
-            // Circle Point
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: "4F46E5"), Color(hex: "9333EA")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 8, height: 8)
-                .offset(x: isRight ? 70 : -70, y: offset)
-                .shadow(color: Color(hex: "4F46E5").opacity(0.5), radius: 4)
-
-            // Label
-            Text(title)
-                .font(.custom("Poppins-Bold", size: 10))
-                .foregroundColor(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "4F46E5"), Color(hex: "9333EA")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .offset(x: isRight ? 115 : -115, y: offset)
         }
     }
 }

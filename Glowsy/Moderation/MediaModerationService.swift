@@ -92,11 +92,12 @@ class MediaModerationService {
         userId: String,
         contentId: String? = nil,
         contentType: ContentType = .moment,
+        mediaItemId: String? = nil,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
         
         // ✅ NUEVO: Crear task ID único para evitar duplicados
-        let taskId = "\(userId)_\(contentId ?? UUID().uuidString)"
+        let taskId = "\(userId)_\(contentId ?? UUID().uuidString)_\(mediaItemId ?? mediaURL)"
         
         taskLock.lock()
         if activeModerationTasks.contains(taskId) {
@@ -117,9 +118,23 @@ class MediaModerationService {
             
             switch mediaType {
             case .image:
-                self?.moderateImageAdvanced(url: mediaURL, userId: userId, contentId: contentId, contentType: contentType, completion: completion)
+                self?.moderateImageAdvanced(
+                    url: mediaURL,
+                    userId: userId,
+                    contentId: contentId,
+                    contentType: contentType,
+                    mediaItemId: mediaItemId,
+                    completion: completion
+                )
             case .video:
-                self?.moderateVideoAdvanced(url: mediaURL, userId: userId, contentId: contentId, contentType: contentType, completion: completion)
+                self?.moderateVideoAdvanced(
+                    url: mediaURL,
+                    userId: userId,
+                    contentId: contentId,
+                    contentType: contentType,
+                    mediaItemId: mediaItemId,
+                    completion: completion
+                )
             }
         }
     }
@@ -130,6 +145,7 @@ class MediaModerationService {
         userId: String,
         contentId: String?,
         contentType: ContentType,
+        mediaItemId: String?,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
         downloadImageForAnalysis(from: url) { [weak self] result in
@@ -144,18 +160,30 @@ class MediaModerationService {
                         userId: userId,
                         contentId: contentId,
                         contentType: contentType,
+                        mediaItemId: mediaItemId,
                         completion: { action in
                             if let contentId = contentId {
                                 switch action {
                                 case .deleted, .warning:
-                                    self?.hideContentUsingOnlyMe(
-                                        userId: userId,
-                                        contentId: contentId,
-                                        contentType: contentType,
-                                        action: action,
-                                        mediaURL: url,
-                                        mediaType: "image"
-                                    )
+                                    if contentType == .moment, let mediaItemId = mediaItemId {
+                                        self?.hideMomentMediaItem(
+                                            userId: userId,
+                                            contentId: contentId,
+                                            mediaItemId: mediaItemId,
+                                            action: action,
+                                            mediaURL: url,
+                                            mediaType: "image"
+                                        )
+                                    } else {
+                                        self?.hideContentUsingOnlyMe(
+                                            userId: userId,
+                                            contentId: contentId,
+                                            contentType: contentType,
+                                            action: action,
+                                            mediaURL: url,
+                                            mediaType: "image"
+                                        )
+                                    }
                                     DispatchQueue.main.async {
                                         completion(.approved)
                                     }
@@ -195,6 +223,7 @@ class MediaModerationService {
         userId: String,
         contentId: String?,
         contentType: ContentType,
+        mediaItemId: String?,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
 
@@ -254,7 +283,9 @@ class MediaModerationService {
                                         userId: userId,
                                         contentId: contentId,
                                         contentType: contentType,
+                                        mediaItemId: mediaItemId,
                                         mediaURL: url,
+                                        mediaType: "video",
                                         completion: completion
                                     )
                                 }
@@ -265,7 +296,9 @@ class MediaModerationService {
                                     userId: userId,
                                     contentId: contentId,
                                     contentType: contentType,
+                                    mediaItemId: mediaItemId,
                                     mediaURL: url,
+                                    mediaType: "video",
                                     completion: completion
                                 )
                             }
@@ -297,7 +330,9 @@ class MediaModerationService {
         userId: String,
         contentId: String?,
         contentType: ContentType,
+        mediaItemId: String?,
         mediaURL: String,
+        mediaType: String,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
         guard let finalResult = result else {
@@ -310,18 +345,33 @@ class MediaModerationService {
         if let contentId = contentId {
             switch finalResult.action {
             case .deleted, .warning:
-                hideContentUsingOnlyMe(
-                    userId: userId,
-                    contentId: contentId,
-                    contentType: contentType,
-                    action: finalResult.action,
-                    mediaURL: mediaURL,
-                    mediaType: "video",
-                    visualScore: finalResult.visualScore,
-                    audioScore: finalResult.audioScore,
-                    combinedScore: finalResult.combinedScore,
-                    details: finalResult.details
-                )
+                if contentType == .moment, let mediaItemId = mediaItemId {
+                    hideMomentMediaItem(
+                        userId: userId,
+                        contentId: contentId,
+                        mediaItemId: mediaItemId,
+                        action: finalResult.action,
+                        mediaURL: mediaURL,
+                        mediaType: mediaType,
+                        visualScore: finalResult.visualScore,
+                        audioScore: finalResult.audioScore,
+                        combinedScore: finalResult.combinedScore,
+                        details: finalResult.details
+                    )
+                } else {
+                    hideContentUsingOnlyMe(
+                        userId: userId,
+                        contentId: contentId,
+                        contentType: contentType,
+                        action: finalResult.action,
+                        mediaURL: mediaURL,
+                        mediaType: mediaType,
+                        visualScore: finalResult.visualScore,
+                        audioScore: finalResult.audioScore,
+                        combinedScore: finalResult.combinedScore,
+                        details: finalResult.details
+                    )
+                }
                 DispatchQueue.main.async {
                     completion(.approved)
                 }
@@ -902,8 +952,10 @@ class MediaModerationService {
         userId: String,
         contentId: String?,
         contentType: ContentType,
+        mediaItemId: String?,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
+        _ = mediaItemId
         analyzeFrameWithVision(frameData: imageData, timestamp: 0.0) { [weak self] json in
             guard let json = json else {
                 let errorAction: MediaModerationAction = .error("Error analizando imagen con Sightengine")
@@ -1054,6 +1106,128 @@ class MediaModerationService {
                 if let error = error {
                 } else {
                 }
+            }
+        }
+    }
+
+    private func hideMomentMediaItem(
+        userId: String,
+        contentId: String,
+        mediaItemId: String,
+        action: MediaModerationAction,
+        mediaURL: String,
+        mediaType: String,
+        visualScore: Double? = nil,
+        audioScore: Double? = nil,
+        combinedScore: Double? = nil,
+        details: [String: Any] = [:]
+    ) {
+        DispatchQueue.global(qos: .utility).async {
+            let db = Firestore.firestore()
+            let contentRef = db.collection("users").document(userId).collection("moments").document(contentId)
+
+            contentRef.getDocument { [weak self] document, error in
+                guard let self = self,
+                      let document = document,
+                      document.exists,
+                      let contentData = document.data(),
+                      var mediaItems = contentData["mediaItems"] as? [[String: Any]],
+                      !mediaItems.isEmpty else {
+                    self?.hideContentUsingOnlyMe(
+                        userId: userId,
+                        contentId: contentId,
+                        contentType: .moment,
+                        action: action,
+                        mediaURL: mediaURL,
+                        mediaType: mediaType,
+                        visualScore: visualScore,
+                        audioScore: audioScore,
+                        combinedScore: combinedScore,
+                        details: details
+                    )
+                    return
+                }
+
+                let confidence = self.determineConfidence(
+                    visualScore: visualScore ?? 0.0,
+                    audioScore: audioScore ?? 0.0,
+                    combinedScore: combinedScore ?? 0.0
+                )
+
+                let matchedIndex = mediaItems.firstIndex {
+                    let storedId = $0["id"] as? String
+                    let storedURL = $0["url"] as? String
+                    return storedId == mediaItemId || storedURL == mediaURL
+                }
+
+                guard let matchedIndex else {
+                    self.hideContentUsingOnlyMe(
+                        userId: userId,
+                        contentId: contentId,
+                        contentType: .moment,
+                        action: action,
+                        mediaURL: mediaURL,
+                        mediaType: mediaType,
+                        visualScore: visualScore,
+                        audioScore: audioScore,
+                        combinedScore: combinedScore,
+                        details: details
+                    )
+                    return
+                }
+
+                var itemData = mediaItems[matchedIndex]
+                itemData["moderationState"] = MediaItem.ModerationState.hidden.rawValue
+                itemData["moderationReason"] = self.getReasonFromAction(action)
+                itemData["moderationCategory"] = self.getCategoryFromAction(action)
+                itemData["moderationConfidence"] = confidence
+                itemData["moderatedAt"] = Timestamp(date: Date())
+                mediaItems[matchedIndex] = itemData
+
+                let hiddenCount = mediaItems.reduce(into: 0) { count, item in
+                    if (item["moderationState"] as? String) == MediaItem.ModerationState.hidden.rawValue {
+                        count += 1
+                    }
+                }
+
+                if hiddenCount >= mediaItems.count {
+                    contentRef.updateData(["mediaItems": mediaItems]) { _ in
+                        self.hideContentUsingOnlyMe(
+                            userId: userId,
+                            contentId: contentId,
+                            contentType: .moment,
+                            action: action,
+                            mediaURL: mediaURL,
+                            mediaType: mediaType,
+                            visualScore: visualScore,
+                            audioScore: audioScore,
+                            combinedScore: combinedScore,
+                            details: details
+                        )
+                    }
+                    return
+                }
+
+                var updateData: [String: Any] = [
+                    "mediaItems": mediaItems,
+                    "moderatedAt": FieldValue.serverTimestamp(),
+                    "moderatedBy": "auto_moderation"
+                ]
+
+                switch action {
+                case .deleted(let reason, let category):
+                    updateData["moderationReason"] = reason
+                    updateData["moderationCategory"] = category
+                    updateData["confidence"] = confidence
+                case .warning(let reason, let category):
+                    updateData["moderationReason"] = "Advertencia: \(reason)"
+                    updateData["moderationCategory"] = category
+                    updateData["confidence"] = confidence
+                default:
+                    break
+                }
+
+                contentRef.updateData(updateData)
             }
         }
     }

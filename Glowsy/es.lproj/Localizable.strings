@@ -2271,31 +2271,31 @@
 
 /* Whats New v2.6 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Versión 2.6.0";
-"whatsNew.button" = "Explorar Moments 2.6";
+"whatsNew.subtitle" = "Versión 2.7.0";
+"whatsNew.button" = "Explorar Moments 2.7";
 
 /* Blackout feature */
-"whatsNew.blackout.title" = "El Contenido Privado Ahora Está Protegido";
-"whatsNew.blackout.description" = "Blackout protege cualquier momento o historia cuya audiencia no sea \"everyone\", así como los medios efímeros en los chats. Las capturas de esta pantalla saldrán invisibles. ¡Pruébalo ahora!";
-"whatsNew.blackout.demo.label" = "¡Pruébalo! Haz una captura ahora";
-"whatsNew.blackout.demo.instructions" = "Pulsa a la vez el botón lateral y los dos botones de volumen";
-"whatsNew.blackout.demo.hint" = "Esta pantalla será invisible en tu carrete";
+"whatsNew.blackout.title" = "Historias Mucho Más Potentes";
+"whatsNew.blackout.description" = "Hemos rehecho el editor de historias para que crear sea más rápido, claro y cómodo, con mejores controles, texto y edición general.";
+"whatsNew.blackout.demo.label" = "Nuevo editor de historias";
+"whatsNew.blackout.demo.instructions" = "Más claro, más rápido y mucho más cómodo de usar";
+"whatsNew.blackout.demo.hint" = "Ahora crear historias se siente mucho mejor";
 
 /* Tu Actividad */
-"whatsNew.activity.title" = "Revisa tu Actividad";
-"whatsNew.activity.description" = "Ahora puedes revisar mejor tus reacciones, comentarios, etiquetas, respuestas a stickers y mucho mas desde un solo lugar.";
+"whatsNew.activity.title" = "Nuevos Stickers";
+"whatsNew.activity.description" = "Llegan enlace, cuenta atrás y emoji slider para que tus historias sean mucho más expresivas e interactivas.";
 
 /* Archive */
-"whatsNew.archive.title" = "Tu Archivo, Mucho Mejor";
-"whatsNew.archive.description" = "Explora tus historias archivadas en cuadrícula, calendario y mapa, con una navegación mucho más cómoda.";
+"whatsNew.archive.title" = "Selector de Stickers Rediseñado";
+"whatsNew.archive.description" = "El picker de stickers ahora se siente más limpio, más ordenado y mucho más rápido de usar.";
 
 /* Notifications */
-"whatsNew.notifications.title" = "Notificaciones Mas Claras";
-"whatsNew.notifications.description" = "La bandeja se entiende mejor y varios flujos de avisos, solicitudes y aperturas ahora son mas fiables.";
+"whatsNew.notifications.title" = "Perfiles y Acceso Más Pulidos";
+"whatsNew.notifications.description" = "Perfil, perfil ajeno, login y registro ahora se sienten más claros, consistentes y modernos.";
 
 /* Privacy */
-"whatsNew.privacy.title" = "Privacidad Más Consistente";
-"whatsNew.privacy.description" = "Contenido restringido, cuentas silenciadas y palabras silenciadas ahora se comportan de forma más clara y coherente.";
+"whatsNew.privacy.title" = "Base Visual Más Cuidada";
+"whatsNew.privacy.description" = "Refinamos la paleta y las superficies de Moments para que toda la app se sienta más cálida, limpia y consistente.";
 
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
@@ -2836,3 +2836,5 @@
 "chatRecovery.error.locked" = "Demasiados intentos incorrectos. Vuelve a intentarlo en %@.";
 "chatRecovery.error.lockedTimer" = "Demasiados intentos incorrectos. Vuelve a intentarlo en %@.";
 "chatRecovery.error.lockedSuggestion" = "Espera unos minutos antes de volver a intentarlo.";
+"mediaModeration.hidden.title" = "Contenido oculto";
+"mediaModeration.hidden.subtitle" = "Oculto por moderación";

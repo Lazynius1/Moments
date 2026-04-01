@@ -2142,7 +2142,7 @@ private struct ActivityCommentMomentPreview: View {
 
     @ViewBuilder
     private func preview(for moment: Moment) -> some View {
-        if let media = moment.mediaItems?.first {
+        if let media = moment.primaryVisibleMediaItem {
             if media.type == .image {
                 mediaImage(urlString: media.url)
             } else {
@@ -2623,7 +2623,7 @@ private struct ActivityReactionMomentCard: View {
 
     @ViewBuilder
     private func preview(for moment: Moment) -> some View {
-        if let media = moment.mediaItems?.first {
+        if let media = moment.primaryVisibleMediaItem {
             if media.type == .image {
                 mediaImage(urlString: media.url)
             } else {

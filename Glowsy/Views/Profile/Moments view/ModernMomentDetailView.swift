@@ -648,7 +648,7 @@ struct ModernDetailMomentCard: View {
                                     // ✅ PEEK: Comunicar imagen para overlay
                                     if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
                                         let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                                        if let item = currentItem, item.type == .image {
+                                        if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
                                             onPeek?(item.url, realAspectRatio, true)
                                         }
                                     }
@@ -719,7 +719,8 @@ struct ModernDetailMomentCard: View {
                             
                             // 1. Botón de Etiquetas
                             let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
-                            if let tags = currentMediaItem?.tags, !tags.isEmpty {
+                            if let currentMediaItem, !currentMediaItem.isHiddenByModeration,
+                               let tags = currentMediaItem.tags, !tags.isEmpty {
                                 Button(action: {
                                     withAnimation(.spring()) {
                                         showTags.toggle()

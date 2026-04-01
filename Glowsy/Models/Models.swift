@@ -290,7 +290,12 @@ struct PhotoTag: Codable, Identifiable, Equatable {
 }
 
 struct MediaItem: Identifiable, Codable {
-    let id = UUID().uuidString
+    enum ModerationState: String, Codable {
+        case visible
+        case hidden
+    }
+
+    let id: String
     let type: MediaType
     let url: String
     // 🔥 NUEVOS CAMPOS
@@ -299,14 +304,54 @@ struct MediaItem: Identifiable, Codable {
     let videoFileSize: Int64?
     let videoResolution: String?
     let tags: [PhotoTag]? // ✅ Etiquetas espaciales para esta imagen
+    let moderationState: ModerationState?
+    let moderationReason: String?
+    let moderationCategory: String?
+    let moderationConfidence: String?
+    let moderatedAt: Date?
 
     enum MediaType: String, Codable {
         case image
         case video
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case type
+        case url
+        case thumbnailUrl
+        case videoDuration
+        case videoFileSize
+        case videoResolution
+        case tags
+        case moderationState
+        case moderationReason
+        case moderationCategory
+        case moderationConfidence
+        case moderatedAt
+    }
+
+    var isHiddenByModeration: Bool {
+        moderationState == .hidden
+    }
     
     // Init completo para imágenes/videos
-    init(type: MediaType, url: String, thumbnailUrl: String? = nil, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, tags: [PhotoTag]? = nil) {
+    init(
+        id: String = UUID().uuidString,
+        type: MediaType,
+        url: String,
+        thumbnailUrl: String? = nil,
+        videoDuration: Double? = nil,
+        videoFileSize: Int64? = nil,
+        videoResolution: String? = nil,
+        tags: [PhotoTag]? = nil,
+        moderationState: ModerationState? = nil,
+        moderationReason: String? = nil,
+        moderationCategory: String? = nil,
+        moderationConfidence: String? = nil,
+        moderatedAt: Date? = nil
+    ) {
+        self.id = id
         self.type = type
         self.url = url
         self.thumbnailUrl = thumbnailUrl
@@ -314,6 +359,53 @@ struct MediaItem: Identifiable, Codable {
         self.videoFileSize = videoFileSize
         self.videoResolution = videoResolution
         self.tags = tags
+        self.moderationState = moderationState
+        self.moderationReason = moderationReason
+        self.moderationCategory = moderationCategory
+        self.moderationConfidence = moderationConfidence
+        self.moderatedAt = moderatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        self.type = try container.decode(MediaType.self, forKey: .type)
+        self.url = try container.decode(String.self, forKey: .url)
+        self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
+        self.videoDuration = try container.decodeIfPresent(Double.self, forKey: .videoDuration)
+        self.videoFileSize = try container.decodeIfPresent(Int64.self, forKey: .videoFileSize)
+        self.videoResolution = try container.decodeIfPresent(String.self, forKey: .videoResolution)
+        self.tags = try container.decodeIfPresent([PhotoTag].self, forKey: .tags)
+        self.moderationState = try container.decodeIfPresent(ModerationState.self, forKey: .moderationState)
+        self.moderationReason = try container.decodeIfPresent(String.self, forKey: .moderationReason)
+        self.moderationCategory = try container.decodeIfPresent(String.self, forKey: .moderationCategory)
+        self.moderationConfidence = try container.decodeIfPresent(String.self, forKey: .moderationConfidence)
+        if let moderatedAtDate = try container.decodeIfPresent(Date.self, forKey: .moderatedAt) {
+            self.moderatedAt = moderatedAtDate
+        } else if let moderatedAtMillis = try container.decodeIfPresent(Double.self, forKey: .moderatedAt) {
+            self.moderatedAt = Date(timeIntervalSince1970: moderatedAtMillis / 1000)
+        } else if let moderatedAtMillisInt = try container.decodeIfPresent(Int.self, forKey: .moderatedAt) {
+            self.moderatedAt = Date(timeIntervalSince1970: Double(moderatedAtMillisInt) / 1000)
+        } else {
+            self.moderatedAt = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(url, forKey: .url)
+        try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
+        try container.encodeIfPresent(videoDuration, forKey: .videoDuration)
+        try container.encodeIfPresent(videoFileSize, forKey: .videoFileSize)
+        try container.encodeIfPresent(videoResolution, forKey: .videoResolution)
+        try container.encodeIfPresent(tags, forKey: .tags)
+        try container.encodeIfPresent(moderationState, forKey: .moderationState)
+        try container.encodeIfPresent(moderationReason, forKey: .moderationReason)
+        try container.encodeIfPresent(moderationCategory, forKey: .moderationCategory)
+        try container.encodeIfPresent(moderationConfidence, forKey: .moderationConfidence)
+        try container.encodeIfPresent(moderatedAt, forKey: .moderatedAt)
     }
 }
 
@@ -347,6 +439,57 @@ struct Moment: Identifiable, Codable, Equatable {
     var isScheduled: Bool {
         guard let scheduledDate = scheduledDate else { return false }
         return scheduledDate > Date()
+    }
+
+    var visibleMediaItems: [MediaItem] {
+        (mediaItems ?? []).filter { item in
+            !item.isHiddenByModeration && !item.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    var primaryVisibleMediaItem: MediaItem? {
+        if let firstVisible = visibleMediaItems.first {
+            return firstVisible
+        }
+
+        return mediaItems?.first(where: { !$0.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+    }
+
+    var previewImageURLString: String? {
+        if let primaryVisibleMediaItem {
+            switch primaryVisibleMediaItem.type {
+            case .image:
+                let url = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
+                return url.isEmpty ? nil : url
+            case .video:
+                if let thumbnailUrl = primaryVisibleMediaItem.thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !thumbnailUrl.isEmpty {
+                    return thumbnailUrl
+                }
+                let url = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
+                return url.isEmpty ? nil : url
+            }
+        }
+
+        if let thumbnailUrl = thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumbnailUrl.isEmpty {
+            return thumbnailUrl
+        }
+        if let imagePath = imagePath?.trimmingCharacters(in: .whitespacesAndNewlines), !imagePath.isEmpty {
+            return imagePath
+        }
+        return nil
+    }
+
+    var previewVideoURLString: String? {
+        if let primaryVisibleMediaItem, primaryVisibleMediaItem.type == .video {
+            let url = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
+            return url.isEmpty ? nil : url
+        }
+
+        if let videoUrl = videoUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !videoUrl.isEmpty {
+            return videoUrl
+        }
+        return nil
     }
 
     func scheduledTimeFormatted() -> String {
