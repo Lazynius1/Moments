@@ -298,6 +298,7 @@ struct MediaItem: Identifiable, Codable {
     let id: String
     let type: MediaType
     let url: String
+    let aspectRatio: String?
     // 🔥 NUEVOS CAMPOS
     let thumbnailUrl: String?
     let videoDuration: Double?
@@ -319,6 +320,7 @@ struct MediaItem: Identifiable, Codable {
         case id
         case type
         case url
+        case aspectRatio
         case thumbnailUrl
         case videoDuration
         case videoFileSize
@@ -334,12 +336,51 @@ struct MediaItem: Identifiable, Codable {
     var isHiddenByModeration: Bool {
         moderationState == .hidden
     }
+
+    var resolvedAspectRatioValue: CGFloat? {
+        if let aspectRatio,
+           !aspectRatio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let normalizedAspectRatio = aspectRatio.trimmingCharacters(in: .whitespacesAndNewlines)
+            let parts = normalizedAspectRatio.split(separator: ":")
+            if parts.count == 2,
+               let width = Double(parts[0]),
+               let height = Double(parts[1]),
+               height > 0 {
+                let exactRatio = CGFloat(width / height)
+                if exactRatio.isFinite, exactRatio > 0 {
+                    return exactRatio
+                }
+            }
+
+            let canonicalRatio = CreatorMedia.AspectRatio(from: normalizedAspectRatio).value
+            if canonicalRatio.isFinite, canonicalRatio > 0 {
+                return canonicalRatio
+            }
+        }
+
+        if let videoResolution,
+           let separatorIndex = videoResolution.firstIndex(of: "x") {
+            let widthString = videoResolution[..<separatorIndex]
+            let heightString = videoResolution[videoResolution.index(after: separatorIndex)...]
+            if let width = Double(widthString),
+               let height = Double(heightString),
+               height > 0 {
+                let ratio = CGFloat(width / height)
+                if ratio.isFinite, ratio > 0 {
+                    return ratio
+                }
+            }
+        }
+
+        return nil
+    }
     
     // Init completo para imágenes/videos
     init(
         id: String = UUID().uuidString,
         type: MediaType,
         url: String,
+        aspectRatio: String? = nil,
         thumbnailUrl: String? = nil,
         videoDuration: Double? = nil,
         videoFileSize: Int64? = nil,
@@ -354,6 +395,7 @@ struct MediaItem: Identifiable, Codable {
         self.id = id
         self.type = type
         self.url = url
+        self.aspectRatio = aspectRatio
         self.thumbnailUrl = thumbnailUrl
         self.videoDuration = videoDuration
         self.videoFileSize = videoFileSize
@@ -371,6 +413,7 @@ struct MediaItem: Identifiable, Codable {
         self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
         self.type = try container.decode(MediaType.self, forKey: .type)
         self.url = try container.decode(String.self, forKey: .url)
+        self.aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio)
         self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
         self.videoDuration = try container.decodeIfPresent(Double.self, forKey: .videoDuration)
         self.videoFileSize = try container.decodeIfPresent(Int64.self, forKey: .videoFileSize)
@@ -396,6 +439,7 @@ struct MediaItem: Identifiable, Codable {
         try container.encode(id, forKey: .id)
         try container.encode(type, forKey: .type)
         try container.encode(url, forKey: .url)
+        try container.encodeIfPresent(aspectRatio, forKey: .aspectRatio)
         try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
         try container.encodeIfPresent(videoDuration, forKey: .videoDuration)
         try container.encodeIfPresent(videoFileSize, forKey: .videoFileSize)

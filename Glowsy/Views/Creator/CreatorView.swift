@@ -3250,27 +3250,7 @@ struct CaptionAndDetailsView: View {
         let finalScheduledDate = isSchedulingEnabled ? scheduledDate : nil
         
         
-        // ✅ MEJORADO: Detectar aspect ratio del primer media item, priorizando el recomendado (detectado automáticamente)
-        var detectedAspectRatio = "1:1" // Default
-        if let firstMedia = selectedMediaItems.first {
-            // ✅ PRIORIDAD: Usar el aspect ratio recomendado si está disponible y es diferente de cuadrado
-            // Esto asegura que el aspect ratio detectado automáticamente se use incluso si el usuario no interactuó
-            if let recommended = firstMedia.recommendedAspectRatio, recommended != .square {
-                detectedAspectRatio = recommended.displayName
-            } else if firstMedia.aspectRatio != .square {
-                // Si no hay recomendado pero el actual no es cuadrado, usar el actual
-                detectedAspectRatio = firstMedia.aspectRatio.displayName
-            } else {
-                // Si ambos son cuadrado, verificar si realmente debería ser cuadrado detectando de nuevo
-                let imageRatio = firstMedia.image.size.width / firstMedia.image.size.height
-                let reDetected = CreatorMedia.AspectRatio.fromRatio(imageRatio)
-                if reDetected != .square {
-                    detectedAspectRatio = reDetected.displayName
-                } else {
-                    detectedAspectRatio = "1:1" // Realmente es cuadrado
-                }
-            }
-        }
+        let detectedAspectRatio = preferredMomentAspectRatio(for: selectedMediaItems)
         
         // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
         // Combinar etiquetas espaciales con la lista legacy para notificaciones y búsquedas
@@ -3324,6 +3304,29 @@ struct CaptionAndDetailsView: View {
                 }
             }
         }
+    }
+
+    private func preferredMomentAspectRatio(for mediaItems: [CreatorMedia]) -> String {
+        guard !mediaItems.isEmpty else { return "1:1" }
+
+        let preferredRatios = mediaItems.map { mediaItem -> CreatorMedia.AspectRatio in
+            if let recommended = mediaItem.recommendedAspectRatio {
+                return recommended
+            }
+
+            if mediaItem.aspectRatio != .square {
+                return mediaItem.aspectRatio
+            }
+
+            let imageRatio = mediaItem.image.size.width / max(mediaItem.image.size.height, 1)
+            return CreatorMedia.AspectRatio.fromRatio(imageRatio)
+        }
+
+        let mostVerticalRatio = preferredRatios.min { lhs, rhs in
+            lhs.value < rhs.value
+        } ?? .square
+
+        return mostVerticalRatio.displayName
     }
     
     // 🧹 NUEVA FUNCIÓN: Limpiar formulario después de publicar

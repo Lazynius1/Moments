@@ -1117,6 +1117,7 @@ class BackgroundStoryUploadService: ObservableObject {
             type: media.type == .image ? "image" : "video",
             localFileName: fileName,
             thumbnailFileName: thumbName,
+            aspectRatio: media.aspectRatio.displayName,
             videoDuration: media.videoDuration,
             videoFileSize: media.videoFileSize,
             videoResolution: media.videoResolution,
@@ -1226,6 +1227,9 @@ class BackgroundStoryUploadService: ObservableObject {
             
             // Determinar aspect ratio
             let itemAspectRatio: CreatorMedia.AspectRatio = {
+                if let cachedAspectRatio = payload.mediaItem.aspectRatio {
+                    return CreatorMedia.AspectRatio(from: cachedAspectRatio)
+                }
                 if payload.mediaItem.type == "image", let uiImage = UIImage(contentsOfFile: mediaFileURL.path) {
                     return CreatorMedia.AspectRatio.fromRatio(uiImage.size.width / uiImage.size.height)
                 }

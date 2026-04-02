@@ -1257,33 +1257,37 @@ struct ModernSavedMomentsDetailView: View {
                 }
                 
                 if (isPeeking || peekOverlayProgress > 0.01), let imageURL = peekImageURL {
-                    ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
-                        ZStack {
-                            Color(hex: "0B1215")
-                                .opacity(Double(0.22 * peekOverlayProgress))
-                                .ignoresSafeArea()
-                            
-                            Rectangle()
-                                .fill(.ultraThinMaterial)
-                                .opacity(Double(0.45 * peekOverlayProgress))
-                                .ignoresSafeArea()
-                            
-                            KFImage(URL(string: imageURL))
-                                .resizable()
-                                .scaledToFill()
-                                .frame(
-                                    width: UIScreen.main.bounds.width - 32,
-                                    height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 20))
-                                .scaleEffect(0.96 + 0.04 * peekOverlayProgress)
-                                .shadow(color: .black.opacity(0.2 + 0.25 * Double(peekOverlayProgress)), radius: 20, y: 10)
+                    ZStack {
+                        ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
+                            ZStack {
+                                Color(hex: "0B1215")
+                                    .opacity(Double(0.22 * peekOverlayProgress))
+                                    .ignoresSafeArea()
+                                
+                                Rectangle()
+                                    .fill(.ultraThinMaterial)
+                                    .opacity(Double(0.45 * peekOverlayProgress))
+                                    .ignoresSafeArea()
+                                
+                                KFImage(URL(string: imageURL))
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(
+                                        width: UIScreen.main.bounds.width - 32,
+                                        height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                                    .scaleEffect(0.96 + 0.04 * peekOverlayProgress)
+                                    .shadow(color: .black.opacity(0.2 + 0.25 * Double(peekOverlayProgress)), radius: 20, y: 10)
+                            }
                         }
-                        .transition(.opacity)
-                        .animation(.easeOut(duration: 0.2), value: peekOverlayProgress)
-                        .allowsHitTesting(false)
-                        .zIndex(998)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .animation(.easeOut(duration: 0.2), value: peekOverlayProgress)
+                    .allowsHitTesting(false)
+                    .zIndex(998)
                 }
             }
         }

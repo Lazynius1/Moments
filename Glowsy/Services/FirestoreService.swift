@@ -1072,6 +1072,9 @@ class FirestoreService: ObservableObject {
                 "url": item.url
             ]
 
+            if let aspectRatio = item.aspectRatio {
+                mediaData["aspectRatio"] = aspectRatio
+            }
             if let thumbnailUrl = item.thumbnailUrl {
                 mediaData["thumbnailUrl"] = thumbnailUrl
             }

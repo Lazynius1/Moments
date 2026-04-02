@@ -123,6 +123,7 @@ struct CachedMediaItem: Codable {
     let type: String
     let localFileName: String
     let thumbnailFileName: String?
+    let aspectRatio: String?
     let videoDuration: Double?
     let videoFileSize: Int64?
     let videoResolution: String?
@@ -362,6 +363,7 @@ class BackgroundMomentUploadService: ObservableObject {
             uploadedItems.append(MediaItem(
                 type: mediaItemType,
                 url: urlString,
+                aspectRatio: media.aspectRatio.displayName,
                 thumbnailUrl: thumbnailUrlString, // ✅ Usar el URL del thumbnail recién subido
                 videoDuration: media.videoDuration,
                 videoFileSize: media.videoFileSize,
@@ -782,6 +784,7 @@ class BackgroundMomentUploadService: ObservableObject {
             type: media.type == .image ? "image" : "video",
             localFileName: fileName,
             thumbnailFileName: thumbName,
+            aspectRatio: media.aspectRatio.displayName,
             videoDuration: media.videoDuration,
             videoFileSize: media.videoFileSize,
             videoResolution: media.videoResolution,
@@ -833,6 +836,9 @@ class BackgroundMomentUploadService: ObservableObject {
                 
                 // Determinar aspect ratio del item
                 let itemAspectRatio: CreatorMedia.AspectRatio = {
+                    if let cachedAspectRatio = item.aspectRatio {
+                        return CreatorMedia.AspectRatio(from: cachedAspectRatio)
+                    }
                     if item.type == "image", let uiImage = UIImage(contentsOfFile: fileURL.path) {
                         return CreatorMedia.AspectRatio.fromRatio(uiImage.size.width / uiImage.size.height)
                     }
