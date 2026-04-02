@@ -139,23 +139,27 @@ struct ModernMomentDetailView: View {
         
         // 3. ✅ LONG PRESS PEEK: Overlay a pantalla completa
         if isPeeking, let imageURL = peekImageURL {
-            ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
-                ZStack {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .ignoresSafeArea()
-                    
-                    KFImage(URL(string: imageURL))
-                        .resizable()
-                        .scaledToFill()
-                        .frame(
-                            width: UIScreen.main.bounds.width - 32,
-                            height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+            ZStack {
+                ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
+                    ZStack {
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .ignoresSafeArea()
+                        
+                        KFImage(URL(string: imageURL))
+                            .resizable()
+                            .scaledToFill()
+                            .frame(
+                                width: UIScreen.main.bounds.width - 32,
+                                height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()
             .transition(.opacity)
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
             .allowsHitTesting(false)

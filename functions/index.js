@@ -3169,6 +3169,7 @@ function serializeMediaItem(item) {
     id: item.id || null,
     type: item.type || null,
     url: item.url || null,
+    aspectRatio: item.aspectRatio || null,
     thumbnailUrl: item.thumbnailUrl || null,
     videoDuration: item.videoDuration || null,
     videoFileSize: item.videoFileSize || null,

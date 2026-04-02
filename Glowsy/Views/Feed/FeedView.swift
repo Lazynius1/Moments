@@ -138,23 +138,27 @@ struct FeedView: View {
             
             // ✅ LONG PRESS PEEK: Overlay a pantalla completa
             if isPeeking, let imageURL = peekImageURL {
-                ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
-                    ZStack {
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .ignoresSafeArea()
-                        
-                        KFImage(URL(string: imageURL))
-                            .resizable()
-                            .scaledToFill()
-                            .frame(
-                                width: UIScreen.main.bounds.width - 32,
-                                height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                ZStack {
+                    ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
+                        ZStack {
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .ignoresSafeArea()
+                            
+                            KFImage(URL(string: imageURL))
+                                .resizable()
+                                .scaledToFill()
+                                .frame(
+                                    width: UIScreen.main.bounds.width - 32,
+                                    height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
                 .transition(.opacity)
                 .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
                 .allowsHitTesting(false)
@@ -2306,7 +2310,7 @@ struct ModernPostCardView: View {
         }
         return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
     }
-    
+
     // ✅ MEJORADO: Cálculo de altura con validaciones completas
     private var cardHeight: CGFloat {
         let currentSize = CGSize(
@@ -2382,15 +2386,22 @@ struct ModernPostCardView: View {
                             }
                     )
                     .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
+                        let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+                        let shouldUseFullscreenPeek = mediaItems.count > 1 &&
+                            currentItem?.type == .image &&
+                            currentItem?.isHiddenByModeration != true
+
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             self.isImmersive = isPressing
                             if isPressing {
                                 HapticManager.shared.mediumImpact()
                                 // ✅ PEEK: Comunicar imagen al FeedView para overlay
-                                if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
-                                    let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                                    if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
-                                        onPeek?(item.url, realAspectRatio, true)
+                                if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
+                                    let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
+                                    if currentItemRatio > 0,
+                                       currentItemRatio.isFinite,
+                                       (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
+                                        onPeek?(item.url, currentItemRatio, true)
                                     }
                                 }
                             } else {
@@ -3031,6 +3042,7 @@ struct EnhancedCarouselView: View {
                     MediaItemView(
                         item: item,
                         aspectRatio: aspectRatio,
+                        prefersUnifiedCarouselFrame: mediaItems.count > 1,
                         allMoments: allMoments, // ✅ PASAR todos los momentos
                         currentMoment: currentMoment, // ✅ PASAR momento actual
                         showTags: $showTags, // ✅ PASAR binding
@@ -3056,6 +3068,7 @@ struct EnhancedCarouselView: View {
 struct MediaItemView: View {
     let item: MediaItem
     let aspectRatio: CGFloat
+    let prefersUnifiedCarouselFrame: Bool
     let allMoments: [Moment]
     let currentMoment: Moment
     @Binding var showTags: Bool // ✅ AHORA ES BINDING
@@ -3064,27 +3077,79 @@ struct MediaItemView: View {
     
     @State private var showReelsViewer = false
     @State private var isVisible = false
+    @State private var loadedAspectRatio: CGFloat? = nil
+
+    private var resolvedItemAspectRatio: CGFloat {
+        if let loadedAspectRatio, loadedAspectRatio.isFinite, loadedAspectRatio > 0 {
+            return loadedAspectRatio
+        }
+        guard let ratio = item.resolvedAspectRatioValue, ratio.isFinite, ratio > 0 else {
+            return aspectRatio
+        }
+        return ratio
+    }
+
+    private var usesBlurredFitLayout: Bool {
+        guard prefersUnifiedCarouselFrame else { return false }
+        return MomentCarouselLayoutRules.presentationMode(
+            for: resolvedItemAspectRatio,
+            canvasAspectRatio: aspectRatio
+        ) == .fitWithBlur
+    }
     
     var body: some View {
-        ZStack { // ✅ CAMBIADO: ZStack para que el overlay esté ENCIMA
-            // ✅ SKELETON: Reserva el espacio exacto del ratio con cristal
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
+        GeometryReader { geometry in
+            ZStack { // ✅ CAMBIADO: ZStack para que el overlay esté ENCIMA
+                // ✅ SKELETON: Reserva el espacio exacto del ratio con cristal
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
 
-            if item.isHiddenByModeration {
-                ModeratedMediaItemView(item: item)
-            } else if item.type == .image {
-                // Imágenes igual que antes
-                KFImage(URL(string: item.url))
-                    .placeholder {
-                        // Sin ruedas verdes, el skeleton de cristal está debajo
-                        Color.clear
+                if item.isHiddenByModeration {
+                    ModeratedMediaItemView(item: item)
+                        .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                } else if item.type == .image {
+                    if usesBlurredFitLayout {
+                        CarouselMediaBackdropView(item: item)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
                     }
-                    .setProcessor(DownsamplingImageProcessor(size: CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width * aspectRatio)))
-                    .scaleFactor(UIScreen.main.scale)
-                    .cacheOriginalImage()
-                    .resizable()
-                    .scaledToFill() // ✅ INSTAGRAM: Proporciones naturales, el contenedor cropea el exceso
+
+                    Group {
+                        if usesBlurredFitLayout {
+                            KFImage(URL(string: item.url))
+                                .placeholder { Color.clear }
+                                .onSuccess { result in
+                                    let ratio = result.image.size.width / max(result.image.size.height, 1)
+                                    if ratio.isFinite, ratio > 0 {
+                                        loadedAspectRatio = ratio
+                                    }
+                                }
+                                .setProcessor(
+                                    DownsamplingImageProcessor(size: geometry.size)
+                                )
+                                .scaleFactor(UIScreen.main.scale)
+                                .cacheOriginalImage()
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                        } else {
+                            KFImage(URL(string: item.url))
+                                .placeholder { Color.clear }
+                                .onSuccess { result in
+                                    let ratio = result.image.size.width / max(result.image.size.height, 1)
+                                    if ratio.isFinite, ratio > 0 {
+                                        loadedAspectRatio = ratio
+                                    }
+                                }
+                                .setProcessor(
+                                    DownsamplingImageProcessor(size: geometry.size)
+                                )
+                                .scaleFactor(UIScreen.main.scale)
+                                .cacheOriginalImage()
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                        }
+                    }
                     .clipped()
                     .contentShape(Rectangle()) // ✅ Asegurar área de tap
                     .simultaneousGesture( // ✅ USAR simultaneousGesture para mayor fiabilidad en TabView
@@ -3096,29 +3161,31 @@ struct MediaItemView: View {
                             }
                         }
                     )
-            } else {
-                // ✅ VIDEOS: Con crop inteligente para el feed
-                CroppedVideoPlayer(
-                    item: item,
-                    aspectRatio: aspectRatio,
-                    currentMoment: currentMoment,
-                    onTap: { 
-                        if let tags = item.tags, !tags.isEmpty {
-                            withAnimation(.spring()) {
-                                showTags.toggle()
+                } else {
+                    // ✅ VIDEOS: Con crop inteligente para el feed
+                    CroppedVideoPlayer(
+                        item: item,
+                        aspectRatio: aspectRatio,
+                        prefersUnifiedCarouselFrame: prefersUnifiedCarouselFrame,
+                        currentMoment: currentMoment,
+                        onTap: {
+                            if let tags = item.tags, !tags.isEmpty {
+                                withAnimation(.spring()) {
+                                    showTags.toggle()
+                                }
+                            } else {
+                                openReelsViewer()
                             }
-                        } else {
-                            openReelsViewer() 
-                        }
-                    },
-                    isImmersive: $isImmersive // ✅ NUEVO
-                )
-            }
-            
-            // ✅ Overlay de etiquetas
-            if !item.isHiddenByModeration, let tags = item.tags, !tags.isEmpty {
-                PhotoTagOverlayView(tags: tags, isVisible: showTags, onTagTap: onTagTap)
-                    .zIndex(20)
+                        },
+                        isImmersive: $isImmersive // ✅ NUEVO
+                    )
+                }
+                
+                // ✅ Overlay de etiquetas
+                if !item.isHiddenByModeration, let tags = item.tags, !tags.isEmpty {
+                    PhotoTagOverlayView(tags: tags, isVisible: showTags, onTagTap: onTagTap)
+                        .zIndex(20)
+                }
             }
         }
         .clipped()
@@ -3151,11 +3218,50 @@ struct MediaItemView: View {
     }
 }
 
-private struct ModeratedMediaItemView: View {
+private struct CarouselMediaBackdropView: View {
     let item: MediaItem
 
     var body: some View {
         ZStack {
+            backdropContent
+                .blur(radius: 30)
+                .saturation(0.9)
+                .overlay(Color.black.opacity(0.18))
+
+            LinearGradient(
+                colors: [.black.opacity(0.18), .clear, .black.opacity(0.22)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .clipped()
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private var backdropContent: some View {
+        if item.type == .image {
+            KFImage(URL(string: item.url))
+                .placeholder { Color.black.opacity(0.2) }
+                .resizable()
+                .scaledToFill()
+        } else if let thumbnailUrl = item.thumbnailUrl, !thumbnailUrl.isEmpty {
+            KFImage(URL(string: thumbnailUrl))
+                .placeholder { Color.black.opacity(0.2) }
+                .resizable()
+                .scaledToFill()
+        } else {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+        }
+    }
+}
+
+private struct ModeratedMediaItemView: View {
+    let item: MediaItem
+
+    var body: some View {
+        ZStack(alignment: .center) {
             moderatedBackground
 
             LinearGradient(
@@ -3179,7 +3285,9 @@ private struct ModeratedMediaItemView: View {
             }
             .multilineTextAlignment(.center)
             .padding(.horizontal, 24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .contentShape(Rectangle())
     }
 
@@ -3214,6 +3322,7 @@ private struct ModeratedMediaItemView: View {
 struct CroppedVideoPlayer: View {
     let item: MediaItem
     let aspectRatio: CGFloat
+    let prefersUnifiedCarouselFrame: Bool
     let currentMoment: Moment
     let onTap: () -> Void
     @Binding var isImmersive: Bool // ✅ NUEVO
@@ -3221,15 +3330,64 @@ struct CroppedVideoPlayer: View {
     @StateObject private var globalManager = GlobalVideoManager.shared
     @State private var isVisible = false
     @State private var isMuted = true // ✅ Estado para el botón de mute
+
+    private var resolvedItemAspectRatio: CGFloat {
+        guard let ratio = item.resolvedAspectRatioValue, ratio.isFinite, ratio > 0 else {
+            return aspectRatio
+        }
+        return ratio
+    }
+
+    private var usesBlurredFitLayout: Bool {
+        guard prefersUnifiedCarouselFrame else { return false }
+        return MomentCarouselLayoutRules.presentationMode(
+            for: resolvedItemAspectRatio,
+            canvasAspectRatio: aspectRatio
+        ) == .fitWithBlur
+    }
     
     var body: some View {
         ZStack {
-            // ✅ MEJORADO: Para reels (9:16), mostrar más grande y destacado
-            if isReelsFormat {
+            if usesBlurredFitLayout {
+                CarouselMediaBackdropView(item: item)
+
+                ModernVideoPlayer(
+                    url: item.url,
+                    aspectRatio: resolvedItemAspectRatio,
+                    videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                    hideMuteButton: false
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 6)
+
+                VStack {
+                    HStack {
+                        Spacer()
+
+                        if let duration = item.videoDuration ?? currentMoment.videoDuration {
+                            Text(formatDuration(duration))
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color(hex: "0B1215").opacity(0.6))
+                                .cornerRadius(6)
+                                .padding(.trailing, 8)
+                                .padding(.top, 8)
+                        }
+                    }
+
+                    Spacer()
+                }
+                .opacity(isImmersive ? 0 : 1)
+                .animation(.easeInOut(duration: 0.3), value: isImmersive)
+            } else if isReelsFormat {
                 // ✅ REELS: Mostrar con mejor diseño nativo
                 ZStack {
                     // Thumbnail del video si está disponible
-                    if let thumbnailUrl = currentMoment.thumbnailUrl, !thumbnailUrl.isEmpty {
+                    if let thumbnailUrl = item.thumbnailUrl, !thumbnailUrl.isEmpty {
                         KFImage(URL(string: thumbnailUrl))
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -3331,7 +3489,7 @@ struct CroppedVideoPlayer: View {
                             Spacer()
                             
                             // Duración del video (esquina superior derecha)
-                            if let duration = currentMoment.videoDuration {
+                            if let duration = item.videoDuration ?? currentMoment.videoDuration {
                                 Text(formatDuration(duration))
                                     .font(.caption2)
                                     .fontWeight(.semibold)
@@ -3389,7 +3547,7 @@ struct CroppedVideoPlayer: View {
                         HStack {
                             Spacer()
                             
-                            if let duration = currentMoment.videoDuration {
+                            if let duration = item.videoDuration ?? currentMoment.videoDuration {
                                 Text(formatDuration(duration))
                                     .font(.caption2)
                                     .fontWeight(.semibold)
