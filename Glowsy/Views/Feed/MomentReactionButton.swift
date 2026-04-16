@@ -574,15 +574,12 @@ struct ReactionsListSheet: View {
                         else { noResultsView }
                     }
                     else { reactionsList }
-                    
-                    // Botón cerrar en la parte inferior
-                    cancelButton
                 }
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-        )
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .presentationBackground {
+            Color.clear
+                .liquidGlass(in: Rectangle())
+                .ignoresSafeArea()
+        }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .onAppear { loadReactions() }
@@ -974,40 +971,9 @@ struct ReactionsListSheet: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                )
-        )
+        .liquidGlass(in: Capsule())
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
-    }
-    
-    // MARK: - Cancel Button
-    private var cancelButton: some View {
-        Button(action: {
-            dismiss()
-            onDismiss()
-        }) {
-            Text(NSLocalizedString("common.close", comment: ""))
-                .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
-                        )
-                )
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
     }
     
     // MARK: - Adaptive Colors

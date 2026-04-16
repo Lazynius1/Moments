@@ -784,9 +784,14 @@ struct LocationMomentCard: View {
     
     // ✅ NUEVO: Computed property para mediaItems (consistente con otras vistas)
     private var mediaItems: [MediaItem] {
-        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
-        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
-            return mediaItems
+        // ✅ MODERACIÓN: Usar visibleMediaItems para excluir archivos moderados del carrusel
+        let visible = moment.visibleMediaItems
+        if !visible.isEmpty {
+            return visible
+        }
+
+        guard moment.shouldUseLegacyMediaFallback else {
+            return [MediaItem(type: .image, url: "")]
         }
         
         // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl

@@ -2148,10 +2148,10 @@ private struct ActivityCommentMomentPreview: View {
             } else {
                 mediaVideoPreview(videoURL: media.url, thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl)
             }
-        } else if let imagePath = moment.imagePath, !imagePath.isEmpty {
+        } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
             mediaImage(urlString: imagePath)
-        } else if let video = moment.videoUrl, !video.isEmpty {
-            mediaVideoPreview(videoURL: video, thumbnailURL: moment.thumbnailUrl)
+        } else if let video = moment.previewVideoURLString, !video.isEmpty {
+            mediaVideoPreview(videoURL: video, thumbnailURL: moment.previewImageURLString ?? moment.thumbnailUrl)
         } else {
             placeholder
         }
@@ -2629,10 +2629,10 @@ private struct ActivityReactionMomentCard: View {
             } else {
                 mediaVideoPreview(videoURL: media.url, thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl)
             }
-        } else if let imagePath = moment.imagePath, !imagePath.isEmpty {
+        } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
             mediaImage(urlString: imagePath)
-        } else if let video = moment.videoUrl, !video.isEmpty {
-            mediaVideoPreview(videoURL: video, thumbnailURL: moment.thumbnailUrl)
+        } else if let video = moment.previewVideoURLString, !video.isEmpty {
+            mediaVideoPreview(videoURL: video, thumbnailURL: moment.previewImageURLString ?? moment.thumbnailUrl)
         } else {
             videoPlaceholder
         }

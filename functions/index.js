@@ -1302,6 +1302,9 @@ exports.onNotificationCreated = onDocumentCreated('users/{userId}/notifications/
       case 'photoTag':
         await handlePhotoTagPush(userId, notificationId, notification, userData);
         break;
+      case 'mediaModeration':
+        await handleModerationPush(userId, notificationId, notification, userData);
+        break;
       default:
         // Badge update silencioso para todos los demás tipos
         await handleBadgeUpdate(userId, userData);
@@ -1343,6 +1346,75 @@ async function handleBadgeUpdate(userId, userData) {
       await removeInvalidToken(userId, userData.fcmToken);
     }
     throw error;
+  }
+}
+
+// 🛡️ Helper: Push notification para moderación de contenido multimedia
+async function handleModerationPush(userId, notificationId, notification, userData) {
+  const fcmToken = userData.fcmToken || null;
+  if (!fcmToken || isDoNotDisturbActive(userData)) return;
+
+  const moderationType = notification.moderationType || 'full';
+  const moderatedMediaCount = notification.moderatedMediaCount || 0;
+  const momentId = notification.momentId || '';
+
+  let titleLocKey, bodyLocKey, bodyLocArgs;
+
+  if (moderationType === 'partial') {
+    titleLocKey = 'notification.moderation.partial.title';
+    bodyLocKey = 'notification.moderation.partial.body';
+    bodyLocArgs = [String(moderatedMediaCount)];
+  } else {
+    titleLocKey = 'notification.moderation.full.title';
+    bodyLocKey = 'notification.moderation.full.body';
+    bodyLocArgs = [];
+  }
+
+  // Obtener conteos para badge
+  const counts = await getUnreadCounts(userId, {
+    type: 'notification',
+    notificationType: 'mediaModeration',
+    notificationId: notificationId
+  });
+
+  const message = {
+    token: fcmToken,
+    data: {
+      type: 'media_moderation',
+      momentId: momentId,
+      moderationType: moderationType,
+      moderatedMediaCount: String(moderatedMediaCount),
+      unreadMessages: String(counts.unreadMessages),
+      unreadNotifications: String(counts.unreadNotifications),
+    },
+    apns: {
+      headers: {
+        'apns-collapse-id': `moderation_${momentId}`
+      },
+      payload: {
+        aps: {
+          alert: {
+            'title-loc-key': titleLocKey,
+            'loc-key': bodyLocKey,
+            'loc-args': bodyLocArgs
+          },
+          badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+          sound: 'default',
+          'mutable-content': 1,
+          'thread-id': `moderation_${momentId}`
+        }
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    console.log(`✅ Push de moderación enviada a ${userData.username} (${moderationType})`);
+  } catch (error) {
+    if (error.code === 'messaging/registration-token-not-registered') {
+      await removeInvalidToken(userId, fcmToken);
+    }
+    console.error('❌ Error enviando push de moderación:', error);
   }
 }
 
@@ -3183,14 +3255,39 @@ function serializeMediaItem(item) {
   };
 }
 
+function hasVisibleMediaItem(item) {
+  if (!item || typeof item !== 'object') return false;
+  if (item.moderationState === 'hidden') return false;
+  return typeof item.url === 'string' && item.url.trim().length > 0;
+}
+
 function serializeMoment(docId, data) {
+  const hasStructuredMediaItems = Array.isArray(data.mediaItems);
+  const visibleMediaItems = hasStructuredMediaItems
+    ? data.mediaItems.filter((item) => hasVisibleMediaItem(item))
+    : null;
+  const primaryVisibleMediaItem = Array.isArray(visibleMediaItems) ? visibleMediaItems[0] || null : null;
+  const previewUrl = hasStructuredMediaItems
+    ? pickMomentPreviewUrl({ ...data, mediaItems: visibleMediaItems })
+    : null;
+  const primaryVisibleMediaUrl = primaryVisibleMediaItem && typeof primaryVisibleMediaItem.url === 'string'
+    ? primaryVisibleMediaItem.url.trim()
+    : null;
+  const primaryVisibleThumbnailUrl = primaryVisibleMediaItem && typeof primaryVisibleMediaItem.thumbnailUrl === 'string'
+    ? primaryVisibleMediaItem.thumbnailUrl.trim()
+    : null;
+
   return {
     id: docId,
     authorId: data.authorId || '',
     username: data.username || '',
     content: data.content || '',
-    imageUrl: data.imageUrl || null,
-    videoUrl: data.videoUrl || null,
+    imageUrl: hasStructuredMediaItems
+      ? (primaryVisibleMediaItem?.type === 'image' ? primaryVisibleMediaUrl : null)
+      : data.imageUrl || null,
+    videoUrl: hasStructuredMediaItems
+      ? (primaryVisibleMediaItem?.type === 'video' ? primaryVisibleMediaUrl : null)
+      : data.videoUrl || null,
     timestamp: tsToMillis(data.timestamp),
     reactions: data.reactions || {},
     commentCount: data.commentCount || 0,
@@ -3199,12 +3296,14 @@ function serializeMoment(docId, data) {
     location: data.location || null,
     locationCoordinate: data.locationCoordinate || null,
     audience: data.audience || 'everyone',
-    mediaItems: Array.isArray(data.mediaItems)
-      ? data.mediaItems.map((item) => serializeMediaItem(item)).filter(Boolean)
+    mediaItems: hasStructuredMediaItems
+      ? visibleMediaItems.map((item) => serializeMediaItem(item)).filter(Boolean)
       : null,
     aspectRatio: data.aspectRatio || null,
     customListId: data.customListId || null,
-    thumbnailUrl: data.thumbnailUrl || null,
+    thumbnailUrl: hasStructuredMediaItems
+      ? (primaryVisibleThumbnailUrl || previewUrl || null)
+      : data.thumbnailUrl || null,
     videoDuration: data.videoDuration || null,
     videoFileSize: data.videoFileSize || null,
     videoResolution: data.videoResolution || null,
