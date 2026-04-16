@@ -32,29 +32,12 @@ struct UserListView<ViewModel: UserListViewModel>: View {
             
             // ✅ Contenido principal
             contentView
-            
-            // ✅ Botón cerrar en la parte inferior
-            cancelButton
         }
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.3),
-                                    Color(hex: "007AFF").opacity(0.4)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-        )
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .presentationBackground {
+            Color.clear
+                .liquidGlass(in: Rectangle())
+                .ignoresSafeArea()
+        }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
@@ -100,14 +83,7 @@ struct UserListView<ViewModel: UserListViewModel>: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                )
-        )
+        .liquidGlass(in: Capsule())
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
     }
@@ -227,29 +203,6 @@ struct UserListView<ViewModel: UserListViewModel>: View {
         }
     }
     
-    // ✅ Botón cancelar idéntico al ContextMenu
-    private var cancelButton: some View {
-        Button(NSLocalizedString("userListView.closeButton", comment: "Close button")) {
-            withAnimation(.easeOut(duration: 0.3)) {
-                onDismiss()
-            }
-        }
-        .font(.custom("Poppins-SemiBold", size: 16))
-        .foregroundColor(colorScheme == .dark ? .white : .black)
-        .frame(maxWidth: .infinity)
-        .frame(height: 50)
-        .background(
-            RoundedRectangle(cornerRadius: 25)
-                .fill(Color.white.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-        )
-        .padding(.horizontal, 20)
-        .padding(.bottom, 30)
-    }
-
     
     private func getEmptyStateIcon() -> String {
         switch title.lowercased() {

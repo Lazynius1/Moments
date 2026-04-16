@@ -2814,3 +2814,14 @@
 "chatRecovery.error.lockedSuggestion" = "Wait a few minutes before trying again.";
 "mediaModeration.hidden.title" = "Hidden content";
 "mediaModeration.hidden.subtitle" = "Hidden by moderation";
+
+/* Push Notifications - Media Moderation */
+"notification.moderation.partial.title" = "Content Review";
+"notification.moderation.partial.body" = "We've hidden %@ photo(s)/video(s) from your post because they don't meet our Community Guidelines. The rest is still visible.";
+"notification.moderation.full.title" = "Content Review";
+"notification.moderation.full.body" = "Your post is now visible only to you because all media was hidden after review.";
+"notifications.message.mediaModeration" = "We reviewed a recent post to ensure it complies with our Community Guidelines.";
+
+/* Banner - Media Moderation */
+"banner.verb.mediaModeration.partial" = "Some content was hidden from your post";
+"banner.verb.mediaModeration.full" = "Your post is now only visible to you";

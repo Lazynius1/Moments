@@ -1227,7 +1227,20 @@ class MediaModerationService {
                     break
                 }
 
-                contentRef.updateData(updateData)
+                contentRef.updateData(updateData) { error in
+                    if error == nil {
+                        // ✅ MODERACIÓN: Crear notificación para moderación parcial
+                        self.createModerationNotification(
+                            userId: userId,
+                            contentId: contentId,
+                            moderationType: "partial",
+                            moderatedMediaCount: hiddenCount,
+                            totalMediaCount: mediaItems.count,
+                            moderatedMediaIndex: matchedIndex + 1,
+                            moderationCategory: self.getCategoryFromAction(action)
+                        )
+                    }
+                }
             }
         }
     }
@@ -1294,11 +1307,64 @@ class MediaModerationService {
                 if let audioScore = audioScore { hideData["audioScore"] = audioScore }
                 if let combinedScore = combinedScore { hideData["combinedScore"] = combinedScore }
 
-                contentRef.updateData(hideData) { error in
+                contentRef.updateData(hideData) { [weak self] error in
                     if let error = error {
                     } else {
+                        // ✅ MODERACIÓN: Crear notificación para moderación completa (onlyMe)
+                        self?.createModerationNotification(
+                            userId: userId,
+                            contentId: contentId,
+                            moderationType: "full",
+                            moderatedMediaCount: 0,
+                            totalMediaCount: 0,
+                            moderatedMediaIndex: nil,
+                            moderationCategory: nil
+                        )
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - 🛡️ Notificaciones de moderación
+    
+    /// Crea una notificación en Firestore para informar al usuario sobre la moderación de su contenido.
+    /// El documento creado dispara `onNotificationCreated` en Cloud Functions, que envía la push notification.
+    private func createModerationNotification(
+        userId: String,
+        contentId: String,
+        moderationType: String, // "partial" o "full"
+        moderatedMediaCount: Int,
+        totalMediaCount: Int,
+        moderatedMediaIndex: Int?,
+        moderationCategory: String?
+    ) {
+        let db = Firestore.firestore()
+        let notificationId = "moderation_\(contentId)_\(Int(Date().timeIntervalSince1970))"
+        let notificationRef = db.collection("users").document(userId).collection("notifications").document(notificationId)
+        
+        var notificationData: [String: Any] = [
+            "type": "mediaModeration",
+            "senderId": "system_moderation",
+            "senderUsername": "Moments",
+            "momentId": contentId,
+            "moderationType": moderationType,
+            "moderatedMediaCount": moderatedMediaCount,
+            "totalMediaCount": totalMediaCount,
+            "timestamp": FieldValue.serverTimestamp(),
+            "isPending": true
+        ]
+        
+        if let index = moderatedMediaIndex {
+            notificationData["moderatedMediaIndex"] = index
+        }
+        if let category = moderationCategory {
+            notificationData["moderationCategory"] = category
+        }
+        
+        notificationRef.setData(notificationData) { error in
+            if let error = error {
+                print("❌ Error creando notificación de moderación: \(error.localizedDescription)")
             }
         }
     }

@@ -2819,3 +2819,14 @@
 "chatRecovery.error.lockedSuggestion" = "Espera uns minuts abans de tornar-ho a intentar.";
 "mediaModeration.hidden.title" = "Contingut ocult";
 "mediaModeration.hidden.subtitle" = "Ocultat per moderació";
+
+/* Push Notifications - Moderació de contingut */
+"notification.moderation.partial.title" = "Revisió de contingut";
+"notification.moderation.partial.body" = "Hem ocultat %@ foto(s)/vídeo(s) de la teva publicació perquè no compleixen les nostres Normes de la comunitat. La resta segueix visible.";
+"notification.moderation.full.title" = "Revisió de contingut";
+"notification.moderation.full.body" = "La teva publicació ara és només per a tu perquè tot el contingut multimèdia va ser ocultat després de la revisió.";
+"notifications.message.mediaModeration" = "Hem revisat una publicació recent per assegurar que compleix les nostres Normes de la comunitat.";
+
+/* Banner - Moderació de contingut */
+"banner.verb.mediaModeration.partial" = "S'ha ocultat contingut de la teva publicació";
+"banner.verb.mediaModeration.full" = "La teva publicació ara és només per a tu";

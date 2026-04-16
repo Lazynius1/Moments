@@ -491,12 +491,12 @@ struct Moment: Identifiable, Codable, Equatable {
         }
     }
 
-    var primaryVisibleMediaItem: MediaItem? {
-        if let firstVisible = visibleMediaItems.first {
-            return firstVisible
-        }
+    var shouldUseLegacyMediaFallback: Bool {
+        mediaItems == nil
+    }
 
-        return mediaItems?.first(where: { !$0.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+    var primaryVisibleMediaItem: MediaItem? {
+        visibleMediaItems.first
     }
 
     var previewImageURLString: String? {
@@ -515,6 +515,8 @@ struct Moment: Identifiable, Codable, Equatable {
             }
         }
 
+        guard shouldUseLegacyMediaFallback else { return nil }
+
         if let thumbnailUrl = thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumbnailUrl.isEmpty {
             return thumbnailUrl
         }
@@ -529,6 +531,8 @@ struct Moment: Identifiable, Codable, Equatable {
             let url = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
             return url.isEmpty ? nil : url
         }
+
+        guard shouldUseLegacyMediaFallback else { return nil }
 
         if let videoUrl = videoUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !videoUrl.isEmpty {
             return videoUrl
@@ -1844,6 +1848,7 @@ enum NotificationType: String, Codable, CaseIterable {
     case echoSuggestion = "echoSuggestion" // 🌊 NUEVO: Sugerencia de Echo (Nova Spark)
     case dataExportReady = "data_export_ready"
     case storyChainContinued = "storyChainContinued" // 🔗 Story Chain continuada
+    case mediaModeration = "mediaModeration" // 🛡️ Moderación de contenido multimedia
 
     var displayName: String {
         switch self {
@@ -1862,6 +1867,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .echoSuggestion: return "Sugerencia de Echo"
         case .dataExportReady: return "Exportación de datos"
         case .storyChainContinued: return "Cadena de historias" // 🔗
+        case .mediaModeration: return "Moderación" // 🛡️
         }
     }
     
@@ -1882,6 +1888,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .echoSuggestion: return "sparkles.rectangle.stack"
         case .dataExportReady: return "tray.and.arrow.down.fill"
         case .storyChainContinued: return "link.circle.fill" // 🔗
+        case .mediaModeration: return "exclamationmark.shield.fill" // 🛡️
         }
     }
 }

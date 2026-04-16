@@ -172,47 +172,20 @@ struct VisitsView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack {
-            Spacer()
+        VStack(spacing: 0) {
+            // ✅ Header con título
+            headerView
             
-            // ✅ Contenedor principal con el mismo estilo que ContextMenu
-            VStack(spacing: 0) {
-                // ✅ Handle superior igual que ContextMenu
-                handleView
-                
-                // ✅ Header con título
-                headerView
-                
-                // ✅ Contenido principal
-                contentView
-                
-                // ✅ Botón cerrar en la parte inferior
-                cancelButton
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.3),
-                                        Color(hex: "00A896").opacity(0.4)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-            )
-            .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-            .transition(.asymmetric(
-                insertion: .move(edge: .bottom).combined(with: .opacity),
-                removal: .move(edge: .bottom).combined(with: .opacity)
-            ))
+            // ✅ Contenido principal
+            contentView
         }
+        .presentationBackground {
+            Color.clear
+                .liquidGlass(in: Rectangle())
+                .ignoresSafeArea()
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
         .overlay(
             Group {
                 if viewModel.showStalkerAlert, let stalker = viewModel.detectedStalker {
@@ -956,15 +929,7 @@ struct VisitsView_Previews: PreviewProvider {
 
 // ✅ COMPONENTES PARA VISITSVIEW CON EL MISMO ESTILO QUE USERLISTVIEW
 extension VisitsView {
-    // ✅ Handle superior idéntico al ContextMenu
-    private var handleView: some View {
-        RoundedRectangle(cornerRadius: 2.5)
-            .fill(Color.white.opacity(0.4))
-            .frame(width: 40, height: 5)
-            .padding(.top, 12)
-            .padding(.bottom, 20)
-    }
-    
+
     // ✅ Header simplificado como el ContextMenu
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
@@ -978,6 +943,7 @@ extension VisitsView {
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 20)
+        .padding(.top, 20)
         .padding(.bottom, 24)
     }
     
@@ -1012,31 +978,5 @@ extension VisitsView {
                 }
             }
         }
-    }
-    
-    // ✅ Botón cancelar en la parte inferior
-    private var cancelButton: some View {
-        Button(action: {
-            withAnimation(.easeOut(duration: 0.3)) {
-                dismiss()
-            }
-        }) {
-            Text("Cerrar")
-                .font(.custom("Poppins-SemiBold", size: 16))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                        )
-                )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
     }
 }

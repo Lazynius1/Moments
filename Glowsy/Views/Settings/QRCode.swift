@@ -14,15 +14,10 @@ struct QRCodeView: View {
         VStack(spacing: 0) {
             // Header con título
             VStack(spacing: 2) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.3))
-                    .frame(width: 36, height: 5)
-                    .padding(.top, 12)
-                
                 Text(NSLocalizedString("qrCode.title", comment: "QR code title"))
                     .font(.custom("Poppins-Bold", size: 20))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .padding(.top, 8)
+                    .padding(.top, 20)
             }
             .frame(maxWidth: .infinity)
             .padding(.bottom, 20)
@@ -91,30 +86,13 @@ struct QRCodeView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 30)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 30)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.3),
-                                    Color(hex: "4F46E5").opacity(0.4)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-        )
-        .padding(.horizontal, 16) // Un poco de margen lateral
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-        // ✅ CLAVE: Fondo del sheet TOTALMENTE transparente para ver solo nuestra tarjeta
-        .presentationBackground(.clear)
-        .presentationDetents([.height(550)]) // Altura fija para que se vea flotante
-        .presentationDragIndicator(.hidden) // Ocultamos el indicador nativo porque usamos el custom capsule o nada
+        .presentationBackground {
+            Color.clear
+                .liquidGlass(in: Rectangle())
+                .ignoresSafeArea()
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
         .onAppear {
             viewModel.loadUserData()
             generateQRCode()

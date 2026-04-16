@@ -583,9 +583,14 @@ struct ModernDetailMomentCard: View {
     }
 
     private var mediaItems: [MediaItem] {
-        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
-        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
-            return mediaItems
+        // ✅ MODERACIÓN: Usar visibleMediaItems para excluir archivos moderados del carrusel
+        let visible = moment.visibleMediaItems
+        if !visible.isEmpty {
+            return visible
+        }
+
+        guard moment.shouldUseLegacyMediaFallback else {
+            return [MediaItem(type: .image, url: "")]
         }
         
         // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
@@ -649,11 +654,17 @@ struct ModernDetailMomentCard: View {
                                 self.isImmersive = isPressing
                                 if isPressing {
                                     HapticManager.shared.mediumImpact()
-                                    // ✅ PEEK: Comunicar imagen para overlay
-                                    if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
-                                        let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                                        if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
-                                            onPeek?(item.url, realAspectRatio, true)
+                                    let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+                                    let shouldUseFullscreenPeek = mediaItems.count > 1 &&
+                                        currentItem?.type == .image &&
+                                        currentItem?.isHiddenByModeration != true
+
+                                    if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
+                                        let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
+                                        if currentItemRatio > 0,
+                                           currentItemRatio.isFinite,
+                                           (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
+                                            onPeek?(item.url, currentItemRatio, true)
                                         }
                                     }
                                 } else {

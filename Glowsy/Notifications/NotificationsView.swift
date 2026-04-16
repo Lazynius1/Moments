@@ -391,6 +391,11 @@ struct NotificationsView: View {
                 UIApplication.shared.canOpenURL(url)
             else { return }
             UIApplication.shared.open(url)
+        case .mediaModeration:
+            // 🛡️ Navegar al momento moderado
+            if let momentId = firstNotification.momentId {
+                fetchMoment(momentId: momentId)
+            }
         }
     }
 
@@ -903,6 +908,22 @@ struct EnhancedNotificationRow: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
+            case .mediaModeration:
+                // 🛡️ Icono de moderación naranja
+                Button(action: onTapAction) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .foregroundColor(.orange)
+                        .font(.system(size: 20))
+                        .frame(width: 44, height: 44)
+                        .background(Color.orange.opacity(0.15))
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.orange.opacity(0.45), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
+
             default:
                 EmptyView()
             }
@@ -1016,6 +1037,8 @@ struct EnhancedNotificationRow: View {
             case .storyChainContinued:
                 let chainTitle = firstNotification.chainTitle ?? ""
                 return AttributedString(String(format: NSLocalizedString("notifications.message.storyChain.multiple", comment: "Multiple story chain continuations"), effectiveSenderUsername, chainTitle, group.notifications.count - 1))
+            case .mediaModeration:
+                return AttributedString(NSLocalizedString("notifications.message.mediaModeration", comment: "Media moderation notification"))
             }
         } else {
             switch firstNotification.type {
@@ -1065,6 +1088,8 @@ struct EnhancedNotificationRow: View {
             case .storyChainContinued:
                 let chainTitle = firstNotification.chainTitle ?? ""
                 return AttributedString(String(format: NSLocalizedString("notifications.message.storyChain.single", comment: "Single story chain continuation"), effectiveSenderUsername, chainTitle))
+            case .mediaModeration:
+                return AttributedString(NSLocalizedString("notifications.message.mediaModeration", comment: "Media moderation notification"))
             }
         }
     }

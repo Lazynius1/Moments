@@ -46,20 +46,28 @@ struct InAppBannerView: View {
         notification.senderId == "system_time_limit"
     }
     
+    private func isSystemModerationBanner(_ notification: Notification) -> Bool {
+        notification.type == .mediaModeration
+    }
+    
+    private func isSystemBanner(_ notification: Notification) -> Bool {
+        isSystemTimeLimitBanner(notification) || isSystemModerationBanner(notification)
+    }
+    
     private func bannerContent(for notification: Notification) -> some View {
-        let isTimeLimit = isSystemTimeLimitBanner(notification)
-        let accentColor = isTimeLimit ? Color.orange : colorFor(notification.type)
+        let isSystem = isSystemBanner(notification)
+        let accentColor = isSystem ? Color.orange : colorFor(notification.type)
 
         return Button(action: {
             handleTap(on: notification)
         }) {
             HStack(spacing: 12) {
-                if isTimeLimit {
+                if isSystem {
                     ZStack {
                         Circle()
                             .fill(accentColor.opacity(0.16))
                             .frame(width: 42, height: 42)
-                        Image(systemName: "hourglass.circle.fill")
+                        Image(systemName: isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : "hourglass.circle.fill")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(accentColor)
                     }
@@ -78,7 +86,7 @@ struct InAppBannerView: View {
                             .font(.custom("Poppins-Bold", size: 14))
                             .foregroundColor(.primary)
 
-                        if !isTimeLimit {
+                        if !isSystem {
                             Text(verbFor(notification.type))
                                 .font(.custom("Poppins-Medium", size: 13))
                                 .foregroundColor(.secondary)
@@ -88,8 +96,13 @@ struct InAppBannerView: View {
                     
                     // Detailed Content
                     Group {
-                        if isTimeLimit, let content = notification.reaction, !content.isEmpty {
+                        if isSystemTimeLimitBanner(notification), let content = notification.reaction, !content.isEmpty {
                             Text(content)
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .foregroundColor(.secondary.opacity(0.92))
+                                .lineLimit(2)
+                        } else if isSystemModerationBanner(notification) {
+                            Text(moderationBannerText(for: notification))
                                 .font(.custom("Poppins-Medium", size: 13))
                                 .foregroundColor(.secondary.opacity(0.92))
                                 .lineLimit(2)
@@ -120,7 +133,7 @@ struct InAppBannerView: View {
                 Spacer()
                 
                 // Icon or Preview
-                if !isTimeLimit, let previewPath = contentPreviewImage, let url = URL(string: previewPath) {
+                if !isSystem, let previewPath = contentPreviewImage, let url = URL(string: previewPath) {
                     KFImage(url)
                         .resizable()
                         .scaledToFill()
@@ -136,7 +149,7 @@ struct InAppBannerView: View {
                             .fill(accentColor.opacity(0.15))
                             .frame(width: 32, height: 32)
                         
-                        Image(systemName: isTimeLimit ? "clock.fill" : notification.type.systemIconName)
+                        Image(systemName: isSystemTimeLimitBanner(notification) ? "clock.fill" : (isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : notification.type.systemIconName))
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(accentColor)
                     }
@@ -177,7 +190,7 @@ struct InAppBannerView: View {
     }
     
     private func loadImages(for notification: Notification) {
-        if isSystemTimeLimitBanner(notification) {
+        if isSystemBanner(notification) {
             return
         }
         // 1. Avatar handled by AsyncProfileImageView
@@ -203,12 +216,7 @@ struct InAppBannerView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let moment):
-                    // Priorizar thumbnail para videos, luego imagePath
-                    if let thumbnailUrl = moment.thumbnailUrl, !thumbnailUrl.isEmpty {
-                        self.contentPreviewImage = thumbnailUrl
-                    } else if let imagePath = moment.imagePath, !imagePath.isEmpty {
-                        self.contentPreviewImage = imagePath
-                    }
+                    self.contentPreviewImage = moment.previewImageURLString
                 case .failure:
                     break
                 }
@@ -243,7 +251,11 @@ struct InAppBannerView: View {
     
     private func handleTap(on notification: Notification) {
         service.dismissManually()
-        if isSystemTimeLimitBanner(notification) {
+        if isSystemBanner(notification) {
+            // Para moderación, navegar al momento moderado
+            if notification.type == .mediaModeration, let momentId = notification.momentId {
+                navigationService.navigateToMoment(momentId: momentId, userId: notification.senderId)
+            }
             return
         }
         
@@ -293,6 +305,7 @@ struct InAppBannerView: View {
         case .storyChainContinued: return NSLocalizedString("banner.verb.storyChain", value: "continued your story chain", comment: "")
         case .message: return NSLocalizedString("banner.verb.message", value: "sent you a message", comment: "")
         case .echoSuggestion: return NSLocalizedString("banner.verb.echoSuggestion", value: "is near you! Create an Echo", comment: "")
+        case .mediaModeration: return NSLocalizedString("banner.verb.mediaModeration.partial", value: "Some content was hidden from your post", comment: "")
         default: return "interacted"
         }
     }
@@ -305,8 +318,25 @@ struct InAppBannerView: View {
         case .newFollower: return .green
         case .storyChainContinued: return .indigo
         case .echoSuggestion: return .orange // Nova Spark vibe
+        case .mediaModeration: return .orange // 🛡️ Moderación
         default: return .gray
         }
+    }
+
+    private func moderationBannerText(for notification: Notification) -> String {
+        if let message = notification.message, !message.isEmpty {
+            return message
+        }
+        // Usar clave de localización basada en moderationType
+        // El campo message se rellena desde el servidor, pero como fallback usamos la clave
+        let moderationType = notification.reaction ?? "partial" // reaction se usa para almacenar moderationType en el decode
+        if moderationType == "full" || notification.senderId == "system_moderation" {
+            // Verificar título para distinguir
+            if notification.title?.contains("solo para ti") == true || notification.title?.contains("only to you") == true {
+                return NSLocalizedString("banner.verb.mediaModeration.full", value: "Your post is now only visible to you", comment: "")
+            }
+        }
+        return NSLocalizedString("banner.verb.mediaModeration.partial", value: "Some content was hidden from your post", comment: "")
     }
 
     private func storyChainSubtitle(for notification: Notification) -> String {

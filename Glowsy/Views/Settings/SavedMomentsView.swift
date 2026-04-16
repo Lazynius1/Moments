@@ -859,14 +859,14 @@ struct SavedMomentsView: View {
         if let first = moment.primaryVisibleMediaItem {
             return first.type == .video
         }
-        return moment.videoUrl != nil
+        return moment.previewVideoURLString != nil
     }
     
     private func hasImage(_ moment: Moment) -> Bool {
         if let first = moment.primaryVisibleMediaItem {
             return first.type == .image
         }
-        return moment.imagePath != nil
+        return moment.previewImageURLString != nil
     }
     
     private func toggleSelection(moment: Moment) {
@@ -1098,12 +1098,12 @@ private struct SavedMomentGridCard: View {
                     .resizable()
                     .scaledToFill()
             }
-        } else if let image = moment.imagePath {
+        } else if let image = moment.previewImageURLString {
             KFImage(URL(string: image))
                 .resizable()
                 .scaledToFill()
-        } else if let video = moment.videoUrl {
-            savedVideoPreview(url: video, thumbnail: moment.thumbnailUrl)
+        } else if let video = moment.previewVideoURLString {
+            savedVideoPreview(url: video, thumbnail: moment.previewImageURLString ?? moment.thumbnailUrl)
         } else {
             ZStack {
                 LinearGradient(
@@ -1260,13 +1260,8 @@ struct ModernSavedMomentsDetailView: View {
                     ZStack {
                         ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
                             ZStack {
-                                Color(hex: "0B1215")
-                                    .opacity(Double(0.22 * peekOverlayProgress))
-                                    .ignoresSafeArea()
-                                
                                 Rectangle()
                                     .fill(.ultraThinMaterial)
-                                    .opacity(Double(0.45 * peekOverlayProgress))
                                     .ignoresSafeArea()
                                 
                                 KFImage(URL(string: imageURL))
@@ -1277,15 +1272,14 @@ struct ModernSavedMomentsDetailView: View {
                                         height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                                    .scaleEffect(0.96 + 0.04 * peekOverlayProgress)
-                                    .shadow(color: .black.opacity(0.2 + 0.25 * Double(peekOverlayProgress)), radius: 20, y: 10)
+                                    .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
                             }
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .ignoresSafeArea()
                     .transition(.opacity)
-                    .animation(.easeOut(duration: 0.2), value: peekOverlayProgress)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
                     .allowsHitTesting(false)
                     .zIndex(998)
                 }
@@ -1548,9 +1542,14 @@ struct ModernSavedDetailMomentCard: View {
     }
 
     private var mediaItems: [MediaItem] {
-        // ✅ NUEVO: Usar el campo mediaItems del momento (múltiples archivos)
-        if let mediaItems = moment.mediaItems, !mediaItems.isEmpty {
-            return mediaItems
+        // ✅ MODERACIÓN: Usar visibleMediaItems para excluir archivos moderados del carrusel
+        let visible = moment.visibleMediaItems
+        if !visible.isEmpty {
+            return visible
+        }
+
+        guard moment.shouldUseLegacyMediaFallback else {
+            return [MediaItem(type: .image, url: "")]
         }
         
         // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
@@ -1913,11 +1912,18 @@ struct ModernSavedDetailMomentCard: View {
             withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
                 self.isImmersive = true
                 HapticManager.shared.mediumImpact()
-                
-                if realAspectRatio > 0, realAspectRatio < detectedAspectRatio {
-                    let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                    if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
-                        onPeek?(item.url, realAspectRatio, true)
+
+                let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+                let shouldUseFullscreenPeek = mediaItems.count > 1 &&
+                    currentItem?.type == .image &&
+                    currentItem?.isHiddenByModeration != true
+
+                if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
+                    let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
+                    if currentItemRatio > 0,
+                       currentItemRatio.isFinite,
+                       (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
+                        onPeek?(item.url, currentItemRatio, true)
                     }
                 }
             }
