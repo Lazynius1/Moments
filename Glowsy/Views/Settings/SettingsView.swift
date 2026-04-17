@@ -80,6 +80,7 @@ struct SettingsView: View {
     @State private var isShowingNotificationSettings: Bool = false
     @State private var isShowingAdvancedAccountManagement: Bool = false
     @State private var isShowingNovaMemory: Bool = false
+    @State private var isShowingPersonalInfo: Bool = false
     @State private var blockedAccountsCount: Int = 0
 
     var body: some View {
@@ -102,6 +103,7 @@ struct SettingsView: View {
                         username: $username,
                         email: $email,
                         phoneNumber: $phoneNumber,
+                        isShowingPersonalInfo: $isShowingPersonalInfo,
                         isShowingQRCode: $isShowingQRCode,
                         isShowingContentVisibility: $isShowingContentVisibility,
                         isShowingConnections: $isShowingConnections,
@@ -179,6 +181,17 @@ struct SettingsView: View {
                     }
             .sheet(isPresented: $isShowingQRCode) {
                 QRCodeView()
+            }
+            .sheet(isPresented: $isShowingPersonalInfo) {
+                PersonalInfoView(username: $username, email: $email, phoneNumber: $phoneNumber)
+                    .presentationDetents([.medium, .large])
+                    .presentationContentInteraction(.scrolls)
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground {
+                        Color.clear
+                            .liquidGlass(in: Rectangle())
+                            .ignoresSafeArea()
+                    }
             }
             .fullScreenCover(isPresented: $isShowingContentVisibility) {
                 ContentVisibilityView()
@@ -283,6 +296,7 @@ struct SettingsFormView: View {
     @Binding var username: String
     @Binding var email: String
     @Binding var phoneNumber: String
+    @Binding var isShowingPersonalInfo: Bool
     @Binding var isShowingQRCode: Bool
     @Binding var isShowingContentVisibility: Bool
     @Binding var isShowingConnections: Bool
@@ -313,6 +327,7 @@ struct SettingsFormView: View {
                         username: $username,
                         email: $email,
                         phoneNumber: $phoneNumber,
+                        isShowingPersonalInfo: $isShowingPersonalInfo,
                         isShowingQRCode: $isShowingQRCode
                     )
 
@@ -782,6 +797,7 @@ struct AccountSection: View {
     @Binding var username: String
     @Binding var email: String
     @Binding var phoneNumber: String
+    @Binding var isShowingPersonalInfo: Bool
     @Binding var isShowingQRCode: Bool
 
     var body: some View {
@@ -789,8 +805,8 @@ struct AccountSection: View {
             SettingsRow(
                 icon: "person.crop.circle",
                 title: NSLocalizedString("settings.sections.personalInfo", comment: "Personal Information"),
-                subtitle: NSLocalizedString("settings.sections.personalInfo.subtitle", comment: "Name, phone, email"),
-                destination: AnyView(PersonalInfoView(username: $username, email: $email, phoneNumber: $phoneNumber))
+                subtitle: NSLocalizedString("settings.sections.personalInfo.subtitle", comment: "Username and email"),
+                action: { isShowingPersonalInfo = true }
             )
 
             SettingsRow(
@@ -1347,8 +1363,13 @@ struct PersonalInfoView: View {
     @Binding var email: String
     @Binding var phoneNumber: String
     
+    private enum ViewState {
+        case main
+        case username
+    }
+    
     // Username change state
-    @State private var showUsernameSheet = false
+    @State private var viewState: ViewState = .main
     @State private var lastUsernameChange: Date? = nil
     private let firestoreService = FirestoreService()
     
@@ -1369,87 +1390,55 @@ struct PersonalInfoView: View {
     }
     
     var body: some View {
-        SettingsSubsectionWrapper(title: NSLocalizedString("settings.sections.personalInfo", comment: "Personal Information")) {
-            ScrollView {
-                VStack(spacing: 16) {
-                    VStack(spacing: 12) {
-                        
-                        // MARK: - Username row (tappable)
-                        Button(action: {
-                            if canChangeUsername { showUsernameSheet = true }
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(NSLocalizedString("settings.profile.username", comment: "Username label"))
-                                        .font(.custom("Poppins-Medium", size: 16))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    if let nextDate = nextAvailableDate {
-                                        Text(String(format: NSLocalizedString("username.availableOn", comment: "Available on %@"), nextDate))
-                                            .font(.custom("Poppins-Regular", size: 12))
-                                            .foregroundColor(.orange)
-                                    }
-                                }
-                                Spacer()
-                                Text("@\(username.isEmpty ? "—" : username)")
-                                    .font(.custom("Poppins-Regular", size: 14))
-                                    .foregroundColor(.gray)
-                                if canChangeUsername {
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(.gray.opacity(0.6))
-                                        .padding(.leading, 4)
-                                } else {
-                                    Image(systemName: "lock.fill")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.orange.opacity(0.8))
-                                        .padding(.leading, 4)
+        NavigationStack {
+            ZStack {
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                    .ignoresSafeArea()
+
+                ZStack {
+                    switch viewState {
+                    case .main:
+                        personalInfoMainContent
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .leading).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
+
+                    case .username:
+                        UsernameChangeContent(
+                            currentUsername: $username,
+                            lastUsernameChange: $lastUsernameChange,
+                            onBack: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                                    viewState = .main
                                 }
                             }
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
                         )
-                        
-                        // MARK: - Email (read-only)
-                        HStack {
-                            Text(NSLocalizedString("settings.profile.email", comment: "Email label"))
-                                .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                            Spacer()
-                            Text(email.isEmpty ? NSLocalizedString("settings.notConfigured", comment: "Not configured") : email)
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
-                        
-                        // MARK: - Phone (read-only)
-                        HStack {
-                            Text(NSLocalizedString("settings.profile.phone", comment: "Phone label"))
-                                .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                            Spacer()
-                            Text(phoneNumber.isEmpty ? NSLocalizedString("settings.notConfigured", comment: "Not configured") : phoneNumber)
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
-                        
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
                     }
-                    .padding(.horizontal, 16)
                 }
-                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewState)
             }
-        }
-        .sheet(isPresented: $showUsernameSheet) {
-            UsernameChangeSheet(currentUsername: $username, lastUsernameChange: $lastUsernameChange)
+            .navigationTitle(navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if viewState == .username {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                                viewState = .main
+                            }
+                        }) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                    }
+                }
+            }
         }
         .onAppear {
             // Load lastUsernameChange from Firestore
@@ -1462,14 +1451,94 @@ struct PersonalInfoView: View {
             }
         }
     }
+    
+    private var navigationTitle: String {
+        switch viewState {
+        case .main:
+            return NSLocalizedString("settings.sections.personalInfo", comment: "Personal Information")
+        case .username:
+            return NSLocalizedString("username.change.title", comment: "Change username title")
+        }
+    }
+    
+    private var personalInfoMainContent: some View {
+        VStack(spacing: 0) {
+            Button(action: {
+                guard canChangeUsername else { return }
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    viewState = .username
+                }
+            }) {
+                HStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(NSLocalizedString("settings.profile.username", comment: "Username label"))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        if let nextDate = nextAvailableDate {
+                            Text(String(format: NSLocalizedString("username.availableOn", comment: "Available on %@"), nextDate))
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(.orange)
+                        }
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Text("@\(username.isEmpty ? "—" : username)")
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+
+                    if canChangeUsername {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.gray.opacity(0.3))
+                    } else {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(.orange.opacity(0.8))
+                    }
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 10)
+
+            Divider()
+                .opacity(0.2)
+                .padding(.leading, 2)
+                .padding(.vertical, 4)
+
+            HStack(spacing: 14) {
+                Text(NSLocalizedString("settings.profile.email", comment: "Email label"))
+                    .font(.custom("Poppins-Medium", size: 15))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                Spacer(minLength: 12)
+
+                Text(email.isEmpty ? NSLocalizedString("settings.notConfigured", comment: "Not configured") : email)
+                    .font(.custom("Poppins-Regular", size: 14))
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 2)
+            .padding(.top, 10)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
 }
 
 // MARK: - Username Change Sheet
-struct UsernameChangeSheet: View {
-    @Environment(\.dismiss) var dismiss
+struct UsernameChangeContent: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var currentUsername: String
     @Binding var lastUsernameChange: Date?
+    let onBack: (() -> Void)?
     
     @State private var newUsername: String = ""
     @State private var isChecking: Bool = false
@@ -1495,119 +1564,100 @@ struct UsernameChangeSheet: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
                 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(NSLocalizedString("username.change.title", comment: "Change username title"))
+                        .font(.custom("Poppins-Bold", size: 24))
+                        .foregroundColor(.primary)
+                    Text(NSLocalizedString("username.change.subtitle", comment: "Can be changed every 6 months"))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 8)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        Text("@")
+                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .foregroundColor(.secondary)
                         
-                        // Description
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(NSLocalizedString("username.change.title", comment: "Change username title"))
-                                .font(.custom("Poppins-Bold", size: 24))
-                                .foregroundColor(.primary)
-                            Text(NSLocalizedString("username.change.subtitle", comment: "Can be changed every 6 months"))
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.top, 8)
-                        
-                        // Input field
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 10) {
-                                Text("@")
-                                    .font(.custom("Poppins-SemiBold", size: 18))
-                                    .foregroundColor(.secondary)
-                                
-                                TextField(currentUsername, text: $newUsername)
-                                    .font(.custom("Poppins-Regular", size: 17))
-                                    .autocorrectionDisabled()
-                                    .textInputAutocapitalization(.never)
-                                    .onChange(of: newUsername) { _ in
-                                        triggerAvailabilityCheck()
-                                    }
-                                
-                                Spacer()
-                                
-                                // Status indicator
-                                if isChecking {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                } else if newUsername.count >= 3 && isDifferent {
-                                    if let available = isAvailable {
-                                        Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                            .foregroundColor(available ? .green : .red)
-                                            .font(.system(size: 20))
-                                    }
-                                }
+                        TextField(currentUsername, text: $newUsername)
+                            .font(.custom("Poppins-Regular", size: 17))
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .onChange(of: newUsername) { _ in
+                                triggerAvailabilityCheck()
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .stroke(borderColor, lineWidth: 1.5)
-                                    )
-                            )
-                            
-                            // Inline help/error text
-                            if let error = errorMessage {
-                                Text(error)
-                                    .font(.custom("Poppins-Regular", size: 13))
-                                    .foregroundColor(.red)
-                            } else if newUsername.count >= 3 && isDifferent, let available = isAvailable {
-                                Text(available
-                                     ? NSLocalizedString("username.available", comment: "Username available")
-                                     : NSLocalizedString("username.taken", comment: "Username taken"))
-                                    .font(.custom("Poppins-Regular", size: 13))
-                                    .foregroundColor(available ? .green : .red)
-                            } else {
-                                Text(NSLocalizedString("username.rules", comment: "3-30 chars, letters, numbers and _"))
-                                    .font(.custom("Poppins-Regular", size: 13))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        // Save button
-                        Button(action: save) {
-                            HStack {
-                                if isSaving {
-                                    ProgressView()
-                                        .tint(.white)
-                                        .padding(.trailing, 4)
-                                }
-                                Text(NSLocalizedString("username.change.save", comment: "Save username"))
-                                    .font(.custom("Poppins-SemiBold", size: 16))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(canSave ? Color.primary : Color.gray.opacity(0.3))
-                            )
-                            .foregroundColor(canSave ? (colorScheme == .dark ? .black : .white) : .gray)
-                        }
-                        .disabled(!canSave)
-                        .animation(.easeInOut(duration: 0.2), value: canSave)
                         
                         Spacer()
+                        
+                        if isChecking {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else if newUsername.count >= 3 && isDifferent {
+                            if let available = isAvailable {
+                                Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(available ? .green : .red)
+                                    .font(.system(size: 20))
+                            }
+                        }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(borderColor, lineWidth: 1.5)
+                            )
+                    )
+                    
+                    if let error = errorMessage {
+                        Text(error)
+                            .font(.custom("Poppins-Regular", size: 13))
+                            .foregroundColor(.red)
+                    } else if newUsername.count >= 3 && isDifferent, let available = isAvailable {
+                        Text(available
+                             ? NSLocalizedString("username.available", comment: "Username available")
+                             : NSLocalizedString("username.taken", comment: "Username taken"))
+                            .font(.custom("Poppins-Regular", size: 13))
+                            .foregroundColor(available ? .green : .red)
+                    } else {
+                        Text(NSLocalizedString("username.rules", comment: "3-30 chars, letters, numbers and _"))
+                            .font(.custom("Poppins-Regular", size: 13))
+                            .foregroundColor(.secondary)
                     }
                 }
+                
+                Button(action: save) {
+                    HStack {
+                        if isSaving {
+                            ProgressView()
+                                .tint(.white)
+                                .padding(.trailing, 4)
+                        }
+                        Text(NSLocalizedString("username.change.save", comment: "Save username"))
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(canSave ? Color.primary : Color.gray.opacity(0.3))
+                    )
+                    .foregroundColor(canSave ? (colorScheme == .dark ? .black : .white) : .gray)
+                }
+                .disabled(!canSave)
+                .animation(.easeInOut(duration: 0.2), value: canSave)
+                
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
     
@@ -1655,7 +1705,7 @@ struct UsernameChangeSheet: View {
                     }
                     UserDefaults.standard.removeObject(forKey: "cachedEmail_\(oldUsernameLower)")
                     UserDefaults.standard.set(newUsernameLower, forKey: "current_username")
-                    dismiss()
+                    onBack?()
                 case .failure(let error):
                     errorMessage = error.localizedDescription
                 }
