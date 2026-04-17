@@ -241,26 +241,6 @@ struct VisitsView: View {
         .padding(.bottom, 20)
     }
     
-    // ✅ ACTUALIZADO: Header con contador de visitantes únicos
-    private var visitsHeader: some View {
-        HStack {
-            Text("📋 Visitantes")
-                .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-            
-            Spacer()
-            
-            Text("\(viewModel.groupedVisits.count)")
-                .font(.custom("Poppins-Medium", size: 12))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color(hex: "00A896").opacity(0.6))
-                .clipShape(Capsule())
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
-    }
 }
 
 // ✅ NUEVA: Row de visita agrupada
@@ -277,36 +257,14 @@ struct GroupedVisitRow: View {
                 HStack(spacing: 16) {
                     // Avatar con badge
                     ZStack {
-                        AsyncImage(url: URL(string: groupedVisit.user.profileImagePath ?? "")) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 50, height: 50)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: groupedVisit.frequencyType == .normal ?
-                                                [Color(hex: "00A896"), colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.3)] :
-                                                [groupedVisit.frequencyType.color, groupedVisit.frequencyType.color.opacity(0.3)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: groupedVisit.frequencyType == .normal ? 2 : 3
-                                        )
-                                )
-                        } placeholder: {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 50, height: 50)
-                                .overlay(
-                                    Image(systemName: "person.circle.fill")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.gray.opacity(0.6))
-                                )
-                                .overlay(ProgressView().tint(Color(hex: "00A896")))
-                        }
+                        StoryRingAvatarView(
+                            userId: groupedVisit.user.id,
+                            size: 44,
+                            lineWidth: 2.1,
+                            showBaseStroke: true,
+                            baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
+                            baseStrokeWidth: 0.9
+                        )
                         
                         // Badge de stalker
                         if groupedVisit.frequencyType != .normal {
@@ -324,14 +282,9 @@ struct GroupedVisitRow: View {
                         if groupedVisit.visitCount > 1 {
                             Text("\(groupedVisit.visitCount)")
                                 .font(.custom("Poppins-Bold", size: 10))
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .frame(width: 20, height: 20)
-                                .background(Color(hex: "00A896"))
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white, lineWidth: 2)
-                                )
+                                .liquidGlass(in: Circle())
                                 .offset(x: -20, y: 20)
                         }
                         
@@ -346,6 +299,7 @@ struct GroupedVisitRow: View {
                                 .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: groupedVisit.isRecent)
                         }
                     }
+                    .offset(x: -4)
                     
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
@@ -387,10 +341,8 @@ struct GroupedVisitRow: View {
                             }) {
                                 Image(systemName: showExpandedVisits ? "chevron.up" : "chevron.down")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(Color(hex: "00A896"))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.72))
                                     .frame(width: 24, height: 24)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(Circle())
                             }
                             .buttonStyle(PlainButtonStyle())
                         } else {
@@ -443,32 +395,10 @@ struct GroupedVisitRow: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
             }
         }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(
-                    LinearGradient(
-                        colors: groupedVisit.frequencyType == .normal ? [
-                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1),
-                            Color(hex: "00A896").opacity(0.3)
-                        ] : [
-                            groupedVisit.frequencyType.color.opacity(0.4),
-                            groupedVisit.frequencyType.color.opacity(0.6)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(
-            color: groupedVisit.frequencyType == .normal ?
-            (colorScheme == .dark ? .black.opacity(0.1) : .gray.opacity(0.2)) :
-            groupedVisit.frequencyType.color.opacity(0.3),
-            radius: 8,
-            x: 0,
-            y: 4
+        .padding(.horizontal, 20)
+        .background(
+            (colorScheme == .dark ? Color.white : Color.black)
+                .opacity(showExpandedVisits ? 0.04 : 0)
         )
         .sheet(isPresented: $showProfile) {
             UserProfileView(userId: groupedVisit.user.id)
@@ -936,7 +866,7 @@ extension VisitsView {
             Text("Visitas")
                 .font(.custom("Poppins-Bold", size: 22))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
-            
+
             Text("\(viewModel.groupedVisits.count) \(viewModel.groupedVisits.count == 1 ? "visitante" : "visitantes")")
                 .font(.custom("Poppins-Regular", size: 13))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
@@ -955,22 +885,30 @@ extension VisitsView {
                 ModernEmptyVisitsView(colorScheme: colorScheme)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 16) {
+                    LazyVStack(spacing: 0) {
                         // Sección de stalkers si existen
                         if !viewModel.stalkerAnalysis.isEmpty {
                             stalkerSection
                         }
-                        
-                        // Header de visitas con contador
-                        visitsHeader
-                        
+
                         // ✅ NUEVA: Lista de visitas agrupadas
-                        ForEach(viewModel.groupedVisits) { groupedVisit in
-                            GroupedVisitRow(
-                                groupedVisit: groupedVisit,
-                                colorScheme: colorScheme
-                            )
-                            .padding(.horizontal, 20)
+                        ForEach(Array(viewModel.groupedVisits.enumerated()), id: \.element.id) { index, groupedVisit in
+                            VStack(spacing: 0) {
+                                GroupedVisitRow(
+                                    groupedVisit: groupedVisit,
+                                    colorScheme: colorScheme
+                                )
+
+                                if index < viewModel.groupedVisits.count - 1 {
+                                    Divider()
+                                        .overlay(
+                                            (colorScheme == .dark ? Color.white : Color.black)
+                                                .opacity(0.08)
+                                        )
+                                        .padding(.leading, 90)
+                                        .padding(.trailing, 20)
+                                }
+                            }
                         }
                     }
                     .padding(.top, 20)

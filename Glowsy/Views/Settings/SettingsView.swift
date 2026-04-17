@@ -399,6 +399,12 @@ struct SettingsFormView: View {
                 animateSections = true
             }
         }
+        .presentationBackground {
+            Color.clear
+                .liquidGlass(in: Rectangle())
+                .ignoresSafeArea()
+        }
+        .presentationDragIndicator(.visible)
     }
 }
 
