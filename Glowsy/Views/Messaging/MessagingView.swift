@@ -1532,38 +1532,41 @@ struct OnlineStatusSelectorView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 8) {
-                        Image(systemName: "circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(currentStatus.color)
-                        
                         Text(NSLocalizedString("messaging.status.current", comment: "Current status"))
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(adaptiveColors.secondary)
-                        
-                        Text(currentStatus.displayName)
-                            .font(.custom("Poppins-Bold", size: 24))
-                            .foregroundColor(adaptiveColors.primary)
+
+                        HStack(spacing: 10) {
+                            Image(systemName: "circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(currentStatus.color)
+
+                            Text(currentStatus.displayName)
+                                .font(.custom("Poppins-Bold", size: 24))
+                                .foregroundColor(adaptiveColors.primary)
+                        }
                     }
                     .padding(.top, 20)
                     
                     // Estados disponibles
-                    VStack(spacing: 12) {
-                        ForEach(OnlineStatus.allCases, id: \.self) { status in
+                    VStack(spacing: 0) {
+                        ForEach(Array(OnlineStatus.allCases.enumerated()), id: \.element) { index, status in
                             Button(action: {
                                 onStatusSelected(status)
+                                dismiss()
                             }) {
                                 HStack(spacing: 16) {
                                     Image(systemName: status.icon)
                                         .font(.system(size: 20))
                                         .foregroundColor(status.color)
                                         .frame(width: 24)
-                                    
+
                                     Text(status.displayName)
                                         .font(.custom("Poppins-Regular", size: 16))
                                         .foregroundColor(adaptiveColors.primary)
-                                    
+
                                     Spacer()
-                                    
+
                                     if status == currentStatus {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.system(size: 20))
@@ -1572,47 +1575,29 @@ struct OnlineStatusSelectorView: View {
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 16)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(adaptiveColors.cardBackground)
-                                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                    (colorScheme == .dark ? Color.white : Color.black)
+                                        .opacity(status == currentStatus ? 0.06 : 0)
                                 )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(
-                                            status == currentStatus ? 
-                                            adaptiveColors.accent.opacity(0.5) : 
-                                            Color.clear,
-                                            lineWidth: 2
-                                        )
-                                )
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(PlainButtonStyle())
+
+                            if index < OnlineStatus.allCases.count - 1 {
+                                Divider()
+                                    .overlay(
+                                        (colorScheme == .dark ? Color.white : Color.black)
+                                            .opacity(0.08)
+                                    )
+                                    .padding(.leading, 64)
+                                    .padding(.trailing, 20)
+                            }
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
                     
-                    Spacer()
-                    
-                    // Botón de cerrar
-                    Button(action: { dismiss() }) {
-                        Text(NSLocalizedString("common.close", comment: "Close"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
-                            .foregroundColor(adaptiveColors.primary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(adaptiveColors.cardBackground)
-                                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(adaptiveColors.accent.opacity(0.3), lineWidth: 1)
-                            )
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    Spacer(minLength: 20)
                 }
             }
             .navigationBarHidden(true)
