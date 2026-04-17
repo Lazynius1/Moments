@@ -382,6 +382,13 @@ struct RequestDetailView: View {
                 }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground {
+            Color.clear
+                .liquidGlass(in: Rectangle())
+                .ignoresSafeArea()
+        }
     }
     
     private var userInfoSection: some View {

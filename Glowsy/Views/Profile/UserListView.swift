@@ -186,20 +186,31 @@ struct UserListView<ViewModel: UserListViewModel>: View {
     
     private var userListView: some View {
         ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(filteredUsers) { user in
-                    ModernProfileUserRowView(
-                        user: user,
-                        visitTimestamps: visitTimestamps[user.id] ?? [],
-                        rowAction: rowAction,
-                        viewModel: viewModel,
-                        onDismiss: onDismiss,
-                        onUserTap: onUserTap
-                    )
+            LazyVStack(spacing: 0) {
+                ForEach(Array(filteredUsers.enumerated()), id: \.element.id) { index, user in
+                    VStack(spacing: 0) {
+                        ModernProfileUserRowView(
+                            user: user,
+                            visitTimestamps: visitTimestamps[user.id] ?? [],
+                            rowAction: rowAction,
+                            viewModel: viewModel,
+                            onDismiss: onDismiss,
+                            onUserTap: onUserTap
+                        )
+
+                        if index < filteredUsers.count - 1 {
+                            Divider()
+                                .overlay(
+                                    (colorScheme == .dark ? Color.white : Color.black)
+                                        .opacity(0.08)
+                                )
+                                .padding(.leading, 84)
+                                .padding(.trailing, 20)
+                        }
+                    }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.vertical, 8)
         }
     }
     
@@ -268,14 +279,11 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
             // ✅ Botón de acción modernizado
             actionButton
         }
-        .padding(16)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isPressed ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
+            (colorScheme == .dark ? Color.white : Color.black)
+                .opacity(isPressed ? 0.06 : 0)
         )
         .contentShape(Rectangle())
         .onTapGesture { openUserProfile() }

@@ -17,25 +17,6 @@ struct SuggestedUsersView: View {
             // Contenido principal
             contentView
         }
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.3),
-                                    Color(hex: "007AFF").opacity(0.4)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-        )
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onAppear {
             viewModel.loadInitialUsers()
         }
@@ -52,18 +33,12 @@ struct SuggestedUsersView: View {
     // MARK: - Header View
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
-            // Handle del sheet
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 36, height: 5)
-                .padding(.top, 8)
-            
             Text("explore.suggestedUsers.title")
                 .font(.custom("Poppins-SemiBold", size: 20))
                 .foregroundColor(.primary)
-                .padding(.top, 8)
         }
         .padding(.horizontal, 20)
+        .padding(.top, 20)
         .padding(.bottom, 16)
     }
     
@@ -230,10 +205,7 @@ struct SuggestedUserRow: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.secondary.opacity(0.05))
-        )
+        .contentShape(Rectangle())
     }
 }
 
