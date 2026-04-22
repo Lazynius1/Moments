@@ -524,6 +524,8 @@ struct StoryEditingView: View {
             .onDisappear {
                 updateAudienceSetting()
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
             .presentationBackground(.clear)
         }
         // 🔗 NUEVO: Sheet de configuración de cadenas
@@ -554,6 +556,7 @@ struct StoryEditingView: View {
                 .onDisappear {
                     activeEditorMode = .idle
                 }
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
         }

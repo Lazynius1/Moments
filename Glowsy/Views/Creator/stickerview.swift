@@ -238,50 +238,7 @@ struct StickerPickerView: View {
 
     @ViewBuilder
     private func StickerPickerBackground() -> some View {
-        Rectangle()
-            .fill(pickerBackgroundColor)
-            .overlay(
-                ZStack {
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(isDarkMode ? 0.02 : 0.14),
-                            Color.white.opacity(isDarkMode ? 0.0 : 0.04),
-                            Color.clear
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-
-                    Circle()
-                        .fill(Color(red: 0.79, green: 0.45, blue: 0.21).opacity(0.12))
-                        .frame(width: 300, height: 300)
-                        .blur(radius: 92)
-                        .offset(x: 120, y: 220)
-
-                    Circle()
-                        .fill(Color(red: 0.46, green: 0.29, blue: 0.74).opacity(0.14))
-                        .frame(width: 260, height: 260)
-                        .blur(radius: 92)
-                        .offset(x: -90, y: 160)
-
-                    Rectangle()
-                        .fill(isDarkMode ? Color.black.opacity(0.16) : Color.clear)
-                }
-            )
-            .overlay(
-                Rectangle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
-                                isDarkMode ? Color.white.opacity(0.02) : Color.black.opacity(0.01)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1
-                    )
-            )
+        Color.clear
     }
 
     @ViewBuilder

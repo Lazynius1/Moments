@@ -66,43 +66,32 @@ struct AudienceSelectionView: View {
     
     var body: some View {
         NavigationView {
-            ZStack {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            // ✅ Handle superior (estilo ContextMenu)
-                            RoundedRectangle(cornerRadius: 2.5)
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.4) : Color.black.opacity(0.3))
-                                .frame(width: 40, height: 5)
-                                .padding(.top, 12)
-                                .padding(.bottom, 20)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // ✅ Título principal
+                        VStack(spacing: 8) {
+                            Text("audience.selection.title")
+                                .font(.custom("Poppins-Bold", size: 24))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                             
-                            // ✅ Título principal
-                            VStack(spacing: 8) {
-                                Text("audience.selection.title")
-                                    .font(.custom("Poppins-Bold", size: 24))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                
-                                Text("audience.selection.subtitle")
-                                    .font(.custom("Poppins-Regular", size: 16))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                                    .multilineTextAlignment(.center)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 32)
-                            
-                            // ✅ Contenido principal con estilo ContextMenu
-                            VStack(spacing: 16) {
-                                predefinedAudienceSection
-                                customListsSection
-                                manualSelectionSection
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 32)
+                            Text("audience.selection.subtitle")
+                                .font(.custom("Poppins-Regular", size: 16))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                                .multilineTextAlignment(.center)
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        .padding(.bottom, 32)
+                        
+                        // ✅ Contenido principal con estilo ContextMenu
+                        VStack(spacing: 16) {
+                            predefinedAudienceSection
+                            customListsSection
+                            manualSelectionSection
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 32)
                     }
                 }
             }
