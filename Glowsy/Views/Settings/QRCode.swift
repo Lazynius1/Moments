@@ -86,11 +86,6 @@ struct QRCodeView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
         }
-        .presentationBackground {
-            Color.clear
-                .liquidGlass(in: Rectangle())
-                .ignoresSafeArea()
-        }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .onAppear {

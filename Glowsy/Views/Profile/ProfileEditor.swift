@@ -1608,11 +1608,6 @@ struct ModernEditProfileView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .presentationBackground {
-            Color.clear
-                .liquidGlass(in: Rectangle())
-                .ignoresSafeArea()
-        }
     }
 
     // MARK: - Componentes del selector de intereses
@@ -1911,4 +1906,3 @@ struct ProfileAlbumRowView: View {
         .buttonStyle(PlainButtonStyle())
     }
 }
-
