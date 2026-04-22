@@ -1520,85 +1520,75 @@ struct OnlineStatusSelectorView: View {
     
     var body: some View {
         NavigationView {
-            ZStack {
-                // Background glassmórfico
-                LinearGradient(
-                    gradient: Gradient(colors: adaptiveColors.chatBackground),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 8) {
-                        Text(NSLocalizedString("messaging.status.current", comment: "Current status"))
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(adaptiveColors.secondary)
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 8) {
+                    Text(NSLocalizedString("messaging.status.current", comment: "Current status"))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(adaptiveColors.secondary)
 
-                        HStack(spacing: 10) {
-                            Image(systemName: "circle.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(currentStatus.color)
+                    HStack(spacing: 10) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(currentStatus.color)
 
-                            Text(currentStatus.displayName)
-                                .font(.custom("Poppins-Bold", size: 24))
-                                .foregroundColor(adaptiveColors.primary)
-                        }
+                        Text(currentStatus.displayName)
+                            .font(.custom("Poppins-Bold", size: 24))
+                            .foregroundColor(adaptiveColors.primary)
                     }
-                    .padding(.top, 20)
-                    
-                    // Estados disponibles
-                    VStack(spacing: 0) {
-                        ForEach(Array(OnlineStatus.allCases.enumerated()), id: \.element) { index, status in
-                            Button(action: {
-                                onStatusSelected(status)
-                                dismiss()
-                            }) {
-                                HStack(spacing: 16) {
-                                    Image(systemName: status.icon)
-                                        .font(.system(size: 20))
-                                        .foregroundColor(status.color)
-                                        .frame(width: 24)
-
-                                    Text(status.displayName)
-                                        .font(.custom("Poppins-Regular", size: 16))
-                                        .foregroundColor(adaptiveColors.primary)
-
-                                    Spacer()
-
-                                    if status == currentStatus {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(adaptiveColors.accent)
-                                    }
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 16)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    (colorScheme == .dark ? Color.white : Color.black)
-                                        .opacity(status == currentStatus ? 0.06 : 0)
-                                )
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(PlainButtonStyle())
-
-                            if index < OnlineStatus.allCases.count - 1 {
-                                Divider()
-                                    .overlay(
-                                        (colorScheme == .dark ? Color.white : Color.black)
-                                            .opacity(0.08)
-                                    )
-                                    .padding(.leading, 64)
-                                    .padding(.trailing, 20)
-                            }
-                        }
-                    }
-                    .padding(.top, 4)
-                    
-                    Spacer(minLength: 20)
                 }
+                .padding(.top, 20)
+                
+                // Estados disponibles
+                VStack(spacing: 0) {
+                    ForEach(Array(OnlineStatus.allCases.enumerated()), id: \.element) { index, status in
+                        Button(action: {
+                            onStatusSelected(status)
+                            dismiss()
+                        }) {
+                            HStack(spacing: 16) {
+                                Image(systemName: status.icon)
+                                    .font(.system(size: 20))
+                                    .foregroundColor(status.color)
+                                    .frame(width: 24)
+
+                                Text(status.displayName)
+                                    .font(.custom("Poppins-Regular", size: 16))
+                                    .foregroundColor(adaptiveColors.primary)
+
+                                Spacer()
+
+                                if status == currentStatus {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(adaptiveColors.accent)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                (colorScheme == .dark ? Color.white : Color.black)
+                                    .opacity(status == currentStatus ? 0.06 : 0)
+                            )
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PlainButtonStyle())
+
+                        if index < OnlineStatus.allCases.count - 1 {
+                            Divider()
+                                .overlay(
+                                    (colorScheme == .dark ? Color.white : Color.black)
+                                        .opacity(0.08)
+                                )
+                                .padding(.leading, 64)
+                                .padding(.trailing, 20)
+                        }
+                    }
+                }
+                .padding(.top, 4)
+                
+                Spacer(minLength: 20)
             }
             .navigationBarHidden(true)
         }
