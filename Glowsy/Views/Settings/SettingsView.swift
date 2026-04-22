@@ -187,11 +187,6 @@ struct SettingsView: View {
                     .presentationDetents([.medium, .large])
                     .presentationContentInteraction(.scrolls)
                     .presentationDragIndicator(.visible)
-                    .presentationBackground {
-                        Color.clear
-                            .liquidGlass(in: Rectangle())
-                            .ignoresSafeArea()
-                    }
             }
             .fullScreenCover(isPresented: $isShowingContentVisibility) {
                 ContentVisibilityView()
@@ -413,11 +408,6 @@ struct SettingsFormView: View {
             withAnimation(.easeOut(duration: 0.6)) {
                 animateSections = true
             }
-        }
-        .presentationBackground {
-            Color.clear
-                .liquidGlass(in: Rectangle())
-                .ignoresSafeArea()
         }
         .presentationDragIndicator(.visible)
     }
@@ -1392,9 +1382,6 @@ struct PersonalInfoView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                    .ignoresSafeArea()
-
                 ZStack {
                     switch viewState {
                     case .main:

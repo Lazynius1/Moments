@@ -179,11 +179,6 @@ struct ExploreView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
                     .interactiveDismissDisabled(false)
-                    .presentationBackground {
-                        Color.clear
-                            .liquidGlass(in: Rectangle())
-                            .ignoresSafeArea()
-                    }
             }
         }
     }

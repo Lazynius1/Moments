@@ -179,11 +179,6 @@ struct VisitsView: View {
             // ✅ Contenido principal
             contentView
         }
-        .presentationBackground {
-            Color.clear
-                .liquidGlass(in: Rectangle())
-                .ignoresSafeArea()
-        }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .overlay(

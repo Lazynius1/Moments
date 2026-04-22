@@ -1604,11 +1604,6 @@ struct OnlineStatusSelectorView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .presentationBackground {
-            Color.clear
-                .liquidGlass(in: Rectangle())
-                .ignoresSafeArea()
-        }
     }
 }
 
