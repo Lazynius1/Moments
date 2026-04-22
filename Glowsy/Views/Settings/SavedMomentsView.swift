@@ -1301,6 +1301,11 @@ struct ModernSavedMomentsDetailView: View {
                     .environmentObject(firestoreService)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
+                    .presentationBackground {
+                        Color.clear
+                            .liquidGlass(in: Rectangle())
+                            .ignoresSafeArea()
+                    }
             }
         }
                         .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRemoveAlert) {

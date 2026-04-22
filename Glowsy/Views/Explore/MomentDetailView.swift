@@ -114,6 +114,11 @@ struct MomentDetailView: View {
                 .environmentObject(FirestoreService())
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+                .presentationBackground {
+                    Color.clear
+                        .liquidGlass(in: Rectangle())
+                        .ignoresSafeArea()
+                }
         }
         .sheet(isPresented: $showEditSheet) {
             EditMomentView(

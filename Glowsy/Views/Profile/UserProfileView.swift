@@ -239,7 +239,7 @@ struct UserProfileView: View {
                 }
             )
             .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.hidden)
+            .presentationDragIndicator(.visible)
             .interactiveDismissDisabled(false)
             .presentationBackground(.clear)
             .transition(.move(edge: .bottom).combined(with: .opacity))

@@ -44,8 +44,10 @@ struct ModernMomentContextMenu: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
+                    .background(
+                        Color.clear
+                            .liquidGlass(in: Circle())
+                    )
                     .overlay(
                         Circle()
                             .stroke(
@@ -305,8 +307,8 @@ struct ModernContextMenuOverlay: View {
                     }
                 }
                 .background(
-                    RoundedRectangle(cornerRadius: 32)
-                        .fill(.ultraThinMaterial)
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
                 )
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                 .padding(.horizontal, 12)
@@ -525,13 +527,6 @@ struct ModernContextMenuContent: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // ✅ Handle superior
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.4) : Color.black.opacity(0.2))
-                .frame(width: 40, height: 5)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
-            
             // ✅ Título con info del usuario
             HStack(spacing: 12) {
                 AsyncProfileImageView(userId: moment.authorId)
@@ -550,6 +545,7 @@ struct ModernContextMenuContent: View {
                 
             }
             .padding(.horizontal, 20)
+            .padding(.top, 20)
             .padding(.bottom, 24)
             
             // ✅ Acciones principales
@@ -611,32 +607,8 @@ struct ModernContextMenuContent: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 40) // ✅ Más padding para que no esté pegado al borde
-            
-            // ✅ Botón cancelar
-            Button(NSLocalizedString("contextMenu.cancel", comment: "Cancel button")) {
-                onCancel()
-            }
-            .font(.custom("Poppins-SemiBold", size: 16))
-            .foregroundColor(colorScheme == .dark ? .white : .black)
-            .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
-                    )
-            )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 30) // ✅ Safe area bottom + padding extra
+            .padding(.bottom, 30)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-        )
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
     }
     
     private func formatRelativeTime(_ date: Date) -> String {
@@ -660,15 +632,10 @@ struct ContextMenuButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(iconColor.opacity(0.15))
-                        .frame(width: 48, height: 48)
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(iconColor)
-                }
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(icon == "flag" ? .red : (colorScheme == .dark ? .white : .black))
+                    .frame(width: 28)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -690,10 +657,6 @@ struct ContextMenuButton: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(backgroundColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(borderColor, lineWidth: 0.5)
-                    )
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -707,14 +670,10 @@ struct ContextMenuButton: View {
     
     private var backgroundColor: Color {
         if isPressed {
-            return colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
+            return colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
         } else {
-            return colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)
+            return .clear
         }
-    }
-    
-    private var borderColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
     }
 }
 
@@ -729,15 +688,10 @@ struct ContextMenuButtonDisabled: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(iconColor.opacity(0.1))
-                    .frame(width: 48, height: 48)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(iconColor.opacity(0.6))
-            }
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45))
+                .frame(width: 28)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -758,11 +712,7 @@ struct ContextMenuButtonDisabled: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.02) : Color.black.opacity(0.02))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05), lineWidth: 0.5)
-                )
+                .fill(.clear)
         )
     }
 }
