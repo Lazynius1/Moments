@@ -71,9 +71,9 @@ struct LocationMomentDetailView: View {
     }
     
     var body: some View {
-        print(".")
         return GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
+            let headerReservedHeight: CGFloat = locationMoments.count > 1 ? 72 : 52
             
             ZStack(alignment: .top) {
                 // ✅ Fondo moderno como el feed
@@ -81,34 +81,14 @@ struct LocationMomentDetailView: View {
                     .ignoresSafeArea(.all)
                     .opacity(backgroundOpacity)
                 
-                // ✅ Header fijo premium (estilo Feed) - Ahora ignorando safe area para posicionamiento absoluto
+                // ✅ Header flotante más ligero y contextual
                 locationDetailHeader(safeAreaTop: safeAreaTop)
-                    .background(
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                colorScheme == .light ? 
-                                Color.white.opacity(0.15) : 
-                                Color.black.opacity(0.4)
-                            )
-                            .ignoresSafeArea(edges: .top)
-                    )
-                    .ignoresSafeArea(edges: .top) // ✅ CLAVE: Ignorar safe area para subirlo al máximo
-                    .zIndex(10)
-                    .overlay(
-                        VStack {
-                            Spacer()
-                            Rectangle()
-                                .fill(Color.white.opacity(0.1))
-                                .frame(height: 0.5)
-                        }
-                    )
                     .zIndex(10)
                     .offset(x: dragOffset * 0.3)
                     .opacity(backgroundOpacity)
                 
                 locationMomentsCarousel(geometry: geometry)
-                    .padding(.top, locationMoments.count > 1 ? 72 : 60)
+                    .padding(.top, headerReservedHeight)
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                 
@@ -148,6 +128,11 @@ struct LocationMomentDetailView: View {
                     .environmentObject(firestoreService)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
+                    .presentationBackground {
+                        Color.clear
+                            .liquidGlass(in: Rectangle())
+                            .ignoresSafeArea()
+                    }
             }
         }
         .sheet(isPresented: $showEditSheet) {
@@ -260,27 +245,9 @@ struct LocationMomentDetailView: View {
     private var modernBackgroundView: some View {
         ZStack {
             if colorScheme == .dark {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color(hex: "0B1215")
             } else {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white,
-                        Color(hex: "f8f9fa"),
-                        Color(hex: "e9ecef"),
-                        Color.white
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color(hex: "FAF9F6")
             }
             
             Rectangle()
@@ -291,91 +258,76 @@ struct LocationMomentDetailView: View {
     
     // ✅ Header centrado rediseñado (Estilo ZStack para equilibrio perfecto)
     private func locationDetailHeader(safeAreaTop: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            ZStack {
-                // 1. Botón Atrás (Alineado a la izquierda)
-                HStack {
-                    Button(action: {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            isPresented = false
-                        }
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold)) // Un poco más refinado
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 40, height: 40)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                            )
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        isPresented = false
                     }
-                    Spacer()
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Color.clear
+                                .liquidGlass(in: Circle())
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+                        )
                 }
-                
-                // 2. Información de Ubicación (Perfectamente Centrada)
+
                 HStack(spacing: 10) {
-                    // Icono de ubicación con diseño Glow
                     ZStack {
                         Circle()
                             .fill(.ultraThinMaterial)
-                            .frame(width: 38, height: 38) // Ligeramente más compacto
+                            .frame(width: 34, height: 34)
                             .overlay(
                                 Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color(hex: "007AFF").opacity(0.6), Color(hex: "007AFF").opacity(0.8)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
+                                    .stroke(Color(hex: "007AFF").opacity(0.45), lineWidth: 1)
                             )
-                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                        
+
                         Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.9)],
+                                    colors: [Color(hex: "007AFF"), Color(hex: "4CC9F0")],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
                     }
-                    
-                    VStack(alignment: .leading, spacing: 1) { // Alineación leading para el texto, pero el bloque está centrado
+
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(currentHeaderLocationName)
-                            .font(.custom("Poppins-SemiBold", size: 17)) // Tamaño ajustado
+                            .font(.custom("Poppins-SemiBold", size: 15))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
-                        
-                        HStack(spacing: 4) {
-                            Text("\(currentIndex + 1) de \(locationMoments.count)")
-                                .font(.custom("Poppins-Medium", size: 11))
-                                .foregroundColor(.gray.opacity(0.9))
-                            
-                            if !locationMoments.isEmpty {
-                                Text("•")
-                                    .font(.system(size: 8))
-                                    .foregroundColor(.gray.opacity(0.5))
-                                
-                                Text(String(format: NSLocalizedString("locationMomentDetail.photoCount", comment: "Photo count"), locationMoments.count))
-                                    .font(.custom("Poppins-Regular", size: 11))
-                                    .foregroundColor(.gray.opacity(0.7))
-                            }
-                        }
+
+                        Text("\(currentIndex + 1) de \(locationMoments.count)")
+                            .font(.custom("Poppins-Medium", size: 11))
+                            .foregroundColor(.gray.opacity(0.9))
                     }
                 }
-                .padding(.horizontal, 40) // Evitar solapamiento con el botón de atrás
+                .padding(.leading, 6)
+                .padding(.trailing, 14)
+                .padding(.vertical, 6)
+                .background(
+                    Color.clear
+                        .liquidGlass(in: Capsule())
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                )
+
+                Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.top, safeAreaTop > 0 ? safeAreaTop + 6 : 10) // Bajado para quedar justo debajo del notch (ajuste fino)
-            .padding(.bottom, 8) // Espacio interno equilibrado
-            
-            // ✅ Indicador de progreso integrado
+            .padding(.top, 6)
+
             if locationMoments.count > 1 {
                 HStack(spacing: 4) {
                     ForEach(0..<locationMoments.count, id: \.self) { index in
@@ -398,8 +350,9 @@ struct LocationMomentDetailView: View {
                             .animation(.easeInOut(duration: 0.3), value: currentIndex)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 0)
+                .padding(.horizontal, 76)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
             }
         }
     }
@@ -772,8 +725,8 @@ struct LocationMomentCard: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
+            Color.clear
+                .liquidGlass(in: Capsule())
                 .overlay(
                     Capsule()
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -958,18 +911,18 @@ struct LocationMomentCard: View {
                 .padding(.trailing, isImmersive ? 0 : 140) // ✅ Protección contra el rail
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial.opacity(0.72))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
                 )
         )
         .padding(.horizontal, 16)
-        .padding(.top, 12)
+        .padding(.top, 14)
     }
     
     // ✅ Comentarios inline (como MomentDetailView)
@@ -978,19 +931,19 @@ struct LocationMomentCard: View {
             // Header de comentarios
             HStack {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(Color(hex: "007AFF"))
+                    .font(.system(size: 15))
+                    .foregroundColor(Color(hex: "007AFF").opacity(0.9))
                 
                 Text("locationMomentDetail.comments")
-                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .font(.custom("Poppins-SemiBold", size: 17))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 if commentCount > 0 {
                     Text("(\(commentCount))")
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.custom("Poppins-Medium", size: 12))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
                         .background(
                             LinearGradient(
                                 colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
@@ -1007,29 +960,29 @@ struct LocationMomentCard: View {
                 Button(NSLocalizedString("locationMomentDetail.viewAll", comment: "View all")) {
                     onComment()
                 }
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.custom("Poppins-SemiBold", size: 13))
                 .foregroundColor(Color(hex: "007AFF"))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color(hex: "007AFF").opacity(0.1))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color(hex: "007AFF").opacity(0.08))
                 .clipShape(Capsule())
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 18)
             
             if commentCount == 0 {
                 // Estado vacío de comentarios
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     ZStack {
                         Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 60, height: 60)
+                            .fill(.ultraThinMaterial.opacity(0.75))
+                            .frame(width: 54, height: 54)
                             .overlay(
                                 Circle()
-                                    .stroke(Color(hex: "007AFF").opacity(0.3), lineWidth: 1.5)
+                                    .stroke(Color(hex: "007AFF").opacity(0.25), lineWidth: 1.2)
                             )
                         
                         Image(systemName: "bubble.left")
-                            .font(.system(size: 24))
+                            .font(.system(size: 22))
                             .foregroundColor(Color(hex: "007AFF"))
                     }
                     
@@ -1062,27 +1015,27 @@ struct LocationMomentCard: View {
                     .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 6, x: 0, y: 3)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 32)
+                .padding(.vertical, 24)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(.ultraThinMaterial.opacity(0.68))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .stroke(
                                     LinearGradient(
-                                        colors: [Color.white.opacity(0.2), Color(hex: "007AFF").opacity(0.3)],
+                                        colors: [Color.white.opacity(0.14), Color(hex: "007AFF").opacity(0.22)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
-                                    lineWidth: 1
+                                    lineWidth: 0.8
                                 )
                         )
-                        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
                 )
                 .padding(.horizontal, 16)
             }
         }
-        .padding(.top, 24)
+        .padding(.top, 18)
         .padding(.bottom, 0) // Eliminado padding inferior
     }
     

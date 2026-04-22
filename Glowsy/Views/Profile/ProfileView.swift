@@ -264,7 +264,7 @@ struct ProfileView: View {
                     case .visits:
                         VisitsView()
                             .presentationDetents([.medium, .large])
-                            .presentationDragIndicator(.hidden)
+                            .presentationDragIndicator(.visible)
                             .interactiveDismissDisabled(false)
                             .presentationBackground(.clear)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -282,7 +282,7 @@ struct ProfileView: View {
                             }
                         )
                         .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.hidden)
+                        .presentationDragIndicator(.visible)
                         .interactiveDismissDisabled(false)
                         .presentationBackground(.clear)
                         .transition(.move(edge: .bottom).combined(with: .opacity))

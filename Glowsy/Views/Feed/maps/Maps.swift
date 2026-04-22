@@ -163,26 +163,24 @@ struct LocationMapView: View {
             
             // ✅ BOTTOM SHEET
             LocationBottomSheet(
-                    isPresented: $showingBottomSheet,
-                    moments: locationMoments,
-                    momentAvailability: momentAvailability,
-                    isLoadingMoments: isLoadingMoments,
-                    locationName: effectiveHeaderLocationName,
-                    colorScheme: colorScheme,
-                    onMomentTap: { moment in
-                        // ✅ SOLUCIÓN MÁS ROBUSTA: Usar Task con @MainActor para evitar "Modifying state during view update"
-                        Task { @MainActor in
-                            // ✅ Pequeño delay para asegurar que la vista termine de actualizarse
-                            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 segundos
-                            
-                            if let selectedIndex = locationMoments.firstIndex(where: { selectionKey(for: $0) == selectionKey(for: moment) }) {
-                                selectedMoment = moment
-                                selectedMomentIndex = selectedIndex
-                                showingDetail = true
-                            }
+                isPresented: $showingBottomSheet,
+                moments: locationMoments,
+                momentAvailability: momentAvailability,
+                isLoadingMoments: isLoadingMoments,
+                locationName: effectiveHeaderLocationName,
+                colorScheme: colorScheme,
+                onMomentTap: { moment in
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 100_000_000)
+
+                        if let selectedIndex = locationMoments.firstIndex(where: { selectionKey(for: $0) == selectionKey(for: moment) }) {
+                            selectedMoment = moment
+                            selectedMomentIndex = selectedIndex
+                            showingDetail = true
                         }
                     }
-                )
+                }
+            )
             
         }
         .navigationBarHidden(true)
@@ -310,12 +308,8 @@ struct LocationMapView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                    )
+                Color.clear
+                    .liquidGlass(in: Capsule())
             )
             .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
         }
@@ -351,8 +345,7 @@ struct LocationMapView: View {
                 .padding(.leading, 8)
                 .padding(.trailing, 16)
                 .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
+                .background(Color.clear.liquidGlass(in: Capsule()))
                 .overlay(
                     Capsule()
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -392,8 +385,7 @@ struct LocationMapView: View {
                     .padding(.leading, 16)
                     .padding(.trailing, 8)
                     .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
+                    .background(Color.clear.liquidGlass(in: Capsule()))
                     .overlay(
                         Capsule()
                             .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -454,10 +446,12 @@ struct LocationMapView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 16)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 30))
+                .background(
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 30)
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
                 )
                 .shadow(color: adaptiveColors.shadowColor.opacity(0.1), radius: 10, x: 0, y: 5)
@@ -2894,8 +2888,6 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// ✅ BOTTOM SHEET MODERNO ESTILO INSTAGRAM CON GLASSMORPHISM
-
 struct LocationBottomSheet: View {
     @Binding var isPresented: Bool
     let moments: [Moment]
@@ -2974,33 +2966,42 @@ struct LocationBottomSheet: View {
     // ✅ FONDO GLASSMORPHIC MEJORADO (Transpariencia máxima)
     private var glassmorphicBackground: some View {
         ZStack {
-            // Solo usar Material Blur premium (Efecto Glass real)
-            Rectangle()
-                .fill(.ultraThinMaterial)
-            
-            // Borde sutil superior para profundidad
-            VStack {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.3), Color.clear],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 1)
-                Spacer()
-            }
+            Color.clear
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: adaptiveColors.overlayStroke,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.75
+                )
         }
     }
     
     // ✅ HANDLE DRAG
     private var dragHandle: some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(adaptiveColors.tertiary.opacity(0.6))
-            .frame(width: 40, height: 6)
-            .padding(.top, 10)
-            .padding(.bottom, 2)
+        Capsule()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        adaptiveColors.tertiary.opacity(0.42),
+                        adaptiveColors.tertiary.opacity(0.26)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(width: 42, height: 5)
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(colorScheme == .dark ? 0.16 : 0.22), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 6, x: 0, y: 2)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
             .gesture(dragGesture)
     }
     
@@ -3060,10 +3061,10 @@ struct LocationBottomSheet: View {
                     }
                     .padding(4)
                     .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(.ultraThinMaterial)
+                        Color.clear
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 14)
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .stroke(
                                         LinearGradient(
                                             colors: adaptiveColors.overlayStroke,
@@ -3120,7 +3121,7 @@ struct LocationBottomSheet: View {
                 }
                 .scrollIndicators(.hidden)
                 .scrollDisabled(viewMode == .gallery && moments.count <= 3)
-                .frame(maxHeight: viewMode == .list ? UIScreen.main.bounds.height * 0.72 : (moments.count <= 3 ? 320 : 500))
+                .frame(maxHeight: viewMode == .list ? UIScreen.main.bounds.height * 0.68 : (moments.count <= 3 ? 320 : 500))
             }
         }
     }
@@ -3198,9 +3199,9 @@ struct LocationBottomSheet: View {
     private var loadingView: some View {
         VStack(spacing: 24) {
             ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
+                Color.clear
                     .frame(width: 80, height: 80)
+                    .liquidGlass(in: Circle())
                     .overlay(
                         Circle()
                             .stroke(
@@ -3237,9 +3238,9 @@ struct LocationBottomSheet: View {
     private var emptyView: some View {
         VStack(spacing: 20) {
             ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
+                Color.clear
                     .frame(width: 100, height: 100)
+                    .liquidGlass(in: Circle())
                     .overlay(
                         Circle()
                             .stroke(
@@ -3278,7 +3279,7 @@ struct LocationBottomSheet: View {
         }
         .frame(height: 300)
     }
-    
+
     // ✅ GESTOS Y ANIMACIONES
     private var dragGesture: some Gesture {
         DragGesture()
@@ -3291,7 +3292,7 @@ struct LocationBottomSheet: View {
             }
             .onEnded { value in
                 let velocity = value.predictedEndTranslation.height
-                
+
                 if velocity > 280 || offset > 240 {
                     hideBottomSheet()
                 } else if velocity < -180 || offset < 85 {
@@ -3301,30 +3302,30 @@ struct LocationBottomSheet: View {
                 }
             }
     }
-    
+
     // ✅ FUNCIONES DE ANIMACIÓN
     private func showBottomSheet() {
         withAnimation(.interactiveSpring(response: 0.6, dampingFraction: 0.8)) {
             offset = sheetMediumOffset
         }
     }
-    
+
     private func hideBottomSheet() {
         withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.9)) {
             offset = sheetHiddenOffset
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             isPresented = false
         }
     }
-    
+
     private func snapToMedium() {
         withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.85)) {
             offset = sheetMediumOffset
         }
     }
-    
+
     private func snapToLarge() {
         withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.85)) {
             offset = sheetLargeOffset

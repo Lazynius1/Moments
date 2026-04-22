@@ -197,82 +197,19 @@ struct ModernCommentsView: View {
     
     // ✅ Fondo moderno unificado con el resto de la app
     private var modernBackgroundView: some View {
-        ZStack {
-            if colorScheme == .dark {
-                // Negro más intenso y elegante
-                Color(hex: "050505")
-                    .ignoresSafeArea()
-                
-                // Efecto de luz ambiental sutil (Blue/Purple glow)
-                Circle()
-                    .fill(Color.blue.opacity(0.05))
-                    .frame(width: 300, height: 300)
-                    .blur(radius: 100)
-                    .offset(x: -100, y: -200)
-                
-                Circle()
-                    .fill(Color.purple.opacity(0.05))
-                    .frame(width: 300, height: 300)
-                    .blur(radius: 100)
-                    .offset(x: 100, y: 200)
-                
-            } else {
-                // Fondo claro elegante
-                Color(hex: "f8f9fa")
-                    .ignoresSafeArea()
-                
-                // Efecto de luz ambiental sutil
-                Circle()
-                    .fill(Color.blue.opacity(0.03))
-                    .frame(width: 300, height: 300)
-                    .blur(radius: 80)
-                    .offset(x: -100, y: -200)
-            }
-            
-            // Material sutil encima
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.3)
-                .ignoresSafeArea()
-        }
+        Color.clear
+            .ignoresSafeArea()
     }
     
     // ✅ Header moderno mejorado
     private var modernHeaderView: some View {
-        HStack(spacing: 16) {
-            Button(action: { dismiss() }) {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1),
-                                            Color.white.opacity(0.1)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                    
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                }
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
+        ZStack {
+            VStack(alignment: .center, spacing: 2) {
                 HStack(spacing: 8) {
                     Text("modernComments.title")
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                    
-                    // ✅ Indicador de carga
+
                     if isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
@@ -293,60 +230,51 @@ struct ModernCommentsView: View {
                             .clipShape(Capsule())
                     }
                 }
-                
+
                 HStack(spacing: 4) {
                     LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
                         Text(String(format: NSLocalizedString("modernComments.postOf", comment: "Post of user"), username))
                     }
                     .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(.gray)
-                    
+
                     VerifiedBadgeView(userId: moment.authorId, size: 10)
                 }
             }
-            
-            Spacer()
-            
-            // Menú de ordenación
-            Menu {
-                Button(action: { sortOption = .newest }) {
-                    Label(NSLocalizedString("modernComments.sort.newest", comment: "Latest"), systemImage: "arrow.up.circle")
-                }
-                Button(action: { sortOption = .oldest }) {
-                    Label(NSLocalizedString("modernComments.sort.oldest", comment: "Oldest"), systemImage: "arrow.down.circle")
-                }
-                Button(action: { sortOption = .mostLiked }) {
-                    Label(NSLocalizedString("modernComments.sort.mostLiked", comment: "Top"), systemImage: "heart")
-                }
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                        )
-                    
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+            .frame(maxWidth: .infinity)
+
+            HStack {
+                Spacer()
+
+                Menu {
+                    Button(action: { sortOption = .newest }) {
+                        Label(NSLocalizedString("modernComments.sort.newest", comment: "Latest"), systemImage: "arrow.up.circle")
+                    }
+                    Button(action: { sortOption = .oldest }) {
+                        Label(NSLocalizedString("modernComments.sort.oldest", comment: "Oldest"), systemImage: "arrow.down.circle")
+                    }
+                    Button(action: { sortOption = .mostLiked }) {
+                        Label(NSLocalizedString("modernComments.sort.mostLiked", comment: "Top"), systemImage: "heart")
+                    }
+                } label: {
+                    ZStack {
+                        Color.clear
+                            .frame(width: 32, height: 32)
+                            .liquidGlass(in: Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 0.8)
+                            )
+
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 14))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                    }
                 }
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
-        .background(
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .ignoresSafeArea(edges: .top)
-        )
-        .overlay(
-            Rectangle()
-                .fill(Color.gray.opacity(0.1))
-                .frame(height: 1),
-            alignment: .bottom
-        )
     }
     
     // ✅ Lista de comentarios mejorada con nueva estructura anidada

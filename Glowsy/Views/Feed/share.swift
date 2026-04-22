@@ -95,9 +95,8 @@ struct ModernShareBottomSheet: View {
                     }
                 }
                 .background(
-                    RoundedRectangle(cornerRadius: 32)
-                        .fill(.ultraThinMaterial)
-                        // .overlay REMOVED (Teal Stroke)
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
                 )
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                 .padding(.horizontal, 12)
@@ -168,13 +167,6 @@ struct MainActionsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Handle
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.white.opacity(0.4))
-                .frame(width: 40, height: 5)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
-            
             // Header
             HStack(spacing: 12) {
                 StoryRingAvatarView(
@@ -205,6 +197,7 @@ struct MainActionsView: View {
                 Spacer()
             }
             .padding(.horizontal, 20)
+            .padding(.top, 20)
             .padding(.bottom, 24)
             
             // Actions
@@ -213,8 +206,8 @@ struct MainActionsView: View {
                     icon: "paperplane.fill",
                     title: NSLocalizedString("messaging.sendMessage", comment: ""),
                     subtitle: NSLocalizedString("contextMenu.shareMoment.subtitle", comment: ""),
-                    iconColor: Color(hex: "00A896"),
-                    isPrimary: true,
+                    iconColor: .primary,
+                    isPrimary: false,
                     action: onSendMessage
                 )
                 
@@ -223,6 +216,7 @@ struct MainActionsView: View {
                     title: NSLocalizedString("share.addToStory", comment: ""),
                     subtitle: NSLocalizedString("creator.story.subtitle", comment: ""),
                     iconColor: .blue,
+                    usesStoryRingIcon: true,
                     isPrimary: false,
                     action: onAddToStory
                 )
@@ -237,25 +231,6 @@ struct MainActionsView: View {
                 )
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 24)
-            
-            // Cancel Button
-            Button(NSLocalizedString("share.cancel", comment: "")) {
-                onClose()
-            }
-            .font(.custom("Poppins-SemiBold", size: 16))
-            .foregroundColor(.primary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.white.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-            )
-            .padding(.horizontal, 20)
             .padding(.bottom, 30)
         }
     }
@@ -268,6 +243,7 @@ struct ShareActionButton: View {
     let title: String
     let subtitle: String
     let iconColor: Color
+    var usesStoryRingIcon: Bool = false
     let isPrimary: Bool
     let action: () -> Void
     
@@ -276,22 +252,16 @@ struct ShareActionButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(iconColor.opacity(isPrimary ? 0.2 : 0.15))
-                        .frame(width: 48, height: 48)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    isPrimary ? iconColor.opacity(0.4) : Color.clear,
-                                    lineWidth: isPrimary ? 1 : 0
-                                )
-                        )
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(iconColor)
+                Group {
+                    if usesStoryRingIcon {
+                        StoryAddGlyph(size: 24)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
                 }
+                .frame(width: 28)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -338,6 +308,122 @@ struct ShareActionButton: View {
     }
 }
 
+private struct StoryAddGlyph: View {
+    let size: CGFloat
+    private let lineWidth: CGFloat = 2.1
+    private let gapAngle: Double = 16
+    private let privacyService = PrivacyService()
+
+    @State private var snapshot = StoryRingSnapshot(
+        hasStory: false,
+        hasUnseenStory: false,
+        storyCount: 0,
+        storyViewedStatus: [],
+        storyAudiences: []
+    )
+
+    private var displayedSegmentCount: Int {
+        max(snapshot.storyCount + 1, 1)
+    }
+
+    var body: some View {
+        ZStack {
+            if displayedSegmentCount == 1 {
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.blue, Color.purple, Color.pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+            } else {
+                ForEach(0..<displayedSegmentCount, id: \.self) { index in
+                    StoryAddGlyphSegment(
+                        index: index,
+                        totalSegments: displayedSegmentCount,
+                        gapAngle: gapAngle,
+                        lineWidth: lineWidth
+                    )
+                }
+            }
+
+            Circle()
+                .fill(Color(.systemBackground).opacity(0.9))
+                .frame(width: size * 0.44, height: size * 0.44)
+
+            Image(systemName: "plus")
+                .font(.system(size: size * 0.34, weight: .bold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.blue, Color.purple, Color.pink],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .frame(width: size, height: size)
+        .rotationEffect(.degrees(-90))
+        .onAppear {
+            resolveOwnStorySnapshot()
+        }
+    }
+
+    private func resolveOwnStorySnapshot() {
+        guard let currentUserId = Auth.auth().currentUser?.uid, !currentUserId.isEmpty else {
+            snapshot = StoryRingSnapshot(
+                hasStory: false,
+                hasUnseenStory: false,
+                storyCount: 0,
+                storyViewedStatus: [],
+                storyAudiences: []
+            )
+            return
+        }
+
+        StoryRingResolverService.shared.resolve(
+            viewerId: currentUserId,
+            authorId: currentUserId,
+            privacyService: privacyService
+        ) { resolvedSnapshot in
+            self.snapshot = resolvedSnapshot
+        }
+    }
+}
+
+private struct StoryAddGlyphSegment: View {
+    let index: Int
+    let totalSegments: Int
+    let gapAngle: Double
+    let lineWidth: CGFloat
+
+    private var startTrim: CGFloat {
+        let segmentAngle = 360.0 / Double(totalSegments)
+        let visibleAngle = max(segmentAngle - gapAngle, 1)
+        return CGFloat((Double(index) * segmentAngle + gapAngle / 2) / 360.0)
+    }
+
+    private var endTrim: CGFloat {
+        let segmentAngle = 360.0 / Double(totalSegments)
+        let visibleAngle = max(segmentAngle - gapAngle, 1)
+        return CGFloat((Double(index) * segmentAngle + gapAngle / 2 + visibleAngle) / 360.0)
+    }
+
+    var body: some View {
+        Circle()
+            .trim(from: startTrim, to: endTrim)
+            .stroke(
+                LinearGradient(
+                    colors: [Color.blue, Color.purple, Color.pink],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+            )
+    }
+}
+
 // MARK: - ✅ Modern Share Sheet (Overlay Style)
 struct ModernShareSheet: View {
     let moment: Moment
@@ -380,13 +466,6 @@ struct ModernShareSheet: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Handle
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.white.opacity(0.4))
-                .frame(width: 40, height: 5)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
-            
             // Header
             HStack(spacing: 12) {
                 Button(action: onBack) {
@@ -410,16 +489,9 @@ struct ModernShareSheet: View {
                 }
                 
                 Spacer()
-                
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(Color.white.opacity(0.1)))
-                }
             }
             .padding(.horizontal, 20)
+            .padding(.top, 20)
             .padding(.bottom, 20)
             
             // Search bar
@@ -438,15 +510,8 @@ struct ModernShareSheet: View {
                     }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-            )
+            .frame(height: 56)
+            .liquidGlass(in: Capsule(), interactive: true)
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
             
@@ -1425,8 +1490,6 @@ struct SendActionBottomBar: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            Divider().background(Color.white.opacity(0.1))
-            
             Button(action: onSend) {
                 HStack(spacing: 12) {
                     Image(systemName: selectedCount > 0 ? "paperplane.fill" : "paperplane")

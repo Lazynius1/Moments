@@ -182,6 +182,11 @@ struct ModernMomentDetailView: View {
                     .environmentObject(firestoreService)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
+                    .presentationBackground {
+                        Color.clear
+                            .liquidGlass(in: Rectangle())
+                            .ignoresSafeArea()
+                    }
             }
         }
         .sheet(isPresented: $showEditSheet) {
