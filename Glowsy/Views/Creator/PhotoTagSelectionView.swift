@@ -13,14 +13,12 @@ struct PhotoTagSelectionView: View {
     
     var body: some View {
         ZStack {
-            // 1. Dynamic Background (Immersive)
-            (colorScheme == .dark ? Color.black : Color(uiColor: .systemBackground))
-                .ignoresSafeArea()
+            Color.clear.ignoresSafeArea()
             
             // 2. Main Content
             VStack(spacing: 0) {
                 // Header Space
-                Spacer().frame(height: 60)
+                Spacer().frame(height: 84)
                 
                 // Image Container
                 ZStack {
@@ -49,12 +47,19 @@ struct PhotoTagSelectionView: View {
                                         removeTag(tag.id)
                                     }
                                 }
+
+                                if let pendingLocation = pendingTagLocation {
+                                    PendingTagMarker(
+                                        location: pendingLocation,
+                                        containerSize: geo.size
+                                    )
+                                }
                             }
                         )
                 }
                 .padding(.horizontal)
                 .frame(maxHeight: .infinity)
-                
+
                 // Footer Hint
                 Text(NSLocalizedString("creator.tag.instructions", comment: ""))
                     .font(.system(size: 14, weight: .medium))
@@ -64,46 +69,47 @@ struct PhotoTagSelectionView: View {
             
             // 3. Floating Custom Header
             VStack {
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.primary)
-                            .padding(12)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    }
-                    
-                    Spacer()
-                    
-                    Text(NSLocalizedString("creator.tagPeople", comment: ""))
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    Spacer()
-                    
-                    Button(action: { dismiss() }) {
-                        Text(NSLocalizedString("creator.tag.done", comment: ""))
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                VStack(spacing: 10) {
+                    HStack(spacing: 12) {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.primary)
+                                .frame(width: 40, height: 40)
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        Text(NSLocalizedString("creator.tagPeople", comment: ""))
+                            .font(.custom("Poppins-SemiBold", size: 20))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        Spacer()
+
+                        Button(action: { dismiss() }) {
+                            Text(NSLocalizedString("creator.tag.done", comment: ""))
+                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .liquidGlass(in: Capsule(), interactive: true)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)
-                .padding(.top, 10) // Adjustment for safe area
+                .padding(.top, 16)
+                .padding(.bottom, 8)
                 
                 Spacer()
             }
             .safeAreaInset(edge: .top) { Color.clear.frame(height: 0) } // Maintain safe area logic
             
-            // 4. Custom Search Sheet Overlay
+            // 4. Search Overlay
             if showingUserSearch {
-                Color.black.opacity(0.4).ignoresSafeArea()
+                Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08).ignoresSafeArea()
                     .onTapGesture {
                         withAnimation(.spring()) { showingUserSearch = false }
                         pendingTagLocation = nil
@@ -111,7 +117,7 @@ struct PhotoTagSelectionView: View {
                 
                 VStack {
                     Spacer()
-                    TagUserSearchSheet(onSelect: { user in
+                    TagUserSearchOverlay(onSelect: { user in
                         if let location = pendingTagLocation {
                             let newTag = PhotoTag(
                                 userId: user.id,
@@ -138,7 +144,9 @@ struct PhotoTagSelectionView: View {
                             pendingTagLocation = nil
                         }
                     })
-                    .transition(.move(edge: .bottom))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
                 .zIndex(2)
             }
@@ -160,6 +168,30 @@ struct PhotoTagSelectionView: View {
         mediaItem.tags = currentTags
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
+    }
+}
+
+struct PendingTagMarker: View {
+    let location: CGPoint
+    let containerSize: CGSize
+
+    var body: some View {
+        let xPos = location.x * containerSize.width
+        let yPos = location.y * containerSize.height
+
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.8), lineWidth: 2)
+                .frame(width: 28, height: 28)
+
+            Circle()
+                .fill(Color.white)
+                .frame(width: 8, height: 8)
+        }
+        .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 2)
+        .position(x: xPos, y: yPos)
+        .allowsHitTesting(false)
+        .transition(.scale.combined(with: .opacity))
     }
 }
 
@@ -218,8 +250,8 @@ struct TagView: View {
     }
 }
 
-// MARK: - Glassmorphic Search Sheet
-struct TagUserSearchSheet: View {
+// MARK: - Inline Search Overlay
+struct TagUserSearchOverlay: View {
     let onSelect: (AppUser) -> Void
     let onCancel: () -> Void
     
@@ -231,23 +263,27 @@ struct TagUserSearchSheet: View {
     
     // Cache recent searches ideally, but using direct firestore for now
     private let firestoreService = FirestoreService()
+
+    private var shouldShowResultsPanel: Bool {
+        isSearching || !searchText.isEmpty
+    }
+
+    private var resultsPanelHeight: CGFloat {
+        let rowHeight: CGFloat = 67
+        let visibleRows = min(max(searchResults.count, 1), 3)
+        return CGFloat(visibleRows) * rowHeight
+    }
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Handle
-            Capsule()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 40, height: 4)
-                .padding(.top, 10)
-            
-            // Search Input
+        VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
-                
+
                 TextField("", text: $searchText)
                     .placeholder(when: searchText.isEmpty) {
-                        Text(NSLocalizedString("creator.tag.search", comment: "")).foregroundColor(.secondary)
+                        Text(NSLocalizedString("creator.tag.search", comment: ""))
+                            .foregroundColor(.secondary)
                     }
                     .foregroundColor(.primary)
                     .focused($isSearchFocused)
@@ -255,80 +291,94 @@ struct TagUserSearchSheet: View {
                     .onChange(of: searchText) { _, newValue in
                         searchUsers(query: newValue)
                     }
-                
+
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
                     }
                 }
-            }
-            .padding()
-            .background(Color.primary.opacity(0.05)) // Dynamic subtle background
-            .cornerRadius(16)
-            .padding(.horizontal)
-            
-            // Results
-            if isSearching {
-                ProgressView()
-                    .tint(.primary)
-                    .frame(height: 100)
-            } else if searchResults.isEmpty && !searchText.isEmpty {
-                Text(NSLocalizedString("common.noResults", value: "No users found", comment: ""))
-                    .foregroundColor(.secondary)
-                    .frame(height: 100)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(searchResults, id: \.id) { user in
-                            Button(action: { onSelect(user) }) {
-                                HStack(spacing: 12) {
-                                    // Avatar
-                                    Group {
-                                        if let profileUrl = user.profileImagePath, let url = URL(string: profileUrl) {
-                                            AsyncImage(url: url) { img in
-                                                img.resizable().aspectRatio(contentMode: .fill)
-                                            } placeholder: {
-                                                Color.gray.opacity(0.3)
-                                            }
-                                        } else {
-                                            Image(systemName: "person.circle.fill")
-                                                .resizable()
-                                                .foregroundColor(.gray)
-                                        }
-                                    }
-                                    .frame(width: 44, height: 44)
-                                    .clipShape(Circle())
-                                    
-                                    // Info
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(user.username)
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(.primary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    // Add Icon
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(Color.primary.opacity(0.3))
-                                }
-                                .padding(.horizontal)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.top, 10)
+
+                Button(action: onCancel) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .frame(width: 30, height: 30)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
-                .frame(maxHeight: 350)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .liquidGlass(in: Capsule(), interactive: true)
+
+            if shouldShowResultsPanel {
+                Group {
+                    if isSearching {
+                        ProgressView()
+                            .tint(.primary)
+                            .frame(maxWidth: .infinity, minHeight: 88)
+                    } else if searchResults.isEmpty {
+                        Text(NSLocalizedString("common.noResults", value: "No users found", comment: ""))
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, minHeight: 88)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(searchResults, id: \.id) { user in
+                                    Button(action: { onSelect(user) }) {
+                                        HStack(spacing: 12) {
+                                            Group {
+                                                if let profileUrl = user.profileImagePath, let url = URL(string: profileUrl) {
+                                                    AsyncImage(url: url) { img in
+                                                        img.resizable().aspectRatio(contentMode: .fill)
+                                                    } placeholder: {
+                                                        Color.gray.opacity(0.3)
+                                                    }
+                                                } else {
+                                                    Image(systemName: "person.circle.fill")
+                                                        .resizable()
+                                                        .foregroundColor(.gray)
+                                                }
+                                            }
+                                            .frame(width: 42, height: 42)
+                                            .clipShape(Circle())
+
+                                            Text(user.username)
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(.primary)
+
+                                            Spacer()
+
+                                            Image(systemName: "plus")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundColor(.primary)
+                                                .frame(width: 28, height: 28)
+                                                .liquidGlass(in: Circle(), interactive: true)
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 12)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if user.id != searchResults.last?.id {
+                                        Divider().opacity(0.25)
+                                    }
+                                }
+                            }
+                        }
+                        .frame(height: resultsPanelHeight)
+                    }
+                }
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
             }
         }
-        .padding(.bottom, 20)
-        .background(.ultraThinMaterial) // Adapts to light/dark
-        .cornerRadius(24, corners: [.topLeft, .topRight])
-        .shadow(color: Color.black.opacity(colorScheme == .light ? 0.1 : 0.3), radius: 10, x: 0, y: -5)
         .onAppear {
             isSearchFocused = true // Auto focus
         }

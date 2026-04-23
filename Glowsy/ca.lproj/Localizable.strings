@@ -21,6 +21,9 @@
 "storyChains.continueStory" = "Continuar Història";
 "storyChains.continuationAudience.title" = "Qui pot continuar aquesta cadena?";
 "storyChains.continuationAudience.navigationTitle" = "Audiència de Continuació";
+"storyChains.continuationAudience.subtitle" = "Tria qui la pot continuar";
+"storyChains.titleRequired.title" = "Falta el títol";
+"storyChains.titleRequired.message" = "Afegeix un títol a la cadena abans de compartir-la.";
 "storyChains.inheritedSettingsInfo" = "La configuració d'aquesta cadena va ser definida per l'autor original i no es pot canviar.";
 "storyChains.collaboratorNotice" = "Nota: Com que ets un col·laborador, s'apliquen les regles de la cadena establertes per l'autor.";
 
@@ -862,6 +865,7 @@
 "audience.selection.title" = "Seleccionar Audiència";
 "audience.selection.subtitle" = "Tria qui pot veure aquest contingut";
 "audience.saved" = "Audiència guardada";
+"audience.deleteList.success" = "La llista \"%@\" s'ha eliminat correctament";
 "audience.predefined" = "Audiència predefinida";
 "audience.customLists" = "Llistes personalitzades";
 "audience.customLists.title" = "Llistes personalitzades";
@@ -1014,7 +1018,8 @@
 "contentVisibility.storyAudience.navigation" = "Audiència d'Històries";
 "contentVisibility.postAudience.navigation" = "Audiència de Publicacions";
 "contentVisibility.done" = "Fet";
-"audience.deleteList.confirm" = "Estàs segur que vols eliminar aquesta llista? Aquesta acció no es pot desfer.";
+"audience.deleteList.title" = "Eliminar llista";
+"audience.deleteList.confirm" = "Estàs segur que vols eliminar la llista \"%@\"? Aquesta acció no es pot desfer.";
 "audience.list.name" = "Nom de la llista";
 "audience.list.description" = "Descripció (opcional)";
 "audience.customization" = "Personalització";

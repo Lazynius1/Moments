@@ -963,8 +963,7 @@ struct ContentTypeSelectionView: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
+                    .liquidGlass(in: Circle(), interactive: true)
             }
             .padding(.leading)
             
@@ -1311,8 +1310,7 @@ struct MediaSelectionView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
+                    .liquidGlass(in: Circle(), interactive: true)
             }
             
             Spacer()
@@ -2508,8 +2506,7 @@ struct MediaEditingView: View {
                                 .font(.title2)
                                 .foregroundColor(.white)
                                 .padding(10)
-                                .background(Color.white.opacity(0.1))
-                                .clipShape(Circle())
+                                .liquidGlass(in: Circle(), interactive: true)
                         }
                         
                         Spacer()
@@ -2901,6 +2898,7 @@ struct CaptionAndDetailsView: View {
     @State private var isPreviewingMedia = false
     @State private var showingTagSelector = false
     @State private var currentMediaTagIndex = 0
+    @State private var tagSelectorDetent: PresentationDetent = .large
     
     enum AudienceSetting {
         case everyone
@@ -2961,6 +2959,8 @@ struct CaptionAndDetailsView: View {
                             Image(systemName: "chevron.left")
                                 .font(.title2)
                                 .foregroundColor(.white)
+                                .padding(10)
+                                .liquidGlass(in: Circle(), interactive: true)
                         }
                         
                         Spacer()
@@ -3039,6 +3039,11 @@ struct CaptionAndDetailsView: View {
                                     title: NSLocalizedString("creator.tagPeople", comment: "Tag people"),
                                     value: totalTagsCount == 0 ? nil : String.localizedStringWithFormat(NSLocalizedString("audience.people.count", comment: ""), totalTagsCount)
                                 ) {
+                                    if selectedMediaItems.indices.contains(currentMediaTagIndex) {
+                                        tagSelectorDetent = preferredTagSelectorDetent(for: selectedMediaItems[currentMediaTagIndex])
+                                    } else {
+                                        tagSelectorDetent = .large
+                                    }
                                     showingTagSelector = true
                                 }
                                 
@@ -3225,11 +3230,15 @@ struct CaptionAndDetailsView: View {
             .onDisappear {
                 updateAudienceSetting()
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
             .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingTagSelector) {
             if !selectedMediaItems.isEmpty {
                 PhotoTagSelectionView(mediaItem: $selectedMediaItems[currentMediaTagIndex])
+                    .presentationDetents([.medium, .large], selection: $tagSelectorDetent)
+                    .presentationDragIndicator(.visible)
             }
         }
         .onAppear {
@@ -3304,6 +3313,11 @@ struct CaptionAndDetailsView: View {
                 }
             }
         }
+    }
+
+    private func preferredTagSelectorDetent(for mediaItem: CreatorMedia) -> PresentationDetent {
+        let aspectRatio = mediaItem.image.size.width / max(mediaItem.image.size.height, 1)
+        return aspectRatio >= 0.95 ? .medium : .large
     }
 
     private func preferredMomentAspectRatio(for mediaItems: [CreatorMedia]) -> String {
@@ -3602,8 +3616,7 @@ struct StoryCameraView: View {
                             .font(.title2)
                             .foregroundColor(.white)
                             .padding()
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Circle())
+                            .liquidGlass(in: Circle(), interactive: true)
                     }
                     
                     Spacer()
@@ -4406,7 +4419,7 @@ struct UserSearchView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Listo") {
+                    Button(NSLocalizedString("creator.tag.done", comment: "")) {
                         selectedUsers = Array(selectedUserIds)
                         dismiss()
                     }
@@ -4582,11 +4595,9 @@ struct LocationPickerView: View {
                         }
                     }
                 }
-                .padding()
-                .background(
-                    colorScheme == .dark ? Color.gray.opacity(0.2) : Color.gray.opacity(0.1)
-                )
-                .cornerRadius(10)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .liquidGlass(in: Capsule(), interactive: true)
                 .padding()
                 
                 // Map
@@ -4606,13 +4617,14 @@ struct LocationPickerView: View {
                             if isRequestingLocation {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                    .tint(.blue)
+                                    .tint(adaptiveColors.primary)
                             } else {
                                 Image(systemName: "location.fill")
                             }
                             Text("creator.location.useCurrent")
                         }
-                        .foregroundColor(.blue)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(adaptiveColors.primary)
                         .padding(.vertical, 8)
                     }
                     .disabled(isRequestingLocation)
@@ -4627,7 +4639,8 @@ struct LocationPickerView: View {
                                 Image(systemName: "arrow.clockwise")
                                 Text("Actualizar")
                             }
-                            .foregroundColor(.green)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(adaptiveColors.primary)
                             .padding(.vertical, 8)
                         }
                         .disabled(isRequestingLocation)
@@ -4697,17 +4710,20 @@ struct LocationPickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(adaptiveColors.primary)
                     }
-                    .foregroundColor(adaptiveColors.primary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Listo") {
+                    Button(NSLocalizedString("creator.tag.done", comment: "")) {
                         dismiss()
                     }
-                    .foregroundColor(.blue)
+                    .foregroundColor(adaptiveColors.primary)
                     .fontWeight(.semibold)
                     .disabled(selectedLocation == nil)
                 }
@@ -5049,8 +5065,8 @@ struct LocationRow: View {
             HStack(spacing: 12) {
                 // Icono de categoría
                 Image(systemName: categoryIcon)
-                    .font(.title2)
-                    .foregroundColor(adaptiveColors.accent)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(adaptiveColors.primary)
                     .frame(width: 30)
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -5058,20 +5074,14 @@ struct LocationRow: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(adaptiveColors.primary)
                     
-                    HStack {
-                        Text(categoryName)
+                    Text(categoryName)
+                        .font(.caption)
+                        .foregroundColor(adaptiveColors.secondary)
+                    
+                    if let address = place.placemark.title {
+                        Text(address)
                             .font(.caption)
-                            .foregroundColor(adaptiveColors.accent)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(adaptiveColors.accent.opacity(0.2))
-                            .cornerRadius(8)
-                        
-                        if let address = place.placemark.title {
-                            Text(address)
-                                .font(.caption)
-                                .foregroundColor(adaptiveColors.secondary)
-                        }
+                            .foregroundColor(adaptiveColors.secondary.opacity(0.8))
                     }
                 }
                 

@@ -21,6 +21,9 @@
 "storyChains.continueStory" = "Continue Story";
 "storyChains.continuationAudience.title" = "Who can continue this chain?";
 "storyChains.continuationAudience.navigationTitle" = "Continuation Audience";
+"storyChains.continuationAudience.subtitle" = "Choose who can continue it";
+"storyChains.titleRequired.title" = "Missing title";
+"storyChains.titleRequired.message" = "Add a title to the chain before sharing it.";
 "storyChains.inheritedSettingsInfo" = "The settings for this chain were defined by the original author and cannot be changed.";
 "storyChains.collaboratorNotice" = "Note: Since you are a collaborator, the chain rules established by the author apply.";
 
@@ -868,6 +871,7 @@
 "audience.selection.title" = "Select Audience";
 "audience.selection.subtitle" = "Choose who can see this content";
 "audience.saved" = "Saved audience";
+"audience.deleteList.success" = "List \"%@\" deleted successfully";
 "audience.predefined" = "Predefined audience";
 "audience.customLists" = "Custom lists";
 "audience.customLists.title" = "Custom lists";
@@ -1037,7 +1041,8 @@
 "contentVisibility.storyAudience.navigation" = "Story Audience";
 "contentVisibility.postAudience.navigation" = "Post Audience";
 "contentVisibility.done" = "Done";
-"audience.deleteList.confirm" = "Are you sure you want to delete this list? This action cannot be undone.";
+"audience.deleteList.title" = "Delete list";
+"audience.deleteList.confirm" = "Are you sure you want to delete the list \"%@\"? This action cannot be undone.";
 "audience.list.name" = "List name";
 "audience.list.description" = "Description (optional)";
 "audience.customization" = "Customization";
