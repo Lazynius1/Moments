@@ -481,34 +481,39 @@ struct StoryEditingView: View {
                     }
 
                     HStack(spacing: 12) {
-                        Image(systemName: "link")
-                            .foregroundColor(.blue)
-                            .padding(10)
-                            .background(Color.white.opacity(0.12))
-                            .clipShape(Circle())
+                        HStack(spacing: 10) {
+                            Image(systemName: "link")
+                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
+                                .font(.system(size: 15, weight: .semibold))
 
-                        TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .foregroundColor(.white)
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 12)
-                            .background(Color.black.opacity(0.28))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .focused($isChainTitleFocused)
+                            TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .tint(colorScheme == .dark ? .white : .black)
+                                .focused($isChainTitleFocused)
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 14)
+                        .liquidGlass(in: Capsule(), interactive: true)
 
                         Button(action: { isChainTitleFocused = false }) {
                             Image(systemName: "keyboard.chevron.compact.down")
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .padding(10)
-                                .background(Color.white.opacity(0.12))
+                                .background((colorScheme == .dark ? Color.black : Color.white).opacity(colorScheme == .dark ? 0.2 : 0.28))
                                 .clipShape(Circle())
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                    .liquidGlass(in: Rectangle())
+                    .padding(.top, activeEditorMode == .idle ? 8 : 12)
+                    .padding(.bottom, 12)
+                    .background(
+                        Color.clear
+                            .liquidGlass(in: Rectangle())
+                            .ignoresSafeArea(edges: .bottom)
+                    )
                 }
+                .padding(.top, 8)
                 .padding(.bottom, chainInputBottomPadding())
                 .animation(.easeOut(duration: 0.24), value: keyboardHeight)
             }
@@ -536,12 +541,15 @@ struct StoryEditingView: View {
                 selectedListId: $selectedListId,
                 selectedListName: $selectedListName,
                 customSelectedUsers: $customSelectedUsers,
+                chainTitleSummary: isContinuingChain ? originalChainTitle : chainTitle,
                 isContinuing: isContinuingChain,
                 onConfirm: {
                     // 🔗 PUBLICAR SOLO SI SE CONFIRMA EN EL SHEET
                     publishStory()
                 }
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingLocationMap) {
             LocationMapView(
@@ -1024,9 +1032,11 @@ struct StoryEditingView: View {
 
     private func chainInputBottomPadding() -> CGFloat {
         if keyboardHeight > 0 {
-            return keyboardHeight + 2
+            // Let the bar overlap the rounded top edge of the keyboard slightly
+            // so it doesn't leave a visible gap when the keyboard is shown.
+            return max(0, keyboardHeight - 10)
         }
-        return 8
+        return 0
     }
     
     @ViewBuilder
@@ -1089,11 +1099,8 @@ struct StoryEditingView: View {
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(
-                    (colorScheme == .dark ? Color.black : Color.white)
-                        .opacity(isLoadingUserSettings ? 0.5 : 1.0)
-                )
-                .clipShape(Capsule())
+                .opacity(isLoadingUserSettings ? 0.5 : 1.0)
+                .liquidGlass(in: Capsule(), interactive: true)
             }
             .disabled(isPublishing || isLoadingUserSettings)
         } else {

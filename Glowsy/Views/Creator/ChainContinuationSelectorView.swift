@@ -45,71 +45,199 @@ struct CustomUserSelectorView: View {
 }
 
 struct ChainContinuationSelectorView: View {
+    private enum FlowDestination: Equatable {
+        case main
+        case customPeople
+        case manageLists
+        case createList(returnToManageLists: Bool)
+        case editList(CustomAudienceList)
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedAudience: ChainContinuationSetting
     @Binding var selectedListId: String?
     @Binding var selectedListName: String?
     @Binding var customSelectedUsers: [String]
+    var embeddedInFlow: Bool = false
+    var onBack: (() -> Void)? = nil
+    var onComplete: (() -> Void)? = nil
     
-    @State private var showingCustomUserSelector = false
-    @State private var showingCustomListSelector = false
-    @State private var showingCustomListCreator = false
+    @State private var flowDestination: FlowDestination = .main
+    @State private var navigatingForward = true
     @State private var customLists: [CustomAudienceList] = []
     @State private var isLoadingLists = false
+    @State private var selectedUsersForCustom: [AppUser] = []
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        NavigationView {
+        Group {
+            if embeddedInFlow {
+                selectorBody
+            } else {
+                NavigationView {
+                    selectorBody
+                }
+            }
+        }
+    }
+    
+    private var selectorBody: some View {
             ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            // ✅ Handle superior
-                            RoundedRectangle(cornerRadius: 2.5)
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.4) : Color.black.opacity(0.3))
-                                .frame(width: 40, height: 5)
-                                .padding(.top, 12)
-                                .padding(.bottom, 20)
-                            
-                            // ✅ Título principal
-                            VStack(spacing: 8) {
-                                Text(NSLocalizedString("storyChains.continuationAudience", comment: ""))
-                                    .font(.custom("Poppins-Bold", size: 24))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                
-                                Text(NSLocalizedString("storyChains.visibilityInfo", comment: ""))
-                                    .font(.custom("Poppins-Regular", size: 16))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                                    .multilineTextAlignment(.center)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 32)
-                            
-                            // ✅ Contenido principal
-                            VStack(spacing: 16) {
-                                predefinedAudienceSection
-                                customListsSection
-                                manualSelectionSection
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 32)
-                        }
-                    }
+                if case .main = flowDestination {
+                    mainContent
+                        .transition(flowTransition)
+                } else {
+                    nestedFlowContent
+                        .transition(flowTransition)
                 }
             }
             .navigationBarHidden(true)
-            .sheet(isPresented: $showingCustomUserSelector) {
-                CustomUserSelectorView(selectedUsers: $customSelectedUsers)
-            }
-            .sheet(isPresented: $showingCustomListCreator) {
-                CreateCustomListView()
-                    .onDisappear { loadCustomLists() }
-            }
+            .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
             .onAppear {
                 loadCustomLists()
+                loadSelectedUsersInfo()
             }
+    }
+
+    private var flowTransition: AnyTransition {
+        if navigatingForward {
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        } else {
+            return .asymmetric(
+                insertion: .move(edge: .leading).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            )
+        }
+    }
+
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    if embeddedInFlow {
+                        HStack(spacing: 12) {
+                            Button(action: { onBack?() }) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                    .frame(width: 40, height: 40)
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Spacer()
+                            
+                            VStack(spacing: 2) {
+                                Text(NSLocalizedString("storyChains.continuationAudience.navigationTitle", comment: ""))
+                                    .font(.custom("Poppins-SemiBold", size: 20))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                Text(NSLocalizedString("storyChains.continuationAudience.subtitle", comment: ""))
+                                    .font(.custom("Poppins-Regular", size: 13))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                            }
+                            .multilineTextAlignment(.center)
+                            
+                            Spacer()
+                            
+                            Color.clear
+                                .frame(width: 40, height: 40)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        .padding(.bottom, 12)
+                    }
+
+                    if !embeddedInFlow {
+                        VStack(spacing: 8) {
+                            Text(NSLocalizedString("storyChains.continuationAudience", comment: ""))
+                                .font(.custom("Poppins-Bold", size: 24))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                            
+                            Text(NSLocalizedString("storyChains.visibilityInfo", comment: ""))
+                                .font(.custom("Poppins-Regular", size: 16))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        .padding(.bottom, 32)
+                    }
+                    
+                    VStack(spacing: 16) {
+                        predefinedAudienceSection
+                        customListsSection
+                        manualSelectionSection
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var nestedFlowContent: some View {
+        switch flowDestination {
+        case .main:
+            EmptyView()
+        case .customPeople:
+            CustomAudienceSelector(
+                selectedUsers: $selectedUsersForCustom,
+                onComplete: {
+                    customSelectedUsers = selectedUsersForCustom.map(\.id)
+                    selectedAudience = .custom
+                    selectedListId = nil
+                    selectedListName = nil
+                    finishSelection()
+                },
+                onBack: {
+                    navigate(to: .main, forward: false)
+                },
+                embeddedInFlow: true
+            )
+        case .manageLists:
+            CustomAudienceListsView(
+                embeddedInFlow: true,
+                onBack: {
+                    loadCustomLists()
+                    navigate(to: .main, forward: false)
+                },
+                onCreateList: {
+                    navigate(to: .createList(returnToManageLists: true))
+                },
+                onEditList: { list in
+                    navigate(to: .editList(list))
+                },
+                onListsChanged: {
+                    loadCustomLists()
+                }
+            )
+        case .createList(let returnToManageLists):
+            CreateCustomListView(
+                embeddedInFlow: true,
+                onBack: {
+                    navigate(to: returnToManageLists ? .manageLists : .main, forward: false)
+                },
+                onCompleted: {
+                    loadCustomLists()
+                    navigate(to: returnToManageLists ? .manageLists : .main, forward: false)
+                }
+            )
+        case .editList(let list):
+            EditCustomListView(
+                list: list,
+                embeddedInFlow: true,
+                onBack: {
+                    navigate(to: .manageLists, forward: false)
+                },
+                onCompleted: {
+                    loadCustomLists()
+                    navigate(to: .manageLists, forward: false)
+                }
+            )
         }
     }
     
@@ -134,7 +262,7 @@ struct ChainContinuationSelectorView: View {
                     onTap: {
                         selectedAudience = .everyone
                         resetSelection()
-                        dismiss()
+                        finishSelection()
                     }
                 )
                 
@@ -144,7 +272,7 @@ struct ChainContinuationSelectorView: View {
                     onTap: {
                         selectedAudience = .connections
                         resetSelection()
-                        dismiss()
+                        finishSelection()
                     }
                 )
                 
@@ -154,7 +282,7 @@ struct ChainContinuationSelectorView: View {
                     onTap: {
                         selectedAudience = .bestFriends
                         resetSelection()
-                        dismiss()
+                        finishSelection()
                     }
                 )
             }
@@ -168,6 +296,11 @@ struct ChainContinuationSelectorView: View {
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
+                Button(action: { navigate(to: .manageLists) }) {
+                    Text(NSLocalizedString("audience.manage", comment: ""))
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(Color(hex: "007AFF"))
+                }
             }
             .padding(.horizontal, 4)
             
@@ -180,22 +313,28 @@ struct ChainContinuationSelectorView: View {
                 }
                 .padding()
             } else if customLists.isEmpty {
-                // Vista vacía simple
-                Button(action: { showingCustomListCreator = true }) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                        Text(NSLocalizedString("audience.create", comment: ""))
-                    }
-                    .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(Color(hex: "00A896"))
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color(hex: "00A896").opacity(0.1))
-                    .cornerRadius(12)
-                }
+                emptyCustomListsViewModern
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
+                        Button(action: { navigate(to: .createList(returnToManageLists: false)) }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(Color(hex: "007AFF"))
+                                    .frame(width: 48, height: 48)
+                                    .liquidGlass(in: Circle(), interactive: true)
+                                Text(NSLocalizedString("audience.create", comment: ""))
+                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .foregroundColor(Color(hex: "007AFF"))
+                            }
+                            .frame(width: 100, height: 140)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color(hex: "007AFF").opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4]))
+                            )
+                        }
+
                         ForEach(customLists) { list in
                             ChainCustomListCard(
                                 list: list,
@@ -205,7 +344,7 @@ struct ChainContinuationSelectorView: View {
                                     selectedListId = list.id
                                     selectedListName = list.name
                                     customSelectedUsers = []
-                                    dismiss()
+                                    finishSelection()
                                 }
                             )
                         }
@@ -227,19 +366,14 @@ struct ChainContinuationSelectorView: View {
             }
             .padding(.horizontal, 4)
             
-            Button(action: { showingCustomUserSelector = true }) {
+            Button(action: { navigate(to: .customPeople) }) {
                 HStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(selectedAudience == .custom ? Color(hex: "00A896").opacity(0.15) : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
-                            .frame(width: 48, height: 48)
-                        
-                        Image(systemName: "person.crop.circle.badge.plus")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(selectedAudience == .custom ? Color(hex: "00A896") : (colorScheme == .dark ? .white : .black))
-                    }
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 36, height: 36)
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("audience.type.custom", comment: ""))
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -247,30 +381,97 @@ struct ChainContinuationSelectorView: View {
                         if selectedAudience == .custom && !customSelectedUsers.isEmpty {
                             Text(String(format: NSLocalizedString("audience.people.count", comment: ""), customSelectedUsers.count))
                                 .font(.custom("Poppins-Regular", size: 13))
-                                .foregroundColor(Color(hex: "00A896"))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                         } else {
                             Text(NSLocalizedString("audience.description.custom", comment: ""))
                                 .font(.custom("Poppins-Regular", size: 13))
-                                .foregroundColor(.gray)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                         }
                     }
                     
                     Spacer()
                     
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.gray.opacity(0.5))
+                    if selectedAudience == .custom && selectedListId == nil {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(Color(hex: "007AFF"))
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .frame(width: 28, height: 28)
+                            .liquidGlass(in: Circle(), interactive: true)
+                    }
                 }
-                .padding()
-                .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-                .cornerRadius(20)
-                .overlay(
+                .padding(16)
+                .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(selectedAudience == .custom ? Color(hex: "00A896").opacity(0.4) : Color.clear, lineWidth: 1.5)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(
+                                    selectedAudience == .custom && selectedListId == nil ?
+                                    Color(hex: "007AFF").opacity(0.4) :
+                                    Color.clear,
+                                    lineWidth: 1
+                                )
+                        )
                 )
             }
             .buttonStyle(PlainButtonStyle())
         }
+    }
+
+    private var emptyCustomListsViewModern: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "list.bullet.rectangle")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundColor(.primary)
+            
+            VStack(spacing: 4) {
+                Text(NSLocalizedString("audience.noCustomLists.title", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                Text(NSLocalizedString("audience.noCustomLists.description", comment: ""))
+                    .font(.custom("Poppins-Regular", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                    .multilineTextAlignment(.center)
+            }
+            
+            Button(action: { navigate(to: .createList(returnToManageLists: false)) }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .frame(width: 30, height: 30)
+                        .liquidGlass(in: Circle(), interactive: true)
+                    Text(NSLocalizedString("audience.createFirstList", comment: ""))
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(.primary)
+                }
+            }
+            .padding(.top, 6)
+        }
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1),
+                                    Color(hex: "007AFF").opacity(0.2)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
     }
     
     // MARK: - Helper Functions
@@ -293,6 +494,36 @@ struct ChainContinuationSelectorView: View {
                     } ?? []
                 }
             }
+    }
+
+    private func loadSelectedUsersInfo() {
+        guard !customSelectedUsers.isEmpty else {
+            selectedUsersForCustom = []
+            return
+        }
+        
+        FirestoreService().fetchUsers(userIds: customSelectedUsers) { result in
+            if case .success(let users) = result {
+                DispatchQueue.main.async {
+                    selectedUsersForCustom = users
+                }
+            }
+        }
+    }
+
+    private func navigate(to destination: FlowDestination, forward: Bool = true) {
+        navigatingForward = forward
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+            flowDestination = destination
+        }
+    }
+
+    private func finishSelection() {
+        if embeddedInFlow {
+            onComplete?()
+        } else {
+            dismiss()
+        }
     }
     
     private func resetSelection() {
@@ -334,25 +565,22 @@ struct ChainAudienceGridCard: View {
     let onTap: () -> Void
     
     @State private var isPressed = false
+
+    private var iconColor: Color {
+        if setting == .bestFriends {
+            return Color(hex: "34C759")
+        }
+        return colorScheme == .dark ? .white : .black
+    }
     
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 12) {
-                // ✅ Icono
-                ZStack {
-                    Circle()
-                        .fill(isSelected ?
-                              Color(hex: "00A896").opacity(0.15) :
-                              (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
-                        .frame(width: 56, height: 56)
-                    
-                    Image(systemName: setting.icon)
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(isSelected ?
-                                       Color(hex: "00A896") : (colorScheme == .dark ? .white : .black))
-                }
-                
-                // ✅ Texto
+                Image(systemName: setting.icon)
+                    .font(.system(size: 27, weight: .medium))
+                    .foregroundColor(iconColor)
+                    .frame(width: 60, height: 60)
+
                 VStack(spacing: 4) {
                     Text(setting.title)
                         .font(.custom("Poppins-SemiBold", size: 15))
@@ -377,13 +605,13 @@ struct ChainAudienceGridCard: View {
                         RoundedRectangle(cornerRadius: 24)
                             .stroke(
                                 isSelected ?
-                                Color(hex: "00A896").opacity(0.4) :
+                                Color(hex: "007AFF").opacity(0.4) :
                                 Color.clear,
                                 lineWidth: 1.5
                             )
                     )
             )
-            .shadow(color: isSelected ? Color(hex: "00A896").opacity(0.1) : Color.clear, radius: 10, x: 0, y: 5)
+            .shadow(color: isSelected ? Color(hex: "007AFF").opacity(0.1) : Color.clear, radius: 10, x: 0, y: 5)
         }
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -401,6 +629,8 @@ struct ChainCustomListCard: View {
     let isSelected: Bool
     let onTap: () -> Void
     
+    @State private var isPressed = false
+    
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 12) {
@@ -411,38 +641,42 @@ struct ChainCustomListCard: View {
                     
                     Image(systemName: list.icon ?? "person.3.fill")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(Color(hex: list.color ?? "00A896").opacity(isSelected ? 1.0 : 0.8))
+                        .foregroundColor(Color(hex: list.color ?? "00A896"))
                 }
                 
                 VStack(spacing: 4) {
                     Text(list.name)
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.custom("Poppins-SemiBold", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                     
-                    Text(String(format: NSLocalizedString("audience.members.count.short", comment: ""), list.members.count))
+                    Text("\(list.members.count) personas")
                         .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.gray)
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                 }
             }
-            .frame(width: 100, height: 140)
+            .frame(width: 110, height: 140)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(isSelected ?
-                          Color(hex: list.color ?? "00A896").opacity(0.1) :
-                          (colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        isSelected ?
-                        Color(hex: list.color ?? "00A896").opacity(0.5) :
-                        Color.clear,
-                        lineWidth: 1.5
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                isSelected ?
+                                Color(hex: list.color ?? "00A896").opacity(0.6) :
+                                Color.clear,
+                                lineWidth: 2
+                            )
                     )
             )
+            .shadow(color: isSelected ? Color(hex: list.color ?? "00A896").opacity(0.15) : Color.clear, radius: 8, x: 0, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }, perform: {})
     }
 }
 

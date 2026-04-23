@@ -20,6 +20,9 @@
 "storyChains.continueStory" = "Continuar Historia";
 "storyChains.continuationAudience.title" = "¿Quién puede continuar esta cadena?";
 "storyChains.continuationAudience.navigationTitle" = "Audiencia de Continuación";
+"storyChains.continuationAudience.subtitle" = "Elige quién puede seguirla";
+"storyChains.titleRequired.title" = "Falta el título";
+"storyChains.titleRequired.message" = "Añade un título a la cadena antes de compartirla.";
 "storyChains.inheritedSettingsInfo" = "La configuración de esta cadena fue definida por el autor original y no se puede cambiar.";
 "storyChains.collaboratorNotice" = "Nota: Como eres un colaborador, se aplican las reglas de la cadena establecidas por el autor.";
 
@@ -877,6 +880,7 @@
 "audience.selection.title" = "Seleccionar Audiencia";
 "audience.selection.subtitle" = "Elige quién puede ver este contenido";
 "audience.saved" = "Audiencia guardada";
+"audience.deleteList.success" = "Lista \"%@\" eliminada con éxito";
 "audience.predefined" = "Audiencia predefinida";
 "audience.customLists" = "Listas personalizadas";
 "audience.customLists.title" = "Listas personalizadas";
@@ -1045,7 +1049,8 @@
 "contentVisibility.storyAudience.navigation" = "Audiencia de Historias";
 "contentVisibility.postAudience.navigation" = "Audiencia de Publicaciones";
 "contentVisibility.done" = "Hecho";
-"audience.deleteList.confirm" = "¿Estás seguro de que quieres eliminar esta lista? Esta acción no se puede deshacer.";
+"audience.deleteList.title" = "Eliminar lista";
+"audience.deleteList.confirm" = "¿Estás seguro de que quieres eliminar la lista \"%@\"? Esta acción no se puede deshacer.";
 "audience.list.name" = "Nombre de la lista";
 "audience.list.description" = "Descripción (opcional)";
 "audience.customization" = "Personalización";

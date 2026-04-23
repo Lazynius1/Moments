@@ -40,20 +40,73 @@ enum ChainContinuationSetting: String, CaseIterable {
 }
 
 struct ChainConfigurationView: View {
+    private enum FlowDestination: Equatable {
+        case main
+        case continuationAudience
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Binding var allowOthersToContinue: Bool
     @Binding var continuationAudience: ChainContinuationSetting
     @Binding var selectedListId: String?
     @Binding var selectedListName: String?
     @Binding var customSelectedUsers: [String]
+    let chainTitleSummary: String?
     let isContinuing: Bool // 🔗 NUEVO: Indica si estamos continuando una cadena existente
     var onConfirm: (() -> Void)? // 🔗 NUEVO: Callback para cuando el usuario confirma la publicación
     
-    @State private var showingContinuationSelector = false
+    @State private var flowDestination: FlowDestination = .main
+    @State private var navigatingForward = true
+    @State private var showingTitleValidationAlert = false
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
+            ZStack {
+                if case .main = flowDestination {
+                    mainContent
+                        .transition(flowTransition)
+                } else {
+                    ChainContinuationSelectorView(
+                        selectedAudience: $continuationAudience,
+                        selectedListId: $selectedListId,
+                        selectedListName: $selectedListName,
+                        customSelectedUsers: $customSelectedUsers,
+                        embeddedInFlow: true,
+                        onBack: {
+                            navigate(to: .main, forward: false)
+                        },
+                        onComplete: {
+                            navigate(to: .main, forward: false)
+                        }
+                    )
+                    .transition(flowTransition)
+                }
+            }
+            .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
+        }
+        .alert(NSLocalizedString("storyChains.titleRequired.title", comment: ""), isPresented: $showingTitleValidationAlert) {
+            Button(NSLocalizedString("storyChains.ok", comment: ""), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("storyChains.titleRequired.message", comment: ""))
+        }
+    }
+
+    private var flowTransition: AnyTransition {
+        if navigatingForward {
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        } else {
+            return .asymmetric(
+                insertion: .move(edge: .leading).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            )
+        }
+    }
+
+    private var mainContent: some View {
+        VStack(spacing: 24) {
                 // Header con información
                 VStack(spacing: 16) {
                     Image(systemName: "link")
@@ -74,6 +127,21 @@ struct ChainConfigurationView: View {
                         .padding(.horizontal)
                 }
                 .padding(.top, 20)
+
+                if let chainTitleSummary, !chainTitleSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(NSLocalizedString("storyChains.chainTitle", comment: ""))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(.secondary)
+
+                        Text(chainTitleSummary)
+                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .foregroundColor(.primary)
+                            .lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                }
                 
                 // Configuración principal
                 VStack(spacing: 20) {
@@ -95,9 +163,7 @@ struct ChainConfigurationView: View {
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(.secondary)
                         }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.vertical, 4)
                     }
                     
                     // Selector de audiencia (Solo lectura si es continuación)
@@ -109,12 +175,12 @@ struct ChainConfigurationView: View {
                             
                             Button(action: {
                                 if !isContinuing {
-                                    showingContinuationSelector = true
+                                    navigate(to: .continuationAudience)
                                 }
                             }) {
                                 HStack {
                                     Image(systemName: getAudienceIcon())
-                                        .foregroundColor(isContinuing ? .secondary : .blue)
+                                        .foregroundColor(isContinuing ? .secondary : .primary)
                                     
                                     Text(getAudienceText())
                                         .font(.custom("Poppins-Regular", size: 16))
@@ -124,13 +190,13 @@ struct ChainConfigurationView: View {
                                     
                                     if !isContinuing {
                                         Image(systemName: "chevron.right")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(.secondary)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(.primary)
+                                            .frame(width: 28, height: 28)
+                                            .liquidGlass(in: Circle(), interactive: true)
                                     }
                                 }
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .padding(.vertical, 4)
                             }
                             .disabled(isContinuing)
                         }
@@ -151,6 +217,10 @@ struct ChainConfigurationView: View {
                 
                 // Botón de compartir
                 Button(action: {
+                    if !isContinuing && (chainTitleSummary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) {
+                        showingTitleValidationAlert = true
+                        return
+                    }
                     dismiss()
                     // 🔗 NOTIFICAR CONFIRMACIÓN
                     onConfirm?()
@@ -197,23 +267,6 @@ struct ChainConfigurationView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 20)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("storyChains.cancel", comment: "Cancel")) {
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingContinuationSelector) {
-            ChainContinuationSelectorView(
-                selectedAudience: $continuationAudience,
-                selectedListId: $selectedListId,
-                selectedListName: $selectedListName,
-                customSelectedUsers: $customSelectedUsers
-            )
-        }
     }
     
     // MARK: - Helper Functions
@@ -263,6 +316,13 @@ struct ChainConfigurationView: View {
             }
         )
     }
+
+    private func navigate(to destination: FlowDestination, forward: Bool = true) {
+        navigatingForward = forward
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+            flowDestination = destination
+        }
+    }
 }
 
 #Preview {
@@ -272,7 +332,7 @@ struct ChainConfigurationView: View {
         selectedListId: .constant(nil),
         selectedListName: .constant(nil),
         customSelectedUsers: .constant([]),
+        chainTitleSummary: NSLocalizedString("storyChains.chain", comment: ""),
         isContinuing: false
     )
 }
-
