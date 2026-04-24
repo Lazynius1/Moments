@@ -270,6 +270,13 @@
 "nova.memory.section.professional" = "Work/Studies";
 "nova.memory.section.interest" = "Interests";
 "nova.memory.section.general" = "General";
+"nova.memory.edit.title" = "Edit memory";
+"nova.memory.edit.placeholder" = "What should Nova remember...";
+"nova.memory.edit.message" = "Adjust this memory so Nova can use it better.";
+"nova.memory.edit.save" = "Save";
+"nova.memory.edit.action" = "Edit";
+"nova.memory.markImportant" = "Mark as important";
+"nova.memory.unmarkImportant" = "Remove important";
 "feed.empty.following.description" = "Follow your friends to see what they are sharing.";
 "feed.empty.foryou.title" = "Discover Moments";
 "feed.empty.foryou.description" = "Explore the best moments from the community.";
@@ -345,6 +352,7 @@
 "stories.photo" = "Photo";
 "stories.video" = "Video";
 "stories.myStory" = "My story";
+"stories.yourStory" = "Your story";
 "stories.options" = "Options";
 "stories.noInteractions" = "The author does not allow interactions";
 "stories.contentUnavailable" = "Content unavailable";

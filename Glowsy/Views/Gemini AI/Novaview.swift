@@ -291,6 +291,9 @@ struct GeminiView: View {
                 NovaMemoryManagementView()
                     .presentationDetents([.medium, .large], selection: $memorySheetDetent)
                     .presentationDragIndicator(.visible)
+                    .onDisappear {
+                        viewModel.reloadMemoryFromStore()
+                    }
             }
         }
         .navigationBarHidden(true)
@@ -1892,36 +1895,39 @@ struct ModernLoadingAnimation: View {
         HStack {
             Spacer()
 
-            VStack(spacing: 14) {
-                HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                ZStack {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(ModernGeminiColors.textPrimary)
+                }
+                .frame(width: 30, height: 30)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle())
+                }
+
+                HStack(spacing: 5) {
                     ForEach(0..<3) { index in
                         Circle()
                             .fill(ModernGeminiColors.textSecondary.opacity(0.65))
-                            .frame(width: 9, height: 9)
-                            .scaleEffect(isAnimating ? 1.1 : 0.75)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(isAnimating ? 1.0 : 0.65)
                             .animation(
-                                .easeInOut(duration: 0.8)
+                                .easeInOut(duration: 0.72)
                                 .repeatForever()
                                 .delay(Double(index) * 0.15),
                                 value: isAnimating
                             )
                     }
                 }
-
-                Text("nova.typing")
-                    .font(.custom("Poppins-Medium", size: 14))
-                    .foregroundColor(ModernGeminiColors.textSecondary)
-                    .opacity(isAnimating ? 1.0 : 0.6)
-                    .animation(.easeInOut(duration: 1.2).repeatForever(), value: isAnimating)
+                .padding(.trailing, 4)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
-            .background(ModernGeminiColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
-            )
+            .padding(8)
+            .background {
+                Color.clear
+                    .liquidGlass(in: Capsule(), interactive: false)
+            }
 
             Spacer()
         }
@@ -3029,8 +3035,7 @@ class GeminiViewModel: ObservableObject {
         let currentInput = inputText
         inputText = ""
 
-        // 🎭 ACTUALIZAR PERFIL DE COMPORTAMIENTO (En segundo plano)
-        // 🎭 ACTUALIZAR PERFIL DE COMPORTAMIENTO (En segundo plano)
+        // 🎭 ACTUALIZAR PERFIL DE COMPORTAMIENTO (sin pisar edits hechos desde el sheet)
         if let memory = self.userMemory {
             // Capturar textos recientes (incluyendo el actual)
             let recentTexts = conversationHistory
@@ -3042,9 +3047,7 @@ class GeminiViewModel: ObservableObject {
                 let updatedMemory = NovaBehaviorService.shared.updateBehaviorProfile(memory: memory, recentMessages: Array(recentTexts))
 
                 await MainActor.run {
-                    self?.userMemory = updatedMemory
-                    // Persistir silenciosamente
-                    self?.memoryService.saveMemory(updatedMemory) { _ in }
+                    self?.saveBehaviorProfileSafely(updatedMemory.behaviorProfile)
                 }
             }
         }
@@ -3082,7 +3085,7 @@ class GeminiViewModel: ObservableObject {
             : ""
 
         let greetingGuardrail = isSimpleGreeting
-            ? "\nThis is just a greeting. Reply briefly and naturally. Use the preferred display name if known. Do not bring up old interests, habits, media tastes, day-of-week commentary, or proactive suggestions unless the user asks."
+            ? "\nThis is low-context small talk. Reply briefly and naturally. Use the preferred display name if known. Do not bring up old interests, habits, media tastes, day-of-week commentary, recommendations, or proactive suggestions unless the user asks."
             : ""
 
         let minimalPrompt = """
@@ -3246,13 +3249,66 @@ class GeminiViewModel: ObservableObject {
         let normalized = input
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+            .replacingOccurrences(of: "¿", with: "")
+            .replacingOccurrences(of: "?", with: "")
+            .replacingOccurrences(of: "!", with: "")
+            .replacingOccurrences(of: "¡", with: "")
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: ",", with: "")
 
         let greetings: Set<String> = [
-            "hola", "hola!", "holaa", "hey", "hello", "hi", "buenas",
-            "qué tal", "que tal", "ei", "ey", "bon dia", "bona tarda", "hola nova"
+            "hola", "holaa", "hey", "hello", "hi", "buenas",
+            "qué tal", "que tal", "ei", "ey", "bon dia", "bona tarda", "hola nova",
+            "todo bien", "todo bien y tú", "todo bien y tu", "bien y tú", "bien y tu",
+            "yo bien y tú", "yo bien y tu", "muy bien y tú", "muy bien y tu",
+            "cómo estás", "como estas", "como vas", "cómo vas", "qué haces", "que haces",
+            "tot bé", "tot be", "tot bé i tu", "tot be i tu", "bé i tu", "be i tu"
         ]
 
-        return greetings.contains(normalized) || normalized.count <= 8 && ["hola", "hey", "hi"].contains(normalized.replacingOccurrences(of: "!", with: ""))
+        let smallTalkFragments = [
+            "y tú", "y tu", "i tu", "how are you", "and you", "todo bien", "tot bé", "tot be"
+        ]
+
+        return greetings.contains(normalized) ||
+            normalized.count <= 8 && ["hola", "hey", "hi"].contains(normalized) ||
+            normalized.count <= 40 && smallTalkFragments.contains { normalized.contains($0) }
+    }
+
+    func reloadMemoryFromStore() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        memoryService.loadMemory(for: userId) { [weak self] result in
+            guard let self = self else { return }
+            Task { @MainActor in
+                if case .success(let memory) = result {
+                    self.userMemory = memory
+                    self.setupModelAndSession()
+                }
+            }
+        }
+    }
+
+    private func saveBehaviorProfileSafely(_ behaviorProfile: NovaBehaviorProfile?) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        memoryService.loadMemory(for: userId) { [weak self] result in
+            guard let self = self else { return }
+            Task { @MainActor in
+                let latestMemory: NovaMemory
+                if case .success(let memory) = result {
+                    latestMemory = memory
+                } else if let current = self.userMemory {
+                    latestMemory = current
+                } else {
+                    latestMemory = NovaMemory(userId: userId)
+                }
+
+                var mergedMemory = latestMemory
+                mergedMemory.behaviorProfile = behaviorProfile ?? latestMemory.behaviorProfile
+                self.userMemory = mergedMemory
+                self.memoryService.saveMemory(mergedMemory) { _ in }
+            }
+        }
     }
 
     // 🔥 NUEVA: Función de análisis inteligente de conversación en tiempo real

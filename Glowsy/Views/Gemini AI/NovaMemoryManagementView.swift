@@ -5,6 +5,8 @@ struct NovaMemoryManagementView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = NovaMemoryViewModel()
+    @State private var editingFact: NovaFact?
+    @State private var editingText = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,6 +33,35 @@ struct NovaMemoryManagementView: View {
             }
         } message: {
             Text(NSLocalizedString("nova.memory.clearAll.message", comment: "This cannot be undone."))
+        }
+        .alert(
+            Text(NSLocalizedString("nova.memory.edit.title", comment: "Edit memory title")),
+            isPresented: Binding(
+                get: { editingFact != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        editingFact = nil
+                        editingText = ""
+                    }
+                }
+            )
+        ) {
+            TextField(NSLocalizedString("nova.memory.edit.placeholder", comment: "Memory edit placeholder"), text: $editingText)
+
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
+                editingFact = nil
+                editingText = ""
+            }
+
+            Button(NSLocalizedString("nova.memory.edit.save", comment: "Save edited memory")) {
+                if let editingFact {
+                    viewModel.updateFact(editingFact, content: editingText)
+                }
+                editingFact = nil
+                editingText = ""
+            }
+        } message: {
+            Text(NSLocalizedString("nova.memory.edit.message", comment: "Edit memory message"))
         }
     }
 
@@ -116,6 +147,11 @@ struct NovaMemoryManagementView: View {
                             type: type,
                             title: localizedCategoryName(type),
                             facts: facts,
+                            onEdit: { fact in
+                                editingFact = fact
+                                editingText = fact.content
+                            },
+                            onToggleImportant: viewModel.toggleImportant,
                             onDelete: viewModel.deleteFact
                         )
                     }
@@ -171,6 +207,8 @@ private struct MemoryCategorySection: View {
     let type: NovaFactType
     let title: String
     let facts: [NovaFact]
+    let onEdit: (NovaFact) -> Void
+    let onToggleImportant: (NovaFact) -> Void
     let onDelete: (NovaFact) -> Void
 
     var body: some View {
@@ -201,6 +239,10 @@ private struct MemoryCategorySection: View {
             VStack(spacing: 0) {
                 ForEach(Array(facts.enumerated()), id: \.element.id) { index, fact in
                     MemoryFactRow(fact: fact) {
+                        onEdit(fact)
+                    } onToggleImportant: {
+                        onToggleImportant(fact)
+                    } onDelete: {
                         onDelete(fact)
                     }
 
@@ -245,6 +287,8 @@ private struct MemoryCategorySection: View {
 
 private struct MemoryFactRow: View {
     let fact: NovaFact
+    let onEdit: () -> Void
+    let onToggleImportant: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -256,17 +300,43 @@ private struct MemoryFactRow: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(fact.timestamp.timeAgoDisplay())
-                    .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundColor(ModernGeminiColors.textTertiary)
+                HStack(spacing: 5) {
+                    if fact.importance >= 5 {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.yellow)
+                    }
+
+                    Text(fact.timestamp.timeAgoDisplay())
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(ModernGeminiColors.textTertiary)
+                }
             }
 
             Spacer()
 
-            Button(action: onDelete) {
-                Image(systemName: "trash")
+            Menu {
+                Button(action: onEdit) {
+                    Label(NSLocalizedString("nova.memory.edit.action", comment: "Edit memory action"), systemImage: "pencil")
+                }
+
+                Button(action: onToggleImportant) {
+                    Label(
+                        NSLocalizedString(
+                            fact.importance >= 5 ? "nova.memory.unmarkImportant" : "nova.memory.markImportant",
+                            comment: "Toggle important memory action"
+                        ),
+                        systemImage: fact.importance >= 5 ? "star.slash" : "star"
+                    )
+                }
+
+                Button(role: .destructive, action: onDelete) {
+                    Label(NSLocalizedString("common.delete", comment: "Delete"), systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.red)
+                    .foregroundColor(ModernGeminiColors.textPrimary)
                     .frame(width: 34, height: 34)
                     .background {
                         Color.clear
@@ -304,6 +374,29 @@ class NovaMemoryViewModel: ObservableObject {
         guard let memory = memory, let userId = userId else { return }
         let updatedMemory = memory.removingFact(withId: fact.id)
 
+        self.memory = updatedMemory
+
+        memoryService.saveMemory(updatedMemory) { result in
+            if case .failure = result {
+                self.load()
+            }
+        }
+    }
+
+    func updateFact(_ fact: NovaFact, content: String) {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let memory = memory else { return }
+        save(memory.updatingFact(withId: fact.id, content: trimmed))
+    }
+
+    func toggleImportant(_ fact: NovaFact) {
+        guard let memory = memory else { return }
+        let newImportance = fact.importance >= 5 ? max(3, fact.type.priority) : 5
+        save(memory.updatingFact(withId: fact.id, importance: newImportance))
+    }
+
+    private func save(_ updatedMemory: NovaMemory) {
+        guard userId != nil else { return }
         self.memory = updatedMemory
 
         memoryService.saveMemory(updatedMemory) { result in
