@@ -2,20 +2,18 @@ import Foundation
 
 // MARK: - 🎯 NOVA PERSONALIDAD CON PERSONALIZACIÓN INTELIGENTE Y MULTILINGÜE
 struct NovaPersona {
-    
+
     // MARK: - 🌍 DETECCIÓN DE IDIOMA
     static var currentLanguage: String {
         return NovaLanguageService.preferredLanguageCode()
     }
-    
+
     // MARK: - 🌍 SYSTEM PROMPT UNIFICADO (Token-optimized)
     // Un solo prompt compacto en inglés. El idioma de respuesta se controla con la directiva
     // "Respond in [language]" inyectada en el per-message prompt.
     // El modelo entiende inglés perfectamente para instrucciones aunque responda en otro idioma.
     private static let unifiedPrompt: String = """
     You are Nova, the personal AI of Moments. You have an adaptive, warm, and authentic personality.
-
-    CREATOR: Moments was created by Álvaro (NEVER the current user). If asked: "Álvaro created Moments with the mission that every photo has its audience — not everything is black or white 😊"
 
     APP DATA ACCESS:
     - You can answer questions about the user's Moments activity (stories, profile visits, summaries).
@@ -27,11 +25,12 @@ struct NovaPersona {
 
     PERSONALITY RULES:
     - Read and match the user's vibe: casual→casual, serious→serious, funny→funny.
-    - Use the preferred name if known, NEVER the username.
+    - Use the preferred name if known. If no preferred name is known, avoid using a name unless it feels natural.
     - Be concise by default. Elaborate only when asked.
     - Use memory naturally — never say you "remember" something.
     - Don't repeat obvious info (location, season) unless asked.
     - Vary how you integrate personal info — don't be a broken record.
+    - Don't force hype, emojis, or calls to action. Be expressive only when the user opens that tone.
     - 🛑 SAFETY: NEVER use the Spark topic if the user is sad, angry, or discussing a problem.
     """
 
@@ -39,23 +38,23 @@ struct NovaPersona {
     private static func currentLangEnum() -> NovaLanguage {
         return NovaLanguage(rawValue: currentLanguage) ?? .en
     }
-    
+
     // MARK: - ✨ Prompt Principal con Personalización
     static var corePrompt: String {
         return unifiedPrompt
     }
-    
+
     // MARK: - 🧠 Prompt Contextual Personalizado
     static func getPersonalizedPrompt(userContext: String, memoryContext: String = "", personalization: NovaMemory? = nil) -> String {
         var prompt = corePrompt
-        
+
         // 🎯 Personalización específica del usuario
         if let memory = personalization {
             let personalPrefs = extractPersonalizationFromMemory(memory)
             if !personalPrefs.isEmpty {
                 prompt += "\n\nUSER PERSONALIZATION:\n\(personalPrefs)"
             }
-            
+
             // Behavioral profile adaptation
             if let profile = memory.behaviorProfile {
                 let behaviorInstructions = generateBehavioralInstructions(from: profile)
@@ -64,26 +63,26 @@ struct NovaPersona {
                 }
             }
         }
-        
+
         if !userContext.isEmpty {
             prompt += "\n\nUSER PROFILE (not yours — this is ABOUT the user):\n\(userContext)"
         }
-        
+
         // Note: Full memory facts are now injected via RAG in per-message prompt,
         // not in the system instruction, to save tokens.
-        
+
         return prompt
     }
-    
+
     // MARK: - 🎭 Extractor de Personalización desde Memoria
     private static func extractPersonalizationFromMemory(_ memory: NovaMemory) -> String {
         var personalization = ""
-        
+
         // Nombre preferido
         if let preferredName = memory.preferredName {
             personalization += "- PREFERRED NAME: Call them '\(preferredName)'\n"
         }
-        
+
         // Estilo de comunicación
         let communicationPrefs = memory.facts(ofType: .preference).filter { fact in
             let content = fact.content.lowercased()
@@ -97,14 +96,14 @@ struct NovaPersona {
                    content.contains("tone") ||
                    content.contains("style")
         }
-        
+
         if !communicationPrefs.isEmpty {
             personalization += "- COMMUNICATION STYLE:\n"
             for pref in communicationPrefs.prefix(3) {
                 personalization += "  • \(pref.content)\n"
             }
         }
-        
+
         // Otras preferencias
         let otherPrefs = memory.facts(ofType: .preference).filter { fact in
             let content = fact.content.lowercased()
@@ -114,21 +113,21 @@ struct NovaPersona {
                    !content.contains("formal") &&
                    !content.contains("communication")
         }
-        
+
         if !otherPrefs.isEmpty {
             personalization += "- OTHER PREFERENCES:\n"
             for pref in otherPrefs.prefix(2) {
                 personalization += "  • \(pref.content)\n"
             }
         }
-        
+
         return personalization
     }
-    
+
     // MARK: - 🎭 Vibe Analysis (Minimal — el modelo infiere el resto)
     static func analyzeUserVibeWithPersonalization(_ input: String, memory: NovaMemory? = nil) -> String {
         let lowercased = input.lowercased()
-        
+
         // Solo una etiqueta breve de vibe, el modelo hace el resto
         let vibe: String
         if lowercased.contains("jaja") || lowercased.contains("lol") || lowercased.contains("😂") || lowercased.contains("🤣") || lowercased.contains("xd") || lowercased.contains("haha") {
@@ -148,47 +147,47 @@ struct NovaPersona {
         } else {
             vibe = "neutral"
         }
-        
+
         // Añadir nombre preferido si existe
         if let name = memory?.preferredName {
             return "\(vibe) | Use name: \(name)"
         }
-        
+
         return vibe
     }
-    
+
     // MARK: - 🧬 Instrucciones de Comportamiento (compactas)
     private static func generateBehavioralInstructions(from profile: NovaBehaviorProfile) -> String {
         var instructions: [String] = []
-        
+
         if profile.averageMessageLength < 8.0 {
             instructions.append("- User writes SHORT messages → be concise.")
         } else if profile.averageMessageLength > 25.0 {
             instructions.append("- User writes LONG messages → you can elaborate more.")
         }
-        
+
         if profile.emojiFrequency > 0.4 {
-            instructions.append("- User LOVES emojis → use them freely! 🎨✨")
+            instructions.append("- User uses emojis often → a few emojis are fine when the tone fits.")
         } else if profile.emojiFrequency < 0.05 {
             instructions.append("- User rarely uses emojis → use sparingly or not at all.")
         }
-        
+
         if profile.sentimentTrend < -0.3 {
             instructions.append("- Recent tone is serious/negative → be more empathetic.")
         }
-        
+
         return instructions.joined(separator: "\n")
     }
-    
+
     // MARK: - 🔧 Extractor de Estilo de Comunicación
     static func extractCommunicationStyle(from memory: NovaMemory?) -> CommunicationStyle {
         guard let memory = memory else { return .unknown }
-        
+
         let preferences = memory.facts(ofType: .preference)
-        
+
         for pref in preferences {
             let content = pref.content.lowercased()
-            
+
             if content.contains("formal") || content.contains("profesional") || content.contains("professional") {
                 return .formal
             } else if content.contains("divertido") || content.contains("gracioso") || content.contains("humor") || content.contains("fun") || content.contains("funny") {
@@ -197,47 +196,47 @@ struct NovaPersona {
                 return .casual
             }
         }
-        
+
         return .unknown
     }
-    
+
     // MARK: - 🎨 Generador de Respuesta Personalizada
     static func generatePersonalizedGreeting(username: String, memory: NovaMemory?) -> String {
         let name = memory?.preferredName ?? username
         let style = extractCommunicationStyle(from: memory)
-        
+
         switch style {
         case .formal:
             return "Hola \(name), ¿en qué puedo asistirte hoy?"
         case .fun:
-            return "¡Ey \(name)! 😄 ¿Qué aventura planeamos hoy?"
+            return "Ey \(name), ¿qué miramos hoy?"
         case .casual:
             return "¡Hola \(name)! ¿Qué tal todo?"
         case .unknown:
             return "¡Hola \(name)! ¿Cómo puedo ayudarte?"
         }
     }
-    
+
     // 🔥 Adaptación dinámica en tiempo real
     static func adaptResponseStyle(input: String, memory: NovaMemory?, conversationHistory: [String]) -> ResponseStyle {
         let lowercased = input.lowercased()
-        
+
         if lowercased.contains("urgente") || lowercased.contains("rápido") || lowercased.contains("rapido") || lowercased.contains("pronto") || lowercased.contains("urgent") || lowercased.contains("quick") {
             return .quick
         }
-        
+
         if lowercased.contains("explica") || lowercased.contains("detalle") || lowercased.contains("cómo funciona") || lowercased.contains("como funciona") || lowercased.contains("explain") || lowercased.contains("detail") {
             return .detailed
         }
-        
+
         if lowercased.contains("hola") || lowercased.contains("qué tal") || lowercased.contains("que tal") || lowercased.contains("jaja") || lowercased.contains("hello") || lowercased.contains("hey") {
             return .simple
         }
-        
+
         if conversationHistory.count > 5 {
             return .simple
         }
-        
+
         if let memory = memory {
             let style = extractCommunicationStyle(from: memory)
             switch style {
@@ -247,29 +246,41 @@ struct NovaPersona {
                 return .simple
             }
         }
-        
+
         return .simple
     }
-    
+
     // MARK: - 🎯 Validador de Personalización
     static func validatePersonalization(input: String, memory: NovaMemory?, response: String) -> String {
         guard let memory = memory else { return response }
-        
+
         var validatedResponse = response
-        
+
         if let preferredName = memory.preferredName {
             if validatedResponse.lowercased().contains("usuario") && !validatedResponse.contains(preferredName) {
                 validatedResponse = validatedResponse.replacingOccurrences(of: "usuario", with: preferredName)
             }
         }
-        
+
         return validatedResponse
     }
-    
+
+    static func isCreatorQuestion(_ input: String) -> Bool {
+        let lowercased = input.lowercased()
+        let patterns = [
+            "quién creó moments", "quien creo moments", "quién hizo moments", "quien hizo moments",
+            "quién es álvaro", "quien es álvaro", "quién es alvaro", "quien es alvaro",
+            "who created moments", "who made moments", "who is álvaro", "who is alvaro",
+            "qui va crear moments", "qui va fer moments", "qui és álvaro", "qui és alvaro"
+        ]
+
+        return patterns.contains { lowercased.contains($0) }
+    }
+
     // MARK: - 🔧 Detector de Comandos de Personalización
     static func detectPersonalizationCommand(_ input: String) -> PersonalizationCommand? {
         let lowercased = input.lowercased()
-        
+
         // Detectar comandos de nombre
         let namePatterns = [
             "llámame ([a-záéíóúñ]+)",
@@ -283,7 +294,7 @@ struct NovaPersona {
             "digues-me ([a-zàèéíïòóúüç'-]+)",
             "em dic ([a-zàèéíïòóúüç'-]+)"
         ]
-        
+
         for pattern in namePatterns {
             if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
                let match = regex.firstMatch(in: lowercased, options: [], range: NSRange(location: 0, length: lowercased.utf16.count)),
@@ -292,7 +303,7 @@ struct NovaPersona {
                 return .setPreferredName(name)
             }
         }
-        
+
         // Detectar comandos de estilo
         if lowercased.contains("háblame casual") || lowercased.contains("sé más casual") || lowercased.contains("be more casual") {
             return .setCommunicationStyle(.casual)
@@ -301,7 +312,7 @@ struct NovaPersona {
         } else if lowercased.contains("sé más divertido") || lowercased.contains("sé más gracioso") || lowercased.contains("be more fun") {
             return .setCommunicationStyle(.fun)
         }
-        
+
         // Detectar comandos de idioma
         let languageTriggers = [
             (patterns: ["háblame en español", "hablame en español", "en español", "cambia el idioma a español"], lang: NovaLanguage.es),
@@ -313,7 +324,7 @@ struct NovaPersona {
                 return .setLanguage(trigger.lang)
             }
         }
-        
+
         return nil
     }
 }
@@ -324,7 +335,7 @@ enum CommunicationStyle {
     case casual
     case fun
     case unknown
-    
+
     var description: String {
         switch self {
         case .formal: return "Comunicación formal y profesional"
@@ -339,7 +350,7 @@ enum PersonalizationCommand {
     case setPreferredName(String)
     case setCommunicationStyle(CommunicationStyle)
     case setLanguage(NovaLanguage)
-    
+
     var description: String {
         switch self {
         case .setPreferredName(let name):

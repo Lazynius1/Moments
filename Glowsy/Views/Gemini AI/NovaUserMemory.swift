@@ -348,7 +348,16 @@ struct NovaMemory: Identifiable {
             fact.type == .preference &&
             (fact.content.lowercased().contains("llámame") ||
              fact.content.lowercased().contains("dime") ||
-             fact.content.lowercased().contains("prefiero que me digas"))
+             fact.content.lowercased().contains("prefiere que le llamen") ||
+             fact.content.lowercased().contains("prefiero que me digas") ||
+             fact.content.lowercased().contains("prefers to be called") ||
+             fact.content.lowercased().contains("call me") ||
+             fact.content.lowercased().contains("my name is") ||
+             fact.content.lowercased().contains("you can call me") ||
+             fact.content.lowercased().contains("prefereix que li diguin") ||
+             fact.content.lowercased().contains("digues-me") ||
+             fact.content.lowercased().contains("digue'm") ||
+             fact.content.lowercased().contains("em dic"))
         }
         
         // Obtener el más reciente

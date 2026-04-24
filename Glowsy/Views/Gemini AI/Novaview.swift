@@ -12,40 +12,40 @@ struct ModernGeminiColors {
     static let primary = Color(hex: "00A896")
     static let secondary = Color(hex: "6B73FF")
     static let accent = Color(hex: "9B59B6")
-    
+
     // Colores adaptativos
     static var background: Color {
         Color(UIColor.systemBackground)
     }
-    
+
     static var secondaryBackground: Color {
         Color(UIColor.secondarySystemBackground)
     }
-    
+
     static var cardBackground: Color {
         Color(UIColor.systemBackground).opacity(0.8)
     }
-    
+
     static var materialBackground: Color {
         Color(UIColor.systemBackground).opacity(0.95)
     }
-    
+
     static var textPrimary: Color {
         Color(UIColor.label)
     }
-    
+
     static var textSecondary: Color {
         Color(UIColor.secondaryLabel)
     }
-    
+
     static var textTertiary: Color {
         Color(UIColor.tertiaryLabel)
     }
-    
+
     static var borderColor: Color {
         Color(UIColor.separator)
     }
-    
+
     static var shadowColor: Color {
         Color(UIColor.label).opacity(0.1)
     }
@@ -60,119 +60,159 @@ struct GeminiView: View {
     @State private var isKeyboardVisible = false
     @State private var showLanguageSheet = false
     @State private var isShowingMemory = false
-    
+    @State private var memorySheetDetent: PresentationDetent = .medium
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
-            
+            let showsFollowUpSuggestions =
+                viewModel.showSuggestedOptions &&
+                !viewModel.conversationHistory.isEmpty &&
+                !viewModel.followUpSuggestions.isEmpty
+            let topOverlayHeight: CGFloat = 132
+            let bottomOverlayHeight: CGFloat = showsFollowUpSuggestions ? 128 : 88
+            let topFadeBase = colorScheme == .dark ? Color.black : Color(UIColor.systemBackground)
+            let bottomFadeBase = colorScheme == .dark ? Color.black : Color(UIColor.systemBackground)
+            let tabBarFadeOffset: CGFloat = 92
+
             ZStack {
                 // Fondo moderno con gradiente
                 ModernGeminiBackground()
                     .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    EnhancedGeminiHeader(
-                        viewModel: viewModel,
-                        showConversationHistory: $showConversationHistory,
-                        showSuggestedOptions: $viewModel.showSuggestedOptions,
-                        isShowingMemory: $isShowingMemory
-                    )
-                    
-                    ZStack {
-                        if viewModel.userData != nil && !viewModel.isLoading && viewModel.conversationHistory.isEmpty && viewModel.showSuggestedOptions {
-                            ModernWelcomeSection(
-                                viewModel: viewModel,
-                                showSuggestedOptions: $viewModel.showSuggestedOptions
-                            )
-                            .transition(.opacity.combined(with: .scale))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            ScrollView {
-                                ScrollViewReader { proxy in
-                                    // ✅ FUNCIÓN HELPER PARA SCROLL SUAVE
-                                    let scrollToBottom = {
-                                        if let lastMessage = viewModel.conversationHistory.last {
-                                            withAnimation(.easeInOut(duration: 0.4)) {
-                                                proxy.scrollTo("\(lastMessage.id)_\(lastMessage.isHistorical ? "historical" : "new")", anchor: .bottom)
-                                            }
+
+                ZStack {
+                    if viewModel.userData != nil && !viewModel.isLoading && viewModel.conversationHistory.isEmpty && viewModel.showSuggestedOptions {
+                        ModernWelcomeSection(
+                            viewModel: viewModel,
+                            showSuggestedOptions: $viewModel.showSuggestedOptions
+                        )
+                        .transition(.opacity.combined(with: .scale))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            ScrollViewReader { proxy in
+                                // ✅ FUNCIÓN HELPER PARA SCROLL SUAVE
+                                let scrollToBottom = {
+                                    if let lastMessage = viewModel.conversationHistory.last {
+                                        withAnimation(.easeInOut(duration: 0.4)) {
+                                            proxy.scrollTo("\(lastMessage.id)_\(lastMessage.isHistorical ? "historical" : "new")", anchor: .bottom)
                                         }
                                     }
-                                    LazyVStack(spacing: 16, pinnedViews: []) {
-                                        ForEach(viewModel.conversationHistory) { message in
-                                            EnhancedChatBubble(
-                                                message: message,
-                                                username: viewModel.userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name")
-                                            )
-                                            .id("\(message.id)_\(message.isHistorical ? "historical" : "new")")
-                                        }
-                                        
-                                        if viewModel.isLoading {
-                                            ModernLoadingAnimation()
-                                                .padding(.vertical, 20)
-                                        }
+                                }
+                                LazyVStack(spacing: 16, pinnedViews: []) {
+                                    ForEach(viewModel.conversationHistory) { message in
+                                        EnhancedChatBubble(
+                                            message: message,
+                                            username: viewModel.userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name")
+                                        )
+                                        .id("\(message.id)_\(message.isHistorical ? "historical" : "new")")
                                     }
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 16)
-                                    // ⭐ PADDING DINÁMICO PARA INPUT BAR Y TECLADO
-                                    .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + 100 : 80)
-                                    .background(
-                                        GeometryReader { geo in
-                                            Color.clear
-                                                .preference(key: GeminiScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
-                                        }
-                                    )
-                                    // ✅ CAMBIO 1: Scroll cuando CAMBIAN los mensajes - MEJORADO
-                                    .onChange(of: viewModel.conversationHistory) { _ in
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+
+                                    if viewModel.isLoading {
+                                        ModernLoadingAnimation()
+                                            .padding(.vertical, 20)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.top, topOverlayHeight)
+                                .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + bottomOverlayHeight : bottomOverlayHeight + safeAreaBottom)
+                                .background(
+                                    GeometryReader { geo in
+                                        Color.clear
+                                            .preference(key: GeminiScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
+                                    }
+                                )
+                                // ✅ CAMBIO 1: Scroll cuando CAMBIAN los mensajes - MEJORADO
+                                .onChange(of: viewModel.conversationHistory) { _ in
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        scrollToBottom()
+                                    }
+                                }
+                                // ✅ CAMBIO 2: Scroll cuando aparece el teclado - MEJORADO
+                                .onChange(of: keyboardHeight) { height in
+                                    if height > 0 {
+                                        // ✅ DELAY MÁS LARGO PARA SINCRONIZAR CON EL TECLADO
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                             scrollToBottom()
                                         }
                                     }
-                                    // ✅ CAMBIO 2: Scroll cuando aparece el teclado - MEJORADO
-                                    .onChange(of: keyboardHeight) { height in
-                                        if height > 0 {
-                                            // ✅ DELAY MÁS LARGO PARA SINCRONIZAR CON EL TECLADO
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                scrollToBottom()
-                                            }
+                                }
+                                // ✅ NUEVO: Scroll cuando el teclado está visible y hay foco
+                                .onChange(of: isKeyboardVisible) { visible in
+                                    if visible && !viewModel.conversationHistory.isEmpty {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                            scrollToBottom()
                                         }
                                     }
-                                    // ✅ NUEVO: Scroll cuando el teclado está visible y hay foco
-                                    .onChange(of: isKeyboardVisible) { visible in
-                                        if visible && !viewModel.conversationHistory.isEmpty {
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                                scrollToBottom()
-                                            }
-                                        }
-                                    }
-                                    // ✅ CAMBIO 3: Scroll inicial cuando se cargan mensajes históricos - MEJORADO
-                                    .onAppear {
-                                        if !viewModel.conversationHistory.isEmpty {
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                scrollToBottom()
-                                            }
+                                }
+                                // ✅ CAMBIO 3: Scroll inicial cuando se cargan mensajes históricos - MEJORADO
+                                .onAppear {
+                                    if !viewModel.conversationHistory.isEmpty {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                            scrollToBottom()
                                         }
                                     }
                                 }
                             }
-                            .coordinateSpace(name: "scroll")
-                            .onPreferenceChange(GeminiScrollOffsetPreferenceKey.self) { value in
-                                scrollOffset = value
-                            }
+                        }
+                        .coordinateSpace(name: "scroll")
+                        .onPreferenceChange(GeminiScrollOffsetPreferenceKey.self) { value in
+                            scrollOffset = value
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    
-                    // ✅ BADGE DE DATOS ENCRIPTADOS
-                    NovaEncryptionBadge()
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 4)
-                        .offset(y: keyboardHeight > 0 ? -keyboardHeight + safeAreaBottom - 100 : -80 + safeAreaBottom)
-                        .opacity(keyboardHeight > 0 ? 0.7 : 1.0)
-                        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: keyboardHeight)
-                    
-                    // ⭐ INPUT BAR SIEMPRE VISIBLE
-                    // ✅ OPTIMIZACIÓN: Solo animar el offset del teclado
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .top) {
+                    LinearGradient(
+                        stops: [
+                            .init(color: topFadeBase.opacity(colorScheme == .dark ? 1.0 : 0.98), location: 0.0),
+                            .init(color: topFadeBase.opacity(colorScheme == .dark ? 0.96 : 0.9), location: 0.28),
+                            .init(color: topFadeBase.opacity(colorScheme == .dark ? 0.58 : 0.42), location: 0.64),
+                            .init(color: topFadeBase.opacity(colorScheme == .dark ? 0.14 : 0.08), location: 0.88),
+                            .init(color: Color.clear, location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: safeAreaTop + 38)
+                    .ignoresSafeArea(edges: .top)
+                    .allowsHitTesting(false)
+                }
+                .overlay(alignment: .top) {
+                    VStack(spacing: 8) {
+                        EnhancedGeminiHeader(
+                            viewModel: viewModel,
+                            showConversationHistory: $showConversationHistory,
+                            showSuggestedOptions: $viewModel.showSuggestedOptions,
+                            isShowingMemory: $isShowingMemory
+                        )
+
+                        NovaEncryptionBadge()
+                            .padding(.horizontal, 20)
+                    }
+                    .padding(.top, 2)
+                }
+                .overlay(alignment: .bottom) {
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.clear, location: 0.0),
+                            .init(color: bottomFadeBase.opacity(colorScheme == .dark ? 0.14 : 0.08), location: 0.12),
+                            .init(color: bottomFadeBase.opacity(colorScheme == .dark ? 0.58 : 0.42), location: 0.36),
+                            .init(color: bottomFadeBase.opacity(colorScheme == .dark ? 0.96 : 0.9), location: 0.72),
+                            .init(color: bottomFadeBase.opacity(colorScheme == .dark ? 1.0 : 0.98), location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: safeAreaBottom + 46)
+                    .ignoresSafeArea(edges: .bottom)
+                    .offset(y: tabBarFadeOffset)
+                    .opacity(keyboardHeight > 0 ? 0 : 1)
+                    .allowsHitTesting(false)
+                }
+                .overlay(alignment: .bottom) {
                     EnhancedInputBar(
                         viewModel: viewModel,
                         showSuggestedOptions: $viewModel.showSuggestedOptions,
@@ -189,20 +229,10 @@ struct GeminiView: View {
                             }
                         }
                     )
-                    .background(.ultraThinMaterial.opacity(0.98))
-                    // ⭐ ESQUINAS REDONDEADAS SIEMPRE: Más pronunciadas cuando hay teclado (estilo cápsula)
-                    .clipShape(RoundedRectangle(cornerRadius: keyboardHeight > 0 ? 30 : 16, style: .continuous))
-                    .shadow(color: ModernGeminiColors.shadowColor, radius: 10, x: 0, y: keyboardHeight > 0 ? 5 : -5)
-                    // ⭐ DISEÑO CAPSULAR: Añadimos un poco de margen lateral cuando el teclado está activo
-                    .padding(.horizontal, keyboardHeight > 0 ? 12 : 0)
-                    // ⭐ POSICIONAMIENTO DINÁMICO: 
-                    // Cuando hay teclado, dejamos un pequeño margen de 8px para que "flote" sobre las esquinas redondeadas
-                    .offset(y: keyboardHeight > 0 ? -keyboardHeight + safeAreaBottom - 8 : -80 + safeAreaBottom)
+                    .padding(.bottom, keyboardHeight > 0 ? keyboardHeight - safeAreaBottom + 8 : 8)
                     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: keyboardHeight)
                 }
-                // ✅ Eliminado el animation global en VStack para no interferir con el teclado
-                // .animation(.easeInOut(duration: 0.3), value: keyboardHeight)
-                
+
                 // Overlay de historial de conversaciones
                 if showConversationHistory {
                     ConversationHistoryOverlay(
@@ -213,7 +243,7 @@ struct GeminiView: View {
                     .transition(.move(edge: .bottom))
                     .zIndex(2)
                 }
-                
+
                 // 🎉 CONFETI OVERLAY
                 if viewModel.showCelebration {
                     ConfettiView()
@@ -240,7 +270,7 @@ struct GeminiView: View {
                     // ✅ Ajustar keyboardHeight directamente, la animación se maneja en el .offset
                     keyboardHeight = keyboardFrame.height
                     isKeyboardVisible = true
-                    
+
                     // ✅ SCROLL AUTOMÁTICO CUANDO APARECE EL TECLADO
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         if let lastMessage = viewModel.conversationHistory.last {
@@ -259,6 +289,8 @@ struct GeminiView: View {
             }
             .sheet(isPresented: $isShowingMemory) {
                 NovaMemoryManagementView()
+                    .presentationDetents([.medium, .large], selection: $memorySheetDetent)
+                    .presentationDragIndicator(.visible)
             }
         }
         .navigationBarHidden(true)
@@ -290,7 +322,7 @@ struct EnhancedChatBubble: View {
     @State private var animationTimer: Timer?
     @State private var isInitialized: Bool = false
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         Group {
             // ✅ MENSAJE DEL SISTEMA (estilo WhatsApp)
@@ -301,7 +333,7 @@ struct EnhancedChatBubble: View {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(ModernGeminiColors.primary.opacity(0.7))
-                        
+
                         Text(message.text)
                             .font(.custom("Poppins-Regular", size: 12))
                             .foregroundColor(ModernGeminiColors.textSecondary)
@@ -323,7 +355,7 @@ struct EnhancedChatBubble: View {
             } else if message.isUser {
                 HStack {
                     Spacer(minLength: 50)
-                    
+
                     VStack(alignment: .trailing, spacing: 10) {
                         if let image = message.image {
                             Image(uiImage: image)
@@ -337,23 +369,17 @@ struct EnhancedChatBubble: View {
                         if !message.text.isEmpty {
                             Text(message.text)
                                 .font(.custom("Poppins-Regular", size: 16))
-                                .foregroundColor(.white)
+                                .foregroundColor(ModernGeminiColors.textPrimary)
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 14)
-                                .background(
-                                    LinearGradient(
-                                        colors: [
-                                            ModernGeminiColors.primary,
-                                            ModernGeminiColors.secondary
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .background(ModernGeminiColors.secondaryBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 20))
-                                .shadow(color: ModernGeminiColors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                                )
                         }
-                        
+
                         Text("nova.you")
                             .font(.custom("Poppins-Medium", size: 12))
                             .foregroundColor(ModernGeminiColors.textSecondary)
@@ -364,28 +390,25 @@ struct EnhancedChatBubble: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [ModernGeminiColors.accent, ModernGeminiColors.primary],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 24, height: 24)
-                                
-                                Image(systemName: "sparkles")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 12, weight: .bold))
-                            }
-                            
+                            Circle()
+                                .fill(ModernGeminiColors.materialBackground)
+                                .frame(width: 24, height: 24)
+                                .overlay(
+                                    Circle()
+                                        .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                                )
+                                .overlay(
+                                    Image(systemName: "sparkles")
+                                        .foregroundColor(ModernGeminiColors.textPrimary)
+                                        .font(.system(size: 11, weight: .semibold))
+                                )
+
                             Text("nova.name")
                                 .font(.custom("Poppins-SemiBold", size: 13))
-                                .foregroundColor(ModernGeminiColors.accent)
-                            
+                                .foregroundColor(ModernGeminiColors.textPrimary)
+
                             Spacer()
-                            
+
                             // ✅ INDICADOR DE TYPING (solo para mensajes nuevos)
                             if isTyping && !message.isHistorical {
                                 HStack(spacing: 4) {
@@ -413,7 +436,7 @@ struct EnhancedChatBubble: View {
                                             .font(.system(size: 12))
                                             .foregroundColor(ModernGeminiColors.textSecondary)
                                     }
-                                    
+
                                     ShareLink(item: message.text) {
                                         Image(systemName: "square.and.arrow.up")
                                             .font(.system(size: 12))
@@ -424,7 +447,7 @@ struct EnhancedChatBubble: View {
                             }
                         }
                         .padding(.leading, 8)
-                        
+
                         // ⭐ CONTENIDO - LÓGICA COMPLETAMENTE REVISADA
                         EnhancedFormattedText(text: displayedText)
                             .padding(.horizontal, 20)
@@ -433,21 +456,10 @@ struct EnhancedChatBubble: View {
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                ModernGeminiColors.borderColor,
-                                                ModernGeminiColors.accent.opacity(0.3)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
+                                    .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
                             )
-                            .shadow(color: ModernGeminiColors.shadowColor, radius: 10, x: 0, y: 5)
                     }
-                    
+
                     Spacer(minLength: 50)
                 }
             }
@@ -480,15 +492,15 @@ struct EnhancedChatBubble: View {
             }
         }
     }
-    
+
     // ✅ LÓGICA COMPLETAMENTE NUEVA Y SIMPLE
     private func initializeMessage() {
         // ✅ EVITAR RE-INICIALIZACIÓN SI YA ESTÁ COMPLETO
         if isInitialized {
             return
         }
-        
-        
+
+
         if message.isUser {
             // ✅ USUARIO: Siempre mostrar completo
             displayedText = message.text
@@ -504,12 +516,12 @@ struct EnhancedChatBubble: View {
             startNaturalAnimation(fullText: message.text)
         }
     }
-    
+
     // ✅ ANIMACIÓN SOLO PARA MENSAJES NUEVOS
     private func startNaturalAnimation(fullText: String) {
         displayedText = ""
         isTyping = true
-        
+
         // Opción 1: INSTANTÁNEO para textos con formato
         if shouldShowInstantly(fullText) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -521,28 +533,28 @@ struct EnhancedChatBubble: View {
             }
             return
         }
-        
+
         // Opción 2: ANIMACIÓN por chunks
         animateByChunks(fullText: fullText)
     }
-    
+
     private func shouldShowInstantly(_ text: String) -> Bool {
         return text.count < 100 ||
                text.contains("##") ||
                text.contains("•") ||
                text.contains("**")
     }
-    
+
     private func animateByChunks(fullText: String) {
         let chunks = createNaturalChunks(from: fullText)
         var currentChunkIndex = 0
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             self.animationTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { timer in
                 if currentChunkIndex < chunks.count {
                     displayedText += chunks[currentChunkIndex]
                     currentChunkIndex += 1
-                    
+
                     if chunks[currentChunkIndex - 1].contains(".") ||
                        chunks[currentChunkIndex - 1].contains(",") ||
                        chunks[currentChunkIndex - 1].contains("\n") {
@@ -558,11 +570,11 @@ struct EnhancedChatBubble: View {
             }
         }
     }
-    
+
     private func createNaturalChunks(from text: String) -> [String] {
         var chunks: [String] = []
         let words = text.components(separatedBy: " ")
-        
+
         for word in words {
             if word.contains("\n") {
                 let lines = word.components(separatedBy: "\n")
@@ -580,7 +592,7 @@ struct EnhancedChatBubble: View {
                 chunks.append(word + " ")
             }
         }
-        
+
         return chunks.filter { !$0.isEmpty }
     }
 }
@@ -591,12 +603,12 @@ struct NovaHapticFeedback {
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
     }
-    
+
     static func medium() {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
     }
-    
+
     static func success() {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.success)
@@ -606,14 +618,14 @@ struct NovaHapticFeedback {
 // MARK: - ⭐ TEXTO FORMATEADO AVANZADO CON LINKS
 struct EnhancedFormattedText: View {
     let text: String
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             let sections = parseText(text)
-            
+
             ForEach(sections.indices, id: \.self) { index in
                 let section = sections[index]
-                
+
                 switch section.type {
                 case .header:
                     HeaderView(text: section.content)
@@ -633,18 +645,18 @@ struct EnhancedFormattedText: View {
             }
         }
     }
-    
+
     private func parseText(_ text: String) -> [TextSection] {
         var sections: [TextSection] = []
         let lines = text.components(separatedBy: "\n")
-        
+
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            
+
             if trimmedLine.isEmpty {
                 continue
             }
-            
+
             // Headers (## Texto)
             if trimmedLine.hasPrefix("##") || trimmedLine.hasPrefix("#") {
                 let content = trimmedLine.replacingOccurrences(of: "##", with: "")
@@ -684,10 +696,10 @@ struct EnhancedFormattedText: View {
                 sections.append(TextSection(type: .regular, content: trimmedLine))
             }
         }
-        
+
         return sections
     }
-    
+
     private func capturedNumber(from line: String) -> String {
         let pattern = #"^\d+"#
         if let range = line.range(of: pattern, options: .regularExpression) {
@@ -699,14 +711,14 @@ struct EnhancedFormattedText: View {
     private func parseLinksInLine(_ line: String) -> [TextSection] {
         var sections: [TextSection] = []
         var remainingText = line
-        
+
         let linkPattern = #"\[([^\]]+)\]\(([^)]+)\)"#
         let regex = try! NSRegularExpression(pattern: linkPattern, options: [])
-        
+
         let matches = regex.matches(in: remainingText, options: [], range: NSRange(location: 0, length: remainingText.utf16.count))
-        
+
         var lastIndex = 0
-        
+
         for match in matches {
             // Add text before link
             if match.range.location > lastIndex {
@@ -715,15 +727,15 @@ struct EnhancedFormattedText: View {
                     sections.append(TextSection(type: .regular, content: beforeText))
                 }
             }
-            
+
             // Add link
             let linkText = String(remainingText[Range(match.range(at: 1), in: remainingText)!])
             let linkURL = String(remainingText[Range(match.range(at: 2), in: remainingText)!])
             sections.append(TextSection(type: .link, content: linkText, url: linkURL))
-            
+
             lastIndex = match.range.location + match.range.length
         }
-        
+
         // Add remaining text
         if lastIndex < remainingText.count {
             let remainingString = String(remainingText[remainingText.index(remainingText.startIndex, offsetBy: lastIndex)...])
@@ -731,7 +743,7 @@ struct EnhancedFormattedText: View {
                 sections.append(TextSection(type: .regular, content: remainingString))
             }
         }
-        
+
         return sections
     }
 }
@@ -741,12 +753,12 @@ struct TextSection {
     enum SectionType {
         case header, bulletPoint, numberedList, link, codeBlock, quote, regular
     }
-    
+
     let type: SectionType
     let content: String
     let url: String?
     let number: Int?
-    
+
     init(type: SectionType, content: String, url: String? = nil, number: Int? = nil) {
         self.type = type
         self.content = content
@@ -758,7 +770,7 @@ struct TextSection {
 // MARK: - Componentes de Vista para Formato
 struct HeaderView: View {
     let text: String
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(text)
@@ -770,7 +782,7 @@ struct HeaderView: View {
                         endPoint: .trailing
                     )
                 )
-            
+
             RoundedRectangle(cornerRadius: 2)
                 .fill(ModernGeminiColors.primary.opacity(0.3))
                 .frame(width: 40, height: 3)
@@ -782,19 +794,19 @@ struct HeaderView: View {
 
 struct BulletPointView: View {
     let text: String
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Circle()
                 .fill(ModernGeminiColors.primary)
                 .frame(width: 6, height: 6)
                 .padding(.top, 8)
-            
+
             Text(text)
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(ModernGeminiColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
-            
+
             Spacer()
         }
     }
@@ -803,7 +815,7 @@ struct BulletPointView: View {
 struct NumberedListView: View {
     let text: String
     let number: Int
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Text("\(number)")
@@ -812,12 +824,12 @@ struct NumberedListView: View {
                 .frame(width: 20, height: 20)
                 .background(ModernGeminiColors.primary)
                 .clipShape(Circle())
-            
+
             Text(text)
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(ModernGeminiColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
-            
+
             Spacer()
         }
     }
@@ -826,17 +838,17 @@ struct NumberedListView: View {
 struct LinkView: View {
     let text: String
     let url: String
-    
+
     var body: some View {
         Link(destination: URL(string: url) ?? URL(string: "https://google.com")!) {
             HStack(spacing: 8) {
                 Image(systemName: "link")
                     .font(.system(size: 14))
-                
+
                 Text(text)
                     .font(.custom("Poppins-Medium", size: 16))
                     .underline()
-                
+
                 Image(systemName: "arrow.up.right.square")
                     .font(.system(size: 12))
             }
@@ -856,27 +868,27 @@ struct LinkView: View {
 struct CodeBlockView: View {
     let text: String
     @State private var isCopied = false
-    
+
     var body: some View {
         let code = text.replacingOccurrences(of: "```", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         let lines = code.components(separatedBy: "\n")
         let language = lines.first?.lowercased() ?? "swift"
         let cleanCode = lines.count > 1 ? lines.dropFirst().joined(separator: "\n") : code
-        
+
         VStack(alignment: .leading, spacing: 0) {
             // Header del bloque de código
             HStack {
                 Text(language.uppercased())
                     .font(.custom("SF Mono-Bold", size: 10))
                     .foregroundColor(ModernGeminiColors.textSecondary)
-                
+
                 Spacer()
-                
+
                 Button(action: {
                     UIPasteboard.general.string = cleanCode
                     withAnimation { isCopied = true }
                     NovaHapticFeedback.success()
-                    
+
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         withAnimation { isCopied = false }
                     }
@@ -892,10 +904,10 @@ struct CodeBlockView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(ModernGeminiColors.secondaryBackground.opacity(0.5))
-            
+
             Divider()
                 .background(ModernGeminiColors.borderColor)
-            
+
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(cleanCode)
                     .font(.custom("SF Mono", size: 13))
@@ -915,18 +927,18 @@ struct CodeBlockView: View {
 
 struct QuoteView: View {
     let text: String
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Rectangle()
                 .fill(ModernGeminiColors.accent)
                 .frame(width: 4)
-            
+
             Text(text)
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(ModernGeminiColors.textSecondary)
                 .italic()
-            
+
             Spacer()
         }
         .padding(.vertical, 8)
@@ -935,43 +947,43 @@ struct QuoteView: View {
 
 struct RegularTextView: View {
     let text: String
-    
+
     var body: some View {
         Text(parseInlineFormatting(text))
             .font(.custom("Poppins-Regular", size: 16))
             .foregroundColor(ModernGeminiColors.textPrimary)
             .lineSpacing(4)
     }
-    
+
     private func parseInlineFormatting(_ text: String) -> AttributedString {
         var attributedString = AttributedString(text)
-        
+
         // 1. Negritas **texto**
         applyRegex(pattern: #"\*\*([^*]+)\*\*"#, to: &attributedString, originalText: text) { matchText in
             var attr = AttributedString(matchText.replacingOccurrences(of: "**", with: ""))
             attr.font = .custom("Poppins-Bold", size: 16)
             return attr
         }
-        
+
         // 2. Cursivas *texto* (evitando negritas ya procesadas)
         applyRegex(pattern: #"(?<!\*)\*([^*]+)\*(?!\*)"#, to: &attributedString, originalText: text) { matchText in
             var attr = AttributedString(matchText.replacingOccurrences(of: "*", with: ""))
             attr.font = .custom("Poppins-Italic", size: 16)
             return attr
         }
-        
+
         return attributedString
     }
-    
+
     private func applyRegex(pattern: String, to attributedString: inout AttributedString, originalText: String, transform: (String) -> AttributedString) {
         let regex = try? NSRegularExpression(pattern: pattern)
         let matches = regex?.matches(in: originalText, range: NSRange(location: 0, length: originalText.utf16.count)) ?? []
-        
+
         // Procesar en reversa
         for match in matches.reversed() {
             let matchText = (originalText as NSString).substring(with: match.range)
             let startIndex = attributedString.startIndex
-            
+
             // Aproximación simplificada para encontrar o rango en AttributedString
             // Nota: En una app de producción real, esto requiere un mapeo más robusto de índices
             if let rangeInOriginal = Range(match.range, in: originalText) {
@@ -991,7 +1003,7 @@ struct ConversationHistoryOverlay: View {
     @Binding var showConversationHistory: Bool
     @Binding var showSuggestedOptions: Bool
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         ZStack {
             // Fondo adaptativo
@@ -1000,34 +1012,35 @@ struct ConversationHistoryOverlay: View {
                 .onTapGesture {
                     showConversationHistory = false
                 }
-            
+
             VStack(spacing: 0) {
                 Spacer()
-                
+
                 VStack(spacing: 0) {
                     // Header del historial
                     HStack {
                         Text("nova.recentConversations")
                             .font(.custom("Poppins-Bold", size: 20))
                             .foregroundColor(ModernGeminiColors.textPrimary)
-                        
+
                         Spacer()
-                        
+
                         Button(action: {
                             showConversationHistory = false
                         }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(ModernGeminiColors.textSecondary)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(ModernGeminiColors.textPrimary)
+                                .frame(width: 36, height: 36)
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: Circle(), interactive: true)
+                                }
                         }
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
-                    .background(ModernGeminiColors.materialBackground)
-                    
-                    Divider()
-                        .background(ModernGeminiColors.borderColor)
-                    
+
                     // Lista de conversaciones
                     ScrollView {
                         LazyVStack(spacing: 12) {
@@ -1036,11 +1049,11 @@ struct ConversationHistoryOverlay: View {
                                     Image(systemName: "bubble.left.and.bubble.right")
                                         .font(.system(size: 48))
                                         .foregroundColor(ModernGeminiColors.textSecondary)
-                                    
+
                                     Text("nova.noConversations")
                                         .font(.custom("Poppins-Medium", size: 16))
                                         .foregroundColor(ModernGeminiColors.textSecondary)
-                                    
+
                                     Text("nova.startNewConversation")
                                         .font(.custom("Poppins-Regular", size: 14))
                                         .foregroundColor(ModernGeminiColors.textTertiary)
@@ -1055,34 +1068,35 @@ struct ConversationHistoryOverlay: View {
                                     showSuggestedOptions = true
                                 }) {
                                     HStack {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(ModernGeminiColors.primary)
-                                        
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(ModernGeminiColors.textPrimary)
+                                            .frame(width: 28, height: 28)
+                                            .background {
+                                                Color.clear
+                                                    .liquidGlass(in: Circle(), interactive: true)
+                                            }
+
                                         Text("nova.newConversation")
                                             .font(.custom("Poppins-SemiBold", size: 16))
                                             .foregroundColor(ModernGeminiColors.textPrimary)
-                                        
+
                                         Spacer()
-                                        
+
                                         Image(systemName: "chevron.right")
                                             .font(.system(size: 12))
                                             .foregroundColor(ModernGeminiColors.textSecondary)
                                     }
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 16)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(ModernGeminiColors.cardBackground)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .stroke(ModernGeminiColors.primary.opacity(0.3), lineWidth: 1)
-                                            )
-                                    )
+                                    .background {
+                                        Color.clear
+                                            .liquidGlass(in: Capsule(), interactive: true)
+                                    }
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.top, 16)
-                                
+
                                 // Conversaciones guardadas
                                 ForEach(viewModel.conversationTitles.reversed()) { conversation in
                                     ConversationHistoryItem(
@@ -1109,12 +1123,12 @@ struct ConversationHistoryOverlay: View {
                     }
                     .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
                 }
-                .background(ModernGeminiColors.materialBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
-                )
+                .padding(.top, 6)
+                .padding(.bottom, 8)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             }
@@ -1130,10 +1144,10 @@ struct ConversationHistoryItem: View {
     let onDelete: () -> Void
     @State private var showDeleteAlert = false
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         Button(action: {
-            
+
             Task {
                 await viewModel.loadConversation(conversation.id)
                 onSelect()
@@ -1146,20 +1160,20 @@ struct ConversationHistoryItem: View {
                         .foregroundColor(ModernGeminiColors.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
-                    
+
                     Text(conversation.lastUpdated.timeAgoDisplay())
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(ModernGeminiColors.textSecondary)
-                    
+
                     if conversation.messageCount > 0 {
                         Text("\(conversation.messageCount) \(NSLocalizedString("nova.messages", comment: "Messages count"))")
                             .font(.custom("Poppins-Regular", size: 11))
                             .foregroundColor(ModernGeminiColors.textTertiary)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 Menu {
                     Button(role: .destructive, action: {
                         showDeleteAlert = true
@@ -1169,20 +1183,20 @@ struct ConversationHistoryItem: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16))
-                        .foregroundColor(ModernGeminiColors.textSecondary)
-                        .frame(width: 30, height: 30)
+                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .frame(width: 34, height: 34)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(ModernGeminiColors.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
-                    )
-            )
+            .background {
+                Color.clear
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+            }
         }
         .alert(NSLocalizedString("nova.actions.deleteConversation.title", comment: "Delete conversation alert title"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("nova.actions.cancel", comment: "Cancel action"), role: .cancel) { }
@@ -1201,14 +1215,14 @@ struct EnhancedGeminiHeader: View {
     @Binding var showSuggestedOptions: Bool
     @Binding var isShowingMemory: Bool
     @Environment(\.colorScheme) var colorScheme
-    
+
     // ✨ ESTADOS PARA EASTER EGG
     @State private var logoTapCount = 0
     @State private var showDeveloperEasterEgg = false
     @State private var lastTapTime = Date()
     @State private var logoScale: CGFloat = 1.0
     @State private var sparkleAnimation = false
-    
+
     // ✅ OFFSETS PREDEFINIDOS PARA EVITAR NaN
     private let sparkleOffsets: [CGPoint] = [
         CGPoint(x: -10, y: -8),
@@ -1218,72 +1232,28 @@ struct EnhancedGeminiHeader: View {
         CGPoint(x: -12, y: 0),
         CGPoint(x: 8, y: -12)
     ]
-    
+
+    private var subtitleText: String {
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch lang {
+        case .es: return "Asistente privado de Moments"
+        case .en: return "Private assistant for Moments"
+        case .ca: return "Assistent privat de Moments"
+        }
+    }
+
     var body: some View {
         HStack {
-            // Logo/Icono de Nova con Easter Egg
             ZStack {
-                // ✅ SPARKLES CORREGIDOS
-                if logoTapCount >= 4 {
-                    ForEach(0..<6, id: \.self) { index in
-                        Image(systemName: "sparkle")
-                            .font(.system(size: 8))
-                            .foregroundColor(ModernGeminiColors.accent)
-                            .offset(
-                                x: sparkleOffsets[safe: index]?.x ?? 0,
-                                y: sparkleOffsets[safe: index]?.y ?? 0
-                            )
-                            .opacity(sparkleAnimation ? 1.0 : 0.0)
-                            .animation(
-                                .easeInOut(duration: 0.5)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(index) * 0.1),
-                                value: sparkleAnimation
-                            )
-                    }
-                }
-                
-                Circle()
-                    .fill(ModernGeminiColors.materialBackground)
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: logoTapCount >= 4 ? [
-                                        ModernGeminiColors.primary,
-                                        ModernGeminiColors.secondary,
-                                        ModernGeminiColors.accent,
-                                        ModernGeminiColors.primary
-                                    ] : [
-                                        ModernGeminiColors.primary,
-                                        ModernGeminiColors.secondary
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: logoTapCount >= 4 ? 2.5 : 1.5
-                            )
-                    )
-                    .scaleEffect(logoScale)
-                
                 Image(systemName: logoTapCount >= 6 ? "sparkles.rectangle.stack.fill" : "sparkles")
-                    .font(.system(size: 20))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: logoTapCount >= 4 ? [
-                                ModernGeminiColors.primary,
-                                ModernGeminiColors.secondary,
-                                ModernGeminiColors.accent
-                            ] : [
-                                ModernGeminiColors.primary,
-                                ModernGeminiColors.secondary
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(ModernGeminiColors.textPrimary)
                     .scaleEffect(logoScale)
+            }
+            .frame(width: 40, height: 40)
+            .background {
+                Color.clear
+                    .liquidGlass(in: Circle(), interactive: true)
             }
             .onTapGesture {
                 handleLogoTap()
@@ -1299,161 +1269,126 @@ struct EnhancedGeminiHeader: View {
             } message: {
                 Text(NSLocalizedString("nova.easterEgg.message", comment: "Easter egg message about Álvaro"))
             }
-            
-            VStack(alignment: .leading, spacing: 1) {
-                HStack {
-                    Text("nova.name")
-                        .font(.custom("Poppins-Bold", size: 20))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    ModernGeminiColors.primary,
-                                    ModernGeminiColors.secondary
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                    Text("·")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(ModernGeminiColors.textTertiary)
-                    Link(NSLocalizedString("nova.poweredBy", comment: "Powered by Google Gemini credit"), destination: URL(string: "https://ai.google.dev/")!)
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(ModernGeminiColors.textTertiary)
-                    
-                    // Indicador sutil de progreso del easter egg
-                    if logoTapCount > 0 && logoTapCount < 7 {
-                        HStack(spacing: 2) {
-                            ForEach(0..<7, id: \.self) { index in
-                                Circle()
-                                    .fill(index < logoTapCount ? ModernGeminiColors.accent : ModernGeminiColors.borderColor)
-                                    .frame(width: 4, height: 4)
-                                    .animation(.spring(response: 0.3), value: logoTapCount)
-                            }
-                        }
-                        .opacity(0.6)
-                        .transition(.scale.combined(with: .opacity))
-                    }
-                }
-                
-                Text("nova.personalAssistant")
-                    .font(.custom("Poppins-Regular", size: 11))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("nova.name")
+                    .font(.custom("Poppins-Bold", size: 20))
+                    .foregroundColor(ModernGeminiColors.textPrimary)
+
+                Text(subtitleText)
+                    .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(ModernGeminiColors.textSecondary)
             }
-            
+
             Spacer()
-            
+
             // Botones de acción
             HStack(spacing: 8) {
                 // Botón de memoria
                 Button(action: { isShowingMemory = true }) {
                     Image(systemName: "brain.head.profile")
-                        .font(.system(size: 20))
-                        .foregroundColor(ModernGeminiColors.accent)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(ModernGeminiColors.textPrimary)
                         .frame(width: 36, height: 36)
-                        .background(ModernGeminiColors.materialBackground)
-                        .clipShape(Circle())
-                        .shadow(color: ModernGeminiColors.shadowColor, radius: 4)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
                 }
-                
+
                 if !viewModel.conversationHistory.isEmpty {
                     Button(action: {
                         viewModel.startNewConversation()
                         showSuggestedOptions = true
                     }) {
-                        Image(systemName: "plus.circle")
-                            .font(.system(size: 20))
-                            .foregroundColor(ModernGeminiColors.primary)
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(ModernGeminiColors.textPrimary)
                             .frame(width: 36, height: 36)
-                            .background(ModernGeminiColors.materialBackground)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(ModernGeminiColors.primary.opacity(0.3), lineWidth: 1)
-                            )
+                            .background {
+                                Color.clear
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
                     }
                 }
-                
+
                 Button(action: {
                     showConversationHistory = true
                 }) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 20))
-                        .foregroundColor(ModernGeminiColors.textSecondary)
-                        .frame(width: 36, height: 36)
-                        .background(ModernGeminiColors.materialBackground)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
-                        )
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(ModernGeminiColors.textPrimary)
+                            .frame(width: 36, height: 36)
+                            .background {
+                                Color.clear
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
                 }
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
-        .background(ModernGeminiColors.materialBackground)
-        .overlay(
-            Rectangle()
-                .frame(height: 0.5)
-                .foregroundColor(ModernGeminiColors.borderColor),
-            alignment: .bottom
-        )
+        .background {
+            Color.clear
+                .liquidGlass(in: Capsule())
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
         .onAppear {
             if logoTapCount >= 4 {
                 sparkleAnimation = true
             }
         }
     }
-    
+
     // MARK: - 🎯 FUNCIONES DEL EASTER EGG CORREGIDAS
-    
+
     private func handleLogoTap() {
         let now = Date()
-        
+
         // Reset si han pasado más de 3 segundos
         if now.timeIntervalSince(lastTapTime) > 3.0 {
             logoTapCount = 1
         } else {
             logoTapCount += 1
         }
-        
+
         lastTapTime = now
-        
+
         // ✅ ANIMACIÓN VALIDADA
         let targetScale: CGFloat = logoTapCount >= 7 ? 1.0 : 1.2
         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
             logoScale = targetScale
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                 logoScale = 1.0
             }
         }
-        
+
         // ✅ EFECTOS CON LÍMITES VALIDADOS
         switch logoTapCount {
         case 3:
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
-            
+
         case 4:
             withAnimation(.easeInOut(duration: 0.5)) {
                 sparkleAnimation = true
             }
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
-            
+
         case 6:
             let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
             impactFeedback.impactOccurred()
-            
+
         case 7:
             showDeveloperEasterEgg = true
             let notificationFeedback = UINotificationFeedbackGenerator()
             notificationFeedback.notificationOccurred(.success)
-            
+
         default:
             if logoTapCount < 7 {
                 let impactFeedback = UIImpactFeedbackGenerator(style: .light)
@@ -1461,7 +1396,7 @@ struct EnhancedGeminiHeader: View {
             }
         }
     }
-    
+
     private func resetEasterEgg() {
         withAnimation(.easeOut(duration: 0.5)) {
             logoTapCount = 0
@@ -1469,10 +1404,10 @@ struct EnhancedGeminiHeader: View {
             logoScale = 1.0
         }
     }
-    
+
     private func triggerDeveloperAppreciation() {
         viewModel.inputText = NSLocalizedString("nova.easterEgg.appreciationMessage", comment: "Thank you message for Álvaro")
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             if !viewModel.inputText.isEmpty {
                 viewModel.sendMessage()
@@ -1483,68 +1418,23 @@ struct EnhancedGeminiHeader: View {
 
 struct ModernGeminiBackground: View {
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
-        ZStack {
-            // Fondo base adaptativo
-            if colorScheme == .dark {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black,
-                        Color(hex: "1a1a2e").opacity(0.9),
-                        Color(hex: "16213e").opacity(0.8),
-                        Color.black
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            } else {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(hex: "F8F9FA"),
-                        Color(hex: "E3F2FD").opacity(0.9),
-                        Color(hex: "F1F8E9").opacity(0.8),
-                        Color(hex: "F8F9FA")
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-
-            // Efectos de partículas adaptativos
-            ForEach(0..<6, id: \.self) { _ in
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                ModernGeminiColors.primary.opacity(colorScheme == .dark ? 0.3 : 0.2),
-                                ModernGeminiColors.secondary.opacity(colorScheme == .dark ? 0.2 : 0.15),
-                                Color.clear
-                            ]),
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 50
-                        )
-                    )
-                    .frame(width: 100, height: 100)
-                    .blur(radius: 20)
-                    .offset(
-                        x: CGFloat.random(in: -200...200),
-                        y: CGFloat.random(in: -300...300)
-                    )
-                    .animation(
-                        .easeInOut(duration: Double.random(in: 3...6))
-                        .repeatForever(autoreverses: true),
-                        value: UUID()
-                    )
-            }
-
-            // Overlay material adaptativo
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.1 : 0.05)
-                .ignoresSafeArea()
-        }
+        LinearGradient(
+            colors: colorScheme == .dark
+                ? [
+                    Color.black,
+                    Color(hex: "0F1115"),
+                    Color(hex: "11161A")
+                ]
+                : [
+                    Color(hex: "FAF9F6"),
+                    Color(hex: "F4F5F7"),
+                    Color.white
+                ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
         .ignoresSafeArea()
     }
 }
@@ -1553,72 +1443,98 @@ struct ModernWelcomeSection: View {
     @ObservedObject var viewModel: GeminiViewModel
     @Binding var showSuggestedOptions: Bool
 
-    var body: some View {
-        ZStack {
-            ModernGeminiBackground()
-                .ignoresSafeArea()
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 30) {
-                    VStack(spacing: 16) {
-                        Text("\(NSLocalizedString("nova.hello", comment: "Hello message")) \(viewModel.userData?.username ?? NSLocalizedString("nova.user", comment: "User"))!")
-                            .font(.custom("Poppins-Bold", size: 32))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [
-                                        ModernGeminiColors.primary,
-                                        ModernGeminiColors.secondary,
-                                        ModernGeminiColors.accent
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .multilineTextAlignment(.center)
-
-                        Text("nova.introduction")
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(ModernGeminiColors.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .lineSpacing(4)
-                    }
-                    .padding(.horizontal, 20)
-
-                    if let userData = viewModel.userData {
-                        VStack(spacing: 20) {
-                            ModernInfoCard(
-                                title: NSLocalizedString("nova.welcome.interests.title", comment: "Your interests title"),
-                                value: userData.interests.isEmpty ? NSLocalizedString("nova.welcome.interests.empty", comment: "No interests configured") : userData.interests.joined(separator: " • "),
-                                icon: "heart.fill"
-                            )
-
-                            HStack(spacing: 12) {
-                                ModernStatCard(
-                                    title: NSLocalizedString("nova.welcome.mutuals.title", comment: "Your mutuals title"),
-                                    value: "\(viewModel.mutualConnections.count)",
-                                    icon: "person.2.fill"
-                                )
-
-                                ModernStatCard(
-                                    title: NSLocalizedString("nova.welcome.profileVisits.title", comment: "Profile visits title"),
-                                    value: "\(viewModel.profileVisits.count)",
-                                    icon: "eye.fill"
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                    }
-
-                    DynamicWelcomeSuggestions(
-                        viewModel: viewModel,
-                        showSuggestedOptions: $showSuggestedOptions
-                    )
-                    .padding(.horizontal, 20)
-                }
-                .padding(.vertical, 20)
-                .frame(maxWidth: .infinity)
-            }
+    private var eyebrowText: String {
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch lang {
+        case .es: return "Conversación privada"
+        case .en: return "Private conversation"
+        case .ca: return "Conversa privada"
         }
+    }
+
+    private var supportText: String {
+        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
+        switch lang {
+        case .es: return "Recuerdo tu estilo, tus audiencias y cómo sueles compartir."
+        case .en: return "I remember your style, your audiences, and how you usually share."
+        case .ca: return "Recordo el teu estil, les teves audiències i com acostumes a compartir."
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 28)
+
+            VStack(spacing: 24) {
+                Text(eyebrowText)
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(ModernGeminiColors.textSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(ModernGeminiColors.materialBackground)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                    )
+
+                VStack(spacing: 12) {
+                    Text("\(NSLocalizedString("nova.hello", comment: "Hello message")) \(viewModel.currentUserDisplayName)")
+                        .font(.custom("Poppins-Bold", size: 34))
+                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .multilineTextAlignment(.center)
+
+                    Text("nova.introduction")
+                        .font(.custom("Poppins-Regular", size: 16))
+                        .foregroundColor(ModernGeminiColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                        .padding(.horizontal, 8)
+                }
+
+                VStack(spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(ModernGeminiColors.textSecondary)
+
+                        Text(supportText)
+                            .font(.custom("Poppins-Regular", size: 13))
+                            .foregroundColor(ModernGeminiColors.textSecondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(ModernGeminiColors.materialBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                    )
+
+                    if let userData = viewModel.userData, !userData.interests.isEmpty {
+                        Text(userData.interests.prefix(3).joined(separator: " • "))
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(ModernGeminiColors.textTertiary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+
+                if showSuggestedOptions {
+                    SmartSuggestionChips(
+                        viewModel: viewModel,
+                        showSuggestedOptions: $showSuggestedOptions,
+                        type: .welcome
+                    )
+                }
+            }
+            .frame(maxWidth: 380)
+            .padding(.horizontal, 24)
+
+            Spacer(minLength: 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -1627,21 +1543,21 @@ struct ModernInfoCard: View {
     let value: String
     let icon: String
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: icon)
                     .foregroundColor(ModernGeminiColors.primary)
                     .font(.system(size: 20))
-                
+
                 Text(title)
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(ModernGeminiColors.textPrimary)
-                
+
                 Spacer()
             }
-            
+
             Text(value)
                 .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(ModernGeminiColors.textSecondary)
@@ -1673,17 +1589,17 @@ struct ModernStatCard: View {
     let value: String
     let icon: String
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .foregroundColor(ModernGeminiColors.secondary)
                 .font(.system(size: 24))
-            
+
             Text(value)
                 .font(.custom("Poppins-Bold", size: 20))
                 .foregroundColor(ModernGeminiColors.textPrimary)
-            
+
             Text(title)
                 .font(.custom("Poppins-Medium", size: 12))
                 .foregroundColor(ModernGeminiColors.textSecondary)
@@ -1717,7 +1633,7 @@ struct ModernSuggestionCard: View {
     let action: () -> Void
     @State private var isPressed = false
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
@@ -1730,7 +1646,7 @@ struct ModernSuggestionCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                
+
                 Text(title)
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(ModernGeminiColors.textPrimary)
@@ -1785,30 +1701,30 @@ class PremiumSparkleSystem {
     var particles: [PremiumSparkleParticle] = []
     private let maxParticles = 15
     private var lastUpdate: TimeInterval = 0
-    
+
     func update(date: Date) {
         let now = date.timeIntervalSince1970
-        
+
         // Limitar updates a ~60fps si es necesario, pero Canvas ya lo maneja bien
         if now - lastUpdate < 0.016 { return }
         lastUpdate = now
-        
+
         // Eliminar partículas viejas
         particles.removeAll { date.timeIntervalSince($0.creationDate) > 1.5 }
-        
+
         // Mover partículas
         for i in 0..<particles.indices.count {
             particles[i].x += particles[i].speedX
             particles[i].y += particles[i].speedY
             particles[i].opacity -= 0.01
         }
-        
+
         // Crear nuevas si es necesario
         if particles.count < maxParticles {
             addParticle()
         }
     }
-    
+
     private func addParticle() {
         let p = PremiumSparkleParticle(
             x: Double.random(in: -40...40),
@@ -1826,13 +1742,13 @@ struct PremiumSparkleEmitter: View {
     // ✅ USAR STATE EN LUGAR DE STATEOBJECT
     @State private var system = PremiumSparkleSystem()
     let color: Color
-    
+
     var body: some View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
                 // ✅ Update síncrono seguro dentro del draw loop (no dispara re-render externo)
                 system.update(date: timeline.date)
-                
+
                 for particle in system.particles {
                     let rect = CGRect(
                         x: size.width/2 + particle.x,
@@ -1840,10 +1756,10 @@ struct PremiumSparkleEmitter: View {
                         width: particle.size,
                         height: particle.size
                     )
-                    
+
                     var resolvedContext = context
                     resolvedContext.opacity = particle.opacity
-                    
+
                     // Dibujar estrella/sparkle
                     if let sparkle = context.resolveSymbol(id: "sparkle") {
                         resolvedContext.draw(sparkle, in: rect)
@@ -1880,41 +1796,41 @@ class ConfettiSystem {
     var particles: [ConfettiParticle] = []
     private let colors: [Color] = [.red, .blue, .green, .yellow, .pink, .purple, .orange]
     private var lastUpdate: TimeInterval = 0
-    
+
     init() {
         // Lanzar explosión inicial
         for _ in 0..<50 {
             addParticle(burst: true)
         }
     }
-    
+
     func update(date: Date, size: CGSize) {
         let now = date.timeIntervalSince1970
         if now - lastUpdate < 0.016 { return }
         lastUpdate = now
-        
+
         // Mover partículas
         for i in 0..<particles.indices.count {
             particles[i].x += particles[i].speedX
             particles[i].y += particles[i].speedY
             particles[i].rotation += particles[i].rotationSpeed
             particles[i].speedY += 0.1 // Gravedad
-            
+
             // Fade out al final
             if particles[i].y > size.height {
                 particles[i].opacity -= 0.02
             }
         }
-        
+
         // Eliminar las que caen fuera o son invisibles
         particles.removeAll { $0.y > size.height + 100 || $0.opacity <= 0 }
-        
+
         // Añadir nuevas continuamente (fuente)
         if particles.count < 100 {
             addParticle(burst: false)
         }
     }
-    
+
     private func addParticle(burst: Bool) {
         let p = ConfettiParticle(
             x: burst ? Double.random(in: -50...50) : Double.random(in: -300...300), // Centro o ancho
@@ -1932,12 +1848,12 @@ class ConfettiSystem {
 
 struct ConfettiView: View {
     @State private var system = ConfettiSystem()
-    
+
     var body: some View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
                 system.update(date: timeline.date, size: size)
-                
+
                 for particle in system.particles {
                     var particleContext = context
                     let rect = CGRect(
@@ -1946,10 +1862,10 @@ struct ConfettiView: View {
                         width: particle.size,
                         height: particle.size * 0.6
                     )
-                    
+
                     particleContext.opacity = particle.opacity
                     particleContext.rotate(by: .degrees(particle.rotation))
-                    
+
                     // Dibujar rectángulo de confeti
                     particleContext.fill(Path(getRect(rect)), with: .color(particle.color))
                 }
@@ -1957,12 +1873,12 @@ struct ConfettiView: View {
         }
         .allowsHitTesting(false) // Permitir toques a través
     }
-    
+
     // Helpers simples para lógica de posición
     private func burstMode(_ p: ConfettiParticle) -> Bool {
         return p.speedY < 0 // Si sube, es explosión inicial
     }
-    
+
     private func getRect(_ rect: CGRect) -> CGRect {
         return rect
     }
@@ -1971,81 +1887,42 @@ struct ConfettiView: View {
 struct ModernLoadingAnimation: View {
     @State private var isAnimating = false
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         HStack {
             Spacer()
-            
-            VStack(spacing: 20) {
-                ZStack {
-                    // ✨ Sparkles de fondo
-                    PremiumSparkleEmitter(color: ModernGeminiColors.accent)
-                        .frame(width: 100, height: 100)
-                    
-                    HStack(spacing: 12) {
-                        ForEach(0..<3) { index in
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            ModernGeminiColors.primary,
-                                            ModernGeminiColors.secondary,
-                                            ModernGeminiColors.accent
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 14, height: 14)
-                                .scaleEffect(isAnimating ? 1.3 : 0.7)
-                                .shadow(color: ModernGeminiColors.primary.opacity(0.4), radius: isAnimating ? 8 : 2)
-                                .animation(
-                                    .easeInOut(duration: 0.8)
-                                    .repeatForever()
-                                    .delay(Double(index) * 0.2),
-                                    value: isAnimating
-                                )
-                        }
+
+            VStack(spacing: 14) {
+                HStack(spacing: 8) {
+                    ForEach(0..<3) { index in
+                        Circle()
+                            .fill(ModernGeminiColors.textSecondary.opacity(0.65))
+                            .frame(width: 9, height: 9)
+                            .scaleEffect(isAnimating ? 1.1 : 0.75)
+                            .animation(
+                                .easeInOut(duration: 0.8)
+                                .repeatForever()
+                                .delay(Double(index) * 0.15),
+                                value: isAnimating
+                            )
                     }
                 }
-                .frame(height: 60)
-                
+
                 Text("nova.typing")
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [ModernGeminiColors.textPrimary, ModernGeminiColors.accent],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .font(.custom("Poppins-Medium", size: 14))
+                    .foregroundColor(ModernGeminiColors.textSecondary)
                     .opacity(isAnimating ? 1.0 : 0.6)
                     .animation(.easeInOut(duration: 1.2).repeatForever(), value: isAnimating)
             }
-            .padding(.horizontal, 30)
-            .padding(.vertical, 24)
-            .background(
-                ZStack {
-                    ModernGeminiColors.cardBackground
-                    
-                    // Efecto de brillo interior
-                    RoundedRectangle(cornerRadius: 30)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    ModernGeminiColors.accent.opacity(0.5),
-                                    Color.clear
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .background(ModernGeminiColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 30))
-            .shadow(color: ModernGeminiColors.primary.opacity(0.15), radius: 15, x: 0, y: 8)
-            
+
             Spacer()
         }
         .onAppear {
@@ -2057,27 +1934,23 @@ struct ModernLoadingAnimation: View {
 // MARK: - Badge de Encriptación
 struct NovaEncryptionBadge: View {
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(ModernGeminiColors.primary.opacity(0.8))
-            
+                .foregroundColor(ModernGeminiColors.textPrimary)
+
             Text("nova.encryptedData")
                 .font(.custom("Poppins-Medium", size: 11))
                 .foregroundColor(ModernGeminiColors.textSecondary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule()
-                        .stroke(ModernGeminiColors.primary.opacity(0.2), lineWidth: 0.5)
-                )
-        )
+        .background {
+            Color.clear
+                .liquidGlass(in: Capsule())
+        }
     }
 }
 
@@ -2088,170 +1961,130 @@ struct EnhancedInputBar: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var selectedItem: PhotosPickerItem? = nil
     @Environment(\.colorScheme) var colorScheme
-    
+
     // ✅ CALLBACK PARA NOTIFICAR CUANDO EL TEXTOFIELD OBTIENE FOCUS
     var onFocusChange: ((Bool) -> Void)?
-    
+
     var body: some View {
-        VStack(spacing: 0) {
-            // ⭐ SUGERENCIAS MEJORADAS (Welcome o Follow-up)
+        VStack(spacing: 4) {
             if viewModel.showSuggestedOptions {
-                if viewModel.conversationHistory.isEmpty {
-                    // Sugerencias iniciales (Welcome)
-                    SmartSuggestionChips(viewModel: viewModel, showSuggestedOptions: $viewModel.showSuggestedOptions, type: .welcome)
-                        .padding(.vertical, 12)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                } else if !viewModel.followUpSuggestions.isEmpty {
-                    // Sugerencias contextuales (Follow-up)
+                if !viewModel.conversationHistory.isEmpty && !viewModel.followUpSuggestions.isEmpty {
                     SmartSuggestionChips(viewModel: viewModel, showSuggestedOptions: $viewModel.showSuggestedOptions, type: .followUp)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 2)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            
-            // ⭐ SEPARADOR CONDICIONAL
-            if viewModel.showSuggestedOptions && viewModel.conversationHistory.isEmpty {
-                Rectangle()
-                    .frame(height: 0.5)
-                    .foregroundColor(ModernGeminiColors.borderColor)
-            }
-            
-            // ⭐ VISTA PREVIA DE IMAGEN SELECCIONADA
-            if let selectedImage = viewModel.selectedImage {
-                HStack {
-                    ZStack(alignment: .topTrailing) {
-                        Image(uiImage: selectedImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 80, height: 80)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .shadow(radius: 4)
-                        
-                        Button(action: {
-                            viewModel.selectedImage = nil
-                            selectedItem = nil
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.white)
-                                .background(Circle().fill(Color.black.opacity(0.5)))
-                                .font(.system(size: 20))
+
+            VStack(spacing: 0) {
+                // ⭐ VISTA PREVIA DE IMAGEN SELECCIONADA
+                if let selectedImage = viewModel.selectedImage {
+                    HStack {
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: selectedImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .shadow(radius: 4)
+
+                            Button(action: {
+                                viewModel.selectedImage = nil
+                                selectedItem = nil
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.white)
+                                    .background(Circle().fill(Color.black.opacity(0.5)))
+                                    .font(.system(size: 20))
+                            }
+                            .offset(x: 10, y: -10)
                         }
-                        .offset(x: 10, y: -10)
+                        .padding(.top, 8)
+                        .padding(.leading, 20)
+
+                        Spacer()
                     }
-                    .padding(.top, 8)
-                    .padding(.leading, 20)
-                    
-                    Spacer()
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .transition(.scale.combined(with: .opacity))
-            }
-            
-            HStack(alignment: .bottom, spacing: 12) {
-                // ✅ Botón para adjuntar imágenes
-                PhotosPicker(selection: $selectedItem, matching: .images) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [ModernGeminiColors.primary, ModernGeminiColors.secondary],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-                .padding(.bottom, 10)
-                .onChange(of: selectedItem) { newItem in
-                    Task {
-                        if let data = try? await newItem?.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            await MainActor.run {
-                                viewModel.selectedImage = image
+
+                HStack(alignment: .center, spacing: 10) {
+                    HStack(alignment: .center, spacing: 10) {
+                        // ✅ Botón para adjuntar imágenes
+                        PhotosPicker(selection: $selectedItem, matching: .images) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(ModernGeminiColors.textPrimary)
+                                .frame(width: 34, height: 34)
+                        }
+                        .onChange(of: selectedItem) { newItem in
+                            Task {
+                                if let data = try? await newItem?.loadTransferable(type: Data.self),
+                                   let image = UIImage(data: data) {
+                                    await MainActor.run {
+                                        viewModel.selectedImage = image
+                                    }
+                                }
                             }
                         }
+
+                        // ✅ TextField con cambios en el overlay para rendimiento
+                        TextField(NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"), text: $viewModel.inputText, axis: .vertical)
+                            .lineLimit(1...6)
+                            .font(.custom("Poppins-Regular", size: 16))
+                            .foregroundColor(ModernGeminiColors.textPrimary)
+                            .padding(.vertical, 12)
+                            .focused($isTextFieldFocused)
+                            .onChange(of: isTextFieldFocused) { focused in
+                                onFocusChange?(focused)
+                            }
+                            .onSubmit {
+                                if !viewModel.inputText.isEmpty {
+                                    viewModel.sendMessage()
+                                    showSuggestedOptions = false
+                                }
+                            }
                     }
-                }
-                
-                // ✅ TextField con cambios en el overlay para rendimiento
-                TextField(NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"), text: $viewModel.inputText, axis: .vertical)
-                    .lineLimit(1...6)
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(ModernGeminiColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        ModernGeminiColors.borderColor.opacity(isTextFieldFocused ? 0.2 : 0.5),
-                                        ModernGeminiColors.primary.opacity(isTextFieldFocused ? 0.1 : 0.3)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .focused($isTextFieldFocused)
-                    .onChange(of: isTextFieldFocused) { focused in
-                        onFocusChange?(focused)
-                    }
-                    .onSubmit {
-                        if !viewModel.inputText.isEmpty {
-                            viewModel.sendMessage()
-                            showSuggestedOptions = false
-                        }
-                    }
-                
-                HStack(spacing: 8) {
-                    // ✅ Ahora solo el botón de enviar, se muestra si hay texto.
-                    if !viewModel.inputText.isEmpty { // Si hay texto, mostrar botón de enviar
-                        Button(action: {
-                            viewModel.sendMessage()
-                            showSuggestedOptions = false
-                            isTextFieldFocused = false
-                        }) {
-                            Image(systemName: "paperplane.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(.white)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    LinearGradient(
-                                        colors: [
-                                            ModernGeminiColors.primary,
-                                            ModernGeminiColors.secondary
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
+                    .padding(.leading, 10)
+                    .padding(.trailing, 16)
+                    .background {
+                        Color.clear
+                            .liquidGlass(in: Capsule(), interactive: true)
+                            .overlay {
+                                Capsule()
+                                    .stroke(
+                                        isTextFieldFocused ? ModernGeminiColors.textPrimary.opacity(0.14) : Color.clear,
+                                        lineWidth: 1
                                     )
-                                )
-                                .clipShape(Circle())
-                                .shadow(color: ModernGeminiColors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+                            }
+                    }
+
+                    HStack(spacing: 8) {
+                        // ✅ Ahora solo el botón de enviar, se muestra si hay texto.
+                        if !viewModel.inputText.isEmpty { // Si hay texto, mostrar botón de enviar
+                            Button(action: {
+                                viewModel.sendMessage()
+                                showSuggestedOptions = false
+                                isTextFieldFocused = false
+                            }) {
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(ModernGeminiColors.textPrimary)
+                                    .frame(width: 44, height: 44)
+                                    .background {
+                                        Color.clear
+                                            .liquidGlass(in: Circle(), interactive: true)
+                                    }
+                            }
+                            .padding(.bottom, 2) // Pequeño ajuste para aliñar con el círculo
+                            .transition(.scale.combined(with: .opacity))
                         }
-                        .padding(.bottom, 2) // Pequeño ajuste para aliñar con el círculo
-                        .transition(.scale.combined(with: .opacity))
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            // ⭐ PADDING ADICIONAL PARA SAFE AREA CUANDO HAY TECLADO
-            .padding(.bottom, isTextFieldFocused ? 0 : 0)
         }
-        // ✅ APLICAR EL HALO INTELIGENTE COMO BACKGROUND DEL CONTENEDOR
-        .background(
-            IntelligentGlow(
-                isFocused: isTextFieldFocused,
-                cornerRadius: isTextFieldFocused ? 30 : 16,
-                colors: [
-                    ModernGeminiColors.primary,
-                    ModernGeminiColors.secondary,
-                    ModernGeminiColors.accent
-                ]
-            )
-        )
+        .background(Color.clear)
         // ✅ Animar solo la aparición/desaparición del botón enviar
         .animation(.easeInOut(duration: 0.25), value: viewModel.inputText.isEmpty)
     }
@@ -2263,53 +2096,51 @@ struct SmartSuggestionChips: View {
         case welcome
         case followUp
     }
-    
+
     @ObservedObject var viewModel: GeminiViewModel
     @Binding var showSuggestedOptions: Bool
     let type: SuggestionType
-    
+
     @State private var dynamicSuggestions: [DynamicSuggestion] = []
     @State private var isLoadingSuggestions = true
-    @State private var refreshTimer: Timer?
-    
+
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                if type == .welcome ? isLoadingSuggestions : viewModel.isLoadingFollowUps {
-                    // Placeholder mientras carga
-                    ForEach(0..<3) { _ in
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(ModernGeminiColors.secondaryBackground)
-                            .frame(width: 120, height: 40)
-                            .shimmer()
-                    }
-                } else {
-                    let suggestions = type == .welcome ? 
-                        dynamicSuggestions.map { SmartSuggestion(text: $0.text, icon: $0.icon, action: $0.action) } :
-                        viewModel.followUpSuggestions
-                    
-                    ForEach(suggestions.prefix(6), id: \.text) { suggestion in
-                        SmartSuggestionChip(
-                            suggestion: suggestion
-                        ) {
-                            viewModel.inputText = suggestion.action ?? suggestion.text
-                            viewModel.sendMessage()
-                            // No ocultamos automáticamente para que el usuario vea la acción
+        Group {
+            if type == .welcome {
+                VStack(spacing: 12) {
+                    if isLoadingSuggestions {
+                        ForEach(0..<3) { _ in
+                            RoundedRectangle(cornerRadius: 18)
+                                .fill(ModernGeminiColors.secondaryBackground)
+                                .frame(height: 56)
+                                .shimmer()
+                        }
+                    } else {
+                        let suggestions = dynamicSuggestions.map { SmartSuggestion(text: $0.text, icon: $0.icon, action: $0.action) }
+
+                        ForEach(suggestions.prefix(3), id: \.text) { suggestion in
+                            SmartSuggestionChip(
+                                suggestion: suggestion,
+                                style: .hero
+                            ) {
+                                viewModel.inputText = suggestion.action ?? suggestion.text
+                                viewModel.sendMessage()
+                            }
                         }
                     }
                 }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    followUpSuggestionContent
+                        .padding(.vertical, 2)
+                }
+                .scrollContentBackground(.hidden)
+                .scrollClipDisabled()
+                .background(Color.clear)
             }
-            .padding(.horizontal, 20)
         }
         .onAppear {
             loadDynamicSuggestions()
-            // Refrescar sugerencias cada 5 minutos
-            refreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
-                loadDynamicSuggestions()
-            }
-        }
-        .onDisappear {
-            refreshTimer?.invalidate()
         }
         .onChange(of: viewModel.userData) { _ in
             loadDynamicSuggestions()
@@ -2318,10 +2149,10 @@ struct SmartSuggestionChips: View {
             loadDynamicSuggestions()
         }
     }
-    
+
     private func loadDynamicSuggestions() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+
         isLoadingSuggestions = true
         NovaSuggestionService.shared.generateDynamicSuggestions(
             userId: userId,
@@ -2331,6 +2162,28 @@ struct SmartSuggestionChips: View {
             Task { @MainActor in
                 self.dynamicSuggestions = suggestions
                 self.isLoadingSuggestions = false
+            }
+        }
+    }
+
+    private var followUpSuggestionContent: some View {
+        HStack(spacing: 10) {
+            if viewModel.isLoadingFollowUps {
+                ForEach(0..<3) { _ in
+                    Capsule()
+                        .fill(ModernGeminiColors.secondaryBackground)
+                        .frame(width: 120, height: 40)
+                        .shimmer()
+                }
+            } else {
+                ForEach(viewModel.followUpSuggestions.prefix(3), id: \.text) { suggestion in
+                    SmartSuggestionChip(
+                        suggestion: suggestion
+                    ) {
+                        viewModel.inputText = suggestion.action ?? suggestion.text
+                        viewModel.sendMessage()
+                    }
+                }
             }
         }
     }
@@ -2348,8 +2201,7 @@ struct DynamicWelcomeSuggestions: View {
     @Binding var showSuggestedOptions: Bool
     @State private var dynamicSuggestions: [DynamicSuggestion] = []
     @State private var isLoadingSuggestions = true
-    @State private var refreshTimer: Timer?
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -2397,13 +2249,6 @@ struct DynamicWelcomeSuggestions: View {
         }
         .onAppear {
             loadDynamicSuggestions()
-            // Refrescar sugerencias cada 5 minutos
-            refreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
-                loadDynamicSuggestions()
-            }
-        }
-        .onDisappear {
-            refreshTimer?.invalidate()
         }
         .onChange(of: viewModel.userData) { _ in
             loadDynamicSuggestions()
@@ -2412,10 +2257,10 @@ struct DynamicWelcomeSuggestions: View {
             loadDynamicSuggestions()
         }
     }
-    
+
     private func loadDynamicSuggestions() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+
         isLoadingSuggestions = true
         NovaSuggestionService.shared.generateDynamicSuggestions(
             userId: userId,
@@ -2428,7 +2273,7 @@ struct DynamicWelcomeSuggestions: View {
             }
         }
     }
-    
+
     private func getGradientForCategory(_ category: DynamicSuggestion.SuggestionCategory) -> [Color] {
         switch category {
         case .activity:
@@ -2454,7 +2299,7 @@ extension View {
 
 struct NovaShimmerModifier: ViewModifier {
     @State private var phase: CGFloat = 0
-    
+
     func body(content: Content) -> some View {
         content
             .overlay(
@@ -2485,27 +2330,52 @@ struct NovaShimmerModifier: ViewModifier {
 
 struct SmartSuggestionChip: View {
     let suggestion: SmartSuggestion
+    var style: Style = .compact
     let action: () -> Void
-    
+
+    enum Style {
+        case compact
+        case hero
+    }
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: style == .hero ? 12 : 8) {
                 Image(systemName: suggestion.icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(ModernGeminiColors.primary)
-                
-                Text(suggestion.text)
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: style == .hero ? 15 : 14, weight: .medium))
                     .foregroundColor(ModernGeminiColors.textPrimary)
+                    .frame(width: style == .hero ? 28 : 14)
+
+                Text(suggestion.text)
+                    .font(.custom(style == .hero ? "Poppins-SemiBold" : "Poppins-Medium", size: style == .hero ? 15 : 14))
+                    .foregroundColor(ModernGeminiColors.textPrimary)
+
+                if style == .hero {
+                    Spacer()
+
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(ModernGeminiColors.textSecondary)
+                }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(ModernGeminiColors.cardBackground)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(ModernGeminiColors.primary.opacity(0.3), lineWidth: 1)
-            )
+            .padding(.vertical, style == .hero ? 16 : 10)
+            .frame(maxWidth: style == .hero ? .infinity : nil, alignment: .leading)
+            .background {
+                if style == .hero {
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(ModernGeminiColors.materialBackground)
+                } else {
+                    Color.clear
+                        .liquidGlass(in: Capsule(), interactive: true)
+                }
+            }
+            .overlay {
+                if style == .hero {
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                }
+            }
         }
     }
 }
@@ -2569,14 +2439,14 @@ class GeminiViewModel: ObservableObject {
     private(set) var usersWithSharedInterests: [AppUser] = []
     private(set) var suggestedUsers: [AppUser] = []
     private(set) var profileVisits: [AppUser] = []
-    
+
     private var currentConversationId: String?
     private var conversationService: ConversationService?
     private let firestoreService = FirestoreService()
     private let vertexAI: VertexAI
     private var model: GenerativeModel
     private var chatSession: Chat?
-    
+
     private let memoryService = NovaMemoryService()
     // ✅ LAZY: Solo inicializar cuando realmente se necesite (cuando el usuario haga una consulta de actividad)
     private lazy var activityService: NovaActivityService = {
@@ -2605,18 +2475,25 @@ class GeminiViewModel: ObservableObject {
         }
         return nil
     }
-    
+
     // ✅ NUEVO: Variables para controlar logs y conexiones
     private var memoryProcessingTimer: Timer?
     private var lastMemoryProcessTime: Date?
     private let minimumMemoryInterval: TimeInterval = 5.0
 
+    var currentUserDisplayName: String {
+        if let preferredName = userMemory?.preferredName, !preferredName.isEmpty {
+            return preferredName
+        }
+        return userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name")
+    }
+
     init() {
         self.vertexAI = VertexAI.vertexAI(location: "global")
-        
+
         // Inicialización básica (se actualizará cuando carguen los datos del usuario)
         self.model = vertexAI.generativeModel(modelName: "gemini-3.1-flash-lite-preview")
-        
+
         Task {
             await MainActor.run {
                 self.conversationService = ConversationService()
@@ -2626,9 +2503,9 @@ class GeminiViewModel: ObservableObject {
     }
 
     // ✅ NUEVA: Configurar el modelo con instrucciones del sistema y sesión de chat
-    private func setupModelAndSession() {
+    private func setupModelAndSession(excluding messageId: UUID? = nil) {
         guard let userData = userData else { return }
-        
+
         let config = GenerationConfig(
             temperature: 0.7,
             topP: 0.8,
@@ -2638,54 +2515,56 @@ class GeminiViewModel: ObservableObject {
             stopSequences: [],
             responseMIMEType: "text/plain"
         )
-        
+
         let safetySettings = [
             SafetySetting(harmCategory: .harassment, threshold: .blockMediumAndAbove),
             SafetySetting(harmCategory: .hateSpeech, threshold: .blockMediumAndAbove),
             SafetySetting(harmCategory: .sexuallyExplicit, threshold: .blockMediumAndAbove),
             SafetySetting(harmCategory: .dangerousContent, threshold: .blockMediumAndAbove)
         ]
-        
+
         // Construir instrucciones del sistema (System Instruction)
         // 🔥 Conversational Spark: Seleccionar y marcar
         self.userMemory?.selectRandomSpark()
         let systemInstruction = buildSystemInstruction()
-        
+
         // Si hay un spark activo, marcarlo como usado para que no se repita pronto
         if let spark = self.userMemory?.activeSpark {
             Task {
                 await self.markSparkAsProbed(id: spark.id)
             }
         }
-        
+
         self.model = vertexAI.generativeModel(
             modelName: "gemini-3.1-flash-lite-preview",
             generationConfig: config,
             safetySettings: safetySettings,
             systemInstruction: ModelContent(role: "system", parts: [systemInstruction])
         )
-        
+
         // ✅ INICIAR SESIÓN DE CHAT (OPTIMIZADO: Sliding Window)
         // Convertimos el historial existente al formato de Gemini
         // Limitamos a los últimos 12 mensajes para ahorrar tokens (aprox. 6 turnos)
-        let relevantHistory = conversationHistory.filter { !$0.isSystem }.suffix(12)
-        
+        let relevantHistory = conversationHistory
+            .filter { !$0.isSystem && $0.id != messageId }
+            .suffix(12)
+
         let history = relevantHistory.map { msg in
             ModelContent(role: msg.isUser ? "user" : "model", parts: [msg.text])
         }
-        
+
         self.chatSession = model.startChat(history: history)
         LogConfig.log("🚀 Sesión de Chat iniciada con \(history.count) mensajes de historial (Ventana deslizante)", category: "Gemini")
-        
+
         // ✅ Verificar permisos al iniciar el VM
         checkPhotoLibraryPermission()
     }
-    
+
     // MARK: - 🔐 PERMISOS DE GALERÍA (Consistente con Stories/Moments)
     func checkPhotoLibraryPermission() {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         self.photoAuthorizationStatus = status
-        
+
         if status == .notDetermined {
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
                 Task { @MainActor in
@@ -2697,9 +2576,9 @@ class GeminiViewModel: ObservableObject {
 
     private func buildSystemInstruction() -> String {
         guard let userData = userData else { return "" }
-        
+
         let userContext = buildSimpleContext()
-        
+
         // Token-optimized: no inyectar memoryContext completo aquí.
         // Los facts relevantes se inyectan via RAG en el per-message prompt.
         let instruction = NovaPersona.getPersonalizedPrompt(
@@ -2707,29 +2586,24 @@ class GeminiViewModel: ObservableObject {
             memoryContext: "",
             personalization: userMemory
         )
-        
-        // Compact spark instruction (si existe)
-        let sparkContext: String
-        if let spark = userMemory?.activeSpark {
-            sparkContext = "\nSUGGESTED TOPIC: '\(spark.content)' — mention casually if conversation lulls. Don't force it."
-        } else {
-            sparkContext = ""
-        }
-        
+
         return """
         \(instruction)
-        
+
         TIME: \(getCurrentTimeContext())
-        NAME: \(userMemory?.preferredName ?? userData.username)\(sparkContext)
+        CURRENT USER:
+        - Preferred display name: \(currentUserDisplayName)
+        - Moments username: \(userData.username)
+        - Never call the current user Álvaro.
         """
     }
     // MARK: - 🧠 Helper de Memoria Conversacional
     func markSparkAsProbed(id: String) async {
         guard let memory = userMemory else { return }
-        
+
         // 1. Actualizar memoria localmente (para esta sesión)
         self.userMemory = memory.markingFactAsProbed(id: id)
-        
+
         // 2. Persistir en Firestore
         // Aseguramos que usamos la versión actualizada para guardar
         if let updatedMemory = self.userMemory {
@@ -2743,7 +2617,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
 
     // MARK: - Funciones originales sin cambios
     func fetchUserData() {
@@ -2774,7 +2648,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Memoria de Nova
     private func loadMemoryContextSilently(userId: String) {
         memoryService.loadMemory(for: userId) { [weak self] result in
@@ -2816,47 +2690,47 @@ class GeminiViewModel: ObservableObject {
     }
 
     func fetchMutualConnections(userId: String) {
-        
+
         // Obtener following directamente de Firestore
         firestoreService.db.collection("users").document(userId).collection("following")
             .getDocuments { [weak self] followingSnapshot, error in
                 guard let self = self else { return }
-                
+
                 if let error = error {
                     return
                 }
-                
+
                 let followingIds = followingSnapshot?.documents.compactMap { doc in
                     doc.data()["userId"] as? String
                 } ?? []
-                
-                
+
+
                 // Obtener followers
                 self.firestoreService.db.collection("users").document(userId).collection("followers")
                     .getDocuments { [weak self] followersSnapshot, error in
                         guard let self = self else { return }
-                        
+
                         if let error = error {
                             return
                         }
-                        
+
                         let followerIds = followersSnapshot?.documents.compactMap { doc in
                             doc.data()["userId"] as? String
                         } ?? []
-                        
-                        
+
+
                         // Calcular conexiones mutuas
                         let followingSet = Set(followingIds)
                         let followersSet = Set(followerIds)
                         let mutualIds = Array(followingSet.intersection(followersSet))
-                        
-                        
+
+
                         if mutualIds.isEmpty {
                             self.mutualConnections = []
                             self.objectWillChange.send() // ✅ Forzar actualización de UI
                             return
                         }
-                        
+
                         // Obtener usuarios mutuos
                         self.firestoreService.fetchUsers(userIds: mutualIds) { result in
                             Task {
@@ -2908,13 +2782,13 @@ class GeminiViewModel: ObservableObject {
                 switch result {
                 case .success(let visits):
                     let visitorIds = visits.map { $0.visitorId }
-                    
+
                     if visitorIds.isEmpty {
                         self.profileVisits = []
                         self.objectWillChange.send()
                         return
                     }
-                    
+
                     // Obtener usuarios visitantes usando fetchUsersInBatches como ProfileView
                     self.fetchUsersInBatches(userIds: visitorIds) { users in
                         Task { @MainActor in
@@ -2929,7 +2803,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func fetchUsersInBatches(userIds: [String], completion: @escaping ([AppUser]) -> Void) {
         if userIds.isEmpty {
             completion([])
@@ -2961,7 +2835,7 @@ class GeminiViewModel: ObservableObject {
             completion(allUsers)
         }
     }
-    
+
     func fetchSuggestedUsers() {
         firestoreService.fetchSuggestedUsers { [weak self] result in
             guard let self = self else { return }
@@ -2976,23 +2850,23 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Gestión de conversaciones (sin cambios)
     func loadConversationTitles() async {
         guard let userId = Auth.auth().currentUser?.uid,
               let conversationService = conversationService else { return }
-        
+
         let titles = await conversationService.loadConversationTitles(for: userId)
         await MainActor.run {
             self.conversationTitles = titles
         }
     }
-    
+
     func startNewConversation() {
         currentConversationId = nil
         conversationHistory.removeAll()
         memoryProcessingTimer?.invalidate()
-        
+
         // ✅ AÑADIR MENSAJE DEL SISTEMA (estilo WhatsApp)
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         let systemMessage: String
@@ -3005,10 +2879,10 @@ class GeminiViewModel: ObservableObject {
             systemMessage = "Els missatges estan protegits amb xifratge d'extrem a extrem. Ningú fora d'aquesta conversa pot llegir-los, ni tan sols Moments."
         }
         conversationHistory.append(ChatMessage(text: systemMessage, isUser: false, isSystem: true))
-        
+
         if let userId = Auth.auth().currentUser?.uid {
             loadMemoryContextSilently(userId: userId)
-            
+
             // 🎯 AÑADIR ESTE DELAY PEQUEÑO
             Task {
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
@@ -3017,30 +2891,30 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     func loadConversation(_ conversationId: String) async {
         guard let userId = Auth.auth().currentUser?.uid,
               let conversationService = conversationService else { return }
-        
+
         LogConfig.log("🔄 Cargando conversación: \(conversationId)", category: "Conversation")
         isLoading = true
-        
+
         let messages = await conversationService.loadConversation(conversationId, for: userId)
         self.conversationHistory = messages
         self.currentConversationId = conversationId
         self.isLoading = false
         self.objectWillChange.send()
-        
+
         // Recargar contexto silenciosamente
         if let userId = Auth.auth().currentUser?.uid {
             self.loadMemoryContextSilently(userId: userId)
         }
     }
-    
+
     func deleteConversation(_ conversationId: String) async {
         guard let userId = Auth.auth().currentUser?.uid,
               let conversationService = conversationService else { return }
-        
+
         let success = await conversationService.deleteConversation(conversationId, for: userId)
         if success {
             self.conversationTitles.removeAll { $0.id == conversationId }
@@ -3049,12 +2923,12 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func saveCurrentConversation() async {
         guard let userId = Auth.auth().currentUser?.uid,
               !conversationHistory.isEmpty,
               let conversationService = conversationService else { return }
-        
+
         if let conversationId = currentConversationId {
             // Actualizar conversación existente
             let success = await conversationService.updateConversation(
@@ -3104,7 +2978,7 @@ class GeminiViewModel: ObservableObject {
             conversationHistory.append(ChatMessage(text: responseText, isUser: false))
             return
         }
-        
+
         // ✅ NUEVO: Asegurar que la memoria esté cargada antes de enviar
         guard hasMemoryLoaded else {
             let lang = NovaLanguageService.getPreferredLanguage() ?? .es
@@ -3146,15 +3020,15 @@ class GeminiViewModel: ObservableObject {
             }
             conversationHistory.append(ChatMessage(text: systemMessage, isUser: false, isSystem: true))
         }
-        
+
         // ✅ PREPARAR MENSAJE DEL USUARIO (con imagen si existe)
         let currentImage = selectedImage
         let userMessage = ChatMessage(text: inputText, isUser: true, image: currentImage)
         conversationHistory.append(userMessage)
-        
+
         let currentInput = inputText
         inputText = ""
-        
+
         // 🎭 ACTUALIZAR PERFIL DE COMPORTAMIENTO (En segundo plano)
         // 🎭 ACTUALIZAR PERFIL DE COMPORTAMIENTO (En segundo plano)
         if let memory = self.userMemory {
@@ -3163,10 +3037,10 @@ class GeminiViewModel: ObservableObject {
                 .filter { $0.isUser }
                 .suffix(10)
                 .map { $0.text }
-            
+
             Task.detached(priority: .background) { [weak self] in
                 let updatedMemory = NovaBehaviorService.shared.updateBehaviorProfile(memory: memory, recentMessages: Array(recentTexts))
-                
+
                 await MainActor.run {
                     self?.userMemory = updatedMemory
                     // Persistir silenciosamente
@@ -3180,10 +3054,12 @@ class GeminiViewModel: ObservableObject {
         // ✅ ANÁLISIS DINÁMICO (Token-optimized: minimal vibe + RAG only)
         let vibeLabel = NovaPersona.analyzeUserVibeWithPersonalization(currentInput, memory: userMemory)
         let lang = detectInputLanguage(currentInput) ?? (NovaLanguageService.getPreferredLanguage() ?? .es)
-        
-        // 🔍 RAG: Solo facts relevantes al query (reemplaza el dump completo de contextString)
+
+        let isSimpleGreeting = self.isSimpleGreeting(currentInput)
+
+        // 🔍 RAG: solo si la consulta realmente lo merece
         var ragContext = ""
-        if let memory = userMemory {
+        if !isSimpleGreeting, let memory = userMemory {
             let relevantFacts = NovaEmbeddingService.shared.findSimilarFacts(query: currentInput, facts: memory.facts)
             if !relevantFacts.isEmpty {
                 let contextContent = relevantFacts.map { "• \($0.content)" }.joined(separator: "\n")
@@ -3191,7 +3067,7 @@ class GeminiViewModel: ObservableObject {
                 LogConfig.log("🔍 RAG: Inyectados \(relevantFacts.count) hechos relevantes", category: "Memory")
             }
         }
-        
+
         // ✅ CONSTRUIR PROMPT ULTRA-LIGERO
         let langName: String = {
             switch lang {
@@ -3200,26 +3076,36 @@ class GeminiViewModel: ObservableObject {
             case .ca: return "Català"
             }
         }()
-        
+
+        let creatorContext = NovaPersona.isCreatorQuestion(currentInput)
+            ? "\nCreator fact: Moments was created by Álvaro. Never confuse Álvaro with the current user."
+            : ""
+
+        let greetingGuardrail = isSimpleGreeting
+            ? "\nThis is just a greeting. Reply briefly and naturally. Use the preferred display name if known. Do not bring up old interests, habits, media tastes, day-of-week commentary, or proactive suggestions unless the user asks."
+            : ""
+
         let minimalPrompt = """
         [\(langName)] Vibe: \(vibeLabel)\(ragContext)
-        
+        \(creatorContext)
+        \(greetingGuardrail)
+
         \(currentInput)
         """
 
         Task {
             do {
                 // ✅ Asegurar sesión inicializada
-                if chatSession == nil { setupModelAndSession() }
-                
+                if chatSession == nil { setupModelAndSession(excluding: userMessage.id) }
+
                 // 1. Añadimos un mensaje vacío para el bot que iremos llenando
                 let botMessage = ChatMessage(text: "", isUser: false)
                 self.conversationHistory.append(botMessage)
                 let botMessageIndex = self.conversationHistory.count - 1
-                
+
                 var fullResponseText = ""
                 let stream = sendMessageStreamWithRetry(prompt: minimalPrompt, image: currentImage, maxRetries: 2)
-                
+
                 for try await chunk in stream {
                     if let newText = chunk.text {
                         fullResponseText += newText
@@ -3228,27 +3114,28 @@ class GeminiViewModel: ObservableObject {
                         self.responseText = fullResponseText // Para otros usos de la UI si existen
                     }
                 }
-                
+
                 // 🎯 VALIDAR PERSONALIZACIÓN FINAL
                 let validatedResponse = NovaPersona.validatePersonalization(
                     input: currentInput,
                     memory: userMemory,
                     response: fullResponseText
                 )
-                
+                let identitySafeResponse = self.enforceIdentitySafety(on: validatedResponse, input: currentInput)
+
                 // Actualizar con la versión validada si hubo cambios
-                if validatedResponse != fullResponseText {
-                    self.conversationHistory[botMessageIndex].text = validatedResponse
-                    self.responseText = validatedResponse
+                if identitySafeResponse != fullResponseText {
+                    self.conversationHistory[botMessageIndex].text = identitySafeResponse
+                    self.responseText = identitySafeResponse
                 }
-                
+
                 self.isLoading = false
                 triggerHapticFeedback(type: .success)
-                
+
                 await self.saveCurrentConversation()
                 self.scheduleMemoryProcessing(userId: userId)
                 self.analyzeConversationIntelligently(userId: userId)
-                
+
                 // 🎉 DETECTAR CELEBRACIÓN
                 if self.shouldTriggerCelebration(text: validatedResponse) {
                     self.showCelebration = true
@@ -3257,17 +3144,17 @@ class GeminiViewModel: ObservableObject {
 
                 // ✅ GENERAR SUGERENCIAS CONTEXTUALES
                 await self.generateFollowUpSuggestions()
-                
+
             } catch {
                 await handleSendMessageError(error)
             }
         }
     }
-    
+
     // 🔥 Generar sugerencias inteligentes (con cooldown para ahorrar tokens)
     private var lastFollowUpTime: Date = .distantPast
     private let followUpCooldown: TimeInterval = 30 // Solo cada 30 segundos
-    
+
     private func generateFollowUpSuggestions() async {
         // ⏱️ Cooldown: no generar si la última fue hace menos de 30s
         guard Date().timeIntervalSince(lastFollowUpTime) > followUpCooldown else {
@@ -3277,7 +3164,7 @@ class GeminiViewModel: ObservableObject {
         // Solo generar si hay al menos 2 mensajes del usuario
         let userMessageCount = conversationHistory.filter { $0.isUser }.count
         guard userMessageCount >= 2 else { return }
-        
+
         let lastUserMessage = conversationHistory.last { $0.isUser }?.text ?? ""
         let lang = detectInputLanguage(lastUserMessage) ?? (NovaLanguageService.getPreferredLanguage() ?? .es)
         let langName = lang == .es ? "Español" : (lang == .ca ? "Català" : "English")
@@ -3286,28 +3173,29 @@ class GeminiViewModel: ObservableObject {
             self.isLoadingFollowUps = true
             self.followUpSuggestions = []
         }
-        
+
         // 🧠 Prompt compacto
         let recentContext = conversationHistory.suffix(4).map { "\($0.isUser ? "U" : "N"): \($0.text.prefix(100))" }.joined(separator: "\n")
         let suggestionPrompt = """
         Generate 3 follow-up messages the USER could send next. Written from the user's perspective (things they'd say TO the AI, not what the AI would ask).
         Examples: "Cuéntame más", "¿Qué me recomiendas?", "Explícame eso mejor".
         JSON array: [{"text": "short phrase", "icon": "SF Symbol name"}].
+        Keep them useful for Moments, personal context, or the current conversation. Avoid generic life-coaching prompts.
         Language: \(langName). Context:
         \(recentContext)
         """
-        
+
         do {
             let result = try await model.generateContent(suggestionPrompt)
-            
+
             if let text = result.text {
                 let cleanedJSON = text.replacingOccurrences(of: "```json", with: "")
                                      .replacingOccurrences(of: "```", with: "")
                                      .trimmingCharacters(in: .whitespacesAndNewlines)
-                
+
                 if let data = cleanedJSON.data(using: .utf8) {
                     let decodedSuggestions = try JSONDecoder().decode([SmartSuggestion].self, from: data)
-                    
+
                     await MainActor.run {
                         self.followUpSuggestions = decodedSuggestions
                         self.isLoadingFollowUps = false
@@ -3325,50 +3213,78 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     // 🎉 DETECTOR DE CELEBRACIONES
     private func shouldTriggerCelebration(text: String) -> Bool {
         let lowercasedText = text.lowercased()
         let keywords = [
-            "felicidades", "enhorabuena", "genial", "fantástico", "celebrar", 
-            "increíble", "fiesta", "éxito", "congratulations", "amazing", 
+            "felicidades", "enhorabuena", "genial", "fantástico", "celebrar",
+            "increíble", "fiesta", "éxito", "congratulations", "amazing",
             "hooray", "party", "success", "great job", "awesome",
             "felicitats", "enhorabona", "fantàstic"
         ]
-        
+
         return keywords.contains { lowercasedText.contains($0) }
     }
-    
+
+    private func enforceIdentitySafety(on response: String, input: String) -> String {
+        guard !NovaPersona.isCreatorQuestion(input) else { return response }
+
+        var safeResponse = response
+        let displayName = currentUserDisplayName
+
+        if safeResponse.contains("Álvaro") || safeResponse.contains("alvaro") {
+            safeResponse = safeResponse
+                .replacingOccurrences(of: "Álvaro", with: displayName)
+                .replacingOccurrences(of: "alvaro", with: displayName)
+        }
+
+        return safeResponse
+    }
+
+    private func isSimpleGreeting(_ input: String) -> Bool {
+        let normalized = input
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        let greetings: Set<String> = [
+            "hola", "hola!", "holaa", "hey", "hello", "hi", "buenas",
+            "qué tal", "que tal", "ei", "ey", "bon dia", "bona tarda", "hola nova"
+        ]
+
+        return greetings.contains(normalized) || normalized.count <= 8 && ["hola", "hey", "hi"].contains(normalized.replacingOccurrences(of: "!", with: ""))
+    }
+
     // 🔥 NUEVA: Función de análisis inteligente de conversación en tiempo real
     private func analyzeConversationIntelligently(userId: String) {
         guard conversationHistory.count >= 3 else { return }
-        
+
         // 🎯 Analizar engagement y patrones de la conversación
         let engagement = memoryService.analyzeConversationEngagement(conversationHistory)
         let patterns = memoryService.analyzeCommunicationPatterns(conversationHistory)
-        
+
         // 🧠 Aprender preferencias automáticamente
         memoryService.learnConversationPreferences(conversationHistory, userId: userId)
-        
+
         // 📊 Log de métricas para debugging
         LogConfig.log("🎭 Análisis de conversación - Engagement: \(engagement.level.description), Participación: \(String(format: "%.2f", engagement.userParticipation))", category: "Intelligence")
         LogConfig.log("📊 Patrones detectados - Formal: \(patterns.isFormal), Emojis: \(patterns.usesEmojis), Preguntas: \(patterns.asksQuestions)", category: "Intelligence")
-        
+
         // 🎯 Adaptar el comportamiento de Nova según el análisis
         adaptNovaBehavior(engagement: engagement, patterns: patterns)
     }
-    
+
     // 🎭 Adaptar el comportamiento de Nova según el análisis (logging only, actual adaptation in behavioral profile)
     private func adaptNovaBehavior(engagement: ConversationEngagement, patterns: CommunicationPatterns) {
         LogConfig.log("🎭 Engagement: \(engagement.level.description), Formal: \(patterns.isFormal), Emojis: \(patterns.usesEmojis)", category: "Adaptation")
     }
-    
+
     // ✅ NUEVA: Envío de mensaje usando la sesión de chat con STREAMING (soporta Imágenes)
     private func sendMessageStreamWithRetry(prompt: String, image: UIImage?, maxRetries: Int) -> AsyncThrowingStream<GenerateContentResponse, Error> {
         return AsyncThrowingStream(GenerateContentResponse.self) { continuation in
             Task {
                 var lastError: Error?
-                
+
                 for attempt in 0...maxRetries {
                     do {
                         if attempt > 0 {
@@ -3376,13 +3292,13 @@ class GeminiViewModel: ObservableObject {
                             try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                             LogConfig.log("🔄 Reintentando envío multimodal con stream (intento \(attempt + 1))", category: "Retry")
                         }
-                        
+
                         // ✅ USAR SESIÓN SI ESTÁ DISPONIBLE
                         guard let session = chatSession else {
                             continuation.finish(throwing: NSError(domain: "GeminiError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Sesión no inicializada"]))
                             return
                         }
-                        
+
                         // En FirebaseVertexAI, sendMessageStream puede aceptar variadic arguments o un array de Parts
                         // El objeto UIImage es PartsRepresentable por defecto
                         let stream: AsyncThrowingStream<GenerateContentResponse, Error>
@@ -3391,18 +3307,18 @@ class GeminiViewModel: ObservableObject {
                         } else {
                             stream = try session.sendMessageStream(prompt)
                         }
-                        
+
                         for try await response in stream {
                             continuation.yield(response)
                         }
-                        
+
                         continuation.finish()
                         return
-                        
+
                     } catch {
                         lastError = error
                         LogConfig.log("❌ Error en streaming multimodal (intento \(attempt + 1)): \(error.localizedDescription)", category: "Error")
-                        
+
                         if !isNetworkError(error) && attempt == 0 {
                             continuation.finish(throwing: error)
                             return
@@ -3417,7 +3333,7 @@ class GeminiViewModel: ObservableObject {
     // ✅ ANTIGUA: Envío de mensaje usando la sesión de chat (con historial, NO stream)
     private func sendMessageWithRetry(prompt: String, maxRetries: Int) async throws -> GenerateContentResponse {
         var lastError: Error?
-        
+
         for attempt in 0...maxRetries {
             do {
                 if attempt > 0 {
@@ -3425,23 +3341,23 @@ class GeminiViewModel: ObservableObject {
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                     LogConfig.log("🔄 Reintentando envío de mensaje (intento \(attempt + 1))", category: "Retry")
                 }
-                
+
                 if let session = chatSession {
                     return try await session.sendMessage(prompt)
                 } else {
                     return try await model.generateContent(prompt)
                 }
-                
+
             } catch {
                 lastError = error
                 LogConfig.log("❌ Error en envío de mensaje (intento \(attempt + 1)): \(error.localizedDescription)", category: "Error")
-                
+
                 if !isNetworkError(error) && attempt == 0 {
                     throw error
                 }
             }
         }
-        
+
         throw lastError ?? NSError(domain: "GeminiError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error desconocido"])
     }
 
@@ -3449,7 +3365,7 @@ class GeminiViewModel: ObservableObject {
     // Se usa para cosas puntuales como regenerar bio, títulos, etc.
     private func generateContentWithRetry(prompt: String, maxRetries: Int) async throws -> GenerateContentResponse {
         var lastError: Error?
-        
+
         for attempt in 0...maxRetries {
             do {
                 if attempt > 0 {
@@ -3457,22 +3373,22 @@ class GeminiViewModel: ObservableObject {
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                     LogConfig.log("🔄 Reintentando generación simple (intento \(attempt + 1))", category: "Retry")
                 }
-                
+
                 return try await model.generateContent(prompt)
-                
+
             } catch {
                 lastError = error
                 LogConfig.log("❌ Error en generación simple (intento \(attempt + 1)): \(error.localizedDescription)", category: "Error")
-                
+
                 if !isNetworkError(error) && attempt == 0 {
                     throw error
                 }
             }
         }
-        
+
         throw lastError ?? NSError(domain: "GeminiError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error desconocido"])
     }
-    
+
     // ✅ FUNCIÓN PARA DETECTAR ERRORES DE RED
     private func isNetworkError(_ error: Error) -> Bool {
         let nsError = error as NSError
@@ -3483,32 +3399,32 @@ class GeminiViewModel: ObservableObject {
                error.localizedDescription.contains("connection") ||
                error.localizedDescription.contains("Reporter disconnected")
     }
-    
+
     // ✅ MANEJO MEJORADO DE ERRORES (multilingüe)
     private func handleSendMessageError(_ error: Error) async {
         LogConfig.log("🚨 Error en sendMessage: \(error.localizedDescription)", category: "Error")
-        
+
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         let userFriendlyMessage: String
-        
+
         if isNetworkError(error) {
             switch lang {
             case .es:
                 userFriendlyMessage = """
                 🌐 Parece que hay un problema de conexión.
-                
+
                 ¿Puedes verificar tu internet e intentar de nuevo?
                 """
             case .en:
                 userFriendlyMessage = """
                 🌐 It seems there's a connection problem.
-                
+
                 Can you check your internet and try again?
                 """
             case .ca:
                 userFriendlyMessage = """
                 🌐 Sembla que hi ha un problema de connexió.
-                
+
                 Pots verificar la teva internet i tornar-ho a provar?
                 """
             }
@@ -3517,19 +3433,19 @@ class GeminiViewModel: ObservableObject {
             case .es:
                 userFriendlyMessage = """
                 ⏰ He alcanzado mi límite de consultas por el momento.
-                
+
                 Intenta de nuevo en unos minutos, por favor.
                 """
             case .en:
                 userFriendlyMessage = """
                 ⏰ I've reached my query limit for the moment.
-                
+
                 Please try again in a few minutes.
                 """
             case .ca:
                 userFriendlyMessage = """
                 ⏰ He arribat al meu límit de consultes per ara.
-                
+
                 Si us plau, torna-ho a provar en uns minuts.
                 """
             }
@@ -3538,24 +3454,24 @@ class GeminiViewModel: ObservableObject {
             case .es:
                 userFriendlyMessage = """
                 🤖 Tuve un pequeño problema técnico.
-                
+
                 ¿Puedes reformular tu pregunta?
                 """
             case .en:
                 userFriendlyMessage = """
                 🤖 I had a small technical problem.
-                
+
                 Can you rephrase your question?
                 """
             case .ca:
                 userFriendlyMessage = """
                 🤖 He tingut un petit problema tècnic.
-                
+
                 Pots reformular la teva pregunta?
                 """
             }
         }
-        
+
         self.isLoading = false
         self.responseText = userFriendlyMessage
         self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
@@ -3563,12 +3479,12 @@ class GeminiViewModel: ObservableObject {
             await self.saveCurrentConversation()
         }
     }
-    
+
     // ✅ NUEVA FUNCIÓN: PROGRAMAR PROCESAMIENTO DE MEMORIA CON DEBOUNCE
     private func scheduleMemoryProcessing(userId: String) {
         // Cancelar timer anterior si existe
         memoryProcessingTimer?.invalidate()
-        
+
         // ✅ VERIFICAR SI YA SE PROCESÓ RECIENTEMENTE
         let now = Date()
         if let lastTime = lastMemoryProcessTime,
@@ -3576,19 +3492,19 @@ class GeminiViewModel: ObservableObject {
             LogConfig.log("⚠️ Memoria procesada recientemente - saltando", category: "Memory")
             return
         }
-        
+
         // ✅ CREAR NUEVO TIMER CON DELAY
         memoryProcessingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             guard let self = self else { return }
-            
+
             self.lastMemoryProcessTime = Date()
-            
+
             Task.detached { [weak self] in
                 await self?.processMemoryAfterConversationSafely(userId: userId)
             }
         }
     }
-    
+
     private func buildSimpleContext() -> String {
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         guard let userData = userData else {
@@ -3598,32 +3514,26 @@ class GeminiViewModel: ObservableObject {
         case .es:
             return """
             PERFIL DEL USUARIO:
-            - Nombre preferido: \(userMemory?.preferredName ?? userData.username)
+            - Nombre preferido: \(currentUserDisplayName)
             - Username en la app: \(userData.username)
             - Intereses: \(userData.interests.joined(separator: ", "))
             - Bio: \(userData.bio ?? "No especificada")
-            
-            IMPORTANTE: El usuario "\(userData.username)" es UN USUARIO de la app. Álvaro es el creador (persona diferente).
             """
         case .en:
             return """
             USER PROFILE:
-            - Preferred name: \(userMemory?.preferredName ?? userData.username)
+            - Preferred name: \(currentUserDisplayName)
             - App username: \(userData.username)
             - Interests: \(userData.interests.joined(separator: ", "))
             - Bio: \(userData.bio ?? "Not specified")
-            
-            IMPORTANT: The user "\(userData.username)" is a USER of the app. Álvaro is the creator (different person).
             """
         case .ca:
             return """
             PERFIL DE L'USUARI:
-            - Nom preferit: \(userMemory?.preferredName ?? userData.username)
+            - Nom preferit: \(currentUserDisplayName)
             - Nom d'usuari a l'app: \(userData.username)
             - Interessos: \(userData.interests.joined(separator: ", "))
             - Bio: \(userData.bio ?? "No especificada")
-            
-            IMPORTANT: L'usuari "\(userData.username)" és un USUARI de l'app. Álvaro és el creador (persona diferent).
             """
         }
     }
@@ -3631,25 +3541,27 @@ class GeminiViewModel: ObservableObject {
     // MARK: - 🔧 FUNCIÓN DE MEMORIA SEGURA MEJORADA
     private func processMemoryAfterConversationSafely(userId: String) async {
         guard !conversationHistory.isEmpty else { return }
-        
+
         LogConfig.log("🧠 Iniciando procesamiento seguro de memoria", category: "Memory")
-        
-        let currentHistory = conversationHistory
+
+        let currentHistory = conversationHistory.filter { message in
+            !message.isSystem && !shouldExcludeFromMemory(message)
+        }
         let existingFacts = self.userMemory?.facts ?? []
-        
+
         await withCheckedContinuation { continuation in
             memoryService.extractFactsFromConversation(currentHistory, userId: userId, existingFacts: existingFacts) { facts in
                 if !facts.isEmpty {
                     self.memoryService.updateMemoryWithFacts(facts, userId: userId) { result in
                         if case .success = result {
                             LogConfig.log("🧠 Nuevos hechos guardados: \(facts.count)", category: "Memory")
-                            
+
                             // 🔥 NUEVO: Feedback háptico cuando se guarda un hecho importante
                             let importantFacts = facts.filter { $0.importance >= 4 }
                             if !importantFacts.isEmpty {
                                 self.triggerHapticFeedback(type: .medium)
                             }
-                            
+
                             // Recargar memoria
                             self.loadMemoryContextSilently(userId: userId)
                         }
@@ -3659,25 +3571,45 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
+    private func shouldExcludeFromMemory(_ message: ChatMessage) -> Bool {
+        let lowercased = message.text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let excludedFragments = [
+            "cifrado de extremo a extremo",
+            "end-to-end encryption",
+            "xifratge d'extrem a extrem",
+            "cargando tu memoria personalizada",
+            "loading your personalized memory",
+            "carregant la teva memòria personalitzada",
+            "por favor, escribe un mensaje",
+            "please, write a message",
+            "si us plau, escriu un missatge",
+            "he tenido un pequeño problema técnico",
+            "i've run into a small technical issue",
+            "he tingut un petit problema tècnic"
+        ]
+
+        return excludedFragments.contains { lowercased.contains($0) }
+    }
+
     // MARK: - 🔥 NUEVO: Manejo de consultas de actividad
     private func handleActivityQuery(_ queryType: ActivityQueryType, userId: String, userInput: String) {
         let userMessage = ChatMessage(text: userInput, isUser: true)
         conversationHistory.append(userMessage)
-        
+
         let currentInput = userInput
         inputText = ""
         isLoading = true
-        
+
         Task {
             do {
                 // Preparar variables de contexto (necesarias para todos los casos)
                 let lang = NovaLanguageService.getPreferredLanguage() ?? .es
                 let memoryContext = userMemory?.contextString ?? ""
                 let displayName = userMemory?.preferredName ?? userData?.username ?? "Usuario"
-                
+
                 let activityData: String
-                
+
                 switch queryType {
                 case .storyChainViewers:
                     // Obtener el último chain y sus viewers (usando resumen optimizado)
@@ -3700,7 +3632,7 @@ class GeminiViewModel: ObservableObject {
                         case .ca: activityData = "No tens cadenes d'històries publicades encara."
                         }
                     }
-                    
+
                 case .latestStoryChain:
                     if let chainInfo = try await getLatestStoryChain(userId: userId) {
                         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
@@ -3720,12 +3652,12 @@ class GeminiViewModel: ObservableObject {
                         case .ca: activityData = "No tens cadenes d'històries publicades encara."
                         }
                     }
-                    
+
                 case .profileVisits:
                     // Usar resumen optimizado (5 más recientes + conteo total)
                     let visitsSummary = try await getProfileVisitsSummary(userId: userId)
                     activityData = visitsSummary.formattedSummary
-                    
+
                 case .weeklySummary:
                     // Resumen semanal comparativo (usando datos crudos)
                     let weeklySummary = try await getWeeklySummary(userId: userId)
@@ -3735,7 +3667,7 @@ class GeminiViewModel: ObservableObject {
                     if let jsonData = try? JSONSerialization.data(withJSONObject: weeklySummary.rawData, options: .prettyPrinted),
                        let jsonString = String(data: jsonData, encoding: .utf8) {
                         activityData = jsonString
-                        
+
                         // Construir respuesta con insights proactivos
                         let prompt = buildActivityResponsePrompt(
                             userInput: currentInput,
@@ -3745,18 +3677,18 @@ class GeminiViewModel: ObservableObject {
                             lang: lang,
                             proactiveInsights: insights
                         )
-                        
+
                         let response = try await generateContentWithRetry(prompt: prompt, maxRetries: 2)
                         let responseText = response.text ?? weeklySummary.formattedSummary
-                        
+
                         self.isLoading = false
                         self.responseText = responseText
                         self.conversationHistory.append(ChatMessage(text: responseText, isUser: false))
-                        
+
                         // 🔥 Feedback háptico diferenciado según tipo de insight y tendencias
                         let negativeInsights = insights.filter { $0.type != .positiveTrend && ($0.severity == .high || $0.severity == .medium) }
                         let positiveInsights = insights.filter { $0.type == .positiveTrend }
-                        
+
                         // Detectar tendencias positivas directamente de los datos
                         let rawData = weeklySummary.rawData
                         var hasPositiveTrends = false
@@ -3775,7 +3707,7 @@ class GeminiViewModel: ObservableObject {
                            momentsChange > 20 {
                             hasPositiveTrends = true
                         }
-                        
+
                         if !positiveInsights.isEmpty || hasPositiveTrends {
                             // Celebrar éxito con vibración de éxito (condicionamiento positivo)
                             triggerHapticFeedback(type: .success)
@@ -3786,7 +3718,7 @@ class GeminiViewModel: ObservableObject {
                             // Respuesta normal con vibración ligera
                             triggerHapticFeedback(type: .light)
                         }
-                        
+
                         Task {
                             await self.saveCurrentConversation()
                         }
@@ -3794,7 +3726,7 @@ class GeminiViewModel: ObservableObject {
                     } else {
                         activityData = weeklySummary.formattedSummary // Fallback
                     }
-                    
+
                 case .activitySummary:
                     // Resumen general de actividad (usando datos crudos)
                     let summary = try await getActivitySummary(userId: userId)
@@ -3805,13 +3737,13 @@ class GeminiViewModel: ObservableObject {
                         activityData = summary.formattedSummary // Fallback
                     }
                 }
-                
+
                 // Construir respuesta con contexto (para todos los casos excepto weeklySummary que ya tiene su propio flujo)
                 if queryType != .weeklySummary {
                     let lang = NovaLanguageService.getPreferredLanguage() ?? .es
                     let memoryContext = userMemory?.contextString ?? ""
                     let displayName = userMemory?.preferredName ?? userData?.username ?? "Usuario"
-                    
+
                     let prompt = buildActivityResponsePrompt(
                         userInput: currentInput,
                         activityData: activityData,
@@ -3819,28 +3751,28 @@ class GeminiViewModel: ObservableObject {
                         displayName: displayName,
                         lang: lang
                     )
-                    
+
                     let response = try await generateContentWithRetry(prompt: prompt, maxRetries: 2)
                     let responseText = response.text ?? activityData
-                    
+
                     self.isLoading = false
                     self.responseText = responseText
                     self.conversationHistory.append(ChatMessage(text: responseText, isUser: false))
-                    
+
                     // 🔥 Feedback háptico
                     triggerHapticFeedback(type: .success)
-                    
+
                     Task {
                         await self.saveCurrentConversation()
                     }
                 }
-                
+
             } catch {
                 await handleSendMessageError(error)
             }
         }
     }
-    
+
     // MARK: - 🔧 Helpers para consultas de actividad
     private func getLatestStoryChain(userId: String) async throws -> StoryChainInfo? {
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<StoryChainInfo?, Error>) in
@@ -3854,7 +3786,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func getStoryChainViewersSummary(chainId: String, userId: String) async throws -> StoryChainViewersSummary {
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<StoryChainViewersSummary, Error>) in
             activityService.getStoryChainViewersSummary(chainId: chainId, userId: userId) { result in
@@ -3867,7 +3799,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func getProfileVisitsSummary(userId: String) async throws -> ProfileVisitsSummary {
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ProfileVisitsSummary, Error>) in
             activityService.getProfileVisitsSummary(userId: userId) { result in
@@ -3880,7 +3812,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func getActivitySummary(userId: String) async throws -> NovaActivitySummary {
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<NovaActivitySummary, Error>) in
             activityService.getActivitySummary(userId: userId) { result in
@@ -3893,7 +3825,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func getWeeklySummary(userId: String) async throws -> WeeklyActivitySummary {
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<WeeklyActivitySummary, Error>) in
             activityService.getWeeklySummary(userId: userId) { result in
@@ -3906,89 +3838,83 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func buildActivityResponsePrompt(userInput: String, activityData: String, memoryContext: String, displayName: String, lang: NovaLanguage, proactiveInsights: [ProactiveInsight]? = nil) -> String {
         let basePrompt = NovaPersona.getPersonalizedPrompt(
             userContext: "",
             memoryContext: memoryContext,
             personalization: userMemory
         )
-        
-        // 🔥 NUEVO: Convertir insights proactivos a JSON si existen
+
+        // Convertir insights proactivos a JSON si existen
         var insightsJSON = ""
         if let insights = proactiveInsights, !insights.isEmpty {
             let insightsData = insights.map { $0.rawData }
             if let jsonData = try? JSONSerialization.data(withJSONObject: insightsData, options: .prettyPrinted),
                let jsonString = String(data: jsonData, encoding: .utf8) {
-                insightsJSON = "\n\n💡 **CONSEJOS PROACTIVOS DETECTADOS:**\n\(jsonString)\n\nIMPORTANTE: Si hay insights con severity 'high' o 'medium', debes dar consejos proactivos y amigables. Si el usuario tiene personalidad 'fun', usa bromas. Si es 'formal', da consejos como un reporte ejecutivo.\n"
+                insightsJSON = "\n\nPROACTIVE INSIGHTS:\n\(jsonString)\n"
             }
         }
-        
+
         switch lang {
         case .es:
             return """
             \(basePrompt)
-            
+
             El usuario preguntó: "\(userInput)"
-            
-            📊 **DATOS DE ACTIVIDAD DE MOMENTS (en formato JSON):**
+
+            DATOS DE ACTIVIDAD DE MOMENTS (JSON):
             \(activityData)
             \(insightsJSON)
-            **INSTRUCCIONES:**
-            - Los datos están en formato JSON crudo. TÚ debes redactar el mensaje según tu personalidad.
-            - Si tu personalidad es "fun" → usa bromas, emojis, y un tono casual
-            - Si tu personalidad es "formal" → redacta como un reporte ejecutivo profesional
-            - Si tu personalidad es "casual" → sé natural y conversacional
-            - NO repitas el JSON literalmente. Interpreta los datos y redacta un mensaje natural.
-            - Si hay consejos proactivos, inclúyelos de forma natural en tu respuesta.
-            - Si detectas tendencias negativas (cambios < -15%), ofrece consejos útiles y proactivos.
-            - Si detectas tendencias positivas, celebra con el usuario según tu personalidad.
+            INSTRUCCIONES:
+            - Los datos vienen en JSON crudo. Interprétalos y responde con lenguaje natural.
+            - No repitas el JSON ni enumeres métricas si no aportan valor.
+            - Sé clara, breve y útil por defecto.
+            - Si hay insights importantes, intégralos de forma natural.
+            - Si detectas tendencias negativas, ofrece 1 o 2 recomendaciones concretas.
+            - Si detectas tendencias positivas, reconoce el buen momento sin sobreactuar.
             """
         case .en:
             return """
             \(basePrompt)
-            
+
             The user asked: "\(userInput)"
-            
-            📊 **MOMENTS ACTIVITY DATA (in JSON format):**
+
+            MOMENTS ACTIVITY DATA (JSON):
             \(activityData)
             \(insightsJSON)
-            **INSTRUCTIONS:**
-            - The data is in raw JSON format. YOU must write the message according to your personality.
-            - If your personality is "fun" → use jokes, emojis, and a casual tone
-            - If your personality is "formal" → write like a professional executive report
-            - If your personality is "casual" → be natural and conversational
-            - DO NOT repeat the JSON literally. Interpret the data and write a natural message.
-            - If there are proactive insights, include them naturally in your response.
-            - If you detect negative trends (changes < -15%), offer useful and proactive advice.
-            - If you detect positive trends, celebrate with the user according to your personality.
+            INSTRUCTIONS:
+            - The data is raw JSON. Interpret it and answer in natural language.
+            - Do not repeat the JSON or list metrics unless they genuinely help.
+            - Be clear, brief, and useful by default.
+            - If there are important insights, weave them in naturally.
+            - If you detect negative trends, offer 1 or 2 concrete recommendations.
+            - If you detect positive trends, acknowledge them without overplaying it.
             """
         case .ca:
             return """
             \(basePrompt)
-            
+
             L'usuari ha preguntat: "\(userInput)"
-            
-            📊 **DADES D'ACTIVITAT DE MOMENTS (en format JSON):**
+
+            DADES D'ACTIVITAT DE MOMENTS (JSON):
             \(activityData)
             \(insightsJSON)
-            **INSTRUCCIONS:**
-            - Les dades estan en format JSON cru. TU has de redactar el missatge segons la teva personalitat.
-            - Si la teva personalitat és "fun" → usa bromes, emojis, i un to casual
-            - Si la teva personalitat és "formal" → redacta com un informe executiu professional
-            - Si la teva personalitat és "casual" → sigues natural i conversacional
-            - NO repeteixis el JSON literalment. Interpreta les dades i redacta un missatge natural.
-            - Si hi ha consells proactius, inclou-los de forma natural a la teva resposta.
-            - Si detectes tendències negatives (canvis < -15%), ofereix consells útils i proactius.
-            - Si detectes tendències positives, celebra amb l'usuari segons la teva personalitat.
+            INSTRUCCIONS:
+            - Les dades venen en JSON cru. Interpreta-les i respon amb llenguatge natural.
+            - No repeteixis el JSON ni enumeris mètriques si no aporten valor.
+            - Sigues clara, breu i útil per defecte.
+            - Si hi ha insights importants, integra'ls de manera natural.
+            - Si detectes tendències negatives, ofereix 1 o 2 recomanacions concretes.
+            - Si detectes tendències positives, reconeix-les sense exagerar.
             """
         }
     }
-    
+
     private func timeAgoString(from date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        
+
         switch lang {
         case .es:
             if interval < 60 {
@@ -4031,7 +3957,7 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 🔥 NUEVO: Feedback háptico
     private func triggerHapticFeedback(type: HapticFeedbackType) {
         switch type {
@@ -4054,50 +3980,50 @@ class GeminiViewModel: ObservableObject {
     private func generateTempConversationId() -> String {
         return "temp_\(Date().timeIntervalSince1970)_\(UUID().uuidString.prefix(8))"
     }
-    
+
     // MARK: - Comandos Específicos Refactorizados (funciones privadas nuevas)
-    
+
     private func handleCreateMomentCommand(userId: String) {
         let content = inputText.replacingOccurrences(of: "crea un momento con esta frase", with: "").trimmingCharacters(in: .whitespaces)
-        
+
         guard !content.isEmpty else {
             responseText = "## ❌ Error\nPor favor, especifica el contenido del momento después del comando."
             conversationHistory.append(ChatMessage(text: responseText, isUser: false))
             return
         }
-        
+
         isLoading = true
         inputText = ""
-        
+
         firestoreService.createMoment(userId: userId, content: content, mediaItems: []) { [weak self] error in
             Task { @MainActor in
                 guard let self = self else { return }
-                
+
                 if let error = error {
                     let lang = NovaLanguageService.getPreferredLanguage() ?? .es
                     switch lang {
                     case .es:
                         self.responseText = """
                         ## ❌ Error al Crear Momento
-                        
+
                         No pude crear el momento: \(error.localizedDescription)
-                        
+
                         **¿Te ayudo con algo más?**
                         """
                     case .en:
                         self.responseText = """
                         ## ❌ Error Creating Moment
-                        
+
                         I couldn't create the moment: \(error.localizedDescription)
-                        
+
                         **Want help with something else?**
                         """
                     case .ca:
                         self.responseText = """
                         ## ❌ Error en Crear Moment
-                        
+
                         No he pogut crear el moment: \(error.localizedDescription)
-                        
+
                         **Vols ajuda amb alguna altra cosa?**
                         """
                     }
@@ -4107,11 +4033,11 @@ class GeminiViewModel: ObservableObject {
                     case .es:
                         self.responseText = """
                         ## ✅ Momento Creado
-                        
+
                         **Contenido:** "\(content)"
-                        
-                        Tu momento ha sido publicado exitosamente. 
-                        
+
+                        Tu momento ha sido publicado exitosamente.
+
                         **¿Te gustaría:**
                         • Crear otro momento
                         • Ver consejos para contenido viral
@@ -4120,11 +4046,11 @@ class GeminiViewModel: ObservableObject {
                     case .en:
                         self.responseText = """
                         ## ✅ Moment Created
-                        
+
                         **Content:** "\(content)"
-                        
+
                         Your moment has been published successfully.
-                        
+
                         **Would you like to:**
                         • Create another moment
                         • See tips for viral content
@@ -4133,11 +4059,11 @@ class GeminiViewModel: ObservableObject {
                     case .ca:
                         self.responseText = """
                         ## ✅ Moment Creat
-                        
+
                         **Contingut:** "\(content)"
-                        
+
                         El teu moment s'ha publicat correctament.
-                        
+
                         **T'agradaria:**
                         • Crear un altre moment
                         • Veure consells per a contingut viral
@@ -4145,14 +4071,14 @@ class GeminiViewModel: ObservableObject {
                         """
                     }
                 }
-                
+
                 self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
                 await self.saveCurrentConversation()
                 self.isLoading = false
             }
         }
     }
-    
+
     private func handleConnectionSuggestionsCommand() {
         let langConn = NovaLanguageService.getPreferredLanguage() ?? .es
         switch langConn {
@@ -4162,14 +4088,14 @@ class GeminiViewModel: ObservableObject {
             suggestedUsers.map { $0.username }.joined(separator: ", ")
             responseText = """
             ## 🤝 Sugerencias de Conexión
-            
+
             **Usuarios recomendados:** \(recommendations)
-            
+
             ## 💡 Tips para conectar mejor:
             • Revisa perfiles con intereses similares
             • Comenta en momentos que te interesen
             • Comparte contenido auténtico y personal
-            
+
             **¿Te ayudo con estrategias específicas de networking?**
             """
         case .en:
@@ -4178,14 +4104,14 @@ class GeminiViewModel: ObservableObject {
             suggestedUsers.map { $0.username }.joined(separator: ", ")
             responseText = """
             ## 🤝 Connection Suggestions
-            
+
             **Recommended users:** \(recommendations)
-            
+
             ## 💡 Tips to connect better:
             • Check profiles with similar interests
             • Comment on moments you find interesting
             • Share authentic, personal content
-            
+
             **Want specific networking strategies?**
             """
         case .ca:
@@ -4194,127 +4120,127 @@ class GeminiViewModel: ObservableObject {
             suggestedUsers.map { $0.username }.joined(separator: ", ")
             responseText = """
             ## 🤝 Suggeriments de Connexió
-            
+
             **Usuaris recomanats:** \(recommendations)
-            
+
             ## 💡 Consells per connectar millor:
             • Revisa perfils amb interessos similars
             • Comenta en moments que t'interessin
             • Comparteix contingut autèntic i personal
-            
+
             **Vols estratègies de networking específiques?**
             """
         }
-        
+
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
         Task {
             await saveCurrentConversation()
         }
         inputText = ""
     }
-    
+
     private func handleBioImprovementCommand(userId: String, userData: AppUser) {
         let currentBio = userData.bio ?? "Sin biografía"
         let userInterests = userData.interests.joined(separator: ", ")
-        
+
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         let prompt: String
         switch lang {
         case .es:
             prompt = """
-            Eres Nova, experta en perfiles de redes sociales. 
-            
+            Eres Nova, experta en perfiles de redes sociales.
+
             TAREA: Mejora esta biografía para que sea más atractiva y efectiva.
-            
+
             BIO ACTUAL: "\(currentBio)"
             INTERESES: \(userInterests)
             NOMBRE: \(userData.username)
-            
+
             REQUISITOS:
             - Máximo 150 caracteres
             - Incluye personalidad e intereses
             - Usa emojis estratégicamente (máximo 3)
             - Que sea memorable y auténtica
             - Optimizada para generar conexiones
-            
+
             Responde SOLO con la nueva biografía, sin explicaciones adicionales.
             """
         case .en:
             prompt = """
             You are Nova, an expert in social media profiles.
-            
+
             TASK: Improve this bio to make it more attractive and effective.
-            
+
             CURRENT BIO: "\(currentBio)"
             INTERESTS: \(userInterests)
             NAME: \(userData.username)
-            
+
             REQUIREMENTS:
             - Maximum 150 characters
             - Include personality and interests
             - Use emojis strategically (max 3)
             - Memorable and authentic
             - Optimized to generate connections
-            
+
             Respond ONLY with the new bio, no additional explanations.
             """
         case .ca:
             prompt = """
             Ets Nova, experta en perfils de xarxes socials.
-            
+
             TASCA: Millora aquesta biografia perquè sigui més atractiva i efectiva.
-            
+
             BIO ACTUAL: "\(currentBio)"
             INTERESSOS: \(userInterests)
             NOM: \(userData.username)
-            
+
             REQUISITS:
             - Màxim 150 caràcters
             - Inclou personalitat i interessos
             - Usa emojis estratègicament (màxim 3)
             - Que sigui memorable i autèntica
             - Optimitzada per generar connexions
-            
+
             Respon NOMÉS amb la nova biografia, sense explicacions addicionals.
             """
         }
-        
+
         isLoading = true
         inputText = ""
-        
+
         Task {
             do {
                 let response = try await generateContentWithRetry(prompt: prompt, maxRetries: 2)
                 if let newBio = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) {
                     self.firestoreService.updateBio(userId: userId, newBio: newBio) { error in
                         Task { @MainActor in
-                            
+
                             if let error = error {
                                     self.responseText = """
                                     ## ❌ Error al Actualizar
-                                    
+
                                     No pude actualizar tu biografía: \(error.localizedDescription)
-                                    
+
                                     **Bio sugerida:** "\(newBio)"
-                                    
+
                                     ¿Quieres que lo intente de nuevo?
                                     """
                                 } else {
                                     self.responseText = """
                                     ## ✅ Biografía Actualizada
-                                    
+
                                     **Nueva bio:** "\(newBio)"
-                                    
+
                                     ## 🚀 Próximos pasos:
                                     • Actualiza tu foto de perfil si es necesario
                                     • Revisa que tus intereses estén actualizados
                                     • Crea contenido que refleje tu nueva personalidad
-                                    
+
                                     **¿Te ayudo con algo más para optimizar tu perfil?**
                                     """
                                     self.fetchUserData() // Actualizar datos
                                 }
-                                
+
                                 self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
                                 Task {
                                     await self.saveCurrentConversation()
@@ -4327,15 +4253,15 @@ class GeminiViewModel: ObservableObject {
                 await MainActor.run {
                     self.responseText = """
                     ## ❌ Error de Generación
-                    
+
                     No pude generar una biografía mejorada en este momento.
-                    
+
                     **Consejos manuales:**
                     • Incluye tus pasiones principales
                     • Menciona qué te hace único
                     • Usa un tono auténtico y cercano
                     • Añade una llamada a la acción sutil
-                    
+
                     ¿Quieres intentar de nuevo o prefieres que te dé más consejos específicos?
                     """
                     self.conversationHistory.append(ChatMessage(text: self.responseText, isUser: false))
@@ -4347,145 +4273,145 @@ class GeminiViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Nuevos Comandos Avanzados
-    
+
     private func handleProfileAnalysisCommand(userData: AppUser) {
         let profileCompleteness = calculateProfileCompleteness(userData)
-        
+
         let langProfile = NovaLanguageService.getPreferredLanguage() ?? .es
         switch langProfile {
         case .es:
             responseText = """
             ## 📊 Análisis de tu Perfil
-            
+
             **Completitud:** \(profileCompleteness)%
-            
+
             ## 🎯 Fortalezas:
             \(getProfileStrengths(userData))
-            
+
             ## 🔧 Áreas de mejora:
             \(getProfileImprovements(userData))
-            
+
             ## 🚀 Recomendaciones personalizadas:
             \(getPersonalizedRecommendations(userData))
-            
+
             **¿Te ayudo a implementar alguna de estas mejoras?**
             """
         case .en:
             responseText = """
             ## 📊 Your Profile Analysis
-            
+
             **Completeness:** \(profileCompleteness)%
-            
+
             ## 🎯 Strengths:
             \(getProfileStrengths(userData))
-            
+
             ## 🔧 Areas for improvement:
             \(getProfileImprovements(userData))
-            
+
             ## 🚀 Personalized recommendations:
             \(getPersonalizedRecommendations(userData))
-            
+
             **Want help implementing any of these improvements?**
             """
         case .ca:
             responseText = """
             ## 📊 Anàlisi del teu Perfil
-            
+
             **Completitud:** \(profileCompleteness)%
-            
+
             ## 🎯 Fortaleses:
             \(getProfileStrengths(userData))
-            
+
             ## 🔧 Àrees de millora:
             \(getProfileImprovements(userData))
-            
+
             ## 🚀 Recomanacions personalitzades:
             \(getPersonalizedRecommendations(userData))
-            
+
             **Vols ajuda per implementar alguna d'aquestes millores?**
             """
         }
-        
+
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
         Task {
             await saveCurrentConversation()
         }
         inputText = ""
     }
-    
+
     private func handleContentSuggestionsCommand(userData: AppUser) {
         let interests = userData.interests
         let suggestions = generateContentSuggestions(based: interests)
-        
+
         let langContent = NovaLanguageService.getPreferredLanguage() ?? .es
         switch langContent {
         case .es:
             responseText = """
             ## 🎨 Ideas de Contenido Personalizadas
-            
+
             Basado en tus intereses: \(interests.prefix(3).joined(separator: ", "))
-            
+
             ## 💡 Sugerencias para esta semana:
             \(suggestions)
-            
+
             ## 📈 Tips para engagement:
             • Publica en horarios de mayor actividad (7-9 PM)
             • Usa preguntas para generar comentarios
             • Comparte historias personales auténticas
             • Incluye calls-to-action sutiles
-            
+
             **¿Te ayudo a desarrollar alguna de estas ideas específicamente?**
             """
         case .en:
             responseText = """
             ## 🎨 Personalized Content Ideas
-            
+
             Based on your interests: \(interests.prefix(3).joined(separator: ", "))
-            
+
             ## 💡 Suggestions for this week:
             \(suggestions)
-            
+
             ## 📈 Tips for engagement:
             • Post during peak hours (7-9 PM)
             • Use questions to spark comments
             • Share authentic personal stories
             • Include subtle calls-to-action
-            
+
             **Want help developing any of these ideas specifically?**
             """
         case .ca:
             responseText = """
             ## 🎨 Idees de Contingut Personalitzades
-            
+
             Basat en els teus interessos: \(interests.prefix(3).joined(separator: ", "))
-            
+
             ## 💡 Suggeriments per a aquesta setmana:
             \(suggestions)
-            
+
             ## 📈 Consells per a l'engagement:
             • Publica en hores de més activitat (7-9 PM)
             • Usa preguntes per generar comentaris
             • Comparteix històries personals autèntiques
             • Inclou crides a l'acció subtils
-            
+
             **Vols ajuda per desenvolupar alguna d'aquestes idees en concret?**
             """
         }
-        
+
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
         Task {
             await saveCurrentConversation()
         }
         inputText = ""
     }
-    
+
     // MARK: - Nuevas Funciones Auxiliares
-    
+
     func detectUserIntent(_ input: String) -> NovaMode {
         let lowercased = input.lowercased()
-        
+
         if lowercased.contains("crear") || lowercased.contains("idea") || lowercased.contains("creativo") {
             return .creativity
         } else if lowercased.contains("productiv") || lowercased.contains("organiz") || lowercased.contains("tiempo") {
@@ -4495,10 +4421,10 @@ class GeminiViewModel: ObservableObject {
         } else if lowercased.contains("bienestar") || lowercased.contains("salud") || lowercased.contains("estrés") {
             return .wellness
         }
-        
+
         return .general
     }
-    
+
     private func buildEnhancedContext() -> String {
         let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         guard let userData = userData else {
@@ -4508,17 +4434,17 @@ class GeminiViewModel: ObservableObject {
             case .ca: return "Usuari sense dades específiques"
             }
         }
-        
+
         let labels: (profileHeader: String, username: String, interests: String, bio: String, connections: String, visits: String, mutualsHeader: String, noMutuals: String, visitorsHeader: String, noVisitors: String, activityHeader: String, moments: String, lastActivity: String, convoHeader: String, messages: String, lastInteraction: String, reminderHeader: String, reminder1: String, reminder2: String, reminder3: String, notAvailable: String, convoStart: String)
         switch lang {
         case .es:
-            labels = ("PERFIL DEL USUARIO ACTUAL (NO ES EL CREADOR DE LA APP):", "- Nombre de usuario en la app:", "- Intereses del usuario:", "- Bio del usuario:", "- Conexiones del usuario:", "- Visitas al perfil:", "CONEXIONES MUTUAS:", "No hay conexiones mutuas", "VISITANTES DEL PERFIL:", "No hay visitas registradas", "ACTIVIDAD DEL USUARIO:", "- Momentos publicados:", "- Última actividad:", "CONTEXTO DE ESTA CONVERSACIÓN:", "- Mensajes en la sesión:", "- Última interacción:", "RECORDATORIO CRÍTICO PARA NOVA:", "- El usuario \"\(userData.username)\" es UN USUARIO más de la app", "- Álvaro es el creador de Moments (persona diferente al usuario actual)", "- NO confundas estos roles bajo ninguna circunstancia", "No disponible", "Inicio de conversación")
+            labels = ("PERFIL DEL USUARIO ACTUAL:", "- Nombre de usuario en la app:", "- Intereses del usuario:", "- Bio del usuario:", "- Conexiones del usuario:", "- Visitas al perfil:", "CONEXIONES MUTUAS:", "No hay conexiones mutuas", "VISITANTES DEL PERFIL:", "No hay visitas registradas", "ACTIVIDAD DEL USUARIO:", "- Momentos publicados:", "- Última actividad:", "CONTEXTO DE ESTA CONVERSACIÓN:", "- Mensajes en la sesión:", "- Última interacción:", "RECORDATORIO CRÍTICO PARA NOVA:", "- El usuario \"\(userData.username)\" es la persona con la que estás hablando", "- Usa el nombre preferido si lo conoces", "- No confundas identidad de usuario con información de la app", "No disponible", "Inicio de conversación")
         case .en:
-            labels = ("CURRENT USER PROFILE (NOT THE APP CREATOR):", "- App username:", "- User interests:", "- User bio:", "- User connections:", "- Profile visits:", "MUTUAL CONNECTIONS:", "No mutual connections", "PROFILE VISITORS:", "No recorded visits", "USER ACTIVITY:", "- Moments posted:", "- Last activity:", "CONTEXT OF THIS CONVERSATION:", "- Messages in session:", "- Last interaction:", "CRITICAL REMINDER FOR NOVA:", "- The user \"\(userData.username)\" is a USER of the app", "- Álvaro is the creator of Moments (different person than the current user)", "- Do NOT confuse these roles under any circumstance", "Not available", "Conversation start")
+            labels = ("CURRENT USER PROFILE:", "- App username:", "- User interests:", "- User bio:", "- User connections:", "- Profile visits:", "MUTUAL CONNECTIONS:", "No mutual connections", "PROFILE VISITORS:", "No recorded visits", "USER ACTIVITY:", "- Moments posted:", "- Last activity:", "CONTEXT OF THIS CONVERSATION:", "- Messages in session:", "- Last interaction:", "CRITICAL REMINDER FOR NOVA:", "- The user \"\(userData.username)\" is the person you're talking to", "- Use the preferred display name if you know it", "- Do not confuse user identity with app information", "Not available", "Conversation start")
         case .ca:
-            labels = ("PERFIL DE L'USUARI ACTUAL (NO ÉS EL CREADOR DE L'APP):", "- Nom d'usuari a l'app:", "- Interessos de l'usuari:", "- Bio de l'usuari:", "- Connexions de l'usuari:", "- Visites al perfil:", "CONNEXIONS MÚTUES:", "No hi ha connexions mútues", "VISITANTS DEL PERFIL:", "No hi ha visites registrades", "ACTIVITAT DE L'USUARI:", "- Moments publicats:", "- Última activitat:", "CONTEXT D'AQUESTA CONVERSA:", "- Missatges a la sessió:", "- Última interacció:", "RECORDATORI CRÍTIC PER A NOVA:", "- L'usuari \"\(userData.username)\" és UN USUARI de l'app", "- Álvaro és el creador de Moments (persona diferent de l'usuari actual)", "- NO confonguis aquests rols sota cap circumstància", "No disponible", "Inici de conversa")
+            labels = ("PERFIL DE L'USUARI ACTUAL:", "- Nom d'usuari a l'app:", "- Interessos de l'usuari:", "- Bio de l'usuari:", "- Connexions de l'usuari:", "- Visites al perfil:", "CONNEXIONS MÚTUES:", "No hi ha connexions mútues", "VISITANTS DEL PERFIL:", "No hi ha visites registrades", "ACTIVITAT DE L'USUARI:", "- Moments publicats:", "- Última activitat:", "CONTEXT D'AQUESTA CONVERSA:", "- Missatges a la sessió:", "- Última interacció:", "RECORDATORI CRÍTIC PER A NOVA:", "- L'usuari \"\(userData.username)\" és la persona amb qui estàs parlant", "- Fes servir el nom preferit si el coneixes", "- No confonguis la identitat de l'usuari amb la informació de l'app", "No disponible", "Inici de conversa")
         }
-        
+
         var context = """
         \(labels.profileHeader)
         \(labels.username) \(userData.username)
@@ -4526,27 +4452,27 @@ class GeminiViewModel: ObservableObject {
         \(labels.bio) \(userData.bio ?? labels.notAvailable)
         \(labels.connections) \(mutualConnections.count)
         \(labels.visits) \(profileVisits.count)
-        
+
         \(labels.mutualsHeader)
         \(mutualConnections.isEmpty ? labels.noMutuals : mutualConnections.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-        
+
         \(labels.visitorsHeader)
         \(profileVisits.isEmpty ? labels.noVisitors : profileVisits.prefix(5).map { "- \($0.username)" }.joined(separator: "\n"))
-        
+
         \(labels.activityHeader)
         \(labels.moments) \(recentMoments.count)
         \(labels.lastActivity) \(recentMoments.first?.timestamp.timeAgoDisplay() ?? labels.notAvailable)
-        
+
         \(labels.convoHeader)
         \(labels.messages) \(conversationHistory.count)
         \(labels.lastInteraction) \(conversationHistory.last?.timestamp.timeAgoDisplay() ?? labels.convoStart)
-        
+
         \(labels.reminderHeader)
         \(labels.reminder1)
         \(labels.reminder2)
         \(labels.reminder3)
         """
-        
+
         // Integrar memoria silenciosamente
         if let userMemory = userMemory, !userMemory.isEmpty {
             context += "\n\n" + userMemory.contextString
@@ -4556,99 +4482,32 @@ class GeminiViewModel: ObservableObject {
             case .ca: context += "\n\nIMPORTANT: Fes servir aquesta informació de manera natural, sense esmentar que la 'recordes'."
             }
         }
-        
+
         return context
     }
-    
+
     private func enhanceResponseFormat(_ response: String, for mode: NovaMode) -> String {
-        var enhanced = response
-        
-        // Agregar emojis contextualmente
-        switch mode {
-        case .creativity:
-            if !enhanced.contains("🎨") && !enhanced.contains("💡") {
-                enhanced = "🎨 " + enhanced
+        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedLines = trimmed
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .reduce(into: [String]()) { result, line in
+                if line.isEmpty {
+                    if result.last != "" {
+                        result.append("")
+                    }
+                } else {
+                    result.append(line)
+                }
             }
-        case .productivity:
-            if !enhanced.contains("⚡") && !enhanced.contains("📋") {
-                enhanced = "⚡ " + enhanced
-            }
-        case .social:
-            if !enhanced.contains("🤝") && !enhanced.contains("💬") {
-                enhanced = "🤝 " + enhanced
-            }
-        case .wellness:
-            if !enhanced.contains("🌱") && !enhanced.contains("💚") {
-                enhanced = "🌱 " + enhanced
-            }
-        case .general:
-            if !enhanced.contains("💡") {
-                enhanced = "💡 " + enhanced
-            }
-        }
-        
-        // Mejorar estructura si es necesario
-        if enhanced.count > 200 && !enhanced.contains("##") {
-            enhanced = addStructureToLongResponse(enhanced)
-        }
-        
-        // Agregar call-to-action si no tiene
-        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        let ctaES = "¿Te ayudo con algo más específico sobre este tema?"
-        let ctaEN = "Want help with something more specific about this topic?"
-        let ctaCA = "Vols ajuda amb alguna cosa més específica sobre aquest tema?"
-        let alreadyContainsCTA = enhanced.lowercased().contains("ayudo") || enhanced.lowercased().contains("help") || enhanced.lowercased().contains("ajuda")
-        if !enhanced.contains("?") && !alreadyContainsCTA {
-            switch lang {
-            case .es: enhanced += "\n\n" + ctaES
-            case .en: enhanced += "\n\n" + ctaEN
-            case .ca: enhanced += "\n\n" + ctaCA
-            }
-        }
-        
-        return enhanced
+
+        return normalizedLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    
+
     private func addStructureToLongResponse(_ response: String) -> String {
-        let sentences = response.components(separatedBy: ". ")
-        
-        if sentences.count >= 3 {
-            let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-            var structured: String = {
-                switch lang {
-                case .es: return "## 🎯 Respuesta:\n"
-                case .en: return "## 🎯 Answer:\n"
-                case .ca: return "## 🎯 Resposta:\n"
-                }
-            }()
-            structured += sentences.prefix(2).joined(separator: ". ") + ".\n\n"
-            
-            if sentences.count > 2 {
-                structured += {
-                    switch lang {
-                    case .es: return "## 💡 Detalles adicionales:\n"
-                    case .en: return "## 💡 Additional details:\n"
-                    case .ca: return "## 💡 Detalls addicionals:\n"
-                    }
-                }()
-                let remainingSentences = Array(sentences.dropFirst(2))
-                for (index, sentence) in remainingSentences.enumerated() {
-                    if !sentence.trimmingCharacters(in: .whitespaces).isEmpty {
-                        structured += "• \(sentence.trimmingCharacters(in: .whitespaces))"
-                        if !sentence.hasSuffix(".") {
-                            structured += "."
-                        }
-                        structured += "\n"
-                    }
-                }
-            }
-            
-            return structured
-        }
-        
         return response
     }
-    
+
     private func titleForDetectedMode(_ mode: NovaMode) -> String {
         switch mode {
         case .creativity: return "Creatividad"
@@ -4658,11 +4517,11 @@ class GeminiViewModel: ObservableObject {
         case .general: return "General"
         }
     }
-    
+
     private func getCurrentTimeContext() -> String {
         let now = Date()
         let calendar = Calendar.current
-        
+
         // 🕐 Hora del día
         let hour = calendar.component(.hour, from: now)
         let timeOfDay: String
@@ -4672,27 +4531,27 @@ class GeminiViewModel: ObservableObject {
         case 18..<22: timeOfDay = "Noche"
         default: timeOfDay = "Madrugada"
         }
-        
+
         // 📅 Día del mes
         let day = calendar.component(.day, from: now)
-        
+
         // 🌸 Mes
         let month = calendar.component(.month, from: now)
         let monthName = getMonthName(month)
-        
+
         // 📅 Año
         let year = calendar.component(.year, from: now)
-        
+
         // 🌟 Día de la semana
         let weekday = calendar.component(.weekday, from: now)
         let weekdayName = getWeekdayName(weekday)
-        
+
         // 🌞 Estación
         let season = getSeason(month: month, day: day)
-        
+
         return "\(timeOfDay) del \(weekdayName) \(day) de \(monthName) de \(year) (\(season))"
     }
-    
+
     // 🌸 Obtener nombre del mes
     private func getMonthName(_ month: Int) -> String {
         let months = [
@@ -4702,7 +4561,7 @@ class GeminiViewModel: ObservableObject {
         ]
         return months[month] ?? "Mes"
     }
-    
+
     // 🌟 Obtener nombre del día de la semana
     private func getWeekdayName(_ weekday: Int) -> String {
         let weekdays = [
@@ -4711,7 +4570,7 @@ class GeminiViewModel: ObservableObject {
         ]
         return weekdays[weekday] ?? "Día"
     }
-    
+
     // 🌞 Obtener estación del año (CORREGIDO CON FECHAS EXACTAS)
     private func getSeason(month: Int, day: Int) -> String {
         // ✅ LÓGICA CORRECTA: Fechas exactas de cambio de estaciones
@@ -4736,22 +4595,22 @@ class GeminiViewModel: ObservableObject {
             return "Estación"
         }
     }
-    
+
     private func calculateProfileCompleteness(_ userData: AppUser) -> Int {
         var completeness = 0
-        
+
         if !userData.username.isEmpty { completeness += 20 }
         if let bio = userData.bio, !bio.isEmpty { completeness += 25 }
         if !userData.interests.isEmpty { completeness += 25 }
         if recentMoments.count > 0 { completeness += 15 }
         if mutualConnections.count > 0 { completeness += 15 }
-        
+
         return completeness
     }
-    
+
     private func getProfileStrengths(_ userData: AppUser) -> String {
         var strengths: [String] = []
-        
+
         if !userData.interests.isEmpty {
             strengths.append("• Tienes intereses definidos (\(userData.interests.count) temas)")
         }
@@ -4764,13 +4623,13 @@ class GeminiViewModel: ObservableObject {
         if mutualConnections.count > 5 {
             strengths.append("• Buena red de conexiones (\(mutualConnections.count) contactos)")
         }
-        
+
         return strengths.isEmpty ? "• Perfil en construcción - ¡gran potencial!" : strengths.joined(separator: "\n")
     }
-    
+
     private func getProfileImprovements(_ userData: AppUser) -> String {
         var improvements: [String] = []
-        
+
         if userData.interests.count < 3 {
             improvements.append("• Añadir más intereses para mejores conexiones")
         }
@@ -4783,13 +4642,13 @@ class GeminiViewModel: ObservableObject {
         if mutualConnections.count < 5 {
             improvements.append("• Expandir tu red de conexiones")
         }
-        
+
         return improvements.isEmpty ? "• ¡Tu perfil está muy completo!" : improvements.joined(separator: "\n")
     }
-    
+
     private func getPersonalizedRecommendations(_ userData: AppUser) -> String {
         var recommendations: [String] = []
-        
+
         if userData.interests.contains("tecnología") {
             recommendations.append("• Comparte tus proyectos tech y herramientas favoritas")
         }
@@ -4799,17 +4658,17 @@ class GeminiViewModel: ObservableObject {
         if userData.interests.contains("arte") {
             recommendations.append("• Muestra tu proceso creativo y obras")
         }
-        
+
         // Recomendaciones generales
         recommendations.append("• Interactúa más con usuarios de intereses similares")
         recommendations.append("• Publica contenido que genere conversación")
-        
+
         return recommendations.joined(separator: "\n")
     }
-    
+
     private func generateContentSuggestions(based interests: [String]) -> String {
         var suggestions: [String] = []
-        
+
         // Sugerencias basadas en intereses
         for interest in interests.prefix(2) {
             switch interest.lowercased() {
@@ -4830,11 +4689,11 @@ class GeminiViewModel: ObservableObject {
                 suggestions.append("• \"Consejo sobre \(interest) que me hubiera gustado saber antes\"")
             }
         }
-        
+
         // Sugerencias generales
         suggestions.append("• \"Una lección importante que aprendí recientemente\"")
         suggestions.append("• \"Pregunta abierta sobre un tema que te apasiona\"")
-        
+
         return suggestions.joined(separator: "\n")
     }
 }
@@ -4848,7 +4707,7 @@ struct LogConfig {
         return false
         #endif
     }()
-    
+
     static func log(_ message: String, category: String = "Nova") {
         if isVerboseLogging {
             print("[\(category)] \(message)")
@@ -4877,20 +4736,20 @@ extension GeminiViewModel {
         guard let memory = userMemory else { return false }
         return !memory.facts.isEmpty
     }
-    
+
     func clearMemoryContext() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         userMemory = NovaMemory(userId: userId)
-        
+
         // Cancelar cualquier procesamiento pendiente
         memoryProcessingTimer?.invalidate()
         lastMemoryProcessTime = nil
     }
-    
+
     // 🎯 NUEVA: Manejar comandos de personalización
     private func handlePersonalizationCommand(_ command: PersonalizationCommand, userId: String) {
         LogConfig.log("🎭 Procesando comando de personalización: \(command.description)", category: "Personalization")
-        
+
         switch command {
         case .setPreferredName(let name):
             let nameFact = NovaFact(
@@ -4898,11 +4757,11 @@ extension GeminiViewModel {
                 type: .preference,
                 importance: 5
             )
-            
+
             if let currentMemory = userMemory {
                 let updatedMemory = currentMemory.addingFacts([nameFact])
                 userMemory = updatedMemory
-                
+
                 memoryService.saveMemory(updatedMemory) { result in
                     switch result {
                     case .success:
@@ -4912,23 +4771,23 @@ extension GeminiViewModel {
                     }
                 }
             }
-            
+
             responseText = "¡Perfecto! A partir de ahora te llamaré \(name) 😊"
-            
+
         case .setCommunicationStyle(let style):
             let styleFact = NovaFact(
                 content: "Prefiere comunicación \(style.description.lowercased())",
                 type: .preference,
                 importance: 4
             )
-            
+
             if let currentMemory = userMemory {
                 let updatedMemory = currentMemory.addingFacts([styleFact])
                 userMemory = updatedMemory
-                
+
                 memoryService.saveMemory(updatedMemory) { _ in }
             }
-            
+
             let userName = userMemory?.preferredName ?? userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name")
             switch style {
             case .formal:
@@ -4950,11 +4809,11 @@ extension GeminiViewModel {
                 }
             }()
         }
-        
+
         let userMessage = ChatMessage(text: inputText, isUser: true)
         conversationHistory.append(userMessage)
         conversationHistory.append(ChatMessage(text: responseText, isUser: false))
-        
+
         inputText = ""
         Task {
             await saveCurrentConversation()
