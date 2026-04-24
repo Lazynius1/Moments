@@ -237,8 +237,10 @@ struct SettingsView: View {
             .sheet(isPresented: $isShowingAdvancedAccountManagement) {
                 AdvancedAccountManagementView()
             }
-            .fullScreenCover(isPresented: $isShowingNovaMemory) {
+            .sheet(isPresented: $isShowingNovaMemory) {
                 NovaMemoryManagementView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .navigationViewStyle(StackNavigationViewStyle()) // Forzar navegación por stack
     }

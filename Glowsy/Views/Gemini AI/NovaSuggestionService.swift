@@ -49,9 +49,12 @@ class NovaSuggestionService {
             }
             
             // 7. Ordenar por prioridad y tomar las mejores
-            let sortedSuggestions = suggestions
+            let sortedSuggestions = Array(
+                Dictionary(grouping: suggestions, by: \.text)
+                    .compactMap { $0.value.max(by: { $0.priority < $1.priority }) }
+            )
                 .sorted { $0.priority > $1.priority }
-                .prefix(6)
+                .prefix(4)
             
             await MainActor.run {
                 completion(Array(sortedSuggestions))
@@ -231,14 +234,14 @@ class NovaSuggestionService {
                 icon: "sparkles",
                 priority: 3,
                 category: .general,
-                action: "Dame ideas para crear contenido viral"
+                action: "Dame ideas para compartir algo hoy en Moments"
             ),
             DynamicSuggestion(
                 text: getLocalizedText(key: "suggestions.organizeDay", lang: lang),
-                icon: "clock.fill",
+                icon: "person.2.fill",
                 priority: 2,
                 category: .general,
-                action: "Ayúdame a organizar mi día productivo"
+                action: "¿Con qué audiencia encajaría mejor lo que quiero compartir?"
             )
         ]
     }
@@ -274,62 +277,62 @@ class NovaSuggestionService {
         switch lang {
         case .es:
             switch key {
-            case "suggestions.boostProfile": return "Impulsa tu perfil"
-            case "suggestions.boostEngagement": return "Mejora el engagement"
-            case "suggestions.createMoreContent": return "Crea más contenido"
-            case "suggestions.improveStories": return "Mejora tus stories"
-            case "suggestions.celebrateGrowth": return "Celebra tu crecimiento"
-            case "suggestions.createStoryChain": return "Crea un Story Chain"
-            case "suggestions.shareMore": return "Comparte más"
+            case "suggestions.boostProfile": return "Mejorar mi perfil"
+            case "suggestions.boostEngagement": return "Qué publicar ahora"
+            case "suggestions.createMoreContent": return "Ideas para un momento"
+            case "suggestions.improveStories": return "Ideas para una story"
+            case "suggestions.celebrateGrowth": return "Ver cómo voy"
+            case "suggestions.createStoryChain": return "Crear una cadena"
+            case "suggestions.shareMore": return "Llegar a más gente"
             case "suggestions.contentAbout": return "Contenido sobre %@"
-            case "suggestions.professionalTips": return "Consejos profesionales"
-            case "suggestions.morningBoost": return "Impulso matutino"
-            case "suggestions.afternoonContent": return "Contenido de tarde"
-            case "suggestions.eveningEngagement": return "Engagement nocturno"
-            case "suggestions.weekendPlanning": return "Planifica el fin de semana"
+            case "suggestions.professionalTips": return "Pulir una idea"
+            case "suggestions.morningBoost": return "Ideas para empezar"
+            case "suggestions.afternoonContent": return "Algo para esta tarde"
+            case "suggestions.eveningEngagement": return "Qué publicar esta noche"
+            case "suggestions.weekendPlanning": return "Ideas para el finde"
             case "suggestions.weeklySummary": return "Resumen semanal"
-            case "suggestions.contentIdeas": return "Ideas de contenido"
-            case "suggestions.organizeDay": return "Organiza tu día"
+            case "suggestions.contentIdeas": return "Ideas para hoy"
+            case "suggestions.organizeDay": return "Elegir audiencia"
             default: return ""
             }
         case .en:
             switch key {
-            case "suggestions.boostProfile": return "Boost your profile"
-            case "suggestions.boostEngagement": return "Improve engagement"
-            case "suggestions.createMoreContent": return "Create more content"
-            case "suggestions.improveStories": return "Improve your stories"
-            case "suggestions.celebrateGrowth": return "Celebrate your growth"
-            case "suggestions.createStoryChain": return "Create a Story Chain"
-            case "suggestions.shareMore": return "Share more"
+            case "suggestions.boostProfile": return "Improve my profile"
+            case "suggestions.boostEngagement": return "What to post now"
+            case "suggestions.createMoreContent": return "Moment ideas"
+            case "suggestions.improveStories": return "Story ideas"
+            case "suggestions.celebrateGrowth": return "See how I'm doing"
+            case "suggestions.createStoryChain": return "Create a chain"
+            case "suggestions.shareMore": return "Reach more people"
             case "suggestions.contentAbout": return "Content about %@"
-            case "suggestions.professionalTips": return "Professional tips"
-            case "suggestions.morningBoost": return "Morning boost"
-            case "suggestions.afternoonContent": return "Afternoon content"
-            case "suggestions.eveningEngagement": return "Evening engagement"
-            case "suggestions.weekendPlanning": return "Plan your weekend"
+            case "suggestions.professionalTips": return "Polish an idea"
+            case "suggestions.morningBoost": return "Ideas to start"
+            case "suggestions.afternoonContent": return "Something for later"
+            case "suggestions.eveningEngagement": return "What to post tonight"
+            case "suggestions.weekendPlanning": return "Weekend ideas"
             case "suggestions.weeklySummary": return "Weekly summary"
-            case "suggestions.contentIdeas": return "Content ideas"
-            case "suggestions.organizeDay": return "Organize your day"
+            case "suggestions.contentIdeas": return "Ideas for today"
+            case "suggestions.organizeDay": return "Choose audience"
             default: return ""
             }
         case .ca:
             switch key {
-            case "suggestions.boostProfile": return "Impulsa el teu perfil"
-            case "suggestions.boostEngagement": return "Millora l'engagement"
-            case "suggestions.createMoreContent": return "Crea més contingut"
-            case "suggestions.improveStories": return "Millora les teves històries"
-            case "suggestions.celebrateGrowth": return "Celebra el teu creixement"
-            case "suggestions.createStoryChain": return "Crea una Story Chain"
-            case "suggestions.shareMore": return "Comparteix més"
+            case "suggestions.boostProfile": return "Millorar el meu perfil"
+            case "suggestions.boostEngagement": return "Què publicar ara"
+            case "suggestions.createMoreContent": return "Idees per a un moment"
+            case "suggestions.improveStories": return "Idees per a una història"
+            case "suggestions.celebrateGrowth": return "Veure com vaig"
+            case "suggestions.createStoryChain": return "Crear una cadena"
+            case "suggestions.shareMore": return "Arribar a més gent"
             case "suggestions.contentAbout": return "Contingut sobre %@"
-            case "suggestions.professionalTips": return "Consells professionals"
-            case "suggestions.morningBoost": return "Impuls matutí"
-            case "suggestions.afternoonContent": return "Contingut de tarda"
-            case "suggestions.eveningEngagement": return "Engagement nocturn"
-            case "suggestions.weekendPlanning": return "Planifica el cap de setmana"
+            case "suggestions.professionalTips": return "Polir una idea"
+            case "suggestions.morningBoost": return "Idees per començar"
+            case "suggestions.afternoonContent": return "Alguna cosa per la tarda"
+            case "suggestions.eveningEngagement": return "Què publicar aquesta nit"
+            case "suggestions.weekendPlanning": return "Idees pel cap de setmana"
             case "suggestions.weeklySummary": return "Resum setmanal"
-            case "suggestions.contentIdeas": return "Idees de contingut"
-            case "suggestions.organizeDay": return "Organitza el teu dia"
+            case "suggestions.contentIdeas": return "Idees per avui"
+            case "suggestions.organizeDay": return "Triar audiència"
             default: return ""
             }
         }
@@ -353,4 +356,3 @@ struct DynamicSuggestion: Identifiable {
         case general
     }
 }
-
