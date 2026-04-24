@@ -296,17 +296,25 @@ struct NovaMemory: Identifiable {
         )
     }
     
-    /// Reemplaza un hecho existente o actualiza su contenido
+    /// Reemplaza un hecho existente conservando sus metadatos semánticos.
     func replacingFact(withId id: String, withNewContent content: String) -> NovaMemory {
+        updatingFact(withId: id, content: content)
+    }
+
+    /// Actualiza un hecho existente conservando embeddings y trazabilidad.
+    func updatingFact(withId id: String, content: String? = nil, importance: Int? = nil) -> NovaMemory {
         let updatedFacts = facts.map { fact in
             if fact.id == id {
+                let resolvedContent = content ?? fact.content
                 return NovaFact(
                     id: fact.id,
-                    content: content,
+                    content: resolvedContent,
                     type: fact.type,
                     timestamp: fact.timestamp,
-                    importance: fact.importance,
-                    lastVerified: Date()
+                    importance: importance ?? fact.importance,
+                    lastVerified: Date(),
+                    lastProbedAt: fact.lastProbedAt,
+                    embedding: resolvedContent == fact.content ? fact.embedding : nil
                 )
             }
             return fact

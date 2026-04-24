@@ -27,6 +27,12 @@ private extension Moment {
     }
 }
 
+private struct FeedProfileSheetRoute: Identifiable {
+    let userId: String
+
+    var id: String { userId }
+}
+
 struct FeedView: View {
     private typealias StoryUserState = (userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])
 
@@ -57,8 +63,8 @@ struct FeedView: View {
     @State private var showingLocationMap = false
     @State private var selectedLocationName: String = ""
     @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
-    @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
+    @State private var selectedProfileRoute: FeedProfileSheetRoute?
     // 🔗 STORY CHAINS: Variables para navegación
     @State private var showStoryChain = false
     @State private var selectedChainId: String = ""
@@ -108,7 +114,7 @@ struct FeedView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    private var feedHeaderHeight: CGFloat { 76 }
+    private var feedHeaderHeight: CGFloat { 88 }
     private var feedSelectorHeight: CGFloat { 35 }
     private var floatingSelectorTopInset: CGFloat { isFeedHeaderHidden ? 18 : feedHeaderHeight }
     private var feedContentTopInset: CGFloat { floatingSelectorTopInset + feedSelectorHeight + 25 }
@@ -424,14 +430,7 @@ struct FeedView: View {
         // ✅ RESTAURADO: Listener para navegación a perfil interna
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfileInFeed"))) { notification in
             if let userId = notification.object as? String, !userId.isEmpty {
-                selectedUserId = userId
-                showUserProfile = true
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfileInFeed"))) { notification in
-            if let userId = notification.object as? String, !userId.isEmpty {
-                selectedUserId = userId
-                showUserProfile = true
+                openUserProfile(userId)
             }
         }
         // 🔗 STORY CHAINS: Listener para navegación a cadenas
@@ -449,10 +448,12 @@ struct FeedView: View {
 
         }
         .environmentObject(firestoreService)
-            .sheet(isPresented: $showUserProfile) {
-                if !selectedUserId.isEmpty {
-                    UserProfileView(userId: selectedUserId)
-                }
+            .sheet(item: $selectedProfileRoute, onDismiss: {
+                selectedUserId = ""
+                selectedProfileRoute = nil
+            }) {
+                UserProfileView(userId: $0.userId)
+                    .id($0.userId)
             }
             // 🌊 ECHOES: Sheet para invitación pendiente
             .sheet(isPresented: $showPendingEchoInvitation) {
@@ -614,6 +615,14 @@ struct FeedView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pendingEchoes.count)
         .zIndex(998)
     }
+
+    private func openUserProfile(_ userId: String) {
+        let trimmedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedUserId.isEmpty else { return }
+
+        selectedUserId = trimmedUserId
+        selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
+    }
     
     // ✅ Header moderno
     private var modernHeaderView: some View {
@@ -668,6 +677,7 @@ struct FeedView: View {
                             ForEach(storyUsers.dropFirst(), id: \.userId) { storyUser in
                                 RealStoryCircle(
                                     userId: storyUser.userId,
+                                    fallbackUsername: "",
                                     hasStory: storyUser.hasStory,
                                     hasUnseenStory: storyUser.hasUnseenStory,
                                     storyCount: storyUser.storyCount,
@@ -688,7 +698,7 @@ struct FeedView: View {
                             }
                         }
                         .padding(.leading, 12)
-                        .padding(.trailing, 0)
+                        .padding(.trailing, 4)
                     }
                 }
                 
@@ -841,8 +851,7 @@ struct FeedView: View {
                                         },
                                         onTagTap: { userId in
                                             // ✅ Tag Navigation
-                                            selectedUserId = userId
-                                            showUserProfile = true
+                                            openUserProfile(userId)
                                         },
                                         onPeek: { imageURL, ratio, isPressing in
                                             // ✅ PREFETCHING POR INTENCIÓN (ESTRATEGIA 3)
@@ -959,6 +968,7 @@ struct FeedView: View {
     // MARK: - Componentes de Stories (mantener igual)
     struct RealStoryCircle: View {
         let userId: String
+        let fallbackUsername: String
         let hasStory: Bool
         let hasUnseenStory: Bool
         let storyCount: Int
@@ -969,29 +979,43 @@ struct FeedView: View {
         let action: () -> Void
         
         var body: some View {
-            Button(action: action) {
-                ZStack {
-                    AsyncProfileImageView(userId: userId)
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                        .overlay(
-                            StorySegmentedRing(
-                                storyCount: storyCount,
-                                hasStory: hasStory,
-                                hasUnseenStory: hasUnseenStory,
-                                storyViewedStatus: storyViewedStatus,
-                                storyAudiences: storyAudiences,
-                                isOwnStory: isOwnStory,
-                                colorScheme: colorScheme,
-                                ringSize: 50,
-                                lineWidth: 3.0, // ✅ Grosor ligeramente mayor para Tier 1
-                                hapticsEnabled: true
+            VStack(spacing: 3) {
+                Button(action: action) {
+                    ZStack {
+                        AsyncProfileImageView(userId: userId)
+                            .frame(width: 50, height: 50)
+                            .clipShape(Circle())
+                            .overlay(
+                                StorySegmentedRing(
+                                    storyCount: storyCount,
+                                    hasStory: hasStory,
+                                    hasUnseenStory: hasUnseenStory,
+                                    storyViewedStatus: storyViewedStatus,
+                                    storyAudiences: storyAudiences,
+                                    isOwnStory: isOwnStory,
+                                    colorScheme: colorScheme,
+                                    ringSize: 50,
+                                    lineWidth: 3.0, // ✅ Grosor ligeramente mayor para Tier 1
+                                    hapticsEnabled: true
+                                )
                             )
-                        )
+                    }
+                    .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
+                    .padding(2) // ✅ Margen de seguridad
                 }
-                .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
-                .padding(2) // ✅ Margen de seguridad
+                .buttonStyle(.plain)
+
+                LiveUsernameContent(userId: userId, fallbackUsername: fallbackUsername) { username in
+                    Text(username)
+                        .font(.custom("Poppins-Medium", size: 10))
+                        .foregroundColor(Color.primary.opacity(0.76))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.75)
+                        .frame(width: 64)
+                }
             }
+            .frame(width: 64)
         }
     }
     
@@ -1012,75 +1036,89 @@ struct FeedView: View {
         private var adaptiveColors: AdaptiveColors {
             AdaptiveColors(colorScheme: colorScheme)
         }
+
+        private var labelText: String {
+            NSLocalizedString("stories.yourStory", comment: "Your story label")
+        }
         
         var body: some View {
-            Button(action: {
-                // Si hay upload en progreso y falló, reintentar
-                if let uploadingStory = storyUploadService.uploadingStory,
-                   uploadingStory.status == .failed {
-                    storyUploadService.retryUpload(uploadingStory)
-                } else {
-                    // ✅ SIMPLE: Siempre ejecutar la acción que se pasa
-                    action()
-                }
-            }) {
-                ZStack {
-                    // Imagen de perfil del usuario actual
-                    AsyncProfileImageView(userId: Auth.auth().currentUser?.uid ?? "")
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                        .overlay(
-                            StorySegmentedRing(
-                                storyCount: storyCount,
-                                hasStory: hasStory,
-                                hasUnseenStory: false, // Tu propia historia siempre está vista
-                                storyViewedStatus: Array(repeating: true, count: storyCount), // ✅ Todas las historias propias están "vistas"
-                                storyAudiences: storyAudiences,
-                                isOwnStory: true, // ✅ Es tu propia historia
-                                colorScheme: colorScheme,
-                                ringSize: 50,
-                                lineWidth: 3.0, // ✅ Consistente con RealStoryCircle
-                                hapticsEnabled: true
-                            )
-                        )
-                    
-                    // 🔥 PROGRESO DE UPLOAD si hay historia subiendo
-                    if let uploadingStory = storyUploadService.uploadingStory {
-                        Circle()
-                            .trim(from: 0, to: uploadingStory.uploadProgress)
-                            .stroke(
-                                LinearGradient(
-                                    colors: progressColors(for: uploadingStory.status),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                            )
-                            .frame(width: 54, height: 54)
-                            .rotationEffect(.degrees(-90))
-                            .animation(.easeInOut(duration: 0.3), value: uploadingStory.uploadProgress)
-                        
-                        // Overlay de estado
-                        Circle()
-                            .fill((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).opacity(0.4))
-                            .frame(width: 50, height: 50)
-                        
-                        // Icono de estado
-                        statusIcon(for: uploadingStory.status)
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
-                            .onChange(of: uploadingStory.status) { oldStatus, newStatus in
-                                if newStatus == .completed {
-                                    // ✅ Haptic Tier 1 al completar la subida
-                                    StorySegmentedRing.triggerHaptic()
-                                }
-                            }
-                            
+            VStack(spacing: 3) {
+                Button(action: {
+                    // Si hay upload en progreso y falló, reintentar
+                    if let uploadingStory = storyUploadService.uploadingStory,
+                       uploadingStory.status == .failed {
+                        storyUploadService.retryUpload(uploadingStory)
+                    } else {
+                        // ✅ SIMPLE: Siempre ejecutar la acción que se pasa
+                        action()
                     }
+                }) {
+                    ZStack {
+                        // Imagen de perfil del usuario actual
+                        AsyncProfileImageView(userId: Auth.auth().currentUser?.uid ?? "")
+                            .frame(width: 50, height: 50)
+                            .clipShape(Circle())
+                            .overlay(
+                                StorySegmentedRing(
+                                    storyCount: storyCount,
+                                    hasStory: hasStory,
+                                    hasUnseenStory: false, // Tu propia historia siempre está vista
+                                    storyViewedStatus: Array(repeating: true, count: storyCount), // ✅ Todas las historias propias están "vistas"
+                                    storyAudiences: storyAudiences,
+                                    isOwnStory: true, // ✅ Es tu propia historia
+                                    colorScheme: colorScheme,
+                                    ringSize: 50,
+                                    lineWidth: 3.0, // ✅ Consistente con RealStoryCircle
+                                    hapticsEnabled: true
+                                )
+                            )
+
+                        // 🔥 PROGRESO DE UPLOAD si hay historia subiendo
+                        if let uploadingStory = storyUploadService.uploadingStory {
+                            Circle()
+                                .trim(from: 0, to: uploadingStory.uploadProgress)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: progressColors(for: uploadingStory.status),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                                )
+                                .frame(width: 54, height: 54)
+                                .rotationEffect(.degrees(-90))
+                                .animation(.easeInOut(duration: 0.3), value: uploadingStory.uploadProgress)
+
+                            // Overlay de estado
+                            Circle()
+                                .fill((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).opacity(0.4))
+                                .frame(width: 50, height: 50)
+
+                            // Icono de estado
+                            statusIcon(for: uploadingStory.status)
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                                .onChange(of: uploadingStory.status) { oldStatus, newStatus in
+                                    if newStatus == .completed {
+                                        // ✅ Haptic Tier 1 al completar la subida
+                                        StorySegmentedRing.triggerHaptic()
+                                    }
+                                }
+                        }
+                    }
+                    .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
+                    .padding(2) // ✅ Margen de seguridad
                 }
-                .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
-                .padding(2) // ✅ Margen de seguridad
+                .buttonStyle(.plain)
+
+                Text(labelText)
+                    .font(.custom("Poppins-Medium", size: 10))
+                    .foregroundColor(Color.primary.opacity(0.76))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(width: 64)
             }
+            .frame(width: 64)
             .scaleEffect(storyUploadService.uploadingStory?.status == .failed ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: storyUploadService.uploadingStory?.status)
         }

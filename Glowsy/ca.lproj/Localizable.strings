@@ -268,6 +268,13 @@
 "nova.memory.section.professional" = "Feina/Estudis";
 "nova.memory.section.interest" = "Interessos";
 "nova.memory.section.general" = "General";
+"nova.memory.edit.title" = "Editar record";
+"nova.memory.edit.placeholder" = "Què hauria de recordar la Nova...";
+"nova.memory.edit.message" = "Ajusta aquest record perquè la Nova el pugui fer servir millor.";
+"nova.memory.edit.save" = "Desar";
+"nova.memory.edit.action" = "Editar";
+"nova.memory.markImportant" = "Marcar com a important";
+"nova.memory.unmarkImportant" = "Treure d'importants";
 "feed.empty.following.description" = "Segueix a més usuaris per veure els seus moments aquí";
 "feed.empty.foryou.title" = "Descobreix Moments";
 "feed.empty.foryou.description" = "T'ensenyarem contingut basat en els teus interessos quan estigui disponible";
@@ -342,6 +349,7 @@
 "stories.photo" = "Foto";
 "stories.video" = "Vídeo";
 "stories.myStory" = "La meva història";
+"stories.yourStory" = "La teva història";
 "stories.options" = "Opcions";
 "stories.noInteractions" = "L'autor no permet interaccions";
 "stories.contentUnavailable" = "Contingut no disponible";
