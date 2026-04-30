@@ -253,7 +253,7 @@
 "feed.seeMore" = "veure més";
 "feed.seeLess" = "veure menys";
 "feed.loadingMoment" = "Carregant moment...";
-"feed.empty.following.title" = "El teu feed està buit";
+"feed.empty.following.title" = "Encara no hi ha moments";
 
 /* Nova Memory */
 "nova.memory.title" = "Memòria de Nova";
@@ -275,9 +275,10 @@
 "nova.memory.edit.action" = "Editar";
 "nova.memory.markImportant" = "Marcar com a important";
 "nova.memory.unmarkImportant" = "Treure d'importants";
-"feed.empty.following.description" = "Segueix a més usuaris per veure els seus moments aquí";
-"feed.empty.foryou.title" = "Descobreix Moments";
-"feed.empty.foryou.description" = "T'ensenyarem contingut basat en els teus interessos quan estigui disponible";
+"feed.empty.following.description" = "Quan les persones que segueixes publiquin, els seus moments apareixeran aquí.";
+"feed.empty.foryou.title" = "Res de nou per ara";
+"feed.empty.foryou.description" = "Torna més tard o explora moments recents de la comunitat.";
+"feed.empty.action.findPeople" = "Buscar persones";
 "feed.empty.action.create" = "Crear el meu primer Moment";
 "feed.empty.action.explore" = "Explorar Tendències";
 
@@ -295,6 +296,8 @@
 "feed.uploading.available" = "El teu moment ja està disponible!";
 "feed.uploading.error" = "Error al pujar";
 "feed.uploading.uploading" = "Pujant fitxers...";
+"feed.follow.request" = "Sol·licitar";
+"feed.follow.requested" = "Sol·licitat";
 
 /* Feed Loading */
 "feed.loading.moreContent" = "Error carregant més contingut";
@@ -541,7 +544,7 @@
 "settings.advanced.title" = "Ajustos avançats";
 "settings.dangerZone.title" = "Zona de perill";
 "settings.dangerZone.warning" = "Les següents accions són irreversibles o requereixen confirmació especial. Úsalas amb precaució.";
-"settings.info.title" = "ℹ️ Informació important";
+"settings.info.title" = "Informació important";
 "settings.info.deactivate" = "• Desactivar: El teu perfil s'amaga però les teves dades es conserven";
 "settings.info.delete" = "• Eliminar: Es suprimeixen totes les dades permanentment";
 "settings.info.reactivate" = "• Pots reactivar un compte desactivat en qualsevol moment";
@@ -637,13 +640,21 @@
 "login.apple.error.nonce" = "Error de seguretat (nonce)";
 "login.apple.error.noToken" = "No s'ha pogut obtenir el token d'Apple";
 "login.apple.error.invalidToken" = "Token d'Apple no vàlid";
+"login.apple.error.generic" = "No s'ha pogut iniciar sessió amb Apple. Torna-ho a provar.";
 "login.forgotPassword" = "Has oblidat la teva contrasenya?";
 "login.noAccount" = "No tens compte?";
 "login.register" = "Registra't";
 "login.usernameOrEmail" = "Usuari o correu";
+"login.email" = "Correu";
 "login.password" = "Contrasenya";
+"login.password.show" = "Mostrar contrasenya";
+"login.password.hide" = "Amagar contrasenya";
 "login.signIn" = "Iniciar sessió";
 "login.or" = "o";
+"login.orContinue" = "o continua amb";
+"login.close" = "Tancar";
+"login.hero.title" = "La teva gent, els teus moments";
+"login.hero.subtitle" = "Entra per compartir, descobrir i seguir el que importa sense soroll.";
 "login.disclaimer.line1" = "Aquesta app l'ha feta una sola persona, així que encara hi pot haver errors o coses per polir.";
 "login.disclaimer.line2.prefix" = "Si hi veus res estrany o necessites ajuda, em pots escriure pel perfil de ";
 "login.disclaimer.line2.middle" = " o ";
@@ -681,6 +692,7 @@
 "register.password" = "Contrasenya";
 "register.password.requirement" = "Mínim 8 caràcters";
 "register.error.usernameFormat" = "3-20 caràcters, només lletres, números, _ o .";
+"register.error.usernameTooShort" = "Mínim 3 caràcters";
 "register.profilePhoto.optional" = "Opcional: Afegeix una foto de perfil";
 "register.profilePhoto.add" = "Afegir foto";
 "register.interests.title" = "Tria els teus interessos";
@@ -702,6 +714,13 @@
 "register.terms.accept" = "Accepto les ";
 "register.terms.privacyPolicy" = "Polítiques de Privadesa";
 "register.verification.notice" = "En crear el teu compte, rebràs un correu de verificació";
+"register.completeProfile.title" = "Completa el teu perfil";
+"register.completeProfile.step1" = "Tria com et veuran els altres";
+"register.completeProfile.step2" = "Què t'agrada? Explica'ns-ho per suggerir-te contingut";
+"register.completeProfile.step3" = "Últim pas abans d'entrar";
+"register.completeProfile.finish" = "Començar ara";
+"register.completeProfile.appleAccount" = "Compte d'Apple";
+"register.close" = "Tancar registre";
 
 /* Splash */
 "splash.loading" = "Carregant...";
@@ -1188,6 +1207,8 @@
 "momentDetail.noComments.description" = "Sigues el primer a compartir la teva opinió";
 "momentDetail.viewRemainingComments" = "Veure els %d comentaris restants";
 "momentDetail.viewAll" = "Veure tots";
+"momentDetail.showMore" = "Veure més";
+"momentDetail.showLess" = "Veure menys";
 "momentDetail.comment" = "Comentar";
 "momentDetail.loading" = "Carregant moment...";
 "momentDetail.loadingTime" = "Un segon si us plau";
@@ -1287,10 +1308,10 @@
 "accountManagement.deleting" = "Eliminant...";
 "accountManagement.permanentDeletion" = "ELIMINACIÓ PERMANENT";
 "accountManagement.irreversible" = "Aquesta acció és irreversible";
-"accountManagement.willBeDeleted" = "El següent serà eliminat:";
+"accountManagement.willBeDeleted" = "El següent s'eliminarà o es desvincularà:";
 "accountManagement.profileInfo" = "El teu perfil i informació personal";
 "accountManagement.storiesMoments" = "Totes les teves històries i moments";
-"accountManagement.conversations" = "Converses i missatges";
+"accountManagement.conversations" = "El teu perfil actiu a les converses";
 "accountManagement.connections" = "Connexions i seguidors";
 "accountManagement.notifications" = "Notificacions i configuracions";
 "accountManagement.savedContent" = "Arxiu i contingut guardat";
@@ -1521,6 +1542,33 @@
 "userProfile.followButton.canFollow" = "Seguir";
 "userProfile.followButton.canRequestFollow" = "Sol·licitar seguiment";
 "userProfile.followButton.requestPending" = "Sol·licitud enviada";
+"userProfile.unfollow.confirm.title" = "Deixar de seguir?";
+"userProfile.unfollow.confirm.message" = "Pots tornar a seguir aquest perfil quan vulguis.";
+"userProfile.unfollow.confirm.action" = "Deixar de seguir";
+"userProfile.relationship.sheet.title" = "Seguint %@";
+"userProfile.relationship.sheet.subtitle" = "Controla com apareixen els seus moments per a tu.";
+"userProfile.relationship.bestFriends" = "Millors amics";
+"userProfile.relationship.bestFriends.add" = "Afegir a millors amics";
+"userProfile.relationship.bestFriends.remove" = "Treure de millors amics";
+"userProfile.relationship.bestFriends.subtitle" = "Guarda aquest perfil al teu cercle més proper.";
+"userProfile.relationship.bestFriends.add.subtitle" = "Guarda aquest perfil al teu cercle més proper.";
+"userProfile.relationship.bestFriends.remove.subtitle" = "Toca per treure aquest perfil de millors amics.";
+"userProfile.relationship.mutual" = "Us seguiu";
+"userProfile.relationship.muted" = "Silenciat";
+"userProfile.relationship.mute.enable" = "Silenciar";
+"userProfile.relationship.mute.disable" = "Activar moments";
+"userProfile.relationship.mute.enabled.subtitle" = "No veuràs els seus moments a l'inici.";
+"userProfile.relationship.mute.disabled.subtitle" = "Tornaràs a veure els seus moments a l'inici.";
+"userProfile.relationship.inLists" = "En llistes";
+"userProfile.relationship.lists.title" = "Llistes";
+"userProfile.relationship.lists.manage" = "Toca una llista per treure aquest perfil.";
+"userProfile.relationship.lists.empty" = "No és a cap llista personalitzada.";
+"userProfile.relationship.lists.count" = "És a %d llistes personalitzades.";
+"userProfile.relationship.lists.remove.title" = "Treure %@ de %@?";
+"userProfile.relationship.lists.remove.title.fallback" = "Treure de la llista?";
+"userProfile.relationship.lists.remove.message" = "Aquest perfil deixarà de formar part d'aquesta llista personalitzada.";
+"userProfile.relationship.lists.remove.action" = "Treure de la llista";
+"userProfile.relationship.unfollow" = "Deixar de seguir";
 
 /* Modern Comments */
 "modernComments.disabled.title" = "Comentaris deshabilitats";
@@ -1823,6 +1871,11 @@
 
 /* Creating Profile */
 "creatingProfile.title" = "Creant el teu compte";
+"creatingProfile.step.verifying" = "Verificant dades...";
+"creatingProfile.step.creating" = "Creant el teu perfil...";
+"creatingProfile.step.uploading" = "Pujant imatge...";
+"creatingProfile.step.configuring" = "Configurant preferències...";
+"creatingProfile.step.completed" = "Completat";
 
 /* Highlighted Stories - Additional */
 "highlightedStories.loading" = "Carregant destacades...";
@@ -1956,10 +2009,10 @@
 "accountManagement.deleting" = "Eliminant...";
 "accountManagement.permanentDeletion" = "ELIMINACIÓ PERMANENT";
 "accountManagement.irreversible" = "Aquesta acció és irreversible";
-"accountManagement.willBeDeleted" = "S'eliminarà el següent:";
+"accountManagement.willBeDeleted" = "S'eliminarà o es desvincularà el següent:";
 "accountManagement.profileInfo" = "El teu perfil i informació personal";
 "accountManagement.storiesMoments" = "Totes les teves històries i moments";
-"accountManagement.conversations" = "Converses i missatges";
+"accountManagement.conversations" = "El teu perfil actiu a les converses";
 "accountManagement.connections" = "Connexions i seguidors";
 "accountManagement.notifications" = "Notificacions i configuracions";
 "accountManagement.savedContent" = "Arxiu i contingut desat";
@@ -2138,6 +2191,11 @@
 "appeal.status.noAppeals.title" = "No hi ha apel·lacions";
 "appeal.status.noAppeals.description" = "No tens apel·lacions registrades al teu compte";
 "appeal.status.loading" = "Carregant apel·lacions...";
+"appeal.status.pending" = "Pendent";
+"appeal.status.reviewing" = "En revisió";
+"appeal.status.approved" = "Aprovada";
+"appeal.status.denied" = "Denegada";
+"appeal.status.requiresInfo" = "Cal informació";
 
 /* Appeal Details */
 "appeal.detail.information" = "Informació";
@@ -2265,33 +2323,30 @@
 "notifications.empty.default" = "No hi ha notificacions";
 "notifications.empty.mentions" = "Sense mencions encara";
 
-/* Whats New v2.6 */
+/* Whats New v2.8 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Versió 2.6.0";
-"whatsNew.button" = "Explorar Moments 2.6";
+"whatsNew.subtitle" = "Versió 2.8.0";
+"whatsNew.button" = "Explorar Moments 2.8";
 
-/* Blackout feature */
-"whatsNew.blackout.title" = "El Contingut Privat Ara Està Protegit";
-"whatsNew.blackout.description" = "Blackout protegeix qualsevol moment o història amb una audiència diferent de \"everyone\", així com els mitjans efímers als xats. Les captures d'aquesta pantalla sortiran invisibles. Prova-ho ara!";
-"whatsNew.blackout.demo.label" = "¡Prova-ho! Fes una captura ara";
-"whatsNew.blackout.demo.instructions" = "Prem alhora el botó lateral i els dos botons de volum";
-"whatsNew.blackout.demo.hint" = "Aquesta pantalla serà invisible al teu carret";
+/* Nova */
+"whatsNew.nova.title" = "La Nova Se Sent Més Llesta";
+"whatsNew.nova.description" = "La Nova és més natural, recorda millor les teves preferències, conserva millor les converses i ara té una gestió de memòria més clara.";
 
-/* La Teva Activitat */
-"whatsNew.activity.title" = "Revisa la Teva Activitat";
-"whatsNew.activity.description" = "Ara pots revisar millor les teves reaccions, comentaris, etiquetes, respostes a stickers i molt més des d'un sol lloc.";
+/* Liquid glass */
+"whatsNew.glass.title" = "Una Interfície Més Glass";
+"whatsNew.glass.description" = "Els sheets de Moments se senten més integrats amb iOS, amb fons liquid glass, transicions i controls més cuidats.";
 
-/* Archive */
-"whatsNew.archive.title" = "Un Arxiu Molt Millor";
-"whatsNew.archive.description" = "Explora les teves històries arxivades en quadrícula, calendari i mapa amb una navegació molt més còmoda.";
+/* Creator */
+"whatsNew.creator.title" = "Fluxos de Creació Millorats";
+"whatsNew.creator.description" = "Audiència, cadenes, stickers, etiquetes i ubicació ara tenen un flux més còmode, consistent i fàcil de navegar.";
 
-/* Notifications */
-"whatsNew.notifications.title" = "Notificacions Més Clares";
-"whatsNew.notifications.description" = "La safata s'entén millor i diversos fluxos d'avisos, sol·licituds i obertures ara són més fiables.";
+/* Feed */
+"whatsNew.feed.title" = "Feed i Històries Més Polits";
+"whatsNew.feed.description" = "Les bombolles d'històries mostren noms, els perfils s'obren de manera més fiable i hem refinat diversos detalls del feed.";
 
-/* Privacy */
-"whatsNew.privacy.title" = "Privacitat Més Consistent";
-"whatsNew.privacy.description" = "El contingut restringit, els comptes silenciats i les paraules silenciades ara es comporten d'una manera més clara i coherent.";
+/* Fixes */
+"whatsNew.fixes.title" = "Més Estable a Tota l'App";
+"whatsNew.fixes.description" = "Hem corregit problemes de presentació, navegació i estats visuals a guardats, mapes, comentaris, missatges i més.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
@@ -2843,3 +2898,49 @@
 /* Banner - Moderació de contingut */
 "banner.verb.mediaModeration.partial" = "S'ha ocultat contingut de la teva publicació";
 "banner.verb.mediaModeration.full" = "La teva publicació ara és només per a tu";
+"appeal.yourAppeal.placeholder" = "Explica'ns per què creus que la suspensió s'hauria de revisar. Afegeix context concret i evita informació sensible.";
+"appeal.additionalInfo.placeholder" = "Afegeix qualsevol detall extra que pugui ajudar a revisar el teu cas.";
+
+/* Privacy Policy */
+"privacyPolicy.title" = "Política de privacitat";
+"privacyPolicy.lastUpdated" = "Última actualització: 29 d'abril de 2026";
+"privacyPolicy.section.summary.title" = "1. Resum";
+"privacyPolicy.section.summary.body" = "Moments és una app social per compartir moments, històries, cadenes, missatges i converses amb Nova. No recopilem dades innecessàries ni construïm perfils comercials sobre tu.\n\nGuardem o processem la informació mínima que introdueixes, crees o actives mentre fas servir l'app, juntament amb dades tècniques necessàries perquè Moments funcioni, sigui segura, sincronitzi contingut, mostri anuncis quan correspongui i permeti usar Nova.";
+"privacyPolicy.section.data.title" = "2. Informació que fas servir o generes a Moments";
+"privacyPolicy.section.data.body" = "Quan crees un compte o configures el perfil, guardem dades com correu electrònic, nom d'usuari, foto de perfil, biografia, web, interessos, insígnies, estat en línia i preferències.\n\nQuan fas servir l'app, guardem el contingut i les accions que decideixes crear: moments, històries, cadenes, ecos, comentaris, reaccions, elements desats, visites, etiquetes, llistes personalitzades, millors amics i ajustos d'audiència.\n\nTambé tractem dades tècniques mínimes necessàries per a seguretat, sessió, sincronització, notificacions, anuncis i resolució d'errors.";
+"privacyPolicy.section.use.title" = "3. Com fem servir les dades";
+"privacyPolicy.section.use.body" = "Fem servir la informació per prestar el servei, autenticar-te, sincronitzar contingut, entregar missatges, aplicar els teus ajustos de privacitat, personalitzar l'experiència, millorar Moments, prevenir abusos, gestionar denúncies i complir obligacions legals.\n\nLes bases legals poden incloure la prestació del servei que demanes, el teu consentiment, el nostre interès legítim en seguretat i millora del producte, i el compliment d'obligacions legals.";
+"privacyPolicy.section.nova.title" = "4. Nova i intel·ligència artificial";
+"privacyPolicy.section.nova.body" = "Nova pot processar els teus missatges, imatges que li enviïs, context del teu compte, preferències, activitat recent i memòria personal per respondre't de manera més útil.\n\nLa memòria de Nova pot guardar detalls com ara com prefereixes que et diguin, interessos, estil de conversa o informació que comparteixes voluntàriament. Pots editar o esborrar aquesta memòria des de l'app.\n\nNova funciona mitjançant proveïdors tècnics d'IA, com Firebase Vertex AI/Gemini, i algunes tasques de moderació poden utilitzar serveis externs. No fem servir les teves converses amb Nova per vendre dades ni per a publicitat personalitzada de tercers.";
+"privacyPolicy.section.visibility.title" = "5. Contingut, audiències i visibilitat";
+"privacyPolicy.section.visibility.body" = "Tu controles qui pot veure part del teu contingut mitjançant compte privat, audiències, millors amics, llistes personalitzades, només jo, bloquejos, silencis i ajustos de visibilitat de seguidors, seguits i admiradors.\n\nEl contingut privat o restringit usa Blackout: Moments intenta ocultar-lo en captures i gravacions de pantalla mitjançant protecció segura del sistema. Les publicacions fetes per a everyone no fan servir aquesta protecció. Tot i això, cap mesura pot impedir del tot que algú copiï o comparteixi fora de l'app contingut al qual hagi tingut accés.";
+"privacyPolicy.section.messages.title" = "6. Missatges i comunicacions";
+"privacyPolicy.section.messages.body" = "Processem converses, sol·licituds de missatges, participants, marques de temps, confirmacions de lectura, fitxers multimèdia, missatges efímers i contingut compartit per entregar la missatgeria.\n\nApliquem xifratge i mesures de seguretat per protegir missatges i dades sensibles. Tot i això, algunes metadades, URLs de fitxers multimèdia o informació necessària per entregar el servei poden emmagatzemar-se i processar-se per separat.";
+"privacyPolicy.section.permissions.title" = "7. Permisos del dispositiu";
+"privacyPolicy.section.permissions.body" = "Demanem permisos només quan són necessaris per a una funció concreta: càmera per crear fotos o vídeos, galeria per pujar o desar contingut, micròfon per a àudio, i ubicació per etiquetar publicacions, mapes, contingut proper i context opcional de Nova.\n\nPots canviar aquests permisos des dels ajustos d'iOS. Si els desactives, algunes funcions poden deixar d'estar disponibles.";
+"privacyPolicy.section.ads.title" = "8. Publicitat i consentiment";
+"privacyPolicy.section.ads.body" = "Moments pot mostrar anuncis mitjançant Google AdMob. Segons la teva regió i ajustos, podem demanar consentiment mitjançant el formulari de privacitat de Google i el permís de rastreig d'Apple.\n\nSi acceptes, els anuncis poden ser personalitzats utilitzant identificadors publicitaris i senyals permesos. Si no acceptes, podem mostrar anuncis no personalitzats o limitats. També fem servir SKAdNetwork i tecnologies similars per a mesurament agregat.";
+"privacyPolicy.section.moderation.title" = "9. Seguretat, denúncies i moderació";
+"privacyPolicy.section.moderation.body" = "Fem servir denúncies d'usuaris, revisió automàtica i registres de seguretat per detectar spam, abusos, contingut il·legal, nuesa no permesa, violència, assetjament, suplantació, frau i altres usos que incompleixin les nostres normes.\n\nEls comentaris, imatges, vídeos o àudio poden ser analitzats per sistemes automàtics i proveïdors especialitzats. Podem ocultar contingut, limitar comptes, suspendre'ls o conservar registres necessaris per revisar apel·lacions i protegir la comunitat.";
+"privacyPolicy.section.providers.title" = "10. Proveïdors i transferències";
+"privacyPolicy.section.providers.body" = "Treballem amb proveïdors com Firebase/Google Cloud, Firebase Authentication, Firebase Storage, Firebase Vertex AI/Gemini, Google AdMob, Apple i proveïdors de moderació o infraestructura necessaris per operar Moments.\n\nAquests proveïdors poden processar dades en països diferents del teu. Quan cal, fem servir mesures contractuals i tècniques per protegir aquestes transferències.";
+"privacyPolicy.section.retention.title" = "11. Conservació";
+"privacyPolicy.section.retention.body" = "Conservem les dades mentre el teu compte estigui actiu o mentre siguin necessàries per prestar el servei. El contingut que esborres deixa de mostrar-se, tot i que pot romandre durant un temps limitat en còpies de seguretat, memòries cau, registres o sistemes de seguretat.\n\nLes històries, missatges efímers i contingut temporal segueixen les seves regles d'expiració. Les denúncies, apel·lacions, registres de seguretat i dades necessàries per complir obligacions legals poden conservar-se durant més temps.";
+"privacyPolicy.section.rights.title" = "12. Els teus drets";
+"privacyPolicy.section.rights.body" = "Pots sol·licitar accés, rectificació, eliminació, oposició, limitació, portabilitat de les teves dades i retirada del consentiment quan correspongui. També pots exportar dades, esborrar records de Nova, canviar la privacitat, bloquejar usuaris, silenciar comptes o paraules, desactivar el compte o sol·licitar-ne l'eliminació.\n\nSi ets a la Unió Europea o en una altra regió amb drets equivalents, també pots reclamar davant la teva autoritat de protecció de dades.";
+"privacyPolicy.section.minors.title" = "13. Menors";
+"privacyPolicy.section.minors.body" = "Moments no està dirigida a menors de 13 anys. Si detectem que un compte pertany a una persona per sota de l'edat mínima aplicable, podem limitar-lo o eliminar-lo. Si ets menor d'edat, fes servir Moments amb supervisió dels pares o tutors quan correspongui.";
+"privacyPolicy.section.contact.title" = "14. Contacte i canvis";
+"privacyPolicy.section.contact.body" = "Podem actualitzar aquesta política quan canviïn les nostres funcions, proveïdors o requisits legals. Si el canvi és important, ho comunicarem a l'app o per altres mitjans raonables.\n\nPer a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@moments.app o visita moments.app/privacy.";
+"userProfile.unavailable.title" = "Perfil no disponible";
+"userProfile.unavailable.description" = "No pots veure aquest perfil en aquest moment.";
+"chat.profileUnavailable" = "Perfil no disponible";
+"chat.input.unavailable" = "No es poden enviar missatges a aquest perfil.";
+"messaging.profileUnavailable.preview" = "Perfil no disponible";
+"feed.refreshing" = "Actualitzant";
+"profile.ui.posts" = "Posts";
+"userProfile.blockedByMe.title" = "Usuari bloquejat";
+"userProfile.blockedByMe.description" = "Has bloquejat aquesta persona. No pot enviar-te missatges ni interactuar amb tu.";
+"chat.blockedByMe.subtitle" = "Bloquejat";
+"chat.blockedByMe.input" = "Has bloquejat aquest usuari. Desbloqueja'l per enviar missatges.";
+"chat.blockedByMe.unblock" = "Desbloquejar";

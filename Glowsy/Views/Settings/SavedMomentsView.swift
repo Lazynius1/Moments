@@ -379,6 +379,17 @@ private enum SavedSortMode: CaseIterable {
     }
 }
 
+private struct SavedMomentsDetailRoute: Identifiable {
+    let id = UUID()
+    let moments: [Moment]
+    let initialIndex: Int
+}
+
+private struct SavedMomentCommentsRoute: Identifiable {
+    let id = UUID()
+    let moment: Moment
+}
+
 struct SavedMomentsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -392,9 +403,7 @@ struct SavedMomentsView: View {
     @State private var isSelectionMode = false
     @State private var selectedMomentIds: Set<String> = []
     
-    @State private var showDetail = false
-    @State private var detailMoments: [Moment] = []
-    @State private var detailInitialIndex = 0
+    @State private var detailRoute: SavedMomentsDetailRoute?
     
     @State private var showRemoveSelectionAlert = false
     @State private var restrictedMomentToRemove: Moment?
@@ -505,12 +514,12 @@ struct SavedMomentsView: View {
                 await refreshMoments()
             }
         }
-        .fullScreenCover(isPresented: $showDetail) {
+        .fullScreenCover(item: $detailRoute) { route in
             ModernSavedMomentsDetailView(
-                moments: detailMoments,
-                initialIndex: detailInitialIndex,
+                moments: route.moments,
+                initialIndex: route.initialIndex,
                 onDismiss: {
-                    showDetail = false
+                    detailRoute = nil
                 },
                 onRemoveMoment: { momentToRemove in
                     if let momentId = momentToRemove.id {
@@ -923,9 +932,10 @@ struct SavedMomentsView: View {
             return
         }
 
-        detailMoments = accessibleMoments
-        detailInitialIndex = resolvedIndex
-        showDetail = true
+        detailRoute = SavedMomentsDetailRoute(
+            moments: accessibleMoments,
+            initialIndex: resolvedIndex
+        )
     }
     
     private func removeSelected() {
@@ -1206,7 +1216,7 @@ struct ModernSavedMomentsDetailView: View {
     
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
-    @State private var selectedMoment: Moment?
+    @State private var commentsRoute: SavedMomentCommentsRoute?
     @State private var scrollOffset: CGFloat = 0
     @State private var showingRemoveAlert = false
     @State private var momentToRemove: Moment?
@@ -1286,22 +1296,11 @@ struct ModernSavedMomentsDetailView: View {
             }
         }
         .navigationBarHidden(true)
-        .sheet(
-            isPresented: Binding(
-                get: { selectedMoment != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        selectedMoment = nil
-                    }
-                }
-            )
-        ) {
-            if let moment = selectedMoment {
-                ModernCommentsView(moment: moment)
-                    .environmentObject(firestoreService)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
+        .sheet(item: $commentsRoute) { route in
+            ModernCommentsView(moment: route.moment)
+                .environmentObject(firestoreService)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
                         .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRemoveAlert) {
             Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel"), role: .cancel) {}
@@ -1343,7 +1342,7 @@ struct ModernSavedMomentsDetailView: View {
                                 moment: moment,
                                 availableHeight: geometry.size.height - 200,
                                 onComment: {
-                                    selectedMoment = moment
+                                    commentsRoute = SavedMomentCommentsRoute(moment: moment)
                                 },
                                 onRemove: {
                                     momentToRemove = moment

@@ -182,7 +182,7 @@ struct ModernActionButtons: View {
 
 // ✅ REUSABLE: ModernFollowButton
 struct ModernFollowButton: View {
-    let isFollowing: Bool
+    let state: FollowButtonState
     let isLoading: Bool
     let colorScheme: ColorScheme 
     let action: () -> Void
@@ -201,24 +201,58 @@ struct ModernFollowButton: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(0.8)
-                        .tint(.white)
+                        .tint(adaptiveColors.primary)
                 } else {
-                    Image(systemName: isFollowing ? "person.fill.checkmark" : "person.fill.badge.plus")
+                    Image(systemName: iconName)
                         .font(.system(size: 14, weight: .semibold))
                 }
                 
-                Text(isFollowing ? NSLocalizedString("userListView.unfollowButton", comment: "") : NSLocalizedString("userListView.followButton", comment: ""))
+                Text(title)
                     .font(.custom("Poppins-SemiBold", size: 14))
             }
-            .foregroundColor(isFollowing ? adaptiveColors.primary : .white)
+            .foregroundColor(adaptiveColors.primary)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isFollowing ? adaptiveColors.primary.opacity(0.1) : Color(hex: "007AFF"))
-            )
-            .shadow(color: isFollowing ? .black.opacity(0.1) : Color(hex: "007AFF").opacity(0.3), radius: 8, x: 0, y: 4)
+            .liquidGlass(in: Capsule(), interactive: state.isActionable)
         }
-        .disabled(isLoading)
+        .disabled(isLoading || !state.isActionable)
+        .opacity(isPassiveState ? 0.78 : 1)
+    }
+
+    private var title: String {
+        switch state {
+        case .following:
+            return NSLocalizedString("userProfile.followButton.following", comment: "")
+        case .canRequestFollow:
+            return NSLocalizedString("feed.follow.request", comment: "")
+        case .requestPending:
+            return NSLocalizedString("feed.follow.requested", comment: "")
+        case .blocked:
+            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
+        default:
+            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
+        }
+    }
+
+    private var iconName: String {
+        switch state {
+        case .following:
+            return "person.fill.checkmark"
+        case .canRequestFollow:
+            return "person.crop.circle.badge.plus"
+        case .requestPending:
+            return "clock"
+        case .blocked:
+            return "slash.circle"
+        default:
+            return "person.badge.plus"
+        }
+    }
+
+    private var isPassiveState: Bool {
+        if case .requestPending = state {
+            return true
+        }
+        return false
     }
 }

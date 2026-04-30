@@ -1022,9 +1022,7 @@ struct ModernProfileHeader: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 11)
-                    .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                    .clipShape(Capsule())
-                    .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                    .liquidGlass(in: Capsule(), interactive: true)
                 }
                 
                 // ✅ NUEVO: Botón de compartir perfil (QR)
@@ -1035,9 +1033,7 @@ struct ModernProfileHeader: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(ProfileColors.textPrimary)
                         .frame(width: 40, height: 40)
-                        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                        .clipShape(Circle())
-                        .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
                 
                 // ✅ TEMPORALMENTE OCULTO: Botón de tema del perfil (solo si tiene badges)
@@ -1064,9 +1060,7 @@ struct ModernProfileHeader: View {
                         .font(.system(size: 18))
                         .foregroundColor(ProfileColors.textPrimary)
                         .frame(width: 40, height: 40)
-                        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                        .clipShape(Circle())
-                        .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
             }
         }

@@ -7,39 +7,39 @@ struct SettingsProfileColors {
     static var background: Color {
         Color(hex: "FAF9F6")
     }
-    
+
     static var secondaryBackground: Color {
         Color(UIColor.secondarySystemBackground)
     }
-    
+
     static var cardBackground: Color {
         Color(hex: "FAF9F6").opacity(0.8)
     }
-    
+
     static var materialBackground: Color {
         Color(hex: "FAF9F6").opacity(0.95)
     }
-    
+
     static var textPrimary: Color {
         Color(UIColor.label)
     }
-    
+
     static var textSecondary: Color {
         Color(UIColor.secondaryLabel)
     }
-    
+
     static var textTertiary: Color {
         Color(UIColor.tertiaryLabel)
     }
-    
+
     static var borderColor: Color {
         Color(UIColor.separator)
     }
-    
+
     static var shadowColor: Color {
         Color(UIColor.label).opacity(0.1)
     }
-    
+
     // Colores específicos que se mantienen
     static let accent = Color(hex: "4F46E5")
     static let purple = Color(hex: "9B59B6")
@@ -88,7 +88,7 @@ struct SettingsView: View {
             ZStack {
                 // ✅ Fondo moderno con glassmorphism
                 modernBackgroundView
-                
+
                 if isLoading {
                     modernLoadingView
                 } else {
@@ -236,6 +236,8 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $isShowingAdvancedAccountManagement) {
                 AdvancedAccountManagementView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $isShowingNovaMemory) {
                 NovaMemoryManagementView()
@@ -249,7 +251,7 @@ struct SettingsView: View {
         self.errorMessage = message
         self.showError = true
     }
-    
+
     // ✅ Fondo moderno (ahora negro sólido en dark mode para coincidir con feed)
     private var modernBackgroundView: some View {
         ZStack {
@@ -258,21 +260,21 @@ struct SettingsView: View {
             } else {
                 Color(hex: "FAF9F6")
             }
-            
+
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .opacity(colorScheme == .dark ? 0.02 : 0.02)
         }
         .ignoresSafeArea()
     }
-    
+
     // ✅ Vista de carga moderna
     private var modernLoadingView: some View {
         VStack(spacing: 20) {
             ProgressView()
                 .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "4F46E5")))
                 .scaleEffect(1.5)
-            
+
                             Text("settings.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -311,7 +313,7 @@ struct SettingsFormView: View {
     @Binding var isShowingNovaMemory: Bool
     @Binding var showReadReceipts: Bool
     let blockedAccountsCount: Int
-    
+
     @State private var animateSections = false
 
     var body: some View {
@@ -555,107 +557,277 @@ struct AdvancedAccountSection: View {
     }
 }
 
-// ✅ NUEVA VISTA: Wrapper con advertencias
 struct AdvancedAccountManagementView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var authService: AuthService
+
+    private enum FlowDestination: Equatable {
+        case main
+        case deleteAccount
+    }
+
+    @State private var flowDestination: FlowDestination = .main
+    @State private var navigatingForward = true
     @State private var isShowingSessionManagement = false
-    
+    @State private var showDeactivateConfirmation = false
+    @State private var isProcessing = false
+    @State private var deletePasswordErrorMessage: String?
+    @State private var errorMessage: String?
+    @State private var showError = false
+
     var body: some View {
         ZStack {
-            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
-            
-            Form {
-                // Warning section
-                Section {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                                .font(.system(size: 20))
-                            
-                            Text("settings.dangerZone.title")
-                                .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(.orange)
-                        }
-                        
-                        Text("settings.dangerZone.warning")
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
-                    }
-                    .padding(.vertical, 8)
-                }
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.orange.opacity(0.1))
+            Color.clear.ignoresSafeArea()
+
+            if flowDestination == .main {
+                advancedMainContent
+                    .transition(flowTransition)
+            } else {
+                DeleteAccountVerificationView(
+                    isProcessing: $isProcessing,
+                    passwordErrorMessage: $deletePasswordErrorMessage,
+                    onConfirm: deleteAccount(password:),
+                    onCancel: { navigate(to: .main, forward: false) }
                 )
-                
-                Section(NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity")) {
-                    SettingsRow(
-                        icon: "clock.arrow.circlepath",
-                        title: NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity"),
-                        subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
-                        action: { isShowingSessionManagement = true }
-                    )
-                }
-                .listRowBackground(SettingsListRowBackground())
-                
-                // ✅ USAR TU AccountManagementSection EXISTENTE
-                AccountManagementSection()
-                
-                // Info section
-                Section {
+                .transition(flowTransition)
+            }
+        }
+        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
+        .interactiveDismissDisabled(isProcessing)
+        .alert(NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account"), isPresented: $showDeactivateConfirmation) {
+            Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
+            Button(NSLocalizedString("accountManagement.deactivate", comment: "Deactivate"), role: .destructive) {
+                deactivateAccount()
+            }
+        } message: {
+            Text(NSLocalizedString("accountManagement.deactivate.message", comment: "Deactivate account message"))
+        }
+        .alert(NSLocalizedString("accountManagement.error.title", comment: "Error"), isPresented: $showError) {
+            Button(NSLocalizedString("accountManagement.ok", comment: "OK")) {}
+        } message: {
+            if let errorMessage {
+                Text(errorMessage)
+            }
+        }
+        .fullScreenCover(isPresented: $isShowingSessionManagement) {
+            LoginActivityView()
+        }
+    }
+
+    private var advancedMainContent: some View {
+        VStack(spacing: 0) {
+            AdvancedSheetHeader(
+                title: NSLocalizedString("settings.advanced.title", comment: "Advanced"),
+                subtitle: NSLocalizedString("settings.dangerZone.warning", comment: "Danger zone warning"),
+                leadingIcon: "chevron.down",
+                onLeadingTap: { dismiss() }
+            )
+            .padding(.horizontal, 22)
+            .padding(.top, 12)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    VStack(spacing: 4) {
+                        AdvancedAccountActionRow(
+                            icon: "clock.arrow.circlepath",
+                            title: NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity"),
+                            subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
+                            action: { isShowingSessionManagement = true }
+                        )
+
+                        AdvancedAccountActionRow(
+                            icon: "pause",
+                            title: NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account title"),
+                            subtitle: NSLocalizedString("accountManagement.deactivate.subtitle", comment: "Deactivate account subtitle"),
+                            action: { showDeactivateConfirmation = true }
+                        )
+
+                        AdvancedAccountActionRow(
+                            icon: "trash",
+                            title: NSLocalizedString("accountManagement.deleteAccount.title", comment: "Delete account"),
+                            subtitle: NSLocalizedString("accountManagement.delete.subtitle", comment: "Delete account subtitle"),
+                            isDestructive: true,
+                            action: { navigate(to: .deleteAccount) }
+                        )
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("settings.info.title")
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
+                        HStack(spacing: 7) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("settings.info.title")
+                                .font(.custom("Poppins-SemiBold", size: 12))
+                        }
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+
                         VStack(alignment: .leading, spacing: 6) {
                             Text("settings.info.deactivate")
                             Text("settings.info.delete")
                             Text("settings.info.reactivate")
                         }
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.gray)
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                        .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 4)
                 }
-                .listRowBackground(SettingsListRowBackground())
-            }
-            .scrollContentBackground(.hidden)
-        }
-        .navigationTitle(NSLocalizedString("settings.accountManagement", comment: "Account Management"))
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 36, height: 36)
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color(hex: "4F46E5").opacity(0.3), Color(hex: "4F46E5").opacity(0.1)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                        
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "4F46E5"))
-                    }
-                }
+                .padding(.horizontal, 22)
+                .padding(.top, 24)
+                .padding(.bottom, 28)
             }
         }
-        .fullScreenCover(isPresented: $isShowingSessionManagement) {
-            LoginActivityView()
+    }
+
+    private var flowTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: navigatingForward ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: navigatingForward ? .leading : .trailing).combined(with: .opacity)
+        )
+    }
+
+    private func navigate(to destination: FlowDestination, forward: Bool = true) {
+        navigatingForward = forward
+        deletePasswordErrorMessage = nil
+        flowDestination = destination
+    }
+
+    private func deactivateAccount() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        isProcessing = true
+
+        AccountManagementService().deactivateAccount(userId: userId) { result in
+            DispatchQueue.main.async {
+                isProcessing = false
+
+                switch result {
+                case .success:
+                    authService.logout()
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
         }
+    }
+
+    private func deleteAccount(password: String) {
+        guard let user = Auth.auth().currentUser else {
+            errorMessage = NSLocalizedString("accountManagement.userNotFound", comment: "User not found error")
+            showError = true
+            return
+        }
+
+        isProcessing = true
+        deletePasswordErrorMessage = nil
+
+        AccountManagementService().deleteAccount(user: user, password: password) { result in
+            DispatchQueue.main.async {
+                isProcessing = false
+
+                switch result {
+                case .success:
+                    dismiss()
+                case .failure(let error):
+                    if let passwordError = AccountDeletionErrorPresenter.passwordMessage(for: error) {
+                        deletePasswordErrorMessage = passwordError
+                    } else {
+                        errorMessage = String(format: NSLocalizedString("accountManagement.error.delete", comment: "Error deleting account"), error.localizedDescription)
+                        showError = true
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct AdvancedSheetHeader: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: String
+    let subtitle: String?
+    let leadingIcon: String
+    let onLeadingTap: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            HStack {
+                Button(action: onLeadingTap) {
+                    Image(systemName: leadingIcon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .frame(width: 40, height: 40)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+
+            VStack(spacing: 5) {
+                Text(title)
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .multilineTextAlignment(.center)
+
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal, 56)
+                }
+            }
+            .padding(.top, 2)
+        }
+    }
+}
+
+private struct AdvancedAccountActionRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let icon: String
+    let title: String
+    let subtitle: String
+    var isDestructive: Bool = false
+    let action: () -> Void
+
+    private var accent: Color {
+        isDestructive ? .red : AuthColors.primary(colorScheme)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .foregroundColor(isDestructive ? .red : AuthColors.primary(colorScheme))
+
+                    Text(subtitle)
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.54))
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                Image(systemName: icon)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(accent)
+                    .frame(width: 34, height: 34)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.35))
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -663,7 +835,7 @@ struct ProfileSection: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var authService: AuthService
     @Binding var username: String
-    
+
     var body: some View {
         VStack(spacing: 16) {
             // Foto de perfil con decoraciones Plus/Badges
@@ -683,10 +855,10 @@ struct ProfileSection: View {
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                         )
                 }
-                
+
                 // Decoraciones basadas en el estado del usuario
                 if let currentUser = authService.currentUser {
-                    
+
                     // Anillo Plus para suscriptores
                     if currentUser.isPlusSubscriber {
                         Circle()
@@ -701,7 +873,7 @@ struct ProfileSection: View {
                             .frame(width: 88, height: 88)
                             .rotationEffect(.degrees(45))
                     }
-                    
+
                     // Badge principal en esquina superior derecha
                     if let primaryBadge = currentUser.primaryBadge {
                         ZStack {
@@ -714,21 +886,21 @@ struct ProfileSection: View {
                                     )
                                 )
                                 .frame(width: 28, height: 28)
-                            
+
                             Text(primaryBadge.emoji)
                                 .font(.system(size: 14))
                         }
                         .offset(x: 28, y: -28)
                         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
-                    
+
                     // Corona Plus en esquina superior izquierda
                     if currentUser.isPlusSubscriber {
                         ZStack {
                             Circle()
                                 .fill(Color.black.opacity(0.8))
                                 .frame(width: 24, height: 24)
-                            
+
                             Image(systemName: "crown.fill")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(Color(hex: "FFD700"))
@@ -739,7 +911,7 @@ struct ProfileSection: View {
                 }
             }
             .padding(.top, 8)
-            
+
             // Información del usuario y estado Plus
             VStack(spacing: 12) {
                 // Nombre y badges inline
@@ -747,7 +919,7 @@ struct ProfileSection: View {
                     Text(username.isEmpty ? "Usuario" : username)
                         .font(.custom("Poppins-SemiBold", size: 20))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                    
+
                     // Badges inline
                     if let currentUser = authService.currentUser {
                         if currentUser.isPlusSubscriber {
@@ -761,14 +933,14 @@ struct ProfileSection: View {
                         }
                     }
                 }
-                
+
                 // Estado Plus (si aplica)
                 if let currentUser = authService.currentUser, currentUser.isPlusSubscriber {
                     HStack(spacing: 8) {
                         Image(systemName: "crown.fill")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color(hex: "FFD700"))
-                        
+
                         Text("settings.plus.active")
                             .font(.custom("Poppins-Medium", size: 13))
                             .foregroundColor(Color(hex: "FFD700"))
@@ -934,16 +1106,16 @@ struct PrivacySection: View {
         default: return NSLocalizedString("settings.privacy.connections.configure", comment: "Configure")
         }
     }
-    
+
     private func blockedAccountsSubtitle() -> String {
         let format = NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count")
         let formatted = String(format: format, blockedAccountsCount)
-        
+
         // Fallback robusto por si una traducción trae el placeholder mal y se muestra literal.
         if formatted.contains("%d") || formatted == format {
             return format.replacingOccurrences(of: "%d", with: "\(blockedAccountsCount)")
         }
-        
+
         return formatted
     }
 }
@@ -1068,13 +1240,13 @@ struct ConnectionVisibilityView: View {
 struct SecuritySection: View {
     @EnvironmentObject var authService: AuthService
     @Binding var isShowingPasswordChange: Bool
-    
+
     // Para el linking
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showAlert = false
     @State private var showChatRecoverySettings = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             SettingsRow(
@@ -1103,7 +1275,7 @@ struct SecuritySection: View {
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                         }
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text("settings.security.appleId")
                                 .font(.custom("Poppins-Medium", size: 16))
@@ -1111,10 +1283,10 @@ struct SecuritySection: View {
                                 .font(.custom("Poppins-Regular", size: 12))
                                 .foregroundColor(.gray)
                         }
-                        
+
                         Spacer()
                     }
-                    
+
                     if isLoading {
                         HStack {
                             Spacer()
@@ -1154,7 +1326,7 @@ struct SecuritySection: View {
                             .font(.system(size: 18))
                             .foregroundColor(.green)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("settings.security.appleId")
                             .font(.custom("Poppins-Medium", size: 16))
@@ -1162,9 +1334,9 @@ struct SecuritySection: View {
                             .font(.custom("Poppins-Regular", size: 12))
                             .foregroundColor(.gray)
                     }
-                    
+
                     Spacer()
-                    
+
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                 }
@@ -1178,7 +1350,7 @@ struct SecuritySection: View {
             ChatRecoverySettingsView()
         }
     }
-    
+
     private func handleAppleLinkingResult(_ result: Result<ASAuthorization, Error>) {
         switch result {
         case .success(let authorization):
@@ -1188,19 +1360,19 @@ struct SecuritySection: View {
                     showAlert = true
                     return
                 }
-                
+
                 guard let appleIDToken = appleIDCredential.identityToken else {
                     errorMessage = NSLocalizedString("settings.security.appleId.error.token", comment: "Could not obtain Apple token")
                     showAlert = true
                     return
                 }
-                
+
                 guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
                     errorMessage = NSLocalizedString("settings.security.appleId.error.invalidToken", comment: "Invalid Apple token")
                     showAlert = true
                     return
                 }
-                
+
                 isLoading = true
                 authService.linkWithApple(idToken: idTokenString, nonce: nonce) { result in
                     isLoading = false
@@ -1354,24 +1526,24 @@ struct PersonalInfoView: View {
     @Binding var username: String
     @Binding var email: String
     @Binding var phoneNumber: String
-    
+
     private enum ViewState {
         case main
         case username
     }
-    
+
     // Username change state
     @State private var viewState: ViewState = .main
     @State private var lastUsernameChange: Date? = nil
     private let firestoreService = FirestoreService()
-    
+
     // Cooldown helpers
     private var canChangeUsername: Bool {
         guard let last = lastUsernameChange else { return true }
         let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
         return last <= sixMonthsAgo
     }
-    
+
     private var nextAvailableDate: String? {
         guard let last = lastUsernameChange, !canChangeUsername else { return nil }
         let next = Calendar.current.date(byAdding: .month, value: 6, to: last) ?? Date()
@@ -1380,7 +1552,7 @@ struct PersonalInfoView: View {
         fmt.locale = Locale.current
         return fmt.string(from: next)
     }
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -1440,7 +1612,7 @@ struct PersonalInfoView: View {
             }
         }
     }
-    
+
     private var navigationTitle: String {
         switch viewState {
         case .main:
@@ -1449,7 +1621,7 @@ struct PersonalInfoView: View {
             return NSLocalizedString("username.change.title", comment: "Change username title")
         }
     }
-    
+
     private var personalInfoMainContent: some View {
         VStack(spacing: 0) {
             Button(action: {
@@ -1528,34 +1700,34 @@ struct UsernameChangeContent: View {
     @Binding var currentUsername: String
     @Binding var lastUsernameChange: Date?
     let onBack: (() -> Void)?
-    
+
     @State private var newUsername: String = ""
     @State private var isChecking: Bool = false
     @State private var isAvailable: Bool? = nil
     @State private var isSaving: Bool = false
     @State private var errorMessage: String? = nil
     @State private var checkTask: Task<Void, Never>? = nil
-    
+
     private let firestoreService = FirestoreService()
-    
+
     private var isValidFormat: Bool {
         let clean = newUsername.lowercased()
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789_")
         return clean.count >= 3 && clean.count <= 30 && clean.unicodeScalars.allSatisfy({ allowed.contains($0) })
     }
-    
+
     private var isDifferent: Bool {
         newUsername.lowercased() != currentUsername.lowercased()
     }
-    
+
     private var canSave: Bool {
         isValidFormat && isDifferent && isAvailable == true && !isSaving
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("username.change.title", comment: "Change username title"))
                         .font(.custom("Poppins-Bold", size: 24))
@@ -1565,13 +1737,13 @@ struct UsernameChangeContent: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.top, 8)
-                
+
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         Text("@")
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(.secondary)
-                        
+
                         TextField(currentUsername, text: $newUsername)
                             .font(.custom("Poppins-Regular", size: 17))
                             .autocorrectionDisabled()
@@ -1579,9 +1751,9 @@ struct UsernameChangeContent: View {
                             .onChange(of: newUsername) { _ in
                                 triggerAvailabilityCheck()
                             }
-                        
+
                         Spacer()
-                        
+
                         if isChecking {
                             ProgressView()
                                 .scaleEffect(0.8)
@@ -1603,7 +1775,7 @@ struct UsernameChangeContent: View {
                                     .stroke(borderColor, lineWidth: 1.5)
                             )
                     )
-                    
+
                     if let error = errorMessage {
                         Text(error)
                             .font(.custom("Poppins-Regular", size: 13))
@@ -1620,7 +1792,7 @@ struct UsernameChangeContent: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 Button(action: save) {
                     HStack {
                         if isSaving {
@@ -1641,7 +1813,7 @@ struct UsernameChangeContent: View {
                 }
                 .disabled(!canSave)
                 .animation(.easeInOut(duration: 0.2), value: canSave)
-                
+
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 20)
@@ -1649,14 +1821,14 @@ struct UsernameChangeContent: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
-    
+
     private var borderColor: Color {
         if let available = isAvailable, newUsername.count >= 3 && isDifferent {
             return available ? Color.green.opacity(0.6) : Color.red.opacity(0.6)
         }
         return Color.white.opacity(colorScheme == .dark ? 0.15 : 0.4)
     }
-    
+
     private func triggerAvailabilityCheck() {
         isAvailable = nil
         errorMessage = nil
@@ -1675,7 +1847,7 @@ struct UsernameChangeContent: View {
             }
         }
     }
-    
+
     private func save() {
         guard let uid = Auth.auth().currentUser?.uid else { return }
         let oldUsernameLower = currentUsername.lowercased()
@@ -1715,12 +1887,12 @@ struct NotificationSettingsView: View {
     @State private var showSavedSchedule: Bool = false
     @State private var showScheduleError: Bool = false
     @State private var scheduleErrorMessage: String = ""
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
-                
+
                 ScrollView(showsIndicators: false) {
                     LazyVStack(alignment: .leading, spacing: 34) {
                         VStack(alignment: .leading, spacing: 16) {
@@ -1945,7 +2117,7 @@ private struct SaveSchedulePressStyle: ButtonStyle {
 
 struct SettingsListRowBackground: View {
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         RoundedRectangle(cornerRadius: 12)
             .fill(

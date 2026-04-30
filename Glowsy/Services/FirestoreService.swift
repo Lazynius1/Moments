@@ -21,6 +21,11 @@ struct StoryAuthorSummary {
     }
 }
 
+enum PublicProfileAvailability {
+    case available
+    case unavailable
+}
+
 class FirestoreService: ObservableObject {
     static let shared = FirestoreService() // Singleton
     let db: Firestore
@@ -948,6 +953,39 @@ class FirestoreService: ObservableObject {
                 completion(.failure(error))
             }
         })
+    }
+
+    func checkPublicProfileAvailability(userId: String, completion: @escaping (PublicProfileAvailability) -> Void) {
+        db.collection("users").document(userId).getDocument(source: .default) { snapshot, error in
+            if error != nil {
+                completion(.available)
+                return
+            }
+
+            guard let document = snapshot, document.exists, let data = document.data() else {
+                completion(.unavailable)
+                return
+            }
+
+            let isActive = data["isActive"] as? Bool ?? true
+            guard isActive else {
+                completion(.unavailable)
+                return
+            }
+
+            let isSuspended = data["isSuspended"] as? Bool ?? false
+            guard isSuspended else {
+                completion(.available)
+                return
+            }
+
+            if let suspendedUntil = data["suspendedUntil"] as? Timestamp,
+               Date() > suspendedUntil.dateValue() {
+                completion(.available)
+            } else {
+                completion(.unavailable)
+            }
+        }
     }
 
     func fetchConnections(userId: String, completion: @escaping (Result<[Connection], Error>) -> Void) {
@@ -3112,13 +3150,11 @@ class FirestoreService: ObservableObject {
             
             self.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 self.unfollowUser(currentUserId: targetUserId, targetUserId: currentUserId) { error in
-                    ChatService().deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: targetUserId) { error in
-                        self.deleteNotificationsBetweenUsers(recipientId: currentUserId, senderId: targetUserId) { error in
-                            self.deleteNotificationsBetweenUsers(recipientId: targetUserId, senderId: currentUserId) { error in
-                                self.deleteVisitsBetweenUsers(userId: currentUserId, visitorId: targetUserId) { error in
-                                    self.deleteVisitsBetweenUsers(userId: targetUserId, visitorId: currentUserId) { error in
-                                        completion(nil)
-                                    }
+                    self.deleteNotificationsBetweenUsers(recipientId: currentUserId, senderId: targetUserId) { error in
+                        self.deleteNotificationsBetweenUsers(recipientId: targetUserId, senderId: currentUserId) { error in
+                            self.deleteVisitsBetweenUsers(userId: currentUserId, visitorId: targetUserId) { error in
+                                self.deleteVisitsBetweenUsers(userId: targetUserId, visitorId: currentUserId) { error in
+                                    completion(nil)
                                 }
                             }
                         }

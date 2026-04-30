@@ -15,9 +15,9 @@ struct SuspendedAccountView: View {
         ZStack {
             LiquidAuroraBackground()
             
-            ScrollView {
-                VStack(spacing: 40) {
-                    Spacer(minLength: 60)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 34) {
+                    Spacer(minLength: 72)
                     
                     EnhancedSuspendedHeader(
                         animateShield: $animateShield,
@@ -39,7 +39,7 @@ struct SuspendedAccountView: View {
                         isVisible: $isVisible
                     )
                     
-                    Spacer(minLength: 40)
+                    Spacer(minLength: 34)
                 }
             }
         }
@@ -49,11 +49,15 @@ struct SuspendedAccountView: View {
                 isPresented: $showContactForm
             )
             .environmentObject(authService)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         // ✅ NUEVO: Sheet para mostrar estado de apelaciones
         .sheet(isPresented: $showAppealsStatus) {
             AppealStatusView()
                 .environmentObject(authService)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .onAppear {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
@@ -71,216 +75,125 @@ struct SuspendedAccountView: View {
 
 // MARK: - Enhanced Suspended Header
 struct EnhancedSuspendedHeader: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var animateShield: Bool
     @Binding var animateWarning: Bool
     @Binding var isVisible: Bool
-    @State private var glowIntensity: Double = 0.3
     
     var body: some View {
-        VStack(spacing: 24) {
-            ZStack {
-                // Background glow effect
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [Color.orange.opacity(0.3), .clear],
-                            center: .center,
-                            startRadius: 50,
-                            endRadius: 120
-                        )
-                    )
-                    .frame(width: 240, height: 240)
-                    .blur(radius: 20)
-                    .scaleEffect(animateShield ? 1.1 : 1.0)
-                
-                // Shield background
-                Image(systemName: "shield.fill")
-                    .font(.system(size: 100, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.white.opacity(0.4), .white.opacity(0.2)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .shadow(color: .white.opacity(glowIntensity), radius: 15, x: 0, y: 0)
-                    .scaleEffect(animateShield ? 1.1 : 1.0)
-                
-                // Warning overlay with enhanced effects
-                ZStack {
-                    Circle()
-                        .fill(Color.orange)
-                        .frame(width: 70, height: 70)
-                        .shadow(color: .orange.opacity(0.5), radius: 10, x: 0, y: 0)
-                    
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 35, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
-                }
-                .scaleEffect(animateWarning ? 1.2 : 1.0)
-            }
+        VStack(spacing: 18) {
+            Image(systemName: "shield.lefthalf.filled.badge.checkmark")
+                .font(.system(size: 44, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundColor(AuthColors.primary(colorScheme))
             
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 Text(NSLocalizedString("suspended.title", comment: "Suspended Account"))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.white, .orange.opacity(0.8), .red.opacity(0.6)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    .font(.custom("Poppins-Bold", size: 30))
+                    .foregroundColor(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
                 
                 Text(NSLocalizedString("suspended.subtitle", comment: "Account temporarily suspended"))
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                    .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
+                    .lineSpacing(4)
             }
         }
-        .scaleEffect(isVisible ? 1.0 : 0.8)
+        .padding(.horizontal, 28)
+        .scaleEffect(isVisible ? 1.0 : 0.92)
         .opacity(isVisible ? 1.0 : 0.0)
         .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                glowIntensity = 0.6
-            }
-        }
     }
 }
 
 // MARK: - Enhanced Suspension Info
 struct EnhancedSuspensionInfo: View {
+    @Environment(\.colorScheme) private var colorScheme
     let reason: String?
     let expiresAt: Date?
     @Binding var isVisible: Bool
     
     var body: some View {
-        VStack(spacing: 28) {  // Aumentado de 20 a 28
-            // Razón de la suspensión
+        VStack(spacing: 24) {
             if let reason = reason, !reason.isEmpty {
-                LiquidGlassCard(cornerRadius: 20) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc.text.fill")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.orange)
-                            
-                            Text(NSLocalizedString("suspended.reason", comment: "Suspension reason"))
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                        }
-                        
-                        Text(reason)
-                            .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
-                            .foregroundColor(.white.opacity(0.9))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .lineSpacing(6)  // Aumentado de 4 a 6
-                    }
-                    .padding(24)
-                }
+                SuspendedInfoRow(
+                    icon: "doc.text",
+                    title: NSLocalizedString("suspended.reason", comment: "Suspension reason"),
+                    message: reason
+                )
             }
             
-            // Fecha de expiración
             if let expiresAt = expiresAt {
-                LiquidGlassCard(cornerRadius: 20) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "clock.fill")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.blue)
-                            
-                            Text(NSLocalizedString("suspended.expires", comment: "Account will be reactivated"))
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                        }
-                        
-                        Text(formatExpirationDate(expiresAt))
-                            .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
-                            .foregroundColor(.white.opacity(0.9))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .lineSpacing(6)  // Aumentado de 4 a 6
-                    }
-                    .padding(24)
-                }
+                SuspendedInfoRow(
+                    icon: "clock",
+                    title: NSLocalizedString("suspended.expires", comment: "Account will be reactivated"),
+                    message: formatExpirationDate(expiresAt)
+                )
                 
-                // Enhanced countdown timer
                 EnhancedCountdownTimer(expiresAt: expiresAt)
                     .offset(y: isVisible ? 0 : 30)
                     .opacity(isVisible ? 1.0 : 0.0)
                     .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.6), value: isVisible)
             } else {
-                LiquidGlassCard(cornerRadius: 20) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "infinity")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.red)
-                            
-                            Text(NSLocalizedString("suspended.permanent", comment: "Permanent suspension"))
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                        }
-                        
-                        Text(NSLocalizedString("suspended.permanentMessage", comment: "Contact support message"))
-                            .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
-                            .foregroundColor(.white.opacity(0.9))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .lineSpacing(6)  // Aumentado de 4 a 6
-                    }
-                    .padding(24)
-                }
+                SuspendedInfoRow(
+                    icon: "infinity",
+                    title: NSLocalizedString("suspended.permanent", comment: "Permanent suspension"),
+                    message: NSLocalizedString("suspended.permanentMessage", comment: "Contact support message")
+                )
             }
             
-            // Información adicional
-            LiquidGlassCard(cornerRadius: 20) {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.green)
-                        
-                        Text(NSLocalizedString("suspended.whatCanDo", comment: "What can you do"))
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
-                        
-                        Spacer()
-                    }
-                    
-                    Text(NSLocalizedString("suspended.whatCanDoMessage", comment: "Appeal information"))
-                        .font(.system(size: 15, weight: .medium))  // Reducido de 16 a 15
-                        .foregroundColor(.white.opacity(0.9))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineSpacing(6)  // Aumentado de 4 a 6
-                }
-                .padding(24)
-            }
+            SuspendedInfoRow(
+                icon: "info.circle",
+                title: NSLocalizedString("suspended.whatCanDo", comment: "What can you do"),
+                message: NSLocalizedString("suspended.whatCanDoMessage", comment: "Appeal information")
+            )
         }
-        .padding(.horizontal, 20)  // Padding general del contenedor
+        .padding(.horizontal, 24)
     }
     
     private func formatExpirationDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .full
         formatter.timeStyle = .short
-        formatter.locale = Locale(identifier: "es_ES")
+        formatter.locale = .current
         return formatter.string(from: date)
     }
 }
 
-// MARK: - Enhanced Info Card Component
+private struct SuspendedInfoRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let icon: String
+    let title: String
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(AuthColors.primary(colorScheme))
+                .frame(width: 26, height: 26)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+
+                Text(message)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(5)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
 
 // MARK: - Enhanced Countdown Timer
 struct EnhancedCountdownTimer: View {
+    @Environment(\.colorScheme) private var colorScheme
     let expiresAt: Date
     @State private var timeRemaining: TimeInterval = 0
     @State private var timer: Timer?
@@ -288,53 +201,24 @@ struct EnhancedCountdownTimer: View {
     
     var body: some View {
         if timeRemaining > 0 {
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 Text(NSLocalizedString("suspended.timeRemaining", comment: "Time remaining"))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
-                HStack(spacing: 24) {
-                    EnhancedTimeComponent(value: days, label: NSLocalizedString("suspended.days", comment: "days"), color: .blue)
-                    EnhancedTimeComponent(value: hours, label: NSLocalizedString("suspended.hours", comment: "hours"), color: .purple)
-                    EnhancedTimeComponent(value: minutes, label: NSLocalizedString("suspended.minutes", comment: "minutes"), color: .pink)
+                HStack(spacing: 12) {
+                    EnhancedTimeComponent(value: days, label: NSLocalizedString("suspended.days", comment: "days"))
+                    EnhancedTimeComponent(value: hours, label: NSLocalizedString("suspended.hours", comment: "hours"))
+                    EnhancedTimeComponent(value: minutes, label: NSLocalizedString("suspended.minutes", comment: "minutes"))
                 }
             }
-            .padding(20)
+            .padding(18)
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            .white.opacity(0.1),
-                                            .white.opacity(0.05)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        )
-                    
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            LinearGradient(
-                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                }
+                Color.clear
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             )
-            .scaleEffect(pulseScale)
             .onAppear {
                 startTimer()
-                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                    pulseScale = 1.02
-                }
             }
             .onDisappear {
                 timer?.invalidate()
@@ -371,32 +255,21 @@ struct EnhancedCountdownTimer: View {
 
 // MARK: - Enhanced Time Component
 struct EnhancedTimeComponent: View {
+    @Environment(\.colorScheme) private var colorScheme
     let value: Int
     let label: String
-    let color: Color
-    @State private var glowIntensity: Double = 0.3
     
     var body: some View {
         VStack(spacing: 6) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(color.opacity(0.2))
-                    .frame(width: 60, height: 50)
-                    .shadow(color: color.opacity(glowIntensity), radius: 8, x: 0, y: 0)
-                
-                Text("\(value)")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-            }
+            Text("\(value)")
+                .font(.system(size: 23, weight: .bold, design: .rounded))
+                .foregroundColor(AuthColors.primary(colorScheme))
+                .monospacedDigit()
+                .frame(width: 58, height: 42)
             
             Text(label)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                glowIntensity = 0.6
-            }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
         }
     }
 }
@@ -409,29 +282,25 @@ struct EnhancedSuspendedActionButtons: View {
     @Binding var isVisible: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Ver estado de apelaciones
+        VStack(spacing: 12) {
             LiquidGlassButton(
                 title: NSLocalizedString("suspended.viewAppeals", comment: "View appeals status"),
                 icon: "doc.text.magnifyingglass",
                 action: { showAppealsStatus = true },
-                gradientColors: [.blue, .cyan]
+                style: .secondary
             )
             
-            // Apelar suspensión
             LiquidGlassButton(
                 title: NSLocalizedString("suspended.appeal", comment: "Appeal suspension"),
-                icon: "envelope.fill",
-                action: { showContactForm = true },
-                gradientColors: [.orange, .red]
+                icon: "envelope",
+                action: { showContactForm = true }
             )
             
-            // Cerrar sesión
             LiquidGlassButton(
                 title: NSLocalizedString("suspended.logout", comment: "Sign out"),
                 icon: "rectangle.portrait.and.arrow.right",
                 action: { logoutAction() },
-                gradientColors: [.gray, .gray.opacity(0.7)]
+                style: .secondary
             )
         }
         .padding(.horizontal, 20)
@@ -443,6 +312,7 @@ struct EnhancedSuspendedActionButtons: View {
 
 // MARK: - Enhanced Contact Support View
 struct EnhancedContactSupportView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let suspensionReason: String?
     @Binding var isPresented: Bool
     @State private var message: String = ""
@@ -487,39 +357,8 @@ struct EnhancedContactSupportView: View {
                         }
                         .padding(30)
                         .background(
-                            ZStack {
-                                // Enhanced glass morphism effect
-                                RoundedRectangle(cornerRadius: 32)
-                                    .fill(.ultraThinMaterial)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 32)
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [
-                                                        .white.opacity(0.1),
-                                                        .white.opacity(0.05)
-                                                    ],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                    )
-                                
-                                // Enhanced border gradient
-                                RoundedRectangle(cornerRadius: 32)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                .white.opacity(0.3),
-                                                .white.opacity(0.1),
-                                                .clear
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            }
+                            Color.clear
+                                .liquidGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
                         )
                         .shadow(color: .black.opacity(0.2), radius: 30, x: 0, y: 15)
                         .shadow(color: .blue.opacity(0.1), radius: 50, x: 0, y: 25)
@@ -531,7 +370,7 @@ struct EnhancedContactSupportView: View {
                 leading: Button("Cancelar") {
                     isPresented = false
                 }
-                .foregroundColor(.white)
+                .foregroundColor(AuthColors.primary(colorScheme))
                 .font(.system(size: 16, weight: .medium))
             )
         }
@@ -572,6 +411,7 @@ struct EnhancedContactSupportView: View {
 
 // MARK: - Enhanced Contact Support Components
 struct EnhancedContactSupportHeader: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var glowIntensity: Double = 0.3
     
     var body: some View {
@@ -593,25 +433,23 @@ struct EnhancedContactSupportHeader: View {
                     .font(.system(size: 60, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.white, .blue.opacity(0.8)],
+                            colors: [AuthColors.primary(colorScheme), AuthColors.secondary(colorScheme, opacity: 0.62)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .shadow(color: .white.opacity(glowIntensity), radius: 10, x: 0, y: 0)
+                    .shadow(color: AuthColors.primary(colorScheme).opacity(glowIntensity * 0.18), radius: 10, x: 0, y: 0)
             }
             
             VStack(spacing: 12) {
                 Text("Contactar Soporte")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
+                    .foregroundColor(AuthColors.primary(colorScheme))
                 
                 Text("Explícanos tu situación y revisaremos tu caso")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
-                    .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
             }
         }
         .padding(.top, 20)
@@ -624,6 +462,7 @@ struct EnhancedContactSupportHeader: View {
 }
 
 struct EnhancedEmailInputField: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var email: String
     @State private var isFocused = false
     
@@ -632,29 +471,32 @@ struct EnhancedEmailInputField: View {
             HStack(spacing: 8) {
                 Image(systemName: "envelope.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 Text("Tu email de contacto")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
             
             TextField("correo@ejemplo.com", text: $email)
-                .foregroundColor(.white)
+                .foregroundColor(AuthColors.primary(colorScheme))
                 .font(.system(size: 16))
                 .keyboardType(.emailAddress)
                 .autocapitalization(.none)
                 .padding(16)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(isFocused ? 0.15 : 0.1))
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
                         .animation(.easeInOut(duration: 0.2), value: isFocused)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(
                             LinearGradient(
-                                colors: isFocused ? [.blue.opacity(0.5), .purple.opacity(0.3)] : [.white.opacity(0.2), .clear],
+                                colors: [
+                                    AuthColors.primary(colorScheme).opacity(isFocused ? 0.28 : 0.12),
+                                    .clear
+                                ],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             ),
@@ -670,6 +512,7 @@ struct EnhancedEmailInputField: View {
 }
 
 struct EnhancedMessageInputField: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var message: String
     @State private var isFocused = false
     
@@ -678,22 +521,29 @@ struct EnhancedMessageInputField: View {
             HStack(spacing: 8) {
                 Image(systemName: "text.bubble.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 Text("Tu mensaje")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
             
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(isFocused ? 0.15 : 0.1))
+                    .fill(Color.clear)
                     .frame(minHeight: 120)
+                    .background {
+                        Color.clear
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
+                    }
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
                                 LinearGradient(
-                                    colors: isFocused ? [.blue.opacity(0.5), .purple.opacity(0.3)] : [.white.opacity(0.2), .clear],
+                                    colors: [
+                                        AuthColors.primary(colorScheme).opacity(isFocused ? 0.28 : 0.12),
+                                        .clear
+                                    ],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 ),
@@ -704,7 +554,7 @@ struct EnhancedMessageInputField: View {
                 
                 if message.isEmpty {
                     Text("Explícanos por qué consideras que la suspensión es incorrecta...")
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.52))
                         .font(.system(size: 16))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 20)
@@ -712,7 +562,7 @@ struct EnhancedMessageInputField: View {
                 }
                 
                 TextEditor(text: $message)
-                    .foregroundColor(.white)
+                    .foregroundColor(AuthColors.primary(colorScheme))
                     .font(.system(size: 16))
                     .padding(16)
                     .background(Color.clear)
@@ -726,6 +576,7 @@ struct EnhancedMessageInputField: View {
 }
 
 struct EnhancedSendSupportButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var isLoading: Bool
     let emailIsEmpty: Bool
     let messageIsEmpty: Bool
@@ -737,32 +588,25 @@ struct EnhancedSendSupportButton: View {
             HStack(spacing: 12) {
                 if isLoading {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .progressViewStyle(CircularProgressViewStyle(tint: AuthColors.primary(colorScheme)))
                         .scaleEffect(0.8)
                 } else {
                     Text("Enviar Mensaje")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(AuthColors.primary(colorScheme))
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 56)
         }
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color(red: 0.25, green: 0.35, blue: 0.82),
-                            Color(red: 0.78, green: 0.31, blue: 0.75)
-                        ]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .shadow(color: .blue.opacity(0.3), radius: isPressed ? 5 : 15, x: 0, y: isPressed ? 2 : 8)
-                .scaleEffect(isPressed ? 0.98 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+            Color.clear
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: !(emailIsEmpty || messageIsEmpty))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(AuthColors.subtle(colorScheme, opacity: isPressed ? 0.14 : 0.08))
+                        .allowsHitTesting(false)
+                }
         )
         .disabled(isLoading || emailIsEmpty || messageIsEmpty)
         .opacity((emailIsEmpty || messageIsEmpty) ? 0.6 : 1.0)

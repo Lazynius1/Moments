@@ -1,205 +1,168 @@
 import SwiftUI
 
 struct WhatsNewView: View {
-    @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
+
+    private var features: [WhatsNewFeature] {
+        [
+            WhatsNewFeature(
+                icon: "sparkles",
+                title: NSLocalizedString("whatsNew.nova.title", comment: ""),
+                description: NSLocalizedString("whatsNew.nova.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: "rectangle.on.rectangle.angled",
+                title: NSLocalizedString("whatsNew.glass.title", comment: ""),
+                description: NSLocalizedString("whatsNew.glass.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: "wand.and.stars",
+                title: NSLocalizedString("whatsNew.creator.title", comment: ""),
+                description: NSLocalizedString("whatsNew.creator.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: "circle.grid.2x2",
+                title: NSLocalizedString("whatsNew.feed.title", comment: ""),
+                description: NSLocalizedString("whatsNew.feed.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: "checkmark.seal",
+                title: NSLocalizedString("whatsNew.fixes.title", comment: ""),
+                description: NSLocalizedString("whatsNew.fixes.description", comment: "")
+            )
+        ]
+    }
 
     var body: some View {
         ScreenshotProtectedView(isProtected: true) {
-        ZStack {
-            // 1. Capa de Fondo Base
-            if colorScheme == .dark {
-                Color.black.ignoresSafeArea()
-            } else {
-                Color.white.ignoresSafeArea()
-            }
-
-            // 2. Orbes decorativos ambientales
-            GeometryReader { geometry in
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "4F46E5").opacity(colorScheme == .dark ? 0.25 : 0.1))
-                        .frame(width: geometry.size.width * 0.8)
-                        .blur(radius: 80)
-                        .offset(x: -geometry.size.width * 0.2, y: -geometry.size.height * 0.1)
-
-                    Circle()
-                        .fill(Color(hex: "9333EA").opacity(colorScheme == .dark ? 0.25 : 0.1))
-                        .frame(width: geometry.size.width * 0.7)
-                        .blur(radius: 70)
-                        .offset(x: geometry.size.width * 0.5, y: geometry.size.height * 0.6)
-                }
-            }
-            .ignoresSafeArea()
-
-            // 3. Efecto Glassmorphic Principal
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .ignoresSafeArea()
-
-            // 4. Contenido
-            VStack(spacing: 0) {
-                // Header con Logo y Título
-                VStack(spacing: 20) {
-                    Image("LoginLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 72, height: 72)
-                        .shadow(color: Color(hex: "4F46E5").opacity(0.4), radius: 20, x: 0, y: 0)
-                        .scaleEffect(appearAnimation ? 1.0 : 0.6)
-                        .opacity(appearAnimation ? 1.0 : 0.0)
-
-                    VStack(spacing: 8) {
-                        Text(NSLocalizedString("whatsNew.title", comment: ""))
-                            .font(.custom("Poppins-Bold", size: 30))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color(hex: "4F46E5"), Color(hex: "9333EA")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-
-                        Text(NSLocalizedString("whatsNew.subtitle", comment: ""))
-                            .font(.custom("Poppins-Medium", size: 17))
-                            .foregroundColor(.secondary)
-                    }
-                    .offset(y: appearAnimation ? 0 : 20)
-                    .opacity(appearAnimation ? 1.0 : 0.0)
-                }
-                .padding(.top, 40)
-                .padding(.bottom, 30)
-
-                // Lista de novedades
+            ZStack {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 22) {
+                    VStack(spacing: 20) {
+                        header
+                            .padding(.top, 22)
 
-                        WhatsNewFeatureRow(
-                            icon: "wand.and.stars.inverse",
-                            color: Color(hex: "4F46E5"),
-                            title: NSLocalizedString("whatsNew.blackout.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.blackout.description", comment: ""),
-                            delay: 0.1
-                        )
-
-                        WhatsNewFeatureRow(
-                            icon: "slider.horizontal.below.rectangle",
-                            color: Color(hex: "0EA5E9"),
-                            title: NSLocalizedString("whatsNew.activity.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.activity.description", comment: ""),
-                            delay: 0.2
-                        )
-
-                        WhatsNewFeatureRow(
-                            icon: "square.grid.2x2.fill",
-                            color: Color(hex: "F59E0B"),
-                            title: NSLocalizedString("whatsNew.archive.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.archive.description", comment: ""),
-                            delay: 0.3
-                        )
-
-                        WhatsNewFeatureRow(
-                            icon: "person.crop.circle.badge.checkmark",
-                            color: Color(hex: "EC4899"),
-                            title: NSLocalizedString("whatsNew.notifications.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.notifications.description", comment: ""),
-                            delay: 0.4
-                        )
-
-                        WhatsNewFeatureRow(
-                            icon: "paintpalette.fill",
-                            color: Color(hex: "10B981"),
-                            title: NSLocalizedString("whatsNew.privacy.title", comment: ""),
-                            description: NSLocalizedString("whatsNew.privacy.description", comment: ""),
-                            delay: 0.5
-                        )
+                        VStack(spacing: 12) {
+                            ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
+                                WhatsNewFeatureRow(feature: feature, delay: Double(index) * 0.06)
+                            }
+                        }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 120)
                 }
-
-                // footer con botón
-                VStack(spacing: 0) {
-                    Button(action: {
-                        withAnimation { dismiss() }
-                    }) {
-                        Text(NSLocalizedString("whatsNew.button", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 17))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color(hex: "4F46E5"), Color(hex: "9333EA")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(color: Color(hex: "4F46E5").opacity(0.3), radius: 10, x: 0, y: 5)
-                    }
+                .scrollContentBackground(.hidden)
+            }
+            .safeAreaInset(edge: .bottom) {
+                footerButton
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 12)
+            }
+            .onAppear {
+                withAnimation(.spring(response: 0.75, dampingFraction: 0.82)) {
+                    appearAnimation = true
                 }
-                .padding(24)
-                .background(
-                    (colorScheme == .dark ? Color.black : Color.white)
-                        .opacity(colorScheme == .dark ? 0.7 : 0.55)
-                        .blur(radius: 20)
-                )
-                .offset(y: appearAnimation ? 0 : 20)
-                .opacity(appearAnimation ? 1.0 : 0.0)
             }
         }
-        .onAppear {
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.75)) {
-                appearAnimation = true
+    }
+
+    private var header: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Image(colorScheme == .dark ? "LoginLogo" : "whatsnew")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 54, height: 54)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(NSLocalizedString("whatsNew.title", comment: ""))
+                        .font(.custom("Poppins-Bold", size: 24))
+                        .foregroundColor(.primary)
+
+                    Text(NSLocalizedString("whatsNew.subtitle", comment: ""))
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer(minLength: 0)
             }
         }
-        } // end ScreenshotProtectedView
+        .padding(.horizontal, 4)
+        .padding(.vertical, 10)
+        .scaleEffect(appearAnimation ? 1 : 0.96)
+        .opacity(appearAnimation ? 1 : 0)
+    }
+
+    private var footerButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                dismiss()
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text(NSLocalizedString("whatsNew.button", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+            }
+            .foregroundColor(.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background {
+                Color.clear
+                    .liquidGlass(in: Capsule(), interactive: true)
+            }
+        }
+        .buttonStyle(.plain)
+        .offset(y: appearAnimation ? 0 : 18)
+        .opacity(appearAnimation ? 1 : 0)
     }
 }
 
-
-
-// MARK: - Fila estándar
-
-struct WhatsNewFeatureRow: View {
-    @Environment(\.colorScheme) var colorScheme
+private struct WhatsNewFeature {
     let icon: String
-    let color: Color
     let title: String
     let description: String
+}
+
+private struct WhatsNewFeatureRow: View {
+    let feature: WhatsNewFeature
     let delay: Double
     @State private var appear = false
 
     var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(colorScheme == .dark ? 0.2 : 0.1))
-                    .frame(width: 50, height: 50)
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: feature.icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.primary)
+                .frame(width: 38, height: 38)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle())
+                }
 
-                Image(systemName: icon)
-                    .font(.system(size: 24))
-                    .foregroundColor(color)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 17))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(feature.title)
+                    .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(.primary)
 
-                Text(description)
-                    .font(.custom("Poppins-Regular", size: 15))
+                Text(feature.description)
+                    .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.secondary)
+                    .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .offset(x: appear ? 0 : 50)
-        .opacity(appear ? 1.0 : 0.0)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 7)
+        .offset(y: appear ? 0 : 18)
+        .opacity(appear ? 1 : 0)
         .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(delay)) {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.82).delay(delay)) {
                 appear = true
             }
         }

@@ -12,121 +12,26 @@ private func getThemeColor(_ theme: ProfileTheme) -> Color {
     }
 }
 
-// MARK: - Enhanced Profile Background with Advanced Effects
+// MARK: - Enhanced Profile Background
 struct EnhancedProfileBackground: View {
     let profileImagePath: String?
     let scrollOffset: CGFloat
     let profileTheme: ProfileTheme
-    let user: AppUser? // NUEVO: Usuario para acceder al badge
+    let user: AppUser?
     @Environment(\.colorScheme) var colorScheme
-    @State private var animationPhase: CGFloat = 0
-    @State private var animationTimer: Timer?
-    @State private var particlePositions: [CGPoint] = []
-    @State private var glowIntensity: CGFloat = 1.0
     
     var body: some View {
         ZStack {
-            // Enhanced gradient base with depth
             backgroundGradientLayer
-            
-            // Atmospheric effects layer
-            atmosphericEffectsLayer
-            
-            // Particle systems
-            particleSystemsLayer
-            
-            // Dynamic lighting effects
-            dynamicLightingLayer
-            
-            // Profile image backdrop with enhanced blur
-            profileImageBackdrop
-            
-            // Avatar-centered effects layer
-            avatarCenteredEffects
-            
-            // Adaptive overlay for readability
             adaptiveOverlay
         }
         .ignoresSafeArea(.all, edges: .all)
-        .onAppear {
-            initializeEffects()
-            startAdvancedAnimation()
-        }
-        .onDisappear {
-            stopAnimation()
-        }
     }
     
     // MARK: - Background Layers
     
     private var backgroundGradientLayer: some View {
-        ZStack {
-            // Primary gradient (para todos los temas)
-            if colorScheme == .dark {
-                profileTheme.darkBackgroundGradient
-            } else {
-                profileTheme.backgroundGradient
-            }
-        }
-    }
-    
-    private var atmosphericEffectsLayer: some View {
-        ZStack {
-            // Ambient particles (para todos los temas)
-            AmbientParticlesView(
-                theme: profileTheme,
-                animationPhase: animationPhase
-            )
-        }
-    }
-    
-    private var particleSystemsLayer: some View {
-        ZStack {
-            // Sin sistemas de partículas (todos los temas iguales al clásico)
-        }
-    }
-    
-    private var dynamicLightingLayer: some View {
-        ZStack {
-            // Sin efectos de iluminación (todos los temas iguales al clásico)
-        }
-    }
-    
-    private var profileImageBackdrop: some View {
-        Group {
-            if let profileImagePath = profileImagePath, let url = URL(string: profileImagePath) {
-                GeometryReader { geometry in
-                    KFImage(url)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                        .blur(radius: 35 + sin(animationPhase * 2) * 5) // Dynamic blur
-                        .opacity(colorScheme == .dark ? 0.12 : 0.06)
-                        .scaleEffect(1.3 + sin(animationPhase) * 0.1) // Breathing effect
-                        .offset(y: scrollOffset * 0.15)
-                        .ignoresSafeArea()
-                        .overlay(
-                            // Color tint based on theme
-                            Rectangle()
-                                .fill(getThemeColor(profileTheme).opacity(0.2))
-                                .blendMode(.overlay)
-                        )
-                }
-            }
-        }
-    }
-    
-    private var avatarCenteredEffects: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Avatar position (ajustada basada en la prueba)
-                let avatarCenterX = geometry.size.width / 2
-                let avatarCenterY = geometry.size.height * 0.17 // Posición ajustada
-                
-                // Sin efectos adicionales (todos los temas iguales al clásico)
-            }
-        }
+        (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
     }
     
     private var adaptiveOverlay: some View {
@@ -134,71 +39,15 @@ struct EnhancedProfileBackground: View {
             .fill(
                 LinearGradient(
                     colors: [
-                        Color.black.opacity(colorScheme == .dark ? 0.25 : 0.08),
+                        Color.black.opacity(colorScheme == .dark ? 0.08 : 0.00),
                         Color.clear,
-                        Color.black.opacity(colorScheme == .dark ? 0.15 : 0.03),
-                        Color.clear,
-                        Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05)
+                        Color.black.opacity(colorScheme == .dark ? 0.06 : 0.00)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
             )
             .ignoresSafeArea()
-    }
-    
-    // MARK: - Animation System
-    
-    private func initializeEffects() {
-        // Initialize particle positions
-        particlePositions = (0..<20).map { _ in
-            CGPoint(
-                x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-            )
-        }
-    }
-    
-    private func startAdvancedAnimation() {
-        stopAnimation()
-        
-        // Main animation timer
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { _ in
-            withAnimation(.linear(duration: 0.016)) {
-                animationPhase += 0.008 // Smoother animation
-                if animationPhase >= 1.0 {
-                    animationPhase = 0.0
-                }
-                
-                // Dynamic glow intensity
-                glowIntensity = 0.8 + 0.4 * sin(animationPhase * 4 * .pi)
-                
-                // Update particle positions
-                updateParticlePositions()
-            }
-        }
-    }
-    
-    private func updateParticlePositions() {
-        for i in particlePositions.indices {
-            let speed = CGFloat.random(in: 0.5...2.0)
-            let angle = animationPhase * 2 * .pi + CGFloat(i) * 0.5
-            particlePositions[i].x += cos(angle) * speed
-            particlePositions[i].y += sin(angle) * speed * 0.5
-            
-            // Wrap around screen
-            if particlePositions[i].x > UIScreen.main.bounds.width {
-                particlePositions[i].x = -50
-            }
-            if particlePositions[i].y > UIScreen.main.bounds.height {
-                particlePositions[i].y = -50
-            }
-        }
-    }
-    
-    private func stopAnimation() {
-        animationTimer?.invalidate()
-        animationTimer = nil
     }
     
     // MARK: - Badge Helper Functions
@@ -1082,4 +931,3 @@ struct EnhancedProfilePreviewCard: View {
     }
     .background(Color.black)
 }
-

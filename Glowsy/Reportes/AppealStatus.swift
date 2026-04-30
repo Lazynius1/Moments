@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AppealStatusView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var authService: AuthService
     @StateObject private var appealService = AppealService.shared
     @State private var appeals: [AppealStatus] = []
@@ -9,40 +10,60 @@ struct AppealStatusView: View {
     @State private var showError = false
     @State private var selectedAppeal: AppealStatus?
     @State private var refreshing = false
-    
+
     var body: some View {
         NavigationView {
             ZStack {
-                LiquidAuroraBackground()
-                
-                if isLoading {
-                    LoadingView()
-                } else if appeals.isEmpty {
-                    EmptyAppealsView()
-                } else {
-                    AppealsListView(
-                        appeals: appeals,
-                        selectedAppeal: $selectedAppeal,
-                        refreshing: $refreshing,
+                Color.clear.ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    AppealStatusHeader(
+                        title: selectedAppeal == nil ? NSLocalizedString("appeal.status.title", comment: "My appeals navigation title") : NSLocalizedString("appeal.detail.title", comment: "Appeal detail title"),
+                        showsBackButton: selectedAppeal != nil,
+                        showsRefreshButton: selectedAppeal == nil,
+                        refreshing: refreshing,
+                        onBack: {
+                            withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                                selectedAppeal = nil
+                            }
+                        },
                         onRefresh: fetchAppeals
                     )
+
+                    ZStack {
+                        if let selectedAppeal {
+                            AppealDetailFlowView(appeal: selectedAppeal)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                ))
+                        } else {
+                            Group {
+                                if isLoading {
+                                    LoadingView()
+                                } else if appeals.isEmpty {
+                                    EmptyAppealsView()
+                                } else {
+                                    AppealsListView(
+                                        appeals: appeals,
+                                        selectedAppeal: $selectedAppeal,
+                                        refreshing: $refreshing,
+                                        onRefresh: fetchAppeals
+                                    )
+                                }
+                            }
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .leading).combined(with: .opacity),
+                                removal: .move(edge: .trailing).combined(with: .opacity)
+                            ))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .navigationTitle(NSLocalizedString("appeal.status.title", comment: "My appeals navigation title"))
-            .navigationBarTitleDisplayMode(.large)
-            .navigationBarItems(
-                trailing: Button(action: fetchAppeals) {
-                    Image(systemName: refreshing ? "arrow.clockwise" : "arrow.clockwise")
-                        .foregroundColor(.primary)  // ✅ Cambio: .primary para adaptabilidad
-                        .rotationEffect(.degrees(refreshing ? 360 : 0))
-                        .animation(refreshing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: refreshing)
-                }
-                .disabled(refreshing)
-            )
+            .navigationBarHidden(true)
         }
-        .sheet(item: $selectedAppeal) { appeal in
-            AppealDetailView(appeal: appeal)
-        }
+        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: selectedAppeal?.id)
         .onAppear {
             fetchAppeals()
         }
@@ -52,19 +73,19 @@ struct AppealStatusView: View {
             Text(errorMessage ?? "Error desconocido")
         }
     }
-    
+
     private func fetchAppeals() {
         guard let userId = authService.currentFirebaseUser?.uid else { return }
-        
+
         if !refreshing {
             isLoading = true
         }
         refreshing = true
-        
+
         Task {
             do {
                 let fetchedAppeals = try await appealService.fetchUserAppeals(userId: userId)
-                
+
                 await MainActor.run {
                     self.appeals = fetchedAppeals
                     self.isLoading = false
@@ -82,19 +103,96 @@ struct AppealStatusView: View {
     }
 }
 
+// MARK: - Appeal Status Header
+struct AppealStatusHeader: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: String
+    let showsBackButton: Bool
+    let showsRefreshButton: Bool
+    let refreshing: Bool
+    let onBack: () -> Void
+    let onRefresh: () -> Void
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(AuthColors.primary(colorScheme))
+                .lineLimit(1)
+
+            HStack {
+                if showsBackButton {
+                    glassIconButton(systemName: "chevron.left", action: onBack)
+                } else {
+                    Color.clear
+                        .frame(width: 42, height: 42)
+                }
+
+                Spacer()
+
+                if showsRefreshButton {
+                    refreshButton
+                } else {
+                    Color.clear
+                        .frame(width: 42, height: 42)
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
+    }
+
+    private var refreshButton: some View {
+        Button {
+            guard !refreshing else { return }
+            onRefresh()
+        } label: {
+            ZStack {
+                Color.clear
+                    .liquidGlass(in: Circle())
+
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .rotationEffect(.degrees(refreshing ? 360 : 0))
+                    .animation(refreshing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: refreshing)
+            }
+            .frame(width: 42, height: 42)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func glassIconButton(systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(AuthColors.primary(colorScheme))
+                .frame(width: 42, height: 42)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Appeals List View
 struct AppealsListView: View {
     let appeals: [AppealStatus]
     @Binding var selectedAppeal: AppealStatus?
     @Binding var refreshing: Bool
     let onRefresh: () -> Void
-    
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 ForEach(appeals, id: \.id) { appeal in
                     AppealCard(appeal: appeal) {
-                        selectedAppeal = appeal
+                        withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                            selectedAppeal = appeal
+                        }
                     }
                 }
             }
@@ -108,363 +206,277 @@ struct AppealsListView: View {
 
 // MARK: - Appeal Card
 struct AppealCard: View {
+    @Environment(\.colorScheme) private var colorScheme
     let appeal: AppealStatus
     let onTap: () -> Void
-    @State private var isVisible = false
-    
+
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 16) {
-                // Header con ticket y estado
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 10) {
                         Text(String(format: NSLocalizedString("appeal.status.ticket", comment: "Ticket number format"), appeal.ticketNumber))
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.primary)  // ✅ Cambio
-                        
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+
                         Text(appeal.submittedAt)
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.secondary)  // ✅ Cambio
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
                     }
-                    
-                    Spacer()
-                    
+
                     AppealStatusBadge(status: appeal.status, priority: appeal.priority)
-                }
-                
-                // Progreso visual
-                AppealProgressBar(
-                    status: appeal.status,
-                    priority: appeal.priority
-                )
-                
-                // Información principal
-                VStack(alignment: .leading, spacing: 8) {
-                    if let reason = appeal.suspensionReason {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(.orange)
-                            
-                            Text(String(format: NSLocalizedString("appeal.status.reason", comment: "Suspension reason format"), reason))
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.primary)  // ✅ Cambio
-                                .lineLimit(2)
-                        }
-                    }
-                    
-                    HStack(spacing: 8) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.blue)
-                        
-                        Text(String(format: NSLocalizedString("appeal.status.estimatedResponse", comment: "Estimated response format"), appeal.estimatedResponseTime))
+
+                    if let reason = appeal.suspensionReason, !reason.isEmpty {
+                        Text(String(format: NSLocalizedString("appeal.status.reason", comment: "Suspension reason format"), reason))
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.primary)  // ✅ Cambio
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                            .lineLimit(2)
                     }
-                    
-                    if let moderatorNotes = appeal.moderatorNotes, !moderatorNotes.isEmpty {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "person.badge.shield.checkmark.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(.green)
-                            
-                            Text(String(format: NSLocalizedString("appeal.status.moderatorNotes", comment: "Moderator notes format"), moderatorNotes))
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.primary)  // ✅ Cambio
-                                .lineLimit(3)
-                        }
-                    }
+
+                    Text(String(format: NSLocalizedString("appeal.status.estimatedResponse", comment: "Estimated response format"), appeal.estimatedResponseTime))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                 }
-                
-                // Botón de acción según estado
-                AppealActionButton(appeal: appeal)
+
+                Spacer(minLength: 10)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.45))
             }
-            .padding(20)
+            .padding(18)
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            .white.opacity(0.15),
-                                            .white.opacity(0.05)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        )
-                    
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    statusColor(for: appeal.status).opacity(0.4),
-                                    statusColor(for: appeal.status).opacity(0.1)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                }
+                Color.clear
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(AuthColors.primary(colorScheme).opacity(colorScheme == .dark ? 0.10 : 0.08), lineWidth: 0.8)
+                            .allowsHitTesting(false)
+                    }
             )
-            .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 8)
-            .scaleEffect(isVisible ? 1.0 : 0.9)
-            .opacity(isVisible ? 1.0 : 0.0)
         }
         .buttonStyle(PlainButtonStyle())
-        .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                isVisible = true
-            }
-        }
-    }
-    
-    private func statusColor(for status: String) -> Color {
-        switch status {
-        case "pending": return .orange
-        case "reviewing": return .blue
-        case "approved": return .green
-        case "denied": return .red
-        case "requires_info": return .purple
-        default: return .gray
-        }
     }
 }
 
 // MARK: - Appeal Status Badge
 struct AppealStatusBadge: View {
+    @Environment(\.colorScheme) private var colorScheme
     let status: String
     let priority: String
-    
+
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 8) {
-                Image(systemName: statusIcon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(statusColor)
-                
-                Text(statusText)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(statusColor)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(statusColor.opacity(0.2))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(statusColor.opacity(0.4), lineWidth: 1)
-                    )
-            )
-            
-            // Priority indicator
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(priorityColor)
-                    .frame(width: 6, height: 6)
-                
-                Text(priority.capitalized)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.secondary)  // ✅ Cambio
-            }
+        HStack(spacing: 8) {
+            Image(systemName: statusIcon)
+                .font(.system(size: 12, weight: .semibold))
+
+            Text(statusText)
+                .font(.system(size: 12, weight: .semibold))
         }
+        .foregroundColor(statusColor)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            Color.clear
+                .liquidGlass(in: Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(statusColor.opacity(colorScheme == .dark ? 0.28 : 0.18), lineWidth: 0.8)
+                        .allowsHitTesting(false)
+                }
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     private var statusIcon: String {
         switch status {
-        case "pending": return "clock.fill"
-        case "reviewing": return "eye.fill"
-        case "approved": return "checkmark.circle.fill"
-        case "denied": return "xmark.circle.fill"
-        case "requires_info": return "questionmark.circle.fill"
-        default: return "circle.fill"
+        case "pending": return "clock"
+        case "reviewing": return "eye"
+        case "approved": return "checkmark.circle"
+        case "denied": return "xmark.circle"
+        case "requires_info": return "questionmark.circle"
+        default: return "circle"
         }
     }
-    
+
     private var statusText: String {
         switch status {
-        case "pending": return "Pendiente"
-        case "reviewing": return "Revisando"
-        case "approved": return "Aprobada"
-        case "denied": return "Denegada"
-        case "requires_info": return "Info Requerida"
+        case "pending": return NSLocalizedString("appeal.status.pending", comment: "Pending appeal status")
+        case "reviewing": return NSLocalizedString("appeal.status.reviewing", comment: "Reviewing appeal status")
+        case "approved": return NSLocalizedString("appeal.status.approved", comment: "Approved appeal status")
+        case "denied": return NSLocalizedString("appeal.status.denied", comment: "Denied appeal status")
+        case "requires_info": return NSLocalizedString("appeal.status.requiresInfo", comment: "Requires more information appeal status")
         default: return status.capitalized
         }
     }
-    
+
     private var statusColor: Color {
         switch status {
-        case "pending": return .orange
-        case "reviewing": return .blue
         case "approved": return .green
         case "denied": return .red
-        case "requires_info": return .purple
-        default: return .gray
-        }
-    }
-    
-    private var priorityColor: Color {
-        switch priority {
-        case "high": return .red
-        case "medium": return .orange
-        case "low": return .green
-        default: return .gray
+        case "requires_info": return .orange
+        default: return AuthColors.primary(colorScheme)
         }
     }
 }
 
-// MARK: - Appeal Progress Bar
-struct AppealProgressBar: View {
-    let status: String
-    let priority: String
-    
-    private var progress: CGFloat {
-        switch status {
-        case "pending": return 0.2
-        case "reviewing": return 0.6
-        case "approved", "denied": return 1.0
-        case "requires_info": return 0.4
-        default: return 0.0
-        }
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(NSLocalizedString("appeal.status.progress", comment: "Progress label"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)  // ✅ Cambio
-                
-                Spacer()
-                
-                Text(String(format: NSLocalizedString("appeal.status.percentage", comment: "Progress percentage format"), Int(progress * 100)))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.primary)  // ✅ Cambio
-            }
-            
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(.white.opacity(0.2))
-                    .frame(height: 6)
-                
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(
-                        LinearGradient(
-                            colors: [statusColor.opacity(0.8), statusColor],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: progress * 200, height: 6)
-                    .animation(.easeInOut(duration: 1.0), value: progress)
-            }
-            .frame(width: 200)
-        }
-    }
-    
-    private var statusColor: Color {
-        switch status {
-        case "pending": return .orange
-        case "reviewing": return .blue
-        case "approved": return .green
-        case "denied": return .red
-        case "requires_info": return .purple
-        default: return .gray
-        }
-    }
-}
-
-// MARK: - Appeal Action Button
-struct AppealActionButton: View {
+// MARK: - Appeal Detail Flow View
+struct AppealDetailFlowView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let appeal: AppealStatus
-    
+
     var body: some View {
-        if shouldShowActionButton {
-            Button(action: actionButtonTapped) {
-                HStack(spacing: 8) {
-                    Image(systemName: actionButtonIcon)
-                        .font(.system(size: 14, weight: .medium))
-                    
-                    Text(actionButtonText)
-                        .font(.system(size: 14, weight: .semibold))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(String(format: NSLocalizedString("appeal.status.ticket", comment: "Ticket number format"), appeal.ticketNumber))
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+
+                    AppealStatusBadge(status: appeal.status, priority: appeal.priority)
+
+                    if !appeal.statusDescription.isEmpty {
+                        Text(appeal.statusDescription)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.74))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(actionButtonColor.opacity(0.8))
+                .padding(.top, 12)
+
+                VStack(spacing: 18) {
+                    AppealDetailLine(
+                        title: NSLocalizedString("appeal.status.submitted", comment: "Submitted label"),
+                        value: appeal.submittedAt
+                    )
+
+                    AppealDetailLine(
+                        title: NSLocalizedString("appeal.detail.estimatedTime", comment: "Estimated time label"),
+                        value: appeal.estimatedResponseTime
+                    )
+
+                    if let reason = appeal.suspensionReason, !reason.isEmpty {
+                        AppealDetailLine(
+                            title: NSLocalizedString("appeal.detail.suspensionReason", comment: "Suspension reason label"),
+                            value: reason
+                        )
+                    }
+
+                    if let moderatorNotes = appeal.moderatorNotes, !moderatorNotes.isEmpty {
+                        AppealDetailLine(
+                            title: NSLocalizedString("appeal.detail.moderatorNotes", comment: "Moderator notes label"),
+                            value: moderatorNotes
+                        )
+                    }
+                }
+
+                AppealTextSection(
+                    title: NSLocalizedString("appeal.detail.yourMessage", comment: "User appeal message section title"),
+                    text: appeal.appealMessage
                 )
+
+                if let additionalInfo = appeal.additionalInfo, !additionalInfo.isEmpty {
+                    AppealTextSection(
+                        title: NSLocalizedString("appeal.detail.additionalInfo", comment: "Additional information section title"),
+                        text: additionalInfo
+                    )
+                }
+
+                if !appeal.nextSteps.isEmpty {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(NSLocalizedString("appeal.detail.nextSteps", comment: "Next steps section title"))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(Array(appeal.nextSteps.enumerated()), id: \.offset) { index, step in
+                                HStack(alignment: .top, spacing: 12) {
+                                    Text("\(index + 1)")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(AuthColors.primary(colorScheme))
+                                        .frame(width: 24, height: 24)
+                                        .background {
+                                            Color.clear
+                                                .liquidGlass(in: Circle())
+                                        }
+
+                                    Text(step)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.76))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
+                }
             }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 28)
         }
     }
-    
-    private var shouldShowActionButton: Bool {
-        appeal.status == "requires_info" || appeal.status == "approved"
-    }
-    
-    private var actionButtonText: String {
-        switch appeal.status {
-        case "requires_info": return NSLocalizedString("appeal.action.provideInfo", comment: "Provide info button")
-        case "approved": return NSLocalizedString("appeal.action.reactivateAccount", comment: "Reactivate account button")
-        default: return ""
+}
+
+struct AppealDetailLine: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+
+            Text(value)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(AuthColors.primary(colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+                .opacity(colorScheme == .dark ? 0.18 : 0.12)
+                .padding(.top, 6)
         }
     }
-    
-    private var actionButtonIcon: String {
-        switch appeal.status {
-        case "requires_info": return "plus.circle.fill"
-        case "approved": return "checkmark.circle.fill"
-        default: return "circle.fill"
-        }
-    }
-    
-    private var actionButtonColor: Color {
-        switch appeal.status {
-        case "requires_info": return .blue
-        case "approved": return .green
-        default: return .gray
-        }
-    }
-    
-    private func actionButtonTapped() {
-        // TODO: Implementar acciones específicas
-        switch appeal.status {
-        case "requires_info":
-            // Mostrar formulario para información adicional
-            break
-        case "approved":
-            // Proceso de reactivación de cuenta
-            break
-        default:
-            break
+}
+
+struct AppealTextSection: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: String
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(AuthColors.primary(colorScheme))
+
+            Text(text)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.76))
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
 
 // MARK: - Empty Appeals View
 struct EmptyAppealsView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(spacing: 24) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 64, weight: .light))
-                .foregroundColor(.secondary)  // ✅ Cambio
-            
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+
             VStack(spacing: 12) {
                 Text(NSLocalizedString("appeal.status.noAppeals.title", comment: "No appeals title"))
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.primary)  // ✅ Cambio
-                
+                    .foregroundColor(AuthColors.primary(colorScheme))
+
                 Text(NSLocalizedString("appeal.status.noAppeals.description", comment: "No appeals description"))
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)  // ✅ Cambio
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
             }
         }
@@ -474,15 +486,17 @@ struct EmptyAppealsView: View {
 
 // MARK: - Loading View
 struct LoadingView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(spacing: 20) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .primary))  // ✅ Cambio
+                .progressViewStyle(CircularProgressViewStyle(tint: AuthColors.primary(colorScheme)))
                 .scaleEffect(1.5)
-            
+
             Text(NSLocalizedString("appeal.status.loading", comment: "Loading appeals text"))
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.secondary)  // ✅ Cambio
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
         }
     }
 }
@@ -507,218 +521,4 @@ struct AppealStatus: Identifiable {
     let estimatedResponseTime: String
     let nextSteps: [String]
     let statusDescription: String
-}
-
-// MARK: - ✅ NUEVO: AppealDetailView
-struct AppealDetailView: View {
-    let appeal: AppealStatus
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                LiquidAuroraBackground()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Header
-                        AppealDetailHeader(appeal: appeal)
-                        
-                        // Content sections
-                        VStack(spacing: 20) {
-                            AppealDetailInfoSection(appeal: appeal)
-                            AppealDetailTimelineSection(appeal: appeal)
-                            AppealDetailMessageSection(appeal: appeal)
-                        }
-                        .padding(.horizontal, 20)
-                    }
-                    .padding(.top, 20)
-                }
-            }
-            .navigationTitle(NSLocalizedString("appeal.detail.title", comment: "Appeal detail title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button(NSLocalizedString("appeal.detail.close", comment: "Close button")) {
-                    presentationMode.wrappedValue.dismiss()
-                }
-                .foregroundColor(.primary)
-            )
-        }
-    }
-}
-
-// MARK: - Appeal Detail Components
-struct AppealDetailHeader: View {
-    let appeal: AppealStatus
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Ticket #\(appeal.ticketNumber)")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(.primary)
-            
-            AppealStatusBadge(status: appeal.status, priority: appeal.priority)
-            
-            AppealProgressBar(status: appeal.status, priority: appeal.priority)
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-        .padding(.horizontal, 20)
-    }
-}
-
-struct AppealDetailInfoSection: View {
-    let appeal: AppealStatus
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Información")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(.primary)
-            
-            VStack(spacing: 12) {
-                if let reason = appeal.suspensionReason {
-                    AppealInfoRow(
-                        icon: "exclamationmark.triangle.fill",
-                        title: "Motivo de suspensión",
-                        content: reason,
-                        color: .orange
-                    )
-                }
-                
-                AppealInfoRow(
-                    icon: "clock.fill",
-                    title: "Tiempo estimado",
-                    content: appeal.estimatedResponseTime,
-                    color: .blue
-                )
-                
-                AppealInfoRow(
-                    icon: "calendar",
-                    title: "Enviado",
-                    content: appeal.submittedAt,
-                    color: .green
-                )
-                
-                if let moderatorNotes = appeal.moderatorNotes, !moderatorNotes.isEmpty {
-                    AppealInfoRow(
-                        icon: "person.badge.shield.checkmark.fill",
-                        title: "Notas del moderador",
-                        content: moderatorNotes,
-                        color: .purple
-                    )
-                }
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-    }
-}
-
-struct AppealDetailTimelineSection: View {
-    let appeal: AppealStatus
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Próximos pasos")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(.primary)
-            
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(appeal.nextSteps.enumerated()), id: \.offset) { index, step in
-                    HStack(alignment: .top, spacing: 12) {
-                        Text("\(index + 1)")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 24, height: 24)
-                            .background(Circle().fill(.blue))
-                        
-                        Text(step)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        Spacer()
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-    }
-}
-
-struct AppealDetailMessageSection: View {
-    let appeal: AppealStatus
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Tu mensaje")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(.primary)
-            
-            Text(appeal.appealMessage)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(4)
-            
-            if let additionalInfo = appeal.additionalInfo, !additionalInfo.isEmpty {
-                Divider()
-                
-                Text("Información adicional")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.primary)
-                
-                Text(additionalInfo)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(4)
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-    }
-}
-
-struct AppealInfoRow: View {
-    let icon: String
-    let title: String
-    let content: String
-    let color: Color
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(color)
-                .frame(width: 20)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
-                
-                Text(content)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer()
-        }
-    }
 }

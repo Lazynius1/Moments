@@ -41,11 +41,60 @@ class AuthService: ObservableObject {
         case registering
         case completing
     }
+
+    private enum CachedAccountDecision: String, Codable {
+        case allowed
+        case deactivated
+        case suspended
+    }
+
+    private struct CachedAccountStatus: Codable {
+        let userId: String
+        let decision: CachedAccountDecision
+        let reason: String?
+        let expiresAt: Date?
+        let verifiedAt: Date
+
+        var isExpiredSuspension: Bool {
+            guard decision == .suspended, let expiresAt else { return false }
+            return Date() > expiresAt
+        }
+    }
     
     var isInRegistrationProcess: Bool {
         return authQueue.sync {
             return _registrationState != .idle
         }
+    }
+
+    private func cachedAccountStatusKey(userId: String) -> String {
+        "accountStatus_\(userId)"
+    }
+
+    private func loadCachedAccountStatus(userId: String) -> CachedAccountStatus? {
+        guard let data = UserDefaults.standard.data(forKey: cachedAccountStatusKey(userId: userId)) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(CachedAccountStatus.self, from: data)
+    }
+
+    private func saveCachedAccountStatus(
+        userId: String,
+        decision: CachedAccountDecision,
+        reason: String? = nil,
+        expiresAt: Date? = nil
+    ) {
+        let status = CachedAccountStatus(
+            userId: userId,
+            decision: decision,
+            reason: reason,
+            expiresAt: expiresAt,
+            verifiedAt: Date()
+        )
+
+        guard let data = try? JSONEncoder().encode(status) else { return }
+        UserDefaults.standard.set(data, forKey: cachedAccountStatusKey(userId: userId))
     }
     
     // ✅ NUEVO: Transition Lock para evitar que el listener interfiera durante handovers críticos
@@ -167,6 +216,7 @@ class AuthService: ObservableObject {
                             }
                             
                             if isActive, let userData = userData {
+                                self.saveCachedAccountStatus(userId: user.uid, decision: .allowed)
                                 self.isLoggedIn = true
                                 self.currentUser = userData
                                 self.currentFirebaseUser = user
@@ -214,26 +264,96 @@ class AuthService: ObservableObject {
                     return
                 }
 
-                // ✅ MODO OPTIMISTA 2.0: Si tenemos perfil en caché, entrar DIRECTAMENTE.
-                // No esperamos al NetworkMonitor porque puede tardar unos ms en detectar offline.
+                // ✅ Caché local: útil para offline, pero no debe saltarse controles de estado.
                 if let cachedUser = LocalPersistenceService.shared.loadUser(userId: user.uid) {
+                    let cachedAccountStatus = self.loadCachedAccountStatus(userId: user.uid)
+
+                    if cachedAccountStatus?.decision == .suspended && cachedAccountStatus?.isExpiredSuspension == false {
+                        DispatchQueue.main.async {
+                            self.isLoggedIn = false
+                            self.currentUser = nil
+                            self.currentFirebaseUser = user
+                            self.isAccountDeactivated = false
+                            self.deactivatedUserData = nil
+                            self.authState = .suspended(reason: cachedAccountStatus?.reason, expiresAt: cachedAccountStatus?.expiresAt)
+                            self.isVerifyingAccount = false
+                        }
+                        return
+                    }
+
+                    if !cachedUser.isActive || cachedAccountStatus?.decision == .deactivated {
+                        DispatchQueue.main.async {
+                            self.isLoggedIn = false
+                            self.currentUser = nil
+                            self.currentFirebaseUser = user
+                            self.isAccountDeactivated = true
+                            self.deactivatedUserData = cachedUser
+                            self.authState = .deactivated
+                            self.isVerifyingAccount = false
+                        }
+                        return
+                    }
+
                     DispatchQueue.main.async {
-                        print("📶 AuthService: Login Optimista (Caché detectada)")
+                        print("📶 AuthService: Sesión local válida, verificando cuenta en segundo plano")
                         self.isLoggedIn = true
                         self.currentUser = cachedUser
                         self.currentFirebaseUser = user
+                        self.isAccountDeactivated = false
+                        self.deactivatedUserData = nil
                         self.authState = .authenticated
                         self.isVerifyingAccount = false
                     }
+
+                    if !NetworkMonitor.shared.isConnected {
+                        return
+                    }
                     
-                    // Verificar en background si hay cambios (suspensiones, etc)
+                    // Verificación silenciosa: si el servidor confirma bloqueo, se corrige el estado al instante.
                     self.checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
                         if isSuspended {
-                             DispatchQueue.main.async { self.forceLogout() }
+                            DispatchQueue.main.async {
+                                self.isLoggedIn = false
+                                self.currentUser = nil
+                                self.currentFirebaseUser = user
+                                self.isVerifyingAccount = false
+                            }
                              return
                         }
-                        if isActive, let userData = userData {
-                            DispatchQueue.main.async { self.currentUser = userData }
+                        if isActive {
+                            let resolvedUser = userData ?? cachedUser
+                            DispatchQueue.main.async {
+                                self.saveCachedAccountStatus(userId: user.uid, decision: .allowed)
+                                self.isLoggedIn = true
+                                self.currentUser = resolvedUser
+                                self.currentFirebaseUser = user
+                                self.isAccountDeactivated = false
+                                self.deactivatedUserData = nil
+                                self.authState = .authenticated
+                                self.isVerifyingAccount = false
+                                self.startSuspensionListener()
+                                self.syncProfileDataToWidget(userData: resolvedUser)
+                            }
+                        } else if let userData = userData {
+                            DispatchQueue.main.async {
+                                self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
+                                self.isLoggedIn = false
+                                self.currentUser = nil
+                                self.currentFirebaseUser = user
+                                self.isAccountDeactivated = true
+                                self.deactivatedUserData = userData
+                                self.authState = .deactivated
+                                self.isVerifyingAccount = false
+                            }
+                        } else {
+                            DispatchQueue.main.async {
+                                print("📶 AuthService: No se pudo confirmar cuenta; se mantiene sesión local")
+                                self.isLoggedIn = true
+                                self.currentUser = cachedUser
+                                self.currentFirebaseUser = user
+                                self.authState = .authenticated
+                                self.isVerifyingAccount = false
+                            }
                         }
                     }
                     return
@@ -263,6 +383,10 @@ class AuthService: ObservableObject {
                         }
                         
                         if isActive {
+                            if let userData {
+                                self.saveCachedAccountStatus(userId: user.uid, decision: .allowed)
+                                LocalPersistenceService.shared.saveCurrentUser(userData)
+                            }
                             self.isLoggedIn = true
                             self.currentUser = userData
                             self.currentFirebaseUser = user
@@ -277,6 +401,7 @@ class AuthService: ObservableObject {
                             self.syncProfileDataToWidget(userData: userData)
                             
                         } else {
+                            self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
                             self.isLoggedIn = false
                             self.currentUser = nil
                             self.currentFirebaseUser = user
@@ -621,7 +746,15 @@ class AuthService: ObservableObject {
         if !NetworkMonitor.shared.isConnected {
             print("📶 AuthService: Modo Offline detectado, cargando perfil local")
             let cachedUser = LocalPersistenceService.shared.loadUser(userId: userId)
-            completion(true, cachedUser, false) // Retornamos el usuario cacheado si existe
+            let cachedStatus = loadCachedAccountStatus(userId: userId)
+
+            if cachedStatus?.decision == .suspended && cachedStatus?.isExpiredSuspension == false {
+                completion(false, cachedUser, true)
+            } else if cachedStatus?.decision == .deactivated || cachedUser?.isActive == false {
+                completion(false, cachedUser, false)
+            } else {
+                completion(cachedUser != nil, cachedUser, false)
+            }
             return
         }
 
@@ -635,18 +768,45 @@ class AuthService: ObservableObject {
             }
         }
         
-        // ✅ TIMEOUT DE SEGURIDAD: 3 segundos max para verificación
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+        // Bootstrap de sesión: si no podemos confirmar estado pero hay caché válida, mantenemos sesión local.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
             if !hasCompleted {
-                print("⚠️ AuthService: Timeout en verificación (\(userIdToFetch)), activando vía rápida")
-                self?.firestoreService.fetchUser(userId: userIdToFetch) { result in
-                    switch result {
-                    case .success(let user):
-                        safeCompletion(true, user, false)
-                    case .failure:
-                        safeCompletion(true, nil, false)
+                print("⚠️ AuthService: Timeout en bootstrap de sesión (\(userIdToFetch))")
+                let cachedUser = LocalPersistenceService.shared.loadUser(userId: userIdToFetch)
+                let cachedStatus = self?.loadCachedAccountStatus(userId: userIdToFetch)
+
+                if cachedStatus?.decision == .suspended && cachedStatus?.isExpiredSuspension == false {
+                    safeCompletion(false, cachedUser, true)
+                    return
+                }
+
+                if cachedStatus?.decision == .deactivated || cachedUser?.isActive == false {
+                    safeCompletion(false, cachedUser, false)
+                    return
+                }
+
+                if let cachedUser {
+                    DispatchQueue.main.async {
+                        if self?.currentFirebaseUser?.uid == userIdToFetch {
+                            self?.isLoggedIn = true
+                            self?.currentUser = cachedUser
+                            self?.isVerifyingAccount = false
+                            self?.authState = .authenticated
+                        }
+                    }
+                    safeCompletion(true, cachedUser, false)
+                    return
+                }
+
+                DispatchQueue.main.async {
+                    if self?.currentFirebaseUser?.uid == userIdToFetch {
+                        self?.isLoggedIn = false
+                        self?.currentUser = nil
+                        self?.isVerifyingAccount = false
+                        self?.authState = .unauthenticated
                     }
                 }
+                safeCompletion(false, nil, false)
             }
         }
 
@@ -655,6 +815,8 @@ class AuthService: ObservableObject {
             if hasCompleted { return }
             
             if isSuspended {
+                self?.saveCachedAccountStatus(userId: userId, decision: .suspended, reason: reason, expiresAt: expiresAt)
+
                 DispatchQueue.main.async {
                     self?.authState = .suspended(reason: reason, expiresAt: expiresAt)
                 }
@@ -674,6 +836,7 @@ class AuthService: ObservableObject {
                     
                     switch result {
                     case .success(let appUser):
+                        self?.saveCachedAccountStatus(userId: userId, decision: appUser.isActive ? .allowed : .deactivated)
                         safeCompletion(appUser.isActive, appUser, false)
                         
                     case .failure(let error):
@@ -683,11 +846,22 @@ class AuthService: ObservableObject {
                         if currentRegistrationState == .registering || self?.isRegistering == true {
                             safeCompletion(false, nil, false)
                         } else {
-                            // ✅ OFFLINE MODE: Si falla por red (offline), PERMITIR ACCESO
+                            // Si la red falla después de arrancar online, no asumimos cuenta válida.
                             let nsError = error as NSError
                             if nsError.domain == FirestoreErrorDomain && (nsError.code == FirestoreErrorCode.unavailable.rawValue || nsError.code == FirestoreErrorCode.deadlineExceeded.rawValue) {
-                                print("⚠️ Offline Mode: Skipping strict account check")
-                                safeCompletion(true, nil, false)
+                                print("⚠️ AuthService: No se pudo confirmar el estado de cuenta")
+                                let cachedUser = LocalPersistenceService.shared.loadUser(userId: userId)
+                                let cachedStatus = self?.loadCachedAccountStatus(userId: userId)
+
+                                if cachedStatus?.decision == .suspended && cachedStatus?.isExpiredSuspension == false {
+                                    safeCompletion(false, cachedUser, true)
+                                } else if cachedStatus?.decision == .deactivated || cachedUser?.isActive == false {
+                                    safeCompletion(false, cachedUser, false)
+                                } else if let cachedUser {
+                                    safeCompletion(true, cachedUser, false)
+                                } else {
+                                    safeCompletion(false, nil, false)
+                                }
                             } else {
                                 self?.forceLogout()
                                 safeCompletion(false, nil, false)
@@ -1323,7 +1497,14 @@ class AuthService: ObservableObject {
             self.checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
                 DispatchQueue.main.async {
                     if isSuspended {
-                        // Manejar usuario suspendido
+                        // Usuario existente suspendido: no debe entrar al flujo de registro social.
+                        self.isLoggedIn = false
+                        self.currentUser = nil
+                        self.currentFirebaseUser = user
+                        self.isAccountDeactivated = false
+                        self.deactivatedUserData = nil
+                        self.isRegistering = false
+                        self.isVerifyingAccount = false
                         self.authQueue.async { self._transitionLock = false }
                         completion(.success(false))
                         return
@@ -1332,6 +1513,8 @@ class AuthService: ObservableObject {
                     if isActive, let userData = userData {
                         // USUARIO EXISTENTE: Login normal MANUAL
                         // Hidratamos el estado nosotros mismos para saltarnos el listener
+                        self.saveCachedAccountStatus(userId: user.uid, decision: .allowed)
+                        LocalPersistenceService.shared.saveCurrentUser(userData)
                         self.isLoggedIn = true
                         self.currentUser = userData
                         self.currentFirebaseUser = user
@@ -1346,6 +1529,19 @@ class AuthService: ObservableObject {
                         self.authQueue.async { self._transitionLock = false }
                         
                         completion(.success(true))
+                    } else if let userData = userData {
+                        // Usuario existente desactivado: mostrar pantalla de cuenta en reposo.
+                        self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
+                        self.isLoggedIn = false
+                        self.currentUser = nil
+                        self.currentFirebaseUser = user
+                        self.isAccountDeactivated = true
+                        self.deactivatedUserData = userData
+                        self.isRegistering = false
+                        self.isVerifyingAccount = false
+                        self.authState = .deactivated
+                        self.authQueue.async { self._transitionLock = false }
+                        completion(.success(false))
                     } else {
                         // USUARIO NUEVO: Preparar registro
                         // 1. Establecer flags de registro PROTEGIDOS

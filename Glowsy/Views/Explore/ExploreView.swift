@@ -655,28 +655,15 @@ struct SuggestedUserCard: View {
                 }
                 
                 Button(action: onFollow) {
-                    Text(buttonState == .following ? "Following" : (buttonState == .requestPending ? "Requested" : "Follow"))
+                    Text(buttonTitle)
                         .font(.custom("Poppins-SemiBold", size: 13))
-                        .foregroundColor(buttonState.isActionable ? .white : .primary)
+                        .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(
-                            Group {
-                                if buttonState.isActionable {
-                                    LinearGradient(
-                                        colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                } else {
-                                    Color.white // Botón blanco para "Following"
-                                        .opacity(0.9)
-                                }
-                            }
-                        )
-                        .clipShape(Capsule())
+                        .liquidGlass(in: Capsule(), interactive: buttonState.isActionable)
                 }
                 .disabled(!buttonState.isActionable)
+                .opacity(isPassiveButtonState ? 0.78 : 1)
             }
             .padding(12)
             .padding(.bottom, 12)
@@ -708,6 +695,28 @@ struct SuggestedUserCard: View {
             RoundedRectangle(cornerRadius: 20)
                 .fill(.ultraThinMaterial)
         )
+    }
+
+    private var buttonTitle: String {
+        switch buttonState {
+        case .following:
+            return NSLocalizedString("userProfile.followButton.following", comment: "")
+        case .canRequestFollow:
+            return NSLocalizedString("feed.follow.request", comment: "")
+        case .requestPending:
+            return NSLocalizedString("feed.follow.requested", comment: "")
+        case .blocked:
+            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
+        default:
+            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
+        }
+    }
+
+    private var isPassiveButtonState: Bool {
+        if case .requestPending = buttonState {
+            return true
+        }
+        return false
     }
 }
 
@@ -814,22 +823,13 @@ struct FollowButton: View {
                 Text(buttonText)
             }
             .font(.custom("Poppins-SemiBold", size: 14))
-            .foregroundColor(buttonState.isActionable ? .white : .secondary)
+            .foregroundColor(.primary)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background(buttonBackground)
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-            )
-            .shadow(
-                color: buttonState.isActionable ? Color(hex: "667eea").opacity(0.3) : .clear,
-                radius: buttonState.isActionable ? 8 : 0,
-                x: 0,
-                y: buttonState.isActionable ? 4 : 0
-            )
+            .liquidGlass(in: Capsule(), interactive: buttonState.isActionable)
         }
         .disabled(!buttonState.isActionable)
+        .opacity(isPassiveState ? 0.78 : 1)
     }
     
     private var buttonText: String {
@@ -839,13 +839,13 @@ struct FollowButton: View {
         case .blocked:
             return NSLocalizedString("explore.button.blocked", comment: "Blocked")
         case .following:
-            return NSLocalizedString("explore.button.following", comment: "Following")
+            return NSLocalizedString("userProfile.followButton.following", comment: "Following")
         case .canFollow:
             return NSLocalizedString("explore.button.follow", comment: "Follow")
         case .canRequestFollow:
-            return NSLocalizedString("explore.button.request", comment: "Request")
+            return NSLocalizedString("feed.follow.request", comment: "Request")
         case .requestPending:
-            return NSLocalizedString("explore.button.requested", comment: "Requested")
+            return NSLocalizedString("feed.follow.requested", comment: "Requested")
         }
     }
     
@@ -863,24 +863,12 @@ struct FollowButton: View {
             return "person"
         }
     }
-    
-    private var buttonBackground: some View {
-        Group {
-            switch buttonState {
-            case .canFollow, .canRequestFollow:
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-            default:
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(.ultraThinMaterial)
-            }
+
+    private var isPassiveState: Bool {
+        if case .requestPending = buttonState {
+            return true
         }
+        return false
     }
 }
 
@@ -1295,9 +1283,26 @@ class ExploreViewModel: ObservableObject {
     private var currentUserId: String?
     private var blockedUsers: Set<String> = []
     private let trendingService = TrendingService.shared
+    private var followStateObserver: NSObjectProtocol?
     
     init() {
+        followStateObserver = NotificationCenter.default.addObserver(
+            forName: FollowStateStore.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let userId = notification.userInfo?["userId"] as? String,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            self?.userButtonStates[userId] = state
+        }
+
         loadRecentSearches()
+    }
+
+    deinit {
+        if let followStateObserver {
+            NotificationCenter.default.removeObserver(followStateObserver)
+        }
     }
 
     
@@ -1672,6 +1677,10 @@ class ExploreViewModel: ObservableObject {
     // MARK: - Verificar estado del botón de usuario
     func checkUserButtonState(for userId: String) {
         guard let currentUserId = self.currentUserId else { return }
+
+        if let cachedState = FollowStateStore.shared.state(for: userId) {
+            userButtonStates[userId] = cachedState
+        }
         
         privacyService.getFollowButtonState(
             viewerId: currentUserId,
@@ -1679,10 +1688,12 @@ class ExploreViewModel: ObservableObject {
         ) { [weak self] state in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                self.userButtonStates[userId] = state
+                let reconciledState = FollowStateStore.shared.reconciledState(state, for: userId)
+                self.userButtonStates[userId] = reconciledState
+                FollowStateStore.shared.setState(reconciledState, for: userId)
                 
                 // ✅ Si el estado es "siguiendo", agregar a followedUserIds y eliminar de sugerencias
-                if state == .following {
+                if reconciledState == .following {
                     self.followedUserIds.insert(userId)
                     // Eliminar de la lista de sugerencias
                     if let index = self.suggestedUsers.firstIndex(where: { $0.id == userId }) {
@@ -1712,6 +1723,7 @@ class ExploreViewModel: ObservableObject {
                         }
                         self.pendingRequests.insert(userId)
                         self.userButtonStates[userId] = .requestPending
+                        FollowStateStore.shared.setState(.requestPending, for: userId)
                     }
                     
                     self.firestoreService.sendFollowRequest(
@@ -1724,6 +1736,7 @@ class ExploreViewModel: ObservableObject {
                                 // Si hay error, revertir el estado del botón
                                 self?.userButtonStates[userId] = .canRequestFollow
                                 self?.pendingRequests.remove(userId)
+                                FollowStateStore.shared.setState(.canRequestFollow, for: userId)
                             }
                             // Si no hay error, el usuario ya fue eliminado de la lista arriba
                         }
@@ -1736,6 +1749,7 @@ class ExploreViewModel: ObservableObject {
                         }
                         self.followedUserIds.insert(userId)
                         self.userButtonStates[userId] = .following
+                        FollowStateStore.shared.setState(.following, for: userId)
                     }
                     
                     self.firestoreService.followUser(
@@ -1748,6 +1762,7 @@ class ExploreViewModel: ObservableObject {
                                 // Si hay error, revertir el estado del botón
                                 self?.userButtonStates[userId] = .canFollow
                                 self?.followedUserIds.remove(userId)
+                                FollowStateStore.shared.setState(.canFollow, for: userId)
                             }
                             // Si no hay error, el usuario ya fue eliminado de la lista arriba
                         }

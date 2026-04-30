@@ -236,6 +236,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
     let onUserTap: ((AppUser) -> Void)?
     
     @State private var isPressed: Bool = false
+    @State private var showingUnfollowConfirmation = false
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
@@ -288,6 +289,23 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                 isPressed = pressing
             }
         }, perform: {})
+        .confirmationDialog(
+            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
+            isPresented: $showingUnfollowConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
+                viewModel.unfollowUser(userId: user.id)
+                FollowStateStore.shared.setState(.canFollow, for: user.id)
+                withAnimation(.easeOut(duration: 0.3)) {
+                    onDismiss()
+                }
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
+        }
     }
     
     // ✅ Avatar con círculo de fondo igual que el ContextMenu
@@ -337,6 +355,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
             if rowAction == .follow {
                 Button(action: {
                     viewModel.followUser(userId: user.id)
+                    FollowStateStore.shared.setState(.following, for: user.id)
                     withAnimation(.easeOut(duration: 0.3)) {
                         onDismiss()
                     }
@@ -347,25 +366,14 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                         Text(NSLocalizedString("userListView.followButton", comment: "Follow button"))
                             .font(.custom("Poppins-SemiBold", size: 12))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(hex: "007AFF").opacity(0.8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                    )
-                    .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: true)
                 }
             } else if rowAction == .unfollow {
                 Button(action: {
-                    viewModel.unfollowUser(userId: user.id)
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        onDismiss()
-                    }
+                    showingUnfollowConfirmation = true
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: "person.badge.minus")
@@ -373,18 +381,10 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                         Text(NSLocalizedString("userListView.unfollowButton", comment: "Unfollow button"))
                             .font(.custom("Poppins-SemiBold", size: 12))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.red.opacity(0.2))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                            )
-                    )
-                    .shadow(color: .red.opacity(0.2), radius: 2, x: 0, y: 1)
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: true)
                 }
             } else {
                 // ✅ Chevron para otros casos

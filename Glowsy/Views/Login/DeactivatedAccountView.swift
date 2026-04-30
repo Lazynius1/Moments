@@ -69,156 +69,24 @@ struct DeactivatedAccountView: View {
     }
 }
 
-// MARK: - Floating Profile Photo Component
-struct FloatingProfilePhoto: View {
-    let profileImagePath: String?
-    let size: CGFloat
-    @State private var glowIntensity: Double = 0.3
-    
-    var body: some View {
-        ZStack {
-            if let profilePath = profileImagePath, !profilePath.isEmpty {
-                AsyncImage(url: URL(string: profilePath)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: size, height: size)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.white.opacity(0.6), .blue.opacity(0.4), .purple.opacity(0.3)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 3
-                                    )
-                            )
-                            .shadow(color: .white.opacity(glowIntensity), radius: 10, x: 0, y: 0)
-                            .shadow(color: .blue.opacity(0.3), radius: 20, x: 0, y: 0)
-                    case .failure(_), .empty:
-                        placeholderPhoto
-                    @unknown default:
-                        placeholderPhoto
-                    }
-                }
-            } else {
-                placeholderPhoto
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                glowIntensity = 0.6
-            }
-        }
-    }
-    
-    private var placeholderPhoto: some View {
-        Circle()
-            .fill(
-                RadialGradient(
-                    colors: [.white.opacity(0.15), .white.opacity(0.05)],
-                    center: .center,
-                    startRadius: 10,
-                    endRadius: size / 2
-                )
-            )
-            .frame(width: size, height: size)
-            .overlay(
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: size * 0.5, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.white.opacity(0.8), .blue.opacity(0.6)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .overlay(
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [.white.opacity(0.4), .blue.opacity(0.2)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 2
-                    )
-            )
-            .shadow(color: .white.opacity(0.1), radius: 15, x: 0, y: 0)
-    }
-}
-
 // MARK: - Loading View
 struct DeactivationLoadingView: View {
-    @State private var rotationAngle: Double = 0
-    @State private var pulseScale: CGFloat = 1.0
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         ZStack {
-            Color.black.opacity(0.8).ignoresSafeArea()
+            LiquidAuroraBackground()
             
-            VStack(spacing: 32) {
-                // Loading Spinner
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.15), lineWidth: 6)
-                        .frame(width: 80, height: 80)
-                    
-                    Circle()
-                        .trim(from: 0, to: 0.7)
-                        .stroke(
-                            AngularGradient(
-                                gradient: Gradient(colors: [.blue, .purple, .pink, .blue]),
-                                center: .center,
-                                startAngle: .degrees(-90),
-                                endAngle: .degrees(270)
-                            ),
-                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                        )
-                        .frame(width: 80, height: 80)
-                        .rotationEffect(.degrees(rotationAngle))
-                        .shadow(color: .blue.opacity(0.5), radius: 10, x: 0, y: 0)
-                    
-                    Image(systemName: "moon.zzz.fill")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.white, .blue.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .scaleEffect(pulseScale)
-                }
-                
+            VStack(spacing: 10) {
                 VStack(spacing: 12) {
                     Text(NSLocalizedString("deactivated.reactivating", value: "Reactivando cuenta...", comment: "Reactivating account title"))
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.custom("Poppins-Bold", size: 24))
+                        .foregroundColor(AuthColors.primary(colorScheme))
                     
                     Text(NSLocalizedString("deactivated.verifying", value: "Verificando estado...", comment: "Verifying status"))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                 }
-            }
-            .padding(40)
-            .background(
-                LiquidGlassCard(cornerRadius: 32) {
-                    Color.clear
-                }
-            )
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                rotationAngle = 360
-            }
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                pulseScale = 1.1
             }
         }
     }
@@ -226,6 +94,7 @@ struct DeactivationLoadingView: View {
 
 // MARK: - Main Content
 struct DeactivationContent: View {
+    @Environment(\.colorScheme) private var colorScheme
     let userData: AppUser?
     @Binding var isReactivating: Bool
     let reactivateAction: () -> Void
@@ -233,120 +102,38 @@ struct DeactivationContent: View {
     @Binding var isVisible: Bool
     
     var body: some View {
-        VStack(spacing: 40) {
-            Spacer()
-            
-            // Icon Header
-            VStack(spacing: 24) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.blue.opacity(0.2), .clear],
-                                center: .center,
-                                startRadius: 40,
-                                endRadius: 100
-                            )
-                        )
-                        .frame(width: 200, height: 200)
-                        .blur(radius: 20)
-                    
-                    Image(systemName: "moon.stars.fill")
-                        .font(.system(size: 80))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.white, .blue.opacity(0.6)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(color: .blue.opacity(0.5), radius: 20, x: 0, y: 10)
-                }
-                
-                VStack(spacing: 16) {
+        VStack(spacing: 0) {
+            VStack(spacing: 28) {
+                Spacer(minLength: 0)
+
+                VStack(spacing: 14) {
+                    Image(systemName: "moon.stars")
+                        .font(.system(size: 34, weight: .medium))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+
                     Text(NSLocalizedString("deactivated.title", value: "Cuenta en Reposo", comment: "Sleeping account title"))
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.white, .blue.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .font(.custom("Poppins-Bold", size: 30))
+                        .foregroundColor(AuthColors.primary(colorScheme))
                     
                     Text(NSLocalizedString("deactivated.subtitle", value: "Tu cuenta está desactivada temporalmente pero todos tus datos están seguros.", comment: "Deactivated subtitle"))
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
                         .lineSpacing(4)
                 }
-            }
-            
-            // Floating Profile Photo + User Info
-            HStack(spacing: 20) {
-                // Floating Profile Photo
-                FloatingProfilePhoto(
-                    profileImagePath: userData?.profileImagePath,
-                    size: 80
-                )
-                
-                // User Info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(userData?.username ?? NSLocalizedString("profile.defaultUsername", value: "Usuario", comment: "Default username"))
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
-                    
-                    if let email = userData?.email {
-                        Text(email)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white.opacity(0.8))
-                            .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 1)
-                    }
-                    
-                    // Status badge
-                    HStack(spacing: 6) {
-                        Image(systemName: "moon.zzz.fill")
-                            .font(.system(size: 12))
-                        Text(NSLocalizedString("deactivated.status", value: "En pausa", comment: "Account paused status"))
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .foregroundColor(.blue.opacity(0.9))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                Capsule()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.blue.opacity(0.6), .purple.opacity(0.4)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                    )
-                    .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                
-                Spacer()
+
+                userCard
+
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 24)
-            
-            Spacer()
-            
-            // Actions
-            VStack(spacing: 16) {
+
+            VStack(spacing: 12) {
                 LiquidGlassButton(
                     title: NSLocalizedString("deactivated.reactivate", value: "Reactivar Cuenta", comment: "Reactivate button"),
-                    icon: "play.circle.fill",
+                    icon: "play.fill",
                     action: reactivateAction,
-                    isLoading: isReactivating,
-                    gradientColors: [.blue, .purple]
+                    isLoading: isReactivating
                 )
                 
                 LiquidGlassButton(
@@ -361,6 +148,137 @@ struct DeactivationContent: View {
         }
         .offset(y: isVisible ? 0 : 30)
         .opacity(isVisible ? 1.0 : 0.0)
+    }
+
+    private var userCard: some View {
+        DeactivatedProfileCard(
+            profileImagePath: userData?.profileImagePath,
+            username: userData?.username ?? NSLocalizedString("profile.defaultUsername", value: "Usuario", comment: "Default username"),
+            email: userData?.email
+        )
+    }
+}
+
+private struct DeactivatedProfileCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let profileImagePath: String?
+    let username: String
+    let email: String?
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .bottomLeading) {
+                profileImage
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+
+                VStack {
+                    Spacer()
+
+                    Rectangle()
+                        .fill(.regularMaterial)
+                        .frame(height: proxy.size.height * 0.38)
+                        .mask(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0.0),
+                                    .init(color: .black.opacity(0.55), location: 0.28),
+                                    .init(color: .black, location: 1.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        (colorScheme == .dark ? Color.black : Color.white).opacity(0.1),
+                        (colorScheme == .dark ? Color.black : Color.white).opacity(0.42)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .bottom) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(username)
+                                .font(.system(size: 23, weight: .bold))
+                                .foregroundColor(AuthColors.primary(colorScheme))
+                                .lineLimit(1)
+
+                            if let email {
+                                Text(email)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        Spacer()
+
+                        statusBadge
+                    }
+                }
+                .padding(18)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        }
+        .frame(height: 420)
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .stroke(AuthColors.subtle(colorScheme, opacity: 0.14), lineWidth: 0.8)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.1), radius: 24, x: 0, y: 14)
+    }
+
+    @ViewBuilder
+    private var profileImage: some View {
+        if let profileImagePath, !profileImagePath.isEmpty {
+            AsyncImage(url: URL(string: profileImagePath)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .failure, .empty:
+                    placeholderImage
+                @unknown default:
+                    placeholderImage
+                }
+            }
+        } else {
+            placeholderImage
+        }
+    }
+
+    private var placeholderImage: some View {
+        ZStack {
+            AuthColors.subtle(colorScheme, opacity: 0.08)
+
+            Image(systemName: "person.crop.square")
+                .font(.system(size: 44, weight: .medium))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.48))
+        }
+    }
+
+    private var statusBadge: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "pause.fill")
+                .font(.system(size: 10, weight: .bold))
+            Text(NSLocalizedString("deactivated.status", value: "En pausa", comment: "Account paused status"))
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundColor(AuthColors.primary(colorScheme))
+        .padding(.horizontal, 11)
+        .padding(.vertical, 7)
+        .background {
+            Color.clear
+                .liquidGlass(in: Capsule(), interactive: true)
+        }
     }
 }
 

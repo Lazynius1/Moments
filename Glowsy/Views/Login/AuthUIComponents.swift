@@ -3,6 +3,7 @@ import PhotosUI
 
 // MARK: - Enhanced Profile Photo Picker
 struct EnhancedProfilePhotoPicker: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedPhotoItem: PhotosPickerItem?
     @Binding var profileImage: UIImage?
     @Binding var showingPhotoPicker: Bool
@@ -30,13 +31,14 @@ struct EnhancedProfilePhotoPicker: View {
             
             Text("register.profilePhoto.optional")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.62))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
         }
     }
 }
 
 // MARK: - Enhanced Profile Photo Content
 struct EnhancedProfilePhotoContent: View {
+    @Environment(\.colorScheme) private var colorScheme
     let profileImage: UIImage?
     @State private var glowIntensity: Double = 0.3
     
@@ -65,7 +67,7 @@ struct EnhancedProfilePhotoContent: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [.white.opacity(0.12), .white.opacity(0.04)],
+                            colors: [AuthColors.subtle(colorScheme, opacity: 0.12), AuthColors.subtle(colorScheme, opacity: 0.04)],
                             center: .center,
                             startRadius: 10,
                             endRadius: 54
@@ -78,14 +80,14 @@ struct EnhancedProfilePhotoContent: View {
                                 .font(.system(size: 26, weight: .medium))
                                 .foregroundStyle(
                                     LinearGradient(
-                                        colors: [.white.opacity(0.78), .blue.opacity(0.46)],
+                                        colors: [AuthColors.secondary(colorScheme, opacity: 0.78), .blue.opacity(0.46)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
                             Text("register.profilePhoto.add")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.white.opacity(0.64))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.64))
                         }
                     )
                     .overlay(
@@ -132,6 +134,7 @@ struct EnhancedProfilePhotoContent: View {
 
 // MARK: - Enhanced Interests Selector
 struct EnhancedInterestsSelector: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var availableInterests: [String]
     @Binding var selectedInterests: [String]
     
@@ -143,7 +146,7 @@ struct EnhancedInterestsSelector: View {
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [.white.opacity(0.92), .blue.opacity(0.72)],
+                                colors: [AuthColors.secondary(colorScheme, opacity: 0.92), .blue.opacity(0.72)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -151,30 +154,20 @@ struct EnhancedInterestsSelector: View {
                     
                     Text("register.interests.title")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.94))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.94))
                 }
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("register.interests.count", comment: "Interests count"), selectedInterests.count))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AuthColors.primary(colorScheme))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.1), .white.opacity(0.05)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
-                                )
-                    )
+                    .background {
+                        Color.clear
+                            .liquidGlass(in: Capsule())
+                    }
             }
             
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 12) {
@@ -198,6 +191,7 @@ struct EnhancedInterestsSelector: View {
 
 // MARK: - Enhanced Interest Chip
 struct EnhancedInterestChip: View {
+    @Environment(\.colorScheme) private var colorScheme
     let interest: String
     let isSelected: Bool
     let onTap: () -> Void
@@ -207,52 +201,24 @@ struct EnhancedInterestChip: View {
         Button(action: onTap) {
             Text(InterestOption.localize(interest))
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(isSelected ? .white : .white.opacity(0.72))
+                .foregroundColor(isSelected ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.72))
                 .padding(.horizontal, 15)
                 .padding(.vertical, 9)
-                .background(
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Capsule(), interactive: true)
+                }
+                .overlay {
                     Capsule()
-                        .fill(
-                            isSelected ?
-                            LinearGradient(
-                                colors: [.blue.opacity(0.3), .purple.opacity(0.22)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ) :
-                            LinearGradient(
-                                colors: [.white.opacity(0.08), .white.opacity(0.04)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    isSelected ?
-                                    LinearGradient(
-                                        colors: [.blue.opacity(0.5), .purple.opacity(0.32)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ) :
-                                    LinearGradient(
-                                        colors: [.white.opacity(0.12), .white.opacity(0.06)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ),
-                                    lineWidth: isSelected ? 1.5 : 1
-                                )
-                        )
-                        .shadow(
-                            color: isSelected ? .blue.opacity(0.12) : .clear,
-                            radius: isSelected ? 6 : 0,
-                            x: 0,
-                            y: isSelected ? 3 : 0
-                        )
-                )
+                        .stroke(AuthColors.subtle(colorScheme, opacity: isSelected ? 0.34 : 0.08), lineWidth: isSelected ? 1.4 : 0.8)
+                        .allowsHitTesting(false)
+                }
                 .scaleEffect(isSelected ? 1.03 : (isPressed ? 0.97 : 1.0))
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
                 .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isPressed)
         }
+        .accessibilityLabel(Text(InterestOption.localize(interest)))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})

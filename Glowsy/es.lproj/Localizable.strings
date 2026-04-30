@@ -264,7 +264,7 @@
 "feed.seeMore" = "ver más";
 "feed.seeLess" = "ver menos";
 "feed.loadingMoment" = "Cargando momento...";
-"feed.empty.following.title" = "Tu feed está vacío";
+"feed.empty.following.title" = "Aún no hay momentos";
 
 /* Nova Memory */
 "nova.memory.title" = "Memoria de Nova";
@@ -286,9 +286,10 @@
 "nova.memory.edit.action" = "Editar";
 "nova.memory.markImportant" = "Marcar como importante";
 "nova.memory.unmarkImportant" = "Quitar de importantes";
-"feed.empty.following.description" = "Sigue a tus amigos para ver qué están compartiendo.";
-"feed.empty.foryou.title" = "Descubre Moments";
-"feed.empty.foryou.description" = "Explora los mejores momentos de la comunidad.";
+"feed.empty.following.description" = "Cuando las personas que sigues publiquen, aparecerán aquí.";
+"feed.empty.foryou.title" = "Nada nuevo por ahora";
+"feed.empty.foryou.description" = "Vuelve pronto o explora momentos recientes de la comunidad.";
+"feed.empty.action.findPeople" = "Buscar personas";
 "feed.empty.action.create" = "Crear mi primer Momento";
 "feed.empty.action.explore" = "Explorar Tendencias";
 
@@ -306,6 +307,8 @@
 "feed.uploading.available" = "¡Tu momento ya está disponible!";
 "feed.uploading.error" = "Error al subir";
 "feed.uploading.uploading" = "Subiendo archivos...";
+"feed.follow.request" = "Solicitar";
+"feed.follow.requested" = "Solicitado";
 
 /* Feed Loading */
 "feed.loading.moreContent" = "Error cargando más contenido";
@@ -552,7 +555,7 @@
 "settings.advanced.title" = "Ajustes avanzados";
 "settings.dangerZone.title" = "Zona de riesgo";
 "settings.dangerZone.warning" = "Las siguientes acciones son irreversibles o requieren confirmación especial. Úsalas con precaución.";
-"settings.info.title" = "ℹ️ Información importante";
+"settings.info.title" = "Información importante";
 "settings.info.deactivate" = "• Desactivar: Tu perfil se oculta pero tus datos se conservan";
 "settings.info.delete" = "• Eliminar: Se borran todos los datos permanentemente";
 "settings.info.reactivate" = "• Puedes reactivar una cuenta desactivada en cualquier momento";
@@ -645,13 +648,21 @@
 "login.apple.error.nonce" = "Error de seguridad (nonce)";
 "login.apple.error.noToken" = "No se pudo obtener el token de Apple";
 "login.apple.error.invalidToken" = "Token de Apple inválido";
+"login.apple.error.generic" = "No se pudo iniciar sesión con Apple. Inténtalo de nuevo.";
 "login.forgotPassword" = "¿Olvidaste tu contraseña?";
 "login.noAccount" = "¿No tienes cuenta?";
 "login.register" = "Regístrate";
 "login.usernameOrEmail" = "Usuario o correo";
+"login.email" = "Correo";
 "login.password" = "Contraseña";
+"login.password.show" = "Mostrar contraseña";
+"login.password.hide" = "Ocultar contraseña";
 "login.signIn" = "Iniciar sesión";
 "login.or" = "o";
+"login.orContinue" = "o continúa con";
+"login.close" = "Cerrar";
+"login.hero.title" = "Tu gente, tus momentos";
+"login.hero.subtitle" = "Entra para compartir, descubrir y seguir lo que importa sin ruido.";
 "login.disclaimer.line1" = "Esta app la ha hecho una sola persona, así que puede haber errores o cosas por pulir.";
 "login.disclaimer.line2.prefix" = "Si ves algo raro o necesitas ayuda, puedes escribirme por el perfil de ";
 "login.disclaimer.line2.middle" = " o ";
@@ -718,6 +729,9 @@
 "register.completeProfile.step2" = "¿Qué te gusta? Cuéntanos para sugerirte contenido";
 "register.completeProfile.step3" = "Último paso antes de entrar";
 "register.completeProfile.finish" = "Empezar ahora";
+"register.completeProfile.appleAccount" = "Cuenta de Apple";
+"register.close" = "Cerrar registro";
+"register.error.usernameTooShort" = "Mínimo 3 caracteres";
 
 /* Splash */
 "splash.loading" = "Cargando...";
@@ -1221,6 +1235,8 @@
 "momentDetail.noComments.description" = "Sé el primero en compartir tu opinión";
 "momentDetail.viewRemainingComments" = "Ver los %d comentarios restantes";
 "momentDetail.viewAll" = "Ver todos";
+"momentDetail.showMore" = "Ver más";
+"momentDetail.showLess" = "Ver menos";
 "momentDetail.comment" = "Comentar";
 "momentDetail.loading" = "Cargando momento...";
 "momentDetail.loadingTime" = "Un segundo por favor";
@@ -1315,7 +1331,7 @@
 "accountManagement.deleting" = "Eliminando cuenta...";
 "accountManagement.permanentDeletion" = "Eliminación permanente";
 "accountManagement.irreversible" = "Esta acción no se puede deshacer";
-"accountManagement.willBeDeleted" = "Se eliminarán permanentemente:";
+"accountManagement.willBeDeleted" = "Se eliminarán o desvincularán:";
 "accountManagement.confirmPassword" = "Confirma tu contraseña:";
 "accountManagement.writeExactly" = "Escribe exactamente:";
 "accountManagement.understandIrreversible" = "Entiendo que esta acción es irreversible y acepto la eliminación permanente de mi cuenta y todos mis datos.";
@@ -1528,6 +1544,33 @@
 "userProfile.followButton.canFollow" = "Seguir";
 "userProfile.followButton.canRequestFollow" = "Solicitar seguimiento";
 "userProfile.followButton.requestPending" = "Solicitud enviada";
+"userProfile.unfollow.confirm.title" = "¿Dejar de seguir?";
+"userProfile.unfollow.confirm.message" = "Puedes volver a seguir este perfil cuando quieras.";
+"userProfile.unfollow.confirm.action" = "Dejar de seguir";
+"userProfile.relationship.sheet.title" = "Siguiendo a %@";
+"userProfile.relationship.sheet.subtitle" = "Controla cómo aparecen sus momentos para ti.";
+"userProfile.relationship.bestFriends" = "Mejores amigos";
+"userProfile.relationship.bestFriends.add" = "Agregar a mejores amigos";
+"userProfile.relationship.bestFriends.remove" = "Quitar de mejores amigos";
+"userProfile.relationship.bestFriends.subtitle" = "Guarda este perfil en tu círculo más cercano.";
+"userProfile.relationship.bestFriends.add.subtitle" = "Guarda este perfil en tu círculo más cercano.";
+"userProfile.relationship.bestFriends.remove.subtitle" = "Toca para quitar este perfil de mejores amigos.";
+"userProfile.relationship.mutual" = "Os seguís";
+"userProfile.relationship.muted" = "Silenciado";
+"userProfile.relationship.mute.enable" = "Silenciar";
+"userProfile.relationship.mute.disable" = "Activar momentos";
+"userProfile.relationship.mute.enabled.subtitle" = "No verás sus momentos en inicio.";
+"userProfile.relationship.mute.disabled.subtitle" = "Volverás a ver sus momentos en inicio.";
+"userProfile.relationship.inLists" = "En listas";
+"userProfile.relationship.lists.title" = "Listas";
+"userProfile.relationship.lists.manage" = "Toca una lista para quitar este perfil.";
+"userProfile.relationship.lists.empty" = "No está en ninguna lista personalizada.";
+"userProfile.relationship.lists.count" = "Está en %d listas personalizadas.";
+"userProfile.relationship.lists.remove.title" = "¿Quitar a %@ de %@?";
+"userProfile.relationship.lists.remove.title.fallback" = "¿Quitar de la lista?";
+"userProfile.relationship.lists.remove.message" = "Este perfil dejará de formar parte de esa lista personalizada.";
+"userProfile.relationship.lists.remove.action" = "Quitar de la lista";
+"userProfile.relationship.unfollow" = "Dejar de seguir";
 
 /* Modern Comments */
 "modernComments.disabled.title" = "Comentarios deshabilitados";
@@ -1818,6 +1861,11 @@
 
 /* Creating Profile */
 "creatingProfile.title" = "Creando tu cuenta";
+"creatingProfile.step.verifying" = "Verificando datos...";
+"creatingProfile.step.creating" = "Creando tu perfil...";
+"creatingProfile.step.uploading" = "Subiendo imagen...";
+"creatingProfile.step.configuring" = "Configurando preferencias...";
+"creatingProfile.step.completed" = "Completado";
 
 /* Question Responses - Additional */
 "questionResponses.title" = "Respuestas";
@@ -1967,10 +2015,10 @@
 "accountManagement.deleting" = "Eliminando...";
 "accountManagement.permanentDeletion" = "ELIMINACIÓN PERMANENTE";
 "accountManagement.irreversible" = "Esta acción es irreversible";
-"accountManagement.willBeDeleted" = "Lo siguiente será eliminado:";
+"accountManagement.willBeDeleted" = "Se eliminará o desvinculará lo siguiente:";
 "accountManagement.profileInfo" = "Tu perfil e información personal";
 "accountManagement.storiesMoments" = "Todas tus historias y momentos";
-"accountManagement.conversations" = "Conversaciones y mensajes";
+"accountManagement.conversations" = "Tu perfil activo en conversaciones";
 "accountManagement.connections" = "Conexiones y seguidores";
 "accountManagement.notifications" = "Notificaciones y configuraciones";
 "accountManagement.savedContent" = "Archivo y contenido guardado";
@@ -2149,6 +2197,11 @@
 "appeal.status.noAppeals.title" = "No hay apelaciones";
 "appeal.status.noAppeals.description" = "No tienes apelaciones registradas en tu cuenta";
 "appeal.status.loading" = "Cargando apelaciones...";
+"appeal.status.pending" = "Pendiente";
+"appeal.status.reviewing" = "En revisión";
+"appeal.status.approved" = "Aprobada";
+"appeal.status.denied" = "Denegada";
+"appeal.status.requiresInfo" = "Necesita información";
 
 /* Appeal Details */
 "appeal.detail.information" = "Información";
@@ -2282,33 +2335,30 @@
 "notifications.message.message.single" = "%@ te envió un mensaje";
 "notifications.message.message.multiple" = "%@ y %d personas más te enviaron mensajes";
 
-/* Whats New v2.6 */
+/* Whats New v2.8 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Versión 2.7.0";
-"whatsNew.button" = "Explorar Moments 2.7";
+"whatsNew.subtitle" = "Versión 2.8.0";
+"whatsNew.button" = "Explorar Moments 2.8";
 
-/* Blackout feature */
-"whatsNew.blackout.title" = "Historias Mucho Más Potentes";
-"whatsNew.blackout.description" = "Hemos rehecho el editor de historias para que crear sea más rápido, claro y cómodo, con mejores controles, texto y edición general.";
-"whatsNew.blackout.demo.label" = "Nuevo editor de historias";
-"whatsNew.blackout.demo.instructions" = "Más claro, más rápido y mucho más cómodo de usar";
-"whatsNew.blackout.demo.hint" = "Ahora crear historias se siente mucho mejor";
+/* Nova */
+"whatsNew.nova.title" = "Nova Se Siente Más Lista";
+"whatsNew.nova.description" = "Nova es más natural, recuerda mejor tus preferencias, conserva mejor las conversaciones y ahora tiene una gestión de memoria más clara.";
 
-/* Tu Actividad */
-"whatsNew.activity.title" = "Nuevos Stickers";
-"whatsNew.activity.description" = "Llegan enlace, cuenta atrás y emoji slider para que tus historias sean mucho más expresivas e interactivas.";
+/* Liquid glass */
+"whatsNew.glass.title" = "Una Interfaz Más Glass";
+"whatsNew.glass.description" = "Los sheets de Moments se sienten más integrados con iOS, con fondos liquid glass, transiciones y controles más cuidados.";
 
-/* Archive */
-"whatsNew.archive.title" = "Selector de Stickers Rediseñado";
-"whatsNew.archive.description" = "El picker de stickers ahora se siente más limpio, más ordenado y mucho más rápido de usar.";
+/* Creator */
+"whatsNew.creator.title" = "Flujos de Creación Mejorados";
+"whatsNew.creator.description" = "Audiencia, cadenas, stickers, etiquetas y ubicación ahora tienen un flujo más cómodo, consistente y fácil de navegar.";
 
-/* Notifications */
-"whatsNew.notifications.title" = "Perfiles y Acceso Más Pulidos";
-"whatsNew.notifications.description" = "Perfil, perfil ajeno, login y registro ahora se sienten más claros, consistentes y modernos.";
+/* Feed */
+"whatsNew.feed.title" = "Feed e Historias Más Pulidos";
+"whatsNew.feed.description" = "Las burbujas de historias muestran nombres, los perfiles se abren de forma más fiable y hemos refinado varios detalles del feed.";
 
-/* Privacy */
-"whatsNew.privacy.title" = "Base Visual Más Cuidada";
-"whatsNew.privacy.description" = "Refinamos la paleta y las superficies de Moments para que toda la app se sienta más cálida, limpia y consistente.";
+/* Fixes */
+"whatsNew.fixes.title" = "Más Estable en Toda la App";
+"whatsNew.fixes.description" = "Corregimos problemas de presentación, navegación y estados visuales en guardados, mapas, comentarios, mensajes y más.";
 
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
@@ -2602,6 +2652,7 @@
 "profile.ui.followers" = "Seguidores";
 "profile.ui.following" = "Siguiendo";
 "profile.ui.mutuals" = "Mutuals";
+"profile.ui.posts" = "Posts";
 
 /* Messaging Errors */
 "messaging.error.startConversationFailed" = "No se pudo iniciar la conversación. Inténtalo de nuevo.";
@@ -2862,3 +2913,48 @@
 /* Banner - Moderación de contenido */
 "banner.verb.mediaModeration.partial" = "Se ha ocultado contenido de tu publicación";
 "banner.verb.mediaModeration.full" = "Tu publicación ahora es solo para ti";
+"appeal.yourAppeal.placeholder" = "Cuéntanos por qué crees que la suspensión debería revisarse. Añade contexto concreto y evita información sensible.";
+"appeal.additionalInfo.placeholder" = "Añade cualquier detalle extra que pueda ayudar a revisar tu caso.";
+
+/* Privacy Policy */
+"privacyPolicy.title" = "Política de privacidad";
+"privacyPolicy.lastUpdated" = "Última actualización: 29 de abril de 2026";
+"privacyPolicy.section.summary.title" = "1. Resumen";
+"privacyPolicy.section.summary.body" = "Moments es una app social para compartir momentos, historias, cadenas, mensajes y conversaciones con Nova. No recopilamos datos innecesarios ni construimos perfiles comerciales sobre ti.\n\nGuardamos o procesamos la información mínima que tú introduces, creas o activas al usar la app, junto con datos técnicos necesarios para que Moments funcione, sea seguro, sincronice contenido, muestre anuncios cuando corresponda y permita usar Nova.";
+"privacyPolicy.section.data.title" = "2. Información que usas o generas en Moments";
+"privacyPolicy.section.data.body" = "Cuando creas una cuenta o configuras tu perfil, guardamos datos como correo electrónico, nombre de usuario, foto de perfil, biografía, web, intereses, insignias, estado online y preferencias.\n\nCuando usas la app, guardamos el contenido y acciones que decides crear: momentos, historias, cadenas, ecos, comentarios, reacciones, elementos guardados, visitas, etiquetas, listas personalizadas, mejores amigos y ajustes de audiencia.\n\nTambién tratamos datos técnicos mínimos necesarios para seguridad, sesión, sincronización, notificaciones, anuncios y resolución de errores.";
+"privacyPolicy.section.use.title" = "3. Cómo usamos los datos";
+"privacyPolicy.section.use.body" = "Usamos la información para prestar el servicio, autenticarte, sincronizar contenido, entregar mensajes, aplicar tus ajustes de privacidad, personalizar la experiencia, mejorar Moments, prevenir abuso, gestionar reportes y cumplir obligaciones legales.\n\nLas bases legales pueden incluir la ejecución del servicio que solicitas, tu consentimiento, nuestro interés legítimo en seguridad y mejora del producto, y el cumplimiento de obligaciones legales.";
+"privacyPolicy.section.nova.title" = "4. Nova e inteligencia artificial";
+"privacyPolicy.section.nova.body" = "Nova puede procesar tus mensajes, imágenes que le envíes, contexto de tu cuenta, preferencias, actividad reciente y memoria personal para responderte de forma más útil.\n\nLa memoria de Nova puede guardar detalles como cómo prefieres que te llamen, intereses, estilo de conversación o información que compartes voluntariamente. Puedes editar o borrar esa memoria desde la app.\n\nNova funciona mediante proveedores técnicos de IA, como Firebase Vertex AI/Gemini, y algunas tareas de moderación pueden usar servicios externos. No usamos tus conversaciones con Nova para vender datos ni para publicidad personalizada de terceros.";
+"privacyPolicy.section.visibility.title" = "5. Contenido, audiencias y visibilidad";
+"privacyPolicy.section.visibility.body" = "Tú controlas quién puede ver parte de tu contenido mediante cuenta privada, audiencias, mejores amigos, listas personalizadas, solo yo, bloqueos, silenciados y ajustes de visibilidad de seguidores, seguidos y admiradores.\n\nEl contenido privado o restringido usa Blackout: Moments intenta ocultarlo en capturas y grabaciones de pantalla mediante protección segura del sistema. Los posts publicados para everyone no usan esta protección. Aun así, ninguna medida puede impedir por completo que alguien copie o comparta fuera de la app contenido al que haya tenido acceso.";
+"privacyPolicy.section.messages.title" = "6. Mensajes y comunicaciones";
+"privacyPolicy.section.messages.body" = "Procesamos conversaciones, solicitudes de mensajes, participantes, marcas de tiempo, confirmaciones de lectura, archivos multimedia, mensajes efímeros y contenido compartido para entregar la mensajería.\n\nAplicamos cifrado y medidas de seguridad para proteger mensajes y datos sensibles. Aun así, algunos metadatos, URLs de archivos multimedia o información necesaria para entregar el servicio pueden almacenarse y procesarse de forma separada.";
+"privacyPolicy.section.permissions.title" = "7. Permisos del dispositivo";
+"privacyPolicy.section.permissions.body" = "Pedimos permisos solo cuando son necesarios para una función concreta: cámara para crear fotos o vídeos, galería para subir o guardar contenido, micrófono para audio, ubicación para etiquetar publicaciones, mapas, contenido cercano y contexto opcional de Nova.\n\nPuedes cambiar estos permisos desde los ajustes de iOS. Si los desactivas, algunas funciones pueden dejar de estar disponibles.";
+"privacyPolicy.section.ads.title" = "8. Publicidad y consentimiento";
+"privacyPolicy.section.ads.body" = "Moments puede mostrar anuncios mediante Google AdMob. Según tu región y ajustes, podemos pedir consentimiento mediante el formulario de privacidad de Google y el permiso de rastreo de Apple.\n\nSi aceptas, los anuncios pueden ser personalizados usando identificadores publicitarios y señales permitidas. Si no aceptas, podemos mostrar anuncios no personalizados o limitados. También usamos SKAdNetwork y tecnologías similares para medición agregada.";
+"privacyPolicy.section.moderation.title" = "9. Seguridad, reportes y moderación";
+"privacyPolicy.section.moderation.body" = "Usamos reportes de usuarios, revisión automática y registros de seguridad para detectar spam, abuso, contenido ilegal, desnudez no permitida, violencia, acoso, suplantación, fraude y otros usos que infrinjan nuestras normas.\n\nLos comentarios, imágenes, vídeos o audio pueden ser analizados por sistemas automáticos y proveedores especializados. Podemos ocultar contenido, limitar cuentas, suspenderlas o conservar registros necesarios para revisar apelaciones y proteger la comunidad.";
+"privacyPolicy.section.providers.title" = "10. Proveedores y transferencias";
+"privacyPolicy.section.providers.body" = "Trabajamos con proveedores como Firebase/Google Cloud, Firebase Authentication, Firebase Storage, Firebase Vertex AI/Gemini, Google AdMob, Apple y proveedores de moderación o infraestructura necesarios para operar Moments.\n\nEstos proveedores pueden procesar datos en países distintos al tuyo. Cuando sea necesario, usamos medidas contractuales y técnicas para proteger esas transferencias.";
+"privacyPolicy.section.retention.title" = "11. Conservación";
+"privacyPolicy.section.retention.body" = "Conservamos los datos mientras tu cuenta esté activa o mientras sean necesarios para prestar el servicio. El contenido que borras deja de mostrarse, aunque puede permanecer durante un tiempo limitado en copias de seguridad, cachés, registros o sistemas de seguridad.\n\nLas historias, mensajes efímeros y contenido temporal siguen sus reglas de expiración. Los reportes, apelaciones, registros de seguridad y datos necesarios para cumplir obligaciones legales pueden conservarse durante más tiempo.";
+"privacyPolicy.section.rights.title" = "12. Tus derechos";
+"privacyPolicy.section.rights.body" = "Puedes solicitar acceso, rectificación, eliminación, oposición, limitación, portabilidad de tus datos y retirada del consentimiento cuando aplique. También puedes exportar datos, borrar recuerdos de Nova, cambiar privacidad, bloquear usuarios, silenciar cuentas o palabras, desactivar tu cuenta o solicitar su eliminación.\n\nSi estás en la Unión Europea u otra región con derechos equivalentes, también puedes reclamar ante tu autoridad de protección de datos.";
+"privacyPolicy.section.minors.title" = "13. Menores";
+"privacyPolicy.section.minors.body" = "Moments no está dirigida a menores de 13 años. Si detectamos que una cuenta pertenece a una persona menor de la edad mínima aplicable, podemos limitarla o eliminarla. Si eres menor de edad, usa Moments con la supervisión de tus padres o tutores cuando corresponda.";
+"privacyPolicy.section.contact.title" = "14. Contacto y cambios";
+"privacyPolicy.section.contact.body" = "Podemos actualizar esta política cuando cambien nuestras funciones, proveedores o requisitos legales. Si el cambio es importante, lo comunicaremos en la app o por otros medios razonables.\n\nPara preguntas o solicitudes de privacidad, contacta con nosotros en soporte@moments.app o visita moments.app/privacy.";
+"userProfile.unavailable.title" = "Perfil no disponible";
+"userProfile.unavailable.description" = "No puedes ver este perfil en este momento.";
+"chat.profileUnavailable" = "Perfil no disponible";
+"chat.input.unavailable" = "No se pueden enviar mensajes a este perfil.";
+"messaging.profileUnavailable.preview" = "Perfil no disponible";
+"feed.refreshing" = "Actualizando";
+"userProfile.blockedByMe.title" = "Usuario bloqueado";
+"userProfile.blockedByMe.description" = "Bloqueaste a esta persona. No puede enviarte mensajes ni interactuar contigo.";
+"chat.blockedByMe.subtitle" = "Bloqueado";
+"chat.blockedByMe.input" = "Bloqueaste a este usuario. Desbloquéalo para enviar mensajes.";
+"chat.blockedByMe.unblock" = "Desbloquear";

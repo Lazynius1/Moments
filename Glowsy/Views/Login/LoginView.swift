@@ -16,12 +16,12 @@ struct LoginView: View {
     @State private var resetEmail: String = ""
     @State private var showPassword: Bool = false
     @State private var isVisible = false
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 LiquidAuroraBackground()
-                
+
                 // ✅ LÓGICA DE ESTADOS CORREGIDA PARA RESPETAR EL FLUJO DE REGISTRO
                 if authService.isVerifyingAccount && !authService.isRegistering {
                     // Solo mostrar verificación si NO estamos registrando
@@ -42,10 +42,10 @@ struct LoginView: View {
                                 .scaleEffect(isVisible ? 1.0 : 0.8)
                                 .opacity(isVisible ? 1.0 : 0.0)
                                 .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
-                            
+
                             Spacer()
                                 .frame(height: 24)
-                            
+
                             EnhancedFormView(
                                 identifier: $identifier,
                                 password: $password,
@@ -70,9 +70,9 @@ struct LoginView: View {
                 withAnimation {
                     isVisible = true
                 }
-                
+
                 // Track screen view
-                
+
                 // Solicitud de ubicación pospuesta hasta que el usuario use funciones que la requieran
             }
             .alert(isPresented: $showAlert) {
@@ -84,13 +84,15 @@ struct LoginView: View {
             }
             .sheet(isPresented: $showResetPassword) {
                 EnhancedResetPasswordView(email: $resetEmail, isPresented: $showResetPassword)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
             }
         }
         // ✅ NUEVO: Observar cambios en el estado de autenticación
         .onChange(of: authService.authState) { newState in
         }
     }
-    
+
     private func login() {
         isLoading = true
         authService.login(identifier: identifier, password: password) { result in
@@ -102,24 +104,24 @@ struct LoginView: View {
                             RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "email")
                         }
                         errorMessage = nil
-                        
+
                         // ✅ SIMPLIFICADO: Usar el servicio centralizado
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                             FCMTokenService.shared.updateFCMToken()
                         }
-                    
+
                 case .failure(let error):
-                    errorMessage = error.localizedDescription
+                    errorMessage = getFailureReason(from: error)
                     showAlert = true
                 }
             }
         }
     }
-    
+
     // Helper method to categorize login failures
     private func getFailureReason(from error: Error) -> String {
         let errorCode = (error as NSError).code
-        
+
         switch errorCode {
         case 17011: // FIRAuthErrorCodeUserNotFound
             return NSLocalizedString("login.error.reason.userNotFound", comment: "User not found")
@@ -145,9 +147,15 @@ struct LoginView: View {
 
 // MARK: - Enhanced Header View
 struct EnhancedHeaderView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryText: Color {
+        AuthColors.primary(colorScheme)
+    }
+
     var body: some View {
-        VStack(spacing: 16) {
-            Image("LoginLogo")
+        VStack(spacing: 18) {
+            Image(colorScheme == .dark ? "LoginLogo" : "whatsnew")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 84, height: 84)
@@ -159,11 +167,20 @@ struct EnhancedHeaderView: View {
                         .blur(radius: 8)
                         .offset(y: -16)
                 )
+
+            VStack(spacing: 6) {
+                Text("login.hero.title")
+                    .font(.custom("Poppins-Bold", size: 25))
+                    .foregroundColor(primaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 32)
         }
     }
 }
 // MARK: - Enhanced Form View
 struct EnhancedFormView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var identifier: String
     @Binding var password: String
     @Binding var showPassword: Bool
@@ -172,9 +189,13 @@ struct EnhancedFormView: View {
     @Binding var errorMessage: String?
     @Binding var showAlert: Bool
     let loginAction: () -> Void
-    
+
     @EnvironmentObject var authService: AuthService
-    
+
+    private var primaryText: Color {
+        AuthColors.primary(colorScheme)
+    }
+
     var body: some View {
         VStack(spacing: 18) {
             LiquidGlassTextField(
@@ -198,12 +219,18 @@ struct EnhancedFormView: View {
                 }) {
                     Text("login.forgotPassword")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.white.opacity(0.58))
+                        .foregroundColor(primaryText.opacity(0.58))
                 }
             }
 
             VStack(spacing: 12) {
-                EnhancedLoginButton(isLoading: $isLoading, action: loginAction)
+                EnhancedLoginButton(
+                    isLoading: $isLoading,
+                    isEnabled: !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty,
+                    action: loginAction
+                )
+
+                EnhancedDividerView()
 
                 SignInWithAppleButton(
                     .signIn,
@@ -251,20 +278,20 @@ struct EnhancedFormView: View {
                                             }
                                         }
                                     case .failure(let error):
-                                        errorMessage = error.localizedDescription
+                                        errorMessage = mapAppleError(error)
                                         showAlert = true
                                     }
                                 }
                             }
                         case .failure(let error):
                             if (error as NSError).code != 1001 {
-                                errorMessage = error.localizedDescription
+                                errorMessage = mapAppleError(error)
                                 showAlert = true
                             }
                         }
                     }
                 )
-                .signInWithAppleButtonStyle(.white)
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                 .frame(height: 50)
                 .cornerRadius(25)
                 .padding(.top, 2)
@@ -275,11 +302,11 @@ struct EnhancedFormView: View {
                     HStack {
                         Text("login.noAccount")
                             .font(.system(size: 15, weight: .regular))
-                            .foregroundColor(.white.opacity(0.54))
-                        
+                            .foregroundColor(primaryText.opacity(0.54))
+
                         Text("login.register")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(primaryText)
                     }
                 }
             }
@@ -302,28 +329,42 @@ struct EnhancedFormView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 18)
     }
+
+    private func mapAppleError(_ error: Error) -> String {
+        let nsError = error as NSError
+        if nsError.code == ASAuthorizationError.canceled.rawValue {
+            return ""
+        }
+        return NSLocalizedString("login.apple.error.generic", comment: "Generic Apple sign in error")
+    }
 }
 
 struct LoginDisclaimerView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryText: Color {
+        AuthColors.primary(colorScheme)
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             Text("login.disclaimer.line1")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.white.opacity(0.42))
+                .foregroundColor(primaryText.opacity(0.42))
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
 
             (
                 Text(NSLocalizedString("login.disclaimer.line2.prefix", comment: "Login disclaimer prefix"))
-                    .foregroundColor(.white.opacity(0.42))
+                    .foregroundColor(primaryText.opacity(0.42))
                 + Text("lazynius")
-                    .foregroundColor(.white.opacity(0.78))
+                    .foregroundColor(primaryText.opacity(0.78))
                 + Text(NSLocalizedString("login.disclaimer.line2.middle", comment: "Login disclaimer middle"))
-                    .foregroundColor(.white.opacity(0.42))
+                    .foregroundColor(primaryText.opacity(0.42))
                 + Text("Moments")
-                    .foregroundColor(.white.opacity(0.78))
+                    .foregroundColor(primaryText.opacity(0.78))
                 + Text(NSLocalizedString("login.disclaimer.line2.suffix", comment: "Login disclaimer suffix"))
-                    .foregroundColor(.white.opacity(0.42))
+                    .foregroundColor(primaryText.opacity(0.42))
             )
             .font(.system(size: 12, weight: .medium))
             .multilineTextAlignment(.center)
@@ -339,14 +380,22 @@ struct LoginDisclaimerView: View {
 
 // MARK: - Enhanced Login Button
 struct EnhancedLoginButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var isLoading: Bool
+    let isEnabled: Bool
     let action: () -> Void
     @State private var isPressed = false
-    
+
+    private var primaryText: Color {
+        AuthColors.primary(colorScheme)
+    }
+
     var body: some View {
         Button(action: {
             // Track login attempt
-            action()
+            if isEnabled {
+                action()
+            }
         }) {
             HStack(spacing: 12) {
                 if isLoading {
@@ -356,60 +405,66 @@ struct EnhancedLoginButton: View {
                 } else {
                     Text("login.signIn")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(primaryText)
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 50)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.2, green: 0.4, blue: 0.9),
-                            Color(red: 0.7, green: 0.3, blue: 0.8)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: .blue.opacity(0.2), radius: isPressed ? 4 : 10, x: 0, y: isPressed ? 2 : 5)
-                .scaleEffect(isPressed ? 0.98 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        )
-        .disabled(isLoading)
-        .scaleEffect(isLoading ? 0.95 : 1.0)
+        .background {
+            Color.clear
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: isEnabled)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(primaryText.opacity(isEnabled ? 0.08 : 0.02))
+                .allowsHitTesting(false)
+        }
+        .disabled(isLoading || !isEnabled)
+        .opacity(isEnabled ? 1 : 0.52)
+        .scaleEffect(isLoading ? 0.95 : (isPressed ? 0.98 : 1.0))
         .animation(.easeInOut(duration: 0.2), value: isLoading)
+        .animation(.easeInOut(duration: 0.2), value: isEnabled)
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})
+        .accessibilityLabel(Text("login.signIn"))
     }
 }
 
 // MARK: - Enhanced Divider View
 struct EnhancedDividerView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var dividerColor: Color {
+        (colorScheme == .dark ? Color.white : Color.black).opacity(0.26)
+    }
+
+    private var textColor: Color {
+        (colorScheme == .dark ? Color.white : Color.black).opacity(0.72)
+    }
+
     var body: some View {
         HStack(spacing: 16) {
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [.clear, .white.opacity(0.3), .clear],
+                        colors: [.clear, dividerColor, .clear],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .frame(height: 1)
-            
-                            Text("login.or")
+
+            Text("login.orContinue")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(textColor)
                 .padding(.horizontal, 8)
-            
+
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [.clear, .white.opacity(0.3), .clear],
+                        colors: [.clear, dividerColor, .clear],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -423,7 +478,7 @@ struct EnhancedDividerView: View {
 // MARK: - Enhanced Floating Dots
 struct EnhancedFloatingDotsView: View {
     @State private var animationPhase: [Bool] = [false, false, false]
-    
+
     var body: some View {
         HStack(spacing: 12) {
             ForEach(0..<3, id: \.self) { index in
@@ -457,156 +512,48 @@ struct EnhancedFloatingDotsView: View {
     }
 }
 
-// ✅ ENHANCED: AccountVerificationView with better animation
 struct EnhancedAccountVerificationView: View {
-    @Environment(\.colorScheme) var colorScheme
-    @State private var rotationAngle: Double = 0
-    @State private var pulseScale: CGFloat = 1.0
-    @State private var glowIntensity: Double = 0.5
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isVisible = false
-    
+
     var body: some View {
         ZStack {
-            // Enhanced background similar to LoginView
             LiquidAuroraBackground()
-            
-            VStack(spacing: 50) {
+
+            VStack(spacing: 30) {
                 Spacer()
-                
-                // Enhanced logo
+
                 VStack(spacing: 24) {
-                    Image("LoginLogo")
+                    Image(colorScheme == .dark ? "LoginLogo" : "whatsnew")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 100, height: 100)
-                        .shadow(color: .white.opacity(glowIntensity * 0.5), radius: 10, x: 0, y: 0)
-                        .scaleEffect(pulseScale)
-                }
-                .scaleEffect(isVisible ? 1.0 : 0.8)
-                .opacity(isVisible ? 1.0 : 0.0)
-                .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
-                
-                // Enhanced loading indicator
-                VStack(spacing: 32) {
-                    // Enhanced spinner
-                    ZStack {
-                        // Background ring
-                        Circle()
-                            .stroke(Color.white.opacity(0.15), lineWidth: 6)
-                            .frame(width: 80, height: 80)
-                        
-                        // Progress ring with enhanced gradient
-                        Circle()
-                            .trim(from: 0, to: 0.7)
-                            .stroke(
-                                AngularGradient(
-                                    gradient: Gradient(colors: [
-                                        Color(red: 0.25, green: 0.35, blue: 0.82),
-                                        Color(red: 0.78, green: 0.31, blue: 0.75),
-                                        Color(red: 1.0, green: 0.8, blue: 0.44),
-                                        Color(red: 0.25, green: 0.35, blue: 0.82)
-                                    ]),
-                                    center: .center,
-                                    startAngle: .degrees(-90),
-                                    endAngle: .degrees(270)
-                                ),
-                                style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                            )
-                            .frame(width: 80, height: 80)
-                            .rotationEffect(.degrees(rotationAngle))
-                            .shadow(color: .blue.opacity(0.5), radius: 10, x: 0, y: 0)
-                        
-                        // Center icon with particles effect
-                        ZStack {
-                            // Particle rings
-                            ForEach(0..<2, id: \.self) { index in
-                                Circle()
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                                    .frame(width: CGFloat(25 + index * 10), height: CGFloat(25 + index * 10))
-                                    .scaleEffect(pulseScale)
-                                    .animation(
-                                        .easeInOut(duration: 1.5)
-                                        .repeatForever(autoreverses: true)
-                                        .delay(Double(index) * 0.2),
-                                        value: pulseScale
-                                    )
-                            }
-                            
-                            // Main icon
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 20, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.white, .blue.opacity(0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: .white.opacity(0.5), radius: 5, x: 0, y: 0)
-                        }
-                    }
-                    
+                        .frame(width: 112, height: 112)
+                        .shadow(color: AuthColors.primary(colorScheme).opacity(0.12), radius: 14, x: 0, y: 10)
+
                     VStack(spacing: 12) {
                         Text("login.verifyingAccount")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
-                        
+                            .font(.custom("Poppins-Bold", size: 26))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .multilineTextAlignment(.center)
+
                         Text("login.checkingAccountStatus")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(4)
                     }
                 }
-                .padding(.horizontal, 32)
-                .padding(.vertical, 40)
-                .background(
-                    ZStack {
-                        // Liquid Glass Effect
-                        RoundedRectangle(cornerRadius: 28)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 28)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [.white.opacity(0.05), .clear],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            )
-                        
-                        // Liquid Border
-                        RoundedRectangle(cornerRadius: 28)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.5), .white.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 0.5
-                            )
-                    }
-                )
-                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
                 .offset(y: isVisible ? 0 : 30)
                 .opacity(isVisible ? 1.0 : 0.0)
-                .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
-                
+                .animation(.spring(response: 0.9, dampingFraction: 0.72), value: isVisible)
+
                 Spacer()
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 32)
         }
         .onAppear {
             withAnimation {
                 isVisible = true
-            }
-            
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                glowIntensity = 1.0
-                pulseScale = 1.1
-            }
-            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                rotationAngle = 360
             }
         }
     }
@@ -616,6 +563,7 @@ struct EnhancedAccountVerificationView: View {
 import SwiftUI
 
 struct EnhancedResetPasswordView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var email: String
     @Binding var isPresented: Bool
     @StateObject private var authService = AuthService()
@@ -624,114 +572,63 @@ struct EnhancedResetPasswordView: View {
     @State private var alertMessage = ""
     @State private var isVisible = false
     @State private var dismissAfterAlert = false
-    
+
+    private var primaryText: Color {
+        AuthColors.primary(colorScheme)
+    }
+
     var body: some View {
-        NavigationView {
-            ZStack {
-                LiquidAuroraBackground()
-                
-                VStack(spacing: 40) {
-                    Spacer()
-                    
-                    // Logo and Title Section
-                    VStack(spacing: 20) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [.blue.opacity(0.3), .purple.opacity(0.1)],
-                                        center: .center,
-                                        startRadius: 10,
-                                        endRadius: 50
-                                    )
-                                )
-                                .frame(width: 100, height: 100)
-                                .blur(radius: 20)
-                            
-                            Image(systemName: "lock.rotation")
-                                .font(.system(size: 60, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.white, .blue.opacity(0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: .white.opacity(0.5), radius: 10, x: 0, y: 0)
-                        }
-                        
-                        VStack(spacing: 12) {
-                            Text("login.resetPassword.title")
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(.white)
-                                .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
-                            
-                            Text("login.resetPassword.description")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white.opacity(0.8))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 20)
-                        }
-                    }
-                    .scaleEffect(isVisible ? 1.0 : 0.8)
-                    .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
-                    
-                    // 1. Standalone Input Pill (Social Media Style)
+        NavigationStack {
+            VStack(spacing: 22) {
+                header
+                    .scaleEffect(isVisible ? 1 : 0.96)
+                    .opacity(isVisible ? 1 : 0)
+
+                VStack(spacing: 16) {
                     LiquidGlassTextField(
                         icon: "envelope.fill",
-                        placeholder: NSLocalizedString("login.usernameOrEmail", comment: ""),
+                        placeholder: NSLocalizedString("login.email", comment: ""),
                         text: $email,
                         keyboardType: .emailAddress,
                         autocapitalization: .none
                     )
                     .disabled(isLoading)
-                    .padding(.horizontal, 8) // Adding slight padding correction if needed compared to original which had padding on HStack
                     .opacity(isLoading ? 0.7 : 1.0)
-                    
-                    // 2. Standalone Action Block
+
                     Button(action: resetPassword) {
                         HStack(spacing: 12) {
                             if isLoading {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: primaryText))
                                     .scaleEffect(0.8)
                             } else {
                                 Text("login.resetPassword.sendLink")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .foregroundColor(primaryText)
                             }
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: .blue.opacity(0.2), radius: 10, x: 0, y: 5)
-                        )
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: !isLoading)
+                        }
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(AuthColors.subtle(colorScheme, opacity: 0.08))
+                                .allowsHitTesting(false)
+                        }
                     }
                     .disabled(isLoading)
-                    .padding(.horizontal, 24)
                     .offset(y: isVisible ? 0 : 30)
-                    .opacity(isVisible ? 1.0 : 0.0)
+                    .opacity(isVisible ? 1 : 0)
                     .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
-                    
-                    Spacer()
                 }
             }
-            .navigationBarItems(
-                leading: Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
-                    isPresented = false
-                }
-                .foregroundColor(.white)
-                .font(.system(size: 16, weight: .medium))
-            )
+            .padding(.horizontal, 24)
+            .padding(.top, 18)
+            .padding(.bottom, 28)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .onAppear {
             withAnimation {
@@ -750,7 +647,45 @@ struct EnhancedResetPasswordView: View {
             )
         }
     }
-    
+
+    private var header: some View {
+        ZStack {
+            VStack(spacing: 5) {
+                Text("login.resetPassword.title")
+                    .font(.custom("Poppins-Bold", size: 22))
+                    .foregroundColor(primaryText)
+
+                Text("login.resetPassword.description")
+                    .font(.custom("Poppins-Regular", size: 14))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+            }
+            .frame(maxWidth: .infinity)
+
+            HStack {
+                Button {
+                    isPresented = false
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(primaryText)
+                        .frame(width: 38, height: 38)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                }
+                .accessibilityLabel(Text("login.close"))
+
+                Spacer()
+
+                Color.clear
+                    .frame(width: 38, height: 38)
+            }
+        }
+    }
+
     private func resetPassword() {
         isLoading = true
         authService.resetPassword(email: email) { result in

@@ -623,6 +623,48 @@ enum FollowButtonState {
     }
 }
 
+final class FollowStateStore {
+    static let shared = FollowStateStore()
+    static let didChangeNotification = Foundation.Notification.Name("FollowStateStoreDidChange")
+
+    private var statesByUserId: [String: FollowButtonState] = [:]
+    private let lock = NSLock()
+
+    private init() {}
+
+    func state(for userId: String) -> FollowButtonState? {
+        lock.lock()
+        defer { lock.unlock() }
+        return statesByUserId[userId]
+    }
+
+    func setState(_ state: FollowButtonState, for userId: String) {
+        lock.lock()
+        statesByUserId[userId] = state
+        lock.unlock()
+
+        NotificationCenter.default.post(
+            name: Self.didChangeNotification,
+            object: nil,
+            userInfo: ["userId": userId, "state": state]
+        )
+    }
+
+    func reconciledState(_ authoritativeState: FollowButtonState, for userId: String) -> FollowButtonState {
+        lock.lock()
+        let cachedState = statesByUserId[userId]
+        lock.unlock()
+
+        // Follow requests can take a beat to appear in every read path. If the user
+        // just requested access, do not immediately downgrade the UI back to Request.
+        if cachedState == .requestPending && authoritativeState == .canRequestFollow {
+            return .requestPending
+        }
+
+        return authoritativeState
+    }
+}
+
 // MARK: - Extensión del PrivacyService para manejar audiencias de contenido
 
 extension PrivacyService {

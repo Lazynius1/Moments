@@ -4,6 +4,7 @@ import FirebaseFirestore
 import PhotosUI
 
 struct RegisterView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var authService = AuthService()
     @State private var username: String = ""
     @State private var email: String = ""
@@ -45,21 +46,16 @@ struct RegisterView: View {
                 // Enhanced header with close button
                 HStack {
                     Button(action: { dismiss() }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.black.opacity(0.18))
-                                .frame(width: 36, height: 36)
-                                .blur(radius: 8)
-                            
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 36, height: 36)
-                            
                             Image(systemName: "xmark")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
+                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .frame(width: 36, height: 36)
+                            .background {
+                                Color.clear
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
                     }
+                    .accessibilityLabel(Text("register.close"))
                     
                     Spacer()
                     
@@ -103,7 +99,7 @@ struct RegisterView: View {
                     VStack(spacing: 20) {
                         // Enhanced logo and title
                         VStack(spacing: 12) {
-                            Image("RegisterLogo2")
+                            Image(colorScheme == .dark ? "RegisterLogo2" : "whatsnew2")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(height: 146)
@@ -113,7 +109,7 @@ struct RegisterView: View {
                             
                             Text(getStepDescription())
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white.opacity(0.84))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.84))
                                 .multilineTextAlignment(.center)
                                 .animation(.easeInOut, value: currentStep)
                         }
@@ -161,17 +157,21 @@ struct RegisterView: View {
                                     } else {
                                         Text(currentStep == 3 ? NSLocalizedString("register.actions.createAccount", comment: "Create account button") : NSLocalizedString("register.actions.continue", comment: "Continue button"))
                                             .font(.system(size: 18, weight: .semibold))
-                                            .foregroundColor(.white)
+                                            .foregroundColor(AuthColors.primary(colorScheme))
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 52)
                             }
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(registerAccent)
-                                    .shadow(color: .blue.opacity(0.18), radius: 12, x: 0, y: 6)
-                            )
+                            .background {
+                                Color.clear
+                                    .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: canProceed())
+                            }
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(AuthColors.subtle(colorScheme, opacity: canProceed() ? 0.08 : 0.02))
+                                    .allowsHitTesting(false)
+                            }
                             .disabled(isLoading || !canProceed())
                             .opacity(canProceed() ? 1 : 0.6)
                             .scaleEffect(isLoading ? 0.95 : 1.0)
@@ -181,55 +181,22 @@ struct RegisterView: View {
                                 Button(action: { currentStep -= 1 }) {
                                     Text("register.back")
                                         .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.72))
+                                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                                         .padding(.vertical, 10)
                                         .padding(.horizontal, 20)
-                                        .background(
-                                            Capsule()
-                                                .fill(Color.white.opacity(0.07))
-                                                .overlay(
-                                                    Capsule()
-                                                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
-                                                )
-                                        )
+                                        .background {
+                                            Color.clear
+                                                .liquidGlass(in: Capsule(), interactive: true)
+                                        }
                                 }
                             }
                         }
                         .padding(.horizontal, 26)
                         .padding(.vertical, 30)
-                        .background(
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 28)
-                                    .fill(.ultraThinMaterial)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 28)
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [
-                                                        .white.opacity(0.08),
-                                                        .white.opacity(0.03)
-                                                    ],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                    )
-                                
-                                RoundedRectangle(cornerRadius: 28)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                .white.opacity(0.18),
-                                                .white.opacity(0.06),
-                                                .clear
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            }
-                        )
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        }
                         .shadow(color: .black.opacity(0.16), radius: 22, x: 0, y: 12)
                         .shadow(color: .blue.opacity(0.06), radius: 34, x: 0, y: 18)
                         .padding(.horizontal, 20)
@@ -378,7 +345,7 @@ struct RegisterView: View {
         if firebaseOperationsCompleted && animationFinished {
             
             // ✅ IMPORTANTE: Delay mínimo para asegurar que el usuario vea la animación
-            let minimumDisplayTime: TimeInterval = 3.0 // 3 segundos mínimo
+            let minimumDisplayTime: TimeInterval = 1.0
             
             DispatchQueue.main.asyncAfter(deadline: .now() + minimumDisplayTime) {
                 self.isCreatingProfile = false
@@ -391,6 +358,7 @@ struct RegisterView: View {
 
 // MARK: - Enhanced Step 1: Información básica
 struct EnhancedStep1View: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var username: String
     @Binding var email: String
     @Binding var password: String
@@ -409,11 +377,11 @@ struct EnhancedStep1View: View {
                 HStack(spacing: 8) {
                     Image(systemName: "at")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
                     
                     Text("register.username")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
                 }
                 
                 LiquidGlassTextField(
@@ -447,14 +415,10 @@ struct EnhancedStep1View: View {
                                             .padding(.horizontal, 12)
                                             .padding(.vertical, 6)
                                             .background(
-                                                Capsule()
-                                                    .fill(Color.white.opacity(0.2))
-                                                    .overlay(
-                                                        Capsule()
-                                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                                    )
+                                                Color.clear
+                                                    .liquidGlass(in: Capsule(), interactive: true)
                                             )
-                                            .foregroundColor(.white)
+                                            .foregroundColor(AuthColors.primary(colorScheme))
                                     }
                                 }
                             }
@@ -468,11 +432,11 @@ struct EnhancedStep1View: View {
                 HStack(spacing: 8) {
                     Image(systemName: "envelope.fill")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
                     
                     Text("register.email")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
                 }
                 
                 LiquidGlassTextField(
@@ -489,11 +453,11 @@ struct EnhancedStep1View: View {
                 HStack(spacing: 8) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
                     
                     Text("register.password")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
                 }
                 
                 LiquidGlassSecureField(
@@ -571,10 +535,10 @@ struct EnhancedStep1View: View {
             case 2: return .orange.opacity(0.8)
             case 3: return .yellow.opacity(0.8)
             case 4: return .green.opacity(0.8)
-            default: return .white.opacity(0.2)
+            default: return AuthColors.subtle(colorScheme, opacity: 0.2)
             }
         }
-        return .white.opacity(0.2)
+        return AuthColors.subtle(colorScheme, opacity: 0.2)
     }
     
     private func passwordStrengthMessage() -> String {
@@ -593,7 +557,7 @@ struct EnhancedStep1View: View {
         case 2: return .orange.opacity(0.8)
         case 3: return .yellow.opacity(0.8)
         case 4: return .green.opacity(0.8)
-        default: return .white.opacity(0.5)
+        default: return AuthColors.secondary(colorScheme, opacity: 0.5)
         }
     }
 }
@@ -625,6 +589,7 @@ struct EnhancedStep2View: View {
 
 // MARK: - Enhanced Step 3: Resumen y políticas
 struct EnhancedStep3View: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var privacyPolicyAccepted: Bool
     @Binding var showPrivacyPolicy: Bool
     let username: String
@@ -648,57 +613,47 @@ struct EnhancedStep3View: View {
                     
                     Text("register.summary.title")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(AuthColors.primary(colorScheme))
                 }
                 
                 VStack(alignment: .leading, spacing: 15) {
                     HStack {
                         Image(systemName: "at")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
                             .frame(width: 20)
                         Text(username)
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(AuthColors.primary(colorScheme))
                     }
                     
                     HStack {
                         Image(systemName: "envelope.fill")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
                             .frame(width: 20)
                         Text(email)
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(AuthColors.primary(colorScheme))
                     }
                     
                     HStack(alignment: .top) {
                         Image(systemName: "sparkles")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
                             .frame(width: 20)
                         VStack(alignment: .leading, spacing: 8) {
                             Text("register.summary.interests")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
                             EnhancedFlowLayout(spacing: 8) {
                                 ForEach(interests, id: \.self) { interest in
                                     Text(InterestOption.localize(interest))
                                         .font(.system(size: 14, weight: .medium))
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
-                                        .background(
-                                            Capsule()
-                                                .fill(
-                                                    LinearGradient(
-                                                        colors: [.blue.opacity(0.3), .purple.opacity(0.2)],
-                                                        startPoint: .leading,
-                                                        endPoint: .trailing
-                                                    )
-                                                )
-                                                .overlay(
-                                                    Capsule()
-                                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                                )
-                                        )
-                                        .foregroundColor(.white)
+                                        .background {
+                                            Color.clear
+                                                .liquidGlass(in: Capsule())
+                                        }
+                                        .foregroundColor(AuthColors.primary(colorScheme))
                                 }
                             }
                         }
@@ -706,27 +661,10 @@ struct EnhancedStep3View: View {
                 }
             }
             .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(
-                        LinearGradient(
-                            colors: [.white.opacity(0.15), .white.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-            )
+            .background {
+                Color.clear
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }
             .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 8)
             
             // Enhanced privacy toggle
@@ -735,12 +673,12 @@ struct EnhancedStep3View: View {
                     HStack {
                         Text("register.terms.accept")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
                         
                         Button(action: { showPrivacyPolicy = true }) {
                             Text("register.terms.privacyPolicy")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(AuthColors.primary(colorScheme))
                                 .underline()
                         }
                     }
@@ -749,7 +687,7 @@ struct EnhancedStep3View: View {
                 
                 Text("register.verification.notice")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
                     .multilineTextAlignment(.center)
             }
         }

@@ -1,65 +1,27 @@
 import SwiftUI
 
 struct SplashScreenView: View {
-    @State private var logoScale: CGFloat = 0.8
-    @State private var logoOpacity: Double = 0.5
-    @State private var orbRotation: Double = 0
-    @State private var glowIntensity: Double = 0.3
-    @State private var pulseScale: CGFloat = 1.0
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var onComplete: (() -> Void)? = nil
+    @State private var logoScale: CGFloat = 1.0
+    @State private var logoOpacity: Double = 1.0
+    @State private var backgroundOpacity: Double = 1.0
+    @State private var didStart = false
     
     var body: some View {
         ZStack {
-            // Enhanced background similar to LoginView
-            // Shared Liquid Aurora Background
-            LiquidAuroraBackground()
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                .opacity(backgroundOpacity)
+                .ignoresSafeArea()
             
-            VStack {
-                Spacer()
-                
-                // Logo principal con animaciones
-                ZStack {
-                    // Glow effect de fondo
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.white.opacity(0.3), .clear],
-                                center: .center,
-                                startRadius: 50,
-                                endRadius: 150
-                            )
-                        )
-                        .frame(width: 300, height: 300)
-                        .scaleEffect(pulseScale)
-                        .blur(radius: 30)
-                    
-                    // Logo principal
-                    Image("LoginLogo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 200, height: 200)
-                        .shadow(color: .white.opacity(glowIntensity), radius: 20, x: 0, y: 0)
-                        .shadow(color: .blue.opacity(0.5), radius: 40, x: 0, y: 0)
-                        .scaleEffect(logoScale)
-                        .opacity(logoOpacity)
-                }
-                
-                Spacer()
-                
-                // Texto "Moments" removido - solo se muestra el logo
-                
-                Spacer()
-                
-                // Loading indicator optimizado
-                VStack(spacing: 20) {
-                    MomentsLoader()
-                    
-                    Text("splash.loading")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
-                        .opacity(logoOpacity)
-                }
-                .padding(.bottom, 80)
-            }
+            Image(colorScheme == .dark ? "SplashLogoDark" : "SplashLogoLight")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 156, height: 156)
+                .shadow(color: AuthColors.primary(colorScheme).opacity(colorScheme == .dark ? 0.16 : 0.08), radius: 18, x: 0, y: 0)
+                .scaleEffect(logoScale)
+                .opacity(logoOpacity)
         }
         .onAppear {
             startAnimations()
@@ -67,90 +29,59 @@ struct SplashScreenView: View {
     }
     
     private func startAnimations() {
-        // Animación del logo principal
-        withAnimation(.easeInOut(duration: 1.0)) {
-            logoScale = 1.0
-            logoOpacity = 1.0
-        }
+        guard !didStart else { return }
+        didStart = true
         
-        // Glow pulsante
-        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-            glowIntensity = 1.0
-            pulseScale = 1.1
-        }
-        
-        // Rotación del orbe
-        withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
-            orbRotation = 360
-        }
-    }
-}
-
-
-
-// MARK: - Moments Loader
-struct MomentsLoader: View {
-    @State private var progress: CGFloat = 0.0
-    @State private var rotation: Double = 0
-    
-    var body: some View {
-        ZStack {
-            // Background circle
-            Circle()
-                .stroke(Color.white.opacity(0.2), lineWidth: 3)
-                .frame(width: 40, height: 40)
-            
-            // Progress circle
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(
-                    LinearGradient(
-                        colors: [.white, .blue.opacity(0.8), .purple.opacity(0.6)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .frame(width: 40, height: 40)
-                .rotationEffect(.degrees(rotation))
-        }
-        .onAppear {
-            // Animación de progreso
-            withAnimation(.easeInOut(duration: 2.5)) {
-                progress = 1.0
+        if reduceMotion {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    logoOpacity = 0.0
+                    backgroundOpacity = 0.0
+                }
             }
             
-            // Rotación suave
-            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                rotation = 360
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.82) {
+                onComplete?()
             }
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.78) {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                logoScale = 0.84
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.04) {
+            withAnimation(.easeInOut(duration: 0.34)) {
+                logoScale = 26.0
+                logoOpacity = 0.0
+                backgroundOpacity = 0.0
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.44) {
+            onComplete?()
         }
     }
 }
 
 // MARK: - Alternative Minimal Splash (más simple)
 struct MinimalSplashScreenView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var logoScale: CGFloat = 0.5
     @State private var logoOpacity: Double = 0.0
     
     var body: some View {
         ZStack {
-            // Background simple
-            Color.black
-                .ignoresSafeArea()
+            LiquidAuroraBackground()
             
-            VStack(spacing: 30) {
-                // Logo simple
-                Image("LoginLogo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 200, height: 200)
-                    .foregroundColor(.white)
-                    .scaleEffect(logoScale)
-                    .opacity(logoOpacity)
-                
-                // Texto "Moments" removido - solo se muestra el logo
-            }
+            Image(colorScheme == .dark ? "SplashLogoDark" : "SplashLogoLight")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 138, height: 138)
+                .scaleEffect(logoScale)
+                .opacity(logoOpacity)
         }
         .onAppear {
             withAnimation(.easeInOut(duration: 1.0)) {
