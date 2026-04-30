@@ -377,7 +377,7 @@
 "stories.tapToViewComplete" = "Toca per veure complet";
 "stories.close" = "Tancar";
 "stories.blockUser.confirm" = "Estàs segur que vols bloquejar aquest usuari? No podràs veure el seu contingut i s'eliminaran totes les interaccions entre vosaltres.";
-"stories.sendMessagePlaceholder" = "Enviar missatge...";
+"stories.sendMessagePlaceholder" = "Enviar missatge a %@";
 "stories.reactionSent" = "Reacció enviada";
 "stories.savedImage" = "Imatge desada";
 "stories.savedVideo" = "Vídeo desat";
