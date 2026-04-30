@@ -380,7 +380,7 @@
 "stories.tapToViewComplete" = "Tap to view complete";
 "stories.close" = "Close";
 "stories.blockUser.confirm" = "Are you sure you want to block this user? You won't be able to see their content and all interactions between you will be removed.";
-"stories.sendMessagePlaceholder" = "Send message...";
+"stories.sendMessagePlaceholder" = "Send message to %@";
 "stories.reactionSent" = "Reaction sent";
 "stories.savedImage" = "Image saved";
 "stories.savedVideo" = "Video saved";

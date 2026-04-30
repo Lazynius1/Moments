@@ -18,7 +18,7 @@ class StoryViewModel: ObservableObject {
     @Published var hasActiveStory: Bool = false
     @Published var storyReactions: [String: [StoryReaction]] = [:] // storyId: reactions
     @Published var storyViewers: [String: [StoryViewer]] = [:] // storyId: viewers
-    
+
     // ✅ PRELOADING: Cache para historias precargadas
     @Published var preloadedStories: [String: Story] = [:] // storyId: Story
     @Published var preloadedImages: [String: UIImage] = [:] // storyId: UIImage
@@ -28,10 +28,10 @@ class StoryViewModel: ObservableObject {
     private let chatService = ChatService.shared
     private let privacyService = PrivacyService()
     private var isFirstFetch = true
-    
+
     // ✅ PRELOADING: Configuración
     private let maxPreloadedStories = 3 // Máximo 3 historias precargadas
-    
+
 
     // MARK: - Obtener historias para un usuario específico
     func fetchStoriesForSpecificUser(userId: String, viewerId: String) {
@@ -43,16 +43,16 @@ class StoryViewModel: ObservableObject {
             self.stories = [:]
             return
         }
-        
 
-        
+
+
         // ✅ SwiftData: Cargar historias del caché local inmediatamente
         let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
         if !cachedStories.isEmpty {
             self.stories[userId] = cachedStories
             self.hasActiveStory = true
         }
-        
+
         firestoreService.db.collection("users").document(userId).collection("stories")
             .whereField("expirationDate", isGreaterThan: Date())
             .order(by: "timestamp", descending: false)
@@ -68,7 +68,7 @@ class StoryViewModel: ObservableObject {
                     }
                     // ✅ CORREGIDO: Mantener el orden original de Firestore
                     var allStories: [Story] = []
-                    
+
                     // Primero, procesar todas las historias para obtener visibilidad
                     for doc in snapshot?.documents ?? [] {
                         let data = doc.data()
@@ -97,11 +97,11 @@ class StoryViewModel: ObservableObject {
                             continue
                         }
                     }
-                    
+
                     // Ahora verificar visibilidad manteniendo el orden
                     let group = DispatchGroup()
                     var storyVisibilityResults: [String: Bool] = [:]
-                    
+
                     for story in allStories {
                         group.enter()
                         self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
@@ -118,21 +118,21 @@ class StoryViewModel: ObservableObject {
                                 guard let storyId = story.id else { return false }
                                 return storyVisibilityResults[storyId] == true
                             }
-                            
+
                             if userStories.isEmpty {
                                 self.stories.removeValue(forKey: userId)
                                 // ✅ SwiftData: Limpiar caché si ya no hay historias para este usuario
                                 LocalPersistenceService.shared.deleteStories(for: userId)
                                 return
                             }
-                            
+
                             self.stories = [userId: userStories]
-                            
+
                             // ✅ SwiftData: Actualizar caché local para este usuario
                             // Primero borramos lo anterior de este usuario para evitar "ghost stories"
                             LocalPersistenceService.shared.deleteStories(for: userId)
                             LocalPersistenceService.shared.saveStories(userStories)
-                            
+
                             // Fetch reactions and viewers for each story
                             for story in userStories {
                                 if let storyId = story.id {
@@ -156,7 +156,7 @@ class StoryViewModel: ObservableObject {
                 switch result {
                 case .success(let followingUsers):
                     let connectionIds = followingUsers.map { $0.id }
-            
+
                     self.fetchStoriesForUsers(userIds: connectionIds, viewerId: userId)
                     self.checkActiveStories(userId: userId)
                 case .failure(let error):
@@ -187,7 +187,7 @@ class StoryViewModel: ObservableObject {
                             group.leave()
                             return
                         }
-                        
+
                         if let _ = error {
                             group.leave()
                             return
@@ -248,21 +248,21 @@ class StoryViewModel: ObservableObject {
     private func filterStoriesByPrivacy(allStories: [String: [Story]], viewerId: String) {
         let group = DispatchGroup()
         var filteredStories: [String: [Story]] = [:]
-        
+
         for (userId, stories) in allStories {
             group.enter()
             var userFilteredStories: [Story] = []
             var processedCount = 0
-            
+
             for story in stories {
                 self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
                     Task { @MainActor in
                         if canView {
                             userFilteredStories.append(story)
                         }
-                        
+
                         processedCount += 1
-                        
+
                         // Si procesamos todas las historias del usuario
                         if processedCount == stories.count {
                             if userFilteredStories.isEmpty {
@@ -276,30 +276,30 @@ class StoryViewModel: ObservableObject {
                 }
             }
         }
-        
+
         group.notify(queue: .main) {
             Task { @MainActor in
                 // ✅ EXPERIMENTAL AFFINITY SORTING FOR STORIES
                 let affinityManager = AffinityTracker.shared
                 var finalSortedStories: [String: [Story]] = [:]
                 var finalSortedIds: [String] = []
-                
+
                 if let container = affinityManager.modelContainer {
                     let context = SwiftData.ModelContext(container)
                     let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
                     let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
                     let storyUserIds = Array(filteredStories.keys)
                     let affinityScores = affinityManager.getScores(for: storyUserIds, in: context)
-                    
+
                     // Convert dictionary to array of tuples to sort users by affinity
                     let userScores = filteredStories.keys.map { userId -> (userId: String, score: Double) in
                         var additionalScore = 0.0
                         let affinityScore = affinityScores[userId] ?? 0.0
                         additionalScore += (affinityScore * 1000)
-                        
+
                         let randomFactor = Double.random(in: 0...1000)
                         additionalScore += randomFactor
-                        
+
                         if bestFriends.contains(userId) {
                             additionalScore += 50000
                         } else if mutuals.contains(userId) {
@@ -307,7 +307,7 @@ class StoryViewModel: ObservableObject {
                         }
                         return (userId: userId, score: additionalScore)
                     }
-                    
+
                     // Sort the users based on score
                     finalSortedIds = userScores.sorted { $0.score > $1.score }.map { $0.userId }
                     finalSortedStories = filteredStories
@@ -315,10 +315,10 @@ class StoryViewModel: ObservableObject {
                     finalSortedStories = filteredStories
                     finalSortedIds = Array(filteredStories.keys).shuffled()
                 }
-                
+
                 self.stories = finalSortedStories
                 self.sortedStoryUserIds = finalSortedIds
-                
+
                 // ✅ SwiftData: Guardar historias en caché local por cada usuario
                 // Usar sync: true solo en la primera carga global para purgar inconsistencias
                 if self.isFirstFetch {
@@ -329,7 +329,7 @@ class StoryViewModel: ObservableObject {
                         LocalPersistenceService.shared.saveStories(uStories)
                     }
                 }
-                
+
                 self.prefetchImages()
             }
         }
@@ -337,7 +337,7 @@ class StoryViewModel: ObservableObject {
 
     private func prefetchImages() {
         var urlsToPrefetch: [URL] = []
-        
+
         for (_, userStories) in stories {
             for story in userStories {
                 if story.mediaItem.type == .image, let url = URL(string: story.mediaItem.url) {
@@ -348,7 +348,7 @@ class StoryViewModel: ObservableObject {
                 }
             }
         }
-        
+
         let urlsToPrefetchLimited = Array(urlsToPrefetch.prefix(10))
         if !urlsToPrefetchLimited.isEmpty {
             ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetchLimited)
@@ -375,29 +375,29 @@ class StoryViewModel: ObservableObject {
             completion(false)
             return
         }
-        
-        
+
+
         // First, get or create conversation
         getOrCreateConversation(between: currentUserId, and: userId) { [weak self] conversationId, error in
             guard let self = self, let conversationId = conversationId, error == nil else {
                 completion(false)
                 return
             }
-            
+
             // Fetch the story to include its media data
             firestoreService.db.collection("users").document(userId).collection("stories").document(storyId).getDocument { (snapshot: DocumentSnapshot?, error: Error?) in
                 if let error = error {
                     completion(false)
                     return
                 }
-                
+
                 guard let snapshot = snapshot, snapshot.exists else {
                     completion(false)
                     return
                 }
-                
+
                 let storyData = snapshot.data() ?? [:]
-                
+
                 // Extract mediaUrl and type from mediaItem
                 guard let mediaItem = storyData["mediaItem"] as? [String: Any],
                       let storyMediaUrl = mediaItem["url"] as? String,
@@ -405,14 +405,14 @@ class StoryViewModel: ObservableObject {
                     completion(false)
                     return
                 }
-                
+
                 // Create story reply data
                 let storyReplyData: [String: String] = [
                     "storyId": storyId,
                     "storyMediaUrl": storyMediaUrl,
                     "storyMediaType": storyMediaType
                 ]
-                
+
                 // Send the message as regular text message with story reply data
                 self.chatService.sendStoryReplyMessage(
                     conversationId: conversationId,
@@ -437,28 +437,28 @@ class StoryViewModel: ObservableObject {
             completion(false)
             return
         }
-        
-        
+
+
         // Convert UIImage to Data
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             completion(false)
             return
         }
-        
+
         // Fetch the story to include its media
         firestoreService.db.collection("users").document(userId).collection("stories").document(storyId).getDocument { [weak self] (snapshot: DocumentSnapshot?, error: Error?) in
             if let error = error {
                 completion(false)
                 return
             }
-            
+
             guard let snapshot = snapshot, snapshot.exists else {
                 completion(false)
                 return
             }
-            
+
             let storyData = snapshot.data() ?? [:]
-            
+
             // Extract mediaUrl and type from mediaItem
             guard let mediaItem = storyData["mediaItem"] as? [String: Any],
                   let storyMediaUrl = mediaItem["url"] as? String,
@@ -466,7 +466,7 @@ class StoryViewModel: ObservableObject {
                 completion(false)
                 return
             }
-            
+
             // Check if user can send message
             self?.chatService.canSendMessage(from: currentUserId, to: userId) { [weak self] result in
                 switch result {
@@ -475,14 +475,14 @@ class StoryViewModel: ObservableObject {
                         completion(false)
                         return
                     }
-                    
+
                     // Get or create conversation
                     self?.getOrCreateConversation(between: currentUserId, and: userId) { [weak self] conversationId, error in
                         guard let self = self, let conversationId = conversationId, error == nil else {
                             completion(false)
                             return
                         }
-                        
+
                         // Upload media and send ephemeral message
                         self.chatService.uploadMedia(data: imageData, type: .image, conversationId: conversationId) { result in
                             switch result {
@@ -511,7 +511,7 @@ class StoryViewModel: ObservableObject {
                             }
                         }
                     }
-                    
+
                 case .failure(let error):
                     completion(false)
                 }
@@ -528,7 +528,7 @@ class StoryViewModel: ObservableObject {
                 if let error = error {
                     return
                 }
-                
+
                 let reactions = snapshot?.documents.compactMap { doc -> StoryReaction? in
                     let data = doc.data()
                     guard let userId = data["userId"] as? String,
@@ -538,7 +538,7 @@ class StoryViewModel: ObservableObject {
                     }
                     return StoryReaction(id: doc.documentID, userId: userId, reaction: reaction, timestamp: timestamp)
                 } ?? []
-                
+
                 DispatchQueue.main.async {
                     self?.storyReactions[storyId] = reactions
                 }
@@ -554,7 +554,7 @@ class StoryViewModel: ObservableObject {
                     completion([])
                     return
                 }
-                
+
                 let viewers = snapshot?.documents.compactMap { doc -> StoryViewer? in
                     let data = doc.data()
                     guard let userId = data["userId"] as? String,
@@ -571,7 +571,7 @@ class StoryViewModel: ObservableObject {
                         timestamp: timestamp
                     )
                 } ?? []
-                
+
                 DispatchQueue.main.async {
                     self?.storyViewers[storyId] = viewers
                 }
@@ -595,7 +595,7 @@ class StoryViewModel: ObservableObject {
             timestamp: storyTimestamp ?? Date(),
             syncRemote: true
         )
-        
+
         firestoreService.fetchUserProfile(userId: currentUserId) { result in
             switch result {
             case .success(let user):
@@ -605,7 +605,7 @@ class StoryViewModel: ObservableObject {
                     "profileImagePath": user.profileImagePath ?? "",
                     "timestamp": Timestamp()
                 ]
-                
+
                 self.firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
                     .collection("viewers").document(currentUserId).setData(viewerData) { error in
                         if let error = error {
@@ -632,35 +632,35 @@ class StoryViewModel: ObservableObject {
             )
             return
         }
-        
+
         let storyRef = firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
         let recentlyDeletedRef = firestoreService.db.collection("users").document(userId).collection("recentlyDeleted").document(storyId)
-        
+
         // Soft delete: Mover a la colección 'recentlyDeleted'
         storyRef.getDocument { [weak self] document, error in
             guard let self = self else { return }
-            
+
             if let error = error {
                 completion(error)
                 return
             }
-            
+
             guard let data = document?.data() else {
                 completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.storyNotFound", comment: "Story not found")]))
                 return
             }
-            
+
             var deletedData = data
             deletedData["deletedAt"] = FieldValue.serverTimestamp()
             deletedData["type"] = "story"
-            
+
             // Guardar en recentlyDeleted
             recentlyDeletedRef.setData(deletedData) { error in
                 if let error = error {
                     completion(error)
                     return
                 }
-                
+
                 // Borrar de la colección original
                 storyRef.delete { firestoreError in
                     if let firestoreError = firestoreError {
@@ -671,7 +671,7 @@ class StoryViewModel: ObservableObject {
                             userStories.removeAll { $0.id == storyId }
                             self.stories[userId] = userStories
                         }
-                        
+
                         LocalPersistenceService.shared.deleteStory(storyId: storyId)
                         self.firestoreService.rebuildStorySummary(for: userId) { _ in }
                         self.checkActiveStories(userId: userId)
@@ -684,32 +684,32 @@ class StoryViewModel: ObservableObject {
 
     func permanentlyDeleteStory(userId: String, storyId: String, completion: @escaping (Error?) -> Void) {
         let recentlyDeletedRef = firestoreService.db.collection("users").document(userId).collection("recentlyDeleted").document(storyId)
-        
+
         recentlyDeletedRef.getDocument { [weak self] snapshot, error in
             if let error = error {
                 completion(error)
                 return
             }
-            
+
             guard let self = self, let data = snapshot?.data() else {
                 completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.storyNotFound", comment: "Story not found")]))
                 return
             }
-            
+
             // Extraer mediaUrl para limpieza de Storage
             let mediaItemData = data["mediaItem"] as? [String: Any]
             let mediaUrl = mediaItemData?["url"] as? String
-            
+
             recentlyDeletedRef.delete { error in
                 if let error = error {
                     completion(error)
                     return
                 }
-                
+
                 if let mediaUrl = mediaUrl {
                     self.deleteMediaFromStorage(mediaUrl: mediaUrl) { _ in }
                 }
-                
+
                 completion(nil)
             }
         }
@@ -718,29 +718,29 @@ class StoryViewModel: ObservableObject {
     func restoreStory(userId: String, storyId: String, completion: @escaping (Error?) -> Void) {
         let storyRef = firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
         let recentlyDeletedRef = firestoreService.db.collection("users").document(userId).collection("recentlyDeleted").document(storyId)
-        
+
         recentlyDeletedRef.getDocument { [weak self] snapshot, error in
             if let error = error {
                 completion(error)
                 return
             }
-            
+
             guard let self = self, var data = snapshot?.data() else {
                 completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.documentNotFound", comment: "Document not found")]))
                 return
             }
-            
+
             // Limpiar metadatos de borrado
             data.removeValue(forKey: "deletedAt")
             data.removeValue(forKey: "type")
-            
+
             // Restaurar a la colección original
             storyRef.setData(data) { error in
                 if let error = error {
                     completion(error)
                     return
                 }
-                
+
                 // Borrar de recentlyDeleted
                 recentlyDeletedRef.delete { error in
                     if let error = error {
@@ -754,7 +754,7 @@ class StoryViewModel: ObservableObject {
             }
         }
     }
-    
+
     // ✅ FUNCIÓN: Eliminar media de Firebase Storage
     private func deleteMediaFromStorage(mediaUrl: String, completion: @escaping (Error?) -> Void) {
         guard let url = URL(string: mediaUrl) else {
@@ -767,10 +767,10 @@ class StoryViewModel: ObservableObject {
             )
             return
         }
-        
+
         // ✅ Extraer la ruta del storage desde la URL
         let storagePath = extractStoragePath(from: url)
-        
+
         // ✅ Eliminar de Firebase Storage
         let storageRef = Storage.storage().reference().child(storagePath)
         storageRef.delete { error in
@@ -781,12 +781,12 @@ class StoryViewModel: ObservableObject {
             }
         }
     }
-    
+
     // ✅ FUNCIÓN: Extraer ruta de storage desde URL
     private func extractStoragePath(from url: URL) -> String {
         // ✅ Ejemplo: https://firebasestorage.googleapis.com/v0/b/glowsy-6a40e.appspot.com/o/videos%2Ffilename.mp4?alt=media&token=...
         // ✅ Extraer: videos/filename.mp4
-        
+
         let path = url.path
         if path.contains("/o/") {
             let components = path.components(separatedBy: "/o/")
@@ -795,21 +795,21 @@ class StoryViewModel: ObservableObject {
                 return encodedPath.removingPercentEncoding ?? encodedPath
             }
         }
-        
+
         // ✅ Fallback: usar el último componente de la URL
         return url.lastPathComponent
     }
 
     // MARK: - Private Helpers
-    
+
     private func getOrCreateConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
-        
+
         // Validate inputs
         guard !senderId.isEmpty, !receiverId.isEmpty else {
             completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid user IDs"]))
             return
         }
-        
+
         firestoreService.db.collection("conversations")
             .whereField("participants", arrayContains: senderId)
             .getDocuments { [weak self] snapshot, error in
@@ -817,19 +817,19 @@ class StoryViewModel: ObservableObject {
                     completion(nil, error)
                     return
                 }
-                
+
                 guard let documents = snapshot?.documents else {
                     self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
                     return
                 }
-                
-                
+
+
                 // Find conversation with both participants
                 let conversation = documents.first { doc in
                     let participants = doc.data()["participants"] as? [String] ?? []
                     return participants.contains(receiverId)
                 }
-                
+
                 if let conversation = conversation {
                     let conversationId = conversation.documentID
                     completion(conversationId, nil)
@@ -838,31 +838,31 @@ class StoryViewModel: ObservableObject {
                 }
             }
     }
-    
-    
-    
+
+
+
     func sendReaction(to userId: String, storyId: String, reaction: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         // 1. Guardar la reacción en la historia
         let reactionData: [String: Any] = [
             "userId": currentUserId,
             "reaction": reaction,
             "timestamp": Timestamp()
         ]
-        
+
         firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
             .collection("reactions").addDocument(data: reactionData) { [weak self] error in
                 if let error = error {
                 } else {
                     // Update local reactions
                     self?.fetchReactions(for: userId, storyId: storyId)
-                    
+
                     // Track local affinity for story reaction (on successful write)
                     Task { @MainActor in
                         AffinityTracker.shared.trackInteraction(type: .storyReaction, with: userId)
                     }
-                    
+
                     // 2. Notificación manejada por el servidor (onStoryReactionAdded)
                 }
             }
@@ -879,19 +879,19 @@ class StoryViewModel: ObservableObject {
             )
         }
     }
-    
+
     private func createNewConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
         let participants = [senderId, receiverId]
         var readStatus: [String: Bool] = [:]
         participants.forEach { readStatus[$0] = ($0 == senderId) }
-        
+
         // Fetch receiver's profile
         firestoreService.fetchUserProfile(userId: receiverId) { [weak self] result in
             switch result {
             case .success(let user):
                 let conversationRef = self?.firestoreService.db.collection("conversations").document()
                 let conversationId = conversationRef?.documentID ?? UUID().uuidString
-                
+
                 let conversationData: [String: Any] = [
                     "id": conversationId,
                     "participants": participants,
@@ -902,7 +902,7 @@ class StoryViewModel: ObservableObject {
                     "otherParticipantUsername": user.username,
                     "otherParticipantProfileImagePath": user.profileImagePath ?? ""
                 ]
-                
+
                 conversationRef?.setData(conversationData) { error in
                     if let error = error {
                         completion(nil, error)
@@ -910,7 +910,7 @@ class StoryViewModel: ObservableObject {
                         completion(conversationId, nil)
                     }
                 }
-                
+
             case .failure(let error):
                 completion(nil, error)
             }
@@ -946,14 +946,14 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
-        
+
         // ✅ AUDIO FIX: Activar sesión de audio para que suene aunque esté en silencio
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, options: [])
         try? AVAudioSession.sharedInstance().setActive(true)
-        
+
         // ✅ USAR VIDEOPRELOADER PARA INICIO INSTANTÁNEO
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
-        
+
         let player: AVPlayer
         if shouldLoop {
             let queuePlayer = AVQueuePlayer(items: [playerItem])
@@ -963,7 +963,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             context.coordinator.playerLooper = nil
             player = AVPlayer(playerItem: playerItem)
         }
-        
+
         controller.player = player
         controller.showsPlaybackControls = false
         controller.videoGravity = videoGravity
@@ -972,13 +972,13 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         context.coordinator.onProgressUpdate = onProgressUpdate
         context.coordinator.onVideoComplete = onVideoComplete
         context.coordinator.currentURL = url // ✅ Track initial URL
-        
+
         // ✅ CONFIGURAR OBSERVERS PARA PROGRESO
         context.coordinator.setupObservers()
-        
+
         // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN
         context.coordinator.configureVideoGravity(for: controller)
-        
+
         return controller
     }
 
@@ -987,12 +987,12 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         // caused by mismatch between remote URL (view) and local cache URL (AVPlayer asset).
         if context.coordinator.currentURL != url {
              // URL changed, recreate player
-            
+
             // 1. CLEANUP OLD PLAYER
             context.coordinator.cleanupObservers()
             uiViewController.player?.pause()
             uiViewController.player?.isMuted = true
-            
+
             // 2. CREATE NEW PLAYER
             let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
             let newPlayer: AVPlayer
@@ -1004,14 +1004,14 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
                 context.coordinator.playerLooper = nil
                 newPlayer = AVPlayer(playerItem: playerItem)
             }
-            
+
             uiViewController.player = newPlayer
             context.coordinator.player = newPlayer
-            
+
             // 3. UPDATE COORDINATOR
             context.coordinator.currentURL = url
             context.coordinator.setupObservers()
-            
+
             // 4. CONFIGURE GRAVITY
             context.coordinator.configureVideoGravity(for: uiViewController)
         }
@@ -1019,10 +1019,10 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         if uiViewController.videoGravity != videoGravity {
             uiViewController.videoGravity = videoGravity
         }
-        
+
         // ✅ EVITAR LOOP: Verificar estado actual del player
         let playerIsPlaying = uiViewController.player?.rate != 0.0
-        
+
         if isPlaying && !playerIsPlaying {
             // ✅ Solo reproducir si no está reproduciéndose
             if let player = uiViewController.player, player.currentItem != nil {
@@ -1055,12 +1055,12 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             self.parent = parent
             self.currentURL = parent.url // Initialize with current URL
         }
-        
+
         // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN DEL VIDEO
         func configureVideoGravity(for controller: AVPlayerViewController) {
             controller.videoGravity = parent.videoGravity
         }
-        
+
         func cleanupObservers() {
             if let observer = timeObserver {
                 player?.removeTimeObserver(observer)
@@ -1074,18 +1074,18 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             // Fallback for selector-based observers if any
             NotificationCenter.default.removeObserver(self)
         }
-        
+
         func setupObservers() {
             // ✅ RESET PROGRESO AL CONFIGURAR OBSERVERS
             onProgressUpdate?(0.0)
-            
+
             // ✅ OBSERVER DE PROGRESO
             timeObserver = player?.addPeriodicTimeObserver(
                 forInterval: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
                 queue: .main
             ) { [weak self] time in
                 guard let self = self, let currentItem = self.player?.currentItem else { return }
-                
+
                 let duration = currentItem.duration
                 if CMTIME_IS_VALID(duration) && !CMTIME_IS_INDEFINITE(duration) {
                     let durationSeconds = CMTimeGetSeconds(duration)
@@ -1096,7 +1096,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
                     }
                 }
             }
-            
+
             // ✅ OBSERVER DE COMPLETACIÓN: avanzar a la siguiente historia al terminar
             completionObserver = NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
@@ -1110,16 +1110,16 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
                 self?.onVideoComplete?()
             }
         }
-        
+
         deinit {
             cleanupObservers() // ✅ Ensure observers are removed
-            
+
             player?.pause()
             player?.isMuted = true
             player?.replaceCurrentItem(with: nil)
             playerLooper = nil
             player = nil
-            
+
             // ✅ CLEANUP DE AUDIO SESSION
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
@@ -1179,6 +1179,10 @@ struct GlassmorphicStoryViewer: View {
     @State private var floatingHearts: [FloatingHeart] = [] // ✅ FLOATING HEARTS ANIMATION
     @State private var isUIHidden: Bool = false // ✅ IMMERSIVE MODE STATE
     @State private var gestureActionTriggered: Bool = false // ✅ UNIFIED GESTURE STATE
+    @State private var isHoldingStory: Bool = false
+    @State private var holdPauseWorkItem: DispatchWorkItem? = nil
+    @State private var holdStartLocation: CGPoint? = nil
+    @State private var suppressNavigationTapUntil: Date? = nil
     // ✅ SOLO ZOOM - Estados para pinch to zoom
     @State private var zoomScale: CGFloat = 1.0
     @State private var lastZoomScale: CGFloat = 1.0
@@ -1197,7 +1201,7 @@ struct GlassmorphicStoryViewer: View {
 
     private let firestoreService = FirestoreService()
     private let bestFriendsService = BestFriendsService()
-    
+
     private var canOptOutFromAuthorBestFriends: Bool {
         guard story.authorId != Auth.auth().currentUser?.uid else { return false }
         let normalizedAudience = story.audience?
@@ -1207,52 +1211,52 @@ struct GlassmorphicStoryViewer: View {
             .replacingOccurrences(of: "-", with: "") ?? ""
         return normalizedAudience == "bestfriends"
     }
-    
+
     // ✅ FUNCIÓN HELPER: Detectar aspect ratio de un video (CORREGIDA)
     static func detectVideoAspectRatio(from url: URL) async -> String? {
         let asset = AVAsset(url: url)
         let tracks = try? await asset.loadTracks(withMediaType: .video)
-        
+
         if let videoTrack = tracks?.first {
             let naturalSize = try? await videoTrack.load(.naturalSize)
             let preferredTransform = try? await videoTrack.load(.preferredTransform)
-            
+
             if let size = naturalSize, let transform = preferredTransform {
                 // ✅ CALCULAR DIMENSIONES REALES DESPUÉS DE TRANSFORM
                 let transformedSize = size.applying(transform)
                 let width = Int(abs(transformedSize.width))
                 let height = Int(abs(transformedSize.height))
                 let aspectRatio = "\(width):\(height)"
-                
+
 
                 return aspectRatio
             }
         }
-        
+
         return nil
     }
-    
+
     // ✅ FUNCIÓN HELPER: Detectar aspect ratio de una imagen
     static func detectImageAspectRatio(from url: URL) async -> String? {
         guard let data = try? Data(contentsOf: url),
               let image = UIImage(data: data) else {
             return nil
         }
-        
+
         let width = Int(image.size.width)
         let height = Int(image.size.height)
         let aspectRatio = "\(width):\(height)"
-        
-        
+
+
         return aspectRatio
     }
-    
+
     // ✅ FUNCIÓN HELPER: Determinar si un aspect ratio es horizontal
     static func isHorizontalAspectRatio(_ aspectRatio: String?) -> Bool {
         guard let aspectRatio = aspectRatio else {
             return false
         }
-        
+
         let components = aspectRatio.split(separator: ":")
         if components.count == 2,
            let width = Int(components[0]),
@@ -1260,10 +1264,10 @@ struct GlassmorphicStoryViewer: View {
             let isHorizontal = width > height
             return isHorizontal
         }
-        
+
         return false
     }
-    
+
     private func stickerContentRect(containerSize: CGSize) -> CGRect {
         let resolvedContainerSize = CGSize(
             width: max(containerSize.width, 1),
@@ -1275,14 +1279,14 @@ struct GlassmorphicStoryViewer: View {
             for: mediaAspectRatio,
             canvasAspectRatio: resolvedContainerSize.width / max(resolvedContainerSize.height, 1)
         ).swiftUIContentMode
-        
+
         return Self.contentRect(
             containerSize: resolvedContainerSize,
             mediaAspectRatio: mediaAspectRatio,
             contentMode: contentMode
         )
     }
-    
+
     private static func parseAspectRatio(_ aspectRatio: String?) -> CGFloat? {
         guard let aspectRatio else { return nil }
         let components = aspectRatio.split(separator: ":")
@@ -1291,7 +1295,7 @@ struct GlassmorphicStoryViewer: View {
               let heightValue = Double(components[1]) else {
             return nil
         }
-        
+
         let width = CGFloat(widthValue)
         let height = CGFloat(heightValue)
         guard
@@ -1301,7 +1305,7 @@ struct GlassmorphicStoryViewer: View {
         }
         return width / height
     }
-    
+
     private static func contentRect(
         containerSize: CGSize,
         mediaAspectRatio: CGFloat,
@@ -1310,13 +1314,13 @@ struct GlassmorphicStoryViewer: View {
         let containerWidth = max(containerSize.width, 1)
         let containerHeight = max(containerSize.height, 1)
         let containerAspectRatio = containerWidth / containerHeight
-        
+
         let isFit = contentMode == .fit
         let mediaIsWider = mediaAspectRatio > containerAspectRatio
-        
+
         let width: CGFloat
         let height: CGFloat
-        
+
         if isFit {
             if mediaIsWider {
                 width = containerWidth
@@ -1334,7 +1338,7 @@ struct GlassmorphicStoryViewer: View {
                 height = containerWidth / max(mediaAspectRatio, 0.0001)
             }
         }
-        
+
         return CGRect(
             x: (containerWidth - width) / 2,
             y: (containerHeight - height) / 2,
@@ -1350,7 +1354,7 @@ struct GlassmorphicStoryViewer: View {
             y: contentRect.minY + (sticker.position.y * contentRect.height)
         )
     }
-    
+
     private func stickerForDisplay(_ sticker: StickerItem, containerSize: CGSize) -> StickerItem {
         let contentRect = stickerContentRect(containerSize: containerSize)
         let scaleFactor = max(contentRect.width, 1) / 375.0
@@ -1460,7 +1464,7 @@ struct GlassmorphicStoryViewer: View {
             contentView
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            
+
             // MARK: - 2. STICKERS (Fijos en sus posiciones)
             if !storyStickers.isEmpty {
                 ForEach(storyStickers, id: \.id) { sticker in
@@ -1475,30 +1479,52 @@ struct GlassmorphicStoryViewer: View {
                 .position(stickerDisplayPosition(sticker, containerSize: screenSize))
                 }
             }
-            
+
             // MARK: - 3. FLOATING HEARTS (Under UI, Over Content)
             FloatingHeartsView(hearts: floatingHearts)
                 .allowsHitTesting(false)
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            
+
+            if !isUIHidden {
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.70),
+                            Color.black.opacity(0.42),
+                            Color.black.opacity(0.16),
+                            Color.black.opacity(0.00)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: max(geometry.safeAreaInsets.top, 47) + 160)
+                    .ignoresSafeArea(edges: .top)
+
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            }
+
             // MARK: - 4. UI SUPERIOR (Header + Progress) - FIJA ARRIBA, NUNCA SE MUEVE
             VStack(spacing: 0) {
                 if !isUIHidden {
                     Color.clear.frame(height: max(geometry.safeAreaInsets.top, 47) + 8)
-                    
+
                     glassmorphicProgressBar
                         .padding(.horizontal, 12)
                         .padding(.top, 8)
-                    
+
                     glassmorphicHeader
                         .padding(.horizontal, 16)
                         .padding(.top, 8)
                         .zIndex(1)
                 }
-                
+
                 Spacer()
-                
+
                 Color.clear.frame(height: 80)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
@@ -1509,7 +1535,7 @@ struct GlassmorphicStoryViewer: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .topTrailing)))
                     .zIndex(20)
             }
-            
+
             // MARK: - 5. ÁREAS DE NAVEGACIÓN (Fijas)
             if !isKeyboardVisible {
                 navigationTouchAreas
@@ -1517,11 +1543,11 @@ struct GlassmorphicStoryViewer: View {
                     .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
                     .allowsHitTesting(!isMenuInteractionActive)
             }
-            
+
             // MARK: - 6. INPUT AREA - Se mueve manualmente con keyboardHeight
             VStack {
                 Spacer()
-                
+
                 if !isUIHidden {
                     glassmorphicBottomArea
                         .padding(.horizontal, 16)
@@ -1531,7 +1557,7 @@ struct GlassmorphicStoryViewer: View {
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            
+
             // MARK: - 7. Success message overlay
             if showSuccessMessage {
                 GlassmorphicSuccessMessage(text: successMessageText)
@@ -1602,6 +1628,7 @@ struct GlassmorphicStoryViewer: View {
 
         return AnyView(
             base
+                .simultaneousGesture(holdToPauseGesture)
                 .simultaneousGesture(unifiedDragGesture)
                 .simultaneousGesture(pinchGesture)
                 .simultaneousGesture(
@@ -1796,9 +1823,9 @@ struct GlassmorphicStoryViewer: View {
                 }
         )
     }
-    
+
     // MARK: - Glassmorphic Components
-    
+
     private var glassmorphicProgressBar: some View {
         HStack(spacing: 4) {
             ForEach(0..<storyCount, id: \.self) { index in
@@ -1810,7 +1837,7 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     private func audienceForSegment(index: Int) -> String? {
         guard let storiesForAuthor = storyViewModel.stories[story.authorId],
               storiesForAuthor.indices.contains(index) else {
@@ -1818,7 +1845,7 @@ struct GlassmorphicStoryViewer: View {
         }
         return storiesForAuthor[index].audience
     }
-    
+
     private var glassmorphicHeader: some View {
         HStack(spacing: 12) {
             Button(action: onProfileTap) {
@@ -1832,27 +1859,29 @@ struct GlassmorphicStoryViewer: View {
                                 .clipShape(Circle())
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                        .stroke(Color.white.opacity(0.44), lineWidth: 1)
                                 )
+                                .shadow(color: Color.black.opacity(0.38), radius: 10, x: 0, y: 5)
                         } else {
                             Circle()
-                                .fill(Color.white.opacity(0.1))
+                                .fill(Color.black.opacity(0.16))
                                 .frame(width: 38, height: 38)
-                                .storyGlassmorphic()
-                            
+                                .liquidGlass(in: Circle())
+
                             Image(systemName: "person.circle.fill")
                                 .foregroundColor(.white.opacity(0.7))
                                 .font(.system(size: 28))
                         }
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
                             Text(story.username)
                                 .foregroundColor(.white)
                                 .font(.custom("Poppins-SemiBold", size: 14))
                                 .lineLimit(1)
-                            
+                                .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
+
                             // ✅ INSIGNIA DE VERIFICADO
                             if story.authorId == Auth.auth().currentUser?.uid {
                                 // Para el usuario actual, verificar si está verificado
@@ -1862,26 +1891,27 @@ struct GlassmorphicStoryViewer: View {
                                 VerifiedBadgeView(userId: story.authorId, size: 12)
                             }
                         }
-                        
+
                         Text(timeAgoString(from: story.timestamp))
                             .foregroundColor(.white.opacity(0.7))
                             .font(.custom("Poppins-Regular", size: 11))
+                            .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
                     }
                 }
             }
             .buttonStyle(PlainButtonStyle())
-            
+
             Spacer()
-            
-            
+
+
             HStack(alignment: .top, spacing: 8) {
                 Button(action: toggleQuickActions) {
                     Image(systemName: "ellipsis")
                         .foregroundColor(.white)
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 40, height: 40)
-                        .storyGlassmorphic()
-                        .clipShape(Circle())
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -1890,8 +1920,8 @@ struct GlassmorphicStoryViewer: View {
                         .foregroundColor(.white)
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 40, height: 40)
-                        .storyGlassmorphic()
-                        .clipShape(Circle())
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
             }
         }
@@ -2036,7 +2066,7 @@ struct GlassmorphicStoryViewer: View {
         }
     }
 
-    
+
     // MARK: - Bottom Area
     private var glassmorphicBottomArea: some View {
         let hasChainOverlay = story.chainId != nil && story.chainTitle != nil && story.chainPosition != nil
@@ -2052,7 +2082,7 @@ struct GlassmorphicStoryViewer: View {
                             .foregroundColor(.white.opacity(0.7))
                         Spacer()
                     }
-                    
+
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 16) {
                             ForEach(reactions, id: \.self) { reaction in
@@ -2062,17 +2092,8 @@ struct GlassmorphicStoryViewer: View {
                                     Text(reaction)
                                         .font(.system(size: 32))
                                         .frame(width: 52, height: 52)
-                                        .background(
-                                            Color.black.opacity(0.4)
-                                                .background(.ultraThinMaterial)
-                                                .environment(\.colorScheme, .dark)
-                                        )
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                        )
-                                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                                        .background(Color.white.opacity(0.001))
+                                        .liquidGlass(in: Circle(), interactive: true)
                                 }
                                 .scaleEffect(showReactions ? 1.0 : 0.5)
                                 .animation(
@@ -2092,19 +2113,19 @@ struct GlassmorphicStoryViewer: View {
                     removal: .move(edge: .bottom).combined(with: .opacity)
                 ))
             }
-            
+
             // ✅ ÁREA DE INTERACCIÓN: Solo para historias de otros usuarios
             if story.authorId != Auth.auth().currentUser?.uid {
-                
+
                 // Si permite alguna interacción, mostrar controles
                 if authorAllowsMessages || authorAllowsReactions || authorAllowsEphemeralPhotos {
-                    
+
                     HStack(spacing: 12) {
                         // ✅ ÁREA DE TEXTO/REACCIONES
                         HStack(spacing: 8) {
                             // Campo de texto solo si permite mensajes
                             if authorAllowsMessages {
-                                TextField(NSLocalizedString("stories.sendMessagePlaceholder", comment: "Send message placeholder"), text: $messageText, axis: .vertical)
+                                TextField(storyMessagePlaceholder, text: $messageText, axis: .vertical)
                                     .foregroundColor(.white)
                                     .font(.custom("Poppins-Regular", size: 14))
                                     .padding(.leading, 4)
@@ -2124,7 +2145,7 @@ struct GlassmorphicStoryViewer: View {
                                         }
                                     }
                             }
-                            
+
                             // ✅ BOTÓN REACCIONES: Siempre visible si permite reacciones
                             if authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
                                 Button(action: {
@@ -2150,27 +2171,9 @@ struct GlassmorphicStoryViewer: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(
-                            ZStack {
-                                // Fondo más limpio y "flotante"
-                                Capsule()
-                                    .fill(Color.white.opacity(0.1))
-                                    .background(.ultraThinMaterial)
-                                
-                                // Borde sutil
-                                Capsule()
-                                    .stroke(
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)]),
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 0.5
-                                    )
-                            }
-                        )
-                        .clipShape(Capsule())
-                        
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Capsule(), interactive: true)
+
                         // ✅ BOTÓN CÁMARA: Solo si permite fotos efímeras
                         if authorAllowsEphemeralPhotos {
                             Button(action: {
@@ -2180,16 +2183,8 @@ struct GlassmorphicStoryViewer: View {
                                     .foregroundColor(.white)
                                     .font(.system(size: 18))
                                     .frame(width: 44, height: 44)
-                                    .background(
-                                        Color.black.opacity(0.5)
-                                            .background(.ultraThinMaterial)
-                                            .environment(\.colorScheme, .dark)
-                                    )
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-                                    )
-                                    .clipShape(Circle())
+                                    .background(Color.white.opacity(0.001))
+                                    .liquidGlass(in: Circle(), interactive: true)
                             }
                             .photosPicker(isPresented: $showEphemeralPicker, selection: $selectedPhoto, matching: .images)
                             .onChange(of: showEphemeralPicker) { isOpen in
@@ -2203,7 +2198,7 @@ struct GlassmorphicStoryViewer: View {
                                 }
                             }
                         }
-                        
+
                         // ✅ BOTÓN ENVIAR: Solo si hay mensaje Y permite mensajes
                         if !messageText.isEmpty && authorAllowsMessages {
                             Button(action: sendMessage) {
@@ -2211,8 +2206,8 @@ struct GlassmorphicStoryViewer: View {
                                     .foregroundColor(.white)
                                     .font(.system(size: 18))
                                     .frame(width: 44, height: 44)
-                                    .background(Color(hex: "007AFF"))
-                                    .clipShape(Circle())
+                                    .background(Color.white.opacity(0.001))
+                                    .liquidGlass(in: Circle(), interactive: true)
                             }
                             .frame(width: 54, height: 54)
                             .contentShape(Rectangle())
@@ -2220,14 +2215,14 @@ struct GlassmorphicStoryViewer: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: keyboardHeight)
-                    
+
                 } else {
                     // ✅ MENSAJE: Cuando no permite ninguna interacción
                     VStack(spacing: 8) {
                         Image(systemName: "eye.slash")
                             .font(.system(size: 20))
                             .foregroundColor(.white.opacity(0.6))
-                        
+
                         Text("stories.noInteractions")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.white.opacity(0.7))
@@ -2236,49 +2231,36 @@ struct GlassmorphicStoryViewer: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                     .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.black.opacity(0.3))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
+                        Color.white.opacity(0.001)
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     )
                 }
             }
-            
+
             // 🔗 STORY CHAINS: Botones para cadenas de historias
             if let chainId = story.chainId, let chainTitle = story.chainTitle, let chainPosition = story.chainPosition {
                 VStack(spacing: 8) {
                     // Banner de información de la cadena
                     HStack {
                         Spacer()
-                        
+
                         HStack {
                             Image(systemName: "link")
                                 .foregroundColor(.blue)
                                 .font(.caption)
-                            
+
                             Text(String(format: NSLocalizedString("storyChains.part", comment: "Part"), chainPosition, chainTitle))
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.8))
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(
-                            ZStack {
-                                Color.white.opacity(0.1)
-                                    .background(.ultraThinMaterial)
-                            }
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
                         Spacer()
                     }
-                    
+
                     // Botones de acción
                     HStack(spacing: 12) {
                         // Botón para ver cadena completa
@@ -2294,26 +2276,17 @@ struct GlassmorphicStoryViewer: View {
                                 Image(systemName: "list.bullet")
                                     .foregroundColor(.white)
                                     .font(.system(size: 14))
-                                
+
                                 Text(NSLocalizedString("storyChains.viewChain", comment: "View Chain"))
                                     .font(.custom("Poppins-Medium", size: 14))
                                     .foregroundColor(.white)
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
-                            .background(
-                                ZStack {
-                                    Color.white.opacity(0.1)
-                                        .background(.ultraThinMaterial)
-                                }
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: Capsule(), interactive: true)
                         }
-                        
+
                         // Botón principal para continuar (solo si se puede)
                         if canContinueChain {
 
@@ -2324,30 +2297,15 @@ struct GlassmorphicStoryViewer: View {
                                 Image(systemName: "plus.circle.fill")
                                     .foregroundColor(.white)
                                     .font(.system(size: 16))
-                                
+
                                 Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
                                     .font(.custom("Poppins-Medium", size: 16))
                                     .foregroundColor(.white)
                             }
                             .padding(.horizontal, 20)
                             .padding(.vertical, 12)
-                            .background(
-                                ZStack {
-                                    // Fondo glassmorphism con gradiente azul, púrpura y rosa
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                    .background(.ultraThinMaterial)
-                                }
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 25)
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 25))
-                            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: Capsule(), interactive: true)
                             }
                         }
                     }
@@ -2356,23 +2314,8 @@ struct GlassmorphicStoryViewer: View {
                 .padding(.bottom, 8)
                 .padding(.vertical, 12)
                 .background(
-                    ZStack {
-                        // Fondo glassmorphism con esquinas uniformes
-                        RoundedRectangle(cornerRadius: 30)
-                            .fill(Color.white.opacity(0.1))
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30))
-                        
-                        // Borde glassmorphism con esquinas uniformes
-                        RoundedRectangle(cornerRadius: 30)
-                            .stroke(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    }
+                    Color.white.opacity(0.001)
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
                 )
                 .offset(y: 10)
             }
@@ -2381,7 +2324,7 @@ struct GlassmorphicStoryViewer: View {
         // ✅ Eliminar padding interno si el teclado está visible
         .padding(.bottom, isKeyboardVisible ? 0 : (hasChainOverlay ? 12 : 25))
     }
-    
+
     private var contentView: some View {
         let resolvedScreenSize = CGSize(
             width: max(screenSize.width, 1),
@@ -2491,7 +2434,7 @@ struct GlassmorphicStoryViewer: View {
         .clipped() // Ensure content doesn't overflow
         }
     }
-    
+
     private var navigationTouchAreas: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
@@ -2500,16 +2443,18 @@ struct GlassmorphicStoryViewer: View {
                     .frame(width: geometry.size.width * 0.15) // Reduced from 0.2 to 0.15
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        guard !shouldSuppressNavigationTap else { return }
                         onPrevious()
                     }
-                
+
                 Spacer()
-                
+
                 Rectangle()
                     .fill(Color.clear)
                     .frame(width: geometry.size.width * 0.15) // Reduced from 0.2 to 0.15
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        guard !shouldSuppressNavigationTap else { return }
                         onNext()
                     }
             }
@@ -2517,7 +2462,7 @@ struct GlassmorphicStoryViewer: View {
             .offset(y: 150) // ✅ MUY AUMENTADO: Muy abajo para evitar completamente el header
         }
     }
-    
+
     // MARK: - ✅ PRELOADING
     private func preloadNextStory() {
         // ✅ Obtener todas las historias del usuario actual
@@ -2526,11 +2471,11 @@ struct GlassmorphicStoryViewer: View {
               let currentStoryId = story.id else {
             return
         }
-        
+
         // ✅ Precargar la siguiente historia
         storyViewModel.preloadNextStory(currentStoryId: currentStoryId, allStories: allStories)
     }
-    
+
     // MARK: - Keyboard Handling
     private func setupKeyboardNotifications() {
         NotificationCenter.default.addObserver(
@@ -2545,7 +2490,7 @@ struct GlassmorphicStoryViewer: View {
                 }
             }
         }
-        
+
         NotificationCenter.default.addObserver(
             forName: UIResponder.keyboardWillHideNotification,
             object: nil,
@@ -2561,7 +2506,7 @@ struct GlassmorphicStoryViewer: View {
     private func removeKeyboardNotifications() {
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
-        
+
         // Clear focus and resume story smoothly
         if isTextFieldFocused {
             isTextFieldFocused = false
@@ -2570,33 +2515,126 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     // MARK: - Gestures
-    
-    // ✅ UNIFIED GESTURE: Combina Hold, Drag, Swipe Up/Down/Horizontal
+
+    private var storyMessagePlaceholder: String {
+        let format = NSLocalizedString("stories.sendMessagePlaceholder", comment: "Send story message placeholder")
+        return String(format: format, story.username)
+    }
+
+    private func isProtectedGestureStart(_ location: CGPoint) -> Bool {
+        let topProtectedHeight: CGFloat = 180
+        let topRightProtectedX = screenSize.width - 120
+        let bottomProtectedHeight = screenSize.height - 170
+
+        if location.y < topProtectedHeight {
+            return true
+        }
+
+        if location.y < 220 && location.x > topRightProtectedX {
+            return true
+        }
+
+        if location.y > bottomProtectedHeight {
+            return true
+        }
+
+        return false
+    }
+
+    private var holdToPauseGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard canStartHoldGesture(from: value.startLocation) else { return }
+
+                if abs(value.translation.width) > 14 || abs(value.translation.height) > 14 {
+                    cancelPendingHoldPause()
+                    return
+                }
+
+                guard holdPauseWorkItem == nil, holdStartLocation == nil else { return }
+                holdStartLocation = value.startLocation
+
+                let workItem = DispatchWorkItem {
+                    guard self.canStartHoldGesture(from: value.startLocation) else { return }
+                    self.isHoldingStory = true
+                    self.pauseStory()
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        self.isUIHidden = true
+                    }
+                }
+
+                holdPauseWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: workItem)
+            }
+            .onEnded { _ in
+                let shouldResume = isHoldingStory
+                cancelPendingHoldPause()
+                isHoldingStory = false
+
+                if shouldResume {
+                    suppressNavigationTapUntil = Date().addingTimeInterval(0.25)
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isUIHidden = false
+                    }
+                    resumeStory()
+                }
+            }
+    }
+
+    private func canStartHoldGesture(from location: CGPoint) -> Bool {
+        guard !isMenuInteractionActive,
+              !isKeyboardVisible,
+              !isProtectedGestureStart(location),
+              !showQuickActions,
+              !showViewers,
+              !showingReportSheet,
+              !showingBlockConfirmation,
+              !showUserProfile,
+              !showChainView,
+              !showReactions,
+              !showEphemeralPicker,
+              !showBestFriendsOptOutConfirmation,
+              !showUnfollowConfirmation,
+              !showMuteConfirmation else {
+            return false
+        }
+
+        return true
+    }
+
+    private var shouldSuppressNavigationTap: Bool {
+        guard let suppressNavigationTapUntil else { return false }
+        return Date() < suppressNavigationTapUntil
+    }
+
+    private func cancelPendingHoldPause() {
+        holdPauseWorkItem?.cancel()
+        holdPauseWorkItem = nil
+        holdStartLocation = nil
+    }
+
+    // ✅ UNIFIED GESTURE: Drag, Swipe Up/Down/Horizontal
     private var unifiedDragGesture: some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
                 guard !isMenuInteractionActive else { return }
-                let topProtectedHeight: CGFloat = 180
-                let topRightProtectedX = screenSize.width - 120
-                if value.startLocation.y < topProtectedHeight {
+
+                if isProtectedGestureStart(value.startLocation) {
                     return
                 }
-                if value.startLocation.y < 220 && value.startLocation.x > topRightProtectedX {
-                    return
-                }
-                // 1. TOUCH DOWN & HOLD (Pause & Hide UI)
-                if !isPaused {
+
+                if !isPaused && !isHoldingStory {
                     pauseStory()
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isUIHidden = true
                     }
                 }
-                
+
                 // Si ya se disparó una acción (nav/reply), ignorar resto del drag
                 if gestureActionTriggered { return }
-                
+
                 // 2. SWIPE UP (Quick Reply)
                 if value.translation.height < -60 && abs(value.translation.width) < 50 {
                     if authorAllowsMessages {
@@ -2611,7 +2649,7 @@ struct GlassmorphicStoryViewer: View {
                         // No reanudar aquí, el foco del teclado lo manejará
                     }
                 }
-                
+
                 // 3. SWIPE DOWN (Dismiss)
                 else if value.translation.height > 0 {
                      isDragging = true
@@ -2619,7 +2657,7 @@ struct GlassmorphicStoryViewer: View {
                      // Mostrar UI para que se vea qué pasa
                      withAnimation { isUIHidden = false }
                 }
-                
+
                 // 4. HORIZONTAL SWIPE (Navigation) - Solo si es cadena
                 else if let chainId = story.chainId, !chainStories.isEmpty {
                     if value.translation.width > 60 {
@@ -2633,32 +2671,33 @@ struct GlassmorphicStoryViewer: View {
             }
             .onEnded { value in
                 guard !isMenuInteractionActive else { return }
-                let topProtectedHeight: CGFloat = 180
-                let topRightProtectedX = screenSize.width - 120
-                if value.startLocation.y < topProtectedHeight {
+
+                if isProtectedGestureStart(value.startLocation) {
                     return
                 }
-                if value.startLocation.y < 220 && value.startLocation.x > topRightProtectedX {
-                    return
-                }
+
+                let wasHoldingStory = isHoldingStory
+                isHoldingStory = false
+                cancelPendingHoldPause()
+
                 // RESET STATE
                 gestureActionTriggered = false
-                
+
                 // Restaurar Immersive Mode
                 if isUIHidden {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isUIHidden = false
                     }
                 }
-                
+
                 // DISMISS HANDLE OR RESUME
                 if isDragging {
                     let translation = value.translation.height
-                    
+
                     // ✅ CRITICAL FIX: Set isDragging to false BEFORE calling resumeStory,
                     // otherwise resumeStory() guard will block the resume.
-                    isDragging = false 
-                    
+                    isDragging = false
+
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         if translation > screenSize.height * 0.3 {
                             dismiss()
@@ -2668,13 +2707,13 @@ struct GlassmorphicStoryViewer: View {
                         }
                     }
                 } else if !isTextFieldFocused {
-                    // RESUME STORY (Hold to pause release)
-                    // ✅ Remove async delay for snappier feel
+                    resumeStory()
+                } else if wasHoldingStory {
                     resumeStory()
                 }
             }
     }
-    
+
     // ✅ ZOOM: Gesto de pinch to zoom
     private var pinchGesture: some Gesture {
         MagnificationGesture()
@@ -2684,7 +2723,7 @@ struct GlassmorphicStoryViewer: View {
             }
             .onEnded { _ in
                 lastZoomScale = zoomScale
-                
+
                 // Volver a escala normal si es muy pequeña
                 if zoomScale < 1.2 {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
@@ -2694,19 +2733,19 @@ struct GlassmorphicStoryViewer: View {
                 }
             }
     }
-    
+
     // MARK: - Actions
-    
+
     // 🔗 STORY CHAINS: Navegar a la siguiente parte de la cadena
     private func goToNextChainPart() {
         guard currentChainIndex < chainStories.count - 1 else { return }
-        
+
         let nextIndex = currentChainIndex + 1
         let nextStory = chainStories[nextIndex]
-        
+
         // Actualizar el índice actual
         currentChainIndex = nextIndex
-        
+
         // Notificar al padre para cambiar la historia
         NotificationCenter.default.post(
             name: NSNotification.Name("NavigateToChainStory"),
@@ -2717,17 +2756,17 @@ struct GlassmorphicStoryViewer: View {
             ]
         )
     }
-    
+
     // 🔗 STORY CHAINS: Navegar a la parte anterior de la cadena
     private func goToPreviousChainPart() {
         guard currentChainIndex > 0 else { return }
-        
+
         let previousIndex = currentChainIndex - 1
         let previousStory = chainStories[previousIndex]
-        
+
         // Actualizar el índice actual
         currentChainIndex = previousIndex
-        
+
         // Notificar al padre para cambiar la historia
         NotificationCenter.default.post(
             name: NSNotification.Name("NavigateToChainStory"),
@@ -2738,13 +2777,13 @@ struct GlassmorphicStoryViewer: View {
             ]
         )
     }
-    
+
     // 🔗 STORY CHAINS: Cargar todas las historias de la cadena
     private func loadChainStories() {
         guard let chainId = story.chainId else { return }
-        
+
         isLoadingChainStories = true
-        
+
         Task {
             do {
                 let storiesSnapshot = try await firestoreService.db
@@ -2752,19 +2791,19 @@ struct GlassmorphicStoryViewer: View {
                     .whereField("chainId", isEqualTo: chainId)
                     .order(by: "chainPosition")
                     .getDocuments()
-                
+
                 let stories = storiesSnapshot.documents.compactMap { doc in
                     try? doc.data(as: Story.self)
                 }
-                
+
                 await MainActor.run {
                     chainStories = stories
-                    
+
                     // Encontrar el índice de la historia actual
                     if let currentStoryId = story.id {
                         currentChainIndex = stories.firstIndex { $0.id == currentStoryId } ?? 0
                     }
-                    
+
                     isLoadingChainStories = false
                 }
             } catch {
@@ -2774,14 +2813,14 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     private func sendMessage() {
         guard !messageText.isEmpty, let storyId = story.id else { return }
-        
+
         let messageToSend = messageText
         messageText = "" // Clear immediately for better UX
         isTextFieldFocused = false // Dismiss keyboard
-        
+
         storyViewModel.sendMessage(
             to: story.authorId,
             storyId: storyId,
@@ -2795,43 +2834,43 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     private func sendReaction(_ reaction: String) {
         guard let storyId = story.id else { return }
-        
+
         storyViewModel.sendReaction(
             to: story.authorId,
             storyId: storyId,
             reaction: reaction
         )
-        
+
         withAnimation(.spring()) {
             showReactions = false
         }
-        
+
         // ✅ TRIGGER FLOATING VISUAL FEEDBACK
         let randomX = CGFloat.random(in: 50...(screenSize.width - 50))
         let heart = FloatingHeart(emoji: reaction, startX: randomX)
         floatingHearts.append(heart)
-        
+
         // Remove heart after animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             if !floatingHearts.isEmpty {
                 floatingHearts.removeFirst()
             }
         }
-        
+
         showSuccessAnimation(NSLocalizedString("stories.reactionSent", comment: "Reaction sent"))
-        
+
         // ✅ Reanudar historia inmediatamente después de enviar reacción
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             resumeStory()
         }
     }
-    
+
     private func handleEphemeralPhoto(_ photo: PhotosPickerItem?) {
         guard let photo = photo else { return }
-        
+
         Task {
             do {
                 guard let data = try await photo.loadTransferable(type: Data.self),
@@ -2839,7 +2878,7 @@ struct GlassmorphicStoryViewer: View {
                       let storyId = story.id else {
                     return
                 }
-                
+
                 storyViewModel.sendEphemeralMoment(
                     to: story.authorId,
                     storyId: storyId,
@@ -2861,10 +2900,10 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     private func deleteStory() {
         guard let storyId = story.id else { return }
-        
+
         storyViewModel.deleteStory(userId: story.authorId, storyId: storyId) { error in
             if error == nil {
                 // ✅ PASAR A LA SIGUIENTE HISTORIA en lugar de cerrar
@@ -2873,16 +2912,16 @@ struct GlassmorphicStoryViewer: View {
         }
         showQuickActions = false
     }
-    
+
     private func fetchViewersAndShow() {
         guard let storyId = story.id else { return }
-        
+
         storyViewModel.fetchViewers(for: story.authorId, storyId: storyId) { _ in
             showViewers = true
             showQuickActions = false
         }
     }
-    
+
     private func saveStoryToDevice() {
         if let url = URL(string: story.mediaItem.url) {
             Task {
@@ -2908,13 +2947,13 @@ struct GlassmorphicStoryViewer: View {
         }
         showQuickActions = false
     }
-    
+
     private func showSuccessAnimation(_ message: String) {
         successMessageText = message
         withAnimation(.spring()) {
             showSuccessMessage = true
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation(.spring()) {
                 showSuccessMessage = false
@@ -2980,7 +3019,7 @@ struct GlassmorphicStoryViewer: View {
             self.resumeStory()
         }
     }
-    
+
     private func optOutFromBestFriends() {
         pauseStory()
         bestFriendsService.optOutFromBestFriends(of: story.authorId) { error in
@@ -2994,7 +3033,7 @@ struct GlassmorphicStoryViewer: View {
                     }
                     return
                 }
-                
+
                 self.showSuccessAnimation(NSLocalizedString("bestFriends.optOut.success", comment: "You left best friends"))
                 if let currentUserId = Auth.auth().currentUser?.uid {
                     StorySeenStateService.shared.invalidate(
@@ -3061,18 +3100,18 @@ struct GlassmorphicStoryViewer: View {
                 }
             }
     }
-    
+
     // MARK: - Story Playback
-    
+
     private func prepareAndStartStory() {
-        
+
         // ✅ SIMPLIFICADO: Solo reset de estado
         progress = 0.0
         isPaused = false
         currentStoryId = story.id
-        
+
         loadAuthorInteractionSettings()
-        
+
         // Mark story as viewed
         if let storyId = story.id {
             storyViewModel.markStoryAsViewed(
@@ -3082,26 +3121,28 @@ struct GlassmorphicStoryViewer: View {
                 audience: story.audience
             )
         }
-        
+
         // ✅ SIMPLIFICADO: Solo timer para imágenes
         if story.mediaItem.type == .image {
             startImageTimer()
         }
     }
-    
+
     private func stopAndCleanupStory() {
-        
+
         // ✅ SIMPLIFICADO: Solo pausar y limpiar timer
         isPaused = true
         cancelMenuAutoResume()
+        cancelPendingHoldPause()
+        isHoldingStory = false
         progress = 0.0
         imageTimer?.invalidate()
         imageTimer = nil
-        
+
         // ✅ CLEANUP DE AUDIO
         cleanupAudioSession()
     }
-    
+
     // ✅ NUEVA FUNCIÓN: Limpiar sesión de audio
     private func cleanupAudioSession() {
         do {
@@ -3110,21 +3151,21 @@ struct GlassmorphicStoryViewer: View {
         }
     }
 
-    
+
     private func startImageTimer() {
         // ✅ NUNCA resetear progress - siempre continuar desde donde se pausó
-        
+
         let duration = story.duration > 0 ? story.duration : defaultStoryDuration
         imageTimer?.invalidate()
-        
+
         imageTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
             // ✅ CRITICAL FIX: Doble verificación de pausa para evitar condiciones de carrera
             guard !self.isPaused else {
                 return
             }
-            
+
             self.progress += 0.05 / duration
-            
+
             if self.progress >= 1.0 {
                 self.progress = 1.0  // Cap at 100%
                 self.imageTimer?.invalidate()
@@ -3134,7 +3175,7 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     // ✅ SIMPLIFICADO: Solo cambiar estado
     private func pauseStory() {
         isPaused = true
@@ -3146,35 +3187,35 @@ struct GlassmorphicStoryViewer: View {
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
         let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showUnfollowConfirmation || showMuteConfirmation
-        
+
         guard !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible else {
             return
         }
-        
+
         isPaused = false
-        
+
         // ✅ SIEMPRE RECREAR TIMER para continuar desde el progreso actual
         if story.mediaItem.type == .image {
             startImageTimer()
         }
     }
-    
+
     // MARK: - Helpers
-    
+
     private func handleStoryChange() {
-        
+
         // ✅ SIMPLIFICADO: Cleanup inmediato
         stopAndCleanupStory()
-        
+
         // ✅ RESET PROGRESO INMEDIATAMENTE
         progress = 0.0
         currentStoryId = story.id
-        
-        
+
+
         // ✅ SIMPLIFICADO: Sin delay, transición inmediata
         prepareAndStartStory()
     }
-    
+
     private func getProgressForSegment(index: Int) -> Double {
         if index < storyIndex {
             return 1.0  // Historias anteriores completadas
@@ -3184,21 +3225,21 @@ struct GlassmorphicStoryViewer: View {
             return 0.0  // Historias futuras sin progreso
         }
     }
-    
+
     private func timeAgoString(from date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         formatter.locale = Locale(identifier: "es")
         return formatter.localizedString(for: date, relativeTo: Date())
     }
-    
+
     private func loadAuthorInteractionSettings() {
         FirestoreService().db.collection("users").document(story.authorId).getDocument { document, error in
             DispatchQueue.main.async {
                 if let document = document, document.exists,
                    let data = document.data(),
                    let visibilitySettings = data["contentVisibilitySettings"] as? [String: Any] {
-                    
+
                     self.authorAllowsMessages = visibilitySettings["allowStoryMessages"] as? Bool ?? true
                     self.authorAllowsReactions = visibilitySettings["allowStoryReactions"] as? Bool ?? true
                     self.authorAllowsEphemeralPhotos = visibilitySettings["allowStoryEphemeralPhotos"] as? Bool ?? true
@@ -3206,7 +3247,7 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     // 🔗 FUNCIÓN: Verificar si el usuario puede continuar la cadena
     private func checkCanContinueChain(chainId: String) {
 
@@ -3216,7 +3257,7 @@ struct GlassmorphicStoryViewer: View {
             return
         }
 
-        
+
         // 🔥 LÓGICA MEJORADA: 1. Intentar obtener configuración desde la colección global 'storyChains'
         let firestoreService = FirestoreService()
         firestoreService.db.collection("storyChains").document(chainId).getDocument { snapshot, error in
@@ -3225,13 +3266,13 @@ struct GlassmorphicStoryViewer: View {
                 self.processChainMetadata(data, currentUserId: currentUserId)
                 return
             }
-            
+
             // 2. FALLBACK: Si no existe el documento global, buscar la primera historia (legacy)
 
             self.fallbackToCheckFirstPart(chainId: chainId, currentUserId: currentUserId)
         }
     }
-    
+
     // 🔗 AUXILIAR: Procesar metadata de la cadena (desde global o primera parte)
     private func processChainMetadata(_ data: [String: Any], currentUserId: String) {
         // El autor original de la cadena siempre puede continuarla
@@ -3243,11 +3284,11 @@ struct GlassmorphicStoryViewer: View {
             }
             return
         }
-        
+
         // Verificar si se permite que otros continúen
         let allowOthersToContinue = data["allowOthersToContinue"] as? Bool ?? true
 
-        
+
         if !allowOthersToContinue {
 
             DispatchQueue.main.async {
@@ -3255,18 +3296,18 @@ struct GlassmorphicStoryViewer: View {
             }
             return
         }
-        
+
         // Verificar audiencia de continuación
         let continuationAudience = data["continuationAudience"] as? String ?? "everyone"
 
         checkContinuationAudience(continuationAudience: continuationAudience, data: data, currentUserId: currentUserId)
     }
-    
+
     // 🔗 FALLBACK: Buscar la primera parte de la cadena (lógica antigua)
     private func fallbackToCheckFirstPart(chainId: String, currentUserId: String) {
         let authorId = story.authorId
         let firestoreService = FirestoreService()
-        
+
         firestoreService.db.collection("users").document(authorId).collection("stories")
             .whereField("chainId", isEqualTo: chainId)
             .whereField("chainPosition", isEqualTo: 1) // Primera parte
@@ -3282,7 +3323,7 @@ struct GlassmorphicStoryViewer: View {
                 }
             }
     }
-    
+
     // 🔗 ÚLTIMO RECURSO: Búsqueda global de la primera parte
     private func ultimateFallbackSearch(chainId: String, currentUserId: String) {
         let firestoreService = FirestoreService()
@@ -3299,18 +3340,18 @@ struct GlassmorphicStoryViewer: View {
                     }
                     return
                 }
-                
+
 
                 self.processChainMetadata(data, currentUserId: currentUserId)
             }
     }
 
-    
+
     // 🔗 FUNCIÓN: Verificar audiencia de continuación
     private func checkContinuationAudience(continuationAudience: String, data: [String: Any], currentUserId: String) {
         let authorId = data["authorId"] as? String ?? ""
 
-        
+
         switch continuationAudience {
         case "everyone":
 
@@ -3318,7 +3359,7 @@ struct GlassmorphicStoryViewer: View {
                 canContinueChain = true
 
             }
-            
+
         case "connections":
 
             // Verificar conexión mutua usando PrivacyService
@@ -3329,7 +3370,7 @@ struct GlassmorphicStoryViewer: View {
 
                 }
             }
-            
+
         case "bestFriends":
 
             // Verificar si el autor tiene al usuario actual en sus mejores amigos
@@ -3340,7 +3381,7 @@ struct GlassmorphicStoryViewer: View {
 
                 }
             }
-            
+
         case "custom":
 
             // Verificar usuarios específicos
@@ -3349,7 +3390,7 @@ struct GlassmorphicStoryViewer: View {
                 canContinueChain = continuationCustomViewers.contains(currentUserId)
 
             }
-            
+
         case "customList":
 
             // Verificar lista personalizada
@@ -3374,7 +3415,7 @@ struct GlassmorphicStoryViewer: View {
                     canContinueChain = false
                 }
             }
-            
+
         default:
 
             DispatchQueue.main.async {
@@ -3382,12 +3423,12 @@ struct GlassmorphicStoryViewer: View {
             }
         }
     }
-    
+
     // 🔗 FUNCIÓN: Continuar cadena de historias
     private func continueStoryChain(chainId: String, chainTitle: String, chainPosition: Int) {
         // Cerrar la vista actual
         dismiss()
-        
+
         // Notificar al TabBarView para abrir CreatorView
         NotificationCenter.default.post(
             name: NSNotification.Name("OpenCreatorForChain"),
@@ -3399,7 +3440,7 @@ struct GlassmorphicStoryViewer: View {
             ]
         )
     }
-    
+
     // 🔗 FUNCIÓN: Mostrar vista de cadena completa
     private func showChainView(chainId: String, chainTitle: String, initialStoryId: String? = nil, initialChainPosition: Int? = nil) {
         selectedChainId = chainId
@@ -3416,11 +3457,11 @@ struct GlassmorphicProgressBar: View {
     let progress: Double
     let isActive: Bool
     let audience: String?
-    
+
     private var normalizedAudience: String {
         audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
     }
-    
+
     private var progressGradient: LinearGradient {
         switch normalizedAudience {
         case "bestfriends", "best_friends", "best-friends":
@@ -3445,7 +3486,7 @@ struct GlassmorphicProgressBar: View {
             )
         }
     }
-    
+
     private var shadowColor: Color {
         switch normalizedAudience {
         case "bestfriends", "best_friends", "best-friends":
@@ -3456,7 +3497,7 @@ struct GlassmorphicProgressBar: View {
             return Color.purple.opacity(0.6)
         }
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -3465,7 +3506,7 @@ struct GlassmorphicProgressBar: View {
                     .fill(Color.white.opacity(0.15))
                     .frame(height: 2.5)
                     .cornerRadius(1.25)
-                
+
                 // Progress with clamped value
                 Rectangle()
                     .fill(progressGradient)
@@ -3491,7 +3532,7 @@ struct GlassmorphicActionButton: View {
     let subtitle: String?
     var isDestructive: Bool = false
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
@@ -3499,19 +3540,19 @@ struct GlassmorphicActionButton: View {
                     .foregroundColor(isDestructive ? .red : .white)
                     .font(.system(size: 18))
                     .frame(width: 24)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .foregroundColor(isDestructive ? .red : .white)
                         .font(.custom("Poppins-Medium", size: 14))
-                    
+
                     if let subtitle = subtitle {
                         Text(subtitle)
                             .foregroundColor(Color.white.opacity(0.7))
                             .font(.custom("Poppins-Regular", size: 11))
                     }
                 }
-                
+
                 Spacer()
             }
             .padding(.horizontal, 16)
@@ -3524,13 +3565,13 @@ struct GlassmorphicActionButton: View {
 
 struct GlassmorphicSuccessMessage: View {
     let text: String
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundColor(Color(hex: "007AFF"))
                 .font(.system(size: 20))
-            
+
             Text(text)
                 .foregroundColor(.white)
                 .font(.custom("Poppins-Medium", size: 14))
@@ -3631,6 +3672,7 @@ struct GlassmorphicViewersSheet: View {
     let viewers: [StoryViewer]
     let reactions: [StoryReaction]
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selectedTab = 0
     @State private var audienceUsers: [AppUser] = []
     @State private var audienceListName: String?
@@ -3638,17 +3680,17 @@ struct GlassmorphicViewersSheet: View {
     @State private var didLoadAudience = false
     @State private var showAudienceList = false
     private let firestoreService = FirestoreService()
-    
+
     private var normalizedAudience: String {
         story.audience?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased() ?? "everyone"
     }
-    
+
     private var isEveryoneAudience: Bool {
         normalizedAudience == "everyone"
     }
-    
+
     private var audienceTitle: String {
         switch normalizedAudience {
         case "connections", "mutuals", "mutual":
@@ -3665,7 +3707,7 @@ struct GlassmorphicViewersSheet: View {
             return NSLocalizedString("audience.type.everyone", comment: "Everyone")
         }
     }
-    
+
     private var audienceIcon: String {
         switch normalizedAudience {
         case "connections", "mutuals", "mutual":
@@ -3682,118 +3724,77 @@ struct GlassmorphicViewersSheet: View {
             return "globe.americas.fill"
         }
     }
-    
-    private var audienceColor: Color {
-        switch normalizedAudience {
-        case "connections", "mutuals", "mutual":
-            return Color(hex: "00B4D8")
-        case "bestfriends", "best_friends", "best-friends":
-            return Color(hex: "24C26A")
-        case "customlist", "custom":
-            return Color(hex: "C77DFF")
-        case "onlyme", "only_me", "only-me":
-            return Color(hex: "F9C74F")
-        default:
-            return Color(hex: "4CC9F0")
-        }
-    }
-    
-    private var shouldShowInlineAudienceUsers: Bool {
-        !isEveryoneAudience && !isLoadingAudience && !audienceUsers.isEmpty && audienceUsers.count <= 6
-    }
-    
-    private var shouldShowAudienceCTA: Bool {
-        !isEveryoneAudience && !isLoadingAudience && audienceUsers.count > 6
-    }
-    
+
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Frosted glass background
-                Color.clear
-                    .background(.ultraThinMaterial)
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    audienceSection
-                        .padding(.horizontal)
-                        .padding(.top, 16)
-                    
-                    // Tab selector
-                    GlassmorphicTabSelector(
+        VStack(spacing: 0) {
+            storyActivityHeader
+                .padding(.horizontal, 22)
+                .padding(.top, 12)
+
+            audienceSection
+                .padding(.horizontal, 22)
+                .padding(.top, 18)
+
+            GlassmorphicTabSelector(
                     tabs: [
                         String(format: NSLocalizedString("stories.activity.viewersTab", comment: ""), viewers.count),
                         String(format: NSLocalizedString("stories.activity.reactionsTab", comment: ""), reactions.count)
                     ],
                     selectedIndex: $selectedTab
                 )
-                    .padding(.horizontal)
-                    .padding(.top, 12)
-                    
-                    // Content
-                    TabView(selection: $selectedTab) {
-                        // Viewers tab
-                        ZStack {
-                            if viewers.isEmpty {
-                                GlassmorphicEmptyState(
-                                    icon: "eye.slash",
-                                    message: NSLocalizedString("stories.activity.noViewers", comment: "No viewers yet")
-                                )
-                            } else {
-                                ScrollView {
-                                    LazyVStack(spacing: 12) {
-                                        ForEach(viewers) { viewer in
-                                            GlassmorphicViewerRow(viewer: viewer)
-                                        }
-                                    }
-                                    .padding()
+                .padding(.horizontal, 22)
+                .padding(.top, 14)
+
+            TabView(selection: $selectedTab) {
+                ZStack {
+                    if viewers.isEmpty {
+                        GlassmorphicEmptyState(
+                            icon: "eye.slash",
+                            message: NSLocalizedString("stories.activity.noViewers", comment: "No viewers yet")
+                        )
+                        .frame(maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(viewers) { viewer in
+                                    GlassmorphicViewerRow(viewer: viewer)
                                 }
                             }
+                            .padding(.horizontal, 22)
+                            .padding(.top, 18)
+                            .padding(.bottom, 28)
                         }
-                        .tag(0)
-                        
-                        // Reactions tab
-                        ZStack {
-                            if reactions.isEmpty {
-                                GlassmorphicEmptyState(
-                                    icon: "heart.slash",
-                                    message: NSLocalizedString("stories.activity.noReactions", comment: "No reactions yet")
-                                )
-                            } else {
-                                ScrollView {
-                                    LazyVStack(spacing: 12) {
-                                        ForEach(reactions) { reaction in
-                                            GlassmorphicReactionRow(reaction: reaction)
-                                        }
-                                    }
-                                    .padding()
+                    }
+                }
+                .tag(0)
+
+                ZStack {
+                    if reactions.isEmpty {
+                        GlassmorphicEmptyState(
+                            icon: "heart.slash",
+                            message: NSLocalizedString("stories.activity.noReactions", comment: "No reactions yet")
+                        )
+                        .frame(maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(reactions) { reaction in
+                                    GlassmorphicReactionRow(reaction: reaction)
                                 }
                             }
+                            .padding(.horizontal, 22)
+                            .padding(.top, 18)
+                            .padding(.bottom, 28)
                         }
-                        .tag(1)
-                    }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(NSLocalizedString("stories.activity.title", comment: "Activity Title"))
-                        .font(.custom("Poppins-SemiBold", size: 17))
-                        .foregroundColor(.white)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white.opacity(0.6))
                     }
                 }
+                .tag(1)
             }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         }
+        .background(Color.clear.ignoresSafeArea())
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
         .onAppear {
             guard !didLoadAudience else { return }
             didLoadAudience = true
@@ -3805,115 +3806,122 @@ struct GlassmorphicViewersSheet: View {
                 users: audienceUsers
             )
         }
-        .preferredColorScheme(.dark)
     }
-    
-    private var audienceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(audienceColor.opacity(0.18))
-                    Image(systemName: audienceIcon)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(audienceColor)
+
+    private var storyActivityHeader: some View {
+        ZStack(alignment: .top) {
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(activityPrimaryText)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
-                .frame(width: 34, height: 34)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(NSLocalizedString("stories.activity.audienceTitle", comment: "Audience"))
-                        .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(.white.opacity(0.65))
-                    Text(audienceTitle)
-                        .font(.custom("Poppins-SemiBold", size: 15))
-                        .foregroundColor(.white)
-                }
-                
+                .buttonStyle(.plain)
+
                 Spacer()
-                
-                if !isEveryoneAudience {
-                    Text(String(format: NSLocalizedString("stories.activity.audienceMembersCount", comment: "Members count"), audienceUsers.count))
-                        .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Capsule())
-                }
             }
-            
+
+            VStack(spacing: 2) {
+                Text(NSLocalizedString("stories.activity.title", comment: "Activity Title"))
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(activityPrimaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    private var activityPrimaryText: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var activitySecondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54)
+    }
+
+    private var audienceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
             if isLoadingAudience {
                 HStack(spacing: 8) {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.75)))
+                        .tint(activitySecondaryText)
                     Text(NSLocalizedString("stories.activity.audienceLoading", comment: "Loading audience"))
                         .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.white.opacity(0.75))
+                        .foregroundColor(activitySecondaryText)
                 }
             } else if isEveryoneAudience {
                 Text(NSLocalizedString("audience.description.everyone", comment: "Everyone audience description"))
                     .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.75))
+                    .foregroundColor(activitySecondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-            } else if audienceUsers.isEmpty {
-                Text(NSLocalizedString("stories.activity.audienceNoMembers", comment: "No users in this audience"))
-                    .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.75))
-            } else if shouldShowInlineAudienceUsers {
-                LazyVStack(spacing: 10) {
-                    ForEach(audienceUsers) { user in
-                        GlassmorphicAudienceMemberRow(user: user)
-                    }
-                }
-            } else if shouldShowAudienceCTA {
+            } else if canOpenAudienceList {
                 Button {
                     showAudienceList = true
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.9))
-                        
-                        Text(String(format: NSLocalizedString("stories.activity.audienceViewAll", comment: "View audience CTA"), audienceUsers.count))
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                            .foregroundColor(.white)
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.6))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(0.08))
-                    )
+                    audienceSummaryRow(showsChevron: true)
                 }
                 .buttonStyle(.plain)
+            } else {
+                audienceSummaryRow(showsChevron: false)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-        )
     }
-    
+
+    private var canOpenAudienceList: Bool {
+        !isEveryoneAudience && !audienceUsers.isEmpty
+    }
+
+    private func audienceSummaryRow(showsChevron: Bool) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(activityPrimaryText.opacity(colorScheme == .dark ? 0.08 : 0.06))
+
+                Image(systemName: audienceIcon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(activityPrimaryText.opacity(0.82))
+            }
+            .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(audienceTitle)
+                    .font(.custom("Poppins-Medium", size: 13))
+                    .foregroundColor(activityPrimaryText)
+                    .lineLimit(1)
+
+                Text(audienceSummarySubtitle)
+                    .font(.custom("Poppins-Regular", size: 11))
+                    .foregroundColor(activitySecondaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(activitySecondaryText)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var audienceSummarySubtitle: String {
+        if audienceUsers.isEmpty {
+            return NSLocalizedString("stories.activity.audienceNoMembers", comment: "No users in this audience")
+        }
+
+        return String(format: NSLocalizedString("stories.activity.audienceMembersCount", comment: "Members count"), audienceUsers.count)
+    }
+
     private func loadAudienceMembers() {
         isLoadingAudience = true
         audienceUsers = []
         audienceListName = nil
-        
+
         switch normalizedAudience {
         case "connections", "mutuals", "mutual":
             firestoreService.fetchMutualConnections(userId: story.authorId) { result in
@@ -3927,7 +3935,7 @@ struct GlassmorphicViewersSheet: View {
                     self.isLoadingAudience = false
                 }
             }
-            
+
         case "bestfriends", "best_friends", "best-friends":
             firestoreService.fetchUser(userId: story.authorId) { result in
                 switch result {
@@ -3940,13 +3948,13 @@ struct GlassmorphicViewersSheet: View {
                     }
                 }
             }
-            
+
         case "customlist":
             guard let listId = story.customListId, !listId.isEmpty else {
                 isLoadingAudience = false
                 return
             }
-            
+
             firestoreService.fetchCustomListDetails(listId: listId, ownerId: story.authorId) { result in
                 switch result {
                 case .success(let list):
@@ -3961,7 +3969,7 @@ struct GlassmorphicViewersSheet: View {
                     }
                 }
             }
-            
+
         case "custom":
             Firestore.firestore()
                 .collection("users")
@@ -3973,15 +3981,15 @@ struct GlassmorphicViewersSheet: View {
                         ?? []
                     self.fetchAudienceUsersByIds(customUsers)
                 }
-            
+
         case "onlyme", "only_me", "only-me":
             fetchAudienceUsersByIds([story.authorId])
-            
+
         default:
             isLoadingAudience = false
         }
     }
-    
+
     private func fetchAudienceUsersByIds(_ userIds: [String]) {
         var seen = Set<String>()
         let uniqueIds = userIds.filter { id in
@@ -4001,11 +4009,11 @@ struct GlassmorphicViewersSheet: View {
         let chunks: [[String]] = stride(from: 0, to: uniqueIds.count, by: 10).map {
             Array(uniqueIds[$0..<min($0 + 10, uniqueIds.count)])
         }
-        
+
         let group = DispatchGroup()
         let collectQueue = DispatchQueue(label: "story.audience.collect")
         var mergedUsers: [AppUser] = []
-        
+
         for chunk in chunks {
             group.enter()
             firestoreService.fetchUsers(userIds: chunk) { result in
@@ -4017,7 +4025,7 @@ struct GlassmorphicViewersSheet: View {
                 }
             }
         }
-        
+
         group.notify(queue: .main) {
             let order = Dictionary(uniqueIds.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
             self.audienceUsers = mergedUsers.sorted { lhs, rhs in
@@ -4032,122 +4040,133 @@ private struct GlassmorphicAudienceMembersSheet: View {
     let title: String
     let users: [AppUser]
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.clear
-                    .background(.ultraThinMaterial)
-                    .ignoresSafeArea()
-                
-                if users.isEmpty {
-                    GlassmorphicEmptyState(
-                        icon: "person.2.slash",
-                        message: NSLocalizedString("stories.activity.audienceNoMembers", comment: "No users in this audience")
-                    )
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(users) { user in
-                                GlassmorphicAudienceMemberRow(user: user)
-                            }
-                        }
-                        .padding()
-                    }
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(title)
-                        .font(.custom("Poppins-SemiBold", size: 17))
-                        .foregroundColor(.white)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
+        VStack(spacing: 0) {
+            ZStack(alignment: .top) {
+                HStack {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white.opacity(0.6))
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(primaryTextColor)
+                            .frame(width: 40, height: 40)
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: Circle(), interactive: true)
                     }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+                }
+
+                Text(title)
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(primaryTextColor)
+                    .lineLimit(1)
+                    .padding(.horizontal, 56)
+                    .padding(.top, 2)
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 12)
+
+            if users.isEmpty {
+                GlassmorphicEmptyState(
+                    icon: "person.2.slash",
+                    message: NSLocalizedString("stories.activity.audienceNoMembers", comment: "No users in this audience")
+                )
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(users) { user in
+                            GlassmorphicAudienceMemberRow(user: user)
+                        }
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 22)
+                    .padding(.bottom, 28)
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .background(Color.clear.ignoresSafeArea())
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 
 private struct GlassmorphicAudienceMemberRow: View {
     let user: AppUser
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.86)
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             if let profileImagePath = user.profileImagePath,
                let url = URL(string: profileImagePath) {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 30, height: 30)
+                    .frame(width: 42, height: 42)
                     .clipShape(Circle())
             } else {
                 Circle()
-                    .fill(Color.white.opacity(0.15))
-                    .frame(width: 30, height: 30)
+                    .fill(primaryTextColor.opacity(0.10))
+                    .frame(width: 42, height: 42)
                     .overlay(
                         Image(systemName: "person.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.7))
+                            .font(.system(size: 16))
+                            .foregroundColor(primaryTextColor.opacity(0.7))
                     )
             }
-            
+
             HStack(spacing: 4) {
-                Text("@\(user.username)")
-                    .font(.custom("Poppins-Medium", size: 13))
-                    .foregroundColor(.white.opacity(0.92))
+                Text(user.username)
+                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .foregroundColor(primaryTextColor)
                     .lineLimit(1)
-                
+
                 if user.isVerified {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(.blue)
+                    VerifiedBadgeView(userId: user.id, size: 12)
                 }
             }
-            
+
             Spacer()
         }
-        .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.06))
-        )
     }
 }
 
 struct GlassmorphicTabSelector: View {
     let tabs: [String]
     @Binding var selectedIndex: Int
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.46)
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ForEach(0..<tabs.count, id: \.self) { index in
                 tabButton(for: index)
             }
         }
-        .padding(6)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-        )
     }
-    
+
     private func tabButton(for index: Int) -> some View {
         let isSelected = selectedIndex == index
-        
+
         return Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 selectedIndex = index
@@ -4155,17 +4174,15 @@ struct GlassmorphicTabSelector: View {
         }) {
             Text(tabs[index])
                 .font(.custom("Poppins-SemiBold", size: 14))
-                .foregroundColor(isSelected ? .white : .white.opacity(0.5))
+                .foregroundColor(isSelected ? primaryTextColor : secondaryTextColor)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(isSelected ? Color.white.opacity(0.15) : Color.clear)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(isSelected ? Color.white.opacity(0.3) : Color.clear, lineWidth: 0.5)
-                )
+                .padding(.vertical, 8)
+                .overlay(alignment: .bottom) {
+                    Capsule()
+                        .fill(isSelected ? primaryTextColor.opacity(0.86) : .clear)
+                        .frame(width: 28, height: 2)
+                }
+                .opacity(isSelected ? 1 : 0.72)
         }
         .buttonStyle(.plain)
     }
@@ -4173,7 +4190,16 @@ struct GlassmorphicTabSelector: View {
 
 struct GlassmorphicViewerRow: View {
     let viewer: StoryViewer
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.52)
+    }
+
     var body: some View {
         HStack(spacing: 16) {
             // Profile image
@@ -4188,45 +4214,36 @@ struct GlassmorphicViewerRow: View {
             } else {
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.1))
+                        .fill(primaryTextColor.opacity(0.10))
                     Image(systemName: "person.fill")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(secondaryTextColor)
                 }
                 .frame(width: 48, height: 48)
             }
-            
+
             // User info
             VStack(alignment: .leading, spacing: 4) {
                 Text(viewer.username ?? "Usuario")
                     .font(.custom("Poppins-SemiBold", size: 15))
-                    .foregroundColor(.white)
-                
+                    .foregroundColor(primaryTextColor)
+
                 Text(timeAgo(from: viewer.timestamp))
                     .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.65))
+                    .foregroundColor(secondaryTextColor)
             }
-            
+
             Spacer()
         }
-        .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-        )
+        .overlay(alignment: .bottom) {
+            Divider()
+                .background(secondaryTextColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
+        }
     }
-    
+
     private func timeAgo(from date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
@@ -4239,7 +4256,16 @@ struct GlassmorphicReactionRow: View {
     let reaction: StoryReaction
     @State private var username: String = "Usuario"
     @State private var profileImagePath: String?
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.52)
+    }
+
     var body: some View {
         HStack(spacing: 16) {
             // Profile image
@@ -4254,52 +4280,43 @@ struct GlassmorphicReactionRow: View {
             } else {
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.1))
+                        .fill(primaryTextColor.opacity(0.10))
                     Image(systemName: "person.fill")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(secondaryTextColor)
                 }
                 .frame(width: 48, height: 48)
             }
-            
+
             // User info
             VStack(alignment: .leading, spacing: 4) {
                 Text(username)
                     .font(.custom("Poppins-SemiBold", size: 15))
-                    .foregroundColor(.white)
-                
+                    .foregroundColor(primaryTextColor)
+
                 Text(timeAgo(from: reaction.timestamp))
                     .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.65))
+                    .foregroundColor(secondaryTextColor)
             }
-            
+
             Spacer()
-            
+
             // Reaction
             Text(reaction.reaction)
                 .font(.system(size: 32))
         }
-        .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-        )
+        .overlay(alignment: .bottom) {
+            Divider()
+                .background(secondaryTextColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
+        }
         .onAppear {
             fetchUserInfo()
         }
     }
-    
+
     private func fetchUserInfo() {
         FirestoreService().fetchUserProfile(userId: reaction.userId) { result in
             switch result {
@@ -4311,7 +4328,7 @@ struct GlassmorphicReactionRow: View {
             }
         }
     }
-    
+
     private func timeAgo(from date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
@@ -4325,44 +4342,47 @@ struct GlassmorphicEmptyState: View {
     let message: String
     let showCloseButton: Bool
     let onClose: (() -> Void)?
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.84)
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.48)
+    }
+
     init(icon: String, message: String, showCloseButton: Bool = false, onClose: (() -> Void)? = nil) {
         self.icon = icon
         self.message = message
         self.showCloseButton = showCloseButton
         self.onClose = onClose
     }
-    
+
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 50))
-                .foregroundColor(.white.opacity(0.6))
-            
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(secondaryTextColor)
+
             Text(message)
-                .foregroundColor(.white)
-                .font(.custom("Poppins-Medium", size: 16))
+                .foregroundColor(secondaryTextColor)
+                .font(.custom("Poppins-Medium", size: 14))
                 .multilineTextAlignment(.center)
-            
+
             if showCloseButton, let onClose = onClose {
                 Button(action: onClose) {
-                    Text("stories.close")
+                    Text(NSLocalizedString("stories.close", comment: "Close"))
                         .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(.white)
+                        .foregroundColor(primaryTextColor)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                        )
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Capsule(), interactive: true)
                 }
             }
         }
         .padding()
-        .storyGlassmorphic()
-        .clipShape(RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal, 40)
     }
 }
@@ -4372,7 +4392,7 @@ struct StoryRing: View {
     let hasStory: Bool
     let hasUnseenStory: Bool
     let size: CGFloat
-    
+
     var body: some View {
         Circle()
             .stroke(
@@ -4386,7 +4406,7 @@ struct StoryRing: View {
             .frame(width: size, height: size)
             .opacity(hasStory ? 1.0 : 0.3)
     }
-    
+
     private var gradientColors: [Color] {
         if hasUnseenStory {
             return [.pink, .orange, .yellow]
@@ -4403,7 +4423,7 @@ struct StoryReplyMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
     @State private var showEphemeralContent: Bool = false
-    
+
     var body: some View {
         VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 8) {
             // Story preview section - always shown for story replies
@@ -4413,7 +4433,7 @@ struct StoryReplyMessageBubble: View {
                     isCurrentUser: isCurrentUser
                 )
             }
-            
+
             // Content section - different based on message type
             if message.type == .ephemeral {
                 // Verificar si el mensaje está marcado como eliminado O si ha expirado
@@ -4442,12 +4462,12 @@ struct StoryReplyMessageBubble: View {
             checkAndTriggerCleanupIfNeeded()
         }
     }
-    
+
     private func isEphemeralValid() -> Bool {
         guard let expirationDate = message.expirationDate else { return true }
         return Date() < expirationDate
     }
-    
+
     private func checkAndTriggerCleanupIfNeeded() {
         // Si el mensaje ha expirado pero no está marcado como eliminado, triggear limpieza
         if message.type == .ephemeral && !isEphemeralValid() && !message.isDeleted {
@@ -4462,12 +4482,12 @@ struct StoryReplyMessageBubble: View {
 struct StoryTextReplyContent: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
-    
+
     var body: some View {
         if let content = message.content {
             // Remove the "💬 " prefix if it exists
             let cleanContent = content.hasPrefix("💬 ") ? String(content.dropFirst(2)) : content
-            
+
             Text(cleanContent)
                 .font(.custom("Poppins-Regular", size: 15))
                 .padding(.horizontal, 16)
@@ -4492,12 +4512,12 @@ struct ExpiredEphemeralPlaceholder: View {
             Image(systemName: "camera.circle")
                 .font(.system(size: 30))
                 .foregroundColor(.white.opacity(0.4))
-            
+
                             Text("stories.ephemeral.expired")
                 .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
-            
+
                             Text("stories.ephemeral.unavailable")
                 .font(.custom("Poppins-Regular", size: 11))
                 .foregroundColor(.white.opacity(0.5))
@@ -4519,7 +4539,7 @@ struct ExpiredEphemeralPlaceholder: View {
 struct StoryReplyPreview: View {
     let storyReplyData: [String: String]
     let isCurrentUser: Bool
-    
+
     var body: some View {
         HStack(spacing: 10) {
             // Story thumbnail
@@ -4531,7 +4551,7 @@ struct StoryReplyPreview: View {
                         .scaledToFill()
                         .frame(width: 44, height: 44)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                    
+
                     // Video play icon overlay if it's a video
                     if storyReplyData["storyMediaType"] == "video" {
                         Image(systemName: "play.circle.fill")
@@ -4565,27 +4585,27 @@ struct StoryReplyPreview: View {
                             .font(.system(size: 16))
                     )
             }
-            
+
             // Story reply text with better styling
             VStack(alignment: .leading, spacing: 3) {
                 Text(isCurrentUser ? NSLocalizedString("stories.replied", comment: "You replied to their story") : NSLocalizedString("stories.repliedTo", comment: "Replied to your story"))
                     .font(.custom("Poppins-SemiBold", size: 13))
                     .foregroundColor(.white.opacity(0.9))
-                
+
                 // Show story type with icon
                 if let storyMediaType = storyReplyData["storyMediaType"] {
                     HStack(spacing: 4) {
                         Image(systemName: storyMediaType == "video" ? "play.rectangle.fill" : "photo.fill")
                             .font(.system(size: 11))
                             .foregroundColor(Color(hex: "007AFF"))
-                        
+
                         Text(storyMediaType == "video" ? NSLocalizedString("stories.video", comment: "Video") : NSLocalizedString("stories.photo", comment: "Photo"))
                             .font(.custom("Poppins-Regular", size: 11))
                             .foregroundColor(.white.opacity(0.7))
                     }
                 }
             }
-            
+
             Spacer()
         }
         .padding(.horizontal, 14)
@@ -4616,7 +4636,7 @@ struct EphemeralStoryReplyContent: View {
     let isCurrentUser: Bool
     @Binding var showContent: Bool
     @State private var hasBeenViewed: Bool = false
-    
+
     var body: some View {
         ZStack {
             if !showContent && !hasBeenViewed && isEphemeralValid() {
@@ -4632,21 +4652,21 @@ struct EphemeralStoryReplyContent: View {
                                 )
                             )
                             .frame(width: 60, height: 60)
-                        
+
                         Image(systemName: "camera.fill")
                             .font(.system(size: 24))
                             .foregroundColor(.white)
                     }
-                    
+
                     VStack(spacing: 4) {
                         Text("stories.tapToView")
                             .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(.white)
-                        
+
                         Text("stories.ephemeral.title")
                             .font(.custom("Poppins-Regular", size: 12))
                             .foregroundColor(.white.opacity(0.8))
-                        
+
                         // Expiration indicator with better styling
                         if let expirationDate = message.expirationDate {
                             let timeLeft = expirationDate.timeIntervalSince(Date())
@@ -4655,7 +4675,7 @@ struct EphemeralStoryReplyContent: View {
                                     Image(systemName: "clock")
                                         .font(.system(size: 10))
                                         .foregroundColor(.white.opacity(0.6))
-                                    
+
                                     Text(String(format: NSLocalizedString("stories.expiresIn", comment: "Expires in"), formatTimeLeft(timeLeft)))
                                         .font(.custom("Poppins-Regular", size: 10))
                                         .foregroundColor(.white.opacity(0.6))
@@ -4721,16 +4741,16 @@ struct EphemeralStoryReplyContent: View {
             hasBeenViewed = message.isViewed
         }
     }
-    
+
     private func isEphemeralValid() -> Bool {
         guard let expirationDate = message.expirationDate else { return true }
         return Date() < expirationDate
     }
-    
+
     private func formatTimeLeft(_ timeInterval: TimeInterval) -> String {
         let hours = Int(timeInterval) / 3600
         let minutes = Int(timeInterval) % 3600 / 60
-        
+
         if hours > 0 {
             return "\(hours)h \(minutes)m"
         } else {
@@ -4745,7 +4765,7 @@ struct ClickableEphemeralImageContent: View {
     let expirationDate: Date?
     let canViewMultipleTimes: Bool
     @State private var showFullScreen = false
-    
+
     var body: some View {
         KFImage(imageUrl)
             .resizable()
@@ -4774,7 +4794,7 @@ struct ClickableEphemeralImageContent: View {
                         }
                     }
                     Spacer()
-                    
+
                     // Add click indicator
                     HStack {
                         Spacer()
@@ -4814,11 +4834,11 @@ struct ClickableEphemeralImageContent: View {
                 )
             }
     }
-    
+
     private func formatTimeLeft(_ timeInterval: TimeInterval) -> String {
         let hours = Int(timeInterval) / 3600
         let minutes = Int(timeInterval) % 3600 / 60
-        
+
         if hours > 0 {
             return "\(hours)h \(minutes)m"
         } else {
@@ -4834,15 +4854,15 @@ struct FullScreenEphemeralImageView: View {
     @Environment(\.dismiss) var dismiss
     @State private var timeLeft: TimeInterval = 0
     @State private var timer: Timer?
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             KFImage(imageUrl)
                 .resizable()
                 .scaledToFit()
-            
+
             VStack {
                 HStack {
                     Button("Cerrar") {
@@ -4850,9 +4870,9 @@ struct FullScreenEphemeralImageView: View {
                     }
                     .foregroundColor(.white)
                     .font(.custom("Poppins-Medium", size: 16))
-                    
+
                     Spacer()
-                    
+
                     if timeLeft > 0 {
                         Text(String(format: NSLocalizedString("stories.expiresIn", comment: "Expires in"), formatTimeLeft(timeLeft)))
                             .font(.custom("Poppins-Regular", size: 14))
@@ -4866,7 +4886,7 @@ struct FullScreenEphemeralImageView: View {
                     }
                 }
                 .padding()
-                
+
                 Spacer()
             }
         }
@@ -4877,12 +4897,12 @@ struct FullScreenEphemeralImageView: View {
             timer?.invalidate()
         }
     }
-    
+
     private func startTimer() {
         guard let expirationDate = expirationDate else { return }
-        
+
         timeLeft = expirationDate.timeIntervalSince(Date())
-        
+
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             timeLeft = max(0, expirationDate.timeIntervalSince(Date()))
             if timeLeft <= 0 {
@@ -4891,11 +4911,11 @@ struct FullScreenEphemeralImageView: View {
             }
         }
     }
-    
+
     private func formatTimeLeft(_ timeInterval: TimeInterval) -> String {
         let hours = Int(timeInterval) / 3600
         let minutes = Int(timeInterval) % 3600 / 60
-        
+
         if hours > 0 {
             return "\(hours)h \(minutes)m"
         } else {
@@ -4918,7 +4938,7 @@ extension View {
                     .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
             )
     }
-    
+
     func storyGlassmorphic() -> some View {
         self
             .background(
@@ -4933,24 +4953,24 @@ extension View {
 }
 
 extension StoryViewModel {
-    
+
     /// Fetch stories específicamente para UserProfile con filtrado de privacidad
     func fetchStoriesForUserProfile(userId: String, viewerId: String) {
-        
+
         guard !userId.isEmpty && !viewerId.isEmpty else {
             DispatchQueue.main.async {
                 self.stories = [:]
             }
             return
         }
-        
+
         // 1. Obtener historias sin filtrar (usando lógica existente)
         firestoreService.db.collection("users").document(userId).collection("stories")
             .whereField("expirationDate", isGreaterThan: Date())
             .order(by: "timestamp", descending: false)
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
-                
+
                 if let error = error {
                     DispatchQueue.main.async {
                         self.stories = [:]
@@ -4960,7 +4980,7 @@ extension StoryViewModel {
 
                 let userStories = snapshot?.documents.compactMap { doc -> Story? in
                     var data = doc.data()
-                    
+
                     // Handle legacy fields (misma lógica que fetchStories normal)
                     var mediaItem: MediaItem?
                     if let mediaItemData = data["mediaItem"] as? [String: Any],
@@ -4982,27 +5002,27 @@ extension StoryViewModel {
                     return try? Firestore.Decoder().decode(Story.self, from: data)
                 } ?? []
 
-                
+
                 if userStories.isEmpty {
                     DispatchQueue.main.async {
                         self.stories = [:]
                     }
                     return
                 }
-                
+
                 // 2. ✅ FILTRAR historias usando PrivacyService
                 self.filterStoriesForUserProfile(stories: userStories, userId: userId, viewerId: viewerId)
             }
     }
-    
+
     /// Función privada para filtrar historias de perfil
     private func filterStoriesForUserProfile(stories: [Story], userId: String, viewerId: String) {
         let group = DispatchGroup()
         var visibleStories: [Story] = []
         let syncQueue = DispatchQueue(label: "profile.stories.filter")
         // ✅ Usar la instancia existente de la clase en lugar de crear una nueva
-        
-        
+
+
         for story in stories {
             group.enter()
             self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
@@ -5014,17 +5034,17 @@ extension StoryViewModel {
                 group.leave()
             }
         }
-        
+
         group.notify(queue: .main) {
             // Mantener el orden original de las historias
             let orderedVisibleStories = stories.filter { story in
                 visibleStories.contains { $0.id == story.id }
             }
-            
-            
+
+
             if !orderedVisibleStories.isEmpty {
                 self.stories = [userId: orderedVisibleStories]
-                
+
                 // Fetch reactions and viewers como en fetchStories normal
                 for story in orderedVisibleStories {
                     if let storyId = story.id {
@@ -5035,7 +5055,7 @@ extension StoryViewModel {
             } else {
                 self.stories = [:]
             }
-            
+
             self.prefetchImages()
         }
     }
@@ -5047,7 +5067,7 @@ struct VerifiedBadgeView: View {
     let size: CGFloat
     @State private var isVerified: Bool = false
     @State private var isLoading: Bool = true
-    
+
     var body: some View {
         Group {
             if isLoading {
@@ -5066,7 +5086,7 @@ struct VerifiedBadgeView: View {
             checkVerificationStatus()
         }
     }
-    
+
     private func checkVerificationStatus() {
         Firestore.firestore().collection("users").document(userId)
             .getDocument { snapshot, error in
@@ -5085,7 +5105,7 @@ struct CurrentUserVerifiedBadge: View {
     let size: CGFloat
     @State private var isVerified: Bool = false
     @State private var isLoading: Bool = true
-    
+
     var body: some View {
         Group {
             if isLoading {
@@ -5104,13 +5124,13 @@ struct CurrentUserVerifiedBadge: View {
             checkCurrentUserVerificationStatus()
         }
     }
-    
+
     private func checkCurrentUserVerificationStatus() {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             isLoading = false
             return
         }
-        
+
         Firestore.firestore().collection("users").document(currentUserId)
             .getDocument { snapshot, error in
                 DispatchQueue.main.async {
@@ -5140,7 +5160,7 @@ struct InteractivePollOverlay: View {
     @State private var hasVoted = false
     @State private var voteCounts: [Int: Int] = [0: 0, 1: 0]
     @State private var totalVotes = 0
-    
+
     var body: some View {
         ZStack {
             // Fondo semi-transparente
@@ -5149,7 +5169,7 @@ struct InteractivePollOverlay: View {
                 .onTapGesture {
                     dismiss()
                 }
-            
+
             VStack(spacing: 20) {
                 // Pregunta
                 Text(pollData[0])
@@ -5157,7 +5177,7 @@ struct InteractivePollOverlay: View {
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
-                
+
                 // Opciones interactivas
                 VStack(spacing: 12) {
                     ForEach(0..<2, id: \.self) { index in
@@ -5176,14 +5196,14 @@ struct InteractivePollOverlay: View {
                     }
                 }
                 .padding(.horizontal, 30)
-                
+
                 if hasVoted {
                     Text("poll.thanks")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.green)
                         .padding(.top, 10)
                 }
-                
+
                 Text(String(format: NSLocalizedString("poll.votes", comment: "Votes count"), totalVotes))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
@@ -5194,23 +5214,23 @@ struct InteractivePollOverlay: View {
             loadVoteCounts()
         }
     }
-    
+
     private func calculatePercentage(for option: Int) -> Double {
         guard totalVotes > 0 else { return 0 }
         return Double(voteCounts[option] ?? 0) / Double(totalVotes) * 100
     }
-    
+
     private func submitVote() {
         guard let selectedOption = selectedOption,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         // Guardar voto en Firestore
         let voteData: [String: Any] = [
             "userId": currentUserId,
             "option": selectedOption,
             "timestamp": FieldValue.serverTimestamp()
         ]
-        
+
         Firestore.firestore().collection("stories").document(storyId)
             .collection("pollVotes").document(currentUserId)
             .setData(voteData) { error in
@@ -5222,19 +5242,19 @@ struct InteractivePollOverlay: View {
                 }
             }
     }
-    
+
     private func loadVoteCounts() {
         Firestore.firestore().collection("stories").document(storyId)
             .collection("pollVotes").getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents else { return }
-                
+
                 var counts: [Int: Int] = [0: 0, 1: 0]
                 for doc in documents {
                     if let option = doc.data()["option"] as? Int {
                         counts[option, default: 0] += 1
                     }
                 }
-                
+
                 DispatchQueue.main.async {
                     voteCounts = counts
                     totalVotes = counts.values.reduce(0, +)
@@ -5253,7 +5273,7 @@ struct InteractivePollSticker: View {
     @Binding var voteCounts: [Int: Int]
     @Binding var totalVotes: Int
     let onVote: (Int) -> Void
-    
+
     var body: some View {
         ZStack {
             // ✅ Fondo con gradiente elegante (colores de la app)
@@ -5273,14 +5293,14 @@ struct InteractivePollSticker: View {
                     RoundedRectangle(cornerRadius: 28)
                         .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
                 )
-            
+
             VStack(spacing: 8) {
                 // ✅ Icono de poll
                 Text("📊")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
                     .padding(.top, 8)
-                
+
                 // ✅ Pregunta con mejor tipografía
                 Text(pollData[0].count > 30 ? String(pollData[0].prefix(30)) + "..." : pollData[0])
                     .font(.system(size: 16, weight: .semibold))
@@ -5288,7 +5308,7 @@ struct InteractivePollSticker: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
-                
+
                 // ✅ Opciones interactivas con diseño moderno
                 VStack(spacing: 6) {
                     ForEach(0..<2, id: \.self) { index in
@@ -5314,16 +5334,16 @@ struct InteractivePollSticker: View {
             loadVoteCounts()
         }
     }
-    
+
     private func calculatePercentage(for option: Int) -> Double {
         guard totalVotes > 0 else { return 0 }
         return Double(voteCounts[option] ?? 0) / Double(totalVotes) * 100
     }
-    
+
     private func loadVoteCounts() {
         // ✅ Cargar votos reales desde Firestore
         guard !storyId.isEmpty else { return }
-        
+
         // Usar el userId real del story
         Firestore.firestore().collection("users").document(userId)
             .collection("stories").document(storyId)
@@ -5331,7 +5351,7 @@ struct InteractivePollSticker: View {
                 guard let documents = snapshot?.documents else {
                     return
                 }
-                
+
                 var counts: [Int: Int] = [0: 0, 1: 0]
                 for doc in documents {
                     if doc.documentID != "metadata", // Excluir metadata
@@ -5339,7 +5359,7 @@ struct InteractivePollSticker: View {
                         counts[option, default: 0] += 1
                     }
                 }
-                
+
                 DispatchQueue.main.async {
                     voteCounts = counts
                     totalVotes = counts.values.reduce(0, +)
@@ -5355,7 +5375,7 @@ struct InteractivePollOptionButton: View {
     let isSelected: Bool
     let hasVoted: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .leading) {
@@ -5366,7 +5386,7 @@ struct InteractivePollOptionButton: View {
                         RoundedRectangle(cornerRadius: 22.5)
                             .stroke(Color.white.opacity(0.3), lineWidth: 1)
                     )
-                
+
                 // Barra de progreso (solo si ya votó)
                 if hasVoted {
                     RoundedRectangle(cornerRadius: 22.5)
@@ -5374,16 +5394,16 @@ struct InteractivePollOptionButton: View {
                         .frame(width: 280 * (percentage / 100))
                         .animation(.easeInOut(duration: 0.5), value: percentage)
                 }
-                
+
                 // Texto
                 HStack {
                     Text(text)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.white)
                         .lineLimit(1)
-                    
+
                     Spacer()
-                    
+
                     if hasVoted {
                         Text("\(Int(percentage))%")
                             .font(.system(size: 10, weight: .bold))
@@ -5407,7 +5427,7 @@ struct InteractivePollOption: View {
     let isSelected: Bool
     let hasVoted: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .leading) {
@@ -5423,15 +5443,15 @@ struct InteractivePollOption: View {
                         , alignment: .leading
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 25))
-                
+
                 // Texto y porcentaje
                 HStack {
                     Text(text)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
-                    
+
                     Spacer()
-                    
+
                     if hasVoted {
                         Text("\(Int(percentage))%")
                             .font(.system(size: 14, weight: .bold))
@@ -5455,32 +5475,32 @@ struct PollVoteView: View {
     @State private var selectedOption: Int? = nil
     @State private var hasVoted = false
     @State private var voteCounts: [Int: Int] = [0: 0, 1: 0] // option index: count
-    
+
     var body: some View {
         ZStack {
             // Fondo con blur
             Color.black.opacity(0.8)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 25) {
                 // Header
                 VStack(spacing: 12) {
                     Image(systemName: "chart.bar.fill")
                         .font(.system(size: 40))
                         .foregroundColor(.white)
-                    
+
                     Text("poll.vote")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(.white)
                 }
-                
+
                 // Pregunta
                 Text(pollData[0])
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
-                
+
                 // Opciones
                 VStack(spacing: 15) {
                     ForEach(0..<2, id: \.self) { index in
@@ -5492,9 +5512,9 @@ struct PollVoteView: View {
                                 Text(pollData[index + 1])
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(.white)
-                                
+
                                 Spacer()
-                                
+
                                 if hasVoted {
                                     Text("\(voteCounts[index] ?? 0)")
                                         .font(.system(size: 14, weight: .semibold))
@@ -5512,13 +5532,13 @@ struct PollVoteView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                
+
                 if hasVoted {
                     Text("poll.thanks")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.green)
                 }
-                
+
                 // Botón cerrar
                 Button("Cerrar") {
                     dismiss()
@@ -5538,18 +5558,18 @@ struct PollVoteView: View {
             loadVoteCounts()
         }
     }
-    
+
     private func submitVote() {
         guard let selectedOption = selectedOption,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         // Guardar voto en Firestore
         let voteData: [String: Any] = [
             "userId": currentUserId,
             "option": selectedOption,
             "timestamp": FieldValue.serverTimestamp()
         ]
-        
+
         Firestore.firestore().collection("stories").document(storyId)
             .collection("pollVotes").document(currentUserId)
             .setData(voteData) { error in
@@ -5561,19 +5581,19 @@ struct PollVoteView: View {
                 }
             }
     }
-    
+
     private func loadVoteCounts() {
         Firestore.firestore().collection("stories").document(storyId)
             .collection("pollVotes").getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents else { return }
-                
+
                 var counts: [Int: Int] = [0: 0, 1: 0]
                 for doc in documents {
                     if let option = doc.data()["option"] as? Int {
                         counts[option, default: 0] += 1
                     }
                 }
-                
+
                 DispatchQueue.main.async {
                     voteCounts = counts
                 }
@@ -5764,12 +5784,12 @@ struct StoryStickerView: View {
     let userId: String
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
-    
+
     @State private var selectedPollOption: Int? = nil
     @State private var hasVoted = false
     @State private var voteCounts: [Int: Int] = [0: 0, 1: 0]
     @State private var totalVotes = 0
-    
+
     var body: some View {
         // ✅ SOLUCIÓN DEFINITIVA: Solo una renderización
         if sticker.type == .shareMoment {
@@ -5784,18 +5804,18 @@ struct StoryStickerView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
-                    
+
                     // 2. Capa animada: Video (si existe)
                     if let videoURL = sticker.videoURL {
                          StickerVideoPlayer(url: videoURL)
                             .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
                             .allowsHitTesting(false)
                     }
-                    
+
                     // 3. OVERLAYS (Header + Caption) - SIEMPRE VISIBLES
                     ZStack(alignment: .top) {
                         Color.clear // Contenedor transparente para alinear
-                        
+
                         // Header Overlay (Username + Profile)
                         HStack(spacing: 10 * sticker.scale) {
                             // Profile Image
@@ -5821,14 +5841,14 @@ struct StoryStickerView: View {
                                     .frame(width: 34 * sticker.scale, height: 34 * sticker.scale)
                                     .foregroundColor(.white.opacity(0.5))
                             }
-                            
+
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(sticker.interactionData?.username ?? "User")
                                     .font(.custom("Poppins-Bold", size: 13 * sticker.scale))
                                     .foregroundColor(.white)
                                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                             }
-                            
+
                             Spacer()
                         }
                         .padding(.horizontal, 12 * sticker.scale)
@@ -5844,7 +5864,7 @@ struct StoryStickerView: View {
                                     )
                                 )
                         )
-                        
+
                         // Caption Overlay (Bottom)
                         if let caption = sticker.interactionData?.caption, !caption.isEmpty {
                             VStack {
@@ -5859,7 +5879,7 @@ struct StoryStickerView: View {
                                     .padding(.bottom, 10 * sticker.scale)
                             }
                         }
-                        
+
                         // Gallery Indicator Overlay (Top Right)
                         if (sticker.interactionData?.mediaCount ?? 0) > 1 {
                             VStack {
@@ -5884,7 +5904,7 @@ struct StoryStickerView: View {
             }
             .buttonStyle(PlainButtonStyle())
             .rotationEffect(sticker.rotation)
-            
+
         } else if sticker.isAnimated {
             Button(action: {
                 handleStickerTap()
@@ -6064,20 +6084,20 @@ struct StoryStickerView: View {
                 RoundedRectangle(cornerRadius: 28)
                     .fill(.ultraThinMaterial) // Blur real
                     .environment(\.colorScheme, .dark) // Forzar modo oscuro para el material
-                
+
                 // 2. Fondo Base (para tinte oscuro)
                 RoundedRectangle(cornerRadius: 28)
                     .fill(Color.black.opacity(0.2))
-                
+
                 // 3. Brillo y Borde
                 RoundedRectangle(cornerRadius: 28)
                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                
+
                 VStack(spacing: -2) { // Spacing ajustado
                     Text(sticker.interactionData?.questionText ?? "") // Hora
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(.white)
-                    
+
                     Text(sticker.interactionData?.caption ?? "") // Fecha
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white.opacity(0.8))
@@ -6086,7 +6106,7 @@ struct StoryStickerView: View {
             .frame(width: 160, height: 56)
             .scaleEffect(sticker.scale)
             .rotationEffect(sticker.rotation)
-            
+
         } else {
             // Solo imagen estática
             // Solo imagen estática
@@ -6104,10 +6124,10 @@ struct StoryStickerView: View {
             .rotationEffect(sticker.rotation)
         }
     }
-    
+
     // ✅ MANEJAR TAP EN STICKERS
     private func handleStickerTap() {
-        
+
         switch sticker.type {
         case .mention:
             if let interactionData = sticker.interactionData,
@@ -6116,19 +6136,19 @@ struct StoryStickerView: View {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowUserProfileFromStory"), object: userId)
                 }
             }
-            
+
         case .poll:
             // ✅ ESTILO NATIVO: El poll es interactivo directamente, no necesita tap aquí
             break
-            
+
         case .question:
             // ✅ ESTILO NATIVO: El question es interactivo directamente, no necesita tap aquí
             break
-            
+
         case .hashtag:
             // ✅ ESTILO NATIVO: El hashtag es interactivo directamente, no necesita tap aquí
             break
-            
+
         case .location:
             // ✅ ESTILO NATIVO: El location es interactivo directamente, no necesita tap aquí
             break
@@ -6146,7 +6166,7 @@ struct StoryStickerView: View {
 
         case .emojiSlider:
             break
-            
+
         case .shareMoment:
             if let interactionData = sticker.interactionData,
                let momentId = interactionData.momentId,
@@ -6159,18 +6179,18 @@ struct StoryStickerView: View {
                     )
                 }
             }
-            
+
         default:
             break
         }
     }
-    
+
     // ✅ NUEVO: Manejar voto de poll directamente como Moments
     private func handlePollVote(option: Int, pollData: [String]) {
         // Guardar voto real en Firestore
         guard let currentUserId = Auth.auth().currentUser?.uid,
               !storyId.isEmpty else { return }
-        
+
         // Verificar si ya votó
         Firestore.firestore().collection("users").document(userId)
             .collection("stories").document(storyId)
@@ -6179,14 +6199,14 @@ struct StoryStickerView: View {
                 if let snapshot = snapshot, snapshot.exists {
                     return
                 }
-                
+
                 // Guardar voto
                 let voteData: [String: Any] = [
                     "userId": currentUserId,
                     "option": option,
                     "timestamp": FieldValue.serverTimestamp()
                 ]
-                
+
                 Firestore.firestore().collection("users").document(userId)
                     .collection("stories").document(storyId)
                     .collection("pollVotes").document(currentUserId)
@@ -6212,7 +6232,7 @@ struct InteractiveQuestionSticker: View {
     let userId: String
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
-    
+
     @State private var showingResponseInput = false
     @State private var showingResponsesView = false
     @State private var responseText = ""
@@ -6220,7 +6240,7 @@ struct InteractiveQuestionSticker: View {
     @State private var hasResponded = false
     @State private var isLoading = false
     @State private var isAuthor = false
-    
+
     var body: some View {
         Button(action: {
             if isAuthor {
@@ -6242,14 +6262,14 @@ struct InteractiveQuestionSticker: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                
+
                 // Texto de la pregunta
                 Text(questionText)
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
-                
+
                 // Contador de respuestas
                 if responseCount > 0 {
                     Text(String(format: NSLocalizedString("question.responses", comment: "Responses count"), responseCount))
@@ -6310,7 +6330,7 @@ struct InteractiveQuestionSticker: View {
             checkIfUserIsAuthor()
         }
     }
-    
+
     private func loadResponseCount() {
         let db = Firestore.firestore()
         db.collection("users").document(userId).collection("stories").document(storyId)
@@ -6322,10 +6342,10 @@ struct InteractiveQuestionSticker: View {
                 }
             }
     }
-    
+
     private func checkIfUserHasResponded() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         let db = Firestore.firestore()
         db.collection("users").document(userId).collection("stories").document(storyId)
             .collection("questionResponses").whereField("userId", isEqualTo: currentUserId)
@@ -6335,7 +6355,7 @@ struct InteractiveQuestionSticker: View {
                 }
             }
     }
-    
+
     private func checkIfUserIsAuthor() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         DispatchQueue.main.async {
@@ -6352,12 +6372,12 @@ struct QuestionResponseInputView: View {
     let storyId: String
     let userId: String
     let onResponseSubmitted: (Int) -> Void
-    
+
     @Environment(\.dismiss) private var dismiss
     @State private var responseText = ""
     @State private var isLoading = false
     @FocusState private var isTextFieldFocused: Bool
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -6372,20 +6392,20 @@ struct QuestionResponseInputView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                    
+
                     Text(questionText)
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
                 }
-                
+
                 // Campo de respuesta
                 VStack(alignment: .leading, spacing: 8) {
                     Text("question.yourAnswer")
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.secondary)
-                    
+
                     TextField(NSLocalizedString("question.answerPlaceholder", comment: "Write your answer"), text: $responseText, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .focused($isTextFieldFocused)
@@ -6393,7 +6413,7 @@ struct QuestionResponseInputView: View {
                         .disabled(isLoading)
                 }
                 .padding(.horizontal, 20)
-                
+
                 // Botón de enviar
                 Button(action: submitResponse) {
                     HStack {
@@ -6420,7 +6440,7 @@ struct QuestionResponseInputView: View {
                 }
                 .disabled(responseText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                 .padding(.horizontal, 20)
-                
+
                 Spacer()
             }
             .padding(.top, 20)
@@ -6439,20 +6459,20 @@ struct QuestionResponseInputView: View {
                     isTextFieldFocused = true
                 }
     }
-    
 
-    
+
+
     private func submitResponse() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               !responseText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
+
         isLoading = true
-        
+
         let response = QuestionResponse(
             userId: currentUserId,
             response: responseText.trimmingCharacters(in: .whitespacesAndNewlines)
         )
-        
+
         let db = Firestore.firestore()
         db.collection("users").document(userId).collection("stories").document(storyId)
             .collection("questionResponses").document(response.id).setData([
@@ -6484,7 +6504,7 @@ struct InteractiveLocationSticker: View {
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
     @State private var showingLocationMap = false
-    
+
     var body: some View {
         Button(action: {
             onPauseStory() // ✅ PAUSAR HISTORIA
@@ -6544,7 +6564,7 @@ struct InteractiveHashtagSticker: View {
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
     @State private var showingHashtagExplore = false
-    
+
     var body: some View {
         Button(action: {
             onPauseStory() // ✅ PAUSAR HISTORIA
@@ -6595,9 +6615,9 @@ struct InteractiveHashtagSticker: View {
 struct AnimatedWeatherSticker: View {
     let weatherSymbol: String
     let temperature: String
-    
+
     @State private var animationPhase: CGFloat = 0
-    
+
     var body: some View {
         HStack(spacing: 8) {
             // ✅ TEMPERATURA
@@ -6605,13 +6625,13 @@ struct AnimatedWeatherSticker: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.white)
                 .shadow(color: .black.opacity(0.5), radius: 2, x: 1, y: 1)
-            
+
             // ✅ SÍMBOLO ANIMADO
             ZStack {
                 // Símbolo base
                 Text(weatherSymbol)
                     .font(.system(size: 20))
-                
+
                 // Overlay de animación según el tipo
                 weatherAnimationOverlay
             }
@@ -6625,7 +6645,7 @@ struct AnimatedWeatherSticker: View {
             }
         }
     }
-    
+
     // MARK: - Animación específica según clima
     @ViewBuilder
     private var weatherAnimationOverlay: some View {
@@ -6646,7 +6666,7 @@ struct AnimatedWeatherSticker: View {
             EmptyView()
         }
     }
-    
+
     // MARK: - Background del sticker
     private var weatherBackground: some View {
         RoundedRectangle(cornerRadius: 28)
@@ -6656,7 +6676,7 @@ struct AnimatedWeatherSticker: View {
                     .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
             )
     }
-    
+
     // MARK: - Colores según clima
     private func getWeatherGradientColors(for symbol: String) -> [Color] {
         switch symbol {
@@ -6680,7 +6700,7 @@ struct AnimatedWeatherSticker: View {
 
 struct SunAnimation: View {
     let animationPhase: CGFloat
-    
+
     var body: some View {
         ForEach(0..<8, id: \.self) { index in
             SunRay(index: index, phase: animationPhase)
@@ -6691,7 +6711,7 @@ struct SunAnimation: View {
 struct SunRay: View {
     let index: Int
     let phase: CGFloat
-    
+
     var body: some View {
         Circle()
             .fill(Color.yellow.opacity(0.6))
@@ -6700,23 +6720,23 @@ struct SunRay: View {
             .scaleEffect(scaleValue)
             .opacity(opacityValue)
     }
-    
+
     private var angle: Double {
         Double(index) * .pi / 4
     }
-    
+
     private var radius: CGFloat {
         25
     }
-    
+
     private var offsetX: CGFloat {
         cos(angle) * radius
     }
-    
+
     private var offsetY: CGFloat {
         sin(angle) * radius
     }
-    
+
     private var scaleValue: CGFloat {
         CGFloat(0.5 + 0.5 * sin(Double(phase) + Double(index) * 0.5))
     }
@@ -6728,7 +6748,7 @@ struct SunRay: View {
 
 struct RainAnimation: View {
     let animationPhase: CGFloat
-    
+
     var body: some View {
         ForEach(0..<6, id: \.self) { index in
             RainDrop(index: index, phase: animationPhase)
@@ -6739,7 +6759,7 @@ struct RainAnimation: View {
 struct RainDrop: View {
     let index: Int
     let phase: CGFloat
-    
+
     var body: some View {
         Circle()
             .fill(Color.blue.opacity(0.7))
@@ -6747,15 +6767,15 @@ struct RainDrop: View {
             .offset(x: offsetX, y: offsetY)
             .opacity(opacityValue)
     }
-    
+
     private var offsetX: CGFloat {
         CGFloat(index - 3) * 8
     }
-    
+
     private var offsetY: CGFloat {
         -20 + (phase * 40).truncatingRemainder(dividingBy: 40)
     }
-    
+
     private var opacityValue: Double {
         0.5 + 0.5 * sin(phase + Double(index) * 0.5)
     }
@@ -6763,7 +6783,7 @@ struct RainDrop: View {
 
 struct SnowAnimation: View {
     let animationPhase: CGFloat
-    
+
     var body: some View {
         ForEach(0..<5, id: \.self) { index in
             SnowFlake(index: index, phase: animationPhase)
@@ -6774,7 +6794,7 @@ struct SnowAnimation: View {
 struct SnowFlake: View {
     let index: Int
     let phase: CGFloat
-    
+
     var body: some View {
         Text("❄️")
             .font(.system(size: 8))
@@ -6782,19 +6802,19 @@ struct SnowFlake: View {
             .rotationEffect(.degrees(rotationAngle))
             .opacity(opacityValue)
     }
-    
+
     private var offsetX: CGFloat {
         CGFloat(index - 2) * 12
     }
-    
+
     private var offsetY: CGFloat {
         -15 + (phase * 30).truncatingRemainder(dividingBy: 30)
     }
-    
+
     private var rotationAngle: Double {
         Double(phase * 360)
     }
-    
+
     private var opacityValue: Double {
         0.6 + 0.4 * sin(phase + Double(index) * 0.7)
     }
@@ -6802,7 +6822,7 @@ struct SnowFlake: View {
 
 struct WindAnimation: View {
     let animationPhase: CGFloat
-    
+
     var body: some View {
         ForEach(0..<3, id: \.self) { index in
             WindParticle(index: index, phase: animationPhase)
@@ -6813,7 +6833,7 @@ struct WindAnimation: View {
 struct WindParticle: View {
     let index: Int
     let phase: CGFloat
-    
+
     var body: some View {
         Circle()
             .fill(Color.white.opacity(0.6))
@@ -6821,15 +6841,15 @@ struct WindParticle: View {
             .offset(x: offsetX, y: offsetY)
             .opacity(opacityValue)
     }
-    
+
     private var offsetX: CGFloat {
         (phase * 15).truncatingRemainder(dividingBy: 15) + CGFloat(index * 10)
     }
-    
+
     private var offsetY: CGFloat {
         CGFloat(index - 1) * 5
     }
-    
+
     private var opacityValue: Double {
         0.4 + 0.6 * sin(phase + Double(index) * 0.8)
     }
@@ -6837,7 +6857,7 @@ struct WindParticle: View {
 
 struct ThunderAnimation: View {
     let animationPhase: CGFloat
-    
+
     var body: some View {
         ForEach(0..<2, id: \.self) { index in
             Lightning(index: index, phase: animationPhase)
@@ -6848,7 +6868,7 @@ struct ThunderAnimation: View {
 struct Lightning: View {
     let index: Int
     let phase: CGFloat
-    
+
     var body: some View {
         Image(systemName: "bolt.fill")
             .foregroundColor(.yellow)
@@ -6856,15 +6876,15 @@ struct Lightning: View {
             .offset(x: offsetX, y: offsetY)
             .opacity(opacityValue)
     }
-    
+
     private var offsetX: CGFloat {
         (CGFloat(index) - 0.5) * 20
     }
-    
+
     private var offsetY: CGFloat {
         -8 + (phase * 15).truncatingRemainder(dividingBy: 15)
     }
-    
+
     private var opacityValue: Double {
         0.3 + 0.7 * sin(Double(phase) * 2 + Double(index) * 1.0)
     }
@@ -6872,7 +6892,7 @@ struct Lightning: View {
 
 struct NightAnimation: View {
     let animationPhase: CGFloat
-    
+
     var body: some View {
         ForEach(0..<6, id: \.self) { index in
             Star(index: index, phase: animationPhase)
@@ -6883,7 +6903,7 @@ struct NightAnimation: View {
 struct Star: View {
     let index: Int
     let phase: CGFloat
-    
+
     var body: some View {
         Text("⭐")
             .font(.system(size: 6))
@@ -6891,27 +6911,27 @@ struct Star: View {
             .scaleEffect(scaleValue)
             .opacity(opacityValue)
     }
-    
+
     private var angle: Double {
         Double(index) * .pi / 3
     }
-    
+
     private var radius: CGFloat {
         20
     }
-    
+
     private var offsetX: CGFloat {
         cos(angle) * radius
     }
-    
+
     private var offsetY: CGFloat {
         sin(angle) * radius
     }
-    
+
     private var scaleValue: CGFloat {
         0.3 + 0.7 * sin(phase + Double(index) * 0.8)
     }
-    
+
     private var opacityValue: Double {
         0.4 + 0.6 * sin(phase + Double(index) * 0.6)
     }
@@ -6919,35 +6939,35 @@ struct Star: View {
 
 // MARK: - ✅ PRELOADING FUNCTIONS
 extension StoryViewModel {
-    
+
     /// ✅ PRELOAD: Precargar la siguiente historia
     func preloadNextStory(currentStoryId: String, allStories: [Story]) {
         guard let currentIndex = allStories.firstIndex(where: { $0.id == currentStoryId }),
               currentIndex + 1 < allStories.count else {
             return
         }
-        
+
         let nextStory = allStories[currentIndex + 1]
         preloadStory(nextStory)
     }
-    
+
     /// ✅ PRELOAD: Precargar historia específica
     func preloadStory(_ story: Story) {
         guard let storyId = story.id else { return }
-        
+
         // ✅ Evitar precargar si ya está en cache
         if preloadedStories[storyId] != nil {
             return
         }
-        
+
         // ✅ Limpiar cache si está lleno
         if preloadedStories.count >= maxPreloadedStories {
             clearOldestPreloadedStory()
         }
-        
+
         // ✅ Agregar a cache
         preloadedStories[storyId] = story
-        
+
         // ✅ Precargar media según el tipo
         switch story.mediaItem.type {
         case .image:
@@ -6956,12 +6976,12 @@ extension StoryViewModel {
             preloadVideo(for: story)
         }
     }
-    
+
     /// ✅ PRELOAD: Precargar imagen
     private func preloadImage(for story: Story) {
         guard let storyId = story.id,
               let url = URL(string: story.mediaItem.url) else { return }
-        
+
         // ✅ Usar Kingfisher para precargar
         KingfisherManager.shared.retrieveImage(with: url) { result in
             switch result {
@@ -6974,51 +6994,51 @@ extension StoryViewModel {
             }
         }
     }
-    
+
     /// ✅ PRELOAD: Precargar video
     private func preloadVideo(for story: Story) {
         guard let storyId = story.id,
               let url = URL(string: story.mediaItem.url) else { return }
-        
+
         // ✅ Crear player y precargar
         let player = AVPlayer(url: url)
         player.isMuted = true // Silenciar para preload
-        
+
         // ✅ Precargar buffer
         let playerItem = player.currentItem
         playerItem?.preferredForwardBufferDuration = 5.0 // 5 segundos de buffer
-        
+
         DispatchQueue.main.async {
             self.preloadedVideos[storyId] = player
         }
     }
-    
+
     /// ✅ PRELOAD: Limpiar historia más antigua del cache
     private func clearOldestPreloadedStory() {
         guard let oldestStoryId = preloadedStories.keys.first else { return }
-        
+
         preloadedStories.removeValue(forKey: oldestStoryId)
         preloadedImages.removeValue(forKey: oldestStoryId)
         preloadedVideos.removeValue(forKey: oldestStoryId)
     }
-    
+
     /// ✅ PRELOAD: Limpiar cache completo
     func clearPreloadCache() {
         preloadedStories.removeAll()
         preloadedImages.removeAll()
         preloadedVideos.removeAll()
     }
-    
+
     /// ✅ PRELOAD: Obtener historia precargada
     func getPreloadedStory(_ storyId: String) -> Story? {
         return preloadedStories[storyId]
     }
-    
+
     /// ✅ PRELOAD: Obtener imagen precargada
     func getPreloadedImage(_ storyId: String) -> UIImage? {
         return preloadedImages[storyId]
     }
-    
+
     /// ✅ PRELOAD: Obtener video precargado
     func getPreloadedVideo(_ storyId: String) -> AVPlayer? {
         return preloadedVideos[storyId]
@@ -7035,7 +7055,7 @@ struct FloatingHeart: Identifiable, Equatable {
 
 struct FloatingHeartsView: View {
     let hearts: [FloatingHeart]
-    
+
     var body: some View {
         ZStack {
             ForEach(hearts) { heart in
@@ -7051,7 +7071,7 @@ struct FloatingHeartToView: View {
     @State private var opacity: Double = 1
     @State private var scale: CGFloat = 0.5
     @State private var xOffset: CGFloat = 0
-    
+
     var body: some View {
         Text(heart.emoji)
             .font(.system(size: 50))
@@ -7063,7 +7083,7 @@ struct FloatingHeartToView: View {
             .onAppear {
                 // Randomize trajectory slightly
                 let randomXPath = CGFloat.random(in: -30...30)
-                
+
                 withAnimation(.easeOut(duration: 2.0)) {
                     offset = -UIScreen.main.bounds.height * 0.7
                     opacity = 0
@@ -7079,16 +7099,16 @@ struct FloatingHeartToView: View {
 /// Use this when you need full control over keyboard positioning in fullScreenCover presentations.
 struct KeyboardIgnoringContainer<Content: View>: UIViewControllerRepresentable {
     let content: Content
-    
+
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
     }
-    
+
     func makeUIViewController(context: Context) -> KeyboardIgnoringHostingController<Content> {
         let controller = KeyboardIgnoringHostingController(rootView: content)
         return controller
     }
-    
+
     func updateUIViewController(_ uiViewController: KeyboardIgnoringHostingController<Content>, context: Context) {
         uiViewController.rootView = content
     }
@@ -7101,7 +7121,7 @@ class KeyboardIgnoringHostingController<Content: View>: UIHostingController<Cont
         // Disable automatic keyboard adjustment
         // This is done by not adjusting the safe area insets when keyboard appears
     }
-    
+
     // Override to prevent keyboard from affecting layout
     override var additionalSafeAreaInsets: UIEdgeInsets {
         get { .zero }
@@ -7113,43 +7133,43 @@ class KeyboardIgnoringHostingController<Content: View>: UIHostingController<Cont
 // Diseñado específicamente para el visor de historias, manejando el ciclo de vida y loop correctamente.
 struct StickerVideoPlayer: UIViewRepresentable {
     let url: URL
-    
+
     func makeUIView(context: Context) -> StickerPlayerUIView {
         let view = StickerPlayerUIView(frame: .zero)
         return view
     }
-    
+
     func updateUIView(_ uiView: StickerPlayerUIView, context: Context) {
         // Asegurar que se reproduzca al actualizar si la URL cambió o la vista se recargó
         uiView.play(url: url)
     }
-    
+
     class StickerPlayerUIView: UIView {
         private let playerLayer = AVPlayerLayer()
         private var player: AVPlayer?
         private var playerItem: AVPlayerItem?
         private var loopObserver: NSObjectProtocol?
-        
+
         override init(frame: CGRect) {
             super.init(frame: frame)
             setupLayer()
         }
-        
+
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
         }
-        
+
         private func setupLayer() {
             playerLayer.videoGravity = .resizeAspectFill
             playerLayer.backgroundColor = UIColor.clear.cgColor // ✅ Transparente para ver la base estática
             layer.addSublayer(playerLayer)
         }
-        
+
         override func layoutSubviews() {
             super.layoutSubviews()
             playerLayer.frame = bounds
         }
-        
+
         func play(url: URL) {
             // Evitar recrear si es la misma URL
             if let currentUrl = (player?.currentItem?.asset as? AVURLAsset)?.url, currentUrl == url {
@@ -7158,24 +7178,24 @@ struct StickerVideoPlayer: UIViewRepresentable {
                 }
                 return
             }
-            
+
             // Limpiar observador anterior
             if let observer = loopObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
-            
+
             let item = AVPlayerItem(url: url)
             playerItem = item
-            
+
             let newPlayer = AVPlayer(playerItem: item)
             newPlayer.isMuted = true // ✅ Muteado por defecto para evitar conflictos de audio
             newPlayer.automaticallyWaitsToMinimizeStalling = false // Intentar reproducir ASAP
-            
+
             player = newPlayer
             playerLayer.player = newPlayer
-            
+
             newPlayer.play()
-            
+
             // ✅ Loop Infinito Robust
             loopObserver = NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
@@ -7186,7 +7206,7 @@ struct StickerVideoPlayer: UIViewRepresentable {
                 newPlayer?.play()
             }
         }
-        
+
         deinit {
             if let observer = loopObserver {
                 NotificationCenter.default.removeObserver(observer)
