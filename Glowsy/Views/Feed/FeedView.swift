@@ -90,6 +90,7 @@ struct FeedView: View {
     @State private var editedContent = ""
     @State private var isDeleting = false
     @State private var isFeedHeaderHidden = false
+    @State private var isManualRefreshing = false
     
     // ✅ LONG PRESS PEEK: Estado para overlay a nivel del feed
     @State private var peekImageURL: String? = nil
@@ -139,6 +140,7 @@ struct FeedView: View {
                     }
                     .padding(.top, 60)
                     .frame(maxWidth: .infinity, alignment: .top)
+                    .allowsHitTesting(!networkMonitor.isConnected || networkMonitor.isSlowConnection)
                     , alignment: .top
                 )
             
@@ -595,6 +597,12 @@ struct FeedView: View {
             
             // Centro: Feed Toggle
             FloatingGlassFeedToggle(selectedFeedType: $selectedFeedType)
+
+            if isManualRefreshing {
+                FeedRefreshIndicator(colorScheme: colorScheme)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             
             Spacer()
         }
@@ -620,8 +628,34 @@ struct FeedView: View {
         let trimmedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedUserId.isEmpty else { return }
 
+        if trimmedUserId == Auth.auth().currentUser?.uid {
+            selectedUserId = ""
+            selectedProfileRoute = nil
+            NotificationCenter.default.post(name: NSNotification.Name("NavigateToOwnProfileTab"), object: nil)
+            return
+        }
+
         selectedUserId = trimmedUserId
         selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
+    }
+
+    private struct FeedRefreshIndicator: View {
+        let colorScheme: ColorScheme
+
+        var body: some View {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
+                    .scaleEffect(0.72)
+
+                Text("feed.refreshing")
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.74) : .black.opacity(0.62))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .liquidGlass(in: Capsule(), interactive: false)
+        }
     }
     
     // ✅ Header moderno
@@ -937,7 +971,7 @@ struct FeedView: View {
                 if let userId = Auth.auth().currentUser?.uid {
                     // ✅ OPTIMIZADO: Usar forceRefresh en lugar de refreshFeed
                     forceRefresh()
-                    await refreshFeed(userId: userId)
+                    await performManualRefresh(userId: userId)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrollFeedToTop"))) { _ in
@@ -949,7 +983,7 @@ struct FeedView: View {
                 if let userId = Auth.auth().currentUser?.uid {
                     forceRefresh()
                     Task {
-                        await refreshFeed(userId: userId)
+                        await performManualRefresh(userId: userId)
                     }
                 }
             }
@@ -1510,9 +1544,23 @@ struct FeedView: View {
     }
     
     // ✅ OPTIMIZADO: loadStoryUsers con cache básico
-    private func loadStoryUsers(userId: String) async {
+    private func loadStoryUsers(userId: String, allowInstantCache: Bool = true) async {
         await withCheckedContinuation { continuation in
             isLoadingStories = true
+
+            if allowInstantCache {
+                let cachedStoryUsers = self.loadCachedStoryUsers(userId: userId)
+                if !cachedStoryUsers.isEmpty {
+                    self.storyUsers = cachedStoryUsers
+                    self.isLoadingStories = false
+                }
+            }
+
+            guard NetworkMonitor.shared.isConnected else {
+                self.isLoadingStories = false
+                continuation.resume()
+                return
+            }
             
             firestoreService.fetchMutedUserIds(userId: userId) { mutedUserIds in
                 firestoreService.fetchFollowing(userId: userId) { result in
@@ -1524,7 +1572,7 @@ struct FeedView: View {
                     
                     // ✅ NUEVO: Verificar cache primero
                     let cacheAge = Date().timeIntervalSince(self.cachedStoriesTimestamp)
-                    if cacheAge < 20 && !self.cachedStories.isEmpty { // 20 segundos para evitar anillos desfasados
+                    if allowInstantCache && cacheAge < 20 && !self.cachedStories.isEmpty { // 20 segundos para evitar anillos desfasados
 
                         var cachedEntries: [StoryUserState] = []
                         
@@ -1644,7 +1692,48 @@ struct FeedView: View {
                     }
                 }
             }
+        }
     }
+
+    private func loadCachedStoryUsers(userId: String) -> [StoryUserState] {
+        let cachedConnections = LocalPersistenceService.shared.loadConnections(userId: userId)
+        let candidateIds = [userId] + cachedConnections.following.map { $0.id }
+        var entries: [StoryUserState] = []
+
+        for candidateId in candidateIds {
+            let stories = LocalPersistenceService.shared.loadStories(userId: candidateId)
+            let hasStory = !stories.isEmpty
+
+            if candidateId != userId && !hasStory {
+                continue
+            }
+
+            entries.append((
+                userId: candidateId,
+                hasStory: hasStory,
+                hasUnseenStory: candidateId == userId ? false : hasStory,
+                storyCount: stories.count,
+                storyViewedStatus: Array(repeating: candidateId == userId, count: stories.count),
+                storyAudiences: stories.map { $0.audience }
+            ))
+        }
+
+        return buildSortedStoryUsers(entries: entries, currentUserId: userId)
+    }
+
+    @MainActor
+    private func performManualRefresh(userId: String) async {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+            isManualRefreshing = true
+        }
+
+        await refreshFeed(userId: userId)
+
+        try? await Task.sleep(nanoseconds: 250_000_000)
+
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+            isManualRefreshing = false
+        }
     }
 
     private func loadStoryUsersFromBatchedStories(
@@ -1999,7 +2088,7 @@ struct FeedView: View {
                 await self.messagingViewModel.fetchConversations(for: userId)
             }
             group.addTask {
-                await self.loadStoryUsers(userId: userId)
+                await self.loadStoryUsers(userId: userId, allowInstantCache: false)
             }
         }
         prefetchImages()
@@ -2207,9 +2296,10 @@ struct ModernPostCardView: View {
     @EnvironmentObject private var feedViewModel: FeedViewModel
     @State private var currentImageIndex = 0
     @State private var detectedAspectRatio: CGFloat
-    @State private var isFollowing: Bool = false
+    @State private var followButtonState: FollowButtonState = .canFollow
     @State private var isSaved: Bool = false
     @State private var isFollowLoading: Bool = false
+    @State private var showingUnfollowConfirmation = false
     @State private var isSaveLoading: Bool = false
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
@@ -2608,6 +2698,12 @@ struct ModernPostCardView: View {
             liveAuthorUsername = ""
             refreshAuthorUsername()
         }
+        .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
+            guard let userId = notification.userInfo?["userId"] as? String,
+                  userId == moment.authorId,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            followButtonState = state
+        }
 
         .fullScreenCover(isPresented: $showSpecificUserStories) {
             StoriesView(startWithUserId: Binding(
@@ -2619,6 +2715,19 @@ struct ModernPostCardView: View {
 
 
             }
+        }
+        .confirmationDialog(
+            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
+            isPresented: $showingUnfollowConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
+                performFollowToggle()
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
     }
     
@@ -2723,7 +2832,7 @@ struct ModernPostCardView: View {
             
             if moment.authorId != Auth.auth().currentUser?.uid {
                 ModernFollowButton(
-                    isFollowing: isFollowing,
+                    state: followButtonState,
                     isLoading: isFollowLoading,
                     colorScheme: colorScheme,
                     action: toggleFollow
@@ -2933,9 +3042,15 @@ struct ModernPostCardView: View {
         feedViewModel.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
         
         if moment.authorId != currentUserId {
-            firestoreService.isFollowingCached(currentUserId: currentUserId, targetUserId: moment.authorId) { following in
+            if let cachedState = FollowStateStore.shared.state(for: moment.authorId) {
+                followButtonState = cachedState
+            }
+
+            privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: moment.authorId) { state in
                 DispatchQueue.main.async {
-                    self.isFollowing = following
+                    let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.moment.authorId)
+                    self.followButtonState = reconciledState
+                    FollowStateStore.shared.setState(reconciledState, for: self.moment.authorId)
                 }
             }
         }
@@ -3004,25 +3119,49 @@ struct ModernPostCardView: View {
     }
     
     private func toggleFollow() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        // ✅ OPTIMISTIC UPDATE
-        let previousState = isFollowing
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-            self.isFollowing.toggle()
+        if followButtonState == .following {
+            showingUnfollowConfirmation = true
+            return
         }
+
+        performFollowToggle()
+    }
+
+    private func performFollowToggle() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        guard followButtonState.isActionable else { return }
         
+        let previousState = followButtonState
+        let optimisticState: FollowButtonState = {
+            switch previousState {
+            case .following:
+                return .canFollow
+            case .canRequestFollow:
+                return .requestPending
+            case .canFollow:
+                return .following
+            default:
+                return previousState
+            }
+        }()
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            self.followButtonState = optimisticState
+        }
+        FollowStateStore.shared.setState(optimisticState, for: moment.authorId)
+
         isFollowLoading = true
         
-        if previousState {
+        if previousState == .following {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
                 DispatchQueue.main.async {
                     self.isFollowLoading = false
                     if let error = error {
                         // Revert on error
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = true
+                            self.followButtonState = previousState
                         }
+                        FollowStateStore.shared.setState(previousState, for: self.moment.authorId)
                     }
                 }
             }
@@ -3033,8 +3172,9 @@ struct ModernPostCardView: View {
                     if let error = error {
                         // Revert on error
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = false
+                            self.followButtonState = previousState
                         }
+                        FollowStateStore.shared.setState(previousState, for: self.moment.authorId)
                     }
                 }
             }
@@ -3894,6 +4034,10 @@ class FeedViewModel: ObservableObject {
     }
     
     private func saveFeedToCache(moments: [Moment], type: FeedType, sync: Bool = false) {
+        if let data = try? JSONEncoder().encode(moments) {
+            UserDefaults.standard.set(data, forKey: getCacheKey(for: type))
+        }
+
         // ✅ SwiftData: Guardar en DB local para experiencia offline
         Task { @MainActor in
             LocalPersistenceService.shared.saveFeedMoments(moments, sync: sync)
@@ -3901,8 +4045,13 @@ class FeedViewModel: ObservableObject {
     }
     
     private func loadFeedFromCache(type: FeedType) -> [Moment] {
-        // ✅ SwiftData: Leer desde DB local (instantáneo)
-        return LocalPersistenceService.shared.loadFeedMoments()
+        if let data = UserDefaults.standard.data(forKey: getCacheKey(for: type)),
+           let moments = try? JSONDecoder().decode([Moment].self, from: data) {
+            return moments
+        }
+
+        // ✅ SwiftData: fallback legacy para usuarios que aún no tienen caché separada por feed
+        return type == .following ? LocalPersistenceService.shared.loadFeedMoments() : []
     }
 
     private func resolveMutedUserIds(viewerId: String, forceRefresh: Bool = false, completion: @escaping (Set<String>) -> Void) {
@@ -3938,21 +4087,43 @@ class FeedViewModel: ObservableObject {
     
     func fetchMoments(userId: String, feedType: FeedType? = nil) {
         let targetFeedType = feedType ?? currentFeedType
+        let cached = loadFeedFromCache(type: targetFeedType)
         
         // ✅ Actualizar en main thread
         DispatchQueue.main.async {
             self.currentFeedType = targetFeedType
             self.isLoading = true
             self.errorMessage = nil
+
+            if !cached.isEmpty && self.moments.isEmpty {
+                self.moments = cached
+
+                if targetFeedType == .following {
+                    self.followingMoments = cached
+                } else {
+                    self.forYouMoments = cached
+                }
+
+                self.isLoading = false
+
+                let videoUrls = cached.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
+                VideoPreloader.shared.preloadAssets(urls: videoUrls)
+            }
+        }
+
+        guard NetworkMonitor.shared.isConnected else {
+            DispatchQueue.main.async {
+                self.isLoading = false
+            }
+            return
         }
 
         resolveMutedUserIds(viewerId: userId) { [weak self] mutedUserIds in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                // ✅ OFFLINE: Cargar caché inmediatamente, respetando cuentas silenciadas.
-                let cached = self.loadFeedFromCache(type: targetFeedType)
+                // ✅ Reconciliar caché con usuarios silenciados cuando hay red.
                 let visibleCached = cached.filter { !mutedUserIds.contains($0.authorId) }
-                if !visibleCached.isEmpty && self.moments.isEmpty {
+                if !visibleCached.isEmpty {
                     self.moments = visibleCached
 
                     if targetFeedType == .following {
@@ -4094,6 +4265,8 @@ class FeedViewModel: ObservableObject {
                 moments = followingMoments
                 setupListenersForMoments(followingMoments)
             } else {
+                moments = []
+                isLoading = true
                 fetchMoments(userId: userId, feedType: feedType)
             }
         case .forYou:
@@ -4101,6 +4274,8 @@ class FeedViewModel: ObservableObject {
                 moments = forYouMoments
                 setupListenersForMoments(forYouMoments)
             } else {
+                moments = []
+                isLoading = true
                 fetchMoments(userId: userId, feedType: feedType)
             }
         }

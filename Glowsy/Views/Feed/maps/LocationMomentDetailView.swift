@@ -1381,8 +1381,9 @@ struct LocationExpandableContentView: View {
 struct FollowButtonForLocation: View {
     let targetUserId: String
     let colorScheme: ColorScheme
-    @State private var isFollowing = false
+    @State private var followButtonState: FollowButtonState = .canFollow
     @State private var isLoading = false
+    @State private var showingUnfollowConfirmation = false
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -1395,76 +1396,89 @@ struct FollowButtonForLocation: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(0.8)
-                        .tint(.white)
+                        .tint(adaptiveColors.primary)
                 } else {
-                    Image(systemName: isFollowing ? "person.fill.checkmark" : "person.fill.badge.plus")
+                    Image(systemName: followIcon)
                         .font(.system(size: 10, weight: .semibold))
                 }
                 
-                Text(isFollowing ? "Siguiendo" : "Seguir")
+                Text(followTitle)
                     .font(.custom("Poppins-SemiBold", size: 11))
             }
-            .foregroundColor(.white)
+            .foregroundColor(adaptiveColors.primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(
-                        LinearGradient(
-                            colors: isFollowing ?
-                            [Color.gray.opacity(0.6), Color.gray.opacity(0.8)] :
-                            [adaptiveColors.accent, adaptiveColors.accent.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 0.8
-                    )
-            )
-            .shadow(color: adaptiveColors.accent.opacity(0.3), radius: 3, x: 0, y: 1)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 14), interactive: followButtonState.isActionable)
         }
-        .disabled(isLoading)
+        .disabled(isLoading || !followButtonState.isActionable)
+        .opacity(isPassiveState ? 0.78 : 1)
         .scaleEffect(isLoading ? 0.95 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isLoading)
         .onAppear {
             checkFollowStatus()
         }
+        .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
+            guard let userId = notification.userInfo?["userId"] as? String,
+                  userId == targetUserId,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            followButtonState = state
+        }
+        .confirmationDialog(
+            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
+            isPresented: $showingUnfollowConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
+                performFollowToggle()
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
+        }
     }
     
     private func checkFollowStatus() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        if let cachedState = FollowStateStore.shared.state(for: targetUserId) {
+            followButtonState = cachedState
+        }
         
-        FirestoreService().isFollowing(currentUserId: currentUserId, targetUserId: targetUserId) { following in
+        PrivacyService().getFollowButtonState(viewerId: currentUserId, targetUserId: targetUserId) { state in
             DispatchQueue.main.async {
-                self.isFollowing = following
+                let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.targetUserId)
+                self.followButtonState = reconciledState
+                FollowStateStore.shared.setState(reconciledState, for: self.targetUserId)
             }
         }
     }
     
     private func toggleFollow() {
+        if followButtonState == .following {
+            showingUnfollowConfirmation = true
+            return
+        }
+
+        performFollowToggle()
+    }
+
+    private func performFollowToggle() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
         isLoading = true
         
         let firestoreService = FirestoreService()
         
-        if isFollowing {
+        if followButtonState == .following {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 DispatchQueue.main.async {
                     self.isLoading = false
                     if error == nil {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = false
+                            self.followButtonState = .canFollow
                         }
+                        FollowStateStore.shared.setState(.canFollow, for: self.targetUserId)
                     }
                 }
             }
@@ -1473,13 +1487,52 @@ struct FollowButtonForLocation: View {
                 DispatchQueue.main.async {
                     self.isLoading = false
                     if error == nil {
+                        let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPending : .following
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            self.isFollowing = true
+                            self.followButtonState = newState
                         }
+                        FollowStateStore.shared.setState(newState, for: self.targetUserId)
                     }
                 }
             }
         }
+    }
+
+    private var followTitle: String {
+        switch followButtonState {
+        case .following:
+            return NSLocalizedString("userProfile.followButton.following", comment: "")
+        case .canRequestFollow:
+            return NSLocalizedString("feed.follow.request", comment: "")
+        case .requestPending:
+            return NSLocalizedString("feed.follow.requested", comment: "")
+        case .blocked:
+            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
+        default:
+            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
+        }
+    }
+
+    private var followIcon: String {
+        switch followButtonState {
+        case .following:
+            return "person.fill.checkmark"
+        case .canRequestFollow:
+            return "person.crop.circle.badge.plus"
+        case .requestPending:
+            return "clock"
+        case .blocked:
+            return "slash.circle"
+        default:
+            return "person.fill.badge.plus"
+        }
+    }
+
+    private var isPassiveState: Bool {
+        if case .requestPending = followButtonState {
+            return true
+        }
+        return false
     }
 }
 

@@ -123,7 +123,6 @@ class BestFriendsService {
             
             let dispatchGroup = DispatchGroup()
             var bestFriends: [AppUser] = []
-            var fetchError: Error?
             
             for friendId in user.bestFriends {
                 dispatchGroup.enter()
@@ -131,19 +130,19 @@ class BestFriendsService {
                     defer { dispatchGroup.leave() }
                     switch result {
                     case .success(let friend):
-                        bestFriends.append(friend)
+                        if friend.isActive {
+                            bestFriends.append(friend)
+                        }
                     case .failure(let error):
-                        fetchError = error
+                        // Best friends may contain stale ids if an account was deleted.
+                        // Do not break the whole settings screen for a missing profile.
+                        break
                     }
                 }
             }
             
             dispatchGroup.notify(queue: .main) {
-                if let error = fetchError {
-                    completion(.failure(error))
-                } else {
-                    completion(.success(bestFriends))
-                }
+                completion(.success(bestFriends))
             }
         }
     }

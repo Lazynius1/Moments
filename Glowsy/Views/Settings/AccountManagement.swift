@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseCore
 import FirebaseFirestore
 
 // MARK: - Account Management Section para SettingsView
@@ -7,12 +8,12 @@ struct AccountManagementSection: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var authService: AuthService
     @State private var showDeactivateConfirmation = false
-    @State private var showDeleteConfirmation = false
     @State private var showDeleteVerification = false
     @State private var isProcessing = false
+    @State private var deletePasswordErrorMessage: String?
     @State private var errorMessage: String?
     @State private var showError = false
-    
+
     var body: some View {
         Section(NSLocalizedString("accountManagement.section.title", comment: "Account management section")) {
             // Deactivate account
@@ -25,14 +26,14 @@ struct AccountManagementSection: View {
                 },
                 isDestructive: false
             )
-            
+
             // Delete account
             SettingsRow(
                 icon: "trash.circle",
                 title: NSLocalizedString("accountManagement.delete.title", comment: "Delete account title"),
                 subtitle: NSLocalizedString("accountManagement.delete.subtitle", comment: "Delete account subtitle"),
                 action: {
-                    showDeleteConfirmation = true
+                    showDeleteVerification = true
                 },
                 isDestructive: true
             )
@@ -40,7 +41,7 @@ struct AccountManagementSection: View {
         .foregroundColor(colorScheme == .dark ? .white : .black)
         .font(.custom("Poppins-Regular", size: 14))
         .listRowBackground(SettingsListRowBackground())
-        
+
         // Deactivate confirmation
         .alert(NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account"), isPresented: $showDeactivateConfirmation) {
             Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
@@ -50,30 +51,25 @@ struct AccountManagementSection: View {
         } message: {
             Text(NSLocalizedString("accountManagement.deactivate.message", comment: "Deactivate account message"))
         }
-        
-        // Delete confirmation
-        .alert(NSLocalizedString("accountManagement.delete.title", comment: "Delete account permanently"), isPresented: $showDeleteConfirmation) {
-            Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
-            Button(NSLocalizedString("accountManagement.continue", comment: "Continue"), role: .destructive) {
-                showDeleteVerification = true
-            }
-        } message: {
-            Text(NSLocalizedString("accountManagement.delete.message", comment: "Delete account message"))
-        }
-        
+
         // Delete verification sheet
         .sheet(isPresented: $showDeleteVerification) {
             DeleteAccountVerificationView(
                 isProcessing: $isProcessing,
+                passwordErrorMessage: $deletePasswordErrorMessage,
                 onConfirm: { password in
                     deleteAccount(password: password)
                 },
                 onCancel: {
+                    deletePasswordErrorMessage = nil
                     showDeleteVerification = false
                 }
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(isProcessing)
         }
-        
+
         // Error alert
         .alert(NSLocalizedString("accountManagement.error.title", comment: "Error"), isPresented: $showError) {
             Button(NSLocalizedString("accountManagement.ok", comment: "OK")) {}
@@ -83,19 +79,19 @@ struct AccountManagementSection: View {
             }
         }
     }
-    
+
     // MARK: - Account Actions
-    
+
     private func deactivateAccount() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+
         isProcessing = true
-        
+
         let accountService = AccountManagementService()
         accountService.deactivateAccount(userId: userId) { result in
             DispatchQueue.main.async {
                 isProcessing = false
-                
+
                 switch result {
                 case .success:
                     // Logout after deactivation
@@ -107,7 +103,7 @@ struct AccountManagementSection: View {
             }
         }
     }
-    
+
     private func deleteAccount(password: String) {
         guard let user = Auth.auth().currentUser else {
             DispatchQueue.main.async {
@@ -117,35 +113,25 @@ struct AccountManagementSection: View {
             }
             return
         }
-        
+
         isProcessing = true
-        
+        deletePasswordErrorMessage = nil
+
         let accountService = AccountManagementService()
-        
-        // Intentar eliminación normal primero
+
         accountService.deleteAccount(user: user, password: password) { result in
-            switch result {
-            case .success:
-                DispatchQueue.main.async {
-                    self.isProcessing = false
+            DispatchQueue.main.async {
+                self.isProcessing = false
+
+                switch result {
+                case .success:
                     self.showDeleteVerification = false
-                }
-            case .failure(let error):
-                
-                // Si falla, intentar eliminación rápida
-                accountService.deleteAccountFast(user: user, password: password) { fastResult in
-                    DispatchQueue.main.async {
-                        self.isProcessing = false
-                        self.showDeleteVerification = false
-                        
-                        switch fastResult {
-                        case .success:
-                            // Account deleted successfully
-                            break
-                        case .failure(let fastError):
-                            self.errorMessage = String(format: NSLocalizedString("accountManagement.error.delete", comment: "Error deleting account"), fastError.localizedDescription)
-                            self.showError = true
-                        }
+                case .failure(let error):
+                    if let passwordError = AccountDeletionErrorPresenter.passwordMessage(for: error) {
+                        self.deletePasswordErrorMessage = passwordError
+                    } else {
+                        self.errorMessage = String(format: NSLocalizedString("accountManagement.error.delete", comment: "Error deleting account"), error.localizedDescription)
+                        self.showError = true
                     }
                 }
             }
@@ -157,246 +143,402 @@ struct AccountManagementSection: View {
 struct DeleteAccountVerificationView: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var isProcessing: Bool
+    @Binding var passwordErrorMessage: String?
     let onConfirm: (String) -> Void
     let onCancel: () -> Void
-    
+
+    private enum FlowDestination: Equatable {
+        case overview
+        case confirmation
+    }
+
+    @State private var flowDestination: FlowDestination = .overview
+    @State private var navigatingForward = true
     @State private var password: String = ""
+    @State private var isPasswordVisible = false
     @State private var confirmText: String = ""
     @State private var agreeToDelete: Bool = false
     @FocusState private var isPasswordFocused: Bool
     @FocusState private var isConfirmFocused: Bool
-    
+
     private let requiredText = NSLocalizedString("accountManagement.requiredText", comment: "Required text for deletion")
-    
+
     var isFormValid: Bool {
         !password.isEmpty &&
         confirmText == requiredText &&
         agreeToDelete
     }
-    
+
     var body: some View {
-        NavigationView {
-            ZStack {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
-                
-                if isProcessing {
-                    // Processing overlay
-                    ZStack {
-                        Color(hex: "0B1215").opacity(0.5).ignoresSafeArea()
-                        
-                        VStack(spacing: 20) {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
-                            
-                            Text("accountManagement.deleting")
-                                .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(.white)
-                        }
-                    }
-                } else {
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            // Warning header
-                            VStack(spacing: 16) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.red)
-                                
-                                VStack(spacing: 8) {
-                                    Text("accountManagement.permanentDeletion")
-                                        .font(.custom("Poppins-Bold", size: 24))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    
-                                    Text("accountManagement.irreversible")
-                                        .font(.custom("Poppins-Regular", size: 16))
-                                        .foregroundColor(.red)
-                                }
-                            }
-                            .padding(.top, 20)
-                            
-                            // What will be deleted
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text("accountManagement.willBeDeleted")
-                                    .font(.custom("Poppins-SemiBold", size: 18))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                
-                                VStack(alignment: .leading, spacing: 12) {
-                                    DeletedDataRow(icon: "person.circle", text: NSLocalizedString("accountManagement.profileInfo", comment: "Profile info text"))
-                                    DeletedDataRow(icon: "photo.on.rectangle", text: NSLocalizedString("accountManagement.storiesMoments", comment: "Stories and moments text"))
-                                    DeletedDataRow(icon: "message.circle", text: NSLocalizedString("accountManagement.conversations", comment: "Conversations text"))
-                                    DeletedDataRow(icon: "person.2.circle", text: NSLocalizedString("accountManagement.connections", comment: "Connections text"))
-                                    DeletedDataRow(icon: "bell.circle", text: NSLocalizedString("accountManagement.notifications", comment: "Notifications text"))
-                                    DeletedDataRow(icon: "folder.circle", text: NSLocalizedString("accountManagement.savedContent", comment: "Saved content text"))
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            
-                            // Verification form
-                            VStack(spacing: 20) {
-                                // Password verification
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("accountManagement.confirmPassword")
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    
-                                    SecureField(NSLocalizedString("accountManagement.currentPassword", comment: "Current password placeholder"), text: $password)
-                                        .focused($isPasswordFocused)
-                                        .font(.custom("Poppins-Regular", size: 16))
-                                        .padding()
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(Color.gray.opacity(0.1))
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                                )
-                                        )
-                                }
-                                
-                                // Text confirmation
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("accountManagement.writeExactly")
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    
-                                    Text(requiredText)
-                                        .font(.custom("Poppins-Bold", size: 18))
-                                        .foregroundColor(.red)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 12)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.red.opacity(0.1))
-                                        )
-                                    
-                                    TextField(NSLocalizedString("accountManagement.writeHere", comment: "Write here placeholder"), text: $confirmText)
-                                        .focused($isConfirmFocused)
-                                        .font(.custom("Poppins-Regular", size: 16))
-                                        .padding()
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(Color.gray.opacity(0.1))
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .stroke(
-                                                            confirmText == requiredText ? Color.green : Color.gray.opacity(0.3),
-                                                            lineWidth: 1
-                                                        )
-                                                )
-                                        )
-                                }
-                                
-                                // Final agreement
-                                HStack(alignment: .top, spacing: 12) {
-                                    Button(action: {
-                                        agreeToDelete.toggle()
-                                    }) {
-                                        Image(systemName: agreeToDelete ? "checkmark.square.fill" : "square")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(agreeToDelete ? Color(hex: "4F46E5") : .gray)
-                                    }
-                                    
-                                    Text("accountManagement.understandIrreversible")
-                                        .font(.custom("Poppins-Regular", size: 14))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.orange.opacity(0.1))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                                        )
-                                )
-                            }
-                            .padding(.horizontal, 20)
-                            
-                            // Action buttons
-                            VStack(spacing: 16) {
-                                Button(action: {
-                                    onConfirm(password)
-                                }) {
-                                    HStack {
-                                        Image(systemName: "trash.fill")
-                                        Text("accountManagement.deleteAccountPermanently")
-                                            .font(.custom("Poppins-Bold", size: 16))
-                                    }
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(isFormValid ? Color.red : Color.gray)
-                                    )
-                                }
-                                .disabled(!isFormValid)
-                                
-                                Button(action: onCancel) {
-                                    Text(NSLocalizedString("accountManagement.cancel", comment: "Cancel button"))
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(Color(hex: "4F46E5"))
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 16)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color(hex: "4F46E5"), lineWidth: 2)
-                                        )
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 40)
-                        }
-                    }
-                }
+        ZStack {
+            Color.clear.ignoresSafeArea()
+
+            if flowDestination == .overview {
+                overviewContent
+                    .transition(flowTransition)
+            } else {
+                confirmationContent
+                    .transition(flowTransition)
             }
-            .navigationTitle(NSLocalizedString("accountManagement.deleteAccount.title", comment: "Delete Account"))
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                if !isProcessing {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel")) {
-                            onCancel()
-                        }
-                        .font(.custom("Poppins-Medium", size: 16))
-                        .foregroundColor(Color(hex: "4F46E5"))
-                    }
-                }
+
+            if isProcessing {
+                processingOverlay
+                    .transition(.opacity)
             }
         }
+        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
+        .animation(.easeInOut(duration: 0.2), value: isProcessing)
+        .animation(.easeInOut(duration: 0.18), value: passwordErrorMessage)
+        .onChange(of: password) { _ in
+            passwordErrorMessage = nil
+        }
+        .disabled(isProcessing)
+    }
+
+    private var overviewContent: some View {
+        VStack(spacing: 0) {
+            DeleteAccountHeader(
+                title: NSLocalizedString("accountManagement.deleteAccount.title", comment: "Delete Account"),
+                subtitle: NSLocalizedString("accountManagement.irreversible", comment: "Irreversible warning"),
+                leadingIcon: "chevron.left",
+                onLeadingTap: onCancel
+            )
+            .padding(.horizontal, 22)
+            .padding(.top, 12)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 28) {
+                    VStack(spacing: 10) {
+                        Text("accountManagement.permanentDeletion")
+                            .font(.custom("Poppins-SemiBold", size: 22))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .multilineTextAlignment(.center)
+
+                        Text("accountManagement.willBeDeleted")
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.top, 18)
+
+                    VStack(spacing: 0) {
+                        DeleteAccountImpactRow(icon: "person", text: NSLocalizedString("accountManagement.profileInfo", comment: "Profile info text"))
+                        DeleteAccountImpactRow(icon: "photo.on.rectangle", text: NSLocalizedString("accountManagement.storiesMoments", comment: "Stories and moments text"))
+                        DeleteAccountImpactRow(icon: "message", text: NSLocalizedString("accountManagement.conversations", comment: "Conversations text"))
+                        DeleteAccountImpactRow(icon: "person.2", text: NSLocalizedString("accountManagement.connections", comment: "Connections text"))
+                        DeleteAccountImpactRow(icon: "bell", text: NSLocalizedString("accountManagement.notifications", comment: "Notifications text"))
+                        DeleteAccountImpactRow(icon: "folder", text: NSLocalizedString("accountManagement.savedContent", comment: "Saved content text"))
+                    }
+
+                    VStack(spacing: 10) {
+                        Button(action: { navigate(to: .confirmation) }) {
+                            HStack(spacing: 10) {
+                                Text(NSLocalizedString("accountManagement.continue", comment: "Continue"))
+                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Capsule(), interactive: true)
+                        }
+
+                        Button(action: onCancel) {
+                            Text(NSLocalizedString("accountManagement.cancel", comment: "Cancel button"))
+                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .foregroundColor(AuthColors.primary(colorScheme))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 22)
+                .padding(.bottom, 28)
+            }
+        }
+    }
+
+    private var confirmationContent: some View {
+        VStack(spacing: 0) {
+            DeleteAccountHeader(
+                title: NSLocalizedString("accountManagement.confirmPassword", comment: "Confirm password"),
+                subtitle: NSLocalizedString("accountManagement.delete.message", comment: "Delete account message"),
+                leadingIcon: "chevron.left",
+                onLeadingTap: { navigate(to: .overview, forward: false) }
+            )
+            .padding(.horizontal, 22)
+            .padding(.top, 12)
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("accountManagement.confirmPassword")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+
+                        HStack(spacing: 12) {
+                            ZStack(alignment: .leading) {
+                                if password.isEmpty {
+                                    Text(NSLocalizedString("accountManagement.currentPassword", comment: "Current password placeholder"))
+                                        .font(.custom("Poppins-Regular", size: 15))
+                                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
+                                }
+
+                                if isPasswordVisible {
+                                    TextField("", text: $password)
+                                        .focused($isPasswordFocused)
+                                        .font(.custom("Poppins-Regular", size: 15))
+                                        .foregroundColor(AuthColors.primary(colorScheme))
+                                        .textContentType(.password)
+                                } else {
+                                    SecureField("", text: $password)
+                                        .focused($isPasswordFocused)
+                                        .font(.custom("Poppins-Regular", size: 15))
+                                        .foregroundColor(AuthColors.primary(colorScheme))
+                                        .textContentType(.password)
+                                }
+                            }
+
+                            Button(action: { isPasswordVisible.toggle() }) {
+                                Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                                    .frame(width: 30, height: 30)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.leading, 18)
+                        .padding(.trailing, 12)
+                        .frame(height: 54)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Capsule(), interactive: true)
+                        }
+                        .overlay {
+                            Capsule()
+                                .stroke(passwordErrorMessage == nil ? Color.clear : Color.red.opacity(0.46), lineWidth: 1)
+                        }
+
+                        if let passwordErrorMessage {
+                            Text(passwordErrorMessage)
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(.red.opacity(colorScheme == .dark ? 0.88 : 0.78))
+                                .padding(.horizontal, 18)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("accountManagement.writeExactly")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+
+                        Text(requiredText)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 16)
+                            .frame(height: 42)
+
+                        TextField(
+                            "",
+                            text: $confirmText,
+                            prompt: Text(NSLocalizedString("accountManagement.writeHere", comment: "Write here placeholder"))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
+                        )
+                        .focused($isConfirmFocused)
+                        .font(.custom("Poppins-Regular", size: 15))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .textInputAutocapitalization(.characters)
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 12)
+                        .overlay {
+                            Rectangle()
+                                .frame(height: 1)
+                                .foregroundColor(confirmText == requiredText ? Color.green.opacity(0.45) : AuthColors.secondary(colorScheme, opacity: 0.16))
+                                .frame(maxHeight: .infinity, alignment: .bottom)
+                        }
+                    }
+
+                    Button(action: { agreeToDelete.toggle() }) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: agreeToDelete ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(agreeToDelete ? .red : AuthColors.secondary(colorScheme, opacity: 0.45))
+                                .padding(.top, 1)
+
+                            Text("accountManagement.understandIrreversible")
+                                .font(.custom("Poppins-Regular", size: 13))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: { onConfirm(password) }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text(NSLocalizedString("accountManagement.deleteAccountPermanently", comment: "Delete account permanently"))
+                                .font(.custom("Poppins-SemiBold", size: 15))
+                        }
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .background {
+                        Color.clear
+                            .liquidGlass(in: Capsule(), interactive: isFormValid)
+                    }
+                    .opacity(isFormValid ? 1.0 : 0.45)
+                    .disabled(!isFormValid)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 24)
+                .padding(.bottom, 28)
+            }
+        }
+    }
+
+    private var processingOverlay: some View {
+        ZStack {
+            Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08)
+                .ignoresSafeArea()
+
+            HStack(spacing: 12) {
+                ProgressView()
+                    .tint(AuthColors.primary(colorScheme))
+
+                Text("accountManagement.deleting")
+                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+            }
+            .padding(.horizontal, 22)
+            .frame(height: 58)
+            .background {
+                Color.clear
+                    .liquidGlass(in: Capsule())
+            }
+        }
+    }
+
+    private var flowTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: navigatingForward ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: navigatingForward ? .leading : .trailing).combined(with: .opacity)
+        )
+    }
+
+    private func navigate(to destination: FlowDestination, forward: Bool = true) {
+        navigatingForward = forward
+        passwordErrorMessage = nil
+        flowDestination = destination
+    }
+}
+
+enum AccountDeletionErrorPresenter {
+    static func passwordMessage(for error: Error) -> String? {
+        let nsError = error as NSError
+        let firebaseInvalidCredentialCodes = [17004, 17009]
+        let message = error.localizedDescription.lowercased()
+
+        guard firebaseInvalidCredentialCodes.contains(nsError.code) ||
+                (nsError.domain.lowercased().contains("auth") &&
+                 (message.contains("password") || message.contains("credential"))) else {
+            return nil
+        }
+
+        return NSLocalizedString("auth.error.wrongPassword", comment: "Wrong password")
     }
 }
 
 // MARK: - Deleted Data Row
-struct DeletedDataRow: View {
+private struct DeleteAccountHeader: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: String
+    let subtitle: String
+    let leadingIcon: String
+    let onLeadingTap: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            HStack {
+                Button(action: onLeadingTap) {
+                    Image(systemName: leadingIcon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .frame(width: 40, height: 40)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+
+            VStack(spacing: 5) {
+                Text(title)
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .multilineTextAlignment(.center)
+
+                Text(subtitle)
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal, 56)
+            }
+            .padding(.top, 2)
+        }
+    }
+}
+
+private struct DeleteAccountImpactRow: View {
     let icon: String
     let text: String
-    @Environment(\.colorScheme) var colorScheme
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(.red)
-                .frame(width: 24)
-            
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                .frame(width: 22, alignment: .center)
+
             Text(text)
-                .font(.custom("Poppins-Regular", size: 15))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-            
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(AuthColors.primary(colorScheme))
+                .lineLimit(2)
+
             Spacer()
         }
+        .padding(.vertical, 11)
     }
 }
 
 // MARK: - Account Management Service
 class AccountManagementService {
     private let db = Firestore.firestore()
-    
+    private let functionsRegion = "europe-southwest1"
+    private let deleteAccountFunctionName = "deleteMyAccount"
+
     // MARK: - Deactivate Account
     func deactivateAccount(userId: String, completion: @escaping (Result<Void, Error>) -> Void) {
         let deactivationData: [String: Any] = [
@@ -404,7 +546,7 @@ class AccountManagementService {
             "deactivatedAt": Timestamp(date: Date()),
             "deactivatedBy": "user"
         ]
-        
+
         db.collection("users").document(userId).updateData(deactivationData) { error in
             if let error = error {
                 completion(.failure(error))
@@ -413,137 +555,87 @@ class AccountManagementService {
             }
         }
     }
-    
+
     // MARK: - Delete Account
     func deleteAccount(user: User, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        
-        // Re-authenticate user first
         guard let email = user.email else {
             let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.noEmail", comment: "No email error")])
             completion(.failure(error))
             return
         }
-        
+
         let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-        
-        user.reauthenticate(with: credential) { [weak self] _, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            // Proceed with account deletion
-            self?.performAccountDeletion(user: user, completion: completion)
-        }
-    }
-    
-    private func performAccountDeletion(user: User, completion: @escaping (Result<Void, Error>) -> Void) {
-        let userId = user.uid
-        
-        // Primero obtener los datos del usuario para eliminar también el username
-        let userRef = db.collection("users").document(userId)
-        
-        userRef.getDocument { [weak self] document, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let document = document, document.exists,
-                  let userData = document.data(),
-                  let username = userData["username"] as? String else {
-                self?.deleteUserDocumentAndAuth(user: user, completion: completion)
-                return
-            }
-            
-            
-            // Crear batch para eliminar tanto el usuario como el username
-            let batch = self?.db.batch()
-            
-            // Eliminar documento del usuario
-            batch?.deleteDocument(userRef)
-            
-            // Eliminar documento del username
-            let usernameRef = self?.db.collection("usernames").document(username.lowercased())
-            if let usernameRef = usernameRef {
-                batch?.deleteDocument(usernameRef)
-            }
-            
-            // Ejecutar batch
-            batch?.commit { error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-                
-                
-                // Limpiar datos relacionados en background
-                self?.cleanupUserData(userId: userId, username: username) {
-                    
-                    // Ahora eliminar la cuenta de Firebase Auth
-                    user.delete { error in
-                        if let error = error {
-                            completion(.failure(error))
-                        } else {
-                            completion(.success(()))
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    private func deleteUserDocumentAndAuth(user: User, completion: @escaping (Result<Void, Error>) -> Void) {
-        let userId = user.uid
-        let userRef = db.collection("users").document(userId)
-        
-        userRef.delete { error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            
-            // Now delete Firebase Auth account
-            user.delete { error in
-                if let error = error {
-                    completion(.failure(error))
-                } else {
-                    completion(.success(()))
-                }
-            }
-        }
-    }
-    
-    // MARK: - Versión alternativa más agresiva si la anterior falla
-    func deleteAccountFast(user: User, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        
-        guard let email = user.email else {
-            let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.noEmail", comment: "No email error")])
-            completion(.failure(error))
-            return
-        }
-        
-        let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-        
+
         user.reauthenticate(with: credential) { _, error in
             if let error = error {
                 completion(.failure(error))
                 return
             }
-            
-            
-            // Eliminar cuenta de Auth inmediatamente sin limpiar Firestore
-            user.delete { error in
-                if let error = error {
-                    completion(.failure(error))
-                } else {
-                    completion(.success(()))
-                }
-            }
+
+            self.requestBackendAccountDeletion(user: user, completion: completion)
         }
     }
-    
+
+    private func requestBackendAccountDeletion(user: User, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let projectID = FirebaseApp.app()?.options.projectID,
+              let url = URL(string: "https://\(functionsRegion)-\(projectID).cloudfunctions.net/\(deleteAccountFunctionName)") else {
+            completion(.failure(NSError(domain: "AccountDeletion", code: -2, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.delete", comment: "Could not delete account")])))
+            return
+        }
+
+        user.getIDTokenForcingRefresh(true) { token, tokenError in
+            if let tokenError = tokenError {
+                completion(.failure(tokenError))
+                return
+            }
+
+            guard let token = token else {
+                completion(.failure(NSError(domain: "AccountDeletion", code: -3, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.userNotFound", comment: "User not found error")])))
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 35
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["source": "settings"], options: [])
+
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(.failure(NSError(domain: "AccountDeletion", code: -4, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.delete", comment: "Could not delete account")])))
+                    return
+                }
+
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    let serverMessage: String
+                    if let data = data,
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorText = json["error"] as? String {
+                        serverMessage = errorText
+                    } else {
+                        serverMessage = NSLocalizedString("accountManagement.error.delete", comment: "Could not delete account")
+                    }
+
+                    completion(.failure(NSError(domain: "AccountDeletion", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: serverMessage])))
+                    return
+                }
+
+                do {
+                    try Auth.auth().signOut()
+                    completion(.success(()))
+                } catch {
+                    completion(.failure(error))
+                }
+            }.resume()
+        }
+    }
+
     // MARK: - Reactivate Account
     func reactivateAccount(userId: String, completion: @escaping (Result<Void, Error>) -> Void) {
         let reactivationData: [String: Any] = [
@@ -552,7 +644,7 @@ class AccountManagementService {
             "deactivatedAt": FieldValue.delete(),
             "deactivatedBy": FieldValue.delete()
         ]
-        
+
         db.collection("users").document(userId).updateData(reactivationData) { error in
             if let error = error {
                 completion(.failure(error))
@@ -560,324 +652,5 @@ class AccountManagementService {
                 completion(.success(()))
             }
         }
-    }
-    
-    // MARK: - Limpieza Completa de Datos del Usuario
-    private func cleanupUserData(userId: String, username: String, completion: @escaping () -> Void) {
-        
-        // Ejecutar limpieza en background para no bloquear la UI
-        DispatchQueue.global(qos: .background).async {
-            let group = DispatchGroup()
-            
-            // 1. Limpiar conversaciones
-            group.enter()
-            self.cleanupConversations(userId: userId) {
-                group.leave()
-            }
-            
-            // 2. Limpiar seguimientos
-            group.enter()
-            self.cleanupFollows(userId: userId) {
-                group.leave()
-            }
-            
-            // 3. Limpiar contenido (momentos, historias)
-            group.enter()
-            self.cleanupContent(userId: userId) {
-                group.leave()
-            }
-            
-            // 4. Limpiar notificaciones
-            group.enter()
-            self.cleanupNotifications(userId: userId) {
-                group.leave()
-            }
-            
-            // 5. Limpiar menciones en otros documentos
-            group.enter()
-            self.cleanupMentions(userId: userId, username: username) {
-                group.leave()
-            }
-            
-            // 6. Limpiar customaudience
-            group.enter()
-            self.cleanupCustomAudience(userId: userId) {
-                group.leave()
-            }
-            
-            // 7. Limpiar dailystats
-            group.enter()
-            self.cleanupDailyStats(userId: userId) {
-                group.leave()
-            }
-            
-            // 8. Limpiar loginactivity
-            group.enter()
-            self.cleanupLoginActivity(userId: userId) {
-                group.leave()
-            }
-            
-            // 9. Limpiar novamemory
-            group.enter()
-            self.cleanupNovaMemory(userId: userId) {
-                group.leave()
-            }
-            
-            // 10. Limpiar visitorsummaries
-            group.enter()
-            self.cleanupVisitorSummaries(userId: userId) {
-                group.leave()
-            }
-            
-            // 11. Limpiar visits
-            group.enter()
-            self.cleanupVisits(userId: userId) {
-                group.leave()
-            }
-            
-            group.notify(queue: .main) {
-                completion()
-            }
-        }
-    }
-    
-    private func cleanupConversations(userId: String, completion: @escaping () -> Void) {
-        
-        // Obtener conversaciones donde participa el usuario
-        db.collection("conversations")
-            .whereField("participants", arrayContains: userId)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    completion()
-                    return
-                }
-                
-                guard let documents = snapshot?.documents else {
-                    completion()
-                    return
-                }
-                
-                let batch = self.db.batch()
-                var conversationCount = 0
-                
-                for document in documents {
-                    batch.deleteDocument(document.reference)
-                    conversationCount += 1
-                }
-                
-                batch.commit { error in
-                    if let error = error {
-                    } else {
-                    }
-                    completion()
-                }
-            }
-    }
-    
-    private func cleanupFollows(userId: String, completion: @escaping () -> Void) {
-        
-        let group = DispatchGroup()
-        var totalCleaned = 0
-        
-        // Limpiar following del usuario eliminado
-        group.enter()
-        db.collection("users").document(userId).collection("following").getDocuments { snapshot, error in
-            if let documents = snapshot?.documents {
-                let batch = self.db.batch()
-                for document in documents {
-                    batch.deleteDocument(document.reference)
-                    totalCleaned += 1
-                }
-                batch.commit { _ in }
-            }
-            group.leave()
-        }
-        
-        // Limpiar followers de otros usuarios que seguían al eliminado
-        group.enter()
-        db.collection("users").getDocuments { snapshot, error in
-            if let documents = snapshot?.documents {
-                let batch = self.db.batch()
-                for userDoc in documents {
-                    let followerRef = userDoc.reference.collection("followers").document(userId)
-                    batch.deleteDocument(followerRef)
-                    totalCleaned += 1
-                }
-                batch.commit { _ in }
-            }
-            group.leave()
-        }
-        
-        group.notify(queue: .main) {
-            completion()
-        }
-    }
-    
-    private func cleanupContent(userId: String, completion: @escaping () -> Void) {
-        
-        let group = DispatchGroup()
-        var totalCleaned = 0
-        
-        // Limpiar momentos
-        group.enter()
-        db.collection("users").document(userId).collection("moments").getDocuments { snapshot, error in
-            if let documents = snapshot?.documents {
-                let batch = self.db.batch()
-                for document in documents {
-                    batch.deleteDocument(document.reference)
-                    totalCleaned += 1
-                }
-                batch.commit { _ in }
-            }
-            group.leave()
-        }
-        
-        // Limpiar historias
-        group.enter()
-        db.collection("users").document(userId).collection("stories").getDocuments { snapshot, error in
-            if let documents = snapshot?.documents {
-                let batch = self.db.batch()
-                for document in documents {
-                    batch.deleteDocument(document.reference)
-                    totalCleaned += 1
-                }
-                batch.commit { _ in }
-            }
-            group.leave()
-        }
-        
-        group.notify(queue: .main) {
-            completion()
-        }
-    }
-    
-    private func cleanupNotifications(userId: String, completion: @escaping () -> Void) {
-        
-        // Limpiar notificaciones del usuario
-        db.collection("users").document(userId).collection("notifications").getDocuments { snapshot, error in
-            if let documents = snapshot?.documents {
-                let batch = self.db.batch()
-                for document in documents {
-                    batch.deleteDocument(document.reference)
-                }
-                batch.commit { _ in }
-            }
-            completion()
-        }
-    }
-    
-    private func cleanupMentions(userId: String, username: String, completion: @escaping () -> Void) {
-        
-        // Buscar comentarios que mencionen al usuario eliminado
-        db.collectionGroup("comments")
-            .whereField("authorId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    // MARK: - Limpieza de Colecciones Adicionales
-    
-    private func cleanupCustomAudience(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("customaudience")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    private func cleanupDailyStats(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("dailystats")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    private func cleanupLoginActivity(userId: String, completion: @escaping () -> Void) {
-        db.collection("users")
-            .document(userId)
-            .collection("loginActivity")
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    private func cleanupNovaMemory(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("novamemory")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    private func cleanupVisitorSummaries(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("visitorsummaries")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
-    }
-    
-    private func cleanupVisits(userId: String, completion: @escaping () -> Void) {
-        
-        db.collection("visits")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let batch = self.db.batch()
-                    for document in documents {
-                        batch.deleteDocument(document.reference)
-                    }
-                    batch.commit { _ in }
-                }
-                completion()
-            }
     }
 }

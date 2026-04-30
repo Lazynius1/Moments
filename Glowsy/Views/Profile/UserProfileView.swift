@@ -134,6 +134,8 @@ struct UserProfileView: View {
     @State private var messageRequestError: String?
     @State private var showingSuccessMessage = false
     @State private var selectedMoment: Moment?
+    @State private var showingUnfollowConfirmation = false
+    @State private var showingRelationshipSheet = false
 
     @StateObject private var storyViewModel = StoryViewModel()
     @State private var showStoryViewer: Bool = false
@@ -345,6 +347,49 @@ struct UserProfileView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: showingUserList)
+        .confirmationDialog(
+            NSLocalizedString("userProfile.unfollow.confirm.title", comment: "Unfollow confirmation title"),
+            isPresented: $showingUnfollowConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: "Unfollow action"), role: .destructive) {
+                viewModel.unfollowUser(userId: userId)
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: "Unfollow confirmation message"))
+        }
+        .sheet(isPresented: $showingRelationshipSheet) {
+            UserRelationshipManagementSheet(
+                username: viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"),
+                profileImagePath: viewModel.userProfile?.profileImagePath,
+                userId: userId,
+                isBestFriend: viewModel.isInBestFriends,
+                isMuted: viewModel.isMutedByCurrentUser,
+                isMutual: viewModel.isMutualRelationship,
+                customListCount: viewModel.customListMembershipCount,
+                customLists: viewModel.customListsContainingProfile,
+                isUpdatingBestFriend: viewModel.isUpdatingBestFriend,
+                isUpdatingMute: viewModel.isUpdatingMute,
+                isUpdatingLists: viewModel.isUpdatingLists,
+                onToggleBestFriend: {
+                    viewModel.toggleBestFriend()
+                },
+                onToggleMute: {
+                    viewModel.toggleMute()
+                },
+                onRemoveFromList: { list in
+                    viewModel.removeFromCustomList(list)
+                },
+                onUnfollow: {
+                    showingRelationshipSheet = false
+                    showingUnfollowConfirmation = true
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .onAppear {
             if let currentUserId = Auth.auth().currentUser?.uid {
                 // ✅ Todo dentro del if let currentUserId
@@ -413,14 +458,22 @@ struct UserProfileView: View {
         Group {
             if viewModel.isLoading {
                 UserModernLoadingView()
-            } else if viewModel.isBlockedByCurrentUser || viewModel.isCurrentUserBlocked {
-                UserModernBlockedView(
-                    isBlockedByCurrentUser: viewModel.isBlockedByCurrentUser,
+            } else if viewModel.isBlockedByCurrentUser {
+                UserModernBlockedByMeProfileView(
+                    userProfile: viewModel.userProfile,
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
                     onUnblock: {
                         viewModel.unblockUser(userId: userId)
                     },
+                    onDismiss: {
+                        dismiss()
+                    }
+                )
+            } else if viewModel.isProfileUnavailable {
+                UserModernUnavailableProfileView(
+                    safeAreaTop: safeAreaTop,
+                    safeAreaBottom: safeAreaBottom,
                     onDismiss: {
                         dismiss()
                     }
@@ -487,7 +540,8 @@ struct UserProfileView: View {
     private func handleFollowAction() {
         switch viewModel.followButtonState {
         case .following:
-            viewModel.unfollowUser(userId: userId)
+            viewModel.loadRelationshipManagementState()
+            showingRelationshipSheet = true
         case .canFollow, .canRequestFollow:
             viewModel.followUser(userId: userId)
         default:
@@ -836,31 +890,26 @@ struct UserModernProfileHeader: View {
                         }
                         .padding(.top, 2)
                     }
+
                 }
             }
             
             // Botones de acción adaptativos
             HStack(spacing: 12) {
                 Button(action: onFollowAction) {
-                    Text(followButtonText)
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(followButtonColor)
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [followButtonColor.opacity(0.6), UserProfileColors.borderColor],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                        .shadow(color: followButtonColor.opacity(0.4), radius: 10, x: 0, y: 5)
+                    HStack(spacing: 7) {
+                        Text(followButtonText)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+
+                        if viewModel.followButtonState == .following {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                    }
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .liquidGlass(in: Capsule(), interactive: viewModel.followButtonState.isActionable)
                 }
                 .disabled(!viewModel.followButtonState.isActionable)
                 .scaleEffect(viewModel.followButtonState.isActionable ? 1.0 : 0.95)
@@ -890,13 +939,7 @@ struct UserModernProfileHeader: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(width: 44, height: 44)
-                        .background(UserProfileColors.cardBackground)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(UserProfileColors.borderColor, lineWidth: 1)
-                        )
-                        .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
                 
                 Button(action: {
@@ -906,17 +949,11 @@ struct UserModernProfileHeader: View {
                         viewModel.blockUser(userId: viewModel.userId)
                     }
                 }) {
-                    Image(systemName: viewModel.isBlockedByCurrentUser ? "person.fill.checkmark" : "person.fill.xmark")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                    Image(systemName: viewModel.isBlockedByCurrentUser ? "person.fill.checkmark" : "person.slash")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                         .frame(width: 44, height: 44)
-                        .background(Color.red.opacity(0.8))
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.red.opacity(0.4), lineWidth: 1)
-                        )
-                        .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
             }
         }
@@ -947,6 +984,350 @@ struct UserModernProfileHeader: View {
         case .ownProfile, .blocked: return Color.gray.opacity(0.4)
         }
     }
+}
+
+struct UserRelationshipChip: View {
+    let title: String
+    let icon: String?
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 9, weight: .semibold))
+            }
+
+            Text(title)
+                .font(.custom("Poppins-Medium", size: 11))
+                .lineLimit(1)
+        }
+        .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .liquidGlass(in: Capsule(), interactive: false)
+    }
+}
+
+struct UserRelationshipManagementSheet: View {
+    let username: String
+    let profileImagePath: String?
+    let userId: String
+    let isBestFriend: Bool
+    let isMuted: Bool
+    let isMutual: Bool
+    let customListCount: Int
+    let customLists: [CustomAudienceList]
+    let isUpdatingBestFriend: Bool
+    let isUpdatingMute: Bool
+    let isUpdatingLists: Bool
+    let onToggleBestFriend: () -> Void
+    let onToggleMute: () -> Void
+    let onRemoveFromList: (CustomAudienceList) -> Void
+    let onUnfollow: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var showingLists = false
+    @State private var listPendingRemoval: CustomAudienceList?
+
+    private var relationshipSummaryItems: [String] {
+        var items: [String] = []
+        if isMutual { items.append(NSLocalizedString("userProfile.relationship.mutual", comment: "")) }
+        if customListCount > 0 { items.append(NSLocalizedString("userProfile.relationship.inLists", comment: "")) }
+        if isMuted { items.append(NSLocalizedString("userProfile.relationship.muted", comment: "")) }
+        return items
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 12) {
+                relationshipAvatar
+
+                VStack(spacing: 4) {
+                    Text(String(format: NSLocalizedString("userProfile.relationship.sheet.title", comment: ""), username))
+                        .font(.custom("Poppins-Bold", size: 22))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .multilineTextAlignment(.center)
+
+                    Text(NSLocalizedString("userProfile.relationship.sheet.subtitle", comment: ""))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
+                        .multilineTextAlignment(.center)
+                }
+
+                if !relationshipSummaryItems.isEmpty {
+                    Text(relationshipSummaryItems.joined(separator: " · "))
+                        .font(.custom("Poppins-Medium", size: 12))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.46))
+                        .lineLimit(1)
+                }
+            }
+            .padding(.top, 18)
+
+            ZStack {
+                if showingLists {
+                    listsContent
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else {
+                    mainContent
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.34, dampingFraction: 0.86), value: showingLists)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 22)
+    }
+
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+                relationshipActionRow(
+                    title: isBestFriend
+                        ? NSLocalizedString("userProfile.relationship.bestFriends", comment: "")
+                        : NSLocalizedString("userProfile.relationship.bestFriends.add", comment: ""),
+                    subtitle: isBestFriend
+                        ? NSLocalizedString("userProfile.relationship.bestFriends.remove.subtitle", comment: "")
+                        : NSLocalizedString("userProfile.relationship.bestFriends.add.subtitle", comment: ""),
+                    icon: isBestFriend ? "star.fill" : "star",
+                    iconColor: isBestFriend ? .green : nil,
+                    isLoading: isUpdatingBestFriend,
+                action: onToggleBestFriend
+            )
+
+            relationshipActionRow(
+                title: isMuted
+                    ? NSLocalizedString("userProfile.relationship.mute.disable", comment: "")
+                    : NSLocalizedString("userProfile.relationship.mute.enable", comment: ""),
+                subtitle: isMuted
+                    ? NSLocalizedString("userProfile.relationship.mute.disabled.subtitle", comment: "")
+                    : NSLocalizedString("userProfile.relationship.mute.enabled.subtitle", comment: ""),
+                icon: isMuted ? "speaker.wave.2" : "speaker.slash",
+                iconColor: nil,
+                isLoading: isUpdatingMute,
+                action: onToggleMute
+            )
+
+            Button(action: {
+                showingLists = true
+            }) {
+                HStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("userProfile.relationship.lists.title", comment: ""))
+                            .font(.custom("Poppins-SemiBold", size: 15))
+                        Text(customListCount > 0
+                            ? String(format: NSLocalizedString("userProfile.relationship.lists.count", comment: ""), customListCount)
+                            : NSLocalizedString("userProfile.relationship.lists.empty", comment: ""))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 17, weight: .semibold))
+
+                        if customListCount > 0 {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.46) : .black.opacity(0.38))
+                        }
+                    }
+                }
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .padding(.vertical, 15)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onUnfollow) {
+                HStack(spacing: 14) {
+                    Text(NSLocalizedString("userProfile.relationship.unfollow", comment: ""))
+                        .font(.custom("Poppins-SemiBold", size: 15))
+
+                    Spacer()
+
+                    Image(systemName: "person.crop.circle.badge.minus")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .foregroundColor(.red)
+                .padding(.vertical, 15)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var listsContent: some View {
+        VStack(spacing: 18) {
+            HStack(spacing: 12) {
+                Button(action: {
+                    showingLists = false
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 34, height: 34)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("userProfile.relationship.lists.title", comment: ""))
+                        .font(.custom("Poppins-Bold", size: 18))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    Text(NSLocalizedString("userProfile.relationship.lists.manage", comment: ""))
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                }
+
+                Spacer()
+            }
+
+            if customLists.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.system(size: 34, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.44) : .black.opacity(0.38))
+
+                    Text(NSLocalizedString("userProfile.relationship.lists.empty", comment: ""))
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 26)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(customLists) { list in
+                        Button(action: {
+                            listPendingRemoval = list
+                        }) {
+                            HStack(spacing: 14) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(list.name)
+                                        .font(.custom("Poppins-SemiBold", size: 15))
+                                    Text(String(format: NSLocalizedString("audience.people.count", comment: ""), list.members.count))
+                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                                }
+
+                                Spacer()
+
+                                if isUpdatingLists {
+                                    ProgressView()
+                                        .scaleEffect(0.82)
+                                } else {
+                                    Image(systemName: list.icon ?? "list.bullet")
+                                        .font(.system(size: 17, weight: .semibold))
+                                }
+                            }
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isUpdatingLists)
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            listRemovalTitle,
+            isPresented: Binding(
+                get: { listPendingRemoval != nil },
+                set: { if !$0 { listPendingRemoval = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("userProfile.relationship.lists.remove.action", comment: ""), role: .destructive) {
+                if let list = listPendingRemoval {
+                    onRemoveFromList(list)
+                    listPendingRemoval = nil
+                }
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                listPendingRemoval = nil
+            }
+        } message: {
+            Text(listRemovalMessage)
+        }
+    }
+
+    private var listRemovalTitle: String {
+        guard let listPendingRemoval else {
+            return NSLocalizedString("userProfile.relationship.lists.remove.title.fallback", comment: "")
+        }
+
+        return String(
+            format: NSLocalizedString("userProfile.relationship.lists.remove.title", comment: ""),
+            username,
+            listPendingRemoval.name
+        )
+    }
+
+    private var listRemovalMessage: String {
+        NSLocalizedString("userProfile.relationship.lists.remove.message", comment: "")
+    }
+
+    private var relationshipAvatar: some View {
+        Group {
+            if let profileImagePath, let url = URL(string: profileImagePath) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.58))
+            }
+        }
+        .frame(width: 62, height: 62)
+        .background(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+        .clipShape(Circle())
+    }
+
+    private func relationshipActionRow(
+        title: String,
+        subtitle: String,
+        icon: String,
+        iconColor: Color?,
+        isLoading: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.custom("Poppins-SemiBold", size: 15))
+                    Text(subtitle)
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.82)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(iconColor ?? (colorScheme == .dark ? .white : .black))
+                        .frame(width: 24)
+                }
+            }
+            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .padding(.vertical, 15)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isLoading)
+    }
+
 }
 
 // ✅ NUEVO: Modal elegante para solicitud de mensaje (mismo estilo que MessageRequestsView)
@@ -2339,15 +2720,14 @@ struct UserModernPrivateProfileView: View {
     let onDismiss: () -> Void
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
-            // ✅ HEADER ELEGANTE CON AVATAR
             VStack(spacing: 24) {
                 Spacer()
                     .frame(height: safeAreaTop + 20)
-                
-                // Avatar con historias - CENTRADO PERFECTO
+
                 UserModernAvatar(
                     profileImagePath: userProfile?.profileImagePath,
                     userId: self.userId,
@@ -2357,32 +2737,21 @@ struct UserModernPrivateProfileView: View {
                     size: 100
                 )
                 .frame(maxWidth: .infinity, alignment: .center)
-                
-                // ✅ INFO DEL USUARIO MEJORADA - CENTRADA PERFECTAMENTE
-                VStack(spacing: 16) {
-                    // Username con badge - CENTRADO PERFECTO
-                    ZStack {
-                        HStack(spacing: 8) {
-                            Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                                .font(.custom("Poppins-Bold", size: 26))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            
-                            VerifiedBadgeView(userId: self.userId, size: 22)
-                        }
+
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
+                            .font(.custom("Poppins-Bold", size: 26))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        VerifiedBadgeView(userId: self.userId, size: 22)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    
-                    // Bio con mejor estilo - CENTRADA
+
                     if let bio = userProfile?.bio, !bio.isEmpty {
                         Text(bio)
                             .font(.custom("Poppins-Regular", size: 15))
-                            .foregroundColor(.gray.opacity(0.8))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58))
                             .multilineTextAlignment(.center)
                             .lineLimit(3)
                             .padding(.horizontal, 32)
@@ -2390,8 +2759,7 @@ struct UserModernPrivateProfileView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                
-                // ✅ BOTONES DE ACCIÓN MEJORADOS - CENTRADO PERFECTO
+
                 HStack(spacing: 12) {
                     Button(action: {
                         HapticManager.shared.mediumImpact()
@@ -2399,22 +2767,22 @@ struct UserModernPrivateProfileView: View {
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: followButtonIcon)
-                                .font(.system(size: 16, weight: .medium))
+                                .font(.system(size: 15, weight: .medium))
                             Text(followButtonText)
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.custom("Poppins-SemiBold", size: 14))
+
+                            if followButtonState == .following {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 11, weight: .bold))
+                            }
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 24)
-                        .padding(.vertical, 14)
-                        .background(
-                            Capsule()
-                                .fill(followButtonColor)
-                                .shadow(color: followButtonColor.opacity(0.3), radius: 12, x: 0, y: 6)
-                        )
+                        .padding(.vertical, 12)
+                        .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
                     }
                     .disabled(!followButtonState.isActionable)
-                    
-                    // ✅ NUEVO: Botón de mensaje para perfiles privados
+
                     Button(action: {
                         guard let currentUserId = Auth.auth().currentUser?.uid,
                               let targetUser = userProfile else { return }
@@ -2432,82 +2800,38 @@ struct UserModernPrivateProfileView: View {
                         }
                     }) {
                         Image(systemName: "paperplane.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
-                            .frame(width: 48, height: 48)
-                            .background(
-                                Circle()
-                                    .fill(LinearGradient(
-                                        colors: [Color(hex: "02C39A"), Color(hex: "00A896")],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ))
-                                    .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 8, x: 0, y: 4)
-                            )
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .frame(width: 44, height: 44)
+                            .liquidGlass(in: Circle(), interactive: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
             }
             .frame(maxWidth: .infinity, alignment: .center)
-            
+
             Spacer()
-                .frame(height: 50)
-            
-            // ✅ SECCIÓN DE CONTENIDO PRIVADO (Placeholder)
-            VStack(spacing: 32) {
-                // Divisor sutil
-                Rectangle()
-                    .fill(UserProfileColors.borderColor.opacity(0.3))
-                    .frame(height: 1)
-                    .padding(.horizontal, 40)
-                
-                VStack(spacing: 24) {
-                    // Icono de candado majestuoso
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 90, height: 90)
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color(hex: "00A896").opacity(0.5), Color(hex: "6B73FF").opacity(0.5)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 2
-                                    )
-                            )
-                        
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 38, weight: .bold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color(hex: "00A896"), Color(hex: "6B73FF")],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
-                    
-                    VStack(spacing: 12) {
-                        Text("userProfile.private.title")
-                            .font(.custom("Poppins-Bold", size: 22))
-                            .foregroundColor(.primary)
-                        
-                        Text("userProfile.private.description")
-                            .font(.custom("Poppins-Regular", size: 15))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                    }
+
+            VStack(spacing: 16) {
+                Image(systemName: "lock")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.54) : .black.opacity(0.48))
+
+                VStack(spacing: 8) {
+                    Text("userProfile.private.title")
+                        .font(.custom("Poppins-Bold", size: 22))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                    Text("userProfile.private.description")
+                        .font(.custom("Poppins-Regular", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 42)
                 }
-                .padding(.top, 20)
-                
-                Spacer()
             }
             .frame(maxWidth: .infinity)
-            
+
+            Spacer()
             Spacer()
         }
     }
@@ -2556,6 +2880,203 @@ struct UserModernPrivateProfileView: View {
         case .requestPending:
             return "clock.circle"
         }
+    }
+}
+
+// MARK: - Neutral unavailable profile state
+struct ProfileUnavailableAvatar: View {
+    let size: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                .overlay(
+                    Circle()
+                        .stroke(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.10), lineWidth: 1)
+                )
+
+            Image(systemName: "person.slash")
+                .font(.system(size: size * 0.38, weight: .semibold))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.62))
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+struct UserModernUnavailableProfileView: View {
+    let safeAreaTop: CGFloat
+    let safeAreaBottom: CGFloat
+    let onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: onDismiss) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 42, height: 42)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, safeAreaTop + 8)
+
+            Spacer()
+
+            VStack(spacing: 20) {
+                ProfileUnavailableAvatar(size: 92)
+
+                VStack(spacing: 10) {
+                    Text("userProfile.unavailable.title")
+                        .font(.custom("Poppins-Bold", size: 24))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .multilineTextAlignment(.center)
+
+                    Text("userProfile.unavailable.description")
+                        .font(.custom("Poppins-Regular", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 42)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            Spacer()
+            Spacer()
+                .frame(height: safeAreaBottom + 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+    }
+}
+
+struct UserModernBlockedByMeProfileView: View {
+    let userProfile: AppUser?
+    let safeAreaTop: CGFloat
+    let safeAreaBottom: CGFloat
+    let onUnblock: () -> Void
+    let onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var username: String {
+        userProfile?.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User")
+            : NSLocalizedString("userProfile.user", comment: "User")
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: onDismiss) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 42, height: 42)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, safeAreaTop + 8)
+
+            VStack(spacing: 18) {
+                blockedAvatar
+
+                VStack(spacing: 8) {
+                    Text(username)
+                        .font(.custom("Poppins-Bold", size: 28))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                    if let bio = userProfile?.bio, !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(bio)
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .padding(.horizontal, 34)
+                    }
+                }
+
+                HStack(spacing: 22) {
+                    blockedStat(label: NSLocalizedString("profile.ui.posts", comment: "Posts"))
+                    blockedStat(label: NSLocalizedString("profile.ui.followers", comment: "Followers"))
+                    blockedStat(label: NSLocalizedString("profile.ui.following", comment: "Following"))
+                }
+                .padding(.top, 2)
+            }
+            .padding(.top, 18)
+
+            Spacer()
+
+            VStack(spacing: 16) {
+                VStack(spacing: 8) {
+                    Text("userProfile.blockedByMe.title")
+                        .font(.custom("Poppins-Bold", size: 22))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                    Text("userProfile.blockedByMe.description")
+                        .font(.custom("Poppins-Regular", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 34)
+                }
+
+                Button(action: onUnblock) {
+                    Text("userProfile.unblockUser")
+                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 13)
+                        .liquidGlass(in: Capsule(), interactive: true)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer()
+                .frame(height: safeAreaBottom + 28)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+    }
+
+    @ViewBuilder
+    private var blockedAvatar: some View {
+        if let path = userProfile?.profileImagePath, let url = URL(string: path) {
+            KFImage(url)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 104, height: 104)
+                .clipShape(Circle())
+                .opacity(0.72)
+                .overlay(
+                    Circle()
+                        .stroke(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.10), lineWidth: 1)
+                )
+        } else {
+            ProfileUnavailableAvatar(size: 104)
+        }
+    }
+
+    private func blockedStat(label: String) -> some View {
+        VStack(spacing: 4) {
+            Text("--")
+                .font(.custom("Poppins-Bold", size: 18))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.66))
+
+            Text(label)
+                .font(.custom("Poppins-Regular", size: 12))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.42) : .black.opacity(0.38))
+        }
+        .frame(minWidth: 72)
     }
 }
 
@@ -2785,6 +3306,15 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var canViewContent: Bool = false
     @Published var canViewConnections: Bool = false
     @Published var isRefreshing: Bool = false
+    @Published var isProfileUnavailable: Bool = false
+    @Published var isInBestFriends: Bool = false
+    @Published var isMutedByCurrentUser: Bool = false
+    @Published var isMutualRelationship: Bool = false
+    @Published var customListMembershipCount: Int = 0
+    @Published var customListsContainingProfile: [CustomAudienceList] = []
+    @Published var isUpdatingBestFriend: Bool = false
+    @Published var isUpdatingMute: Bool = false
+    @Published var isUpdatingLists: Bool = false
     
     // ✅ NUEVAS PROPIEDADES: Control granular de visibilidad
     @Published var visibleConnectionTypes = VisibleConnectionTypes(
@@ -2796,13 +3326,34 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     let userId: String
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService()
+    private let bestFriendsService = BestFriendsService()
     
     // Cache local para tracking de unfollows recientes
     private var recentUnfollows: Set<String> = []
     private var lastUnfollowTime: [String: Date] = [:]
+    private var followStateObserver: NSObjectProtocol?
 
     init(userId: String) {
         self.userId = userId
+        followStateObserver = NotificationCenter.default.addObserver(
+            forName: FollowStateStore.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let changedUserId = notification.userInfo?["userId"] as? String,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            Task { @MainActor [weak self] in
+                guard let self, changedUserId == self.userId else { return }
+                self.followButtonState = state
+                self.isFollowing = (state == .following)
+            }
+        }
+    }
+
+    deinit {
+        if let followStateObserver {
+            NotificationCenter.default.removeObserver(followStateObserver)
+        }
     }
 
     func fetchProfile() {
@@ -2811,12 +3362,20 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             return
         }
         isLoading = true
+        isProfileUnavailable = false
         
         // ✅ SwiftData: Carga inicial desde caché local (Instagram-like)
         if let cachedProfile = LocalPersistenceService.shared.loadUser(userId: userId) {
             DispatchQueue.main.async {
-                self.userProfile = cachedProfile
-                self.isLoading = false
+                if cachedProfile.isActive {
+                    self.userProfile = cachedProfile
+                    self.isLoading = false
+                } else {
+                    self.userProfile = nil
+                    self.canViewContent = false
+                    self.isProfileUnavailable = true
+                    self.isLoading = false
+                }
             }
         }
         
@@ -2830,21 +3389,55 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
         
         checkIfBlocked()
+
+        firestoreService.checkPublicProfileAvailability(userId: userId) { [weak self] availability in
+            guard let self = self else { return }
+            guard availability == .unavailable else { return }
+            DispatchQueue.main.async {
+                self.userProfile = nil
+                self.canViewContent = false
+                self.isProfileUnavailable = true
+                self.isLoading = false
+            }
+        }
         
         firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .success(let profile):
                 DispatchQueue.main.async {
+                    guard !self.isProfileUnavailable else { return }
+                    guard profile.isActive else {
+                        self.userProfile = nil
+                        self.canViewContent = false
+                        self.isProfileUnavailable = true
+                        self.isLoading = false
+                        return
+                    }
+
+                    self.isProfileUnavailable = false
                     self.userProfile = profile
                 }
-                self.checkContentVisibility(currentUserId: currentUserId)
+                if profile.isActive {
+                    self.checkContentVisibility(currentUserId: currentUserId)
+                }
             case .failure(let error):
                 DispatchQueue.main.async {
+                    if self.isUnavailableProfileError(error) {
+                        self.userProfile = nil
+                        self.canViewContent = false
+                        self.isProfileUnavailable = true
+                    }
                     self.isLoading = false
                 }
             }
         }
+    }
+
+    private func isUnavailableProfileError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        let documentNotFound = NSLocalizedString("errors.documentNotFound", comment: "Document not found")
+        return nsError.code == -1 && nsError.localizedDescription == documentNotFound
     }
     
     // ✅ FUNCIÓN DE REFRESH COMPLETA
@@ -2939,6 +3532,14 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     }
     
     private func checkContentVisibility(currentUserId: String) {
+        if currentUserId == userId {
+            canViewContent = true
+            checkConnectionsVisibility(currentUserId: currentUserId) {
+                self.fetchConnectionsDirect()
+            }
+            return
+        }
+
         privacyService.canViewUserContent(viewerId: currentUserId, targetUserId: userId) { [weak self] canView in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -3261,10 +3862,138 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     
     func checkFollowButtonState() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        if let cachedState = FollowStateStore.shared.state(for: userId) {
+            followButtonState = cachedState
+            isFollowing = (cachedState == .following)
+        }
+
         privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { [weak self] state in
             DispatchQueue.main.async {
-                self?.followButtonState = state
-                self?.isFollowing = (state == .following)
+                guard let self else { return }
+                let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.userId)
+                self.followButtonState = reconciledState
+                self.isFollowing = (reconciledState == .following)
+                FollowStateStore.shared.setState(reconciledState, for: self.userId)
+            }
+        }
+    }
+
+    func loadRelationshipManagementState() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              currentUserId != userId else { return }
+
+        privacyService.checkIfBestFriend(userId: currentUserId, friendId: userId) { [weak self] isBestFriend in
+            DispatchQueue.main.async {
+                self?.isInBestFriends = isBestFriend
+            }
+        }
+
+        firestoreService.fetchMutedUserIds(userId: currentUserId) { [weak self] mutedIds in
+            DispatchQueue.main.async {
+                self?.isMutedByCurrentUser = mutedIds.contains(self?.userId ?? "")
+            }
+        }
+
+        privacyService.checkMutualConnection(user1: currentUserId, user2: userId) { [weak self] isMutual in
+            DispatchQueue.main.async {
+                self?.isMutualRelationship = isMutual
+            }
+        }
+
+        firestoreService.fetchCustomLists(for: currentUserId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                switch result {
+                case .success(let lists):
+                    let matchingLists = lists.filter { $0.members.contains(self.userId) }
+                    self.customListsContainingProfile = matchingLists
+                    self.customListMembershipCount = matchingLists.count
+                case .failure:
+                    self.customListsContainingProfile = []
+                    self.customListMembershipCount = 0
+                }
+            }
+        }
+    }
+
+    func removeFromCustomList(_ list: CustomAudienceList) {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let listId = list.id,
+              currentUserId != userId,
+              !isUpdatingLists else { return }
+
+        isUpdatingLists = true
+        firestoreService.removeMembersFromCustomList(
+            listId: listId,
+            ownerId: currentUserId,
+            memberIds: [userId]
+        ) { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isUpdatingLists = false
+                if error == nil {
+                    self.customListsContainingProfile.removeAll { $0.id == list.id }
+                    self.customListMembershipCount = self.customListsContainingProfile.count
+                }
+            }
+        }
+    }
+
+    func toggleBestFriend() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              currentUserId != userId,
+              !isUpdatingBestFriend else { return }
+
+        isUpdatingBestFriend = true
+        let shouldAdd = !isInBestFriends
+
+        let completion: (Error?) -> Void = { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isUpdatingBestFriend = false
+                if error == nil {
+                    self.isInBestFriends = shouldAdd
+                }
+            }
+        }
+
+        if shouldAdd {
+            bestFriendsService.addBestFriend(currentUserId: currentUserId, friendId: userId, completion: completion)
+        } else {
+            bestFriendsService.removeBestFriend(currentUserId: currentUserId, friendId: userId, completion: completion)
+        }
+    }
+
+    func toggleMute() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              currentUserId != userId,
+              !isUpdatingMute else { return }
+
+        isUpdatingMute = true
+        let shouldMute = !isMutedByCurrentUser
+
+        firestoreService.db.collection("users").document(currentUserId).getDocument { [weak self] snapshot, _ in
+            guard let self else { return }
+            var muteSettings = snapshot?.data()?["muteSettings"] as? [String: Any] ?? [:]
+            var mutedUsers = Set((muteSettings["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
+
+            if shouldMute {
+                mutedUsers.insert(self.userId)
+            } else {
+                mutedUsers.remove(self.userId)
+            }
+
+            muteSettings["mutedUsers"] = Array(mutedUsers)
+
+            self.firestoreService.db.collection("users").document(currentUserId).updateData([
+                "muteSettings": muteSettings
+            ]) { error in
+                DispatchQueue.main.async {
+                    self.isUpdatingMute = false
+                    if error == nil {
+                        self.isMutedByCurrentUser = shouldMute
+                    }
+                }
             }
         }
     }
@@ -3302,6 +4031,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         return
                     }
                     self.followButtonState = .requestPending
+                    FollowStateStore.shared.setState(.requestPending, for: userId)
                 }
             }
         } else {
@@ -3314,6 +4044,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     
                     self.followButtonState = .following
                     self.isFollowing = true
+                    FollowStateStore.shared.setState(.following, for: userId)
                     
                     // Actualizar UI inmediatamente si tengo permisos para ver admirers
                     if self.visibleConnectionTypes.canViewAdmirers,
@@ -3359,6 +4090,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             DispatchQueue.main.async {
                 self.followButtonState = .canFollow
                 self.isFollowing = false
+                FollowStateStore.shared.setState(.canFollow, for: userId)
                 
                 // Actualizar UI inmediatamente respetando permisos de privacidad
                 if self.visibleConnectionTypes.canViewMutualConnections,
@@ -3398,6 +4130,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             DispatchQueue.main.async {
                 self.isBlockedByCurrentUser = isBlockedByCurrentUser
                 self.isCurrentUserBlocked = isCurrentUserBlocked
+                self.canViewContent = false
+                self.isProfileUnavailable = isCurrentUserBlocked
             }
         }
     }
@@ -3411,6 +4145,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             }
             DispatchQueue.main.async {
                 self.isBlockedByCurrentUser = true
+                self.isProfileUnavailable = true
                 self.followButtonState = .blocked
                 self.isFollowing = false
             }
@@ -3426,7 +4161,9 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             }
             DispatchQueue.main.async {
                 self.isBlockedByCurrentUser = false
+                self.isProfileUnavailable = false
                 self.checkFollowButtonState()
+                self.fetchProfile()
             }
         }
     }

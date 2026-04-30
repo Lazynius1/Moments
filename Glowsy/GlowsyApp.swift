@@ -39,123 +39,115 @@ struct GlowsyApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                if showSplash {
-                    SplashScreenView()
-                        .onAppear {
-                            // Permisos de ubicación pospuestos hasta uso real
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                withAnimation(.easeOut(duration: 0.3)) {
-                                    showSplash = false
-                                }
-                            }
-                            
-                            // Check version after splash
-                            checkVersion()
-                        }
-                } else {
-                    TabBarView()
-                        .environmentObject(ephemeralCleanupManager)
-                        .environmentObject(MessageRequestService())
-                        .onAppear {
-                            
-                            // Post-launch initializations (una sola vez)
-                            if !didPostLaunchInit {
-                                didPostLaunchInit = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    // Inicializar AdMob tras primer frame
-                                    AdMobConfiguration.shared.initialize()
-                                    
-                                    // Configurar caches con tamaños más moderados
-                                    let memoryCapacity = 20 * 1024 * 1024
-                                    let diskCapacity = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
-                                    let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
-                                    URLCache.shared = cache
-                                    
-                                    let kingfisherCache = KingfisherManager.shared.cache
-                                    kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
-                                    kingfisherCache.diskStorage.config.sizeLimit = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
-                                    kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(7)  // ✅ ALINEADO CON SWIFTDATA: 7 días de persistencia
-                                    
-                                    // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
-                                    Task { @MainActor in
-                                        LocalPersistenceService.shared.cleanupOldData()
-                                        
-                                        // Configure AffinityTracker with the shared SwiftData container
-                                        if let container = LocalPersistenceService.shared.container {
-                                            AffinityTracker.shared.setup(container: container)
-                                            AffinityTracker.shared.applyTimeDecayIfNeeded()
-                                            AffinityTracker.shared.cleanupVeryLowAffinities()
-                                        }
+                TabBarView()
+                    .environmentObject(ephemeralCleanupManager)
+                    .environmentObject(MessageRequestService())
+                    .onAppear {
+
+                        // Post-launch initializations (una sola vez)
+                        if !didPostLaunchInit {
+                            didPostLaunchInit = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                // Inicializar AdMob tras primer frame
+                                AdMobConfiguration.shared.initialize()
+
+                                // Configurar caches con tamaños más moderados
+                                let memoryCapacity = 20 * 1024 * 1024
+                                let diskCapacity = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
+                                let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
+                                URLCache.shared = cache
+
+                                let kingfisherCache = KingfisherManager.shared.cache
+                                kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
+                                kingfisherCache.diskStorage.config.sizeLimit = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
+                                kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(7)  // ✅ ALINEADO CON SWIFTDATA: 7 días de persistencia
+
+                                // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
+                                Task { @MainActor in
+                                    LocalPersistenceService.shared.cleanupOldData()
+
+                                    // Configure AffinityTracker with the shared SwiftData container
+                                    if let container = LocalPersistenceService.shared.container {
+                                        AffinityTracker.shared.setup(container: container)
+                                        AffinityTracker.shared.applyTimeDecayIfNeeded()
+                                        AffinityTracker.shared.cleanupVeryLowAffinities()
                                     }
                                 }
                             }
-                            
-                            // ✅ Configurar listener de autenticación
-                            authListenerHandle = Auth.auth().addStateDidChangeListener { auth, user in
-                                if user != nil {
-                                    // Usuario logueado - configurar badge service
-                                    NotificationBadgeService.shared.setupListeners()
-                                } else {
-                                    // Usuario deslogueado - limpiar todo
-                                    NotificationBadgeService.shared.cleanup()
-                                }
-                            }
-                        }
-                        .onDisappear {
-                            // ✅ Limpiar el listener de autenticación cuando la escena desaparezca
-                            if let handle = authListenerHandle {
-                                Auth.auth().removeStateDidChangeListener(handle)
-                            }
-                        }
-                        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                            // ✅ NUEVO: Marcar mensajes pendientes como entregados (respaldo si notificación no llegó)
-                            ChatService.shared.markAllPendingMessagesAsDelivered()
-                            
-                            // ✅ WIDGET FIX: Forzar actualización del widget al abrir la app
-                            NotificationBadgeService.shared.refreshAllCounts()
-                        }
-                        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-                        }
-                        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
-                            if let momentId = notification.object as? String {
-                            }
-                        }
-                        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToProfile"))) { notification in
-                            if let userId = notification.object as? String {
-                                // En lugar de mostrar sheet, enviar a TabBarView para manejar
-                                NotificationCenter.default.post(name: NSNotification.Name("ShowUserProfile"), object: userId)
-                            }
-                        }
-                        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
-                            if let conversationId = notification.object as? String {
-                            }
-                        }
-                        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryChain"))) { notification in
-                            if let userInfo = notification.userInfo,
-                               let chainId = userInfo["chainId"] as? String,
-                               let chainTitle = userInfo["chainTitle"] as? String {
-                                // Enviar a TabBarView para manejar la navegación a Story Chain
-                                NotificationCenter.default.post(
-                                    name: NSNotification.Name("ShowStoryChain"),
-                                    object: nil,
-                                    userInfo: ["chainId": chainId, "chainTitle": chainTitle]
-                                )
-                            }
                         }
 
-                        .transition(.opacity.combined(with: .scale))
+                        // ✅ Configurar listener de autenticación
+                        authListenerHandle = Auth.auth().addStateDidChangeListener { auth, user in
+                            if user != nil {
+                                // Usuario logueado - configurar badge service
+                                NotificationBadgeService.shared.setupListeners()
+                            } else {
+                                // Usuario deslogueado - limpiar todo
+                                NotificationBadgeService.shared.cleanup()
+                            }
+                        }
+                    }
+                    .onDisappear {
+                        // ✅ Limpiar el listener de autenticación cuando la escena desaparezca
+                        if let handle = authListenerHandle {
+                            Auth.auth().removeStateDidChangeListener(handle)
+                        }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                        // ✅ NUEVO: Marcar mensajes pendientes como entregados (respaldo si notificación no llegó)
+                        ChatService.shared.markAllPendingMessagesAsDelivered()
+
+                        // ✅ WIDGET FIX: Forzar actualización del widget al abrir la app
+                        NotificationBadgeService.shared.refreshAllCounts()
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
+                        if let momentId = notification.object as? String {
+                        }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToProfile"))) { notification in
+                        if let userId = notification.object as? String {
+                            // En lugar de mostrar sheet, enviar a TabBarView para manejar
+                            NotificationCenter.default.post(name: NSNotification.Name("ShowUserProfile"), object: userId)
+                        }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
+                        if let conversationId = notification.object as? String {
+                        }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryChain"))) { notification in
+                        if let userInfo = notification.userInfo,
+                           let chainId = userInfo["chainId"] as? String,
+                           let chainTitle = userInfo["chainTitle"] as? String {
+                            // Enviar a TabBarView para manejar la navegación a Story Chain
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("ShowStoryChain"),
+                                object: nil,
+                                userInfo: ["chainId": chainId, "chainTitle": chainTitle]
+                            )
+                        }
+                    }
+
+                if showSplash {
+                    SplashScreenView {
+                        showSplash = false
+                        checkVersion()
+                    }
+                    .allowsHitTesting(false)
                 }
             }
             .sheet(isPresented: $showWhatsNew) {
                 WhatsNewView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
-    
+
     private func checkVersion() {
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.1"
-        
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.8.0"
+
         if lastVersionPrompted != currentVersion {
             // Esperar un poco para que la transición del splash termine
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {

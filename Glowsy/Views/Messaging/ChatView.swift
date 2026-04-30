@@ -44,6 +44,7 @@ struct GlassmorphicChatView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     private let privacyService = PrivacyService()
+    private let firestoreService = FirestoreService()
     
     // ✅ NUEVO: Estados para navegación al perfil
     @State private var showingUserProfile = false
@@ -67,6 +68,8 @@ struct GlassmorphicChatView: View {
     @State private var storyViewedStatus: [Bool] = []
     @State private var storyAudiences: [String?] = []
     @State private var liveOtherParticipantUsername: String = ""
+    @State private var isOtherParticipantUnavailable: Bool = false
+    @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
     
     // ✅ REACCIONES: Nuevo estado para Overlay
     @State private var reactionMessageOverlay: EnhancedMessage? = nil
@@ -253,7 +256,9 @@ struct GlassmorphicChatView: View {
             HStack(spacing: 10) {
                 // ✅ SEPARADO: Botón solo para la foto (historias o perfil)
                 Button(action: {
-                    if hasStory {
+                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+                        showingUserProfile = true
+                    } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
                         // ✅ SI TIENE HISTORIAS: Establecer userId y abrir StoriesView
                         storiesUserId = viewModel.conversation.otherParticipantId
                         showingStories = true
@@ -262,23 +267,27 @@ struct GlassmorphicChatView: View {
                         showingUserProfile = true
                     }
                 }) {
-                    // ✅ ACTUALIZADO: Usar el componente asíncrono centralizado para tiempo real
-                    AsyncProfileImageView(userId: viewModel.conversation.otherParticipantId ?? "")
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                        .overlay(
-                            StorySegmentedRing(
-                                storyCount: storyCount,
-                                hasStory: hasStory,
-                                hasUnseenStory: hasUnseenStory,
-                                storyViewedStatus: storyViewedStatus,
-                                storyAudiences: storyAudiences,
-                                isOwnStory: false,
-                                colorScheme: colorScheme,
-                                ringSize: 40,
-                                lineWidth: 2.5
+                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+                        ProfileUnavailableAvatar(size: 40)
+                    } else {
+                        // ✅ ACTUALIZADO: Usar el componente asíncrono centralizado para tiempo real
+                        AsyncProfileImageView(userId: viewModel.conversation.otherParticipantId)
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                            .overlay(
+                                StorySegmentedRing(
+                                    storyCount: storyCount,
+                                    hasStory: hasStory,
+                                    hasUnseenStory: hasUnseenStory,
+                                    storyViewedStatus: storyViewedStatus,
+                                    storyAudiences: storyAudiences,
+                                    isOwnStory: false,
+                                    colorScheme: colorScheme,
+                                    ringSize: 40,
+                                    lineWidth: 2.5
+                                )
                             )
-                        )
+                    }
                 }
                 .buttonStyle(PlainButtonStyle())
                 
@@ -290,13 +299,24 @@ struct GlassmorphicChatView: View {
                         HStack(spacing: 4) {
                             Text(otherParticipantDisplayName)
                                 .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: adaptiveColors.secondary)
+                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
                             
                             // ✅ INSIGNIA DE VERIFICADO
-                            VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId ?? "", size: 14)
+                            if !isOtherParticipantUnavailable {
+                                VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 14)
+                            }
                         }
                         
-                        if !viewModel.typingUsers.isEmpty {
+                        if isOtherParticipantBlockedByCurrentUser {
+                            Text("chat.blockedByMe.subtitle")
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(adaptiveColors.secondary)
+                        } else if isOtherParticipantUnavailable {
+                            Text("chat.profileUnavailable")
+                                .font(.custom("Poppins-Regular", size: 12))
+                                .foregroundColor(adaptiveColors.secondary)
+                        } else if !viewModel.typingUsers.isEmpty {
                             Text("chat.typing")
                                 .font(.custom("Poppins-Regular", size: 12))
                                 .foregroundColor(adaptiveColors.secondary)
@@ -605,45 +625,107 @@ struct GlassmorphicChatView: View {
     
     // ✅ REFACTORIZADO: Sección de barra de entrada
     private var inputBarSection: some View {
-        GlassmorphicInputBar(
-            text: $messageText,
-            isTyping: $viewModel.isTyping,
-            isRecordingVoice: $isRecordingVoice,
-            recordingTime: recordingTime,
-            onSend: {
-                let messageToSend = messageText
-                
-                guard !messageToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    return
-                }
-                
-                if let editingMessage = editingMessage {
-                    // Save edit
-                    viewModel.editMessage(editingMessage, newContent: messageToSend)
-                    self.editingMessage = nil
-                } else {
-                    // Send new message
-                    let replyToMessageId = replyingTo?.id
-                    viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
-                    replyingTo = nil
-                }
-                
-                messageText = ""
-            },
-            onCamera: {
-                showEnhancedCamera = true
-            },
-            onMedia: {
-                showMediaPicker = true
-            },
-            onStartVoiceRecording: {
-                startVoiceRecording()
-            },
-            onStopVoiceRecording: { shouldSend in
-                stopVoiceRecording(shouldSend: shouldSend)
+        Group {
+            if isOtherParticipantBlockedByCurrentUser {
+                BlockedByMeChatInputBar(onUnblock: unblockOtherParticipantFromChat)
+            } else if isOtherParticipantUnavailable {
+                UnavailableChatInputBar()
+            } else {
+                GlassmorphicInputBar(
+                    text: $messageText,
+                    isTyping: $viewModel.isTyping,
+                    isRecordingVoice: $isRecordingVoice,
+                    recordingTime: recordingTime,
+                    onSend: {
+                        let messageToSend = messageText
+
+                        guard !messageToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                            return
+                        }
+
+                        if let editingMessage = editingMessage {
+                            // Save edit
+                            viewModel.editMessage(editingMessage, newContent: messageToSend)
+                            self.editingMessage = nil
+                        } else {
+                            // Send new message
+                            let replyToMessageId = replyingTo?.id
+                            viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
+                            replyingTo = nil
+                        }
+
+                        messageText = ""
+                    },
+                    onCamera: {
+                        showEnhancedCamera = true
+                    },
+                    onMedia: {
+                        showMediaPicker = true
+                    },
+                    onStartVoiceRecording: {
+                        startVoiceRecording()
+                    },
+                    onStopVoiceRecording: { shouldSend in
+                        stopVoiceRecording(shouldSend: shouldSend)
+                    }
+                )
+                .focused($isTextFieldFocused)
             }
-        )
-        .focused($isTextFieldFocused)
+        }
+    }
+
+    private struct UnavailableChatInputBar: View {
+        @Environment(\.colorScheme) private var colorScheme
+
+        var body: some View {
+            HStack(spacing: 10) {
+                Image(systemName: "person.slash")
+                    .font(.system(size: 15, weight: .semibold))
+
+                Text("chat.input.unavailable")
+                    .font(.custom("Poppins-Medium", size: 14))
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+            }
+            .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .liquidGlass(in: Capsule(), interactive: false)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+    }
+
+    private struct BlockedByMeChatInputBar: View {
+        let onUnblock: () -> Void
+        @Environment(\.colorScheme) private var colorScheme
+
+        var body: some View {
+            HStack(spacing: 10) {
+                Text("chat.blockedByMe.input")
+                    .font(.custom("Poppins-Medium", size: 13))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.58))
+                    .lineLimit(2)
+
+                Spacer(minLength: 6)
+
+                Button(action: onUnblock) {
+                    Text("chat.blockedByMe.unblock")
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .liquidGlass(in: Capsule(), interactive: true)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .liquidGlass(in: Capsule(), interactive: false)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
     }
     
     // ✅ REFACTORIZADO: Acciones al aparecer
@@ -658,6 +740,7 @@ struct GlassmorphicChatView: View {
                 isCurrentUser: message.senderId == viewModel.currentUserId,
                 showAvatar: shouldShowAvatar(for: message, in: messages),
                 otherUserId: viewModel.conversation.otherParticipantId,
+                isOtherParticipantUnavailable: isOtherParticipantUnavailable,
                 otherParticipantName: otherParticipantDisplayName,
                 repliedMessage: message.replyTo != nil ? viewModel.messages.first(where: { $0.id == message.replyTo }) : nil,
                 onReply: { replyingTo = message },
@@ -700,6 +783,7 @@ struct GlassmorphicChatView: View {
                 isCurrentUser: clusterMessages.first?.senderId == viewModel.currentUserId,
                 showAvatar: shouldShowAvatar(for: clusterMessages.first!, in: messages),
                 otherUserId: viewModel.conversation.otherParticipantId,
+                isOtherParticipantUnavailable: isOtherParticipantUnavailable,
                 onAvatarTap: { showingUserProfile = true },
                 onMessageViewed: { messageId in
                     if let index = viewModel.messages.firstIndex(where: { $0.id == messageId }) {
@@ -737,6 +821,7 @@ struct GlassmorphicChatView: View {
         viewModel.startListening()
         setupOnlineStatusObserver()
         refreshOtherParticipantUsername()
+        refreshOtherParticipantAvailability()
     }
     
     // ✅ REFACTORIZADO: Acciones al desaparecer
@@ -779,6 +864,11 @@ struct GlassmorphicChatView: View {
     }
     
     private func handleCameraCapture(data: Data, mediaType: EnhancedCameraPickerView.MediaType, isEphemeral: Bool) {
+        guard !isOtherParticipantUnavailable else {
+            showEnhancedCamera = false
+            return
+        }
+
         guard let conversationId = viewModel.conversation.id else {
             return
         }
@@ -815,7 +905,75 @@ struct GlassmorphicChatView: View {
             }
         }
     }
-    
+
+    private func refreshOtherParticipantAvailability() {
+        let otherUserId = viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !otherUserId.isEmpty, NetworkMonitor.shared.isConnected else { return }
+
+        firestoreService.checkPublicProfileAvailability(userId: otherUserId) { availability in
+            DispatchQueue.main.async {
+                guard self.viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
+                if availability == .unavailable {
+                    self.markOtherParticipantUnavailable(clearLiveUsername: true)
+                } else {
+                    self.refreshOtherParticipantBlockAvailability(userId: otherUserId)
+                }
+            }
+        }
+    }
+
+    private func refreshOtherParticipantBlockAvailability(userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        firestoreService.checkIfBlocked(currentUserId: currentUserId, targetUserId: userId) { isBlockedByCurrentUser, isCurrentUserBlocked, _ in
+            DispatchQueue.main.async {
+                guard self.viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == userId else { return }
+
+                if isBlockedByCurrentUser || isCurrentUserBlocked {
+                    self.isOtherParticipantBlockedByCurrentUser = isBlockedByCurrentUser
+                    self.markOtherParticipantUnavailable(clearLiveUsername: false)
+                } else {
+                    self.isOtherParticipantBlockedByCurrentUser = false
+                    self.isOtherParticipantUnavailable = false
+                    self.refreshOtherParticipantUsername()
+                }
+            }
+        }
+    }
+
+    private func markOtherParticipantUnavailable(clearLiveUsername: Bool) {
+        isOtherParticipantUnavailable = true
+        if clearLiveUsername {
+            liveOtherParticipantUsername = ""
+            isOtherParticipantBlockedByCurrentUser = false
+        }
+        disableUnavailableParticipantStories()
+    }
+
+    private func unblockOtherParticipantFromChat() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let otherUserId = viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !otherUserId.isEmpty else { return }
+
+        firestoreService.unblockUser(currentUserId: currentUserId, targetUserId: otherUserId) { error in
+            guard error == nil else { return }
+            DispatchQueue.main.async {
+                self.isOtherParticipantBlockedByCurrentUser = false
+                self.isOtherParticipantUnavailable = false
+                self.refreshOtherParticipantUsername()
+                self.checkUserStories()
+            }
+        }
+    }
+
+    private func disableUnavailableParticipantStories() {
+        hasStory = false
+        hasUnseenStory = false
+        storyCount = 0
+        storyViewedStatus = []
+        storyAudiences = []
+    }
+
     private func shouldShowAvatar(for message: EnhancedMessage, in messages: [EnhancedMessage]) -> Bool {
         guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return true }
         if index == messages.count - 1 { return true }
@@ -1122,6 +1280,7 @@ struct GlassmorphicMessageRow: View {
     let isCurrentUser: Bool
     let showAvatar: Bool
     let otherUserId: String?
+    let isOtherParticipantUnavailable: Bool
     let otherParticipantName: String
     let repliedMessage: EnhancedMessage?
     let onReply: () -> Void
@@ -1157,8 +1316,12 @@ struct GlassmorphicMessageRow: View {
                     if showAvatar {
                         // ✅ ACTUALIZADO: Avatar con navegación al perfil
                         Button(action: onAvatarTap) {
-                            GlassmorphicAvatar(userId: otherUserId ?? "")
-                                .frame(width: 32, height: 32)
+                            if isOtherParticipantUnavailable {
+                                ProfileUnavailableAvatar(size: 32)
+                            } else {
+                                GlassmorphicAvatar(userId: otherUserId ?? "")
+                                    .frame(width: 32, height: 32)
+                            }
                         }
                         .buttonStyle(PlainButtonStyle())
                     } else {
@@ -2846,6 +3009,7 @@ struct GlassmorphicClusterRow: View {
     let isCurrentUser: Bool
     let showAvatar: Bool
     let otherUserId: String?
+    let isOtherParticipantUnavailable: Bool
     let onAvatarTap: () -> Void
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)? // ✅ Added missing property
@@ -2877,8 +3041,12 @@ struct GlassmorphicClusterRow: View {
                 if !isCurrentUser {
                     if showAvatar {
                         Button(action: onAvatarTap) {
-                            GlassmorphicAvatar(userId: otherUserId ?? "")
-                                .frame(width: 32, height: 32)
+                            if isOtherParticipantUnavailable {
+                                ProfileUnavailableAvatar(size: 32)
+                            } else {
+                                GlassmorphicAvatar(userId: otherUserId ?? "")
+                                    .frame(width: 32, height: 32)
+                            }
                         }
                         .buttonStyle(PlainButtonStyle())
                     } else {

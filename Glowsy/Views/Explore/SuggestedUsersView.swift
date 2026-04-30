@@ -175,21 +175,19 @@ struct SuggestedUserRow: View {
                         ForEach(Array(user.interests.prefix(2)), id: \.self) { interest in
                             Text(interest)
                                 .font(.custom("Poppins-Regular", size: 11))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.blue.opacity(0.1))
-                                .foregroundColor(.blue)
-                                .clipShape(Capsule())
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .liquidGlass(in: Capsule())
                         }
                         
                         if user.interests.count > 2 {
                             Text("+\(user.interests.count - 2)")
                                 .font(.custom("Poppins-Regular", size: 11))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.gray.opacity(0.1))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
-                                .clipShape(Capsule())
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .liquidGlass(in: Capsule())
                         }
                     }
                 }
@@ -224,20 +222,13 @@ struct SuggestedUserFollowButton: View {
                 Text(buttonText)
                     .font(.custom("Poppins-SemiBold", size: 12))
             }
-            .foregroundColor(.white)
+            .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(buttonBackgroundColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(buttonBorderColor, lineWidth: 1)
-                    )
-            )
-            .shadow(color: buttonShadowColor, radius: buttonShadowRadius, x: 0, y: buttonShadowRadius == 2 ? 1 : 2)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)
         }
-        .disabled(state == .ownProfile || state == .blocked)
+        .disabled(!state.isActionable)
+        .opacity(isPassiveState ? 0.78 : 1)
     }
     
     private var buttonText: String {
@@ -245,11 +236,11 @@ struct SuggestedUserFollowButton: View {
         case .canFollow:
             return NSLocalizedString("followButton.follow", comment: "Follow button")
         case .following:
-            return NSLocalizedString("followButton.unfollow", comment: "Unfollow button")
+            return NSLocalizedString("userProfile.followButton.following", comment: "Following button")
         case .requestPending:
-            return NSLocalizedString("followButton.pending", comment: "Pending button")
+            return NSLocalizedString("feed.follow.requested", comment: "Requested button")
         case .canRequestFollow:
-            return NSLocalizedString("followButton.request", comment: "Request button")
+            return NSLocalizedString("feed.follow.request", comment: "Request button")
         case .ownProfile:
             return NSLocalizedString("followButton.ownProfile", comment: "Own profile button")
         case .blocked:
@@ -262,7 +253,7 @@ struct SuggestedUserFollowButton: View {
         case .canFollow, .canRequestFollow:
             return "person.badge.plus"
         case .following:
-            return "person.badge.minus"
+            return "person.fill.checkmark"
         case .requestPending:
             return "clock"
         case .ownProfile:
@@ -270,6 +261,13 @@ struct SuggestedUserFollowButton: View {
         case .blocked:
             return "person.crop.circle.badge.exclamationmark"
         }
+    }
+
+    private var isPassiveState: Bool {
+        if case .requestPending = state {
+            return true
+        }
+        return false
     }
     
     private var buttonBackgroundColor: Color {
@@ -336,6 +334,25 @@ class SuggestedUsersViewModel: ObservableObject {
     private var followedUserIds: Set<String> = [] // Usuarios ya seguidos
     private var lastDocument: DocumentSnapshot?
     private let pageSize = 10
+    private var followStateObserver: NSObjectProtocol?
+
+    init() {
+        followStateObserver = NotificationCenter.default.addObserver(
+            forName: FollowStateStore.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let userId = notification.userInfo?["userId"] as? String,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            self?.userButtonStates[userId] = state
+        }
+    }
+
+    deinit {
+        if let followStateObserver {
+            NotificationCenter.default.removeObserver(followStateObserver)
+        }
+    }
     
     func loadInitialUsers() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -530,6 +547,7 @@ class SuggestedUsersViewModel: ObservableObject {
             DispatchQueue.main.async {
                 if error == nil {
                     self?.userButtonStates[userId] = .following
+                    FollowStateStore.shared.setState(.following, for: userId)
                     self?.followedUserIds.insert(userId) // Agregar a usuarios seguidos
                     // Eliminar de la lista de usuarios sugeridos
                     if let index = self?.users.firstIndex(where: { $0.id == userId }) {
@@ -546,6 +564,10 @@ class SuggestedUsersViewModel: ObservableObject {
     
     private func checkUserButtonState(for userId: String) {
         guard let currentUserId = currentUserId else { return }
+
+        if let cachedState = FollowStateStore.shared.state(for: userId) {
+            userButtonStates[userId] = cachedState
+        }
         
         privacyService.getFollowButtonState(
             viewerId: currentUserId,
@@ -553,10 +575,12 @@ class SuggestedUsersViewModel: ObservableObject {
         ) { [weak self] (state: FollowButtonState) in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                self.userButtonStates[userId] = state
+                let reconciledState = FollowStateStore.shared.reconciledState(state, for: userId)
+                self.userButtonStates[userId] = reconciledState
+                FollowStateStore.shared.setState(reconciledState, for: userId)
                 
                 // Si el estado es "siguiendo", agregar a followedUserIds y eliminar de sugerencias
-                if state == .following {
+                if reconciledState == .following {
                     self.followedUserIds.insert(userId)
                     // Eliminar de la lista de sugerencias
                     if let index = self.users.firstIndex(where: { $0.id == userId }) {

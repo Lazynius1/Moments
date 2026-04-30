@@ -1,7 +1,9 @@
 import SwiftUI
 import PhotosUI
+import FirebaseAuth
 
 struct SocialProfileCompletionView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var authService: AuthService
     @State private var username: String = ""
     @State private var selectedInterests: [String] = []
@@ -20,33 +22,76 @@ struct SocialProfileCompletionView: View {
     @State private var privacyPolicyAccepted: Bool = false
     @State private var showPrivacyPolicy: Bool = false
     @State private var showingPhotoPicker: Bool = false
+    @State private var isVisible = false
+
+    private var displayEmail: String {
+        Auth.auth().currentUser?.email ?? NSLocalizedString("register.completeProfile.appleAccount", comment: "Apple account")
+    }
     
     var body: some View {
         ZStack {
             LiquidAuroraBackground()
                 .ignoresSafeArea()
             
-            VStack {
-                // Header
+            VStack(spacing: 0) {
                 HStack {
-                    Text("register.completeProfile.title")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
+                    Spacer()
+
+                    HStack(spacing: 6) {
+                        ForEach(1...3, id: \.self) { step in
+                            Capsule()
+                                .fill(
+                                    currentStep >= step ?
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.9),
+                                            Color.white.opacity(0.58)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ) :
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.22), .white.opacity(0.12)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: currentStep == step ? 26 : 22, height: 4)
+                                .animation(.spring(response: 0.5, dampingFraction: 0.7), value: currentStep)
+                        }
+                    }
+
                     Spacer()
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
+                .padding(.horizontal)
+                .padding(.top, 10)
+                .opacity(isVisible ? 1 : 0)
                 
                 ScrollView {
-                    VStack(spacing: 30) {
+                    VStack(spacing: 20) {
+                        VStack(spacing: 12) {
+                            Image(colorScheme == .dark ? "RegisterLogo2" : "whatsnew2")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(height: 146)
+                                .shadow(color: .white.opacity(0.22), radius: 8, x: 0, y: 0)
+                                .shadow(color: .blue.opacity(0.16), radius: 16, x: 0, y: 0)
+                                .padding(.horizontal, 20)
+
+                            Text(getStepDescription())
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.84))
+                                .multilineTextAlignment(.center)
+                                .animation(.easeInOut, value: currentStep)
+                        }
+                        .padding(.top, 12)
+                        .scaleEffect(isVisible ? 1 : 0.8)
+                        .opacity(isVisible ? 1 : 0)
+
+                        VStack(spacing: 18) {
                         if currentStep == 1 {
                             // Step 1: Username and Photo
                             VStack(spacing: 25) {
-                                Text("register.completeProfile.step1")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.8))
-                                    .multilineTextAlignment(.center)
-                                
                                 EnhancedProfilePhotoPicker(
                                     selectedPhotoItem: $selectedPhotoItem,
                                     profileImage: $profileImage,
@@ -56,10 +101,10 @@ struct SocialProfileCompletionView: View {
                                 VStack(alignment: .leading, spacing: 12) {
                                     HStack {
                                         Image(systemName: "at")
-                                            .foregroundColor(.white.opacity(0.7))
+                                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
                                         Text("register.username")
                                             .font(.system(size: 14, weight: .semibold))
-                                            .foregroundColor(.white)
+                                            .foregroundColor(AuthColors.primary(colorScheme))
                                     }
                                     
                                     LiquidGlassTextField(
@@ -80,48 +125,23 @@ struct SocialProfileCompletionView: View {
                                     }
                                 }
                             }
-                            .padding(24)
-                            .background(glassBackground())
                             
                         } else if currentStep == 2 {
                             // Step 2: Interests
                             VStack(spacing: 25) {
-                                Text("register.completeProfile.step2")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.8))
-                                
                                 EnhancedInterestsSelector(
                                     availableInterests: $availableInterests,
                                     selectedInterests: $selectedInterests
                                 )
                             }
-                            .padding(24)
-                            .background(glassBackground())
                         } else {
-                            // Step 3: Privacy and Consent
-                            VStack(spacing: 25) {
-                                Text("register.completeProfile.step3")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.8))
-                                
-                                Toggle(isOn: $privacyPolicyAccepted) {
-                                    HStack {
-                                        Text("register.terms.accept")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.white.opacity(0.9))
-                                        
-                                        Button(action: { showPrivacyPolicy = true }) {
-                                            Text("register.terms.privacyPolicy")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(.white)
-                                                .underline()
-                                        }
-                                    }
-                                }
-                                .toggleStyle(EnhancedCustomToggleStyle())
-                            }
-                            .padding(24)
-                            .background(glassBackground())
+                            EnhancedStep3View(
+                                privacyPolicyAccepted: $privacyPolicyAccepted,
+                                showPrivacyPolicy: $showPrivacyPolicy,
+                                username: username,
+                                email: displayEmail,
+                                interests: selectedInterests
+                            )
                         }
                         
                         // Action Button
@@ -133,15 +153,20 @@ struct SocialProfileCompletionView: View {
                                 } else {
                                     Text(currentStep == 3 ? NSLocalizedString("register.completeProfile.finish", comment: "Finish profile") : NSLocalizedString("register.actions.continue", comment: "Continue"))
                                         .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(AuthColors.primary(colorScheme))
                                 }
                             }
                             .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(
-                                LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
-                            )
-                            .cornerRadius(16)
-                            .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                            .frame(height: 52)
+                            .background {
+                                Color.clear
+                                    .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: canProceed())
+                            }
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(AuthColors.subtle(colorScheme, opacity: canProceed() ? 0.08 : 0.02))
+                                    .allowsHitTesting(false)
+                            }
                         }
                         .disabled(isLoading || !canProceed())
                         .opacity(canProceed() ? 1.0 : 0.6)
@@ -149,12 +174,31 @@ struct SocialProfileCompletionView: View {
                         if currentStep > 1 {
                             Button(action: { currentStep -= 1 }) {
                                 Text("register.back")
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 20)
+                                    .background {
+                                        Color.clear
+                                            .liquidGlass(in: Capsule(), interactive: true)
+                                    }
                             }
                         }
+                        }
+                        .padding(.horizontal, 26)
+                        .padding(.vertical, 30)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        }
+                        .shadow(color: .black.opacity(0.16), radius: 22, x: 0, y: 12)
+                        .shadow(color: .blue.opacity(0.06), radius: 34, x: 0, y: 18)
+                        .padding(.horizontal, 20)
+                        .offset(y: isVisible ? 0 : 50)
+                        .opacity(isVisible ? 1 : 0)
+
+                        Spacer(minLength: 50)
                     }
-                    .padding(24)
                 }
             }
             
@@ -167,10 +211,17 @@ struct SocialProfileCompletionView: View {
             }
         }
         .onAppear {
+            withAnimation {
+                isVisible = true
+            }
             loadInterests()
         }
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Error"), message: Text(errorMessage ?? "Ocurrió un error"), dismissButton: .default(Text("OK")))
+            Alert(
+                title: Text("login.error.title"),
+                message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown error")),
+                dismissButton: .default(Text("login.ok"))
+            )
         }
         .sheet(isPresented: $showPrivacyPolicy) {
             PrivacyPolicyView()
@@ -178,25 +229,29 @@ struct SocialProfileCompletionView: View {
         .navigationBarHidden(true)
     }
     
-    private func glassBackground() -> some View {
-        RoundedRectangle(cornerRadius: 24)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
+    private func getStepDescription() -> String {
+        switch currentStep {
+        case 1:
+            return NSLocalizedString("register.completeProfile.step1", comment: "Choose how others will see you")
+        case 2:
+            return NSLocalizedString("register.completeProfile.step2", comment: "Pick interests")
+        case 3:
+            return NSLocalizedString("register.completeProfile.step3", comment: "Final step")
+        default:
+            return ""
+        }
     }
     
     private func validateUsername(_ username: String) {
         if username.count < 3 {
-            usernameError = "Mínimo 3 caracteres"
+            usernameError = NSLocalizedString("register.error.usernameTooShort", comment: "Username too short")
             return
         }
         authService.checkUsernameAvailability(username: username, interests: []) { available, suggestions in
             if available {
                 usernameError = nil
             } else {
-                usernameError = "Nombre de usuario no disponible"
+                usernameError = NSLocalizedString("register.error.usernameUnavailable", comment: "Username unavailable")
             }
         }
     }
@@ -206,7 +261,12 @@ struct SocialProfileCompletionView: View {
             if case .success(let interests) = result {
                 availableInterests = interests
             } else {
-                availableInterests = ["Fotografía", "Viajes", "Música", "Tecnología"]
+                availableInterests = [
+                    NSLocalizedString("register.interest.photography", comment: "Photography"),
+                    NSLocalizedString("register.interest.travel", comment: "Travel"),
+                    NSLocalizedString("register.interest.music", comment: "Music"),
+                    NSLocalizedString("register.interest.technology", comment: "Technology")
+                ]
             }
         }
     }

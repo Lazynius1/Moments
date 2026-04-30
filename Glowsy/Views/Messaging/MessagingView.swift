@@ -947,7 +947,10 @@ struct GlassmorphicConversationRow: View {
     @State private var showingStories = false
     @State private var storiesUserId: String = ""
     @State private var liveOtherParticipantUsername: String = ""
+    @State private var isOtherParticipantUnavailable: Bool = false
+    @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
     private let privacyService = PrivacyService()
+    private let firestoreService = FirestoreService()
 
     private var displayUsername: String {
         let fallback = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
@@ -960,7 +963,9 @@ struct GlassmorphicConversationRow: View {
             ZStack {
                 // ✅ SEPARADO: Botón solo para la foto (historias o perfil)
                 Button(action: {
-                    if hasStory {
+                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+                        showingUserProfile = true
+                    } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
                         // ✅ SI TIENE HISTORIAS: Establecer userId y abrir StoriesView
                         storiesUserId = conversation.otherParticipantId
                         showingStories = true
@@ -969,22 +974,26 @@ struct GlassmorphicConversationRow: View {
                         showingUserProfile = true
                     }
                 }) {
-                    AsyncProfileImageView(userId: conversation.otherParticipantId ?? "")
-                        .frame(width: 56, height: 56)
-                        .clipShape(Circle())
-                        .overlay(
-                            StorySegmentedRing(
-                                storyCount: storyCount,
-                                hasStory: hasStory,
-                                hasUnseenStory: hasUnseenStory,
-                                storyViewedStatus: storyViewedStatus,
-                                storyAudiences: storyAudiences,
-                                isOwnStory: false,
-                                colorScheme: colorScheme,
-                                ringSize: 56,
-                                lineWidth: 2.5
+                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+                        ProfileUnavailableAvatar(size: 56)
+                    } else {
+                        AsyncProfileImageView(userId: conversation.otherParticipantId)
+                            .frame(width: 56, height: 56)
+                            .clipShape(Circle())
+                            .overlay(
+                                StorySegmentedRing(
+                                    storyCount: storyCount,
+                                    hasStory: hasStory,
+                                    hasUnseenStory: hasUnseenStory,
+                                    storyViewedStatus: storyViewedStatus,
+                                    storyAudiences: storyAudiences,
+                                    isOwnStory: false,
+                                    colorScheme: colorScheme,
+                                    ringSize: 56,
+                                    lineWidth: 2.5
+                                )
                             )
-                        )
+                    }
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -998,10 +1007,13 @@ struct GlassmorphicConversationRow: View {
                         HStack(spacing: 4) {
                             Text(displayUsername)
                                 .font(.custom("Poppins-SemiBold", size: 16))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
                             
                             // ✅ INSIGNIA DE VERIFICADO
-                            VerifiedBadgeView(userId: conversation.otherParticipantId ?? "", size: 14)
+                            if !isOtherParticipantUnavailable {
+                                VerifiedBadgeView(userId: conversation.otherParticipantId, size: 14)
+                            }
                             
                             // ✅ INDICADOR DE PIN
                             if conversation.isPinned == true {
@@ -1025,7 +1037,7 @@ struct GlassmorphicConversationRow: View {
                 Button(action: {
                     onTap() // ✅ Abrir el chat
                 }) {
-                    Text(conversation.messagePreview)
+                    Text(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview") : conversation.messagePreview)
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
                         .lineLimit(1)
@@ -1058,9 +1070,11 @@ struct GlassmorphicConversationRow: View {
         .onAppear {
             checkUserStories()
             refreshOtherParticipantUsername()
+            refreshOtherParticipantAvailability()
         }
         .onChange(of: conversation.otherParticipantId) { _ in
             refreshOtherParticipantUsername()
+            refreshOtherParticipantAvailability()
         }
         // ✅ NUEVO: Sheet para mostrar historias del usuario
         .sheet(isPresented: $showingStories) {
@@ -1107,7 +1121,59 @@ struct GlassmorphicConversationRow: View {
             }
         }
     }
-    
+
+    private func refreshOtherParticipantAvailability() {
+        let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !otherUserId.isEmpty, NetworkMonitor.shared.isConnected else { return }
+
+        firestoreService.checkPublicProfileAvailability(userId: otherUserId) { availability in
+            DispatchQueue.main.async {
+                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
+                if availability == .unavailable {
+                    self.markOtherParticipantUnavailable(clearLiveUsername: true)
+                } else {
+                    self.refreshOtherParticipantBlockAvailability(userId: otherUserId)
+                }
+            }
+        }
+    }
+
+    private func refreshOtherParticipantBlockAvailability(userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        firestoreService.checkIfBlocked(currentUserId: currentUserId, targetUserId: userId) { isBlockedByCurrentUser, isCurrentUserBlocked, _ in
+            DispatchQueue.main.async {
+                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == userId else { return }
+
+                if isBlockedByCurrentUser || isCurrentUserBlocked {
+                    self.isOtherParticipantBlockedByCurrentUser = isBlockedByCurrentUser
+                    self.markOtherParticipantUnavailable(clearLiveUsername: false)
+                } else {
+                    self.isOtherParticipantBlockedByCurrentUser = false
+                    self.isOtherParticipantUnavailable = false
+                    self.refreshOtherParticipantUsername()
+                }
+            }
+        }
+    }
+
+    private func markOtherParticipantUnavailable(clearLiveUsername: Bool) {
+        isOtherParticipantUnavailable = true
+        if clearLiveUsername {
+            liveOtherParticipantUsername = ""
+            isOtherParticipantBlockedByCurrentUser = false
+        }
+        disableUnavailableParticipantStories()
+    }
+
+    private func disableUnavailableParticipantStories() {
+        hasStory = false
+        hasUnseenStory = false
+        storyCount = 0
+        storyViewedStatus = []
+        storyAudiences = []
+    }
+
     private func formattedTimestamp(_ date: Date) -> String {
         let calendar = Calendar.current
         let now = Date()

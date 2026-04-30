@@ -597,9 +597,12 @@ struct MomentDetailView: View {
                             isContentExpanded.toggle()
                         }
                     }) {
-                        Text(isContentExpanded ? "ver menos" : "ver más")
+                        Text(isContentExpanded ? NSLocalizedString("momentDetail.showLess", comment: "") : NSLocalizedString("momentDetail.showMore", comment: ""))
                             .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(Color(hex: "007AFF"))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .liquidGlass(in: Capsule(), interactive: true)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -893,6 +896,7 @@ struct MomentDetailView: View {
 struct ExploreModernFollowButton: View {
     let isFollowing: Bool
     let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         Button(action: onTap) {
@@ -900,39 +904,13 @@ struct ExploreModernFollowButton: View {
                 Image(systemName: isFollowing ? "checkmark" : "plus")
                     .font(.system(size: 12, weight: .semibold))
                 
-                Text(isFollowing ? "Siguiendo" : "Seguir")
+                Text(isFollowing ? NSLocalizedString("userProfile.followButton.following", comment: "") : NSLocalizedString("userProfile.followButton.canFollow", comment: ""))
                     .font(.custom("Poppins-SemiBold", size: 13))
             }
-            .foregroundColor(isFollowing ? Color(hex: "007AFF") : .white)
+            .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(
-                Group {
-                    if isFollowing {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color(hex: "007AFF").opacity(0.4), lineWidth: 1)
-                            )
-                    } else {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    }
-                }
-            )
-            .shadow(
-                color: isFollowing ? .clear : Color(hex: "007AFF").opacity(0.4),
-                radius: isFollowing ? 0 : 6,
-                x: 0,
-                y: isFollowing ? 0 : 3
-            )
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 16), interactive: !isFollowing)
         }
         .disabled(isFollowing)
         .scaleEffect(isFollowing ? 0.95 : 1.0)
@@ -1396,17 +1374,32 @@ class MomentDetailViewModel: ObservableObject {
     private let firestoreService = FirestoreService()
     private let currentUserId: String?
     private var reactionListener: ListenerRegistration?
+    private var followStateObserver: NSObjectProtocol?
 
     init(moment: Moment) {
         self.moment = moment
         self.currentUserId = Auth.auth().currentUser?.uid
         self.likeCount = moment.reactions["heart"]?.count ?? 0
+        self.followStateObserver = NotificationCenter.default.addObserver(
+            forName: FollowStateStore.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let userId = notification.userInfo?["userId"] as? String,
+                  userId == self.moment.authorId,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            self.isFollowing = (state == .following)
+        }
         loadAuthorProfile()
         setupReactionListener()
     }
     
     deinit {
         reactionListener?.remove()
+        if let followStateObserver {
+            NotificationCenter.default.removeObserver(followStateObserver)
+        }
     }
     
     // MARK: - Reacciones modernas
@@ -1621,6 +1614,7 @@ class MomentDetailViewModel: ObservableObject {
                     self?.errorMessage = "Error al seguir usuario: \(error.localizedDescription)"
                 } else {
                     self?.isFollowing = true
+                    FollowStateStore.shared.setState(.following, for: targetUserId)
                 }
             }
         }

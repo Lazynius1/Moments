@@ -501,9 +501,10 @@ struct EnhancedNotificationRow: View {
     @State private var isLoadingStoryImage: Bool = false
     @State private var momentImageLoadFailed: Bool = false
     @State private var storyImageLoadFailed: Bool = false
-    @State private var isFollowing: Bool = false
+    @State private var followButtonState: FollowButtonState = .canFollow
     @State private var isPressed: Bool = false
     @State private var senderUsernameOverride: String?
+    @State private var showingUnfollowConfirmation = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -572,9 +573,29 @@ struct EnhancedNotificationRow: View {
         .sheet(isPresented: $showStories) {
             StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
         }
+        .confirmationDialog(
+            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
+            isPresented: $showingUnfollowConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
+                performFollowToggle()
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
+        }
         .onAppear {
             resolveSenderDisplayData()
             setupPreviews()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
+            guard let targetUserId = group.notifications.first?.senderId,
+                  let userId = notification.userInfo?["userId"] as? String,
+                  userId == targetUserId,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            followButtonState = state
         }
     }
     
@@ -799,29 +820,22 @@ struct EnhancedNotificationRow: View {
                 Button(action: {
                     toggleFollow()
                 }) {
-                    Text(isFollowing ? "feed.following" : "feed.follow")
+                    HStack(spacing: 6) {
+                        Image(systemName: notificationFollowIcon)
+                            .font(.system(size: 12, weight: .semibold))
+
+                        Text(notificationFollowTitle)
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                    }
                         .font(.custom("Poppins-SemiBold", size: 12))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(
-                            isFollowing ?
-                            LinearGradient(colors: [Color.gray.opacity(0.6), Color.gray.opacity(0.4)], startPoint: .leading, endPoint: .trailing) :
-                            LinearGradient(colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    colorScheme == .dark ?
-                                    Color.white.opacity(0.3) :
-                                    Color.black.opacity(0.2),
-                                    lineWidth: 1
-                                ) // ✅ ADAPTATIVO
-                        )
-                        .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
+                        .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .disabled(!followButtonState.isActionable)
+                .opacity(notificationFollowIsPassive ? 0.78 : 1)
 
             case .requestAccepted:
                 Button(action: { showProfile = true }) {
@@ -1185,29 +1199,40 @@ struct EnhancedNotificationRow: View {
     private func checkFollowingStatus() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let targetUserId = group.notifications.first?.senderId else { return }
+
+        if let cachedState = FollowStateStore.shared.state(for: targetUserId) {
+            followButtonState = cachedState
+        }
         
-        viewModel.checkIfFollowing(currentUserId: currentUserId, targetUserId: targetUserId) { result in
-            switch result {
-            case .success(let following):
-                DispatchQueue.main.async {
-                    self.isFollowing = following
-                }
-            case .failure(_):
-                break
+        PrivacyService().getFollowButtonState(viewerId: currentUserId, targetUserId: targetUserId) { state in
+            DispatchQueue.main.async {
+                let reconciledState = FollowStateStore.shared.reconciledState(state, for: targetUserId)
+                self.followButtonState = reconciledState
+                FollowStateStore.shared.setState(reconciledState, for: targetUserId)
             }
         }
     }
 
     private func toggleFollow() {
+        if followButtonState == .following {
+            showingUnfollowConfirmation = true
+            return
+        }
+
+        performFollowToggle()
+    }
+
+    private func performFollowToggle() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let targetUserId = group.notifications.first?.senderId else { return }
         
-        if isFollowing {
+        if followButtonState == .following {
             viewModel.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 if let error = error {
                 } else {
                     DispatchQueue.main.async {
-                        self.isFollowing = false
+                        self.followButtonState = .canFollow
+                        FollowStateStore.shared.setState(.canFollow, for: targetUserId)
                     }
                 }
             }
@@ -1216,11 +1241,50 @@ struct EnhancedNotificationRow: View {
                 if let error = error {
                 } else {
                     DispatchQueue.main.async {
-                        self.isFollowing = true
+                        let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPending : .following
+                        self.followButtonState = newState
+                        FollowStateStore.shared.setState(newState, for: targetUserId)
                     }
                 }
             }
         }
+    }
+
+    private var notificationFollowTitle: String {
+        switch followButtonState {
+        case .following:
+            return NSLocalizedString("userProfile.followButton.following", comment: "")
+        case .canRequestFollow:
+            return NSLocalizedString("feed.follow.request", comment: "")
+        case .requestPending:
+            return NSLocalizedString("feed.follow.requested", comment: "")
+        case .blocked:
+            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
+        default:
+            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
+        }
+    }
+
+    private var notificationFollowIcon: String {
+        switch followButtonState {
+        case .following:
+            return "person.fill.checkmark"
+        case .canRequestFollow:
+            return "person.crop.circle.badge.plus"
+        case .requestPending:
+            return "clock"
+        case .blocked:
+            return "slash.circle"
+        default:
+            return "person.badge.plus"
+        }
+    }
+
+    private var notificationFollowIsPassive: Bool {
+        if case .requestPending = followButtonState {
+            return true
+        }
+        return false
     }
 }
 

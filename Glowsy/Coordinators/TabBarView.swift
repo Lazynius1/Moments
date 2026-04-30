@@ -30,7 +30,7 @@ struct TabBarView: View {
 
     var body: some View {
         Group {
-            if authService.isLoggedIn {
+            if shouldShowMainApp {
                 if #available(iOS 26.0, *) {
                     // Dedicated struct owns @State modernTab: AppTab
                     ModernTabView(
@@ -70,6 +70,10 @@ struct TabBarView: View {
             // ✅ Manejar deep links desde el widget y QR (Lógica extraída)
             handleDeepLink(url)
         }
+    }
+
+    private var shouldShowMainApp: Bool {
+        authService.isLoggedIn && authService.authState == .authenticated
     }
     
 
@@ -658,6 +662,9 @@ extension View {
                 if let userId = notification.object as? String {
                     navigationService.pendingNavigation = .profile(userId)
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToOwnProfileTab"))) { _ in
+                selectedTab.wrappedValue = 4
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfile"))) { notification in
                 if let userId = notification.object as? String {
