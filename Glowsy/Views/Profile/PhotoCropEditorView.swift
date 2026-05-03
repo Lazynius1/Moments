@@ -49,10 +49,24 @@ struct PhotoCropEditorView: View {
     @State private var isZooming = false
     @State private var photoAssets: [PHAsset] = []
     @State private var isLoadingRecentPhotos = false
+    @State private var visiblePhotoCount: Int = 20
+    @State private var availableAlbums: [ProfileAlbumInfo] = []
+    @State private var selectedAlbum: ProfileAlbumInfo?
     
     private let imageManager = PHImageManager.default()
-    private let cropSize: CGFloat = 400 // ✅ Área circular de trabajo (mismo tamaño que outputSize)
     private let outputSize: CGSize = CGSize(width: 400, height: 400) // ✅ COINCIDIR CON STORAGESERVICE
+    
+    private var cropFrameSide: CGFloat {
+        UIScreen.main.bounds.width
+    }
+    
+    private var cropSize: CGFloat {
+        cropFrameSide
+    }
+    
+    private var previewFrameSize: CGSize {
+        CGSize(width: cropFrameSide, height: cropFrameSide)
+    }
     
     var body: some View {
         ZStack {
@@ -68,12 +82,12 @@ struct PhotoCropEditorView: View {
                         .padding(.top, 10)
                     
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 24) {
+                        VStack(spacing: 18) {
                             // Área de Crop
                             cropAreaView(with: image)
-                                .padding(.top, 20)
                             
-                            // Sección de Galería (Estilo Glass)
+                            albumSelector
+                            
                             photoGridSection()
                                 .padding(.bottom, 40)
                         }
@@ -87,43 +101,14 @@ struct PhotoCropEditorView: View {
         }
         .onAppear {
             loadFullResolutionImage()
-            loadRecentPhotos()
+            loadAvailableAlbums()
         }
     }
     
     // MARK: - Vista de carga
     private var immersiveBackground: some View {
-        ZStack {
-            // Capa 1: Fondo Adaptativo
-            (colorScheme == .dark ? Color.black : Color.white)
-                .ignoresSafeArea()
-            
-            // Capa 2: Imagen desenfocada
-            if let image = fullResolutionImage {
-                GeometryReader { proxy in
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped() // ✅ IMPORTANTE: Evitar que la imagen horizontal expanda el layout
-                }
-                .blur(radius: 60)
-                .opacity(colorScheme == .dark ? 0.4 : 0.2)
-                .ignoresSafeArea()
-            }
-            
-            // Capa 3: Overlay gradiente para profundidad
-            LinearGradient(
-                colors: [
-                    (colorScheme == .dark ? Color.black : Color.white).opacity(0.6),
-                    .clear,
-                    (colorScheme == .dark ? Color.black : Color.white).opacity(0.8)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+        (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
             .ignoresSafeArea()
-        }
     }
     
     private var loadingView: some View {
@@ -176,17 +161,13 @@ struct PhotoCropEditorView: View {
             }) {
                 Image(systemName: "checkmark")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(10)
                     .background(
                         Circle()
-                            .fill(isProcessing ? Color.gray.opacity(0.5) : Color(hex: "00A896"))
+                            .fill(isProcessing ? Color.gray.opacity(0.3) : Color.clear)
                     )
-                    .shadow(radius: 5)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.primary.opacity(0.2), lineWidth: 1)
-                    )
+                    .background(Color.clear.liquidGlass(in: Circle(), interactive: !isProcessing))
             }
             .disabled(isProcessing)
         }
@@ -196,122 +177,120 @@ struct PhotoCropEditorView: View {
     
     // MARK: - Área de crop cuadrada
     private func cropAreaView(with image: UIImage) -> some View {
-        VStack(spacing: 16) {
-            // MARK: - Crop Base
-            ZStack {
-                // Sombra de Profundidad
-                Circle()
-                    .fill(Color.black.opacity(colorScheme == .dark ? 0.4 : 0.1))
-                    .frame(width: cropSize + 10, height: cropSize + 10)
-                    .blur(radius: 20)
-                
-                // Imagen manipulable
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: cropSize, height: cropSize)
-                    .scaleEffect(scale)
-                    .offset(CGSize(width: offset.width + gestureTranslation.width, height: offset.height + gestureTranslation.height))
-                    .clipped() // ✅ VOLVER A AÑADIR: Evitar que la imagen se vea fuera del círculo
-                    .scaleEffect(isDragging || isZooming ? 1.02 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
-                    .gesture(
-                        SimultaneousGesture(
-                            DragGesture()
-                                .updating($gestureTranslation) { value, state, _ in
-                                    if !isProcessing {
-                                        state = value.translation
-                                        isDragging = true
+        ZStack {
+            Image(uiImage: image.withBlur(radius: 40))
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: previewFrameSize.width, height: previewFrameSize.height)
+                .clipped()
+                .overlay(
+                    (colorScheme == .dark ? Color.black : Color.white)
+                        .opacity(colorScheme == .dark ? 0.18 : 0.08)
+                )
+            
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(
+                    width: foregroundDisplaySize(for: image.size).width * scale,
+                    height: foregroundDisplaySize(for: image.size).height * scale
+                )
+                .offset(CGSize(width: offset.width + gestureTranslation.width, height: offset.height + gestureTranslation.height))
+                .clipped()
+                .scaleEffect(isDragging || isZooming ? 1.02 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
+                .gesture(
+                    SimultaneousGesture(
+                        DragGesture()
+                            .updating($gestureTranslation) { value, state, _ in
+                                if !isProcessing {
+                                    state = value.translation
+                                    isDragging = true
+                                }
+                            }
+                            .onEnded { value in
+                                if !isProcessing {
+                                    isDragging = false
+                                    let newOffset = CGSize(
+                                        width: offset.width + value.translation.width,
+                                        height: offset.height + value.translation.height
+                                    )
+                                    
+                                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                    impactFeedback.impactOccurred()
+                                    
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        offset = limitOffset(newOffset, imageSize: image.size)
                                     }
                                 }
-                                .onEnded { value in
-                                    if !isProcessing {
-                                        isDragging = false
-                                        let newOffset = CGSize(
-                                            width: offset.width + value.translation.width,
-                                            height: offset.height + value.translation.height
-                                        )
-                                        
-                                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                                        impactFeedback.impactOccurred()
-                                        
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            offset = limitOffset(newOffset, imageSize: image.size)
-                                        }
-                                    }
-                                },
-                            
-                            MagnificationGesture()
-                                .onChanged { value in
-                                    if !isProcessing {
-                                        isZooming = true
-                                        let newScale = lastScale * value
-                                        scale = max(getMinimumScale(for: image.size), min(newScale, 4.0))
+                            },
+                        
+                        MagnificationGesture()
+                            .onChanged { value in
+                                if !isProcessing {
+                                    isZooming = true
+                                    let newScale = lastScale * value
+                                    scale = max(getMinimumScale(for: image.size), min(newScale, 4.0))
+                                }
+                            }
+                            .onEnded { _ in
+                                if !isProcessing {
+                                    isZooming = false
+                                    lastScale = scale
+                                    
+                                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                    impactFeedback.impactOccurred()
+                                    
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        offset = limitOffset(offset, imageSize: image.size)
                                     }
                                 }
-                                .onEnded { _ in
-                                    if !isProcessing {
-                                        isZooming = false
-                                        lastScale = scale
-                                        
-                                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                        impactFeedback.impactOccurred()
-                                        
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            offset = limitOffset(offset, imageSize: image.size)
-                                        }
-                                    }
-                                }
-                        )
+                            }
                     )
-                    .onTapGesture(count: 2) {
-                        if !isProcessing {
-                            resetToInitialPosition(for: image.size)
-                        }
+                )
+                .onTapGesture(count: 2) {
+                    if !isProcessing {
+                        resetToInitialPosition(for: image.size)
                     }
-                
-                // Grid de ayuda elegante
-                if isDragging || isZooming {
-                    gridOverlay
-                        .allowsHitTesting(false)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
-                
-                // Máscara Circular Premium
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                (colorScheme == .dark ? Color.white : Color.primary).opacity(0.8),
-                                (colorScheme == .dark ? Color.white : Color.primary).opacity(0.2)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 2
-                    )
-                    .frame(width: cropSize, height: cropSize)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                            .padding(-1)
-                    )
+            
+            cropMaskOverlay
+            
+            if isDragging || isZooming {
+                gridOverlay
                     .allowsHitTesting(false)
-            }
-            .frame(width: cropSize, height: cropSize)
-            .clipShape(Circle())
-            .overlay(
-                // Guía visual de "área segura"
-                Circle()
-                    .stroke((colorScheme == .dark ? Color.white : Color.primary).opacity(0.1), lineWidth: 20)
-                    .frame(width: cropSize + 22, height: cropSize + 22)
-                    .blur(radius: 5)
-            )
-            .onAppear {
-                setupInitialTransform(for: image.size)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
         }
-        .padding(.horizontal, 20)
+        .frame(width: previewFrameSize.width, height: previewFrameSize.height)
+        .clipped()
+        .onAppear {
+            setupInitialTransform(for: image.size)
+        }
+    }
+    
+    private var cropMaskOverlay: some View {
+        ZStack {
+            (colorScheme == .dark ? Color.black : Color.white)
+                .opacity(colorScheme == .dark ? 0.76 : 0.52)
+            
+            LinearGradient(
+                colors: [
+                    (colorScheme == .dark ? Color.black : Color.white).opacity(colorScheme == .dark ? 0.14 : 0.08),
+                    .clear,
+                    (colorScheme == .dark ? Color.black : Color.white).opacity(colorScheme == .dark ? 0.28 : 0.16)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            
+            Circle()
+                .frame(width: cropSize, height: cropSize)
+                .blendMode(.destinationOut)
+        }
+        .compositingGroup()
+        .frame(width: previewFrameSize.width, height: previewFrameSize.height)
+        .allowsHitTesting(false)
     }
     
     // MARK: - Grid de ayuda
@@ -337,69 +316,77 @@ struct PhotoCropEditorView: View {
                     .frame(width: cropSize, height: 1)
             }
         }
+        .frame(width: cropSize, height: cropSize)
+    }
+    
+    private var albumSelector: some View {
+        HStack {
+            Menu {
+                ForEach(availableAlbums) { album in
+                    Button(album.title) {
+                        selectAlbum(album)
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(selectedAlbum?.title ?? NSLocalizedString("profileEditor.category.recent", comment: ""))
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 20)
     }
     
     // MARK: - Grid de fotos completo (como ProfileEditor)
     private func photoGridSection() -> some View {
-        VStack(spacing: 20) {
-            HStack {
-                Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 16))
-                    .foregroundColor(Color(hex: "00A896"))
-                
-                Text(NSLocalizedString("profileEditor.crop.otherPhotos", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white : .primary)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            
-            // Contenedor Glass para el Grid
-            ZStack {
-                if isLoadingRecentPhotos {
-                    HStack(spacing: 12) {
-                        ForEach(0..<4, id: \.self) { _ in
-                            Rectangle()
-                                .fill(Color.primary.opacity(0.1))
-                                .frame(height: 100)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
+        VStack(spacing: 0) {
+            if isLoadingRecentPhotos {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 4),
+                    spacing: 4
+                ) {
+                    ForEach(0..<8, id: \.self) { _ in
+                        Rectangle()
+                            .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.08))
+                            .frame(height: gridItemSize)
                     }
-                } else {
-                    LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
-                        spacing: 4
-                    ) {
-                        ForEach(photoAssets.prefix(12).indices, id: \.self) { index in
-                            let asset = photoAssets[index]
-                            
-                            PhotoGridItem(
-                                asset: asset,
-                                isSelected: false,
-                                imageManager: imageManager
-                            ) {
-                                selectNewPhotoFromGrid(asset)
-                            }
+                }
+            } else {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 4),
+                    spacing: 4
+                ) {
+                    ForEach(Array(photoAssets.prefix(visiblePhotoCount).enumerated()), id: \.element.localIdentifier) { index, asset in
+                        
+                        PhotoGridItem(
+                            asset: asset,
+                            isSelected: false,
+                            imageManager: imageManager
+                        ) {
+                            selectNewPhotoFromGrid(asset)
+                        }
+                        .onAppear {
+                            loadMorePhotosIfNeeded(currentIndex: index)
                         }
                     }
                 }
             }
-            .padding(12)
-            .background(Color.primary.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-            )
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
+        .padding(.horizontal, 6)
+        .padding(.top, 4)
     }
     
     // MARK: - Configuración inicial
     private func setupInitialTransform(for imageSize: CGSize) {
-        let optimalScale = getMinimumScale(for: imageSize)
+        let optimalScale = 1.0
         let smartOffset = calculateSmartOffset(imageSize: imageSize, scale: optimalScale)
         
         withAnimation(.easeOut(duration: 0.5)) {
@@ -411,7 +398,7 @@ struct PhotoCropEditorView: View {
     
     // ✅ FUNCIÓN: Reset a posición inicial
     private func resetToInitialPosition(for imageSize: CGSize) {
-        let optimalScale = getMinimumScale(for: imageSize)
+        let optimalScale = 1.0
         let smartOffset = calculateSmartOffset(imageSize: imageSize, scale: optimalScale)
         
         // ✅ FEEDBACK HÁPTICO PARA RESET
@@ -426,12 +413,8 @@ struct PhotoCropEditorView: View {
     }
     
     private func getMinimumScale(for imageSize: CGSize) -> CGFloat {
-        let scaleX = cropSize / imageSize.width
-        let scaleY = cropSize / imageSize.height
-        
-        // ✅ Para cubrir el círculo, necesitamos la escala que cubra el lado más corto (aspect fill)
-        let minScale = max(scaleX, scaleY) 
-        return max(minScale, 0.5)
+        let _ = imageSize
+        return 0.5
     }
     
     private func calculateSmartOffset(imageSize: CGSize, scale: CGFloat) -> CGSize {
@@ -441,9 +424,9 @@ struct PhotoCropEditorView: View {
     }
     
     private func limitOffset(_ proposedOffset: CGSize, imageSize: CGSize) -> CGSize {
-        let imageAspectRatio = imageSize.width / imageSize.height
-        let scaledImageWidth = cropSize * scale
-        let scaledImageHeight = scaledImageWidth / imageAspectRatio
+        let baseSize = foregroundDisplaySize(for: imageSize)
+        let scaledImageWidth = baseSize.width * scale
+        let scaledImageHeight = baseSize.height * scale
         
         let maxOffsetX = max(0, (scaledImageWidth - cropSize) / 2)
         let maxOffsetY = max(0, (scaledImageHeight - cropSize) / 2)
@@ -520,7 +503,7 @@ struct PhotoCropEditorView: View {
     // MARK: - Crop final - PERFECTO PARA PROFILEVIEW (110x110)
     private func cropSquareImage(from image: UIImage) -> UIImage? {
         let imageSize = image.size
-        let aspectRatio = imageSize.width / imageSize.height
+        let baseSize = foregroundDisplaySize(for: imageSize)
         
         // ✅ GENERAR IMAGEN DE 400x400 (mismo tamaño que cropSize)
         UIGraphicsBeginImageContextWithOptions(outputSize, false, 0)
@@ -528,17 +511,14 @@ struct PhotoCropEditorView: View {
         
         guard let context = UIGraphicsGetCurrentContext() else { return nil }
         
-        // ✅ CÁLCULO LIBRE: Sin límites restrictivos
-        let scaledWidth = cropSize * scale
-        let scaledHeight = scaledWidth / aspectRatio
+        let scaledWidth = baseSize.width * scale
+        let scaledHeight = baseSize.height * scale
+        let outputFactor = outputSize.width / cropSize
         
-        // ✅ CENTRAR la imagen en el área de output
-        let centerX = (outputSize.width - scaledWidth) / 2
-        let centerY = (outputSize.height - scaledHeight) / 2
-        
-        // ✅ APLICAR OFFSET LIBREMENTE: Sin restricciones
-        let finalX = centerX + offset.width
-        let finalY = centerY + offset.height
+        let finalX = ((cropSize - scaledWidth) / 2 + offset.width) * outputFactor
+        let finalY = ((cropSize - scaledHeight) / 2 + offset.height) * outputFactor
+        let finalWidth = scaledWidth * outputFactor
+        let finalHeight = scaledHeight * outputFactor
         
         // ✅ PRIMERO: Dibujar fondo blur de la imagen completa
         let blurImage = image.withBlur(radius: 25) // ✅ BLUR INTENSO para fondo real
@@ -554,8 +534,8 @@ struct PhotoCropEditorView: View {
         let drawRect = CGRect(
             x: finalX,
             y: finalY,
-            width: scaledWidth,
-            height: scaledHeight
+            width: finalWidth,
+            height: finalHeight
         )
         image.draw(in: drawRect)
         
@@ -567,10 +547,11 @@ struct PhotoCropEditorView: View {
     // MARK: - Funciones para el grid de fotos
     private func loadRecentPhotos() {
         isLoadingRecentPhotos = true
+        visiblePhotoCount = 20
         
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        fetchOptions.fetchLimit = 50 // Más fotos para el grid
+        fetchOptions.fetchLimit = 200
         
         let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         var assets: [PHAsset] = []
@@ -583,6 +564,111 @@ struct PhotoCropEditorView: View {
             self.photoAssets = assets
             self.isLoadingRecentPhotos = false
         }
+    }
+    
+    private func loadAvailableAlbums() {
+        var albums: [ProfileAlbumInfo] = []
+        
+        let smartAlbumSubtypes: [PHAssetCollectionSubtype] = [
+            .smartAlbumUserLibrary,
+            .smartAlbumFavorites,
+            .smartAlbumScreenshots,
+            .smartAlbumSelfPortraits,
+            .smartAlbumRecentlyAdded
+        ]
+        
+        for subtype in smartAlbumSubtypes {
+            let fetchResult = PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: subtype, options: nil)
+            fetchResult.enumerateObjects { collection, _, _ in
+                let assetCount = PHAsset.fetchAssets(in: collection, options: nil).count
+                if assetCount > 0 {
+                    let title = collection.localizedTitle ?? getSmartAlbumTitle(for: subtype)
+                    albums.append(ProfileAlbumInfo(
+                        id: collection.localIdentifier,
+                        title: title,
+                        assetCollection: collection,
+                        assetCount: assetCount
+                    ))
+                }
+            }
+        }
+        
+        let userAlbums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
+        userAlbums.enumerateObjects { collection, _, _ in
+            let assetCount = PHAsset.fetchAssets(in: collection, options: nil).count
+            if assetCount > 0 {
+                albums.append(ProfileAlbumInfo(
+                    id: collection.localIdentifier,
+                    title: collection.localizedTitle ?? NSLocalizedString("profileEditor.album.default", comment: ""),
+                    assetCollection: collection,
+                    assetCount: assetCount
+                ))
+            }
+        }
+        
+        albums.sort { $0.assetCount > $1.assetCount }
+        
+        DispatchQueue.main.async {
+            self.availableAlbums = albums
+            if let current = self.selectedAlbum {
+                self.selectAlbum(current)
+            } else if let first = albums.first {
+                self.selectedAlbum = first
+                self.loadPhotosFromAlbum(first)
+            } else {
+                self.loadRecentPhotos()
+            }
+        }
+    }
+    
+    private func getSmartAlbumTitle(for subtype: PHAssetCollectionSubtype) -> String {
+        switch subtype {
+        case .smartAlbumUserLibrary: return NSLocalizedString("profileEditor.category.recent", comment: "")
+        case .smartAlbumFavorites: return NSLocalizedString("profileEditor.album.favorites", comment: "")
+        case .smartAlbumScreenshots: return NSLocalizedString("profileEditor.album.screenshots", comment: "")
+        case .smartAlbumSelfPortraits: return NSLocalizedString("profileEditor.category.selfies", comment: "")
+        case .smartAlbumRecentlyAdded: return NSLocalizedString("profileEditor.category.recent", comment: "")
+        default: return NSLocalizedString("profileEditor.album.default", comment: "")
+        }
+    }
+    
+    private func loadPhotosFromAlbum(_ album: ProfileAlbumInfo?) {
+        isLoadingRecentPhotos = true
+        visiblePhotoCount = 20
+        
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 200
+        
+        let allPhotos: PHFetchResult<PHAsset>
+        if let album {
+            allPhotos = PHAsset.fetchAssets(in: album.assetCollection, options: fetchOptions)
+        } else {
+            allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        }
+        
+        var assets: [PHAsset] = []
+        allPhotos.enumerateObjects { asset, _, _ in
+            assets.append(asset)
+        }
+        
+        DispatchQueue.main.async {
+            self.photoAssets = assets
+            self.isLoadingRecentPhotos = false
+        }
+    }
+    
+    private func selectAlbum(_ album: ProfileAlbumInfo) {
+        selectedAlbum = album
+        loadPhotosFromAlbum(album)
+    }
+    
+    private func loadMorePhotosIfNeeded(currentIndex: Int) {
+        let thresholdIndex = max(visiblePhotoCount - 4, 0)
+        guard currentIndex >= thresholdIndex else { return }
+        guard visiblePhotoCount < photoAssets.count else { return }
+        
+        visiblePhotoCount = min(visiblePhotoCount + 20, photoAssets.count)
     }
     
     private func selectNewPhotoFromGrid(_ asset: PHAsset) {
@@ -618,6 +704,13 @@ struct PhotoCropEditorView: View {
             }
         }
     }
+    
+    private func foregroundDisplaySize(for imageSize: CGSize) -> CGSize {
+        let widthScale = previewFrameSize.width / imageSize.width
+        let heightScale = previewFrameSize.height / imageSize.height
+        let fitScale = min(widthScale, heightScale)
+        return CGSize(width: imageSize.width * fitScale, height: imageSize.height * fitScale)
+    }
 }
 
 // MARK: - Photo Grid Item (copiado de ProfileEditor)
@@ -631,6 +724,10 @@ private struct PhotoGridItem: View {
     @State private var image: UIImage?
     @State private var isLoading = true
     
+    private var itemSize: CGFloat {
+        gridItemSize
+    }
+    
     var body: some View {
         Button(action: onTap) {
             ZStack {
@@ -638,12 +735,12 @@ private struct PhotoGridItem: View {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .frame(width: itemSize, height: itemSize)
                         .clipped()
                 } else {
                     Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.08))
+                        .frame(width: itemSize, height: itemSize)
                         .overlay(
                             ProgressView()
                                 .scaleEffect(0.8)
@@ -655,14 +752,14 @@ private struct PhotoGridItem: View {
                 if isSelected {
                     Rectangle()
                         .fill(.clear)
-                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .frame(width: itemSize, height: itemSize)
                         .overlay(
                             VStack {
                                 HStack {
                                     Spacer()
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 24))
-                                        .foregroundColor(Color(hex: "00A896"))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .background(Circle().fill(colorScheme == .dark ? .black : .white))
                                         .padding(8)
                                 }
@@ -671,7 +768,7 @@ private struct PhotoGridItem: View {
                         )
                         .overlay(
                             Rectangle()
-                                .stroke(Color(hex: "00A896"), lineWidth: 3)
+                                .stroke((colorScheme == .dark ? Color.white : Color.black).opacity(0.4), lineWidth: 2)
                         )
                 }
             }
@@ -688,8 +785,8 @@ private struct PhotoGridItem: View {
         options.isSynchronous = false
         
         let targetSize = CGSize(
-            width: UIScreen.main.bounds.width / 3 * UIScreen.main.scale,
-            height: UIScreen.main.bounds.width / 3 * UIScreen.main.scale
+            width: itemSize * UIScreen.main.scale,
+            height: itemSize * UIScreen.main.scale
         )
         
         imageManager.requestImage(
@@ -704,4 +801,11 @@ private struct PhotoGridItem: View {
             }
         }
     }
+}
+
+private var gridItemSize: CGFloat {
+    let screenWidth = UIScreen.main.bounds.width
+    let horizontalPadding: CGFloat = 12
+    let totalSpacing: CGFloat = 12
+    return floor((screenWidth - horizontalPadding - totalSpacing) / 4)
 }

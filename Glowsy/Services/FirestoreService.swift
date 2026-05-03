@@ -1101,6 +1101,14 @@ class FirestoreService: ObservableObject {
             completion(error)
         }
     }
+    
+    func removeProfilePicture(userId: String, completion: @escaping (Error?) -> Void) {
+        self.db.collection("users").document(userId).updateData([
+            "profileImagePath": FieldValue.delete()
+        ]) { error in
+            completion(error)
+        }
+    }
 
     private func serializedMediaItems(_ mediaItems: [MediaItem], encoder: Firestore.Encoder) -> [[String: Any]] {
         mediaItems.map { item in

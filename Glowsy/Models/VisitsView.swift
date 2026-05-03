@@ -208,7 +208,7 @@ struct VisitsView: View {
     private var stalkerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("🕵️ Visitantes Frecuentes")
+                Text("visits.frequentVisitors")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
@@ -376,7 +376,7 @@ struct GroupedVisitRow: View {
                     // Mostrar "y X más" si hay más de 5 visitas
                     if groupedVisit.visitCount > 5 {
                         HStack {
-                            Text("... y \(groupedVisit.visitCount - 5) más")
+                            Text(String(format: NSLocalizedString("visits.moreCount", comment: ""), groupedVisit.visitCount - 5))
                                 .font(.custom("Poppins-Regular", size: 11))
                                 .foregroundColor(colorScheme == .dark ? .gray.opacity(0.6) : .gray.opacity(0.5))
                                 .italic()
@@ -404,16 +404,16 @@ struct GroupedVisitRow: View {
         let interval = Date().timeIntervalSince(date)
         
         if interval < 60 {
-            return "Hace un momento"
+            return NSLocalizedString("visits.time.justNow", comment: "")
         } else if interval < 3600 {
             let minutes = Int(interval / 60)
-            return "Hace \(minutes) min"
+            return String(format: NSLocalizedString("visits.time.minutesAgo", comment: ""), minutes)
         } else if interval < 86400 {
             let hours = Int(interval / 3600)
-            return "Hace \(hours)h"
+            return String(format: NSLocalizedString("visits.time.hoursAgo", comment: ""), hours)
         } else if interval < 604800 {
             let days = Int(interval / 86400)
-            return "Hace \(days)d"
+            return String(format: NSLocalizedString("visits.time.daysAgo", comment: ""), days)
         } else {
             let formatter = DateFormatter()
             formatter.dateFormat = "dd/MM"
@@ -657,7 +657,7 @@ struct StalkerCard: View {
                         VerifiedBadgeView(userId: analysis.userId, size: 8)
                     }
                     
-                    Text("\(analysis.visitsLast24h) visitas")
+                    Text(String(format: NSLocalizedString("visits.count", comment: ""), analysis.visitsLast24h))
                         .font(.custom("Poppins-Regular", size: 10))
                         .foregroundColor(analysis.frequencyType.color)
                 }
@@ -686,7 +686,7 @@ struct StalkerAlertView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("🕵️ ¡Tienes un stalker!")
+            Text("visits.stalkerAlert.title")
                 .font(.custom("Poppins-Bold", size: 24))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
@@ -721,7 +721,7 @@ struct StalkerAlertView: View {
                     VerifiedBadgeView(userId: stalker.userId, size: 16)
                 }
                 
-                Text("Ha visitado tu perfil \(stalker.visitsLast24h) veces en las últimas 24 horas")
+                Text(String(format: NSLocalizedString("visits.stalkerAlert.message", comment: ""), stalker.visitsLast24h))
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -735,7 +735,7 @@ struct StalkerAlertView: View {
                     .clipShape(Capsule())
             }
             
-            Button("¡Entendido! 😏") {
+            Button("common.understood") {
                 isPresented = false
             }
             .font(.custom("Poppins-SemiBold", size: 16))
@@ -784,7 +784,7 @@ struct VisitModernLoadingView: View {
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isAnimating)
             }
             
-            Text("Cargando visitas...")
+            Text("visits.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
         }
@@ -832,11 +832,11 @@ struct ModernEmptyVisitsView: View {
             }
             
             VStack(spacing: 8) {
-                Text("No hay visitas aún")
+                Text("visits.empty.title")
                     .font(.custom("Poppins-SemiBold", size: 20))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Cuando otros usuarios vean tu perfil, aparecerán aquí")
+                Text("visits.empty.description")
                     .font(.custom("Poppins-Regular", size: 16))
                     .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
                     .multilineTextAlignment(.center)
@@ -858,11 +858,19 @@ extension VisitsView {
     // ✅ Header simplificado como el ContextMenu
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
-            Text("Visitas")
+            Text("visits.title")
                 .font(.custom("Poppins-Bold", size: 22))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
-            Text("\(viewModel.groupedVisits.count) \(viewModel.groupedVisits.count == 1 ? "visitante" : "visitantes")")
+            Text(
+                String(
+                    format: NSLocalizedString(
+                        viewModel.groupedVisits.count == 1 ? "visits.visitorCount.single" : "visits.visitorCount.multiple",
+                        comment: ""
+                    ),
+                    viewModel.groupedVisits.count
+                )
+            )
                 .font(.custom("Poppins-Regular", size: 13))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
         }

@@ -317,9 +317,9 @@ struct ExploreView: View {
         
         private var privateProfileAlert: Alert {
             Alert(
-                title: Text("Perfil privado"),
-                message: Text("Este perfil es privado. Envía una solicitud de seguimiento para ver su contenido."),
-                dismissButton: .default(Text("OK"))
+                title: Text("explore.privateProfile.title"),
+                message: Text("explore.privateProfile.message"),
+                dismissButton: .default(Text("common.ok"))
             )
         }
     }

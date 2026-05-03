@@ -166,7 +166,7 @@ struct SettingsView: View {
                         }
                         self.showReadReceipts = user.showReadReceipts
                     case .failure(let error):
-                        self.showError(message: "Error al cargar configuración: \(error.localizedDescription)")
+                        self.showError(message: String(format: NSLocalizedString("settings.error.load", comment: "Settings load error"), error.localizedDescription))
                     }
                     self.isLoading = false
                 }
@@ -923,7 +923,7 @@ struct ProfileSection: View {
                     // Badges inline
                     if let currentUser = authService.currentUser {
                         if currentUser.isPlusSubscriber {
-                            Text("PRO")
+                            Text(NSLocalizedString("common.pro", comment: "PRO badge"))
                                 .font(.custom("Poppins-Bold", size: 10))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 8)
@@ -1311,10 +1311,10 @@ struct SecuritySection: View {
                 .padding(.horizontal, 16)
                 .background(.ultraThinMaterial.opacity(0.3))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .alert("Error", isPresented: $showAlert) {
-                    Button("OK", role: .cancel) {}
+                .alert("common.error", isPresented: $showAlert) {
+                    Button("common.ok", role: .cancel) {}
                 } message: {
-                    Text(errorMessage ?? "Error desconocido")
+                    Text(errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error"))
                 }
             } else {
                 HStack {
@@ -1505,14 +1505,14 @@ struct LogoutSection: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .alert("¿Cerrar sesión?", isPresented: $showLogoutAlert) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Cerrar sesión", role: .destructive) {
+        .alert("settings.logout.alert.title", isPresented: $showLogoutAlert) {
+            Button("settings.logout.alert.cancel", role: .cancel) {}
+            Button("settings.logout.alert.confirm", role: .destructive) {
                 authService.logout()
                 dismiss()
             }
         } message: {
-            Text(NSLocalizedString("settings.logout.confirm", comment: "Logout confirm"))
+            Text("settings.logout.alert.message")
         }
     }
 }

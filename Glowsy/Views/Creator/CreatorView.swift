@@ -4407,7 +4407,7 @@ struct UserSearchView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
                     
-                    TextField("Buscar usuarios...", text: $searchText)
+                    TextField(NSLocalizedString("creator.tag.search", comment: ""), text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
                         .foregroundColor(.white)
                         .onChange(of: searchText) { _, newValue in
@@ -4473,11 +4473,11 @@ struct UserSearchView: View {
                 Spacer()
             }
             .background(Color.black)
-            .navigationTitle("Etiquetar personas")
+            .navigationTitle("creator.tagPeople")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button("common.cancel") {
                         dismiss()
                     }
                     .foregroundColor(.white)
@@ -4643,7 +4643,7 @@ struct LocationPickerView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(adaptiveColors.secondary)
                     
-                    TextField("Buscar ubicación...", text: $searchText)
+                    TextField(NSLocalizedString("creator.location.search", comment: ""), text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
                         .foregroundColor(adaptiveColors.primary)
                         .onSubmit {
@@ -4702,7 +4702,7 @@ struct LocationPickerView: View {
                         }) {
                             HStack {
                                 Image(systemName: "arrow.clockwise")
-                                Text("Actualizar")
+                                Text("common.update")
                             }
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
@@ -4771,7 +4771,7 @@ struct LocationPickerView: View {
                     endPoint: .bottomTrailing
                 )
             )
-            .navigationTitle("Añadir ubicación")
+            .navigationTitle("creator.addLocation")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -4819,7 +4819,7 @@ struct LocationPickerView: View {
         }
         .onReceive(locationManager.$authorizationStatus) { status in
             if status == .denied || status == .restricted {
-                locationError = "Permisos de ubicación denegados. Ve a Ajustes > Privacidad > Ubicación"
+                locationError = NSLocalizedString("creator.location.permissionDenied", comment: "")
                 isRequestingLocation = false
             }
         }
@@ -4948,7 +4948,7 @@ struct LocationPickerView: View {
         case .notDetermined:
             locationManager.requestLocationPermission()
         case .denied, .restricted:
-            locationError = "Permisos de ubicación denegados. Ve a Ajustes > Privacidad > Ubicación"
+            locationError = NSLocalizedString("creator.location.permissionDenied", comment: "")
             isRequestingLocation = false
         case .authorizedWhenInUse, .authorizedAlways:
             if let currentLocation = locationManager.currentLocation {
@@ -4967,7 +4967,7 @@ struct LocationPickerView: View {
                 locationManager.requestLocationPermission()
             }
         @unknown default:
-            locationError = "Estado de permisos desconocido"
+            locationError = NSLocalizedString("creator.location.unknownPermissionState", comment: "")
             isRequestingLocation = false
         }
     }
@@ -4982,7 +4982,7 @@ struct LocationPickerView: View {
                     // Generar nombre limpio y conciso (estilo nativo)
                     self.locationName = self.generateCleanLocationName(from: placemark)
                 } else {
-                    self.locationName = "Ubicación actual"
+                    self.locationName = NSLocalizedString("creator.location.current", comment: "")
                 }
             }
         }
@@ -5015,7 +5015,7 @@ struct LocationPickerView: View {
             return administrativeArea
         }
         
-        return "Ubicación actual"
+        return NSLocalizedString("creator.location.current", comment: "")
     }
     
     private func updateCurrentLocationAndNearbyPlaces() {
@@ -5047,7 +5047,7 @@ struct LocationPickerView: View {
     
     private func selectLocation(_ place: MKMapItem) {
         selectedLocation = place.placemark.coordinate
-        locationName = place.name ?? "Ubicación seleccionada"
+        locationName = place.name ?? NSLocalizedString("creator.location.selected", comment: "")
         
         withAnimation {
             region.center = place.placemark.coordinate
@@ -5268,8 +5268,8 @@ struct StoryGalleryPicker: View {
                     }
                 )
             }
-            .alert("Video muy largo", isPresented: $showingVideoLengthAlert) {
-                Button("Entendido") {
+            .alert("creator.video.length.title", isPresented: $showingVideoLengthAlert) {
+                Button("common.understood") {
                     showingVideoLengthAlert = false
                 }
             } message: {
@@ -5346,7 +5346,7 @@ struct StoryGalleryPicker: View {
                     .clipShape(Capsule())
                 }
                 
-                Button("Cerrar") {
+                Button("common.close") {
                     dismiss()
                 }
                 .font(.custom("Poppins-Medium", size: 14))

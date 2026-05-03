@@ -1261,8 +1261,8 @@ struct EnhancedGeminiHeader: View {
             .onTapGesture {
                 handleLogoTap()
             }
-            .alert("🎉 ¡Easter Egg Desbloqueado!", isPresented: $showDeveloperEasterEgg) {
-                Button("🚀 ¡Increíble!") {
+            .alert("nova.easterEgg.title", isPresented: $showDeveloperEasterEgg) {
+                Button("nova.easterEgg.primaryButton") {
                     resetEasterEgg()
                 }
                 Button(NSLocalizedString("nova.easterEgg.thanksButton", comment: "Thank you Álvaro button")) {

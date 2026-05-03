@@ -549,13 +549,13 @@ struct ReelVideoView: View {
         .sheet(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(storiesUserId))
         }
-        .alert("Eliminar momento", isPresented: $showDeleteAlert) {
-            Button("Eliminar", role: .destructive) {
+        .alert("reels.delete.title", isPresented: $showDeleteAlert) {
+            Button("common.delete", role: .destructive) {
                 deleteMoment()
             }
-            Button("Cancelar", role: .cancel) { }
+            Button("common.cancel", role: .cancel) { }
         } message: {
-            Text("¿Estás seguro de que quieres eliminar este momento? Esta acción no se puede deshacer.")
+            Text("reels.delete.message")
         }
         .onAppear {
             if isCurrentVideo {

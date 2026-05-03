@@ -594,7 +594,7 @@ struct ModernShareSheet: View {
                                 Image(systemName: "star.slash")
                                     .font(.system(size: 40))
                                     .foregroundColor(.secondary)
-                                Text("No hay favoritos")
+                                Text("share.favorites.empty")
                                     .font(.custom("Poppins-Medium", size: 16))
                                     .foregroundColor(.secondary)
                             }
@@ -935,7 +935,7 @@ struct AddToStoryView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     
-                    Button("Cancelar") {
+                    Button("share.cancel") {
                         dismiss()
                     }
                     .padding()
@@ -1319,7 +1319,7 @@ struct MomentPreviewCard: View {
                      HStack(spacing: 4) {
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: 12))
-                        Text("Video")
+                        Text("share.video")
                             .font(.custom("Poppins-Medium", size: 11))
                      }
                      .foregroundColor(.white.opacity(0.9))
