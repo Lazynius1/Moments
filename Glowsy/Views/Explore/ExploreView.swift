@@ -170,6 +170,8 @@ struct ExploreView: View {
             }
             .sheet(item: $selectedMoment) { moment in
                 MomentDetailView(moment: moment)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .fullScreenCover(isPresented: $showTrendingView) {
                 TrendingView()

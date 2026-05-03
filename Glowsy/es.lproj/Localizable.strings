@@ -1048,7 +1048,6 @@
 "contentVisibility.viewOnlyMode" = "Modo solo visualización";
 "contentVisibility.viewOnlyMode.description" = "Los usuarios solo pueden ver tu contenido, sin interacciones";
 "contentVisibility.interactionsConfig.title" = "Configurar interacciones";
-"contentVisibility.interactionsConfig.description" = "Personaliza cómo pueden interactuar los usuarios con tus historias";
 "contentVisibility.info.title" = "Información";
 "contentVisibility.info.description" = "Estas configuraciones se aplican a todo tu contenido";
 "contentVisibility.interactions.allAllowed" = "Todas las interacciones permitidas";
@@ -1458,6 +1457,7 @@
 "savedMoments.filter.collection.multiple" = "Carousel";
 "savedMoments.empty.filtered.title" = "No hay resultados con estos filtros";
 "savedMoments.empty.filtered.description" = "Prueba quitando filtros o limpiando la busqueda.";
+"savedMoments.clearFilters" = "Limpiar filtros";
 "savedMoments.selection.count" = "%d seleccionados";
 "savedMoments.selection.remove.title" = "Eliminar seleccionados";
 "savedMoments.selection.remove.message" = "Se eliminaran %d elementos de guardados.";
@@ -1467,12 +1467,15 @@
 "contentVisibility.interactions.title" = "Configuración de interacciones";
 "contentVisibility.hideFrom" = "Ocultar mi contenido de";
 "contentVisibility.hiddenCount" = "%d personas no pueden ver tu contenido";
+"contentVisibility.hiddenUsers.section" = "Oculto de estas personas";
+"contentVisibility.searchResults.section" = "Resultados de búsqueda";
 "contentVisibility.additionalRestrictions" = "Restricciones adicionales";
 "contentVisibility.manageCustomLists" = "Gestionar listas personalizadas";
 "contentVisibility.createEditAudience" = "Crear y editar listas de audiencia";
 "contentVisibility.audienceLists" = "Listas de audiencia";
 "contentVisibility.interactionsConfig.title" = "Configuración de Interacciones";
-"contentVisibility.interactionsConfig.description" = "Controla qué tipo de interacciones pueden hacer otros usuarios en tus historias. Esta configuración se aplicará a todas tus historias futuras.";
+"contentVisibility.interactionsConfig.description" = "Personaliza qué tipo de interacciones pueden hacer otros usuarios en tus historias.";
+"contentVisibility.interactionsConfig.subtitle" = "Esta configuración se aplicará a todas tus historias actuales y futuras.";
 "contentVisibility.viewOnlyMode" = "Modo solo visualización";
 "contentVisibility.viewOnlyMode.description" = "Los usuarios solo podrán ver tus historias, sin poder interactuar";
 "contentVisibility.cancel" = "Cancelar";
@@ -2789,6 +2792,8 @@
 "echo.info.how.body" = "Echo detecta momentos de mutuals en la misma zona (hasta 500 m) y en la misma ventana de tiempo (24 h). Cuando se activa, puedes navegar entre perspectivas (barra inferior) y entre momentos (arriba/abajo).";
 "echo.info.privacy.title" = "Privacidad";
 "echo.info.privacy.body" = "Echo se crea entre mutuals, pero conserva quién podía verlo en ese momento. Si después cambia la relación, se sigue viendo; solo se difumina si la audiencia del momento (best friends o lista personalizada) no te incluye. Además, dentro del Echo ves tus momentos y los de quienes hayan aceptado.";
+"echo.info.status.title" = "Estados";
+"echo.info.status.body" = "Activo significa que el Echo sigue abierto y que otras personas todavía pueden unirse durante su ventana de 24 horas. Expirado significa que ese plazo ha terminado y que el Echo se cierra, así que nadie más puede unirse.";
 "echo.info.controls.title" = "Controles";
 "echo.info.controls.body" = "Desliza arriba/abajo para cambiar de momento, usa la barra inferior para cambiar de perspectiva y el menú para salir del Echo. No puedes salir mientras el Echo esté activo: se desbloquea cuando termina su ventana de 24 h. Si sales, tus momentos se quitan de ese Echo.";
 

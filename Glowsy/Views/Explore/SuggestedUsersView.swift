@@ -37,7 +37,7 @@ struct SuggestedUsersView: View {
                 .font(.custom("Poppins-SemiBold", size: 20))
                 .foregroundColor(.primary)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 12)
         .padding(.top, 20)
         .padding(.bottom, 16)
     }
@@ -107,7 +107,7 @@ struct SuggestedUsersView: View {
                             .padding(.vertical, 20)
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 12)
                     .padding(.bottom, 20)
                 }
                 .refreshable {

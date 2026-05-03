@@ -4,6 +4,7 @@ import FirebaseFirestore
 import FirebaseAuth
 import MapKit
 import CoreLocation
+import UIKit
 
 struct EchoViewerUI: View {
     let echoId: String
@@ -14,11 +15,18 @@ struct EchoViewerUI: View {
     @State private var dragOffset: CGFloat = 0
     @State private var showLockoutAlert = false // ✅ NUEVO
     @State private var selectedLocationPresentation: EchoLocationPresentation?
+    @State private var overlayTextTone = OverlayTextTone(topUsesDarkForeground: false, bottomUsesDarkForeground: false)
+    @State private var overlayTextToneCache: [String: OverlayTextTone] = [:]
     
     private struct EchoLocationPresentation: Identifiable {
         let id: String
         let locationName: String
         let coordinate: CLLocationCoordinate2D
+    }
+
+    private struct OverlayTextTone: Equatable {
+        let topUsesDarkForeground: Bool
+        let bottomUsesDarkForeground: Bool
     }
     
     init(echoId: String, initialEcho: Echo? = nil) {
@@ -108,6 +116,9 @@ struct EchoViewerUI: View {
             }
         }
         .onAppear { viewModel.loadEcho() }
+        .onChange(of: currentToneAssetKey) { _ in
+            refreshOverlayTextTone()
+        }
         .fullScreenCover(item: $selectedLocationPresentation) { presentation in
             LocationMapView(
                 locationName: presentation.locationName,
@@ -245,23 +256,23 @@ struct EchoViewerUI: View {
     }
     
     private func headerUI() -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             if !viewModel.groupedPerspectives.isEmpty {
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     ForEach(0..<viewModel.groupedPerspectives.count, id: \.self) { index in
                         Capsule()
-                            .fill(index < viewModel.currentPerspectiveIndex ? Color.white : Color.white.opacity(0.28))
-                            .frame(height: 2.8)
+                            .fill(index < viewModel.currentPerspectiveIndex ? topPrimaryTextColor.opacity(0.46) : topPrimaryTextColor.opacity(0.18))
+                            .frame(height: 2.2)
                             .overlay(alignment: .leading) {
                                 if index == viewModel.currentPerspectiveIndex {
                                     Capsule()
-                                        .fill(Color.white)
+                                        .fill(topPrimaryTextColor)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                     }
                 }
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .animation(.easeInOut(duration: 0.18), value: viewModel.currentPerspectiveIndex)
             }
             
@@ -272,20 +283,19 @@ struct EchoViewerUI: View {
                         AsyncProfileImageView(userId: p.authorId)
                             .frame(width: 36, height: 36)
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
+                            .overlay(Circle().stroke(topPrimaryTextColor.opacity(0.28), lineWidth: 1))
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(p.username)
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(topPrimaryTextColor)
                                 .lineLimit(1)
                             Text(relativeTimeText(from: viewModel.currentMoment?.timestamp))
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.white.opacity(0.72))
+                                .foregroundStyle(topSecondaryTextColor)
                         }
                     }
                 }
-                .padding(.leading, 2)
                 
                 Spacer()
                 
@@ -298,19 +308,17 @@ struct EchoViewerUI: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(topPrimaryTextColor)
                         .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
                 
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(topPrimaryTextColor)
                         .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
             }
             .padding(.horizontal, 16)
@@ -328,20 +336,12 @@ struct EchoViewerUI: View {
                     VStack(spacing: 6) {
                         ForEach(0..<moments.count, id: \.self) { index in
                             Capsule()
-                                .fill(index == viewModel.currentVerticalIndex ? Color.orange : Color.white.opacity(0.4))
-                                .frame(width: 4, height: index == viewModel.currentVerticalIndex ? 24 : 12)
-                                .overlay(
-                                    Capsule()
-                                        .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                                )
+                                .fill(index == viewModel.currentVerticalIndex ? Color.white.opacity(0.92) : Color.white.opacity(0.28))
+                                .frame(width: index == viewModel.currentVerticalIndex ? 4 : 3, height: index == viewModel.currentVerticalIndex ? 20 : 10)
                         }
                     }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 6)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
                     .padding(.trailing, 16)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.currentVerticalIndex)
+                    .animation(.easeInOut(duration: 0.18), value: viewModel.currentVerticalIndex)
                 }
             }
         }
@@ -351,23 +351,28 @@ struct EchoViewerUI: View {
         Button {
             openInAppMap(for: echo)
         } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(.orange.opacity(0.15)).frame(width: 32, height: 32)
-                    Image(systemName: "mappin.and.ellipse").font(.system(size: 14, weight: .bold)).foregroundColor(.orange)
-                }
+            HStack(spacing: 10) {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(topPrimaryTextColor.opacity(0.88))
+
                 VStack(alignment: .leading, spacing: 1) {
                     Text(echo.locationName ?? NSLocalizedString("echo.viewer.location.fallback", comment: ""))
-                        .font(.system(size: 15, weight: .bold)).foregroundColor(.white)
-                    Text(String(format: NSLocalizedString("echo.viewer.location.header", comment: ""), echo.createdAt.formatted(date: .omitted, time: .shortened)) + " • " + NSLocalizedString("echo.viewer.location.viewMaps", comment: ""))
-                        .font(.system(size: 11, weight: .medium)).foregroundColor(.white.opacity(0.7))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(topPrimaryTextColor)
+                        .lineLimit(1)
+                    Text(echo.createdAt.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(topSecondaryTextColor)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold)).foregroundColor(.white.opacity(0.3))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(topPrimaryTextColor.opacity(0.34))
             }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .liquidGlass(in: Capsule(), interactive: true)
         }
         .buttonStyle(ScaleButtonStyle())
         .padding(.horizontal, 16).padding(.top, 10)
@@ -382,18 +387,9 @@ struct EchoViewerUI: View {
     }
     
     private func perspectiveSwitcher(echo: Echo) -> some View {
-        VStack(spacing: 12) {
-            Text(NSLocalizedString("echo.viewer.perspective.change", comment: ""))
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white.opacity(0.9))
-                .textCase(.uppercase)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
-            
+        VStack(spacing: 0) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                HStack(spacing: 14) {
                     ForEach(0..<viewModel.groupedPerspectives.count, id: \.self) { index in
                         let p = viewModel.groupedPerspectives[index]
                         Button {
@@ -402,46 +398,43 @@ struct EchoViewerUI: View {
                             viewModel.switchPerspective(to: index)
                         } label: {
                             VStack(spacing: 6) {
-                                ZStack(alignment: .trailing) {
-                                    AsyncProfileImageView(userId: p.authorId)
-                                        .frame(width: 52, height: 52)
-                                        .clipShape(Circle())
-                                        .overlay(Circle().stroke(viewModel.currentPerspectiveIndex == index ? Color.white : Color.white.opacity(0.22), lineWidth: viewModel.currentPerspectiveIndex == index ? 2.2 : 1))
-                                        .shadow(color: viewModel.currentPerspectiveIndex == index ? .white.opacity(0.35) : .clear, radius: 8)
-                                        .scaleEffect(viewModel.currentPerspectiveIndex == index ? 1.04 : 1.0)
-                                        .animation(.easeOut(duration: 0.18), value: viewModel.currentPerspectiveIndex)
-                                    
-                                    // Comentado para usar el lateral indicador, o dejarlo como "pista" visual sutil
-                                    /*
-                                    if p.moments.count > 1 {
-                                        VStack(spacing: 2) {
-                                            ForEach(0..<p.moments.count, id: \.self) { vIndex in
-                                                Capsule()
-                                                    .fill(index == viewModel.currentPerspectiveIndex && vIndex == viewModel.currentVerticalIndex ? Color.orange : Color.white)
-                                                    .frame(width: 3, height: 6)
-                                            }
-                                        }
-                                        .padding(.trailing, -6)
-                                    }
-                                    */
-                                }
+                                AsyncProfileImageView(userId: p.authorId)
+                                    .frame(width: 48, height: 48)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(
+                                                viewModel.currentPerspectiveIndex == index ? Color.white.opacity(0.95) : Color.white.opacity(0.22),
+                                                lineWidth: viewModel.currentPerspectiveIndex == index ? 2 : 1
+                                            )
+                                    )
+                                    .shadow(
+                                        color: viewModel.currentPerspectiveIndex == index ? Color.white.opacity(0.18) : .clear,
+                                        radius: 8
+                                    )
+                                    .scaleEffect(viewModel.currentPerspectiveIndex == index ? 1.03 : 1.0)
+                                    .animation(.easeOut(duration: 0.18), value: viewModel.currentPerspectiveIndex)
                                 
                                 Text(p.username)
                                     .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(viewModel.currentPerspectiveIndex == index ? .white : .white.opacity(0.66))
+                                    .foregroundStyle(
+                                        viewModel.currentPerspectiveIndex == index
+                                            ? bottomPrimaryTextColor
+                                            : bottomSecondaryTextColor
+                                    )
                                     .lineLimit(1)
-                                    .frame(maxWidth: 72)
+                                    .frame(maxWidth: 70)
                             }
                         }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 8)
+                .padding(.vertical, 6)
             }
             .scrollClipDisabled()
         }
-        .padding(.top, 18)
-        .padding(.bottom, 14)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity)
     }
 
@@ -481,7 +474,6 @@ struct EchoViewerUI: View {
         }
     }
     
-    // ✅ NUEVO: Diseño minimalista con ultraThinMaterial
     private var glassAlertView: some View {
         ZStack {
             Color.black.opacity(0.4)
@@ -490,16 +482,12 @@ struct EchoViewerUI: View {
                     withAnimation { showLockoutAlert = false }
                 }
             
-            VStack(spacing: 20) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 30))
-                    .foregroundColor(.white.opacity(0.8))
-                
+            VStack(spacing: 18) {
                 Text(NSLocalizedString("echo.leave.locked", comment: ""))
                     .font(.custom("Poppins-Medium", size: 16))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 4)
                 
                 Button(action: {
                     withAnimation { showLockoutAlert = false }
@@ -508,17 +496,23 @@ struct EchoViewerUI: View {
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(.white.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.vertical, 11)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.22))
+                        )
+                        .liquidGlass(in: Capsule(), interactive: true)
                 }
             }
-            .padding(24)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            .padding(22)
+            .frame(maxWidth: 300)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.black.opacity(0.24))
+                    .overlay {
+                        Color.clear
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    }
             )
             .padding(.horizontal, 40)
             .transition(.scale.combined(with: .opacity))
@@ -538,6 +532,124 @@ struct EchoViewerUI: View {
             latitude: echo.location.latitude,
             longitude: echo.location.longitude
         )
+        )
+    }
+
+    private var currentToneAssetKey: String? {
+        guard let moment = viewModel.currentMoment else { return nil }
+        if let thumbnailUrl = moment.thumbnailUrl, !thumbnailUrl.isEmpty {
+            return thumbnailUrl
+        }
+        if moment.mediaType == "image" {
+            return moment.mediaUrl
+        }
+        return nil
+    }
+
+    private var topPrimaryTextColor: Color {
+        overlayTextTone.topUsesDarkForeground ? .black : .white
+    }
+
+    private var topSecondaryTextColor: Color {
+        overlayTextTone.topUsesDarkForeground ? .black.opacity(0.66) : .white.opacity(0.72)
+    }
+
+    private var bottomPrimaryTextColor: Color {
+        overlayTextTone.bottomUsesDarkForeground ? .black : .white
+    }
+
+    private var bottomSecondaryTextColor: Color {
+        overlayTextTone.bottomUsesDarkForeground ? .black.opacity(0.66) : .white.opacity(0.66)
+    }
+
+    private func refreshOverlayTextTone() {
+        guard let key = currentToneAssetKey else {
+            overlayTextTone = OverlayTextTone(topUsesDarkForeground: false, bottomUsesDarkForeground: false)
+            return
+        }
+
+        if let cachedTone = overlayTextToneCache[key] {
+            overlayTextTone = cachedTone
+            return
+        }
+
+        guard let url = URL(string: key) else {
+            overlayTextTone = OverlayTextTone(topUsesDarkForeground: false, bottomUsesDarkForeground: false)
+            return
+        }
+
+        KingfisherManager.shared.retrieveImage(with: url) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let value):
+                    let tone = Self.computeOverlayTextTone(from: value.image)
+                    overlayTextToneCache[key] = tone
+                    if currentToneAssetKey == key {
+                        overlayTextTone = tone
+                    }
+                case .failure:
+                    let fallbackTone = OverlayTextTone(topUsesDarkForeground: false, bottomUsesDarkForeground: false)
+                    overlayTextToneCache[key] = fallbackTone
+                    if currentToneAssetKey == key {
+                        overlayTextTone = fallbackTone
+                    }
+                }
+            }
+        }
+    }
+
+    private static func computeOverlayTextTone(from image: UIImage) -> OverlayTextTone {
+        guard let cgImage = image.cgImage else {
+            return OverlayTextTone(topUsesDarkForeground: false, bottomUsesDarkForeground: false)
+        }
+
+        let width = 24
+        let height = 24
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        let bitsPerComponent = 8
+        var rawData = [UInt8](repeating: 0, count: width * height * bytesPerPixel)
+
+        guard let context = CGContext(
+            data: &rawData,
+            width: width,
+            height: height,
+            bitsPerComponent: bitsPerComponent,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return OverlayTextTone(topUsesDarkForeground: false, bottomUsesDarkForeground: false)
+        }
+
+        context.interpolationQuality = .low
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        func averageLuminance(rows: Range<Int>) -> CGFloat {
+            var luminanceSum: CGFloat = 0
+            var sampleCount: CGFloat = 0
+
+            for y in rows {
+                for x in 0..<width {
+                    let index = (y * width + x) * bytesPerPixel
+                    let red = CGFloat(rawData[index]) / 255
+                    let green = CGFloat(rawData[index + 1]) / 255
+                    let blue = CGFloat(rawData[index + 2]) / 255
+                    luminanceSum += (0.299 * red) + (0.587 * green) + (0.114 * blue)
+                    sampleCount += 1
+                }
+            }
+
+            guard sampleCount > 0 else { return 0 }
+            return luminanceSum / sampleCount
+        }
+
+        let topLuminance = averageLuminance(rows: 0..<8)
+        let bottomLuminance = averageLuminance(rows: 16..<24)
+
+        return OverlayTextTone(
+            topUsesDarkForeground: topLuminance > 0.62,
+            bottomUsesDarkForeground: bottomLuminance > 0.62
         )
     }
 }

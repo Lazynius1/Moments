@@ -485,17 +485,13 @@ struct CreatorView: View {
         
         // ✅ Inicialización de estado sincronizada
         if initialSticker != nil || initialMedia != nil {
-            print("🏗 CreatorView INIT - Has Sticker or Media")
             _contentType = State(initialValue: .story)
             _currentFlow = State(initialValue: .storyEditing)
             _responseSticker = State(initialValue: initialSticker)
             _selectedMediaItems = State(initialValue: initialMedia ?? [])
         } else if openInStoryMode {
-            print("🏗 CreatorView INIT - Store Mode (No Sticker)")
             _contentType = State(initialValue: .story)
             _currentFlow = State(initialValue: .storyCamera)
-        } else {
-            print("🏗 CreatorView INIT - Default Mode")
         }
     }
     @State private var selectedMediaItems: [CreatorMedia] = []
@@ -611,7 +607,6 @@ struct CreatorView: View {
             }
         }
         .onAppear {
-            print("🏗 CreatorView onAppear - CurrentFlow: \(currentFlow), Sticker: \(String(describing: initialSticker))")
             setupResponseStickerListener()
             setupContinueChainListener()
             
@@ -822,9 +817,15 @@ struct ContentTypeSelectionView: View {
     @State private var shutterScale: CGFloat = 1.0
     @State private var isBreathing: Bool = false // ✅ For collage animation
     @State private var hasCameraPermission: Bool = false
+    @State private var dialTransientOffset: CGFloat = 0
     
     // Constants
     private let dialModes: [CreatorView.ContentType] = [.moment, .story]
+    private let dialControlWidth: CGFloat = 170
+    private let dialControlHeight: CGFloat = 44
+    private let dialInnerPadding: CGFloat = 4
+    private let dialPillWidth: CGFloat = 84
+    private let dialPillHeight: CGFloat = 36
     
     var body: some View {
         ZStack {
@@ -840,7 +841,7 @@ struct ContentTypeSelectionView: View {
                 
                 // Center Shutter/Trigger
                 shutterButton
-                    .padding(.bottom, 60)
+                    .padding(.bottom, 28)
                 
                 // Bottom Dial Selector
                 dialSelector
@@ -1052,49 +1053,113 @@ struct ContentTypeSelectionView: View {
     }
     
     private var dialSelector: some View {
-        HStack(spacing: 30) {
-            ForEach(dialModes, id: \.self) { mode in
-                Button(action: {
-                    switchMode(to: mode)
-                }) {
-                    Text(titleFor(mode).uppercased())
-                        .font(.system(size: selectedMode == mode ? 16 : 14, weight: selectedMode == mode ? .bold : .medium))
-                        .foregroundColor(selectedMode == mode ? .white : .white.opacity(0.5))
-                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                        .padding(.vertical, 8)
-                        .overlay(
-                            // Indicator Dot
-                            Circle()
-                                .fill(.yellow)
-                                .frame(width: 4, height: 4)
-                                .offset(y: 15)
-                                .opacity(selectedMode == mode ? 1.0 : 0.0)
-                        )
+        GeometryReader { proxy in
+            ZStack {
+                Capsule()
+                    .fill(Color.black.opacity(0.3))
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+
+                Capsule()
+                    .fill(Color.white.opacity(0.055))
+                    .frame(width: dialPillWidth, height: dialPillHeight)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                    .shadow(color: .black.opacity(0.26), radius: 7, x: 0, y: 2)
+                    .offset(x: dialPillOffset)
+
+                HStack(spacing: 0) {
+                    ForEach(dialModes, id: \.self) { mode in
+                        Text(titleFor(mode))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(dialLabelColor(for: mode))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
+                .padding(.horizontal, dialInnerPadding)
+                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: dialVisualMode)
+
+                Capsule()
+                    .fill(Color.black.opacity(0.001))
+                    .contentShape(Capsule())
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                            .onChanged { value in
+                                var transaction = Transaction()
+                                transaction.animation = nil
+                                withTransaction(transaction) {
+                                    dialTransientOffset = constrainedDialTranslation(value.translation.width)
+                                }
+                            }
+                            .onEnded { value in
+                                settleDial(
+                                    translation: value.translation.width,
+                                    locationX: value.location.x,
+                                    width: proxy.size.width
+                                )
+                            }
+                    )
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 12)
-        .background(Color.black.opacity(0.3)) // Subtle pill background
-        .clipShape(Capsule())
+        .frame(width: dialControlWidth, height: dialControlHeight)
     }
-    
+
+    private var dialTravel: CGFloat {
+        ((dialControlWidth - (dialInnerPadding * 2)) - dialPillWidth) / 2
+    }
+
+    private var dialBaseOffset: CGFloat {
+        selectedMode == .moment ? -dialTravel : dialTravel
+    }
+
+    private var dialPillOffset: CGFloat {
+        dialBaseOffset + dialTransientOffset
+    }
+
+    private var dialVisualMode: CreatorView.ContentType {
+        dialPillOffset <= 0 ? .moment : .story
+    }
+
+    private func dialLabelColor(for mode: CreatorView.ContentType) -> Color {
+        let isActive = dialVisualMode == mode
+        return isActive ? .white.opacity(0.96) : .white.opacity(0.58)
+    }
+
+    private func constrainedDialTranslation(_ translation: CGFloat) -> CGFloat {
+        let proposedOffset = dialBaseOffset + translation
+        let clampedOffset = min(max(proposedOffset, -dialTravel), dialTravel)
+        return clampedOffset - dialBaseOffset
+    }
+
+    private func settleDial(translation: CGFloat, locationX: CGFloat, width: CGFloat) {
+        let threshold = min(width * 0.16, dialTravel * 0.7)
+        let targetMode: CreatorView.ContentType
+
+        if translation < -threshold {
+            targetMode = .moment
+        } else if translation > threshold {
+            targetMode = .story
+        } else {
+            targetMode = locationX < width / 2 ? .moment : .story
+        }
+
+        if targetMode != selectedMode {
+            HapticManager.shared.selection()
+        }
+
+        withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+            selectedMode = targetMode
+            dialTransientOffset = 0
+        }
+    }
+
     // MARK: - Logic
-    
+
     private func titleFor(_ mode: CreatorView.ContentType) -> String {
         switch mode {
         case .moment: return NSLocalizedString("creator.moment.title", comment: "Moment")
         case .story: return NSLocalizedString("creator.story.title", comment: "Story")
-        }
-    }
-    
-    private func switchMode(to mode: CreatorView.ContentType) {
-        if selectedMode != mode {
-            let generator = UISelectionFeedbackGenerator()
-            generator.selectionChanged()
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                selectedMode = mode
-            }
         }
     }
     

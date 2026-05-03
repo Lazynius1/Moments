@@ -8,78 +8,106 @@ struct BlockedUsersView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                    .ignoresSafeArea()
+        ZStack {
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                .ignoresSafeArea()
 
+            VStack(spacing: 16) {
+                header
+                
                 if viewModel.isLoading {
-                    ProgressView("Cargando usuarios bloqueados...")
+                    ProgressView(NSLocalizedString("common.searching", comment: "Searching"))
                         .progressViewStyle(CircularProgressViewStyle())
                         .font(.custom("Poppins-Regular", size: 16))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if viewModel.blockedUsers.isEmpty {
-                    VStack {
+                    VStack(spacing: 12) {
                         Image(systemName: "hand.raised.slash")
-                            .resizable()
-                            .frame(width: 50, height: 50)
-                            .foregroundColor(.gray)
-                        Text("blockedUsers.empty")
+                            .font(.system(size: 44, weight: .regular))
+                            .foregroundColor(.secondary)
+                        Text(NSLocalizedString("blockedUsers.empty", comment: "No blocked users"))
                             .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.gray)
-                        Spacer()
+                            .foregroundColor(.secondary)
                     }
-                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 24)
                 } else {
-                    List(viewModel.blockedUsers, id: \.id) { user in
-                        HStack {
-                            Text(user.username)
-                                .font(.custom("Poppins-Regular", size: 14))
-                                .foregroundColor(.black)
-                            Spacer()
-                            Button(action: {
-                                viewModel.unblockUser(userId: user.id)
-                            }) {
-                                Text("blockedUsers.unblock")
-                                    .font(.custom("Poppins-Regular", size: 12))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.blue)
-                                    .clipShape(Capsule())
+                    ScrollView {
+                        LazyVStack(spacing: 10) {
+                            ForEach(viewModel.blockedUsers, id: \.id) { user in
+                                HStack(spacing: 12) {
+                                    Text(user.username)
+                                        .font(.custom("Poppins-Regular", size: 15))
+                                        .foregroundColor(.primary)
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        viewModel.unblockUser(userId: user.id)
+                                    }) {
+                                        Text(NSLocalizedString("blockedUsers.unblock", comment: "Unblock"))
+                                            .font(.custom("Poppins-Medium", size: 13))
+                                            .foregroundColor(.primary)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 8)
+                                            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
                             }
                         }
-                        .padding(.vertical, 5)
-                    }
-                    .scrollContentBackground(.hidden)
-                    .listRowBackground(Color.clear)
-                }
-            }
-            .navigationTitle(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 44, height: 44)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 20)
                     }
                 }
             }
-            .onAppear {
-                if !hasFetchedBlockedUsers {
-                    viewModel.fetchBlockedUsers()
-                    hasFetchedBlockedUsers = true
-                }
-            }
-            .alert(isPresented: $viewModel.showError) {
-                Alert(
-                    title: Text(NSLocalizedString("blockedUsers.error.title", comment: "Error")),
-                    message: Text(viewModel.errorMessage ?? NSLocalizedString("blockedUsers.unknownError", comment: "Unknown error occurred")),
-                    dismissButton: .default(Text(NSLocalizedString("blockedUsers.ok", comment: "OK")))
-                )
+            .padding(.top, 8)
+        }
+        .onAppear {
+            if !hasFetchedBlockedUsers {
+                viewModel.fetchBlockedUsers()
+                hasFetchedBlockedUsers = true
             }
         }
+        .alert(isPresented: $viewModel.showError) {
+            Alert(
+                title: Text(NSLocalizedString("blockedUsers.error.title", comment: "Error")),
+                message: Text(viewModel.errorMessage ?? NSLocalizedString("blockedUsers.unknownError", comment: "Unknown error occurred")),
+                dismissButton: .default(Text(NSLocalizedString("blockedUsers.ok", comment: "OK")))
+            )
+        }
+    }
+    
+    private var header: some View {
+        HStack(spacing: 12) {
+            Button(action: { dismiss() }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 38, height: 38)
+                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+            }
+            
+            Spacer()
+            
+            VStack(spacing: 2) {
+                Text(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
+                    .font(.custom("Poppins-SemiBold", size: 22))
+                    .foregroundColor(.primary)
+                Text(String(format: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count"), viewModel.blockedUsers.count))
+                    .font(.custom("Poppins-Medium", size: 13))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Color.clear
+                .frame(width: 38, height: 38)
+        }
+        .padding(.horizontal, 14)
     }
 }
 

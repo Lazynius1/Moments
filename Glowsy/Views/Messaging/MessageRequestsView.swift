@@ -18,57 +18,14 @@ struct MessageRequestsView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background adaptativo como MessagingView
-                if colorScheme == .dark {
-                    // Negro elegante y sofisticado - más suave
-                    Color(hex: "1A1A1A")
-                        .ignoresSafeArea()
-                } else {
-                    // Modo claro: mantener el diseño original
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .ignoresSafeArea()
-                    
-                    // Floating blobs for depth
-                    GeometryReader { geometry in
-                        Circle()
-                            .fill(Color(hex: "007AFF").opacity(0.4))
-                            .frame(width: 300, height: 300)
-                            .blur(radius: 100)
-                            .offset(x: -100, y: -100)
-                        
-                        Circle()
-                            .fill(Color(hex: "02C39A").opacity(0.35))
-                            .frame(width: 250, height: 250)
-                            .blur(radius: 80)
-                            .offset(x: geometry.size.width - 150, y: 200)
-                        
-                        Circle()
-                            .fill(Color(hex: "F0F3BD").opacity(0.4))
-                            .frame(width: 200, height: 200)
-                            .blur(radius: 60)
-                            .offset(x: 50, y: geometry.size.height - 200)
-                    }
-                }
-                
-                VStack(spacing: 0) {
-                    // Header
-                    headerView
-                    
-                    // Content
-                    if messageRequestService.pendingRequests.isEmpty {
-                        emptyStateView
-                    } else {
-                        requestsListView
-                    }
-                }
+        VStack(spacing: 0) {
+            headerView
+            
+            if messageRequestService.pendingRequests.isEmpty {
+                emptyStateView
+            } else {
+                requestsListView
             }
-            .navigationBarHidden(true)
         }
         .onAppear {
             if let userId = Auth.auth().currentUser?.uid {
@@ -109,48 +66,42 @@ struct MessageRequestsView: View {
     
     // MARK: - Header View
     private var headerView: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 8) {
             HStack {
                 Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.title2)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
+                        .frame(width: 38, height: 38)
+                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
                 }
                 
                 Spacer()
                 
                 Text("messageRequests.title")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(.custom("Poppins-SemiBold", size: 22))
                     .foregroundColor(adaptiveColors.primary)
                 
                 Spacer()
                 
-                // Placeholder para mantener centrado el título
-                Image(systemName: "chevron.left")
-                    .font(.title2)
-                    .opacity(0)
+                Color.clear
+                    .frame(width: 38, height: 38)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
+            .padding(.horizontal, 14)
+            .padding(.top, 8)
             
-            // Badge con número de solicitudes
             if !messageRequestService.pendingRequests.isEmpty {
                 HStack {
+                    Spacer()
                     Text(String(format: NSLocalizedString("messageRequests.count", comment: "Request count"), messageRequestService.pendingRequests.count))
-                        .font(.caption)
+                        .font(.custom("Poppins-Medium", size: 12))
                         .foregroundColor(adaptiveColors.secondary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "FF9500").opacity(0.2))
-                        )
-                    
+                        .background(Color.clear.liquidGlass(in: Capsule()))
                     Spacer()
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+                .padding(.horizontal, 14)
             }
         }
         .padding(.bottom, 16)
@@ -237,7 +188,7 @@ struct MessageRequestsView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 14)
             .padding(.bottom, 20)
         }
     }
@@ -266,10 +217,6 @@ struct RequestCardView: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 50, height: 50)
                         .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color(hex: "FF9500"), lineWidth: 2)
-                        )
                 } else {
                     Circle()
                         .fill(adaptiveColors.secondary.opacity(0.1))
@@ -277,10 +224,6 @@ struct RequestCardView: View {
                         .overlay(
                                                     Image(systemName: "person.fill")
                             .foregroundColor(adaptiveColors.secondary)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color(hex: "FF9500"), lineWidth: 2)
                         )
                 }
                 
@@ -309,20 +252,16 @@ struct RequestCardView: View {
                 // Action Button
                 Button(action: onAction) {
                     Image(systemName: "ellipsis")
-                        .font(.title3)
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(adaptiveColors.secondary)
-                        .frame(width: 30, height: 30)
-                        .background(
-                            Circle()
-                                .fill(adaptiveColors.secondary.opacity(0.1))
-                        )
+                        .frame(width: 34, height: 34)
+                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
                 }
             }
             .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(adaptiveColors.cardBackground)
-                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
             )
         }
         .buttonStyle(PlainButtonStyle())
